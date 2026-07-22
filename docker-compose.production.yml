@@ -11,6 +11,12 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - ./docs/12-migration.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+      - ./backend/migrations/20260720_promotions.sql:/docker-entrypoint-initdb.d/002-promotions.sql:ro
+      - ./backend/migrations/20260721_branch_contact_tax.sql:/docker-entrypoint-initdb.d/003-branch_contact_tax.sql:ro
+      - ./backend/migrations/20260721_denim_variant_stock.sql:/docker-entrypoint-initdb.d/004-denim_variant_stock.sql:ro
+      - ./backend/migrations/20260721_product_media.sql:/docker-entrypoint-initdb.d/005-product_media.sql:ro
+      - ./backend/migrations/20260721_sync_existing_variant_colours.sql:/docker-entrypoint-initdb.d/006-sync_variant_colours.sql:ro
+      - ./backend/migrations/20260722_media_files.sql:/docker-entrypoint-initdb.d/007-media_files.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p$${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
