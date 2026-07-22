@@ -252,6 +252,25 @@ router.delete('/:id/media/:mediaId', authorize('owner', 'manager', 'admin'), asy
   } catch (error) { next(error); }
 });
 
+// Simpan urutan foto produk (drag & drop). Body: { order: [mediaId, ...] } — index 0 = foto utama.
+router.patch('/:id/media/reorder', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+  try {
+    const order = Array.isArray(req.body.order) ? req.body.order.map((id) => Number(id)).filter(Number.isInteger) : [];
+    if (!order.length) return res.status(400).json({ success: false, message: 'Urutan media tidak valid' });
+    const [owned] = await db.execute(
+      `SELECT pp.id FROM product_photos pp JOIN products p ON p.id = pp.product_id
+       WHERE pp.product_id = ? AND pp.variant_id IS NULL AND pp.media_type = 'image' AND p.branch_id = ?`,
+      [req.params.id, req.user.branch_id]
+    );
+    const ownedIds = new Set(owned.map((row) => row.id));
+    if (order.some((id) => !ownedIds.has(id))) return res.status(400).json({ success: false, message: 'Ada media yang bukan milik produk ini' });
+    for (let index = 0; index < order.length; index += 1) {
+      await db.execute('UPDATE product_photos SET sort_order = ?, is_primary = ? WHERE id = ?', [index, index === 0, order[index]]);
+    }
+    res.json({ success: true });
+  } catch (error) { next(error); }
+});
+
 router.post('/:id/variants/:variantId/photo', authorize('owner', 'manager', 'admin'), upload.single('media'), async (req, res, next) => {
   try {
     if (!req.file || !req.file.mimetype.startsWith('image/')) return res.status(400).json({ success: false, message: 'Foto varian harus JPG, PNG, atau WebP' });
