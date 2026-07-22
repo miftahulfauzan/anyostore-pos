@@ -1,0 +1,3 @@
+ALTER TABLE branches
+  ADD COLUMN email VARCHAR(150) NULL AFTER phone,
+  ADD COLUMN npwp VARCHAR(80) NULL AFTER email;

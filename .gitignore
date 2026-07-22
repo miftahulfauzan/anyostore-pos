@@ -1,0 +1,19 @@
+node_modules/
+.next/
+coverage/
+uploads/
+.env
+.env.local
+.env.production
+backups/
+deploy/keys/
+!.env.example
+*.log
+mobile/.dart_tool/
+mobile/.packages
+mobile/build/
+uploads/
+
+# Local Netlify folder
+.netlify
+.DS_Store
