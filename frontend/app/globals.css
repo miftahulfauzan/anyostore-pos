@@ -501,6 +501,18 @@ html[data-theme="green"] .button-link, html[data-theme="blue"] .button-link, htm
 .media-delete { position: absolute; top: 4px; right: 4px; z-index: 2; display: grid; place-content: center; width: 22px; height: 22px; border: none; border-radius: 50%; background: rgba(220, 38, 38, .92); color: #fff; cursor: pointer; opacity: 0; transition: opacity .15s ease; }
 .media-draggable:hover .media-delete { opacity: 1; }
 .media-delete:hover { background: #b91c1c; }
+
+/* User management */
+.user-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.link-button { border: none; background: none; padding: 0; color: #2563eb; cursor: pointer; font: inherit; font-size: 12px; font-weight: 650; text-decoration: underline; }
+.link-button:hover { color: #1d4ed8; }
+.link-button.danger { color: #dc2626; }
+.link-button.danger:hover { color: #b91c1c; }
+.status-active { color: #16a34a; font-size: 12px; }
+.status-inactive { color: #94a3b8; font-size: 12px; }
+.modal-backdrop { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(15, 23, 42, .54); }
+.modal-card { width: 100%; max-width: 420px; }
+.modal-actions { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
 .variant-photo-upload {
   display: grid;
   width: 44px;
