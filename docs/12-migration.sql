@@ -828,6 +828,12 @@ CREATE TABLE refresh_tokens (
 INSERT INTO branches (id, name, address, phone) VALUES
 (1, 'Toko Pusat', 'Jl. Contoh No. 123, Kota', '081234567890');
 
+-- Users (password untuk semua: admin123, ganti setelah login pertama)
+INSERT INTO users (branch_id, name, email, password, role, is_active) VALUES
+(1, 'Owner', 'owner@toko.com', '$2b$10$kBptOuHoRzSWyoza4q4/w.V7OkM0uzn4InMxzoUoaoh99sa9ZH16O', 'owner', 1),
+(1, 'Admin', 'admin@toko.com', '$2b$10$kBptOuHoRzSWyoza4q4/w.V7OkM0uzn4InMxzoUoaoh99sa9ZH16O', 'admin', 1),
+(1, 'Kasir', 'kasir@toko.com', '$2b$10$kBptOuHoRzSWyoza4q4/w.V7OkM0uzn4InMxzoUoaoh99sa9ZH16O', 'kasir', 1);
+
 -- Categories
 INSERT INTO categories (name, slug, sku_prefix) VALUES
 ('Baju Kaos', 'baju-kaos', 'BJK'),

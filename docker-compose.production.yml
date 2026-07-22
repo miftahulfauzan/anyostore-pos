@@ -35,7 +35,7 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       CORS_ORIGIN: ${APP_ORIGIN}
     volumes:
-      - ./uploads:/app/uploads
+      - uploads_data:/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -90,3 +90,4 @@ volumes:
   mysql_data:
   caddy_data:
   caddy_config:
+  uploads_data:
