@@ -71,6 +71,7 @@ export default function AppShell({ title, eyebrow, actions, children }) {
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [role, setRole] = useState(null);
+  const [userName, setUserName] = useState('');
   const [openGroups, setOpenGroups] = useState(() => Object.fromEntries(
     navigation.map((group) => [group.label, group.items.some((item) => pathname === item.href)])
   ));
@@ -83,7 +84,10 @@ export default function AppShell({ title, eyebrow, actions, children }) {
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
     fetch(`${baseUrl}/auth/me`, { headers: authHeader })
       .then((response) => (response.ok ? response.json() : null))
-      .then((body) => { if (body?.data?.role) setRole(body.data.role); })
+      .then((body) => {
+        if (body?.data?.role) setRole(body.data.role);
+        if (body?.data?.name) setUserName(body.data.name);
+      })
       .catch(() => {});
     fetch(`${baseUrl}/settings`, { headers: authHeader })
       .then((response) => (response.ok ? response.json() : null))
@@ -171,7 +175,7 @@ export default function AppShell({ title, eyebrow, actions, children }) {
 
         <div className="sidebar-footer">
           <span className="sidebar-store-dot" aria-hidden="true" />
-          <div><strong>Sesi aktif</strong><small>Kelola toko dengan aman</small></div>
+          <div><strong>{userName || 'Sesi aktif'}</strong><small>{role ? role.charAt(0).toUpperCase() + role.slice(1) : 'Kelola toko dengan aman'}</small></div>
         </div>
         <button className="logout" onClick={logout}><LogOut aria-hidden="true" size={15} /> Keluar</button>
       </aside>
