@@ -69,11 +69,6 @@ export default function PosPage() {
     };
   }, [mobileCartOpen]);
 
-  const subtotal = useMemo(() => cart.reduce((sum, item) => sum + cartSubtotal(item), 0), [cart]);
-  const discount = Number(promo?.discount || 0);
-  const total = Math.max(0, subtotal - discount);
-  const amountPaid = paymentMethod === 'cash' ? Number(cash || 0) : total;
-  const change = paymentMethod === 'cash' ? Math.max(0, amountPaid - total) : 0;
   const selectedStore = stores.find((store) => String(store.id) === String(storeId));
 
   async function loadStore(branchId) {
@@ -184,6 +179,11 @@ export default function PosPage() {
     return item.price;
   };
   const cartSubtotal = (item) => cartPrice(item) * item.quantity;
+  const subtotal = useMemo(() => cart.reduce((sum, item) => sum + cartSubtotal(item), 0), [cart]);
+  const discount = Number(promo?.discount || 0);
+  const total = Math.max(0, subtotal - discount);
+  const amountPaid = paymentMethod === 'cash' ? Number(cash || 0) : total;
+  const change = paymentMethod === 'cash' ? Math.max(0, amountPaid - total) : 0;
   async function applyPromo() { try { const response = await fetch(`${apiUrl}/promotions/validate`, { method: 'POST', headers: headers(), body: JSON.stringify({ branch_id: Number(storeId), code: promoCode, subtotal }) }); const body = await response.json(); if (!response.ok) throw new Error(body.message); setPromo(body.data); setMessage(`Promo ${body.data.code} diterapkan: -${rupiah(body.data.discount)}`); } catch (error) { setPromo(null); setMessage(error.message); } }
   async function checkout() {
     if (!storeId || !warehouseId || !cart.length) return setMessage('Pilih toko, gudang, dan tambahkan produk ke keranjang.');
