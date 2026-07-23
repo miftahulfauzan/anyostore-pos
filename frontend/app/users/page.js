@@ -147,7 +147,7 @@ export default function Users() {
                   <button type="button" className="link-button" onClick={() => { setPwTarget({ id: u.id, name: u.name }); setNewPassword(''); }}>Password</button>
                   <button type="button" className="link-button" onClick={() => toggleActive(u)}>{u.is_active ? 'Nonaktifkan' : 'Aktifkan'}</button>
                   <button type="button" className="link-button danger" onClick={() => removeUser(u)}>Hapus</button>
-                  <strong className={u.is_active ? 'status-active' : 'status-inactive'}>{u.is_active ? 'Aktif' : 'Nonaktif'}</strong>
+                  <span className={`status-badge ${u.is_active ? 'status-active' : 'status-inactive'}`}>{u.is_active ? 'Aktif' : 'Nonaktif'}</span>
                 </div>
               </article>
             ))}

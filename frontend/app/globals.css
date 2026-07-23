@@ -495,23 +495,32 @@ html[data-theme="green"] .button-link, html[data-theme="blue"] .button-link, htm
 .media-slot input { display: none; }
 .media-slot.video-slot { border-color: #c4b5fd; background: #faf5ff; color: #6d28d9; }
 .media-slot.video-slot video { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; }
-.media-draggable { cursor: grab; transition: box-shadow .18s ease, transform .18s ease; }
+/* Drag & drop foto — affordance & feedback jelas (UI UX Pro Max: beri sinyal item bisa di-drag) */
+.media-draggable { position: relative; cursor: grab; transition: box-shadow .18s ease, transform .18s ease, opacity .18s ease; }
 .media-draggable:active { cursor: grabbing; }
-.media-draggable:hover { box-shadow: 0 2px 8px rgba(37, 99, 235, .18); }
-.media-delete { position: absolute; top: 4px; right: 4px; z-index: 2; display: grid; place-content: center; width: 22px; height: 22px; border: none; border-radius: 50%; background: rgba(220, 38, 38, .92); color: #fff; cursor: pointer; opacity: 0; transition: opacity .15s ease; }
+.media-draggable:hover { box-shadow: 0 2px 10px rgba(37, 99, 235, .22); transform: translateY(-1px); }
+.media-draggable.is-dragging { opacity: .45; box-shadow: 0 4px 14px rgba(37, 99, 235, .3); }
+.media-draggable.drop-target { outline: 2px dashed #2563eb; outline-offset: 2px; }
+.media-drag-handle { position: absolute; left: 4px; top: 4px; z-index: 2; display: grid; place-content: center; width: 22px; height: 22px; border-radius: 5px; background: rgba(15, 23, 42, .55); color: #fff; cursor: grab; opacity: 0; transition: opacity .15s ease; }
+.media-draggable:hover .media-drag-handle { opacity: 1; }
+.media-delete { position: absolute; top: 4px; right: 4px; z-index: 2; display: grid; place-content: center; width: 22px; height: 22px; border: none; border-radius: 50%; background: rgba(220, 38, 38, .92); color: #fff; cursor: pointer; opacity: 0; transition: opacity .15s ease, background .15s ease; }
 .media-draggable:hover .media-delete { opacity: 1; }
 .media-delete:hover { background: #b91c1c; }
+.media-delete:focus-visible, .media-drag-handle:focus-visible { opacity: 1; outline: 2px solid #2563eb; outline-offset: 1px; }
 
-/* User management */
-.user-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.link-button { border: none; background: none; padding: 0; color: #2563eb; cursor: pointer; font: inherit; font-size: 12px; font-weight: 650; text-decoration: underline; }
-.link-button:hover { color: #1d4ed8; }
+/* User management — clean enterprise (UI UX Pro Max: status jelas, aksi terstruktur) */
+.user-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: auto; }
+.link-button { display: inline-flex; align-items: center; gap: 4px; border: 1px solid #dbe3ee; border-radius: 6px; background: #fff; padding: 5px 10px; color: #2563eb; cursor: pointer; font: inherit; font-size: 12px; font-weight: 650; transition: background .15s ease, border-color .15s ease, color .15s ease; }
+.link-button:hover { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+.link-button:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }
 .link-button.danger { color: #dc2626; }
-.link-button.danger:hover { color: #b91c1c; }
-.status-active { color: #16a34a; font-size: 12px; }
-.status-inactive { color: #94a3b8; font-size: 12px; }
+.link-button.danger:hover { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
+.status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.status-badge::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.status-badge.status-active { background: #dcfce7; color: #15803d; }
+.status-badge.status-inactive { background: #f1f5f9; color: #64748b; }
 .modal-backdrop { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(15, 23, 42, .54); }
-.modal-card { width: 100%; max-width: 420px; }
+.modal-card { width: 100%; max-width: 420px; box-shadow: 0 20px 50px rgba(15, 23, 42, .25); }
 .modal-actions { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
 .variant-photo-upload {
   display: grid;
