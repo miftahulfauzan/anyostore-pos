@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -9,6 +9,11 @@ export default function Home() {
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Kalau sudah login, langsung ke dashboard (jangan minta login lagi di tab baru).
+  useEffect(() => {
+    if (localStorage.getItem('pos_access_token')) window.location.replace('/dashboard');
+  }, []);
 
   async function submit(event) {
     event.preventDefault();
