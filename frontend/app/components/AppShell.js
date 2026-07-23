@@ -72,8 +72,8 @@ export default function AppShell({ title, eyebrow, actions, children }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [role, setRole] = useState(null);
   const [openGroups, setOpenGroups] = useState(() => Object.fromEntries(
-    navigation.map((group) => [group.label, group.items.some((item) => pathname === item.href)]),
-  ]);
+    navigation.map((group) => [group.label, group.items.some((item) => pathname === item.href)])
+  ));
 
   // Ambil role user untuk menyaring menu khusus owner.
   useEffect(() => {

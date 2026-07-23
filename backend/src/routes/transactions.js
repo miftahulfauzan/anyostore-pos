@@ -51,12 +51,61 @@ function normalizePayments(body, grandTotal) {
   return { method, paid, change: method === 'cash' ? money(paid - grandTotal) : 0, payments: [{ payment_method: method, amount: grandTotal, reference: body.payment_reference?.trim() || null }] };
 }
 
+const SEMI_GROSIR_DISCOUNT_PER_PCS = 10000;
+
+// Cari harga grosir (Grosir Seri) untuk suatu produk/varian pada qty tertentu.
+async function findWholesalePrice(connection, productId, variantId, quantity) {
+  const [rows] = await connection.execute(
+    `SELECT price FROM wholesale_prices
+     WHERE product_id = ? AND (variant_id <=> ?) AND is_active = TRUE
+       AND min_qty <= ? AND (max_qty IS NULL OR max_qty >= ?)
+     ORDER BY min_qty DESC LIMIT 1`,
+    [productId, variantId, quantity, quantity]
+  );
+  return rows[0] ? money(rows[0].price) : null;
+}
+
+// Tentukan tier transaksi + harga final per line.
+// Prioritas (A): Grosir Seri menang — jika ada ≥1 line qty>=6 dengan harga grosir,
+// seluruh transaksi jadi 'grosir_seri'. Jika tidak, cek Semi Grosir.
+async function applyPriceTier(connection, lines) {
+  // 1) Grosir Seri: line dengan qty>=6 yang punya harga grosir.
+  let hasGrosir = false;
+  for (const line of lines) {
+    if (line.quantity >= 6) {
+      const wholesale = await findWholesalePrice(connection, line.productId, line.variantId, line.quantity);
+      if (wholesale != null && wholesale < line.price) {
+        line.price = wholesale;
+        line.lineSubtotal = money(line.price * line.quantity - line.itemDiscount);
+        line.tierApplied = 'grosir_seri';
+        hasGrosir = true;
+      }
+    }
+  }
+  if (hasGrosir) return 'grosir_seri';
+
+  // 2) Semi Grosir: total qty > 3 dan lebih dari 1 model berbeda.
+  const totalQty = lines.reduce((sum, line) => sum + line.quantity, 0);
+  const distinctModels = new Set(lines.map((line) => line.productId)).size;
+  if (totalQty > 3 && distinctModels > 1) {
+    for (const line of lines) {
+      const discounted = Math.max(0, line.price - SEMI_GROSIR_DISCOUNT_PER_PCS);
+      line.price = money(discounted);
+      line.lineSubtotal = money(line.price * line.quantity - line.itemDiscount);
+      line.tierApplied = 'semi_grosir';
+    }
+    return 'semi_grosir';
+  }
+
+  return 'retail';
+}
+
 router.get('/', async (req, res, next) => {
   try {
     const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
     const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
     const [rows] = await db.execute(
-      `SELECT t.id, t.invoice_no, t.grand_total, t.payment_method, t.status, t.created_at, u.name AS cashier, c.name AS customer
+      `SELECT t.id, t.invoice_no, t.grand_total, t.payment_method, t.status, t.price_tier, t.created_at, u.name AS cashier, c.name AS customer
        FROM transactions t JOIN users u ON u.id = t.user_id LEFT JOIN customers c ON c.id = t.customer_id
        WHERE t.branch_id = ? ORDER BY t.created_at DESC LIMIT ${limit} OFFSET ${(page - 1) * limit}`,
       [req.user.branch_id]
@@ -141,12 +190,30 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
         if (!variants[0] || variants[0].stock < quantity) throw httpError(400, `Varian ${product.name} tidak mencukupi`);
         variant = variants[0];
       }
-      const price = money(variant?.price == null ? product.price : variant.price);
+      // Harga dasar dari produk/varian.
+      const basePrice = money(variant?.price == null ? product.price : variant.price);
+      // Ubah harga manual di keranjang (admin/kasir). Tanpa batas bawah, dicatat untuk audit.
+      let price = basePrice;
+      let priceOverride = 0;
+      let originalPrice = null;
+      let overriddenBy = null;
+      if (input.price_override != null && input.price_override !== '') {
+        const overrideValue = Number(input.price_override);
+        if (!Number.isFinite(overrideValue) || overrideValue < 0) throw httpError(400, 'Harga ubah manual tidak valid');
+        originalPrice = basePrice;
+        price = money(overrideValue);
+        priceOverride = 1;
+        overriddenBy = req.user.id;
+      }
       const lineSubtotal = money(price * quantity - itemDiscount);
       if (lineSubtotal < 0) throw httpError(400, 'Diskon item melebihi subtotal');
       subtotal = money(subtotal + lineSubtotal);
-      lines.push({ product, productId, variantId, variant, quantity, itemDiscount, lineSubtotal, price, balance: balances[0] });
+      lines.push({ product, productId, variantId, variant, quantity, itemDiscount, lineSubtotal, price, balance: balances[0], basePrice, priceOverride, originalPrice, overriddenBy });
     }
+    // Terapkan tier Semi Grosir / Grosir Seri (hanya untuk item yang tidak di-override manual).
+    const tierLines = lines.filter((line) => !line.priceOverride);
+    const priceTier = await applyPriceTier(connection, tierLines);
+    subtotal = money(lines.reduce((sum, line) => sum + line.lineSubtotal, 0));
     let requestedDiscount = money(discountValue);
     if (requestedDiscount < 0) throw httpError(400, 'Diskon transaksi tidak valid');
     let effectiveDiscountType = discountType;
@@ -158,16 +225,16 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
     const payment = normalizePayments(req.body, grandTotal);
     const invoiceNo = await nextInvoice(connection, branchId);
     const [transactionResult] = await connection.execute(
-      `INSERT INTO transactions (branch_id, invoice_no, client_transaction_id, user_id, customer_id, subtotal, discount_type, discount_value, discount, grand_total, payment_method, amount_paid, \`change\`, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [branchId, invoiceNo, clientTransactionId, req.user.id, customerId, subtotal, effectiveDiscountType, requestedDiscount, discount, grandTotal, payment.method, payment.paid, payment.change, [notes?.trim(), promo ? `Promo ${promo.code}` : null].filter(Boolean).join(' · ') || null]
+      `INSERT INTO transactions (branch_id, invoice_no, client_transaction_id, user_id, customer_id, subtotal, discount_type, discount_value, discount, grand_total, payment_method, amount_paid, \`change\`, notes, price_tier)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [branchId, invoiceNo, clientTransactionId, req.user.id, customerId, subtotal, effectiveDiscountType, requestedDiscount, discount, grandTotal, payment.method, payment.paid, payment.change, [notes?.trim(), promo ? `Promo ${promo.code}` : null].filter(Boolean).join(' · ') || null, priceTier]
     );
     if (promo) await connection.execute('UPDATE promotions SET usage_count=usage_count+1 WHERE id=?', [promo.id]);
     for (const line of lines) {
       await connection.execute(
-        `INSERT INTO transaction_items (transaction_id, product_id, variant_id, product_name, product_sku, variant_detail, quantity, price, discount, subtotal, cost)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [transactionResult.insertId, line.productId, line.variantId, line.product.name, line.product.sku, line.variant?.color || null, line.quantity, line.price, line.itemDiscount, line.lineSubtotal, line.product.cost]
+        `INSERT INTO transaction_items (transaction_id, product_id, variant_id, product_name, product_sku, variant_detail, quantity, price, original_price, price_override, overridden_by, discount, subtotal, cost)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [transactionResult.insertId, line.productId, line.variantId, line.product.name, line.product.sku, line.variant?.color || null, line.quantity, line.price, line.originalPrice, line.priceOverride, line.overriddenBy, line.itemDiscount, line.lineSubtotal, line.product.cost]
       );
       const after = line.balance.quantity - line.quantity;
       await connection.execute('UPDATE warehouse_stocks SET quantity = ? WHERE id = ?', [after, line.balance.id]);
@@ -184,7 +251,7 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
     }
     await connection.execute('INSERT INTO activity_logs (user_id, action, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'transaction_create', `Invoice ${invoiceNo}`, req.ip, req.get('user-agent') || null]);
     await connection.commit();
-    res.status(201).json({ success: true, data: { id: transactionResult.insertId, invoice_no: invoiceNo, grand_total: grandTotal, amount_paid: payment.paid, change: payment.change } });
+    res.status(201).json({ success: true, data: { id: transactionResult.insertId, invoice_no: invoiceNo, grand_total: grandTotal, amount_paid: payment.paid, change: payment.change, price_tier: priceTier } });
   } catch (error) {
     await connection.rollback();
     if (error.code === 'ER_DUP_ENTRY' && req.body.client_transaction_id) return res.status(409).json({ success: false, message: 'Transaksi sedang diproses, ulangi permintaan' });

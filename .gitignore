@@ -17,3 +17,6 @@ uploads/
 # Local Netlify folder
 .netlify
 .DS_Store
+
+# Local OpenCode skills
+.opencode/
