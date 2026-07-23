@@ -15,10 +15,12 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Moon,
   Package,
   PlusCircle,
   ReceiptText,
   Settings,
+  Sun,
   Tags,
   Users,
   WalletCards,
@@ -72,12 +74,18 @@ export default function AppShell({ title, eyebrow, actions, children }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [role, setRole] = useState(null);
   const [userName, setUserName] = useState('');
+  const [theme, setTheme] = useState('light');
   const [openGroups, setOpenGroups] = useState(() => Object.fromEntries(
     navigation.map((group) => [group.label, group.items.some((item) => pathname === item.href)])
   ));
 
-  // Ambil role user untuk menyaring menu khusus owner.
+  // Ambil role user dan tema (localStorage dulu, fallback ke settings backend).
   useEffect(() => {
+    const savedTheme = localStorage.getItem('pos_theme');
+    const initialTheme = savedTheme === 'dark' ? 'dark' : 'light';
+    setTheme(initialTheme);
+    document.documentElement.classList.toggle('dark', initialTheme === 'dark');
+
     const token = localStorage.getItem('pos_access_token');
     if (!token) return;
     const authHeader = { Authorization: `Bearer ${token}` };
@@ -92,10 +100,21 @@ export default function AppShell({ title, eyebrow, actions, children }) {
     fetch(`${baseUrl}/settings`, { headers: authHeader })
       .then((response) => (response.ok ? response.json() : null))
       .then((body) => {
-        if (body?.data?.theme) document.documentElement.dataset.theme = body.data.theme;
+        if (body?.data?.theme && !savedTheme) {
+          const settingsTheme = body.data.theme === 'dark' ? 'dark' : 'light';
+          setTheme(settingsTheme);
+          document.documentElement.classList.toggle('dark', settingsTheme === 'dark');
+        }
       })
       .catch(() => {});
   }, []);
+
+  function toggleTheme() {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    localStorage.setItem('pos_theme', next);
+    document.documentElement.classList.toggle('dark', next === 'dark');
+  }
 
   // Saring menu: sembunyikan item ownerOnly untuk non-owner. Buang grup yang jadi kosong.
   const visibleNavigation = navigation
@@ -198,7 +217,12 @@ export default function AppShell({ title, eyebrow, actions, children }) {
               <h1>{title}</h1>
             </div>
           </div>
-          <div className="header-actions">{actions}</div>
+          <div className="header-actions">
+            <button type="button" className="theme-toggle" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Ganti ke mode terang' : 'Ganti ke mode gelap'}>
+              {theme === 'dark' ? <Sun aria-hidden="true" size={18} /> : <Moon aria-hidden="true" size={18} />}
+            </button>
+            {actions}
+          </div>
         </header>
         <div className="app-content">{children}</div>
       </main>
