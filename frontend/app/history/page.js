@@ -102,15 +102,17 @@ export default function HistoryPage() {
           <button type="button" onClick={() => setSelected(null)}>Tutup</button>
         </div>
       </div>
-      <div className="product-list">{selected.items.map((item) => {
+      <div className="history-item-list">{selected.items.map((item) => {
         const remaining = item.quantity - (item.cancelled_qty || 0);
-        return <article key={item.transaction_item_id}>
-          <div>
+        return <article key={item.transaction_item_id} className="history-item">
+          <div className="history-item-info">
             <strong>{item.product_name}</strong>
             <span>{item.product_sku} · {rp(item.price)} · qty {item.quantity}{item.cancelled_qty ? ' (batal ' + item.cancelled_qty + ')' : ''}</span>
           </div>
-          <label>Retur<input type="number" min="0" max={remaining} value={quantities[item.transaction_item_id] ?? 0} onChange={(e) => setQuantities({ ...quantities, [item.transaction_item_id]: Math.min(remaining, Math.max(0, Number(e.target.value))) })} /></label>
-          {canCancel && selected.status !== 'cancelled' && remaining > 0 && <label>Batal<input type="number" min="0" max={remaining} value={cancelQuantities[item.transaction_item_id] ?? 0} onChange={(e) => setCancelQuantities({ ...cancelQuantities, [item.transaction_item_id]: Math.min(remaining, Math.max(0, Number(e.target.value))) })} /></label>}
+          <div className="history-item-actions">
+            <label>Retur<input type="number" min="0" max={remaining} value={quantities[item.transaction_item_id] ?? 0} onChange={(e) => setQuantities({ ...quantities, [item.transaction_item_id]: Math.min(remaining, Math.max(0, Number(e.target.value))) })} /></label>
+            {canCancel && selected.status !== 'cancelled' && remaining > 0 && <label>Batal<input type="number" min="0" max={remaining} value={cancelQuantities[item.transaction_item_id] ?? 0} onChange={(e) => setCancelQuantities({ ...cancelQuantities, [item.transaction_item_id]: Math.min(remaining, Math.max(0, Number(e.target.value))) })} /></label>}
+          </div>
         </article>;
       })}</div>
       {canCancel && selected.status !== 'cancelled' && <label>Alasan batal<input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Opsional" /></label>}
