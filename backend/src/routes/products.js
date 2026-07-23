@@ -129,16 +129,26 @@ router.get('/', async (req, res, next) => {
       params.push(term, term, term);
     }
     if (req.query.category) { where += ' AND p.category_id = ?'; params.push(Number(req.query.category)); }
+    const includeWholesale = req.query.include_wholesale === '1';
+    const wholesaleSelect = includeWholesale ? `,
+              (SELECT JSON_ARRAYAGG(JSON_OBJECT('min_qty', wp.min_qty, 'max_qty', wp.max_qty, 'price', wp.price))
+               FROM wholesale_prices wp WHERE wp.product_id = p.id AND wp.is_active = TRUE) AS wholesale_prices` : '';
     const [rows] = await db.execute(
       `SELECT p.id, p.name, p.sku, p.barcode, p.price, p.cost, p.stock, p.min_stock, p.gender,
               c.name AS category_name,
               (SELECT pp.path FROM product_photos pp WHERE pp.product_id = p.id AND pp.variant_id IS NULL AND pp.media_type = 'image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
               (SELECT COUNT(*) FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_active = TRUE) AS variant_count,
               (SELECT COALESCE(SUM(pv.stock), 0) FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_active = TRUE) AS variant_stock_total,
-              (SELECT GROUP_CONCAT(DISTINCT pv.color ORDER BY pv.color SEPARATOR '|') FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_active = TRUE AND pv.color IS NOT NULL AND pv.color <> '') AS variant_colors
+              (SELECT GROUP_CONCAT(DISTINCT pv.color ORDER BY pv.color SEPARATOR '|') FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_active = TRUE AND pv.color IS NOT NULL AND pv.color <> '') AS variant_colors${wholesaleSelect}
        FROM products p JOIN categories c ON c.id = p.category_id
        ${where} ORDER BY p.name LIMIT ${limit} OFFSET ${offset}`, params
     );
+    if (includeWholesale) {
+      for (const row of rows) {
+        if (typeof row.wholesale_prices === 'string') row.wholesale_prices = JSON.parse(row.wholesale_prices);
+        if (!Array.isArray(row.wholesale_prices)) row.wholesale_prices = [];
+      }
+    }
     const [counts] = await db.execute(`SELECT COUNT(*) AS total FROM products p ${where}`, params);
     res.json({ success: true, data: rows, total: counts[0].total, page, totalPages: Math.ceil(counts[0].total / limit) });
   } catch (error) { next(error); }

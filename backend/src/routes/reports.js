@@ -26,7 +26,7 @@ router.get('/overview', async (req, res, next) => {
   try {
     const { start, end } = dateRange(req.query);
     const branchId = req.user.branch_id;
-    const [[sales], [costs], [expenses], payments, products, cashiers, customers, lowStock, dailySales] = await Promise.all([
+    const [[sales], [costs], [expenses], payments, products, cashiers, customers, lowStock, dailySales, priceTiers] = await Promise.all([
       db.execute("SELECT COUNT(*) AS transactions, COALESCE(SUM(grand_total), 0) AS revenue, COALESCE(SUM(discount), 0) AS discounts FROM transactions WHERE branch_id = ? AND status = 'completed' AND DATE(created_at) BETWEEN ? AND ?", [branchId, start, end]),
       db.execute("SELECT COALESCE(SUM(ti.cost * ti.quantity), 0) AS cost_of_goods, COALESCE(SUM(ti.subtotal - (ti.cost * ti.quantity)), 0) AS item_profit FROM transaction_items ti JOIN transactions t ON t.id = ti.transaction_id WHERE t.branch_id = ? AND t.status = 'completed' AND DATE(t.created_at) BETWEEN ? AND ?", [branchId, start, end]),
       db.execute("SELECT COALESCE(SUM(amount), 0) AS amount FROM expenses WHERE branch_id = ? AND status = 'approved' AND expense_date BETWEEN ? AND ?", [branchId, start, end]),
@@ -35,7 +35,8 @@ router.get('/overview', async (req, res, next) => {
       db.execute("SELECT u.id, u.name, u.role, COUNT(t.id) AS transactions, COALESCE(SUM(t.grand_total), 0) AS revenue, COALESCE(SUM(t.discount), 0) AS discounts FROM users u LEFT JOIN transactions t ON t.user_id = u.id AND t.status = 'completed' AND DATE(t.created_at) BETWEEN ? AND ? WHERE u.branch_id = ? GROUP BY u.id, u.name, u.role ORDER BY revenue DESC", [start, end, branchId]),
       db.execute("SELECT c.id, c.name, c.phone, COUNT(t.id) AS transactions, COALESCE(SUM(t.grand_total), 0) AS revenue FROM customers c JOIN transactions t ON t.customer_id = c.id AND t.status = 'completed' AND DATE(t.created_at) BETWEEN ? AND ? WHERE c.branch_id = ? GROUP BY c.id, c.name, c.phone ORDER BY revenue DESC LIMIT 50", [start, end, branchId]),
       db.execute('SELECT id, name, sku, stock, min_stock FROM products WHERE branch_id = ? AND is_active = TRUE AND stock <= min_stock ORDER BY stock ASC, name LIMIT 100', [branchId]),
-      db.execute("SELECT DATE(created_at) AS date, COUNT(*) AS transactions, COALESCE(SUM(grand_total), 0) AS revenue FROM transactions WHERE branch_id = ? AND status = 'completed' AND DATE(created_at) BETWEEN ? AND ? GROUP BY DATE(created_at) ORDER BY date", [branchId, start, end])
+      db.execute("SELECT DATE(created_at) AS date, COUNT(*) AS transactions, COALESCE(SUM(grand_total), 0) AS revenue FROM transactions WHERE branch_id = ? AND status = 'completed' AND DATE(created_at) BETWEEN ? AND ? GROUP BY DATE(created_at) ORDER BY date", [branchId, start, end]),
+      db.execute("SELECT price_tier, COUNT(*) AS transactions, COALESCE(SUM(grand_total), 0) AS revenue FROM transactions WHERE branch_id = ? AND status = 'completed' AND DATE(created_at) BETWEEN ? AND ? GROUP BY price_tier", [branchId, start, end])
     ]);
     const revenue = Number(sales[0].revenue);
     const costOfGoods = Number(costs[0].cost_of_goods);
@@ -43,7 +44,7 @@ router.get('/overview', async (req, res, next) => {
     res.json({ success: true, data: {
       start, end,
       summary: { transactions: sales[0].transactions, revenue, discounts: sales[0].discounts, cost_of_goods: costOfGoods, gross_profit: revenue - costOfGoods, expenses: approvedExpenses, net_profit: revenue - costOfGoods - approvedExpenses },
-      payment_methods: payments[0], products: products[0], cashiers: cashiers[0], customers: customers[0], low_stock: lowStock[0], daily_sales: dailySales[0]
+      payment_methods: payments[0], products: products[0], cashiers: cashiers[0], customers: customers[0], low_stock: lowStock[0], daily_sales: dailySales[0], price_tiers: priceTiers[0]
     } });
   } catch (error) { next(error); }
 });

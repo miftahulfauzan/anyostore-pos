@@ -690,6 +690,18 @@ html[data-theme="green"] .button-link, html[data-theme="blue"] .button-link, htm
 .pos-store-bar select { min-height: 44px; margin: 0; border-color: #db2777; background: #fff; color: #111827; font-size: 12px; font-weight: 700; cursor: pointer; }
 .pos-store-bar select:focus-visible { outline: 3px solid rgba(37, 99, 235, .28); outline-offset: 2px; }
 .pos-store-bar select:disabled { border-color: #cbd5e1; background: #f8fafc; cursor: not-allowed; opacity: .78; }
+.pos-customer-select { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 9px; margin: 0 0 10px; color: #475569; font-size: 10px; font-weight: 700; }
+.pos-customer-select select { min-height: 40px; margin: 0; border-color: #db2777; background: #fff; color: #111827; font-size: 12px; font-weight: 700; cursor: pointer; }
+.pos-tier-badge { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.pos-tier-badge small { color: #64748b; font-size: 10px; }
+.tier-badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.tier-badge.retail { background: #e2e8f0; color: #334155; }
+.tier-badge.semi_grosir { background: #fef3c7; color: #92400e; }
+.tier-badge.grosir_seri { background: #dbeafe; color: #1e40af; }
+.cart-item-info { min-width: 0; }
+.cart-item-info s { color: #94a3b8; font-size: .85em; }
+.price-override { display: block; margin-top: 4px; color: #64748b; font-size: 9px; font-weight: 600; }
+.price-override input { width: 100%; min-height: 30px; margin-top: 2px; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 11px; }
 
 /* Product media, logo and print branding */
 .new-product-media { border-top: 0; padding-top: 0; }
