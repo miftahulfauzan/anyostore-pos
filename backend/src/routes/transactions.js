@@ -295,11 +295,92 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
 
 router.get('/:id', async (req, res, next) => {
   try {
-    const [transactions] = await db.execute('SELECT id, invoice_no, grand_total, amount_paid, `change`, payment_method, status, price_tier, created_at FROM transactions WHERE id = ? AND branch_id = ?', [req.params.id, req.user.branch_id]);
+    const [transactions] = await db.execute('SELECT id, invoice_no, grand_total, amount_paid, `change`, cancelled_amount, cancel_reason, payment_method, status, price_tier, created_at FROM transactions WHERE id = ? AND branch_id = ?', [req.params.id, req.user.branch_id]);
     if (!transactions[0]) return res.status(404).json({ success: false, message: 'Transaksi tidak ditemukan' });
-    const [items] = await db.execute('SELECT id AS transaction_item_id, product_name, product_sku, variant_detail, quantity, price, original_price, price_override, discount, subtotal FROM transaction_items WHERE transaction_id = ?', [req.params.id]);
+    const [items] = await db.execute('SELECT id AS transaction_item_id, product_name, product_sku, variant_detail, quantity, cancelled_qty, cancel_reason, price, original_price, price_override, discount, subtotal FROM transaction_items WHERE transaction_id = ?', [req.params.id]);
     res.json({ success: true, data: { ...transactions[0], items } });
   } catch (error) { next(error); }
+});
+
+// Partial / full cancellation of transaction items.
+router.put('/:id/cancel', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+  const connection = await db.getConnection();
+  try {
+    const { items: cancelItems, reason } = req.body;
+    if (!Array.isArray(cancelItems) || !cancelItems.length) throw httpError(400, 'Item yang dibatalkan wajib diisi');
+    await connection.beginTransaction();
+    const [transactions] = await connection.execute('SELECT * FROM transactions WHERE id = ? AND branch_id = ? FOR UPDATE', [req.params.id, req.user.branch_id]);
+    if (!transactions[0]) throw httpError(404, 'Transaksi tidak ditemukan');
+    if (transactions[0].status === 'cancelled') throw httpError(400, 'Transaksi sudah dibatalkan seluruhnya');
+
+    let totalRefund = 0;
+    for (const input of cancelItems) {
+      const itemId = Number(input.transaction_item_id);
+      const cancelQty = Number(input.qty);
+      const itemReason = String(input.reason || reason || '').trim();
+      if (!Number.isInteger(itemId) || !Number.isInteger(cancelQty) || cancelQty <= 0) throw httpError(400, 'Data pembatalan item tidak valid');
+
+      const [items] = await connection.execute('SELECT * FROM transaction_items WHERE id = ? AND transaction_id = ? FOR UPDATE', [itemId, transactions[0].id]);
+      if (!items[0]) throw httpError(404, 'Item transaksi tidak ditemukan');
+      const item = items[0];
+      const remaining = item.quantity - item.cancelled_qty;
+      if (cancelQty > remaining) throw httpError(400, `Qty batal melebihi sisa item ${item.product_name}`);
+
+      // Cari gudang asal penjualan dari stock_mutations.
+      const [mutations] = await connection.execute(
+        'SELECT warehouse_id, stock_before, stock_after FROM stock_mutations WHERE reference_type = ? AND reference_id = ? AND product_id = ? AND variant_id <=> ? ORDER BY id DESC LIMIT 1',
+        ['transaction', transactions[0].id, item.product_id, item.variant_id]
+      );
+      const warehouseId = mutations[0]?.warehouse_id;
+      if (!warehouseId) throw httpError(400, `Gudang asal item ${item.product_name} tidak ditemukan`);
+
+      // Hitung refund: qty * harga - proporsi diskon item.
+      const itemRefund = money(cancelQty * item.price - (item.discount / item.quantity) * cancelQty);
+      totalRefund = money(totalRefund + itemRefund);
+
+      // Restore stok.
+      const [balances] = await connection.execute('SELECT id, quantity FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id <=> ? FOR UPDATE', [warehouseId, item.product_id, item.variant_id]);
+      const before = balances[0]?.quantity || 0;
+      const after = before + cancelQty;
+      if (balances[0]) await connection.execute('UPDATE warehouse_stocks SET quantity = ? WHERE id = ?', [after, balances[0].id]);
+      else await connection.execute('INSERT INTO warehouse_stocks (warehouse_id, product_id, variant_id, quantity) VALUES (?, ?, ?, ?)', [warehouseId, item.product_id, item.variant_id, cancelQty]);
+      await connection.execute('UPDATE products SET stock = stock + ? WHERE id = ?', [cancelQty, item.product_id]);
+      if (item.variant_id) await connection.execute('UPDATE product_variants SET stock = stock + ? WHERE id = ?', [cancelQty, item.variant_id]);
+      await connection.execute(
+        `INSERT INTO stock_mutations (branch_id, warehouse_id, product_id, variant_id, user_id, type, reference_type, reference_id, qty, stock_before, stock_after)
+         VALUES (?, ?, ?, ?, ?, 'sale_return', 'transaction', ?, ?, ?, ?)`,
+        [transactions[0].branch_id, warehouseId, item.product_id, item.variant_id, req.user.id, transactions[0].id, cancelQty, before, after]
+      );
+
+      // Update item.
+      const newCancelledQty = item.cancelled_qty + cancelQty;
+      await connection.execute(
+        'UPDATE transaction_items SET cancelled_qty = ?, cancel_reason = ? WHERE id = ?',
+        [newCancelledQty, itemReason || null, item.id]
+      );
+    }
+
+    // Update status transaksi.
+    const [remainingItems] = await connection.execute(
+      'SELECT SUM(quantity - cancelled_qty) AS remaining_qty FROM transaction_items WHERE transaction_id = ?',
+      [transactions[0].id]
+    );
+    const remainingQty = Number(remainingItems[0].remaining_qty) || 0;
+    const newStatus = remainingQty === 0 ? 'cancelled' : 'partially_cancelled';
+    const newCancelledAmount = money(Number(transactions[0].cancelled_amount || 0) + totalRefund);
+    const cancelReason = String(reason || '').trim();
+    await connection.execute(
+      'UPDATE transactions SET status = ?, cancelled_amount = ?, cancel_reason = ? WHERE id = ?',
+      [newStatus, newCancelledAmount, cancelReason || null, transactions[0].id]
+    );
+
+    await connection.execute('INSERT INTO activity_logs (user_id, action, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'transaction_cancel', `Invoice ${transactions[0].invoice_no} - refund ${totalRefund}`, req.ip, req.get('user-agent') || null]);
+    await connection.commit();
+    res.json({ success: true, data: { id: transactions[0].id, status: newStatus, cancelled_amount: newCancelledAmount, refund: totalRefund } });
+  } catch (error) {
+    await connection.rollback();
+    next(error);
+  } finally { connection.release(); }
 });
 
 module.exports = router;
