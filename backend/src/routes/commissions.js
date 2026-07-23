@@ -3,7 +3,7 @@ const db = require('../db');
 const { authenticate, authorize } = require('../auth');
 
 const router = express.Router();
-router.use(authenticate, authorize('owner', 'manager', 'admin'));
+router.use(authenticate, authorize('owner'));
 const allowedTypes = new Set(['percentage_sales', 'percentage_profit', 'per_transaction', 'flat_monthly']);
 const allowedTargets = new Set(['all', 'role', 'user']);
 const allowedRoles = new Set(['owner', 'manager', 'admin', 'kasir', 'gudang']);

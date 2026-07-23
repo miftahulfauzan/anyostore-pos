@@ -25,6 +25,7 @@ import {
   X,
 } from 'lucide-react';
 
+// ownerOnly: menu yang hanya tampil untuk role owner.
 const navigation = [
   {
     label: 'UTAMA',
@@ -59,9 +60,9 @@ const navigation = [
   {
     label: 'ADMINISTRASI',
     items: [
-      { href: '/commissions', label: 'Komisi Staf', icon: BadgeDollarSign },
-      { href: '/users', label: 'Pegawai & Akses', icon: Users },
-      { href: '/settings', label: 'Pengaturan', icon: Settings },
+      { href: '/commissions', label: 'Komisi Staf', icon: BadgeDollarSign, ownerOnly: true },
+      { href: '/users', label: 'Pegawai & Akses', icon: Users, ownerOnly: true },
+      { href: '/settings', label: 'Pengaturan', icon: Settings, ownerOnly: true },
     ],
   },
 ];
@@ -69,21 +70,36 @@ const navigation = [
 export default function AppShell({ title, eyebrow, actions, children }) {
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [role, setRole] = useState(null);
   const [openGroups, setOpenGroups] = useState(() => Object.fromEntries(
     navigation.map((group) => [group.label, group.items.some((item) => pathname === item.href)]),
-  ));
+  ]);
 
+  // Ambil role user untuk menyaring menu khusus owner.
   useEffect(() => {
     const token = localStorage.getItem('pos_access_token');
     if (!token) return;
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/settings`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    const authHeader = { Authorization: `Bearer ${token}` };
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+    fetch(`${baseUrl}/auth/me`, { headers: authHeader })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => { if (body?.data?.role) setRole(body.data.role); })
+      .catch(() => {});
+    fetch(`${baseUrl}/settings`, { headers: authHeader })
       .then((response) => (response.ok ? response.json() : null))
       .then((body) => {
         if (body?.data?.theme) document.documentElement.dataset.theme = body.data.theme;
-      });
+      })
+      .catch(() => {});
   }, []);
+
+  // Saring menu: sembunyikan item ownerOnly untuk non-owner. Buang grup yang jadi kosong.
+  const visibleNavigation = navigation
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.ownerOnly || role === 'owner'),
+    }))
+    .filter((group) => group.items.length > 0);
 
   useEffect(() => {
     setMobileNavOpen(false);
@@ -128,7 +144,7 @@ export default function AppShell({ title, eyebrow, actions, children }) {
         </a>
 
         <nav className="side-nav">
-          {navigation.map((group) => (
+          {visibleNavigation.map((group) => (
             <section key={group.label} className="nav-group">
               <button
                 type="button"
