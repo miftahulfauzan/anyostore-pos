@@ -702,6 +702,9 @@ html[data-theme="green"] .button-link, html[data-theme="blue"] .button-link, htm
 .cart-item-info s { color: #94a3b8; font-size: .85em; }
 .price-override { display: block; margin-top: 4px; color: #64748b; font-size: 9px; font-weight: 600; }
 .price-override input { width: 100%; min-height: 30px; margin-top: 2px; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 11px; }
+.promo-entry { display: grid; grid-template-columns: 1fr auto; gap: 6px; margin-top: 4px; }
+.promo-entry input { min-height: 34px; padding: 4px 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 11px; }
+.promo-entry button { min-height: 34px; padding: 6px 12px; border-radius: 4px; font-size: 11px; }
 
 .history-item-list { display: grid; gap: .75rem; }
 .history-item { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .75rem; border-bottom: 1px solid #e6ebe6; padding-bottom: .75rem; }
