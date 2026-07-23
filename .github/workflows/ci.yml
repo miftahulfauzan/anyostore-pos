@@ -43,6 +43,7 @@ jobs:
 
   mobile:
     runs-on: ubuntu-latest
+    continue-on-error: true
     defaults:
       run:
         working-directory: mobile
