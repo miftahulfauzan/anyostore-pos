@@ -39,7 +39,7 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json({ limit: '6mb' }));
 app.use('/uploads', serveBlob, express.static(path.join(process.cwd(), 'uploads'), { maxAge: '7d' }));
-app.use('/api', rateLimit({ ...limiterOptions, windowMs: 60_000, max: 100, standardHeaders: true, legacyHeaders: false }));
+app.use('/api', rateLimit({ ...limiterOptions, windowMs: 60_000, max: 300, standardHeaders: true, legacyHeaders: false, handler: (req, res) => res.status(429).json({ success: false, message: 'Terlalu banyak permintaan, coba lagi dalam 1 menit' }) }));
 app.use('/api/auth', rateLimit({ ...limiterOptions, windowMs: 15 * 60_000, max: 10, standardHeaders: true, legacyHeaders: false }));
 
 app.get('/api/health', async (_req, res, next) => {
