@@ -133,6 +133,7 @@ export default function ReportsPage() {
             Periode {period.start} sampai {period.end}
           </small>
         </div>
+        <h1 className="report-title">Laporan Ringkasan Toko</h1>
       </div>
       <section className="report-filter panel">
         <div>
