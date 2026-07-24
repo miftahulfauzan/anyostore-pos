@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import AppShell from '../../components/AppShell';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-const blank = () => ({ product_id: '', variant_id: '', quantity: '', cost: '' });
+const blank = () => ({ product_id: '', variant_id: '', quantity: '' });
 
 export default function Incoming() {
   const [stores, setStores] = useState([]);
@@ -54,7 +54,7 @@ export default function Incoming() {
       const [productId, variantId] = key.split(':');
       const product = products.find((p) => String(p.id) === productId);
       if (!product) continue;
-      rows.push({ product_id: productId, variant_id: variantId || '', quantity: '', cost: product.cost || '' });
+      rows.push({ product_id: productId, variant_id: variantId || '', quantity: '' });
     }
     if (!rows.length) return;
     setItems((prev) => [...prev.filter((r) => r.product_id), ...rows]);
@@ -68,7 +68,7 @@ export default function Incoming() {
     event.preventDefault();
     try {
       setSaving(true);
-      const payload = items.map((item) => ({ ...item, product_id: Number(item.product_id), variant_id: item.variant_id ? Number(item.variant_id) : undefined, quantity: Number(item.quantity), cost: item.cost === '' ? '' : Number(item.cost) })).filter((i) => i.product_id && i.quantity > 0);
+      const payload = items.map((item) => ({ product_id: Number(item.product_id), variant_id: item.variant_id ? Number(item.variant_id) : undefined, quantity: Number(item.quantity) })).filter((i) => i.product_id && i.quantity > 0);
       if (!payload.length) throw new Error('Tambahkan minimal satu produk dengan jumlah > 0');
       const response = await fetch(api + '/inventory/incoming', { method: 'POST', headers: headers(), body: JSON.stringify({ branch_id: Number(store), items: payload, notes }) });
       const body = await response.json();
@@ -93,30 +93,44 @@ export default function Incoming() {
           </label>
 
           <div className="product-picker">
-            <div className="picker-toggle">
-              <input type="text" placeholder="Cari produk / SKU…" value={query} onChange={(event) => setQuery(event.target.value)} onFocus={() => setShowPicker(true)} />
-              <button type="button" className="button-link" onClick={() => setShowPicker((v) => !v)}>{showPicker ? 'Tutup pencarian' : 'Cari produk'}</button>
+            <div className="picker-bar">
+              <input type="text" placeholder="Ketik nama / SKU produk…" value={query} onChange={(event) => { setQuery(event.target.value); setShowPicker(true); }} />
+              <button type="button" className="button-link" onClick={() => setShowPicker((v) => !v)}>{showPicker ? 'Tutup' : 'Cari'}</button>
             </div>
             {showPicker && (
               <div className="picker-list">
-                {filtered.length === 0 && <p className="muted">Tidak ada produk cocok.</p>}
+                {filtered.length === 0 && <p className="muted">{query.trim() ? 'Tidak ada produk cocok.' : 'Ketik untuk mencari produk.'}</p>}
                 {filtered.map((product) => (
-                  <div key={product.id} className="picker-product">
-                    <label className="picker-product-name">
-                      <input type="checkbox" checked={product.variants.length === 0 ? selected.has(String(product.id)) : false} onChange={() => toggle(String(product.id))} disabled={product.variants.length > 0} />
-                      <span>{product.sku || '—'} — {product.name}</span>
-                    </label>
-                    {product.variants.length > 0 && (
+                  <div key={product.id} className="picker-card">
+                    <div className="picker-card-head">
+                      <span className="picker-sku">{product.sku || 'Tanpa SKU'}</span>
+                      <strong>{product.name}</strong>
+                    </div>
+                    {product.variants.length === 0 ? (
+                      <label className="picker-row">
+                        <input type="checkbox" checked={selected.has(String(product.id))} onChange={() => toggle(String(product.id))} />
+                        <span>Pilih produk ini</span>
+                      </label>
+                    ) : (
                       <div className="picker-variants">
+                        <span className="picker-label">Pilih varian:</span>
                         {product.variants.map((variant) => {
                           const key = `${product.id}:${variant.id}`;
-                          return <label key={variant.id}><input type="checkbox" checked={selected.has(key)} onChange={() => toggle(key)} /> {variant.color}</label>;
+                          return (
+                            <label key={variant.id} className="picker-chip">
+                              <input type="checkbox" checked={selected.has(key)} onChange={() => toggle(key)} />
+                              <span>{variant.color}</span>
+                            </label>
+                          );
                         })}
                       </div>
                     )}
                   </div>
                 ))}
-                <button type="button" className="button-link" disabled={!selected.size} onClick={addSelected}>Tambahkan {selected.size} pilihan ke daftar</button>
+                <div className="picker-footer">
+                  <small>{selected.size} dipilih</small>
+                  <button type="button" className="button-link" disabled={!selected.size} onClick={addSelected}>Tambahkan ke daftar</button>
+                </div>
               </div>
             )}
           </div>
@@ -143,7 +157,7 @@ export default function Incoming() {
                     </label>
                   )}
                   <label>Jumlah<input required min="1" type="number" value={item.quantity} onChange={(event) => update(index, 'quantity', event.target.value)} /></label>
-                  <label>Harga modal<input min="0" type="number" value={item.cost} onChange={(event) => update(index, 'cost', event.target.value)} /></label>
+                  
                   {items.length > 1 && <button type="button" onClick={() => remove(index)}>Hapus</button>}
                 </article>
               );

@@ -86,20 +86,29 @@ export default function Outgoing() {
         </label>
 
         <div className="product-picker">
-          <div className="picker-toggle">
-            <input type="text" placeholder="Cari produk / SKU…" value={query} onChange={(e) => setQuery(e.target.value)} onFocus={() => setShowPicker(true)} />
-            <button type="button" className="button-link" onClick={() => setShowPicker((v) => !v)}>{showPicker ? 'Tutup pencarian' : 'Cari produk'}</button>
+          <div className="picker-bar">
+            <input type="text" placeholder="Ketik nama / SKU produk…" value={query} onChange={(e) => { setQuery(e.target.value); setShowPicker(true); }} />
+            <button type="button" className="button-link" onClick={() => setShowPicker((v) => !v)}>{showPicker ? 'Tutup' : 'Cari'}</button>
           </div>
           {showPicker && (
             <div className="picker-list">
-              {filtered.length === 0 && <p className="muted">Tidak ada produk cocok.</p>}
+              {filtered.length === 0 && <p className="muted">{query.trim() ? 'Tidak ada produk cocok.' : 'Ketik untuk mencari produk.'}</p>}
               {filtered.map((product) => (
-                <label key={product.id} className="picker-product-name">
-                  <input type="checkbox" checked={selected.has(String(product.id))} onChange={() => toggle(String(product.id))} />
-                  <span>{product.sku || '—'} — {product.name}</span>
-                </label>
+                <div key={product.id} className="picker-card">
+                  <div className="picker-card-head">
+                    <span className="picker-sku">{product.sku || 'Tanpa SKU'}</span>
+                    <strong>{product.name}</strong>
+                  </div>
+                  <label className="picker-row">
+                    <input type="checkbox" checked={selected.has(String(product.id))} onChange={() => toggle(String(product.id))} />
+                    <span>Pilih produk ini</span>
+                  </label>
+                </div>
               ))}
-              <button type="button" className="button-link" disabled={!selected.size} onClick={addSelected}>Tambahkan {selected.size} pilihan ke daftar</button>
+              <div className="picker-footer">
+                <small>{selected.size} dipilih</small>
+                <button type="button" className="button-link" disabled={!selected.size} onClick={addSelected}>Tambahkan ke daftar</button>
+              </div>
             </div>
           )}
         </div>
