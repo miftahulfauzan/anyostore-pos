@@ -4,6 +4,7 @@ const { authenticate, authorize } = require('../auth');
 
 const router = express.Router();
 router.use(authenticate, authorize('owner', 'manager', 'admin'));
+const money = (v) => Math.round(Number(v) * 100) / 100;
 
 function dateRange(query) {
   const today = new Date().toISOString().slice(0, 10);
