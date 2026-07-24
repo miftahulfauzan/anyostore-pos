@@ -14,9 +14,10 @@ function ReportTable({
   columns,
   rows,
   empty = "Belum ada data untuk periode ini.",
+  className = "",
 }) {
   return (
-    <section className="panel report-panel">
+    <section className={`panel report-panel ${className}`}>
       <div className="section-heading">
         <div>
           <h2>{title}</h2>
@@ -207,6 +208,7 @@ export default function ReportsPage() {
           <ReportTable
             title="Daftar transaksi"
             subtitle="Transaksi dengan kasir dan tombol cetak ulang resi."
+            className="report-table-transactions"
             rows={report.transactions}
             columns={[
               {
@@ -255,6 +257,7 @@ export default function ReportsPage() {
           <ReportTable
             title="Laporan produk terjual"
             subtitle="Produk berdasarkan pendapatan, sampai 100 produk."
+            className="report-table-products"
             rows={report.products}
             columns={[
               {
