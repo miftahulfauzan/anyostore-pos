@@ -48,7 +48,7 @@ a { color: #1d5b43; font-weight: 700; text-decoration: none; }
 .cart-lines { display: grid; gap: .75rem; }
 .cart-lines article { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: .75rem; border-bottom: 1px solid #e6ebe6; padding-bottom: .75rem; }
 .cart-lines span { display: block; color: #627167; font-size: .9rem; }
-.quantity { display: flex; align-items: center; gap: .35rem; }.quantity button { padding: .25rem .55rem; }
+.quantity { display: flex; align-items: center; gap: .35rem; }.quantity button { padding: .25rem .55rem; }.quantity input { width: 52px; text-align: center; padding: .25rem .3rem; border: 1px solid var(--input); border-radius: .4rem; background: var(--card); color: var(--foreground); }
 .total { display: flex; justify-content: space-between; border-top: 2px solid #1d2920; padding-top: 1rem; font-size: 1.2rem; }
 .warehouse-label { margin:0; color:#526057; }.payment-methods { border:0; padding:0; margin:0; display:grid; grid-template-columns:repeat(2,1fr); gap:.5rem; }.payment-methods legend { font-weight:600; margin-bottom:.5rem; }.payment-option { background:#eef3ef; color:#1d2920; min-height:44px; }.payment-option.selected { background:#1d5b43; color:#fff; }
 .big-number { display: block; font-size: 2rem; margin: .5rem 0; }
@@ -73,6 +73,17 @@ a { color: #1d5b43; font-weight: 700; text-decoration: none; }
 .app-header { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin: 0 auto 1.75rem; max-width: 1440px; }
 .app-header h1 { margin: .2rem 0 0; font-size: clamp(2rem, 3vw, 3rem); }
 .header-actions { display: flex; gap: .75rem; align-items: center; }
+.tabs { display: flex; gap: .5rem; margin-bottom: 1rem; }
+.tabs button { padding: .6rem 1rem; border: 1px solid var(--border); border-radius: .5rem; background: var(--card); color: var(--foreground); }
+.tabs button.active { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+.closing-print { max-width: 720px; margin: 2rem auto; padding: 1.5rem; background: var(--card); color: var(--foreground); border-radius: .5rem; }
+.closing-print header { text-align: center; margin-bottom: 1.5rem; }
+.closing-print h1 { margin-bottom: .5rem; }
+.closing-print section { margin-bottom: 1.5rem; }
+.closing-print table { width: 100%; border-collapse: collapse; margin-top: .5rem; }
+.closing-print td, .closing-print th { padding: .5rem; border-bottom: 1px solid var(--border); text-align: left; }
+.closing-print td:last-child, .closing-print th:last-child { text-align: right; }
+@media print { .no-print { display: none; } .closing-print { margin: 0; box-shadow: none; } }
 .theme-toggle { display: inline-grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid var(--border); border-radius: .55rem; background: var(--card); color: var(--foreground); }
 .theme-toggle:hover { background: var(--muted); }
 .button-link { display: inline-flex; align-items: center; min-height: 44px; padding: .72rem 1rem; border-radius: .55rem; background: #1d5b43; color: #fff; }
@@ -462,6 +473,15 @@ html[data-theme="green"] .button-link, html[data-theme="blue"] .button-link, htm
 .variant-section .section-heading p { max-width: 52ch; font-size: 11px; }
 .variant-section .secondary.small { display: inline-flex; align-items: center; gap: 5px; min-height: 36px; }
 .variant-list { display: grid; gap: 8px; }
+.product-picker { display: grid; gap: .75rem; }
+.picker-toggle { display: flex; gap: .5rem; }
+.picker-toggle input { flex: 1; }
+.picker-list { max-height: 360px; overflow: auto; border: 1px solid var(--border); border-radius: .5rem; padding: .75rem; background: var(--card); }
+.picker-product { display: grid; gap: .35rem; padding: .5rem 0; border-bottom: 1px solid var(--border); }
+.picker-product:last-child { border-bottom: 0; }
+.picker-product-name { display: flex; align-items: center; gap: .5rem; font-weight: 600; }
+.picker-variants { display: flex; flex-wrap: wrap; gap: .6rem; padding-left: 1.6rem; }
+.picker-variants label { display: inline-flex; align-items: center; gap: .3rem; font-size: .88rem; }
 .variant-row { display: grid; grid-template-columns: minmax(100px, 1fr) minmax(88px, .7fr) minmax(120px, 1fr) minmax(120px, 1fr) auto; gap: 8px; align-items: end; padding: 11px; border: 1px solid #dbe3ee; border-radius: 6px; background: #f8fafc; }
 .variant-row label { color: #475569; font-size: 10px; }
 .variant-row input { min-height: 38px; margin-top: 4px; padding: 7px 8px; border-radius: 4px; background: #fff; font-size: 11px; }

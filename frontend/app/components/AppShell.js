@@ -54,7 +54,7 @@ const navigation = [
     items: [
       { href: '/customers', label: 'Pelanggan', icon: Users },
       { href: '/promotions', label: 'Promo & Diskon', icon: Tags },
-      { href: '/expenses', label: 'Pengeluaran', icon: WalletCards },
+      { href: '/expenses', label: 'Pengeluaran & Pemasukan', icon: WalletCards },
       { href: '/operations', label: 'Operasional', icon: ClipboardCheck },
       { href: '/reports', label: 'Laporan', icon: ChartNoAxesCombined },
     ],

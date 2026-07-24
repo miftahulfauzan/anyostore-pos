@@ -63,7 +63,49 @@ router.put('/close', authorize('owner', 'manager', 'admin', 'kasir'), async (req
     const expected = await expectedCash(connection, drawer); const difference = amount(actual - expected);
     if (difference !== 0 && !req.body.notes?.trim()) throw fail(400, 'Alasan selisih kas wajib diisi');
     await connection.execute('UPDATE cash_drawers SET closed_at = NOW(), closing_amount = ?, expected_cash = ?, actual_cash = ?, difference = ?, notes = ?, status = \'closed\' WHERE id = ?', [actual, expected, actual, difference, req.body.notes?.trim() || null, drawer.id]);
-    await connection.commit(); res.json({ success: true, data: { id: drawer.id, expected_cash: expected, actual_cash: actual, difference } });
+    const [payments] = await connection.execute(
+      `SELECT tp.payment_method, COUNT(*) AS transactions, COALESCE(SUM(tp.amount), 0) AS amount
+       FROM transaction_payments tp JOIN transactions t ON t.id = tp.transaction_id
+       WHERE t.branch_id = ? AND t.status = 'completed' AND tp.payment_method = 'cash' AND t.created_at >= ? AND t.created_at <= NOW()
+       GROUP BY tp.payment_method`,
+      [drawer.branch_id, drawer.opened_at]
+    );
+    const [movements] = await connection.execute(
+      `SELECT type, amount, reason, created_at FROM cash_drawer_movements WHERE cash_drawer_id = ? ORDER BY created_at`,
+      [drawer.id]
+    );
+    await connection.commit();
+    res.json({ success: true, data: { id: drawer.id, opening_amount: drawer.opening_amount, expected_cash: expected, actual_cash: actual, difference, closed_at: new Date(), payments, movements } });
   } catch (error) { await connection.rollback(); next(error); } finally { connection.release(); }
+});
+
+router.get('/closing/:id', async (req, res, next) => {
+  try {
+    const [drawers] = await db.execute(
+      `SELECT cd.*, u.name AS cashier, b.name AS branch_name
+       FROM cash_drawers cd
+       JOIN users u ON u.id = cd.user_id
+       JOIN branches b ON b.id = cd.branch_id
+       WHERE cd.id = ? AND cd.branch_id = ?`,
+      [req.params.id, req.user.branch_id]
+    );
+    if (!drawers[0]) throw fail(404, 'Penutupan tidak ditemukan');
+    const drawer = drawers[0];
+    const [payments] = await db.execute(
+      `SELECT tp.payment_method, COUNT(*) AS transactions, COALESCE(SUM(tp.amount), 0) AS amount
+       FROM transaction_payments tp JOIN transactions t ON t.id = tp.transaction_id
+       WHERE t.branch_id = ? AND t.status = 'completed' AND tp.payment_method = 'cash' AND t.created_at >= ? AND t.created_at <= ?
+       GROUP BY tp.payment_method`,
+      [drawer.branch_id, drawer.opened_at, drawer.closed_at || new Date()]
+    );
+    const [movements] = await db.execute(
+      `SELECT cdm.type, cdm.amount, cdm.reason, cdm.created_at, u.name AS user_name
+       FROM cash_drawer_movements cdm
+       LEFT JOIN users u ON u.id = cdm.user_id
+       WHERE cdm.cash_drawer_id = ? ORDER BY cdm.created_at`,
+      [drawer.id]
+    );
+    res.json({ success: true, data: { ...drawer, payments, movements } });
+  } catch (error) { next(error); }
 });
 module.exports = router;

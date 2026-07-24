@@ -126,7 +126,10 @@ async function applyAutoTier(connection, lines) {
 
 // Tentukan tier transaksi + harga final per line.
 // Hybrid: default dari tipe pelanggan; Reguler tetap auto-deteksi qty.
-async function applyPriceTier(connection, lines, customerTier = 'reguler') {
+async function applyPriceTier(connection, branchId, lines, customerTier = 'reguler') {
+  const [branchRows] = await connection.execute('SELECT pricing_tier_enabled FROM branches WHERE id = ?', [branchId]);
+  const tiersEnabled = branchRows[0]?.pricing_tier_enabled ?? true;
+  if (!tiersEnabled) return 'retail';
   if (customerTier === 'grosir_seri') return applyGrosirSeri(connection, lines);
   if (customerTier === 'semi_grosir') return applySemiGrosir(lines);
   return applyAutoTier(connection, lines);
@@ -246,7 +249,7 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
     }
     // Terapkan tier Semi Grosir / Grosir Seri (hanya untuk item yang tidak di-override manual).
     const tierLines = lines.filter((line) => !line.priceOverride);
-    const priceTier = await applyPriceTier(connection, tierLines, customerTier);
+    const priceTier = await applyPriceTier(connection, branchId, tierLines, customerTier);
     subtotal = money(lines.reduce((sum, line) => sum + line.lineSubtotal, 0));
     let requestedDiscount = money(discountValue);
     if (requestedDiscount < 0) throw httpError(400, 'Diskon transaksi tidak valid');

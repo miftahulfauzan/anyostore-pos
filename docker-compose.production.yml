@@ -20,6 +20,8 @@ services:
       - ./backend/migrations/20260723_price_tiers.sql:/docker-entrypoint-initdb.d/008-price_tiers.sql:ro
       - ./backend/migrations/20260724_customer_price_tier.sql:/docker-entrypoint-initdb.d/009-customer_price_tier.sql:ro
       - ./backend/migrations/20260725_transaction_cancellation.sql:/docker-entrypoint-initdb.d/010-transaction_cancellation.sql:ro
+      - ./backend/migrations/20260726_branch_pricing_tier.sql:/docker-entrypoint-initdb.d/011-branch_pricing_tier.sql:ro
+      - ./backend/migrations/20260727_expense_income_type.sql:/docker-entrypoint-initdb.d/012-expense_income_type.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p$${MYSQL_ROOT_PASSWORD}"]
       interval: 10s

@@ -30,7 +30,8 @@ export default function Finance() {
     <AppShell title="Laba Rugi" eyebrow="KEUANGAN" actions={<a className="button-link" href="/reports">Semua laporan <ArrowUpRight aria-hidden="true" size={15} /></a>}>
       {data ? (
         <section className="metrics-grid finance-metrics">
-          <article className="metric-card"><div><span>Pendapatan</span><strong>{rupiah(data.revenue)}</strong><small>{data.start} — {data.end}</small></div></article>
+          <article className="metric-card"><div><span>Pendapatan</span><strong>{rupiah(data.revenue)}</strong><small>Penjualan + pemasukan lain</small></div></article>
+          <article className="metric-card"><div><span>Pemasukan Lain</span><strong>{rupiah(data.income)}</strong><small>Kas masuk selain penjualan</small></div></article>
           <article className="metric-card"><div><span>Pengeluaran</span><strong>{rupiah(data.expenses)}</strong><small>Seluruh pengeluaran tercatat</small></div></article>
           <article className="metric-card"><div><span>Laba bersih</span><strong>{rupiah(data.net_profit)}</strong><small>Pendapatan dikurangi pengeluaran</small></div></article>
         </section>

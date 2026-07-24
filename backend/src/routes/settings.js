@@ -21,8 +21,8 @@ function branchId(req) {
 router.get('/branches', async (req, res, next) => {
   try {
     const sql = req.user.role === 'owner'
-      ? 'SELECT id,name,address,phone,email,npwp FROM branches WHERE is_active=TRUE ORDER BY id'
-      : 'SELECT id,name,address,phone,email,npwp FROM branches WHERE id=?';
+      ? 'SELECT id,name,address,phone,email,npwp,pricing_tier_enabled FROM branches WHERE is_active=TRUE ORDER BY id'
+      : 'SELECT id,name,address,phone,email,npwp,pricing_tier_enabled FROM branches WHERE id=?';
     const [rows] = await db.execute(sql, req.user.role === 'owner' ? [] : [req.user.branch_id]);
     res.json({ success: true, data: rows });
   } catch (error) { next(error); }
