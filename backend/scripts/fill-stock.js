@@ -78,10 +78,15 @@ async function main() {
       );
 
       // Catat history perubahan stok (manual adjustment)
+      const [userRows] = await connection.execute(
+        `SELECT id FROM users WHERE branch_id = ? AND is_active = TRUE ORDER BY role = 'owner' DESC, id LIMIT 1`,
+        [branchId]
+      );
+      const userId = userRows.length ? userRows[0].id : null;
       await connection.execute(
         `INSERT INTO stock_mutations (branch_id, warehouse_id, product_id, variant_id, user_id, type, reference_type, qty, stock_before, stock_after, notes)
-         VALUES (?, ?, ?, ?, NULL, 'adjustment', 'manual_setup', ?, ?, ?, ?)`,
-        [branchId, warehouseId, v.product_id, v.id, stockAfter - stockBefore, stockBefore, stockAfter, `Auto-fill ${qtyPerModel} pcs per model`]
+         VALUES (?, ?, ?, ?, ?, 'adjustment', 'manual_setup', ?, ?, ?, ?)`,
+        [branchId, warehouseId, v.product_id, v.id, userId, stockAfter - stockBefore, stockBefore, stockAfter, `Auto-fill ${qtyPerModel} pcs per model`]
       );
 
       updated++;
