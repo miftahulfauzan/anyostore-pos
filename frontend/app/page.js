@@ -10,9 +10,9 @@ export default function Home() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Kalau sudah login, langsung ke dashboard (jangan minta login lagi di tab baru).
+  // Kalau sudah login, langsung ke POS (jangan minta login lagi di tab baru).
   useEffect(() => {
-    if (localStorage.getItem('pos_access_token')) window.location.replace('/dashboard');
+    if (localStorage.getItem('pos_access_token')) window.location.replace('/pos');
   }, []);
 
   async function submit(event) {
@@ -29,7 +29,7 @@ export default function Home() {
       if (!response.ok) throw new Error(body.message || 'Login gagal');
       localStorage.setItem('pos_access_token', body.data.accessToken);
       localStorage.setItem('pos_refresh_token', body.data.refreshToken);
-      window.location.assign('/dashboard');
+      window.location.assign('/pos');
     } catch (error) {
       setMessage(error.message);
     } finally {
