@@ -6,6 +6,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --chown=node:node src ./src
+COPY --chown=node:node scripts ./scripts
 RUN mkdir -p /app/uploads && chown node:node /app/uploads
 
 ENV NODE_ENV=production
