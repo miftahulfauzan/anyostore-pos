@@ -1244,7 +1244,7 @@ svg { max-width: 100%; }
   .form-actions { align-items: stretch; flex-direction: column; gap: 8px; }
   .form-actions > * { width: 100%; min-height: 44px; text-align: center; }
   .table-wrap { margin-inline: -4px; padding: 0 4px 6px; -webkit-overflow-scrolling: touch; }
-  .table-wrap::after { content: 'Geser tabel ke samping untuk melihat kolom lainnya'; display: block; padding-top: 8px; color: #64748b; font-size: 10px; }
+  .table-wrap::after { content: none; }
   .table-wrap table { min-width: 600px; }
   th,
   td { padding: 10px 8px; }
