@@ -34,4 +34,27 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
   } catch (error) { next(error); }
 });
 
+router.put('/:id', authorize('owner', 'manager', 'admin', 'kasir'), async (req, res, next) => {
+  try {
+    const { name, phone, email, address, birth_date: birthDate, gender, price_tier: priceTier = 'reguler' } = req.body;
+    if (!name?.trim()) return res.status(400).json({ success: false, message: 'Nama pelanggan wajib diisi' });
+    if (gender && !['male', 'female'].includes(gender)) return res.status(400).json({ success: false, message: 'Gender tidak valid' });
+    if (!validCustomerTier.has(priceTier)) return res.status(400).json({ success: false, message: 'Tipe harga pelanggan tidak valid' });
+    const [result] = await db.execute(
+      'UPDATE customers SET name = ?, phone = ?, email = ?, address = ?, birth_date = ?, gender = ?, price_tier = ? WHERE id = ? AND branch_id = ? AND is_active = TRUE',
+      [name.trim(), phone?.trim() || null, email?.trim() || null, address?.trim() || null, birthDate || null, gender || null, priceTier, req.params.id, req.user.branch_id]
+    );
+    if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'Pelanggan tidak ditemukan' });
+    res.json({ success: true, data: { id: req.params.id, price_tier: priceTier } });
+  } catch (error) { next(error); }
+});
+
+router.delete('/:id', authorize('owner', 'manager', 'admin', 'kasir'), async (req, res, next) => {
+  try {
+    const [result] = await db.execute('UPDATE customers SET is_active = FALSE WHERE id = ? AND branch_id = ?', [req.params.id, req.user.branch_id]);
+    if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'Pelanggan tidak ditemukan' });
+    res.json({ success: true, data: { id: req.params.id } });
+  } catch (error) { next(error); }
+});
+
 module.exports = router;
