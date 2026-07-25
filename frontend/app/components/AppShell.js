@@ -22,6 +22,7 @@ import {
   Settings,
   Sun,
   Tags,
+  User,
   Users,
   WalletCards,
   X,
@@ -65,6 +66,7 @@ const navigation = [
       { href: '/commissions', label: 'Komisi Staf', icon: BadgeDollarSign, ownerOnly: true },
       { href: '/users', label: 'Pegawai & Akses', icon: Users, ownerOnly: true },
       { href: '/settings', label: 'Pengaturan', icon: Settings, ownerOnly: true },
+      { href: '/me', label: 'Akun Saya', icon: User },
     ],
   },
 ];

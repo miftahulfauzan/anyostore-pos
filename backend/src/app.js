@@ -49,7 +49,16 @@ app.get('/api/health', async (_req, res, next) => {
 app.post('/api/auth/login', loginWithPassword);
 app.post('/api/auth/refresh', refresh);
 app.post('/api/auth/logout', logout);
-app.get('/api/auth/me', authenticate, (req, res) => res.json({ success: true, data: req.user }));
+app.get('/api/auth/me', authenticate, async (req, res, next) => {
+  try {
+    const [[user], [branch]] = await Promise.all([
+      db.execute('SELECT id, name, email, role, branch_id FROM users WHERE id = ? LIMIT 1', [req.user.id]),
+      db.execute('SELECT id, name FROM branches WHERE id = ? LIMIT 1', [req.user.branch_id])
+    ]);
+    if (!user[0]) return res.status(404).json({ success: false, message: 'Pengguna tidak ditemukan' });
+    res.json({ success: true, data: { ...user[0], branch_name: branch[0]?.name || null } });
+  } catch (error) { next(error); }
+});
 app.use('/api/products', productsRouter);
 app.use('/api/inventory', inventoryRouter);
 app.use('/api/transactions', transactionsRouter);

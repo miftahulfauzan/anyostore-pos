@@ -3,20 +3,19 @@ const db = require('../db');
 const { authenticate, authorize } = require('../auth');
 
 const router = express.Router();
-router.use(authenticate, authorize('owner'));
 const allowedTypes = new Set(['percentage_sales', 'percentage_profit', 'per_transaction', 'flat_monthly']);
 const allowedTargets = new Set(['all', 'role', 'user']);
 const allowedRoles = new Set(['owner', 'manager', 'admin', 'kasir', 'gudang']);
 const asMoney = (value) => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 
-router.get('/staff', async (req, res, next) => {
+router.get('/staff', authenticate, authorize('owner'), async (req, res, next) => {
   try {
     const [rows] = await db.execute('SELECT id, name, role FROM users WHERE branch_id = ? AND is_active = TRUE ORDER BY name', [req.user.branch_id]);
     res.json({ success: true, data: rows });
   } catch (error) { next(error); }
 });
 
-router.get('/', async (req, res, next) => {
+router.get('/', authenticate, authorize('owner'), async (req, res, next) => {
   try {
     const [rules, records] = await Promise.all([
       db.execute(`SELECT cr.*, u.name AS staff_name FROM commission_rules cr LEFT JOIN users u ON u.id = cr.user_id WHERE (cr.branch_id = ? OR cr.branch_id IS NULL) ORDER BY cr.is_active DESC, cr.created_at DESC`, [req.user.branch_id]),
@@ -26,7 +25,7 @@ router.get('/', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-router.post('/rules', async (req, res, next) => {
+router.post('/rules', authenticate, authorize('owner'), async (req, res, next) => {
   try {
     const { name, description, applies_to: appliesTo = 'all', role = null, user_id: userId = null, calculation_type: calculationType, percentage = 0, flat_amount: flatAmount = 0, min_target: minTarget = 0, min_transactions: minTransactions = 0, start_date: startDate, end_date: endDate = null } = req.body;
     if (!name?.trim() || !allowedTargets.has(appliesTo) || !allowedTypes.has(calculationType) || !startDate || Number(percentage) < 0 || Number(flatAmount) < 0 || Number(minTarget) < 0 || Number(minTransactions) < 0) return res.status(400).json({ success: false, message: 'Data aturan komisi tidak valid' });
@@ -42,7 +41,7 @@ router.post('/rules', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-router.post('/generate', async (req, res, next) => {
+router.post('/generate', authenticate, authorize('owner'), async (req, res, next) => {
   const connection = await db.getConnection();
   try {
     const { period_start: periodStart, period_end: periodEnd } = req.body;
@@ -87,13 +86,37 @@ router.post('/generate', async (req, res, next) => {
   } catch (error) { await connection.rollback(); next(error); } finally { connection.release(); }
 });
 
-router.put('/records/:id/status', async (req, res, next) => {
+router.put('/records/:id/status', authenticate, authorize('owner'), async (req, res, next) => {
   try {
     const status = req.body.status;
     if (!['approved', 'paid'].includes(status)) return res.status(400).json({ success: false, message: 'Status komisi tidak valid' });
     const [result] = await db.execute(`UPDATE commission_records SET status = ?, approved_by = IF(? = 'approved', ?, approved_by), paid_at = IF(? = 'paid', NOW(), paid_at) WHERE id = ? AND branch_id = ?`, [status, status, req.user.id, status, req.params.id, req.user.branch_id]);
     if (!result.affectedRows) return res.status(404).json({ success: false, message: 'Catatan komisi tidak ditemukan' });
     res.json({ success: true });
+  } catch (error) { next(error); }
+});
+
+// Ringkasan komisi user yang sedang login (semua role).
+router.get('/mine', authenticate, async (req, res, next) => {
+  try {
+    const [summary] = await db.execute(
+      `SELECT COALESCE(SUM(commission_amount), 0) AS total,
+              COALESCE(SUM(CASE WHEN status = 'pending' THEN commission_amount ELSE 0 END), 0) AS pending,
+              COALESCE(SUM(CASE WHEN status = 'approved' THEN commission_amount ELSE 0 END), 0) AS approved,
+              COALESCE(SUM(CASE WHEN status = 'paid' THEN commission_amount ELSE 0 END), 0) AS paid,
+              COUNT(*) AS records
+       FROM commission_records WHERE user_id = ? AND branch_id = ?`,
+      [req.user.id, req.user.branch_id]
+    );
+    const [records] = await db.execute(
+      `SELECT cr.id, cr.period_start, cr.period_end, cr.total_sales, cr.total_transactions, cr.commission_amount, cr.status, cr.created_at, r.name AS rule_name
+       FROM commission_records cr
+       LEFT JOIN commission_rules r ON r.id = cr.rule_id
+       WHERE cr.user_id = ? AND cr.branch_id = ?
+       ORDER BY cr.created_at DESC LIMIT 20`,
+      [req.user.id, req.user.branch_id]
+    );
+    res.json({ success: true, data: { summary: summary[0], records: records[0] } });
   } catch (error) { next(error); }
 });
 
