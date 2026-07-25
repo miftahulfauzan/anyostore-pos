@@ -103,14 +103,14 @@ router.get('/mine', authenticate, async (req, res, next) => {
     const branchId = req.user.branch_id;
     const role = req.user.role;
 
-    // Active rules that apply to this user
+    // Active rules that apply to this user — tolerant to branch cross + string status
     const [rules] = await db.execute(
       `SELECT * FROM commission_rules
-       WHERE (branch_id = ? OR branch_id IS NULL)
-         AND is_active = TRUE
+       WHERE (branch_id = ? OR branch_id IS NULL OR branch_id = 0)
+         AND (is_active = TRUE OR is_active = 1)
          AND (
            applies_to = 'all'
-           OR (applies_to = 'role' AND role = ?)
+           OR (applies_to = 'role' AND LOWER(role) = LOWER(?))
            OR (applies_to = 'user' AND user_id = ?)
          )`,
       [branchId, role, userId]
