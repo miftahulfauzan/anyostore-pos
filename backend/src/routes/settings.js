@@ -21,10 +21,30 @@ function branchId(req) {
 router.get('/branches', async (req, res, next) => {
   try {
     const sql = req.user.role === 'owner'
-      ? 'SELECT id,name,address,phone,email,npwp,pricing_tier_enabled,is_active FROM branches ORDER BY id'
+      ? 'SELECT b.id,b.name,b.address,b.phone,b.email,b.npwp,b.pricing_tier_enabled,b.is_active,(SELECT COUNT(*) FROM products WHERE branch_id=b.id) AS product_count,(SELECT COUNT(*) FROM users WHERE branch_id=b.id AND is_active=TRUE) AS user_count FROM branches b ORDER BY b.id'
       : 'SELECT id,name,address,phone,email,npwp,pricing_tier_enabled FROM branches WHERE id=?';
     const [rows] = await db.execute(sql, req.user.role === 'owner' ? [] : [req.user.branch_id]);
     res.json({ success: true, data: rows });
+  } catch (error) { next(error); }
+});
+
+router.delete('/branches/:id', authorize('owner'), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID cabang tidak valid' });
+    if (id === req.user.branch_id) return res.status(400).json({ success: false, message: 'Tidak dapat menghapus toko akun sendiri — pindah dulu' });
+    const [branches] = await db.execute('SELECT id, is_active FROM branches WHERE id=?', [id]);
+    if (!branches[0]) return res.status(404).json({ success: false, message: 'Toko tidak ditemukan' });
+    const [activeBranches] = await db.execute('SELECT COUNT(*) AS cnt FROM branches WHERE is_active=TRUE');
+    if (Number(activeBranches[0].cnt) <= 1) return res.status(400).json({ success: false, message: 'Tidak dapat menghapus toko terakhir' });
+    const [checks] = await db.execute(
+      `SELECT (SELECT COUNT(*) FROM transactions WHERE branch_id=?) AS trx, (SELECT COUNT(*) FROM users WHERE branch_id=? AND is_active=TRUE) AS users, (SELECT COUNT(*) FROM products WHERE branch_id=?) AS products`,
+      [id, id, id]
+    );
+    if (Number(checks[0].trx) > 0) return res.status(400).json({ success: false, message: `Toko punya ${checks[0].trx} transaksi — tidak bisa dihapus. Nonaktifkan saja.` });
+    // soft-delete: set inactive + archive products/users
+    await db.execute('UPDATE branches SET is_active=FALSE WHERE id=?', [id]);
+    res.json({ success: true, data: { archived: { products: Number(checks[0].products), users: Number(checks[0].users) } });
   } catch (error) { next(error); }
 });
 

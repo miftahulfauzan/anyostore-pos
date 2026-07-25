@@ -173,9 +173,45 @@ export default function SettingsPage() {
       )}
 
       <div className="settings-form" style={{ margin: 0 }}>
+      {isOwner && stores.length > 0 && (
+        <section className="panel" style={{ gridColumn: '1 / -1' }}>
+          <h2>Daftar Toko</h2>
+          <p className="muted" style={{ fontSize: '.85rem' }}>Kelola cabang. Tidak bisa hapus toko dengan transaksi.</p>
+          <div className="table-wrap" style={{ marginTop: '.75rem' }}>
+            <table>
+              <thead><tr><th>ID</th><th>Nama</th><th>Produk</th><th>User</th><th>Aktif</th><th>Aksi</th></tr></thead>
+              <tbody>
+                {stores.map((s) => (
+                  <tr key={s.id}>
+                    <td>{s.id}</td>
+                    <td><strong>{s.name}</strong>{String(s.id) === String(branch) ? <span className="tag" style={{ marginLeft: '.5rem' }}>dipilih</span> : null}<br /><small className="muted">{s.address || '-'}</small></td>
+                    <td>{s.product_count ?? '-'}</td>
+                    <td>{s.user_count ?? '-'}</td>
+                    <td>{s.is_active ? <span className="status paid">aktif</span> : <span className="status pending">nonaktif</span>}</td>
+                    <td>
+                      <button type="button" className="small secondary" disabled={String(s.id) === String(branch)} onClick={async () => {
+                        if (!confirm(`Hapus toko "${s.name}"? Akan dinonaktifkan. Tidak bisa jika ada transaksi.`)) return;
+                        try {
+                          const r = await fetch(`${api}/settings/branches/${s.id}`, { method: 'DELETE', headers: jsonHeaders() });
+                          const b = await r.json();
+                          if (!r.ok) throw new Error(b.message);
+                          setMessage(`Toko ${s.name} dinonaktifkan.`);
+                          const fresh = await loadBranches();
+                          const nextId = fresh.find((x) => x.is_active)?.id || fresh[0]?.id;
+                          if (nextId) { setBranch(String(nextId)); load(String(nextId)); }
+                        } catch (e) { setMessage(e.message); }
+                      }}>Hapus</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
       <section className="panel">
         <h2>Toko aktif & identitas</h2>
-        {stores.length > 1 && <label>Pilih toko<select value={branch} onChange={(event) => { setBranch(event.target.value); load(event.target.value); }}>{stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}</select></label>}
+        {stores.length > 1 && <label>Pilih toko<select value={branch} onChange={(event) => { setBranch(event.target.value); load(event.target.value); }}>{stores.map((store) => <option key={store.id} value={store.id} style={{ opacity: store.is_active ? 1 : .5 }}>{store.name}{store.is_active ? '' : ' (nonaktif)'}</option>)}</select></label>}
         {input('store_name', 'Nama toko')}
         {input('store_address', 'Alamat')}
         <div className="two-fields">
