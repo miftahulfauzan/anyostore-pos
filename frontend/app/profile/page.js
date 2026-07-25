@@ -9,11 +9,14 @@ const rp = (n) => `Rp${Number(n || 0).toLocaleString('id-ID')}`;
 export default function MyAccount() {
   const [profile, setProfile] = useState(null);
   const [commission, setCommission] = useState(null);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [current, setCurrent] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confirm, setConfirm] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
 
   const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('pos_access_token')}` });
 
@@ -28,13 +31,14 @@ export default function MyAccount() {
         const b = await safeJson(r);
         if (!r.ok) throw new Error(b.message || `Gagal ambil profil (${r.status})`);
         setProfile(b.data);
+        setName(b.data?.name || '');
+        setEmail(b.data?.email || '');
       })
       .catch((e) => setMessage(e.message || String(e)));
     fetch(`${api}/commissions/mine`, { headers: { Authorization: `Bearer ${token}` } })
       .then(async (r) => {
         const b = await safeJson(r);
         if (!r.ok) {
-          // commission boleh kosong, jangan fatal
           if (r.status === 429) throw new Error('Rate limit komisi, coba lagi 1 menit');
           setCommission({ summary: { total: 0, pending: 0, approved: 0, paid: 0 }, records: [] });
           return;
@@ -43,6 +47,21 @@ export default function MyAccount() {
       })
       .catch(() => setCommission({ summary: { total: 0, pending: 0, approved: 0, paid: 0 }, records: [] }));
   }, []);
+
+  async function saveProfile(e) {
+    e.preventDefault();
+    if (!name.trim() || !email.trim()) return setMessage('Nama dan email wajib diisi');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setMessage('Format email tidak valid');
+    setSavingProfile(true);
+    try {
+      const r = await fetch(`${api}/users/profile`, { method: 'PUT', headers: headers(), body: JSON.stringify({ name: name.trim(), email: email.trim().toLowerCase() }) });
+      const b = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(b.message || `Gagal simpan profil (${r.status})`);
+      setProfile((p) => ({ ...p, name: name.trim(), email: email.trim().toLowerCase() }));
+      setMessage('Profil berhasil diperbarui. Email untuk login sekarang yang baru.');
+    } catch (e2) { setMessage(e2.message); }
+    finally { setSavingProfile(false); }
+  }
 
   async function changePassword(e) {
     e.preventDefault();
@@ -66,12 +85,17 @@ export default function MyAccount() {
         <section className="panel">
           <h2>Profil</h2>
           {profile ? (
-            <div className="profile-card">
-              <p><strong>Nama</strong><span>{profile.name}</span></p>
-              <p><strong>Email</strong><span>{profile.email}</span></p>
-              <p><strong>Role</strong><span>{profile.role}</span></p>
-              <p><strong>Toko</strong><span>{profile.branch_name || profile.branch_id}</span></p>
-            </div>
+            <>
+              <div className="profile-card" style={{ marginBottom: '1rem' }}>
+                <p><strong>Role</strong><span>{profile.role}</span></p>
+                <p><strong>Toko</strong><span>{profile.branch_name || profile.branch_id}</span></p>
+              </div>
+              <form onSubmit={saveProfile}>
+                <label>Nama<input value={name} onChange={(e) => setName(e.target.value)} required /></label>
+                <label>Email (untuk login)<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
+                <button type="submit" disabled={savingProfile}>{savingProfile ? 'Menyimpan…' : 'Simpan Profil'}</button>
+              </form>
+            </>
           ) : <p>Memuat profil…</p>}
         </section>
 
