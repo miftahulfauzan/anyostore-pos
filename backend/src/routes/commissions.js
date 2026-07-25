@@ -11,8 +11,10 @@ const customerTiers = new Set(['reguler', 'semi_grosir', 'grosir_seri']);
 
 router.get('/staff', authenticate, authorize('owner'), async (req, res, next) => {
   try {
-    const [rows] = await db.execute('SELECT id, name, role FROM users WHERE branch_id = ? AND is_active = TRUE ORDER BY name', [req.user.branch_id]);
-    res.json({ success: true, data: rows });
+    const requestedBranch = Number(req.query.branch_id);
+    const branchId = Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
+    const [rows] = await db.execute('SELECT id, name, role, branch_id FROM users WHERE branch_id = ? AND is_active = TRUE ORDER BY name', [branchId]);
+    res.json({ success: true, data: rows, branch_id: branchId });
   } catch (error) { next(error); }
 });
 
