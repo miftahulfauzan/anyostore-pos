@@ -20,12 +20,28 @@ export default function MyAccount() {
   useEffect(() => {
     const token = localStorage.getItem('pos_access_token');
     if (!token) { window.location.assign('/'); return; }
+    async function safeJson(r) {
+      try { return await r.json(); } catch { return { success: false, message: `HTTP ${r.status}` }; }
+    }
     fetch(`${api}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setProfile(b.data); })
-      .catch((e) => setMessage(e.message));
+      .then(async (r) => {
+        const b = await safeJson(r);
+        if (!r.ok) throw new Error(b.message || `Gagal ambil profil (${r.status})`);
+        setProfile(b.data);
+      })
+      .catch((e) => setMessage(e.message || String(e)));
     fetch(`${api}/commissions/mine`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setCommission(b.data); })
-      .catch((e) => setMessage(e.message));
+      .then(async (r) => {
+        const b = await safeJson(r);
+        if (!r.ok) {
+          // commission boleh kosong, jangan fatal
+          if (r.status === 429) throw new Error('Rate limit komisi, coba lagi 1 menit');
+          setCommission({ summary: { total: 0, pending: 0, approved: 0, paid: 0 }, records: [] });
+          return;
+        }
+        setCommission(b.data || { summary: { total: 0, pending: 0, approved: 0, paid: 0 }, records: [] });
+      })
+      .catch(() => setCommission({ summary: { total: 0, pending: 0, approved: 0, paid: 0 }, records: [] }));
   }, []);
 
   async function changePassword(e) {
@@ -74,10 +90,10 @@ export default function MyAccount() {
           {commission ? (
             <>
               <div className="metrics-grid" style={{ marginBottom: '1rem' }}>
-                <article className="metric-card"><span>Total komisi</span><strong>{rp(commission.summary.total)}</strong></article>
-                <article className="metric-card"><span>Menunggu</span><strong>{rp(commission.summary.pending)}</strong></article>
-                <article className="metric-card"><span>Disetujui</span><strong>{rp(commission.summary.approved)}</strong></article>
-                <article className="metric-card"><span>Dibayar</span><strong>{rp(commission.summary.paid)}</strong></article>
+                <article className="metric-card"><span>Total komisi</span><strong>{rp(commission.summary?.total)}</strong></article>
+                <article className="metric-card"><span>Menunggu</span><strong>{rp(commission.summary?.pending)}</strong></article>
+                <article className="metric-card"><span>Disetujui</span><strong>{rp(commission.summary?.approved)}</strong></article>
+                <article className="metric-card"><span>Dibayar</span><strong>{rp(commission.summary?.paid)}</strong></article>
               </div>
               <div className="table-wrap">
                 <table>
@@ -85,7 +101,7 @@ export default function MyAccount() {
                     <tr><th>Periode</th><th>Penjualan</th><th>Transaksi</th><th>Komisi</th><th>Status</th></tr>
                   </thead>
                   <tbody>
-                    {commission.records.length ? commission.records.map((row) => (
+                    {(commission.records?.length || 0) ? commission.records.map((row) => (
                       <tr key={row.id}>
                         <td>{row.period_start} — {row.period_end}</td>
                         <td>{rp(row.total_sales)}</td>

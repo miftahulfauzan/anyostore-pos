@@ -39,15 +39,23 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json({ limit: '6mb' }));
 app.use('/uploads', serveBlob, express.static(path.join(process.cwd(), 'uploads'), { maxAge: '7d' }));
-app.use('/api', rateLimit({ ...limiterOptions, windowMs: 60_000, max: 300, standardHeaders: true, legacyHeaders: false, handler: (req, res) => res.status(429).json({ success: false, message: 'Terlalu banyak permintaan, coba lagi dalam 1 menit' }) }));
-app.use('/api/auth', rateLimit({ ...limiterOptions, windowMs: 15 * 60_000, max: 10, standardHeaders: true, legacyHeaders: false }));
+app.use('/api', rateLimit({ ...limiterOptions, windowMs: 60_000, max: 600, standardHeaders: true, legacyHeaders: false, handler: (req, res) => res.status(429).json({ success: false, message: 'Terlalu banyak permintaan, coba lagi dalam 1 menit' }) }));
+
+const loginLimiter = rateLimit({
+  ...limiterOptions,
+  windowMs: 15 * 60_000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => res.status(429).json({ success: false, message: 'Terlalu banyak percobaan login, coba lagi 15 menit' }),
+});
 
 app.get('/api/health', async (_req, res, next) => {
   try { await db.query('SELECT 1'); res.json({ success: true, data: { status: 'ok' } }); }
   catch (error) { next(error); }
 });
-app.post('/api/auth/login', loginWithPassword);
-app.post('/api/auth/refresh', refresh);
+app.post('/api/auth/login', loginLimiter, loginWithPassword);
+app.post('/api/auth/refresh', loginLimiter, refresh);
 app.post('/api/auth/logout', logout);
 app.get('/api/auth/me', authenticate, async (req, res, next) => {
   try {
