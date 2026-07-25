@@ -165,7 +165,7 @@ export default function SettingsPage() {
             </div>
             <div className="form-actions">
               <button type="submit" disabled={creating}>{creating ? 'Membuat…' : 'Buat Toko'}</button>
-              <span className="muted" style={{ alignSelf: 'center', fontSize: '.85rem' }}>SKU baru <code>B{idCabang}-SKU</code> • Stok 0 • Gudang auto</span>
+              <span className="muted" style={{ alignSelf: 'center', fontSize: '.85rem' }}>SKU baru B+ID-SKU • Stok 0 • Gudang auto</span>
             </div>
             {createMessage && <p className="message" role="status">{createMessage}</p>}
           </form>
