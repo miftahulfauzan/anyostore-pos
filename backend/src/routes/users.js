@@ -120,11 +120,11 @@ router.put('/:id/toggle-active', authenticate, authorize('owner'), async (req, r
   } catch (e) { next(e); }
 });
 
-// Hapus user (owner, tidak boleh hapus diri sendiri).
+// Hapus user (owner, tidak boleh hapus diri sendiri). Soft-delete karena user punya relasi transaksi.
 router.delete('/:id', authenticate, authorize('owner'), async (req, res, next) => {
   try {
     if (Number(req.params.id) === req.user.id) return badRequest(res, 'Tidak dapat menghapus akun sendiri');
-    const [r] = await db.execute('DELETE FROM users WHERE id = ?', [req.params.id]);
+    const [r] = await db.execute('UPDATE users SET is_active = FALSE WHERE id = ?', [req.params.id]);
     if (!r.affectedRows) return res.status(404).json({ success: false, message: 'Pengguna tidak ditemukan' });
     res.json({ success: true });
   } catch (e) { next(e); }

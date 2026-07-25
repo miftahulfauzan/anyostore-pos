@@ -93,12 +93,12 @@ export default function Users() {
   }
 
   async function removeUser(user) {
-    if (!window.confirm(`Hapus pengguna "${user.name}"? Tindakan ini tidak dapat dibatalkan.`)) return;
+    if (!window.confirm(`Hapus pengguna "${user.name}"? Pengguna akan dinonaktifkan karena sudah memiliki riwayat transaksi.`)) return;
     try {
       const res = await fetch(`${api}/users/${user.id}`, { method: 'DELETE', headers: headers() });
       const body = await res.json();
       if (!res.ok) throw new Error(body.message);
-      setMessage('Pengguna dihapus.');
+      setMessage('Pengguna dinonaktifkan (transaksi tersimpan).');
       load(branch);
     } catch (e) { setMessage(e.message); }
   }
