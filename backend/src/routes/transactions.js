@@ -139,13 +139,35 @@ router.get('/', async (req, res, next) => {
   try {
     const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
     const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
+    const offset = (page - 1) * limit;
+    const dateFrom = req.query.date_from || req.query.start || null;
+    const dateTo = req.query.date_to || req.query.end || null;
+    const search = (req.query.search || '').trim();
+    const status = (req.query.status || '').trim();
+    const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || '');
+
+    let where = 'WHERE t.branch_id = ?';
+    const params = [req.user.branch_id];
+
+    if (isDate(dateFrom)) { where += ' AND DATE(t.created_at) >= ?'; params.push(dateFrom); }
+    if (isDate(dateTo)) { where += ' AND DATE(t.created_at) <= ?'; params.push(dateTo); }
+    if (status && ['completed','cancelled','partially_cancelled','refunded'].includes(status)) { where += ' AND t.status = ?'; params.push(status); }
+    if (search) {
+      where += ' AND (t.invoice_no LIKE ? OR u.name LIKE ? OR c.name LIKE ? OR t.grand_total LIKE ?)';
+      const like = `%${search}%`;
+      params.push(like, like, like, like);
+    }
+
+    const [countRows] = await db.execute(`SELECT COUNT(*) AS total FROM transactions t JOIN users u ON u.id=t.user_id LEFT JOIN customers c ON c.id=t.customer_id ${where}`, params);
+    const total = Number(countRows[0].total || 0);
+
     const [rows] = await db.execute(
-      `SELECT t.id, t.invoice_no, t.grand_total, t.payment_method, t.status, t.price_tier, t.created_at, u.name AS cashier, c.name AS customer
+      `SELECT t.id, t.invoice_no, t.grand_total, t.payment_method, t.status, t.price_tier, t.cancelled_amount, t.created_at, u.name AS cashier, c.name AS customer, c.price_tier AS customer_tier
        FROM transactions t JOIN users u ON u.id = t.user_id LEFT JOIN customers c ON c.id = t.customer_id
-       WHERE t.branch_id = ? ORDER BY t.created_at DESC LIMIT ${limit} OFFSET ${(page - 1) * limit}`,
-      [req.user.branch_id]
+       ${where} ORDER BY t.created_at DESC LIMIT ${limit} OFFSET ${offset}`,
+      params
     );
-    res.json({ success: true, data: rows, page });
+    res.json({ success: true, data: rows, page, total, totalPages: Math.ceil(total / limit) });
   } catch (error) { next(error); }
 });
 

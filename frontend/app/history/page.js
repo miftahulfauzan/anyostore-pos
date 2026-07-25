@@ -4,9 +4,14 @@ import AppShell from '../components/AppShell';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rp = (n) => 'Rp' + Number(n || 0).toLocaleString('id-ID');
+const today = new Date().toISOString().slice(0, 10);
+const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
 
 export default function HistoryPage() {
   const [transactions, setTransactions] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [message, setMessage] = useState('');
   const [selected, setSelected] = useState(null);
   const [quantities, setQuantities] = useState({});
@@ -14,25 +19,45 @@ export default function HistoryPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [role, setRole] = useState(null);
+  const [filters, setFilters] = useState({ search: '', date_from: firstOfMonth, date_to: today, status: '' });
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('retur'); // retur | cancel | info
 
   const h = () => ({ Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
   const canCancel = ['owner', 'manager', 'admin'].includes(role);
 
-  async function load() {
-    const r = await fetch(api + '/transactions', { headers: h() });
-    const b = await r.json();
-    if (!r.ok) throw Error(b.message);
-    setTransactions(b.data);
+  async function load(p = page) {
+    setLoading(true);
+    try {
+      const qs = new URLSearchParams({ page: String(p), limit: '20', search: filters.search, date_from: filters.date_from, date_to: filters.date_to, status: filters.status }).toString();
+      const r = await fetch(api + '/transactions?' + qs, { headers: h() });
+      const b = await r.json();
+      if (!r.ok) throw Error(b.message);
+      setTransactions(b.data);
+      setTotal(b.total || 0);
+      setTotalPages(b.totalPages || 1);
+      setPage(b.page || p);
+    } catch (e) {
+      setMessage(e.message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
     if (!localStorage.getItem('pos_access_token')) return window.location.assign('/');
-    load().catch((e) => setMessage(e.message));
     fetch(api + '/auth/me', { headers: h() })
       .then((r) => (r.ok ? r.json() : null))
       .then((b) => { if (b?.data?.role) setRole(b.data.role); })
       .catch(() => {});
   }, []);
+
+  useEffect(() => { load(1); }, []);
+
+  async function applyFilter() {
+    setPage(1);
+    await load(1);
+  }
 
   async function inspect(id) {
     try {
@@ -44,6 +69,7 @@ export default function HistoryPage() {
       setQuantities(Object.fromEntries(b.data.items.map((i) => [i.transaction_item_id, maxQty(i)])));
       setCancelQuantities(Object.fromEntries(b.data.items.map((i) => [i.transaction_item_id, 0])));
       setCancelReason('');
+      setActiveTab('retur');
     } catch (e) { setMessage(e.message); }
   }
 
@@ -55,7 +81,7 @@ export default function HistoryPage() {
       const r = await fetch(api + '/returns', { method: 'POST', headers: { ...h(), 'Content-Type': 'application/json' }, body: JSON.stringify({ transaction_id: selected.id, items, reason: 'Retur dari riwayat transaksi' }) });
       const b = await r.json();
       if (!r.ok) throw Error(b.message);
-      setMessage('Retur ' + b.data.return_no + ' dibuat dan menunggu persetujuan.');
+      setMessage('Retur ' + b.data.return_no + ' dibuat.');
       setSelected(null);
     } catch (e) { setMessage(e.message); } finally { setSaving(false); }
   }
@@ -74,51 +100,144 @@ export default function HistoryPage() {
     } catch (e) { setMessage(e.message); } finally { setSaving(false); }
   }
 
-  return <AppShell title="Riwayat Transaksi" eyebrow="PENJUALAN" actions={<a className="button-link" href="/pos">Buka Kasir</a>}>
-    <section className="panel">
-      <h2>Transaksi Terakhir</h2>
-      <p className="muted">Klik transaksi untuk detail, retur, atau cancel.</p>
-      {message && <p className="message">{message}</p>}
-      <div className="product-list">{transactions.map((t) =>
-        <article key={t.id} onClick={() => inspect(t.id)} style={{ cursor: 'pointer' }}>
-          <div>
-            <strong>{t.invoice_no}</strong>
-            <span>{t.cashier} · {new Date(t.created_at).toLocaleString('id-ID')}</span>
-          </div>
-          <div>
-            <strong>{rp(t.grand_total)}</strong>
-            <span>{t.payment_method} · {t.status}{t.cancelled_amount ? ' · refund ' + rp(t.cancelled_amount) : ''}</span>
-          </div>
-        </article>)}{!transactions.length && <p>Belum ada transaksi.</p>}</div>
-    </section>
-    {selected && <section className="panel">
-      <div className="section-heading">
-        <div>
-          <h2>{selected.invoice_no}</h2>
-          <p>Detail, retur, atau cancel transaksi.</p>
+  return (
+    <AppShell title="Riwayat Transaksi" eyebrow="PENJUALAN" actions={<a className="button-link" href="/pos">Buka Kasir</a>}>
+      <div style={{ display: 'grid', gridTemplateColumns: selected ? '1.1fr .9fr' : '1fr', gap: '1rem', alignItems: 'start', maxWidth: 1400, margin: '0 auto' }}>
+        {/* LEFT LIST */}
+        <div style={{ display: 'grid', gap: '1rem' }}>
+          <section className="panel">
+            <div className="section-heading">
+              <div><h2>Cari Transaksi</h2><p>Invoice, kasir, pelanggan, atau rentang tanggal</p></div>
+              <span className="tag">{total} trx</span>
+            </div>
+            <div style={{ display: 'grid', gap: '.6rem', marginTop: '.75rem' }}>
+              <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
+                <input style={{ flex: '1 1 200px' }} placeholder="Cari invoice / kasir / pelanggan" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && applyFilter()} />
+                <button type="button" onClick={applyFilter} disabled={loading} style={{ minHeight: 40 }}>{loading ? '...' : 'Cari'}</button>
+              </div>
+              <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
+                <label style={{ minWidth: 140 }}>Dari<input type="date" value={filters.date_from} onChange={(e) => setFilters({ ...filters, date_from: e.target.value })} /></label>
+                <label style={{ minWidth: 140 }}>Sampai<input type="date" value={filters.date_to} onChange={(e) => setFilters({ ...filters, date_to: e.target.value })} /></label>
+                <label>Status
+                  <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
+                    <option value="">Semua</option>
+                    <option value="completed">Selesai</option>
+                    <option value="partially_cancelled">Sebagian batal</option>
+                    <option value="cancelled">Batal</option>
+                  </select>
+                </label>
+                <button type="button" className="small secondary" onClick={applyFilter} style={{ alignSelf: 'end', minHeight: 40 }}>Filter</button>
+              </div>
+            </div>
+            {message && <p className="message">{message}</p>}
+          </section>
+
+          <section className="panel">
+            <div className="product-list">
+              {transactions.map((t) => (
+                <article key={t.id} onClick={() => inspect(t.id)} style={{ cursor: 'pointer', border: selected?.id === t.id ? '1px solid #2563eb' : undefined, borderRadius: 6, padding: '.6rem', background: selected?.id === t.id ? '#eff6ff' : undefined }}>
+                  <div>
+                    <strong style={{ fontSize: '.9rem' }}>{t.invoice_no}</strong>
+                    <span>{t.cashier} {t.customer ? `• ${t.customer} (${t.customer_tier})` : ''} • {new Date(t.created_at).toLocaleString('id-ID')}</span>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <strong>{rp(t.grand_total)}</strong>
+                    <span><span className={'status ' + (t.status === 'completed' ? 'paid' : t.status === 'cancelled' ? 'pending' : 'approved')}>{t.status}</span> • {t.payment_method}</span>
+                  </div>
+                </article>
+              ))}
+              {!transactions.length && !loading && <p>Belum ada transaksi.</p>}
+              {loading && <p>Memuat…</p>}
+            </div>
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', gap: '.5rem', justifyContent: 'center', marginTop: '1rem' }}>
+                <button disabled={page <= 1} onClick={() => load(page - 1)} className="small secondary">Prev</button>
+                <span className="muted" style={{ alignSelf: 'center', fontSize: '.85rem' }}>Hal {page} / {totalPages}</span>
+                <button disabled={page >= totalPages} onClick={() => load(page + 1)} className="small secondary">Next</button>
+              </div>
+            )}
+          </section>
         </div>
-        <div>
-          <a href={'/receipt/' + selected.id + '?print=1'} target="_blank">Cetak ulang</a>
-          <button type="button" onClick={() => setSelected(null)}>Tutup</button>
-        </div>
-      </div>
-      <div className="history-item-list">{selected.items.map((item) => {
-        const remaining = item.quantity - (item.cancelled_qty || 0);
-        return <article key={item.transaction_item_id} className="history-item">
-          <div className="history-item-info">
-            <strong>{item.product_name}</strong>
-            <span>{item.product_sku} · {rp(item.price)} · qty {item.quantity}{item.cancelled_qty ? ' (batal ' + item.cancelled_qty + ')' : ''}</span>
+
+        {/* RIGHT DETAIL SIDEBAR */}
+        {selected && (
+          <div style={{ position: 'sticky', top: '1rem', display: 'grid', gap: '1rem' }}>
+            <section className="panel">
+              <div className="section-heading">
+                <div>
+                  <h2 style={{ fontSize: '1.1rem' }}>{selected.invoice_no}</h2>
+                  <p>{new Date(selected.created_at).toLocaleString('id-ID')} • {selected.payment_method} • {rp(selected.grand_total)}{selected.cancelled_amount ? ` • refund ${rp(selected.cancelled_amount)}` : ''}</p>
+                </div>
+                <button type="button" className="small secondary" onClick={() => setSelected(null)}>Tutup</button>
+              </div>
+
+              <div style={{ display: 'flex', gap: '.4rem', marginTop: '.75rem' }}>
+                <button className={activeTab === 'info' ? 'small' : 'small secondary'} onClick={() => setActiveTab('info')}>Info</button>
+                <button className={activeTab === 'retur' ? 'small' : 'small secondary'} onClick={() => setActiveTab('retur')}>Retur</button>
+                {canCancel && <button className={activeTab === 'cancel' ? 'small' : 'small secondary'} onClick={() => setActiveTab('cancel')}>Batal</button>}
+                <a className="small secondary" href={'/receipt/' + selected.id + '?print=1'} target="_blank" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>Cetak ulang</a>
+              </div>
+
+              <div style={{ marginTop: '1rem' }}>
+                {activeTab === 'info' && (
+                  <div style={{ display: 'grid', gap: '.5rem' }}>
+                    <p className="muted" style={{ margin: 0 }}>Klik Cetak ulang untuk struk. {selected.status !== 'completed' ? `Status: ${selected.status}. Alasan: ${selected.cancel_reason || '-'}` : ''}</p>
+                    <div className="table-wrap"><table><thead><tr><th>Produk</th><th>Qty</th><th>Harga</th></tr></thead><tbody>
+                      {selected.items.map((it) => <tr key={it.transaction_item_id}><td><strong>{it.product_name}</strong><br /><small className="muted">{it.product_sku} {it.variant_detail ? `• ${it.variant_detail}` : ''}{it.cancelled_qty ? ` • batal ${it.cancelled_qty}` : ''}</small></td><td>{it.quantity}</td><td>{rp(it.price)}</td></tr>)}
+                    </tbody></table></div>
+                  </div>
+                )}
+                {activeTab === 'retur' && (
+                  <div style={{ display: 'grid', gap: '.6rem' }}>
+                    <p className="muted" style={{ margin: 0, fontSize: '.85rem' }}>Pilih qty yang mau diretur. Stok akan kembali setelah approve.</p>
+                    {selected.items.map((item) => {
+                      const remaining = item.quantity - (item.cancelled_qty || 0);
+                      return (
+                        <div key={item.transaction_item_id} style={{ display: 'grid', gap: '.3rem', padding: '.6rem', border: '1px solid var(--border)', borderRadius: 6 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '.5rem' }}>
+                            <strong style={{ fontSize: '.9rem' }}>{item.product_name}</strong>
+                            <span className="muted" style={{ fontSize: '.8rem' }}>sisa {remaining}/{item.quantity}</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+                            <label style={{ flex: 1 }}>Qty retur<input type="number" min="0" max={remaining} value={quantities[item.transaction_item_id] ?? 0} onChange={(e) => setQuantities({ ...quantities, [item.transaction_item_id]: Math.min(remaining, Math.max(0, Number(e.target.value))) })} /></label>
+                            <button type="button" className="small secondary" onClick={() => setQuantities({ ...quantities, [item.transaction_item_id]: remaining })} style={{ alignSelf: 'end' }}>Max</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <button disabled={saving} onClick={createReturn}>{saving ? '...' : 'Buat retur'}</button>
+                  </div>
+                )}
+                {activeTab === 'cancel' && canCancel && (
+                  <div style={{ display: 'grid', gap: '.6rem' }}>
+                    {selected.status === 'cancelled' ? <p className="message">Transaksi sudah batal total.</p> : <>
+                      <p className="muted" style={{ margin: 0, fontSize: '.85rem' }}>Batalkan sebagian atau semua item. Refund dihitung otomatis.</p>
+                      {selected.items.map((item) => {
+                        const remaining = item.quantity - (item.cancelled_qty || 0);
+                        if (remaining <= 0) return null;
+                        return (
+                          <div key={item.transaction_item_id} style={{ display: 'grid', gap: '.3rem', padding: '.6rem', border: '1px solid var(--border)', borderRadius: 6 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <strong style={{ fontSize: '.9rem' }}>{item.product_name}</strong>
+                              <span className="muted" style={{ fontSize: '.8rem' }}>sisa {remaining}</span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+                              <label style={{ flex: 1 }}>Qty batal<input type="number" min="0" max={remaining} value={cancelQuantities[item.transaction_item_id] ?? 0} onChange={(e) => setCancelQuantities({ ...cancelQuantities, [item.transaction_item_id]: Math.min(remaining, Math.max(0, Number(e.target.value))) })} /></label>
+                              <button type="button" className="small secondary" onClick={() => setCancelQuantities({ ...cancelQuantities, [item.transaction_item_id]: remaining })} style={{ alignSelf: 'end' }}>Max</button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <label>Alasan batal<input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Opsional — misal salah input" /></label>
+                      <button className="secondary" disabled={saving} onClick={cancelItems}>{saving ? '...' : 'Batalkan item'}</button>
+                    </>}
+                  </div>
+                )}
+              </div>
+            </section>
           </div>
-          <div className="history-item-actions">
-            <label>Retur<input type="number" min="0" max={remaining} value={quantities[item.transaction_item_id] ?? 0} onChange={(e) => setQuantities({ ...quantities, [item.transaction_item_id]: Math.min(remaining, Math.max(0, Number(e.target.value))) })} /></label>
-            {canCancel && selected.status !== 'cancelled' && remaining > 0 && <label>Batal<input type="number" min="0" max={remaining} value={cancelQuantities[item.transaction_item_id] ?? 0} onChange={(e) => setCancelQuantities({ ...cancelQuantities, [item.transaction_item_id]: Math.min(remaining, Math.max(0, Number(e.target.value))) })} /></label>}
-          </div>
-        </article>;
-      })}</div>
-      {canCancel && selected.status !== 'cancelled' && <label>Alasan batal<input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Opsional" /></label>}
-      <div className="history-actions" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '12px' }}>
-        <button disabled={saving} onClick={createReturn}>{saving ? 'Membuat retur…' : 'Buat retur'}</button>
-        {canCancel && selected.status !== 'cancelled' && <button className="secondary" disabled={saving} onClick={cancelItems}>{saving ? 'Membatalkan…' : 'Batalkan item'}</button>}
+        )}
       </div>
-    </section>}</AppShell>;
+    </AppShell>
+  );
 }
