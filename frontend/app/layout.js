@@ -3,7 +3,10 @@ import NotificationCenter from './components/NotificationCenter';
 
 export const metadata = {
   title: 'POS Pakaian',
-  description: 'Sistem point of sale pakaian'
+  description: 'Sistem point of sale pakaian',
+  icons: {
+    icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }, { url: '/icon.svg', type: 'image/svg+xml' }],
+  },
 };
 
 export const viewport = {
