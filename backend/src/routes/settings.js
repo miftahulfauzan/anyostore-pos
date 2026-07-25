@@ -44,7 +44,7 @@ router.delete('/branches/:id', authorize('owner'), async (req, res, next) => {
     if (Number(checks[0].trx) > 0) return res.status(400).json({ success: false, message: `Toko punya ${checks[0].trx} transaksi — tidak bisa dihapus. Nonaktifkan saja.` });
     // soft-delete: set inactive + archive products/users
     await db.execute('UPDATE branches SET is_active=FALSE WHERE id=?', [id]);
-    res.json({ success: true, data: { archived: { products: Number(checks[0].products), users: Number(checks[0].users) } });
+    res.json({ success: true, data: { archived: { products: Number(checks[0].products), users: Number(checks[0].users) } } });
   } catch (error) { next(error); }
 });
 
