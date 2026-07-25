@@ -136,7 +136,14 @@ router.post('/rules', authenticate, authorize('owner'), async (req, res, next) =
     if (!name?.trim() || !allowedTargets.has(appliesTo) || !allowedTypes.has(calculationType) || !startDate || Number(percentage) < 0 || Number(flatAmount) < 0 || Number(minTarget) < 0 || Number(minTransactions) < 0) return res.status(400).json({ success: false, message: 'Data aturan komisi tidak valid' });
     if (appliesTo === 'role' && !allowedRoles.has(role)) return res.status(400).json({ success: false, message: 'Pilih peran staf yang valid' });
     if (appliesTo === 'user' && !Number.isInteger(Number(userId))) return res.status(400).json({ success: false, message: 'Pilih staf untuk aturan ini' });
-    if (appliesTo === 'user') { const [staff] = await db.execute('SELECT id FROM users WHERE id = ? AND branch_id = ?', [userId, req.user.branch_id]); if (!staff[0]) return res.status(400).json({ success: false, message: 'Staf tidak ditemukan' }); }
+    const effectiveBranchId = targetBranchId != null ? targetBranchId : req.user.branch_id;
+    if (appliesTo === 'user') {
+      const [staff] = await db.execute('SELECT id, branch_id FROM users WHERE id = ?', [userId]);
+      if (!staff[0]) return res.status(400).json({ success: false, message: 'Staf tidak ditemukan' });
+      if (targetBranchId != null && Number(staff[0].branch_id) !== Number(targetBranchId)) {
+        return res.status(400).json({ success: false, message: `Staf cabang ${staff[0].branch_id} tidak cocok dengan toko terpilih ${targetBranchId}` });
+      }
+    }
     if (calculationType === 'per_pcs_customer_tier') {
       if (Number(regulerPcs) < 0 || Number(semiPcs) < 0 || Number(grosirPcs) < 0) return res.status(400).json({ success: false, message: 'Komisi per pcs tidak boleh negatif' });
     }
