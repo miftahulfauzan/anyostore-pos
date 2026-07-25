@@ -13,6 +13,8 @@ export default function CommissionsPage() {
   const [records, setRecords] = useState([]);
   const [report, setReport] = useState(null);
   const [staff, setStaff] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [selectedBranch, setSelectedBranch] = useState('');
   const [message, setMessage] = useState('');
   const [role, setRole] = useState(null);
   const [form, setForm] = useState({
@@ -36,37 +38,51 @@ export default function CommissionsPage() {
   const token = () => typeof window === 'undefined' ? '' : localStorage.getItem('pos_access_token');
   const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` });
 
-  async function load() {
+  async function load(branchId = selectedBranch) {
     try {
+      const qs = branchId ? `?branch_id=${branchId}` : '';
       const [main, people] = await Promise.all([
-        fetch(`${apiUrl}/commissions`, { headers: headers() }),
-        fetch(`${apiUrl}/commissions/staff`, { headers: headers() }),
+        fetch(`${apiUrl}/commissions${qs}`, { headers: headers() }),
+        fetch(`${apiUrl}/commissions/staff${branchId ? `?branch_id=${branchId}` : ''}`, { headers: headers() }),
       ]);
       const mainBody = await main.json();
       const peopleBody = await people.json();
       if (!main.ok) throw new Error(mainBody.message);
       setRules(mainBody.data.rules);
       setRecords(mainBody.data.records);
-      setStaff(peopleBody.data || []);
+      if (mainBody.data.branches) setBranches(mainBody.data.branches);
+      if (mainBody.data.branch_id && !selectedBranch) setSelectedBranch(String(mainBody.data.branch_id));
+      if (peopleBody.data) setStaff(peopleBody.data || []);
+      else if (Array.isArray(peopleBody.data)) setStaff(peopleBody.data);
     } catch (error) {
       setMessage(error.message || 'Komisi tidak dapat dimuat');
     }
   }
 
-  async function loadReport() {
+  async function loadReport(branchId = selectedBranch) {
     try {
-      const qs = new URLSearchParams({ start: reportPeriod.start, end: reportPeriod.end }).toString();
+      const qs = new URLSearchParams({ start: reportPeriod.start, end: reportPeriod.end, ...(branchId ? { branch_id: branchId } : {}) }).toString();
       const r = await fetch(`${apiUrl}/commissions/report?${qs}`, { headers: headers() });
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
       setReport(b.data);
+      if (b.data.branches) setBranches(b.data.branches);
     } catch (e) {
       setMessage(e.message);
     }
   }
 
+  async function loadBranches() {
+    try {
+      const r = await fetch(`${apiUrl}/settings/branches`, { headers: headers() });
+      const b = await r.json();
+      if (r.ok) setBranches(b.data || []);
+    } catch {}
+  }
+
   useEffect(() => {
     if (!token()) { window.location.assign('/'); return; }
+    loadBranches();
     fetch(`${apiUrl}/auth/me`, { headers: headers() })
       .then((res) => (res.ok ? res.json() : null))
       .then((body) => {
@@ -165,15 +181,20 @@ export default function CommissionsPage() {
           <div className="section-heading">
             <div>
               <h2>Laporan Komisi per Akun (Owner)</h2>
-              <p>Live per pcs berdasarkan tipe pelanggan (reguler/semi/grosir seri). Bisa pilih tanggal.</p>
+              <p>Live per pcs by customer tier. Pilih toko untuk lihat cabang Metro, Toko B, dll.</p>
             </div>
             <span className="tag">{report ? rupiah(report.total_commission) : ''}</span>
           </div>
           <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', alignItems: 'end', marginTop: '.75rem' }}>
+            <label>Toko
+              <select value={selectedBranch} onChange={(e) => { setSelectedBranch(e.target.value); load(e.target.value); loadReport(e.target.value); }}>
+                {branches.map((b) => <option key={b.id} value={b.id}>{b.name} (ID {b.id})</option>)}
+              </select>
+            </label>
             <label style={{ minWidth: 150 }}>Dari<input type="date" value={reportPeriod.start} onChange={(e) => setReportPeriod({ ...reportPeriod, start: e.target.value })} /></label>
             <label style={{ minWidth: 150 }}>Sampai<input type="date" value={reportPeriod.end} onChange={(e) => setReportPeriod({ ...reportPeriod, end: e.target.value })} /></label>
-            <button type="button" onClick={loadReport} style={{ minHeight: 40 }}>Tampilkan</button>
-            <span className="muted" style={{ fontSize: '.85rem', alignSelf: 'center' }}>{report?.period_start} → {report?.period_end}</span>
+            <button type="button" onClick={() => loadReport()} style={{ minHeight: 40 }}>Tampilkan</button>
+            <span className="muted" style={{ fontSize: '.85rem', alignSelf: 'center' }}>{report?.period_start} → {report?.period_end} {report?.branch_id ? `• Cabang ${report.branch_id}` : ''}</span>
           </div>
           {report ? (
             <div className="table-wrap" style={{ marginTop: '1rem' }}>

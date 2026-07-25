@@ -18,17 +18,21 @@ router.get('/staff', authenticate, authorize('owner'), async (req, res, next) =>
 
 router.get('/', authenticate, authorize('owner'), async (req, res, next) => {
   try {
+    const requestedBranch = Number(req.query.branch_id);
+    const branchId = Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
+    const [branches] = await db.execute('SELECT id, name FROM branches WHERE is_active=TRUE ORDER BY id');
     const [rules, records] = await Promise.all([
-      db.execute(`SELECT cr.*, u.name AS staff_name FROM commission_rules cr LEFT JOIN users u ON u.id = cr.user_id WHERE (cr.branch_id = ? OR cr.branch_id IS NULL) ORDER BY cr.is_active DESC, cr.created_at DESC`, [req.user.branch_id]),
-      db.execute(`SELECT r.*, u.name AS staff_name, u.role, cr.name AS rule_name FROM commission_records r JOIN users u ON u.id = r.user_id LEFT JOIN commission_rules cr ON cr.id = r.rule_id WHERE r.branch_id = ? ORDER BY r.created_at DESC LIMIT 100`, [req.user.branch_id])
+      db.execute(`SELECT cr.*, u.name AS staff_name FROM commission_rules cr LEFT JOIN users u ON u.id = cr.user_id WHERE (cr.branch_id = ? OR cr.branch_id IS NULL) ORDER BY cr.is_active DESC, cr.created_at DESC`, [branchId]),
+      db.execute(`SELECT r.*, u.name AS staff_name, u.role, cr.name AS rule_name FROM commission_records r JOIN users u ON u.id = r.user_id LEFT JOIN commission_rules cr ON cr.id = r.rule_id WHERE r.branch_id = ? ORDER BY r.created_at DESC LIMIT 100`, [branchId])
     ]);
-    res.json({ success: true, data: { rules: rules[0], records: records[0] } });
+    res.json({ success: true, data: { branches, branch_id: branchId, rules: rules[0], records: records[0] } });
   } catch (error) { next(error); }
 });
 
 router.get('/report', authenticate, authorize('owner'), async (req, res, next) => {
   try {
-    const branchId = req.user.branch_id;
+    const requestedBranch = Number(req.query.branch_id);
+    const branchId = Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
     const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || '');
     const today = new Date();
     const first = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
@@ -37,7 +41,8 @@ router.get('/report', authenticate, authorize('owner'), async (req, res, next) =
     const end = isDate(req.query.end) ? req.query.end : todayStr;
     if (start > end) return res.status(400).json({ success: false, message: 'Rentang tanggal tidak valid' });
 
-    // Live per user
+    // Live per user — include branch selector: owner can query any branch
+    const [branches] = await db.execute('SELECT id, name FROM branches WHERE is_active=TRUE ORDER BY id');
     const [rules] = await db.execute(`SELECT * FROM commission_rules WHERE (branch_id = ? OR branch_id IS NULL) AND (is_active=TRUE OR is_active=1)`, [branchId]);
     const [users] = await db.execute('SELECT id, name, role FROM users WHERE branch_id=? AND is_active=TRUE ORDER BY role, name', [branchId]);
     const report = [];
@@ -100,7 +105,7 @@ router.get('/report', authenticate, authorize('owner'), async (req, res, next) =
     }
     report.sort((a, b) => b.commission - a.commission);
     const total = report.reduce((s, r) => s + Number(r.commission), 0);
-    res.json({ success: true, data: { period_start: start, period_end: end, total_commission: asMoney(total), per_account: report } });
+    res.json({ success: true, data: { period_start: start, period_end: end, branch_id: branchId, branches, total_commission: asMoney(total), per_account: report } });
   } catch (error) { next(error); }
 });
 
