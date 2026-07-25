@@ -228,6 +228,28 @@ router.post('/generate', authenticate, authorize('owner'), async (req, res, next
   } catch (error) { await connection.rollback(); next(error); } finally { connection.release(); }
 });
 
+router.delete('/rules/:id', authenticate, authorize('owner'), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID tidak valid' });
+    const [rows] = await db.execute('SELECT id, branch_id FROM commission_rules WHERE id=?', [id]);
+    if (!rows[0]) return res.status(404).json({ success: false, message: 'Aturan tidak ditemukan' });
+    // owner can delete only own branch or global
+    if (rows[0].branch_id != null && Number(rows[0].branch_id) !== Number(req.user.branch_id)) {
+      return res.status(403).json({ success: false, message: 'Tidak bisa hapus aturan cabang lain' });
+    }
+    const conn = await db.getConnection();
+    try {
+      await conn.beginTransaction();
+      await conn.execute('DELETE FROM commission_items WHERE record_id IN (SELECT id FROM commission_records WHERE rule_id=?)', [id]);
+      await conn.execute('DELETE FROM commission_records WHERE rule_id=?', [id]);
+      await conn.execute('DELETE FROM commission_rules WHERE id=?', [id]);
+      await conn.commit();
+    } catch (e) { await conn.rollback(); throw e; } finally { conn.release(); }
+    res.json({ success: true });
+  } catch (error) { next(error); }
+});
+
 router.put('/records/:id/status', authenticate, authorize('owner'), async (req, res, next) => {
   try {
     const status = req.body.status;

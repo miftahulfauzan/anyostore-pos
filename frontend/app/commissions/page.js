@@ -131,6 +131,20 @@ export default function CommissionsPage() {
     }
   }
 
+  async function deleteRule(id, name) {
+    if (!confirm(`Hapus aturan "${name}"? Semua record terkait juga akan terhapus.`)) return;
+    try {
+      const r = await fetch(`${apiUrl}/commissions/rules/${id}`, { method: 'DELETE', headers: headers() });
+      const b = await r.json();
+      if (!r.ok) throw new Error(b.message);
+      setMessage(`Aturan "${name}" dihapus.`);
+      load();
+      loadReport();
+    } catch (e) {
+      setMessage(e.message);
+    }
+  }
+
   if (role && role !== 'owner') {
     return (
       <AppShell title="Komisi Staf" eyebrow="INSENTIF & TARGET">
@@ -254,10 +268,12 @@ export default function CommissionsPage() {
           </section>
 
           <section className="panel">
-            <h2>Daftar Aturan</h2>
+            <div className="section-heading">
+              <div><h2>Daftar Aturan</h2><p>Owner bisa hapus.</p></div>
+            </div>
             <div className="table-wrap">
               <table>
-                <thead><tr><th>Nama</th><th>Berlaku</th><th>Cara</th><th>Nilai</th></tr></thead>
+                <thead><tr><th>Nama</th><th>Berlaku</th><th>Cara</th><th>Nilai</th><th>Aksi</th></tr></thead>
                 <tbody>
                   {rules.map((r) => (
                     <tr key={r.id}>
@@ -270,9 +286,10 @@ export default function CommissionsPage() {
                           : r.calculation_type.startsWith('percentage') ? `${r.percentage}%` : rupiah(r.flat_amount)
                         }
                       </td>
+                      <td><button className="small danger" style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }} onClick={() => deleteRule(r.id, r.name)}>Hapus</button></td>
                     </tr>
                   ))}
-                  {!rules.length && <tr><td colSpan={4}>Belum ada aturan.</td></tr>}
+                  {!rules.length && <tr><td colSpan={5}>Belum ada aturan.</td></tr>}
                 </tbody>
               </table>
             </div>
