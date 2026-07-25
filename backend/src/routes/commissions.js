@@ -96,9 +96,66 @@ router.put('/records/:id/status', authenticate, authorize('owner'), async (req, 
   } catch (error) { next(error); }
 });
 
-// Ringkasan komisi user yang sedang login (semua role).
+// Ringkasan komisi user yang sedang login (semua role) — live calc + stored records.
 router.get('/mine', authenticate, async (req, res, next) => {
   try {
+    const userId = req.user.id;
+    const branchId = req.user.branch_id;
+    const role = req.user.role;
+
+    // Active rules that apply to this user
+    const [rules] = await db.execute(
+      `SELECT * FROM commission_rules
+       WHERE (branch_id = ? OR branch_id IS NULL)
+         AND is_active = TRUE
+         AND (
+           applies_to = 'all'
+           OR (applies_to = 'role' AND role = ?)
+           OR (applies_to = 'user' AND user_id = ?)
+         )`,
+      [branchId, role, userId]
+    );
+
+    // Current month live totals (so commission shows even before Generate)
+    const firstDay = new Date();
+    firstDay.setDate(1);
+    const monthStart = firstDay.toISOString().slice(0, 10);
+    const monthEnd = new Date().toISOString().slice(0, 10);
+
+    let live = { total_sales: 0, total_transactions: 0, estimated: 0, rules: [] };
+    if (rules.length) {
+      const [txRows] = await db.execute(
+        `SELECT COUNT(*) AS cnt, COALESCE(SUM(grand_total),0) AS sales
+         FROM transactions WHERE branch_id=? AND user_id=? AND status='completed'
+           AND DATE(created_at) BETWEEN ? AND ?`,
+        [branchId, userId, monthStart, monthEnd]
+      );
+      const cnt = Number(txRows[0]?.cnt || 0);
+      const sales = Number(txRows[0]?.sales || 0);
+      let estimated = 0;
+      const ruleBreakdown = [];
+      for (const rule of rules) {
+        if (sales < Number(rule.min_target) || cnt < Number(rule.min_transactions)) continue;
+        let comm = 0;
+        if (rule.calculation_type === 'percentage_sales') comm = sales * Number(rule.percentage) / 100;
+        else if (rule.calculation_type === 'per_transaction') comm = cnt * Number(rule.flat_amount);
+        else comm = Number(rule.flat_amount);
+        // for profit we need join; simplify to 0 if no profit data for live
+        if (rule.calculation_type === 'percentage_profit') {
+          const [profitRows] = await db.execute(
+            `SELECT COALESCE(SUM((ti.price - ti.cost) * ti.quantity - ti.discount),0) AS profit
+             FROM transactions t JOIN transaction_items ti ON ti.transaction_id=t.id
+             WHERE t.branch_id=? AND t.user_id=? AND t.status='completed' AND DATE(t.created_at) BETWEEN ? AND ?`,
+            [branchId, userId, monthStart, monthEnd]
+          );
+          comm = Number(profitRows[0]?.profit || 0) * Number(rule.percentage) / 100;
+        }
+        estimated += comm;
+        ruleBreakdown.push({ rule_id: rule.id, name: rule.name, type: rule.calculation_type, commission: asMoney(comm) });
+      }
+      live = { total_sales: asMoney(sales), total_transactions: cnt, estimated: asMoney(estimated), period_start: monthStart, period_end: monthEnd, rules: ruleBreakdown };
+    }
+
     const [summary] = await db.execute(
       `SELECT COALESCE(SUM(commission_amount), 0) AS total,
               COALESCE(SUM(CASE WHEN status = 'pending' THEN commission_amount ELSE 0 END), 0) AS pending,
@@ -106,7 +163,7 @@ router.get('/mine', authenticate, async (req, res, next) => {
               COALESCE(SUM(CASE WHEN status = 'paid' THEN commission_amount ELSE 0 END), 0) AS paid,
               COUNT(*) AS records
        FROM commission_records WHERE user_id = ? AND branch_id = ?`,
-      [req.user.id, req.user.branch_id]
+      [userId, branchId]
     );
     const [records] = await db.execute(
       `SELECT cr.id, cr.period_start, cr.period_end, cr.total_sales, cr.total_transactions, cr.commission_amount, cr.status, cr.created_at, r.name AS rule_name
@@ -114,9 +171,9 @@ router.get('/mine', authenticate, async (req, res, next) => {
        LEFT JOIN commission_rules r ON r.id = cr.rule_id
        WHERE cr.user_id = ? AND cr.branch_id = ?
        ORDER BY cr.created_at DESC LIMIT 20`,
-      [req.user.id, req.user.branch_id]
+      [userId, branchId]
     );
-    res.json({ success: true, data: { summary: summary[0], records: records[0] } });
+    res.json({ success: true, data: { summary: summary[0], records: records[0], live, applicable_rules: rules.map((r) => ({ id: r.id, name: r.name, applies_to: r.applies_to, role: r.role, type: r.calculation_type, percentage: r.percentage, flat_amount: r.flat_amount, min_target: r.min_target, min_transactions: r.min_transactions, start_date: r.start_date })) } });
   } catch (error) { next(error); }
 });
 

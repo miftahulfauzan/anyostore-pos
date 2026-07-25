@@ -136,94 +136,101 @@ export default function SettingsPage() {
   }
 
   return <AppShell title="Pengaturan" eyebrow="KONFIGURASI TOKO">
-    <div className="settings-form">
+    <div style={{ display: 'grid', gap: '1.25rem', maxWidth: 1180, margin: '0 auto' }}>
       {isOwner && (
-        <section className="panel" style={{ border: '1px solid var(--border, #e5e7eb)', background: 'var(--panel, #fff)' }}>
-          <h2>Tambah Toko + Clone Katalog</h2>
-          <p className="muted" style={{ marginBottom: '1rem' }}>
-            Buat cabang baru. Produk tetap sama (nama, kategori, varian, foto), yang berbeda hanya <strong>stok (0)</strong> dan <strong>harga jual</strong> per toko.
-            Cocok untuk buka Toko Metro, Toko B, dll.
-          </p>
-          <form onSubmit={createBranch}>
+        <section className="panel">
+          <div className="section-heading">
+            <div>
+              <h2>Tambah Toko</h2>
+              <p>Buat cabang baru + clone katalog. Produk sama, stok 0, harga jual beda per toko.</p>
+            </div>
+            <span className="tag" style={{ alignSelf: 'center' }}>Owner</span>
+          </div>
+          <form onSubmit={createBranch} style={{ display: 'grid', gap: '1rem', marginTop: '.5rem' }}>
             <div className="two-fields">
-              <label>Nama toko baru<input value={newBranch.name} onChange={(e) => setNewBranch({ ...newBranch, name: e.target.value })} placeholder="Contoh: Toko Metro" required /></label>
-              <label>Copy produk dari<select value={newBranch.source_branch_id} onChange={(e) => setNewBranch({ ...newBranch, source_branch_id: e.target.value })}><option value="">Jangan clone (kosong)</option>{stores.map((s) => <option key={s.id} value={s.id}>{s.name} (ID {s.id})</option>)}</select></label>
+              <label>Nama toko baru*<input value={newBranch.name} onChange={(e) => setNewBranch({ ...newBranch, name: e.target.value })} placeholder="Contoh: Toko Metro" required /></label>
+              <label>Clone dari toko<select value={newBranch.source_branch_id} onChange={(e) => setNewBranch({ ...newBranch, source_branch_id: e.target.value })}><option value="">Tanpa clone (kosong)</option>{stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
             </div>
             <div className="two-fields">
               <label>Alamat<input value={newBranch.address} onChange={(e) => setNewBranch({ ...newBranch, address: e.target.value })} placeholder="Jl. ..." /></label>
               <label>Telepon<input value={newBranch.phone} onChange={(e) => setNewBranch({ ...newBranch, phone: e.target.value })} /></label>
             </div>
             <div className="two-fields">
-              <label>Email toko<input type="email" value={newBranch.email} onChange={(e) => setNewBranch({ ...newBranch, email: e.target.value })} placeholder="metro@anyostore.my.id" /></label>
-              <label>Pengali harga jual (1 = sama, 1.2 = 20% mahal)<input type="number" step="0.01" min="0.1" value={newBranch.price_multiplier} onChange={(e) => setNewBranch({ ...newBranch, price_multiplier: e.target.value })} /></label>
+              <label>Email<input type="email" value={newBranch.email} onChange={(e) => setNewBranch({ ...newBranch, email: e.target.value })} placeholder="metro@anyostore.my.id" /></label>
+              <label>Pengali harga (1 = sama, 1.2 = 20% mahal)<input type="number" step="0.01" min="0.1" value={newBranch.price_multiplier} onChange={(e) => setNewBranch({ ...newBranch, price_multiplier: e.target.value })} /></label>
             </div>
-            <div className="two-fields">
-              <label style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}><input type="checkbox" checked={newBranch.clone_photos} onChange={(e) => setNewBranch({ ...newBranch, clone_photos: e.target.checked })} /> Clone foto produk</label>
-              <label style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}><input type="checkbox" checked={newBranch.pricing_tier_enabled} onChange={(e) => setNewBranch({ ...newBranch, pricing_tier_enabled: e.target.checked })} /> Aktifkan tier harga (Semi/Grosir)</label>
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              <label style={{ display: 'flex', gap: '.45rem', alignItems: 'center', cursor: 'pointer' }}><input type="checkbox" checked={newBranch.clone_photos} onChange={(e) => setNewBranch({ ...newBranch, clone_photos: e.target.checked })} /> Foto</label>
+              <label style={{ display: 'flex', gap: '.45rem', alignItems: 'center', cursor: 'pointer' }}><input type="checkbox" checked={newBranch.pricing_tier_enabled} onChange={(e) => setNewBranch({ ...newBranch, pricing_tier_enabled: e.target.checked })} /> Tier harga</label>
             </div>
-            <button type="submit" disabled={creating} style={{ marginTop: '1rem' }}>{creating ? 'Membuat…' : 'Buat Toko Baru'}</button>
-            {createMessage && <p className="message" role="status" style={{ marginTop: '.75rem' }}>{createMessage}</p>}
+            <div className="form-actions">
+              <button type="submit" disabled={creating}>{creating ? 'Membuat…' : 'Buat Toko'}</button>
+              <span className="muted" style={{ alignSelf: 'center', fontSize: '.85rem' }}>SKU baru <code>B{idCabang}-SKU</code> • Stok 0 • Gudang auto</span>
+            </div>
+            {createMessage && <p className="message" role="status">{createMessage}</p>}
           </form>
-          <div className="muted" style={{ marginTop: '1rem', fontSize: '.9em' }}>
-            <strong>Catatan:</strong>
-            <ul style={{ margin: '.5rem 0 0 1.2rem' }}>
-              <li>Stok awal toko baru selalu 0 — input via <a href="/inventory/incoming">Produk Masuk</a> setelah buat.</li>
-              <li>SKU baru otomatis: <code>B&lt;idCabang&gt;-&lt;SKU lama&gt;</code> supaya unik.</li>
-              <li>Harga jual bisa diubah per produk di <a href="/products">Daftar Produk</a> setelah clone.</li>
-              <li>Gudang Utama & Cadangan otomatis dibuat.</li>
-            </ul>
-          </div>
         </section>
       )}
 
-      <form onSubmit={save}>
+      <div className="settings-form" style={{ margin: 0 }}>
       <section className="panel">
-        <h2>Toko aktif</h2>
+        <h2>Toko aktif & identitas</h2>
         {stores.length > 1 && <label>Pilih toko<select value={branch} onChange={(event) => { setBranch(event.target.value); load(event.target.value); }}>{stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}</select></label>}
-        <p className="muted">Admin toko hanya dapat mengubah tokonya sendiri. Owner bisa kelola semua cabang.</p>
         {input('store_name', 'Nama toko')}
         {input('store_address', 'Alamat')}
-        {input('store_phone', 'Nomor telepon', 'tel')}
-        {input('store_email', 'Email', 'email')}
-        {input('store_tax_id', 'NPWP / ID pajak')}
-      </section>
-      <section className="panel">
-        <h2>Logo & identitas cetak</h2>
-        <div className="store-logo-upload">
-          <div className="store-logo-preview">{form.store_logo ? <img src={mediaUrl(form.store_logo)} alt={'Logo ' + (form.store_name || 'toko')} /> : <span>Belum ada logo</span>}</div>
-          <div><p className="muted">Logo digunakan pada struk dan laporan yang dicetak atau disimpan sebagai PDF.</p><label className="media-upload">{uploadingLogo ? 'Mengunggah…' : 'Pilih logo'}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploadingLogo} onChange={(event) => uploadLogo(event.target.files?.[0])} /></label></div>
+        <div className="two-fields">
+          {input('store_phone', 'Telepon', 'tel')}
+          {input('store_email', 'Email toko', 'email')}
         </div>
-        {select('show_logo', 'Tampilkan logo pada cetakan', [['true', 'Ya'], ['false', 'Tidak']])}
+        {input('store_tax_id', 'NPWP')}
+        <div style={{ marginTop: '.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+          <h3 style={{ margin: '0 0 .75rem', fontSize: '.95rem' }}>Logo</h3>
+          <div className="store-logo-upload">
+            <div className="store-logo-preview">{form.store_logo ? <img src={mediaUrl(form.store_logo)} alt={'Logo'} /> : <span>Belum ada</span>}</div>
+            <div><label className="media-upload">{uploadingLogo ? 'Mengunggah…' : 'Pilih logo'}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploadingLogo} onChange={(event) => uploadLogo(event.target.files?.[0])} /></label></div>
+          </div>
+          {select('show_logo', 'Tampilkan logo', [['true', 'Ya'], ['false', 'Tidak']])}
+        </div>
       </section>
+
       <section className="panel">
-        <h2>Struk & kasir</h2>
-        {input('receipt_header', 'Pesan atas struk')}
-        {input('receipt_footer', 'Pesan bawah struk')}
-        {input('receipt_note', 'Catatan tambahan')}
-        {select('printer_size', 'Ukuran printer', [['58', '58 mm'], ['80', '80 mm']])}
-        {select('show_cashier', 'Tampilkan kasir', [['true', 'Ya'], ['false', 'Tidak']])}
-        {select('show_barcode', 'Tampilkan barcode', [['true', 'Ya'], ['false', 'Tidak']])}
-        {input('invoice_prefix', 'Awalan invoice')}
+        <h2>Struk & operasional</h2>
+        {input('receipt_header', 'Header struk')}
+        {input('receipt_footer', 'Footer struk')}
+        {input('receipt_note', 'Catatan')}
+        <div className="two-fields">
+          {select('printer_size', 'Printer', [['58', '58 mm'], ['80', '80 mm']])}
+          {input('invoice_prefix', 'Prefix invoice')}
+        </div>
+        <div className="two-fields">
+          {select('show_cashier', 'Kasir di struk', [['true', 'Ya'], ['false', 'Tidak']])}
+          {select('show_barcode', 'Barcode di struk', [['true', 'Ya'], ['false', 'Tidak']])}
+        </div>
       </section>
+
       <section className="panel">
-        <h2>Penjualan & tampilan</h2>
-        {select('theme', 'Tema aplikasi', [['green', 'Hijau toko'], ['blue', 'Biru profesional'], ['purple', 'Ungu modern']])}
-        {input('tax_rate', 'Pajak (%)', 'number')}
-        {select('prices_include_tax', 'Harga termasuk pajak', [['true', 'Ya'], ['false', 'Tidak']])}
-        {select('loyalty_enabled', 'Loyalitas aktif', [['true', 'Ya'], ['false', 'Tidak']])}
-        {input('loyalty_points_rate', 'Poin per Rp10.000', 'number')}
-        {input('loyalty_points_value', 'Nilai 1 poin', 'number')}
-        {select('low_stock_alert', 'Peringatan stok rendah', [['true', 'Aktif'], ['false', 'Tidak']])}
-        {input('low_stock_email', 'Email notifikasi', 'email')}
-        {input('timezone', 'Zona waktu')}
+        <h2>Penjualan</h2>
+        {select('theme', 'Tema', [['green', 'Hijau'], ['blue', 'Biru'], ['purple', 'Ungu']])}
+        <div className="two-fields">
+          {input('tax_rate', 'Pajak %', 'number')}
+          {select('prices_include_tax', 'Termasuk pajak', [['true', 'Ya'], ['false', 'Tidak']])}
+        </div>
+        {select('loyalty_enabled', 'Loyalitas', [['true', 'Ya'], ['false', 'Tidak']])}
+        <div className="two-fields">
+          {input('loyalty_points_rate', 'Poin / 10k', 'number')}
+          {input('loyalty_points_value', 'Nilai poin', 'number')}
+        </div>
+        {select('low_stock_alert', 'Alert stok rendah', [['true', 'Ya'], ['false', 'Tidak']])}
+        {input('low_stock_email', 'Email alert', 'email')}
       </section>
-      <section className="panel settings-submit">
-        <h2>Simpan perubahan</h2>
-        <p className="muted">Perubahan berlaku untuk toko yang sedang dipilih.</p>
-        <button disabled={saving}>{saving ? 'Menyimpan…' : 'Simpan Pengaturan'}</button>
+
+      <section className="panel">
+        <h2>Simpan</h2>
+        <p className="muted">Perubahan berlaku untuk toko dipilih.</p>
+        <button onClick={save} disabled={saving} style={{ width: '100%' }}>{saving ? 'Menyimpan…' : 'Simpan Pengaturan'}</button>
         {message && <p className="message" role="status">{message}</p>}
       </section>
-      </form>
+      </div>
     </div>
   </AppShell>;
 }
