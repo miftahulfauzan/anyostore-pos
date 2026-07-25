@@ -22,6 +22,7 @@ services:
       - ./backend/migrations/20260725_transaction_cancellation.sql:/docker-entrypoint-initdb.d/010-transaction_cancellation.sql:ro
       - ./backend/migrations/20260726_branch_pricing_tier.sql:/docker-entrypoint-initdb.d/011-branch_pricing_tier.sql:ro
       - ./backend/migrations/20260727_expense_income_type.sql:/docker-entrypoint-initdb.d/012-expense_income_type.sql:ro
+      - ./backend/migrations/20260728_commission_per_pcs_customer_tier.sql:/docker-entrypoint-initdb.d/013-commission_per_pcs.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p$${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
@@ -47,6 +48,9 @@ services:
       CORS_ORIGIN: ${APP_ORIGIN}
     volumes:
       - uploads_data:/app/uploads
+      - ./backend/migrations:/app/migrations:ro
+      - ./backend/scripts:/app/scripts:ro
+    entrypoint: ["sh","-c","node scripts/migrate.js || true; node src/index.js"]
     depends_on:
       db:
         condition: service_healthy
@@ -54,7 +58,8 @@ services:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:3001/api/health || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 12
+      retries: 20
+      start_period: 20s
     restart: unless-stopped
     networks: [internal]
 
@@ -65,13 +70,14 @@ services:
       args:
         NEXT_PUBLIC_API_URL: /api
     depends_on:
-      backend:
+      db:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
+      start_period: 30s
     restart: unless-stopped
     networks: [internal]
 
@@ -89,6 +95,8 @@ services:
       - caddy_config:/config
     depends_on:
       frontend:
+        condition: service_healthy
+      backend:
         condition: service_healthy
     restart: unless-stopped
     networks: [internal]
