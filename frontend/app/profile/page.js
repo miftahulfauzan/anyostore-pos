@@ -151,11 +151,23 @@ export default function MyAccount() {
 
           {commission && (
             <>
-              <div className="metrics-grid" style={{ marginBottom: '1rem' }}>
-                <article className="metric-card"><span>Penjualan</span><strong>{rp(live?.total_sales)}</strong></article>
-                <article className="metric-card"><span>Transaksi</span><strong>{live?.total_transactions}</strong></article>
-                <article className="metric-card"><span>Estimasi komisi</span><strong style={{ color: '#16a34a' }}>{rp(live?.estimated)}</strong></article>
-                <article className="metric-card"><span>Aturan aktif</span><strong>{live?.rules?.length || 0}</strong></article>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div style={{ display: 'grid', placeItems: 'center', gap: '.35rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '.5rem', background: 'var(--card)', textAlign: 'center' }}>
+                  <span style={{ fontSize: '.75rem', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>Penjualan</span>
+                  <strong style={{ fontSize: '1.15rem' }}>{rp(live?.total_sales)}</strong>
+                </div>
+                <div style={{ display: 'grid', placeItems: 'center', gap: '.35rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '.5rem', background: 'var(--card)', textAlign: 'center' }}>
+                  <span style={{ fontSize: '.75rem', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>Transaksi</span>
+                  <strong style={{ fontSize: '1.35rem' }}>{live?.total_transactions}</strong>
+                </div>
+                <div style={{ display: 'grid', placeItems: 'center', gap: '.35rem', padding: '1rem', border: '1px solid #bbf7d0', borderRadius: '.5rem', background: '#f0fdf4', textAlign: 'center' }}>
+                  <span style={{ fontSize: '.75rem', color: '#15803d', fontWeight: 700, textTransform: 'uppercase' }}>Estimasi Komisi</span>
+                  <strong style={{ fontSize: '1.25rem', color: '#16a34a' }}>{rp(live?.estimated)}</strong>
+                </div>
+                <div style={{ display: 'grid', placeItems: 'center', gap: '.35rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '.5rem', background: 'var(--card)', textAlign: 'center' }}>
+                  <span style={{ fontSize: '.75rem', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>Aturan Aktif</span>
+                  <strong style={{ fontSize: '1.35rem' }}>{live?.rules?.length || 0}</strong>
+                </div>
               </div>
 
               {live?.rules?.length ? (
