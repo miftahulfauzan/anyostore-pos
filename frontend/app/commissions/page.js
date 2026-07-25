@@ -41,19 +41,22 @@ export default function CommissionsPage() {
   async function load(branchId = selectedBranch) {
     try {
       const qs = branchId ? `?branch_id=${branchId}` : '';
-      const [main, people] = await Promise.all([
+      const [main, people, branchesRes] = await Promise.all([
         fetch(`${apiUrl}/commissions${qs}`, { headers: headers() }),
         fetch(`${apiUrl}/commissions/staff${branchId ? `?branch_id=${branchId}` : ''}`, { headers: headers() }),
+        fetch(`${apiUrl}/settings/branches`, { headers: headers() }),
       ]);
       const mainBody = await main.json();
       const peopleBody = await people.json();
+      const branchesBody = await branchesRes.json().catch(() => ({ data: [] }));
       if (!main.ok) throw new Error(mainBody.message);
       setRules(mainBody.data.rules);
       setRecords(mainBody.data.records);
-      if (mainBody.data.branches) setBranches(mainBody.data.branches);
+      // prefer settings/branches for full list
+      if (branchesBody.data?.length) setBranches(branchesBody.data);
+      else if (mainBody.data.branches) setBranches(mainBody.data.branches);
       if (mainBody.data.branch_id && !selectedBranch) setSelectedBranch(String(mainBody.data.branch_id));
-      if (peopleBody.data) setStaff(peopleBody.data || []);
-      else if (Array.isArray(peopleBody.data)) setStaff(peopleBody.data);
+      setStaff(peopleBody.data || []);
     } catch (error) {
       setMessage(error.message || 'Komisi tidak dapat dimuat');
     }
