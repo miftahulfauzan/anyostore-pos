@@ -96,33 +96,37 @@ router.put('/records/:id/status', authenticate, authorize('owner'), async (req, 
   } catch (error) { next(error); }
 });
 
-// Ringkasan komisi user yang sedang login (semua role) — live calc + stored records.
+// Ringkasan komisi user yang sedang login (semua role) — live calc with date range.
 router.get('/mine', authenticate, async (req, res, next) => {
   try {
     const userId = req.user.id;
     const branchId = req.user.branch_id;
     const role = req.user.role;
 
-    // Active rules that apply to this user — tolerant to branch cross + string status
+    // optional date range: ?start=2026-07-01&end=2026-07-31, default current month
+    const today = new Date();
+    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
+    const todayStr = today.toISOString().slice(0, 10);
+    const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || '');
+    const monthStart = isDate(req.query.start) ? req.query.start : firstOfMonth;
+    const monthEnd = isDate(req.query.end) ? req.query.end : todayStr;
+    if (monthStart > monthEnd) return res.status(400).json({ success: false, message: 'Rentang tanggal tidak valid' });
+
     const [rules] = await db.execute(
       `SELECT * FROM commission_rules
        WHERE (branch_id = ? OR branch_id IS NULL OR branch_id = 0)
          AND (is_active = TRUE OR is_active = 1)
+         AND (start_date <= ? AND (end_date IS NULL OR end_date >= ?))
          AND (
            applies_to = 'all'
            OR (applies_to = 'role' AND LOWER(role) = LOWER(?))
            OR (applies_to = 'user' AND user_id = ?)
          )`,
-      [branchId, role, userId]
+      [branchId, monthEnd, monthStart, role, userId]
     );
 
-    // Current month live totals (so commission shows even before Generate)
-    const firstDay = new Date();
-    firstDay.setDate(1);
-    const monthStart = firstDay.toISOString().slice(0, 10);
-    const monthEnd = new Date().toISOString().slice(0, 10);
+    let live = { period_start: monthStart, period_end: monthEnd, total_sales: 0, total_transactions: 0, estimated: 0, rules: [] };
 
-    let live = { total_sales: 0, total_transactions: 0, estimated: 0, rules: [] };
     if (rules.length) {
       const [txRows] = await db.execute(
         `SELECT COUNT(*) AS cnt, COALESCE(SUM(grand_total),0) AS sales
@@ -140,7 +144,6 @@ router.get('/mine', authenticate, async (req, res, next) => {
         if (rule.calculation_type === 'percentage_sales') comm = sales * Number(rule.percentage) / 100;
         else if (rule.calculation_type === 'per_transaction') comm = cnt * Number(rule.flat_amount);
         else comm = Number(rule.flat_amount);
-        // for profit we need join; simplify to 0 if no profit data for live
         if (rule.calculation_type === 'percentage_profit') {
           const [profitRows] = await db.execute(
             `SELECT COALESCE(SUM((ti.price - ti.cost) * ti.quantity - ti.discount),0) AS profit
@@ -150,30 +153,20 @@ router.get('/mine', authenticate, async (req, res, next) => {
           );
           comm = Number(profitRows[0]?.profit || 0) * Number(rule.percentage) / 100;
         }
-        estimated += comm;
-        ruleBreakdown.push({ rule_id: rule.id, name: rule.name, type: rule.calculation_type, commission: asMoney(comm) });
+        comm = asMoney(comm);
+        if (comm > 0) estimated += comm;
+        ruleBreakdown.push({ rule_id: rule.id, name: rule.name, type: rule.calculation_type, percentage: rule.percentage, flat_amount: rule.flat_amount, commission: comm });
       }
       live = { total_sales: asMoney(sales), total_transactions: cnt, estimated: asMoney(estimated), period_start: monthStart, period_end: monthEnd, rules: ruleBreakdown };
     }
 
-    const [summary] = await db.execute(
-      `SELECT COALESCE(SUM(commission_amount), 0) AS total,
-              COALESCE(SUM(CASE WHEN status = 'pending' THEN commission_amount ELSE 0 END), 0) AS pending,
-              COALESCE(SUM(CASE WHEN status = 'approved' THEN commission_amount ELSE 0 END), 0) AS approved,
-              COALESCE(SUM(CASE WHEN status = 'paid' THEN commission_amount ELSE 0 END), 0) AS paid,
-              COUNT(*) AS records
-       FROM commission_records WHERE user_id = ? AND branch_id = ?`,
-      [userId, branchId]
-    );
-    const [records] = await db.execute(
-      `SELECT cr.id, cr.period_start, cr.period_end, cr.total_sales, cr.total_transactions, cr.commission_amount, cr.status, cr.created_at, r.name AS rule_name
-       FROM commission_records cr
-       LEFT JOIN commission_rules r ON r.id = cr.rule_id
-       WHERE cr.user_id = ? AND cr.branch_id = ?
-       ORDER BY cr.created_at DESC LIMIT 20`,
-      [userId, branchId]
-    );
-    res.json({ success: true, data: { summary: summary[0], records: records[0], live, applicable_rules: rules.map((r) => ({ id: r.id, name: r.name, applies_to: r.applies_to, role: r.role, type: r.calculation_type, percentage: r.percentage, flat_amount: r.flat_amount, min_target: r.min_target, min_transactions: r.min_transactions, start_date: r.start_date })) } });
+    res.json({
+      success: true,
+      data: {
+        live,
+        applicable_rules: rules.map((r) => ({ id: r.id, name: r.name, applies_to: r.applies_to, role: r.role, type: r.calculation_type, percentage: r.percentage, flat_amount: r.flat_amount, min_target: r.min_target, min_transactions: r.min_transactions, start_date: r.start_date })),
+      },
+    });
   } catch (error) { next(error); }
 });
 

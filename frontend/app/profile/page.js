@@ -6,6 +6,10 @@ import AppShell from '../components/AppShell';
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rp = (n) => `Rp${Number(n || 0).toLocaleString('id-ID')}`;
 
+const now = new Date();
+const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+const todayStr = now.toISOString().slice(0, 10);
+
 export default function MyAccount() {
   const [profile, setProfile] = useState(null);
   const [commission, setCommission] = useState(null);
@@ -17,15 +21,36 @@ export default function MyAccount() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [range, setRange] = useState({ start: firstOfMonth, end: todayStr });
+  const [loadingComm, setLoadingComm] = useState(false);
 
   const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('pos_access_token')}` });
+
+  async function safeJson(r) {
+    try { return await r.json(); } catch { return { success: false, message: `HTTP ${r.status}` }; }
+  }
+
+  async function fetchCommission(start, end) {
+    const token = localStorage.getItem('pos_access_token');
+    if (!token) return;
+    setLoadingComm(true);
+    try {
+      const qs = new URLSearchParams({ start, end }).toString();
+      const r = await fetch(`${api}/commissions/mine?${qs}`, { headers: { Authorization: `Bearer ${token}` } });
+      const b = await safeJson(r);
+      if (!r.ok) {
+        setCommission({ live: { period_start: start, period_end: end, total_sales: 0, total_transactions: 0, estimated: 0, rules: [] }, applicable_rules: [] });
+        return;
+      }
+      setCommission(b.data);
+    } catch {
+      setCommission({ live: { period_start: start, period_end: end, total_sales: 0, total_transactions: 0, estimated: 0, rules: [] }, applicable_rules: [] });
+    } finally { setLoadingComm(false); }
+  }
 
   useEffect(() => {
     const token = localStorage.getItem('pos_access_token');
     if (!token) { window.location.assign('/'); return; }
-    async function safeJson(r) {
-      try { return await r.json(); } catch { return { success: false, message: `HTTP ${r.status}` }; }
-    }
     fetch(`${api}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then(async (r) => {
         const b = await safeJson(r);
@@ -35,18 +60,13 @@ export default function MyAccount() {
         setEmail(b.data?.email || '');
       })
       .catch((e) => setMessage(e.message || String(e)));
-    fetch(`${api}/commissions/mine`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(async (r) => {
-        const b = await safeJson(r);
-        if (!r.ok) {
-          if (r.status === 429) { setCommission({ summary: { total: 0, pending: 0, approved: 0, paid: 0 }, records: [], live: null }); return; }
-          setCommission({ summary: { total: 0, pending: 0, approved: 0, paid: 0 }, records: [], live: null, applicable_rules: [] });
-          return;
-        }
-        setCommission(b.data || { summary: { total: 0, pending: 0, approved: 0, paid: 0 }, records: [], live: null });
-      })
-      .catch(() => setCommission({ summary: { total: 0, pending: 0, approved: 0, paid: 0 }, records: [], live: null, applicable_rules: [] }));
+    fetchCommission(range.start, range.end);
   }, []);
+
+  function applyRange() {
+    if (range.start > range.end) return setMessage('Tanggal mulai tidak boleh setelah akhir');
+    fetchCommission(range.start, range.end);
+  }
 
   async function saveProfile(e) {
     e.preventDefault();
@@ -89,7 +109,7 @@ export default function MyAccount() {
           <h2>Profil</h2>
           {profile ? (
             <>
-              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '.75rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
                 <span className="tag">{profile.role}</span>
                 <span className="muted" style={{ fontSize: '.85rem' }}>{profile.branch_name || `#${profile.branch_id}`}</span>
               </div>
@@ -114,67 +134,55 @@ export default function MyAccount() {
 
         <section className="panel" style={{ gridColumn: '1 / -1' }}>
           <div className="section-heading">
-            <div><h2>Komisi Saya</h2><p>Terhitung dari aturan aktif — live bulan ini + riwayat generate.</p></div>
+            <div>
+              <h2>Komisi Saya</h2>
+              <p>Live dari transaksi — pilih rentang tanggal.</p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', alignItems: 'end', marginBottom: '1rem' }}>
+            <label style={{ minWidth: 160 }}>Dari<input type="date" value={range.start} onChange={(e) => setRange({ ...range, start: e.target.value })} /></label>
+            <label style={{ minWidth: 160 }}>Sampai<input type="date" value={range.end} onChange={(e) => setRange({ ...range, end: e.target.value })} /></label>
+            <button type="button" onClick={applyRange} disabled={loadingComm} style={{ minHeight: 40 }}>{loadingComm ? 'Memuat…' : 'Tampilkan'}</button>
+            <span className="muted" style={{ alignSelf: 'center', fontSize: '.85rem' }}>{live?.period_start} → {live?.period_end}</span>
           </div>
 
           {!commission && <p>Memuat komisi…</p>}
 
           {commission && (
             <>
-              {live && (
-                <div className="panel" style={{ background: '#f0fdf4', borderColor: '#bbf7d0', marginBottom: '1rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '.5rem' }}>
-                    <strong>Bulan ini ({live.period_start} → {live.period_end})</strong>
-                    <span className="tag">Live hitung</span>
-                  </div>
-                  <div className="metrics-grid" style={{ marginTop: '.75rem', marginBottom: 0 }}>
-                    <article className="metric-card"><span>Penjualan</span><strong>{rp(live.total_sales)}</strong></article>
-                    <article className="metric-card"><span>Transaksi</span><strong>{live.total_transactions}</strong></article>
-                    <article className="metric-card"><span>Estimasi komisi</span><strong style={{ color: '#16a34a' }}>{rp(live.estimated)}</strong></article>
-                    <article className="metric-card"><span>Aturan berlaku</span><strong>{live.rules?.length || 0}</strong></article>
-                  </div>
-                  {live.rules?.length ? (
-                    <div className="table-wrap" style={{ marginTop: '.75rem' }}>
-                      <table><thead><tr><th>Aturan</th><th>Tipe</th><th>Komisi</th></tr></thead>
-                      <tbody>{live.rules.map((r) => <tr key={r.rule_id}><td>{r.name}</td><td>{r.type}</td><td>{rp(r.commission)}</td></tr>)}</tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <p className="muted" style={{ marginTop: '.5rem' }}>Belum ada aturan yang cocok — hubungi owner untuk setting komisi role <code>{profile?.role}</code>.</p>
-                  )}
-                </div>
-              )}
-
-              {rules.length === 0 && !live?.rules?.length && (
-                <div className="panel" style={{ background: '#fff7ed', borderColor: '#fed7aa', marginBottom: '1rem' }}>
-                  <p style={{ margin: 0 }}><strong>Belum ada aturan komisi untuk role {profile?.role}.</strong> Owner perlu buat aturan di <a href="/commissions">Komisi Staf</a> dengan Berlaku untuk = Semua / Peran {profile?.role} / Staf {profile?.name}. Lalu Generate untuk periode bulan ini.</p>
-                </div>
-              )}
-
               <div className="metrics-grid" style={{ marginBottom: '1rem' }}>
-                <article className="metric-card"><span>Total (record)</span><strong>{rp(commission.summary?.total)}</strong></article>
-                <article className="metric-card"><span>Menunggu</span><strong>{rp(commission.summary?.pending)}</strong></article>
-                <article className="metric-card"><span>Disetujui</span><strong>{rp(commission.summary?.approved)}</strong></article>
-                <article className="metric-card"><span>Dibayar</span><strong>{rp(commission.summary?.paid)}</strong></article>
+                <article className="metric-card"><span>Penjualan</span><strong>{rp(live?.total_sales)}</strong></article>
+                <article className="metric-card"><span>Transaksi</span><strong>{live?.total_transactions}</strong></article>
+                <article className="metric-card"><span>Estimasi komisi</span><strong style={{ color: '#16a34a' }}>{rp(live?.estimated)}</strong></article>
+                <article className="metric-card"><span>Aturan aktif</span><strong>{live?.rules?.length || 0}</strong></article>
               </div>
 
-              <div className="table-wrap">
-                <table>
-                  <thead><tr><th>Periode</th><th>Rule</th><th>Penjualan</th><th>Trx</th><th>Komisi</th><th>Status</th></tr></thead>
-                  <tbody>
-                    {(commission.records?.length || 0) ? commission.records.map((row) => (
-                      <tr key={row.id}>
-                        <td>{row.period_start} — {row.period_end}</td>
-                        <td>{row.rule_name || '-'}</td>
-                        <td>{rp(row.total_sales)}</td>
-                        <td>{row.total_transactions}</td>
-                        <td>{rp(row.commission_amount)}</td>
-                        <td><span className={'status ' + row.status}>{row.status}</span></td>
-                      </tr>
-                    )) : <tr><td colSpan={6}>Belum ada riwayat generate komisi. Klik Generate di halaman Komisi Staf.</td></tr>}
-                  </tbody>
-                </table>
-              </div>
+              {live?.rules?.length ? (
+                <div className="table-wrap">
+                  <table>
+                    <thead><tr><th>Aturan</th><th>Tipe</th><th>% / Nominal</th><th>Komisi</th></tr></thead>
+                    <tbody>
+                      {live.rules.map((r) => (
+                        <tr key={r.rule_id}>
+                          <td>{r.name}</td>
+                          <td>{r.type}</td>
+                          <td>{r.type?.includes('percentage') ? `${r.percentage}%` : rp(r.flat_amount)}</td>
+                          <td><strong>{rp(r.commission)}</strong></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="panel" style={{ background: '#fff7ed', borderColor: '#fed7aa' }}>
+                  <p style={{ margin: 0 }}>
+                    {rules.length === 0
+                      ? <>Belum ada aturan komisi untuk role <strong>{profile?.role}</strong>. Owner buat di <a href="/commissions">Komisi Staf</a> → Berlaku untuk = Semua / role {profile?.role}.</>
+                      : <>Penjualan / transaksi di rentang ini belum memenuhi min. target aturan.</>}
+                  </p>
+                </div>
+              )}
             </>
           )}
         </section>
