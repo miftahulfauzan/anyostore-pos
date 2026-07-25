@@ -151,35 +151,45 @@ export default function MyAccount() {
 
           {commission && (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '0.75rem', marginBottom: '1rem' }}>
                 <div style={{ display: 'grid', placeItems: 'center', gap: '.35rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '.5rem', background: 'var(--card)', textAlign: 'center' }}>
-                  <span style={{ fontSize: '.75rem', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>Penjualan</span>
-                  <strong style={{ fontSize: '1.15rem' }}>{rp(live?.total_sales)}</strong>
+                  <span style={{ fontSize: '.72rem', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>Penjualan</span>
+                  <strong style={{ fontSize: '1.05rem' }}>{rp(live?.total_sales)}</strong>
                 </div>
                 <div style={{ display: 'grid', placeItems: 'center', gap: '.35rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '.5rem', background: 'var(--card)', textAlign: 'center' }}>
-                  <span style={{ fontSize: '.75rem', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>Transaksi</span>
-                  <strong style={{ fontSize: '1.35rem' }}>{live?.total_transactions}</strong>
+                  <span style={{ fontSize: '.72rem', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>Transaksi</span>
+                  <strong style={{ fontSize: '1.2rem' }}>{live?.total_transactions}</strong>
                 </div>
                 <div style={{ display: 'grid', placeItems: 'center', gap: '.35rem', padding: '1rem', border: '1px solid #bbf7d0', borderRadius: '.5rem', background: '#f0fdf4', textAlign: 'center' }}>
-                  <span style={{ fontSize: '.75rem', color: '#15803d', fontWeight: 700, textTransform: 'uppercase' }}>Estimasi Komisi</span>
-                  <strong style={{ fontSize: '1.25rem', color: '#16a34a' }}>{rp(live?.estimated)}</strong>
+                  <span style={{ fontSize: '.72rem', color: '#15803d', fontWeight: 700, textTransform: 'uppercase' }}>Estimasi Komisi</span>
+                  <strong style={{ fontSize: '1.15rem', color: '#16a34a' }}>{rp(live?.estimated)}</strong>
+                </div>
+                <div style={{ display: 'grid', placeItems: 'center', gap: '.2rem', padding: '.75rem', border: '1px solid var(--border)', borderRadius: '.5rem', background: 'var(--card)', textAlign: 'center' }}>
+                  <span style={{ fontSize: '.68rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>Reguler pcs</span>
+                  <strong>{live?.qty_reguler || 0}</strong>
+                  <span style={{ fontSize: '.68rem', color: 'var(--muted-foreground)' }}>Semi {live?.qty_semi_grosir || 0} • Grosir {live?.qty_grosir_seri || 0}</span>
                 </div>
                 <div style={{ display: 'grid', placeItems: 'center', gap: '.35rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '.5rem', background: 'var(--card)', textAlign: 'center' }}>
-                  <span style={{ fontSize: '.75rem', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>Aturan Aktif</span>
-                  <strong style={{ fontSize: '1.35rem' }}>{live?.rules?.length || 0}</strong>
+                  <span style={{ fontSize: '.72rem', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>Aturan</span>
+                  <strong style={{ fontSize: '1.2rem' }}>{live?.rules?.length || 0}</strong>
                 </div>
               </div>
 
               {live?.rules?.length ? (
                 <div className="table-wrap">
                   <table>
-                    <thead><tr><th>Aturan</th><th>Tipe</th><th>% / Nominal</th><th>Komisi</th></tr></thead>
+                    <thead><tr><th>Aturan</th><th>Tipe</th><th>Detail per pcs</th><th>Komisi</th></tr></thead>
                     <tbody>
                       {live.rules.map((r) => (
                         <tr key={r.rule_id}>
                           <td>{r.name}</td>
-                          <td>{r.type}</td>
-                          <td>{r.type?.includes('percentage') ? `${r.percentage}%` : rp(r.flat_amount)}</td>
+                          <td><span className="tag" style={{ fontSize: '.75rem' }}>{r.type}</span></td>
+                          <td style={{ fontSize: '.85rem' }}>
+                            {r.type === 'per_pcs_customer_tier'
+                              ? <>Reg {rp(r.commission_reguler_per_pcs)}/pcs • Semi {rp(r.commission_semi_grosir_per_pcs)} • Grosir {rp(r.commission_grosir_seri_per_pcs)} (Reg {r.qty_breakdown?.reguler || 0} • Semi {r.qty_breakdown?.semi_grosir || 0} • Grosir {r.qty_breakdown?.grosir_seri || 0} pcs)</>
+                              : r.type?.includes('percentage') ? `${r.percentage}%` : rp(r.flat_amount)
+                            }
+                          </td>
                           <td><strong>{rp(r.commission)}</strong></td>
                         </tr>
                       ))}
@@ -191,7 +201,7 @@ export default function MyAccount() {
                   <p style={{ margin: 0 }}>
                     {rules.length === 0
                       ? <>Belum ada aturan komisi untuk role <strong>{profile?.role}</strong>. Owner buat di <a href="/commissions">Komisi Staf</a> → Berlaku untuk = Semua / role {profile?.role}.</>
-                      : <>Penjualan / transaksi di rentang ini belum memenuhi min. target aturan.</>}
+                      : <>Penjualan / transaksi di rentang ini belum memenuhi min. target aturan atau tidak ada transaksi.</>}
                   </p>
                 </div>
               )}

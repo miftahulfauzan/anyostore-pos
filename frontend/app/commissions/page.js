@@ -9,13 +9,62 @@ const today = new Date().toISOString().slice(0, 10);
 const firstOfMonth = `${today.slice(0, 8)}01`;
 
 export default function CommissionsPage() {
-  const [rules, setRules] = useState([]); const [records, setRecords] = useState([]); const [staff, setStaff] = useState([]); const [message, setMessage] = useState('');
+  const [rules, setRules] = useState([]);
+  const [records, setRecords] = useState([]);
+  const [report, setReport] = useState(null);
+  const [staff, setStaff] = useState([]);
+  const [message, setMessage] = useState('');
   const [role, setRole] = useState(null);
-  const [form, setForm] = useState({ name: '', applies_to: 'role', role: 'kasir', user_id: '', calculation_type: 'percentage_sales', percentage: '2', flat_amount: '', min_target: '0', min_transactions: '0', start_date: today });
+  const [form, setForm] = useState({
+    name: '',
+    applies_to: 'role',
+    role: 'manager',
+    user_id: '',
+    calculation_type: 'per_pcs_customer_tier',
+    percentage: '2',
+    flat_amount: '',
+    commission_reguler_per_pcs: '3000',
+    commission_semi_grosir_per_pcs: '3000',
+    commission_grosir_seri_per_pcs: '1000',
+    min_target: '0',
+    min_transactions: '0',
+    start_date: today,
+  });
   const [period, setPeriod] = useState({ period_start: firstOfMonth, period_end: today });
+  const [reportPeriod, setReportPeriod] = useState({ start: firstOfMonth, end: today });
+
   const token = () => typeof window === 'undefined' ? '' : localStorage.getItem('pos_access_token');
   const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` });
-  async function load() { try { const [main, people] = await Promise.all([fetch(`${apiUrl}/commissions`, { headers: headers() }), fetch(`${apiUrl}/commissions/staff`, { headers: headers() })]); const mainBody = await main.json(); const peopleBody = await people.json(); if (!main.ok) throw new Error(mainBody.message); setRules(mainBody.data.rules); setRecords(mainBody.data.records); setStaff(peopleBody.data || []); } catch (error) { setMessage(error.message || 'Komisi tidak dapat dimuat'); } }
+
+  async function load() {
+    try {
+      const [main, people] = await Promise.all([
+        fetch(`${apiUrl}/commissions`, { headers: headers() }),
+        fetch(`${apiUrl}/commissions/staff`, { headers: headers() }),
+      ]);
+      const mainBody = await main.json();
+      const peopleBody = await people.json();
+      if (!main.ok) throw new Error(mainBody.message);
+      setRules(mainBody.data.rules);
+      setRecords(mainBody.data.records);
+      setStaff(peopleBody.data || []);
+    } catch (error) {
+      setMessage(error.message || 'Komisi tidak dapat dimuat');
+    }
+  }
+
+  async function loadReport() {
+    try {
+      const qs = new URLSearchParams({ start: reportPeriod.start, end: reportPeriod.end }).toString();
+      const r = await fetch(`${apiUrl}/commissions/report?${qs}`, { headers: headers() });
+      const b = await r.json();
+      if (!r.ok) throw new Error(b.message);
+      setReport(b.data);
+    } catch (e) {
+      setMessage(e.message);
+    }
+  }
+
   useEffect(() => {
     if (!token()) { window.location.assign('/'); return; }
     fetch(`${apiUrl}/auth/me`, { headers: headers() })
@@ -23,22 +72,248 @@ export default function CommissionsPage() {
       .then((body) => {
         const userRole = body?.data?.role;
         setRole(userRole);
-        if (userRole === 'owner') load(); else setMessage('Halaman komisi hanya dapat diakses oleh owner.');
+        if (userRole === 'owner') {
+          load();
+          loadReport();
+        } else setMessage('Halaman komisi hanya dapat diakses oleh owner.');
       })
       .catch(() => setMessage('Gagal memuat profil pengguna.'));
   }, []);
-  async function createRule(event) { event.preventDefault(); setMessage(''); try { const response = await fetch(`${apiUrl}/commissions/rules`, { method: 'POST', headers: headers(), body: JSON.stringify({ ...form, percentage: Number(form.percentage || 0), flat_amount: Number(form.flat_amount || 0), min_target: Number(form.min_target || 0), min_transactions: Number(form.min_transactions || 0), user_id: form.user_id ? Number(form.user_id) : null }) }); const body = await response.json(); if (!response.ok) throw new Error(body.message); setMessage('Aturan komisi disimpan.'); setForm({ ...form, name: '' }); load(); } catch (error) { setMessage(error.message); } }
-  async function generate(event) { event.preventDefault(); try { const response = await fetch(`${apiUrl}/commissions/generate`, { method: 'POST', headers: headers(), body: JSON.stringify(period) }); const body = await response.json(); if (!response.ok) throw new Error(body.message); setMessage(`${body.data.created} catatan komisi dibuat. Catatan yang sudah ada tidak diduplikasi.`); load(); } catch (error) { setMessage(error.message); } }
-  async function updateStatus(id, status) { try { const response = await fetch(`${apiUrl}/commissions/records/${id}/status`, { method: 'PUT', headers: headers(), body: JSON.stringify({ status }) }); const body = await response.json(); if (!response.ok) throw new Error(body.message); setMessage(status === 'paid' ? 'Komisi ditandai sudah dibayar.' : 'Komisi disetujui.'); load(); } catch (error) { setMessage(error.message); } }
 
-  // Halaman komisi khusus owner. Non-owner hanya melihat pesan akses ditolak.
+  async function createRule(event) {
+    event.preventDefault();
+    setMessage('');
+    try {
+      const payload = {
+        ...form,
+        percentage: Number(form.percentage || 0),
+        flat_amount: Number(form.flat_amount || 0),
+        commission_reguler_per_pcs: Number(form.commission_reguler_per_pcs || 0),
+        commission_semi_grosir_per_pcs: Number(form.commission_semi_grosir_per_pcs || 0),
+        commission_grosir_seri_per_pcs: Number(form.commission_grosir_seri_per_pcs || 0),
+        min_target: Number(form.min_target || 0),
+        min_transactions: Number(form.min_transactions || 0),
+        user_id: form.user_id ? Number(form.user_id) : null,
+      };
+      const response = await fetch(`${apiUrl}/commissions/rules`, { method: 'POST', headers: headers(), body: JSON.stringify(payload) });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message);
+      setMessage('Aturan komisi disimpan.');
+      setForm({ ...form, name: '' });
+      load();
+    } catch (error) {
+      setMessage(error.message);
+    }
+  }
+
+  async function generate(event) {
+    event.preventDefault();
+    try {
+      const response = await fetch(`${apiUrl}/commissions/generate`, { method: 'POST', headers: headers(), body: JSON.stringify(period) });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message);
+      setMessage(`${body.data.created} catatan komisi dibuat.`);
+      load();
+    } catch (error) {
+      setMessage(error.message);
+    }
+  }
+
+  async function updateStatus(id, status) {
+    try {
+      const response = await fetch(`${apiUrl}/commissions/records/${id}/status`, { method: 'PUT', headers: headers(), body: JSON.stringify({ status }) });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message);
+      setMessage(status === 'paid' ? 'Komisi ditandai sudah dibayar.' : 'Komisi disetujui.');
+      load();
+    } catch (error) {
+      setMessage(error.message);
+    }
+  }
+
   if (role && role !== 'owner') {
     return (
       <AppShell title="Komisi Staf" eyebrow="INSENTIF & TARGET">
-        <section className="panel"><h2>Akses dibatasi</h2><p className="muted">Halaman komisi hanya dapat diakses oleh owner. Hubungi owner untuk informasi komisi Anda.</p></section>
+        <section className="panel"><h2>Akses dibatasi</h2><p className="muted">Halaman komisi hanya owner. Lihat komisi Anda di Akun Saya.</p></section>
       </AppShell>
     );
   }
 
-  return <AppShell title="Komisi Staf" eyebrow="INSENTIF & TARGET"><section className="commission-layout"><form className="panel" onSubmit={createRule}><h2>Aturan komisi baru</h2><label>Nama aturan<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Contoh: Komisi kasir Juli" required /></label><div className="two-fields"><label>Berlaku untuk<select value={form.applies_to} onChange={(e) => setForm({ ...form, applies_to: e.target.value })}><option value="all">Semua staf</option><option value="role">Peran tertentu</option><option value="user">Staf tertentu</option></select></label>{form.applies_to === 'user' ? <label>Staf<select value={form.user_id} onChange={(e) => setForm({ ...form, user_id: e.target.value })} required><option value="">Pilih staf</option>{staff.map((person) => <option key={person.id} value={person.id}>{person.name} — {person.role}</option>)}</select></label> : <label>Peran<select value={form.role} disabled={form.applies_to === 'all'} onChange={(e) => setForm({ ...form, role: e.target.value })}><option value="kasir">Kasir</option><option value="admin">Admin</option><option value="manager">Manajer</option><option value="gudang">Gudang</option></select></label>}</div><label>Cara hitung<select value={form.calculation_type} onChange={(e) => setForm({ ...form, calculation_type: e.target.value })}><option value="percentage_sales">Persentase penjualan</option><option value="percentage_profit">Persentase laba</option><option value="per_transaction">Nominal per transaksi</option><option value="flat_monthly">Nominal per periode</option></select></label>{form.calculation_type.startsWith('percentage') ? <label>Persentase (%)<input type="number" min="0" step="0.01" value={form.percentage} onChange={(e) => setForm({ ...form, percentage: e.target.value })} /></label> : <label>Nominal (Rp)<input type="number" min="0" value={form.flat_amount} onChange={(e) => setForm({ ...form, flat_amount: e.target.value })} /></label>}<div className="two-fields"><label>Target penjualan min.<input type="number" min="0" value={form.min_target} onChange={(e) => setForm({ ...form, min_target: e.target.value })} /></label><label>Transaksi min.<input type="number" min="0" value={form.min_transactions} onChange={(e) => setForm({ ...form, min_transactions: e.target.value })} /></label></div><label>Mulai berlaku<input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} required /></label><button>Simpan aturan</button></form><section className="panel"><h2>Proses komisi</h2><p className="muted">Buat catatan dari transaksi selesai. Proses yang sama aman dijalankan ulang tanpa menggandakan catatan.</p><form className="compact-form" onSubmit={generate}><label>Mulai<input type="date" value={period.period_start} onChange={(e) => setPeriod({ ...period, period_start: e.target.value })} required /></label><label>Sampai<input type="date" value={period.period_end} onChange={(e) => setPeriod({ ...period, period_end: e.target.value })} required /></label><button>Buat catatan komisi</button></form>{message && <p className="message" role="status">{message}</p>}<h3>Aturan aktif</h3><div className="data-list">{rules.length ? rules.map((rule) => <article key={rule.id}><div><strong>{rule.name}</strong><span>{rule.applies_to === 'user' ? rule.staff_name : rule.applies_to === 'role' ? `Peran: ${rule.role}` : 'Semua staf'} · {rule.calculation_type.replaceAll('_', ' ')}</span></div><strong>{rule.calculation_type.startsWith('percentage') ? `${rule.percentage}%` : rupiah(rule.flat_amount)}</strong></article>) : <p>Belum ada aturan komisi.</p>}</div></section></section><section className="panel records"><div className="section-heading"><div><h2>Catatan komisi</h2><p>Setujui setelah dicek, lalu tandai dibayar saat transfer dilakukan.</p></div></div><div className="table-wrap"><table><thead><tr><th>Staf</th><th>Periode</th><th>Penjualan</th><th>Komisi</th><th>Status</th><th>Aksi</th></tr></thead><tbody>{records.map((record) => <tr key={record.id}><td><strong>{record.staff_name}</strong><small>{record.rule_name || 'Tanpa aturan'}</small></td><td>{record.period_start} — {record.period_end}</td><td>{rupiah(record.total_sales)}<small>{record.total_transactions} transaksi</small></td><td>{rupiah(record.commission_amount)}</td><td><span className={`status ${record.status}`}>{record.status}</span></td><td>{record.status === 'pending' && <button className="secondary small" onClick={() => updateStatus(record.id, 'approved')}>Setujui</button>}{record.status === 'approved' && <button className="small" onClick={() => updateStatus(record.id, 'paid')}>Tandai dibayar</button>}</td></tr>)}{!records.length && <tr><td colSpan="6">Belum ada catatan komisi.</td></tr>}</tbody></table></div></section></AppShell>;
+  const isPerPcs = form.calculation_type === 'per_pcs_customer_tier';
+
+  return (
+    <AppShell title="Komisi Staf" eyebrow="INSENTIF & TARGET">
+      <div style={{ display: 'grid', gap: '1.25rem', maxWidth: 1280, margin: '0 auto' }}>
+        {message && <p className="message" role="status">{message}</p>}
+
+        {/* OWNER REPORT PER ACCOUNT */}
+        <section className="panel">
+          <div className="section-heading">
+            <div>
+              <h2>Laporan Komisi per Akun (Owner)</h2>
+              <p>Live per pcs berdasarkan tipe pelanggan (reguler/semi/grosir seri). Bisa pilih tanggal.</p>
+            </div>
+            <span className="tag">{report ? rupiah(report.total_commission) : ''}</span>
+          </div>
+          <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', alignItems: 'end', marginTop: '.75rem' }}>
+            <label style={{ minWidth: 150 }}>Dari<input type="date" value={reportPeriod.start} onChange={(e) => setReportPeriod({ ...reportPeriod, start: e.target.value })} /></label>
+            <label style={{ minWidth: 150 }}>Sampai<input type="date" value={reportPeriod.end} onChange={(e) => setReportPeriod({ ...reportPeriod, end: e.target.value })} /></label>
+            <button type="button" onClick={loadReport} style={{ minHeight: 40 }}>Tampilkan</button>
+            <span className="muted" style={{ fontSize: '.85rem', alignSelf: 'center' }}>{report?.period_start} → {report?.period_end}</span>
+          </div>
+          {report ? (
+            <div className="table-wrap" style={{ marginTop: '1rem' }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Akun</th><th>Role</th><th>Reguler pcs</th><th>Semi pcs</th><th>Grosir pcs</th><th>Total pcs</th><th>Penjualan</th><th>Komisi</th><th>Breakdown</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.per_account.length ? report.per_account.map((r) => (
+                    <tr key={r.user_id}>
+                      <td><strong>{r.name}</strong></td>
+                      <td>{r.role}</td>
+                      <td>{r.qty_reguler}</td>
+                      <td>{r.qty_semi}</td>
+                      <td>{r.qty_grosir}</td>
+                      <td>{r.total_qty}</td>
+                      <td>{rupiah(r.total_sales)}</td>
+                      <td><strong>{rupiah(r.commission)}</strong></td>
+                      <td style={{ fontSize: '.8rem' }}>{r.breakdown.map((b) => `${b.name}: ${rupiah(b.commission)}`).join(' • ')}</td>
+                    </tr>
+                  )) : <tr><td colSpan={9}>Tidak ada komisi di periode ini.</td></tr>}
+                </tbody>
+                <tfoot>
+                  <tr><td colSpan={7} style={{ textAlign: 'right' }}><strong>Total Komisi Semua Akun</strong></td><td colSpan={2}><strong>{rupiah(report.total_commission)}</strong></td></tr>
+                </tfoot>
+              </table>
+            </div>
+          ) : <p className="muted">Memuat laporan…</p>}
+        </section>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '1rem', alignItems: 'start' }}>
+          <section className="panel">
+            <h2>Aturan Komisi Baru</h2>
+            <p className="muted" style={{ marginTop: 0, fontSize: '.9rem' }}>Untuk manager: pakai tipe <strong>Per pcs by customer tier</strong> — isi 3000/3000/1000 per pcs.</p>
+            <form onSubmit={createRule} style={{ display: 'grid', gap: '.75rem', marginTop: '.75rem' }}>
+              <label>Nama aturan*<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Contoh: Komisi manager per pcs" required /></label>
+              <div className="two-fields">
+                <label>Berlaku untuk
+                  <select value={form.applies_to} onChange={(e) => setForm({ ...form, applies_to: e.target.value })}>
+                    <option value="all">Semua staf</option>
+                    <option value="role">Peran tertentu</option>
+                    <option value="user">Staf tertentu</option>
+                  </select>
+                </label>
+                {form.applies_to === 'user' ? (
+                  <label>Staf
+                    <select value={form.user_id} onChange={(e) => setForm({ ...form, user_id: e.target.value })} required>
+                      <option value="">Pilih staf</option>
+                      {staff.map((p) => <option key={p.id} value={p.id}>{p.name} — {p.role}</option>)}
+                    </select>
+                  </label>
+                ) : (
+                  <label>Peran
+                    <select value={form.role} disabled={form.applies_to === 'all'} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+                      <option value="kasir">Kasir</option>
+                      <option value="admin">Admin</option>
+                      <option value="manager">Manajer</option>
+                      <option value="gudang">Gudang</option>
+                    </select>
+                  </label>
+                )}
+              </div>
+              <label>Cara hitung
+                <select value={form.calculation_type} onChange={(e) => setForm({ ...form, calculation_type: e.target.value })}>
+                  <option value="per_pcs_customer_tier">Per pcs by customer tier (baru)</option>
+                  <option value="percentage_sales">Persentase penjualan</option>
+                  <option value="percentage_profit">Persentase laba</option>
+                  <option value="per_transaction">Nominal per transaksi</option>
+                  <option value="flat_monthly">Nominal per periode</option>
+                </select>
+              </label>
+              {isPerPcs ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '.5rem' }}>
+                  <label>Reguler /pcs<input type="number" min="0" value={form.commission_reguler_per_pcs} onChange={(e) => setForm({ ...form, commission_reguler_per_pcs: e.target.value })} placeholder="3000" /></label>
+                  <label>Semi grosir /pcs<input type="number" min="0" value={form.commission_semi_grosir_per_pcs} onChange={(e) => setForm({ ...form, commission_semi_grosir_per_pcs: e.target.value })} placeholder="3000" /></label>
+                  <label>Grosir seri /pcs<input type="number" min="0" value={form.commission_grosir_seri_per_pcs} onChange={(e) => setForm({ ...form, commission_grosir_seri_per_pcs: e.target.value })} placeholder="1000" /></label>
+                </div>
+              ) : form.calculation_type.startsWith('percentage') ? (
+                <label>Persentase (%)<input type="number" min="0" step="0.01" value={form.percentage} onChange={(e) => setForm({ ...form, percentage: e.target.value })} /></label>
+              ) : (
+                <label>Nominal (Rp)<input type="number" min="0" value={form.flat_amount} onChange={(e) => setForm({ ...form, flat_amount: e.target.value })} /></label>
+              )}
+              <div className="two-fields">
+                <label>Min target penjualan<input type="number" min="0" value={form.min_target} onChange={(e) => setForm({ ...form, min_target: e.target.value })} /></label>
+                <label>Min transaksi<input type="number" min="0" value={form.min_transactions} onChange={(e) => setForm({ ...form, min_transactions: e.target.value })} /></label>
+              </div>
+              <label>Mulai berlaku<input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} required /></label>
+              <button type="submit">Simpan Aturan</button>
+            </form>
+          </section>
+
+          <section className="panel">
+            <h2>Daftar Aturan</h2>
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>Nama</th><th>Berlaku</th><th>Cara</th><th>Nilai</th></tr></thead>
+                <tbody>
+                  {rules.map((r) => (
+                    <tr key={r.id}>
+                      <td><strong>{r.name}</strong><br /><small className="muted">{r.staff_name || r.role || 'semua'}</small></td>
+                      <td>{r.applies_to}{r.role ? `:${r.role}` : ''}</td>
+                      <td>{r.calculation_type}</td>
+                      <td style={{ fontSize: '.85rem' }}>
+                        {r.calculation_type === 'per_pcs_customer_tier'
+                          ? `Reg ${rupiah(r.commission_reguler_per_pcs)}/pcs • Semi ${rupiah(r.commission_semi_grosir_per_pcs)} • Grosir ${rupiah(r.commission_grosir_seri_per_pcs)}`
+                          : r.calculation_type.startsWith('percentage') ? `${r.percentage}%` : rupiah(r.flat_amount)
+                        }
+                      </td>
+                    </tr>
+                  ))}
+                  {!rules.length && <tr><td colSpan={4}>Belum ada aturan.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <section className="panel">
+          <h2>Generate Komisi (arsip)</h2>
+          <p className="muted">Opsional — untuk history pembayarannya. Komisi live di Akun Saya & Laporan sudah otomatis tanpa generate.</p>
+          <form onSubmit={generate} style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', alignItems: 'end', marginTop: '.5rem' }}>
+            <label>Dari<input type="date" value={period.period_start} onChange={(e) => setPeriod({ ...period, period_start: e.target.value })} /></label>
+            <label>Sampai<input type="date" value={period.period_end} onChange={(e) => setPeriod({ ...period, period_end: e.target.value })} /></label>
+            <button type="submit">Generate</button>
+          </form>
+          <div className="table-wrap" style={{ marginTop: '1rem' }}>
+            <table>
+              <thead><tr><th>Staf</th><th>Periode</th><th>Sales</th><th>Trx</th><th>Reg</th><th>Semi</th><th>Grosir</th><th>Komisi</th><th>Status</th><th>Aksi</th></tr></thead>
+              <tbody>
+                {records.map((rec) => (
+                  <tr key={rec.id}>
+                    <td>{rec.staff_name}</td>
+                    <td>{rec.period_start} — {rec.period_end}</td>
+                    <td>{rupiah(rec.total_sales)}</td>
+                    <td>{rec.total_transactions}</td>
+                    <td>{rec.qty_reguler || 0}</td>
+                    <td>{rec.qty_semi_grosir || 0}</td>
+                    <td>{rec.qty_grosir_seri || 0}</td>
+                    <td>{rupiah(rec.commission_amount)}</td>
+                    <td><span className={'status ' + rec.status}>{rec.status}</span></td>
+                    <td style={{ display: 'flex', gap: '.25rem' }}>
+                      <button className="small secondary" onClick={() => updateStatus(rec.id, 'approved')}>Setujui</button>
+                      <button className="small" onClick={() => updateStatus(rec.id, 'paid')}>Bayar</button>
+                    </td>
+                  </tr>
+                ))}
+                {!records.length && <tr><td colSpan={10}>Belum ada record.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </AppShell>
+  );
 }
