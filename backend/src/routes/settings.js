@@ -21,11 +21,135 @@ function branchId(req) {
 router.get('/branches', async (req, res, next) => {
   try {
     const sql = req.user.role === 'owner'
-      ? 'SELECT id,name,address,phone,email,npwp,pricing_tier_enabled FROM branches WHERE is_active=TRUE ORDER BY id'
+      ? 'SELECT id,name,address,phone,email,npwp,pricing_tier_enabled,is_active FROM branches ORDER BY id'
       : 'SELECT id,name,address,phone,email,npwp,pricing_tier_enabled FROM branches WHERE id=?';
     const [rows] = await db.execute(sql, req.user.role === 'owner' ? [] : [req.user.branch_id]);
     res.json({ success: true, data: rows });
   } catch (error) { next(error); }
+});
+
+router.post('/branches', authorize('owner'), async (req, res, next) => {
+  const connection = await db.getConnection();
+  try {
+    const {
+      name,
+      address,
+      phone,
+      email,
+      npwp,
+      pricing_tier_enabled: pricingEnabled = true,
+      source_branch_id: sourceBranchId = null,
+      price_multiplier: priceMultiplierRaw = 1,
+      clone_photos: clonePhotos = true,
+    } = req.body;
+
+    if (!name?.trim()) return res.status(400).json({ success: false, message: 'Nama toko wajib diisi' });
+    const multiplier = priceMultiplierRaw === '' || priceMultiplierRaw == null ? 1 : Number(priceMultiplierRaw);
+    if (!Number.isFinite(multiplier) || multiplier <= 0) return res.status(400).json({ success: false, message: 'Pengali harga tidak valid' });
+    const sourceId = sourceBranchId ? Number(sourceBranchId) : null;
+    if (sourceId != null && !Number.isInteger(sourceId)) return res.status(400).json({ success: false, message: 'Cabang sumber tidak valid' });
+
+    await connection.beginTransaction();
+
+    if (sourceId) {
+      const [sb] = await connection.execute('SELECT id FROM branches WHERE id=? AND is_active=TRUE', [sourceId]);
+      if (!sb[0]) throw Object.assign(new Error('Cabang sumber tidak ditemukan'), { status: 404 });
+    }
+
+    const [branchResult] = await connection.execute(
+      'INSERT INTO branches (name, address, phone, email, npwp, pricing_tier_enabled, is_active) VALUES (?,?,?,?,?,?,TRUE)',
+      [name.trim(), address?.trim() || null, phone?.trim() || null, email?.trim() || null, npwp?.trim() || null, pricingEnabled ? 1 : 0]
+    );
+    const newBranchId = branchResult.insertId;
+
+    // Create 2 warehouses per spec
+    await connection.execute('INSERT INTO warehouses (branch_id, name, description) VALUES (?, ?, ?)', [newBranchId, 'Gudang Utama', 'Gudang utama']);
+    await connection.execute('INSERT INTO warehouses (branch_id, name, description) VALUES (?, ?, ?)', [newBranchId, 'Gudang Cadangan', 'Stok cadangan']);
+    const [warehouses] = await connection.execute('SELECT id FROM warehouses WHERE branch_id=? ORDER BY id LIMIT 1', [newBranchId]);
+    const mainWarehouseId = warehouses[0]?.id;
+
+    // seed default settings like migrasi 12
+    const defaults = [
+      ['store_name', name.trim()],
+      ['store_address', address?.trim() || ''],
+      ['store_phone', phone?.trim() || ''],
+      ['store_email', email?.trim() || ''],
+      ['currency', 'IDR'],
+      ['printer_size', '80'],
+      ['invoice_prefix', 'INV'],
+    ];
+    for (const [k, v] of defaults) {
+      await connection.execute('INSERT INTO store_settings (branch_id, `key`, `value`) VALUES (?,?,?)', [newBranchId, k, v]);
+    }
+
+    let cloned = 0;
+    if (sourceId) {
+      const [products] = await connection.execute(
+        `SELECT id, category_id, name, description, sku, barcode, price, cost, min_stock, gender
+         FROM products WHERE branch_id=? AND is_active=TRUE`, [sourceId]
+      );
+
+      for (const p of products) {
+        const newPrice = Math.round((Number(p.price) * multiplier + Number.EPSILON) * 100) / 100;
+        // avoid duplicate SKU globally (unique) – prefix with B- + branchId
+        const baseSku = (p.sku || '').trim();
+        const newSku = baseSku ? `B${newBranchId}-${baseSku}`.slice(0, 50) : null;
+        const newBarcode = null; // barcode must stay unique – null for cloned
+
+        // check duplicate sku collision
+        if (newSku) {
+          const [dup] = await connection.execute('SELECT id FROM products WHERE sku=? LIMIT 1', [newSku]);
+          if (dup[0]) continue;
+        }
+
+        const [res] = await connection.execute(
+          `INSERT INTO products (branch_id, category_id, name, description, sku, barcode, price, cost, stock, min_stock, gender, is_active)
+           VALUES (?,?,?,?,?,?,?,?,0,?,?,TRUE)`,
+          [newBranchId, p.category_id, p.name, p.description, newSku, newBarcode, newPrice, p.cost || 0, p.min_stock, p.gender]
+        );
+        const newProductId = res.insertId;
+
+        const [variants] = await connection.execute('SELECT color, size, sku, barcode, stock, price FROM product_variants WHERE product_id=? AND is_active=TRUE', [p.id]);
+        for (const v of variants) {
+          const vp = v.price != null ? Math.round((Number(v.price) * multiplier + Number.EPSILON) * 100) / 100 : null;
+          await connection.execute(
+            'INSERT INTO product_variants (product_id, size, color, sku, barcode, stock, price, is_active) VALUES (?,?,?,?,?,0,?,TRUE)',
+            [newProductId, v.size || null, v.color || null, null, null, vp]
+          );
+        }
+
+        const [wholesale] = await connection.execute('SELECT min_qty, max_qty, price FROM wholesale_prices WHERE product_id=? AND is_active=TRUE', [p.id]);
+        for (const w of wholesale) {
+          const wp = Math.round((Number(w.price) * multiplier + Number.EPSILON) * 100) / 100;
+          await connection.execute('INSERT INTO wholesale_prices (product_id, min_qty, max_qty, price, is_active) VALUES (?,?,?,?,TRUE)', [newProductId, w.min_qty, w.max_qty, wp]);
+        }
+
+        if (clonePhotos) {
+          const [photos] = await connection.execute('SELECT filename, path, media_type, is_primary, sort_order FROM product_photos WHERE product_id=? AND variant_id IS NULL', [p.id]);
+          for (const ph of photos) {
+            await connection.execute(
+              'INSERT INTO product_photos (product_id, filename, path, media_type, is_primary, sort_order) VALUES (?,?,?,?,?,?)',
+              [newProductId, ph.filename, ph.path, ph.media_type, ph.is_primary, ph.sort_order]
+            );
+          }
+        }
+
+        if (mainWarehouseId) {
+          await connection.execute('INSERT INTO warehouse_stocks (warehouse_id, product_id, variant_id, quantity) VALUES (?,?,NULL,0)', [mainWarehouseId, newProductId]);
+        }
+
+        cloned += 1;
+      }
+    }
+
+    await connection.commit();
+    res.status(201).json({ success: true, data: { id: newBranchId, cloned_products: cloned } });
+  } catch (error) {
+    await connection.rollback();
+    next(error);
+  } finally {
+    connection.release();
+  }
 });
 
 router.post('/logo', authorize('owner','manager','admin'), logoUpload.single('logo'), async (req, res, next) => {
