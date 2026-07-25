@@ -102,6 +102,7 @@ export default function CommissionsPage() {
     try {
       const payload = {
         ...form,
+        branch_id: selectedBranch ? Number(selectedBranch) : null,
         percentage: Number(form.percentage || 0),
         flat_amount: Number(form.flat_amount || 0),
         commission_reguler_per_pcs: Number(form.commission_reguler_per_pcs || 0),
@@ -232,6 +233,13 @@ export default function CommissionsPage() {
             <h2>Aturan Komisi Baru</h2>
             <p className="muted" style={{ marginTop: 0, fontSize: '.9rem' }}>Untuk manager: pakai tipe <strong>Per pcs by customer tier</strong> — isi 3000/3000/1000 per pcs.</p>
             <form onSubmit={createRule} style={{ display: 'grid', gap: '.75rem', marginTop: '.75rem' }}>
+              <label>Toko
+                <select value={selectedBranch} onChange={(e) => { setSelectedBranch(e.target.value); load(e.target.value); loadReport(e.target.value); }}>
+                  <option value="">Global (semua toko)</option>
+                  {branches.map((b) => <option key={b.id} value={b.id}>{b.name} (ID {b.id})</option>)}
+                </select>
+              </label>
+              <p className="muted" style={{ margin: 0, fontSize: '.8rem' }}>Pilih toko untuk aturan khusus cabang (misal manager Toko B). Kosongkan untuk aturan global.</p>
               <label>Nama aturan*<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Contoh: Komisi manager per pcs" required /></label>
               <div className="two-fields">
                 <label>Berlaku untuk

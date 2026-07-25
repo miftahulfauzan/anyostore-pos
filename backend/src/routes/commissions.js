@@ -114,6 +114,7 @@ router.post('/rules', authenticate, authorize('owner'), async (req, res, next) =
     const {
       name,
       description,
+      branch_id: branchInput = null,
       applies_to: appliesTo = 'all',
       role = null,
       user_id: userId = null,
@@ -128,6 +129,8 @@ router.post('/rules', authenticate, authorize('owner'), async (req, res, next) =
       commission_semi_grosir_per_pcs: semiPcs = 0,
       commission_grosir_seri_per_pcs: grosirPcs = 0,
     } = req.body;
+    const targetBranchId = branchInput != null && branchInput !== '' ? Number(branchInput) : null;
+    if (targetBranchId != null && !Number.isInteger(targetBranchId)) return res.status(400).json({ success: false, message: 'Toko tidak valid' });
     if (!name?.trim() || !allowedTargets.has(appliesTo) || !allowedTypes.has(calculationType) || !startDate || Number(percentage) < 0 || Number(flatAmount) < 0 || Number(minTarget) < 0 || Number(minTransactions) < 0) return res.status(400).json({ success: false, message: 'Data aturan komisi tidak valid' });
     if (appliesTo === 'role' && !allowedRoles.has(role)) return res.status(400).json({ success: false, message: 'Pilih peran staf yang valid' });
     if (appliesTo === 'user' && !Number.isInteger(Number(userId))) return res.status(400).json({ success: false, message: 'Pilih staf untuk aturan ini' });
@@ -139,7 +142,7 @@ router.post('/rules', authenticate, authorize('owner'), async (req, res, next) =
       `INSERT INTO commission_rules (branch_id, name, description, applies_to, role, user_id, calculation_type, percentage, flat_amount, commission_reguler_per_pcs, commission_semi_grosir_per_pcs, commission_grosir_seri_per_pcs, min_target, min_transactions, start_date, end_date)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        req.user.branch_id,
+        targetBranchId != null ? targetBranchId : req.user.branch_id,
         name.trim(),
         description?.trim() || null,
         appliesTo,
@@ -157,6 +160,10 @@ router.post('/rules', authenticate, authorize('owner'), async (req, res, next) =
         endDate || null,
       ]
     );
+    // if branch_id explicitly null from UI (global), override to NULL
+    if (branchInput === null || branchInput === '') {
+      await db.execute('UPDATE commission_rules SET branch_id=NULL WHERE id=?', [result.insertId]);
+    }
     res.status(201).json({ success: true, data: { id: result.insertId } });
   } catch (error) { next(error); }
 });
