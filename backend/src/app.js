@@ -22,6 +22,7 @@ const settingsRouter = require('./routes/settings');
 const dashboardRouter = require('./routes/dashboard');
 const commissionsRouter = require('./routes/commissions');
 const { router: promotionsRouter } = require('./routes/promotions');
+const publicRouter = require('./routes/public');
 const path = require('path');
 const { serveBlob } = require('./media-storage');
 
@@ -67,6 +68,7 @@ app.get('/api/auth/me', authenticate, async (req, res, next) => {
     res.json({ success: true, data: { ...user[0], branch_name: branch[0]?.name || null } });
   } catch (error) { next(error); }
 });
+app.use('/api/public', publicRouter);
 app.use('/api/products', productsRouter);
 app.use('/api/inventory', inventoryRouter);
 app.use('/api/transactions', transactionsRouter);

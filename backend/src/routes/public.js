@@ -1,0 +1,129 @@
+const express = require('express');
+const db = require('../db');
+
+const router = express.Router();
+
+// GET /api/public/branches – list active branches for landing selector
+router.get('/branches', async (_req, res, next) => {
+  try {
+    const [rows] = await db.execute('SELECT id, name, address, phone FROM branches WHERE is_active=TRUE ORDER BY id');
+    res.json({ success: true, data: rows });
+  } catch (e) { next(e); }
+});
+
+// GET /api/public/settings – store info + WA number from branch or fallback
+router.get('/settings', async (req, res, next) => {
+  try {
+    const branchId = Number(req.query.branch_id) || null;
+    // find Metro by name if not provided
+    let effectiveBranchId = branchId;
+    if (!effectiveBranchId) {
+      const [metro] = await db.execute("SELECT id FROM branches WHERE name LIKE '%metro%' AND is_active=TRUE ORDER BY id LIMIT 1");
+      if (metro[0]) effectiveBranchId = metro[0].id;
+      else {
+        const [first] = await db.execute('SELECT id FROM branches WHERE is_active=TRUE ORDER BY id LIMIT 1');
+        if (first[0]) effectiveBranchId = first[0].id;
+      }
+    }
+    if (!effectiveBranchId) return res.json({ success: true, data: { branch_id: null, store_name: 'Anyostore', whatsapp: '' } });
+
+    const [branchRows] = await db.execute('SELECT id, name, address, phone FROM branches WHERE id=? LIMIT 1', [effectiveBranchId]);
+    const [settingsRows] = await db.execute('SELECT `key`, `value` FROM store_settings WHERE branch_id=?', [effectiveBranchId]);
+    const settings = Object.fromEntries(settingsRows.map((r) => [r.key, r.value]));
+    const branch = branchRows[0];
+    res.json({
+      success: true,
+      data: {
+        branch_id: effectiveBranchId,
+        store_name: settings.store_name || branch?.name || 'Anyostore',
+        store_address: settings.store_address || branch?.address || '',
+        store_phone: settings.store_phone || branch?.phone || '',
+        whatsapp: settings.whatsapp_number || settings.store_phone || branch?.phone || '',
+        receipt_header: settings.receipt_header || '',
+      },
+    });
+  } catch (e) { next(e); }
+});
+
+// GET /api/public/categories
+router.get('/categories', async (_req, res, next) => {
+  try {
+    const [rows] = await db.execute('SELECT id, name, slug FROM categories WHERE is_active=TRUE ORDER BY name');
+    res.json({ success: true, data: rows });
+  } catch (e) { next(e); }
+});
+
+// GET /api/public/products – from Metro (or branch_id) – only active, no stock check (ready stock badge)
+router.get('/products', async (req, res, next) => {
+  try {
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 24));
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const offset = (page - 1) * limit;
+    const branchId = Number(req.query.branch_id) || null;
+    const categoryId = Number(req.query.category_id) || null;
+    const search = (req.query.search || '').trim();
+
+    // resolve metro branch id if not given
+    let effectiveBranchId = branchId;
+    if (!effectiveBranchId) {
+      const [metro] = await db.execute("SELECT id FROM branches WHERE name LIKE '%metro%' AND is_active=TRUE ORDER BY id LIMIT 1");
+      effectiveBranchId = metro[0]?.id || null;
+      if (!effectiveBranchId) {
+        const [first] = await db.execute('SELECT id FROM branches WHERE is_active=TRUE ORDER BY id LIMIT 1');
+        effectiveBranchId = first[0]?.id || null;
+      }
+    }
+
+    if (!effectiveBranchId) return res.json({ success: true, data: [], total: 0, page, totalPages: 0, branch_id: null });
+
+    let where = 'WHERE p.branch_id=? AND p.is_active=TRUE';
+    const params = [effectiveBranchId];
+    if (categoryId) { where += ' AND p.category_id=?'; params.push(categoryId); }
+    if (search) { where += ' AND (p.name LIKE ? OR p.sku LIKE ?)'; const like = `%${search}%`; params.push(like, like); }
+
+    const [countRows] = await db.execute(`SELECT COUNT(*) AS total FROM products p ${where}`, params);
+    const total = Number(countRows[0].total);
+
+    const [rows] = await db.execute(
+      `SELECT p.id, p.name, p.sku, p.price, p.category_id, c.name AS category_name,
+              (SELECT pp.path FROM product_photos pp WHERE pp.product_id=p.id AND pp.variant_id IS NULL AND pp.media_type='image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
+              (SELECT COUNT(*) FROM product_variants pv WHERE pv.product_id=p.id AND pv.is_active=TRUE) AS variant_count,
+              (SELECT GROUP_CONCAT(DISTINCT pv.color ORDER BY pv.color SEPARATOR '|') FROM product_variants pv WHERE pv.product_id=p.id AND pv.is_active=TRUE AND pv.color IS NOT NULL AND pv.color<>'') AS variant_colors,
+              (SELECT COALESCE(SUM(ws.quantity),0) FROM warehouse_stocks ws JOIN warehouses w ON w.id=ws.warehouse_id WHERE ws.product_id=p.id AND w.branch_id=p.branch_id) AS total_stock
+       FROM products p JOIN categories c ON c.id=p.category_id
+       ${where}
+       ORDER BY p.created_at DESC LIMIT ${limit} OFFSET ${offset}`,
+      params
+    );
+
+    res.json({ success: true, data: rows, total, page, totalPages: Math.ceil(total / limit), branch_id: effectiveBranchId });
+  } catch (e) { next(e); }
+});
+
+// GET /api/public/products/:id – detail with gallery
+router.get('/products/:id', async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID tidak valid' });
+    const branchId = Number(req.query.branch_id) || null;
+
+    let sql = `SELECT p.id, p.branch_id, p.name, p.description, p.sku, p.price, p.category_id, c.name AS category_name, b.name AS branch_name
+               FROM products p JOIN categories c ON c.id=p.category_id JOIN branches b ON b.id=p.branch_id
+               WHERE p.id=? AND p.is_active=TRUE`;
+    const params = [id];
+    if (branchId) { sql += ' AND p.branch_id=?'; params.push(branchId); }
+
+    const [rows] = await db.execute(sql, params);
+    if (!rows[0]) return res.status(404).json({ success: false, message: 'Produk tidak ditemukan' });
+
+    const [media] = await db.execute(`SELECT id, path, media_type, is_primary, sort_order FROM product_photos WHERE product_id=? AND variant_id IS NULL ORDER BY is_primary DESC, sort_order ASC, id DESC`, [id]);
+    const [variants] = await db.execute(`SELECT id, color, size, price FROM product_variants WHERE product_id=? AND is_active=TRUE ORDER BY color`, [id]);
+
+    // distinct colors for badge
+    const colors = [...new Set(variants.map(v => v.color).filter(Boolean))];
+
+    res.json({ success: true, data: { ...rows[0], media, variants, colors, min_order_text: 'Minimal pembelian 4 pcs per model' } });
+  } catch (e) { next(e); }
+});
+
+module.exports = router;
