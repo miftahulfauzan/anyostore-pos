@@ -30,10 +30,6 @@ export default function LandingPage() {
 
   function pickWa(msg) {
     if (!waPhones.length) return;
-    if (waPhones.length === 1) {
-      window.open(waLink(waPhones[0] || waPhone, msg), '_blank', 'noopener');
-      return;
-    }
     setWaMsg(msg);
     setWaPicker(true);
   }
