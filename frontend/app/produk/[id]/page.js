@@ -39,7 +39,11 @@ export default function ProdukDetail() {
   if (!product) return <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Produk tidak ditemukan (ID {id}). <a href="/" style={{ color: '#1e3a5f', fontWeight: 700 }}>Kembali ke katalog</a></div>;
 
   const media = product.media || [];
-  const imgs = media.length ? media : product.photo_path ? [{ path: product.photo_path, media_type: 'image' }] : [];
+  const variants = product.variants || [];
+  const imgs = [
+    ...media.map((m) => ({ path: m.path, color: null })),
+    ...variants.filter((v) => v.photo_path).map((v) => ({ path: v.photo_path, color: v.color })),
+  ];
   const waPhone = settings?.whatsapp || settings?.store_phone || '';
   const waPhones = settings?.whatsapp_numbers?.length ? settings.whatsapp_numbers : waPhone ? [waPhone] : [];
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -60,14 +64,14 @@ export default function ProdukDetail() {
       <main style={{ maxWidth: 1100, margin: '0 auto', padding: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
         {/* gallery */}
         <div style={{ display: 'grid', gap: 10 }}>
-          <div style={{ aspectRatio: '1/1', borderRadius: 12, overflow: 'hidden', background: '#fff', border: '1px solid #e2e8f0', display: 'grid', placeItems: 'center', minHeight: 320 }}>
-            <SafeImage src={imgs[activeImg]?.path ? `${api.replace('/api','')}${imgs[activeImg].path}` : ''} alt={product.name} style={{ width: '100%', height: '100%' }} />
+          <div style={{ borderRadius: 12, overflow: 'hidden', background: '#fff', border: '1px solid #e2e8f0', display: 'grid', placeItems: 'center', minHeight: 320, padding: 8 }}>
+            <SafeImage src={imgs[activeImg]?.path ? `${api.replace('/api','')}${imgs[activeImg].path}` : ''} alt={product.name} style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'contain' }} />
           </div>
           {imgs.length > 1 && (
             <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
               {imgs.map((m, i) => (
-                <button key={`${m.id}-${i}`} onClick={() => setActiveImg(i)} style={{ flex: '0 0 64px', width: 64, height: 64, borderRadius: 8, overflow: 'hidden', border: i === activeImg ? '2px solid #1e3a5f' : '1px solid #e2e8f0', padding: 0, background: '#fff' }}>
-                  <SafeImage src={`${api.replace('/api','')}${m.path}`} alt="" style={{ width: '100%', height: '100%' }} />
+                <button key={`${m.path}-${i}`} onClick={() => setActiveImg(i)} title={m.color || ''} style={{ flex: '0 0 64px', width: 64, height: 64, borderRadius: 8, overflow: 'hidden', border: i === activeImg ? '2px solid #1e3a5f' : '1px solid #e2e8f0', padding: 0, background: '#fff', display: 'grid', placeItems: 'center' }}>
+                  <SafeImage src={`${api.replace('/api','')}${m.path}`} alt={m.color || ''} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 </button>
               ))}
             </div>
@@ -98,9 +102,16 @@ export default function ProdukDetail() {
           {product.colors?.length || product.variants?.length ? (
             <div style={{ padding: 12, borderRadius: 10, background: '#fff', border: '1px solid #e2e8f0' }}>
               <strong style={{ fontSize: 13 }}>Warna Tersedia</strong>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-                {(product.colors?.length ? product.colors : product.variants?.map((v) => v.color).filter(Boolean)).map((c) => (
-                  <span key={c} style={{ padding: '4px 10px', borderRadius: 999, background: '#f1f5f9', border: '1px solid #e2e8f0', fontSize: 12 }}>{c}</span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(90px,1fr))', gap: 8, marginTop: 8 }}>
+                {variants.length ? variants.map((v, i) => (
+                  <button key={`${v.id}-${i}`} onClick={() => { const idx = imgs.findIndex((m) => m.path === v.photo_path); if (idx >= 0) setActiveImg(idx); }} style={{ padding: 0, border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', overflow: 'hidden', cursor: v.photo_path ? 'pointer' : 'default', textAlign: 'center' }}>
+                    <div style={{ aspectRatio: '1/1', background: '#f1f5f9', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
+                      {v.photo_path ? <SafeImage src={`${api.replace('/api','')}${v.photo_path}`} alt={v.color || ''} style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <span style={{ fontSize: 11, color: '#94a3b8' }}>🖼️</span>}
+                    </div>
+                    <span style={{ display: 'block', padding: '4px 6px', fontSize: 11, fontWeight: 700, color: '#0f172a' }}>{v.color || 'Warna'}</span>
+                  </button>
+                )) : (product.colors || []).map((c) => (
+                  <span key={c} style={{ padding: '4px 10px', borderRadius: 999, background: '#f1f5f9', border: '1px solid #e2e8f0', fontSize: 12, justifySelf: 'start' }}>{c}</span>
                 ))}
               </div>
               <p style={{ margin: '10px 0 0', fontSize: 11, color: '#92400e', background: '#fffbeb', border: '1px dashed #fbbf24', padding: '6px 8px', borderRadius: 6 }}>Minimal pembelian <strong>4 pcs per model</strong> — bisa mix warna dalam 1 model.</p>
