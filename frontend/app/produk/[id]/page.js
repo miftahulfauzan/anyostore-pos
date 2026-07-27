@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import FloatingWA from '../../components/FloatingWA';
 import SafeImage from '../../components/SafeImage';
 
@@ -12,7 +13,8 @@ function waLink(phone, text) {
   return `https://wa.me/${clean}?text=${encodeURIComponent(text)}`;
 }
 
-export default function ProdukDetail({ params }) {
+export default function ProdukDetail() {
+  const params = useParams();
   const id = params?.id;
   const [product, setProduct] = useState(null);
   const [settings, setSettings] = useState(null);
