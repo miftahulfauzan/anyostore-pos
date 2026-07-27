@@ -25,6 +25,18 @@ export default function LandingPage() {
   const [cat, setCat] = useState('');
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
+  const [waPicker, setWaPicker] = useState(false);
+  const [waMsg, setWaMsg] = useState('');
+
+  function pickWa(msg) {
+    if (!waPhones.length) return;
+    if (waPhones.length === 1) {
+      window.open(waLink(waPhones[0] || waPhone, msg), '_blank', 'noopener');
+      return;
+    }
+    setWaMsg(msg);
+    setWaPicker(true);
+  }
 
   const waPhone = settings?.whatsapp || settings?.store_phone || '';
   const waPhones = settings?.whatsapp_numbers?.length ? settings.whatsapp_numbers : waPhone ? [waPhone] : [];
@@ -62,7 +74,7 @@ export default function LandingPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 900, fontSize: 18 }}><span style={{ display: 'grid', placeItems: 'center', width: 32, height: 32, borderRadius: 8, background: '#1e3a5f', color: '#fff' }}>A</span> Anyostore <span style={{ fontWeight: 600, color: '#64748b', fontSize: 12, marginLeft: 4 }}>Grosir Denim</span></div>
         <nav style={{ display: 'flex', gap: 8 }}>
           <a href="#produk" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 40, padding: '0 14px', borderRadius: 8, background: '#1e3a5f', color: '#fff', fontWeight: 700, textDecoration: 'none', fontSize: 13 }}>Lihat Produk</a>
-          <a href={waLink(waPhone, katalogWA)} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 40, padding: '0 14px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', color: '#1e3a5f', fontWeight: 700, textDecoration: 'none', fontSize: 13 }}>Chat Admin</a>
+          <a href="#" onClick={(e) => { e.preventDefault(); pickWa(katalogWA); }} style={{ display: 'inline-flex', alignItems: 'center', minHeight: 40, padding: '0 14px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', color: '#1e3a5f', fontWeight: 700, textDecoration: 'none', fontSize: 13, cursor: 'pointer' }}>Chat Admin</a>
         </nav>
       </header>
 
@@ -81,7 +93,7 @@ export default function LandingPage() {
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
             <a href="#produk" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 18px', borderRadius: 8, background: '#1e3a5f', color: '#fff', fontWeight: 800, textDecoration: 'none' }}>Lihat Produk ↓</a>
-            <a href={waLink(settings?.whatsapp || waPhone, katalogWA)} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 18px', borderRadius: 8, background: '#25D366', color: '#fff', fontWeight: 800, textDecoration: 'none' }}>💬 Chat Admin</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); pickWa(katalogWA); }} style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 18px', borderRadius: 8, background: '#25D366', color: '#fff', fontWeight: 800, textDecoration: 'none', cursor: 'pointer' }}>💬 Chat Admin</a>
           </div>
 
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 6, color: '#64748b', fontSize: 12 }}>
@@ -155,7 +167,7 @@ export default function LandingPage() {
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 6, marginTop: 2 }}>
                     <a href={`/produk/${p.id}`} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 36, borderRadius: 8, background: '#1e3a5f', color: '#fff', fontWeight: 700, fontSize: 12, textDecoration: 'none' }}>Lihat Detail</a>
-                    <a href={waLink(waPhone, waMsg)} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 36, padding: '0 10px', borderRadius: 8, background: '#dcfce7', color: '#166534', fontWeight: 700, fontSize: 12, textDecoration: 'none' }}>WA</a>
+                    <a href="#" onClick={(e) => { e.preventDefault(); pickWa(waMsg); }} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 36, padding: '0 10px', borderRadius: 8, background: '#dcfce7', color: '#166534', fontWeight: 700, fontSize: 12, textDecoration: 'none', cursor: 'pointer' }}>WA</a>
                   </div>
                   <span style={{ fontSize: 10, color: '#92400e', background: '#fffbeb', border: '1px dashed #fbbf24', padding: '4px 6px', borderRadius: 6, textAlign: 'center' }}>Minimal pembelian <strong>4 pcs per model</strong></span>
                 </div>
@@ -170,6 +182,25 @@ export default function LandingPage() {
         <span>© {new Date().getFullYear()} Anyostore • Supplier Baju Denim Wanita Grosir • Minimal 4 pcs per model</span>
         <span><a href="/login" style={{ color: '#1e3a5f', fontWeight: 700 }}>Login Pegawai</a></span>
       </footer>
+
+      {waPicker && (
+        <div onClick={() => setWaPicker(false)} role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.55)', display: 'grid', placeItems: 'center', zIndex: 100, padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, padding: 20, maxWidth: 360, width: '100%', display: 'grid', gap: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <strong style={{ fontSize: 15 }}>Pilih Admin WhatsApp</strong>
+              <button onClick={() => setWaPicker(false)} aria-label="Tutup" style={{ border: 'none', background: 'transparent', fontSize: 22, lineHeight: 1, cursor: 'pointer', color: '#64748b' }}>×</button>
+            </div>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {waPhones.map((ph, idx) => (
+                <a key={idx} href={waLink(ph, waMsg)} target="_blank" rel="noopener noreferrer" onClick={() => setWaPicker(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44, borderRadius: 10, background: idx === 0 ? '#25D366' : '#dcfce7', color: idx === 0 ? '#fff' : '#166534', fontWeight: 800, fontSize: 14, textDecoration: 'none' }}>
+                  💬 WA Admin {idx + 1} — {ph}
+                </a>
+              ))}
+            </div>
+            <p style={{ margin: 0, fontSize: 11, color: '#64748b', textAlign: 'center' }}>Pilih admin untuk chat harga grosir & stok.</p>
+          </div>
+        </div>
+      )}
 
       <FloatingWA phones={waPhones} message={`Halo Admin Anyostore.\n\nSaya ingin meminta katalog grosir.\n\nSaya mengetahui bahwa minimal pembelian adalah 4 pcs per model.\n\nMohon informasi lebih lanjut.`} />
 
