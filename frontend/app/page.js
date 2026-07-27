@@ -91,7 +91,7 @@ export default function LandingPage() {
 
         <div style={{ display: 'grid', gap: 10 }}>
           <div style={{ borderRadius: 12, overflow: 'hidden', background: '#e2e8f0', minHeight: 260, display: 'grid', placeItems: 'center', color: '#64748b', border: '1px solid #cbd5e1' }}>
-            {products[0]?.photo_path ? <SafeImage src={`${api.replace('/api','')}${products[0].photo_path}`} alt={products[0].name} style={{ width: '100%', height: '100%' }} /> : <span style={{ padding: 20, textAlign: 'center' }}>Foto produk akan tampil di sini</span>}
+            {products[0]?.photo_path ? <SafeImage src={`${api.replace('/api','')}${products[0].photo_path}`} alt={products[0].name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ padding: 20, textAlign: 'center' }}>Foto produk akan tampil di sini</span>}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div style={{ padding: 12, borderRadius: 10, background: '#fff', border: '1px solid #e2e8f0' }}><strong style={{ display: 'block', fontSize: 12 }}>📦 Min Order</strong><span style={{ fontSize: 12, color: '#475569' }}>4 pcs / model</span></div>
@@ -142,7 +142,7 @@ export default function LandingPage() {
             return (
               <article key={p.id} style={{ display: 'grid', gap: 0, borderRadius: 12, overflow: 'hidden', background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(0,0,0,.04)' }}>
                 <div style={{ position: 'relative', aspectRatio: '1/1', background: '#f1f5f9', overflow: 'hidden' }}>
-                  <SafeImage src={img} alt={p.name} style={{ width: '100%', height: '100%' }} />
+                  <SafeImage src={img} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   <span style={{ position: 'absolute', left: 8, top: 8, padding: '4px 8px', borderRadius: 999, background: '#fff', border: '1px solid #f59e0b', color: '#92400e', fontSize: 10, fontWeight: 800 }}>Min 4 pcs / model</span>
                   {Number(p.total_stock || 0) > 0 ? <span style={{ position: 'absolute', right: 8, top: 8, padding: '4px 8px', borderRadius: 999, background: '#dcfce7', color: '#166534', fontSize: 10, fontWeight: 700 }}>Ready</span> : <span style={{ position: 'absolute', right: 8, top: 8, padding: '4px 8px', borderRadius: 999, background: '#fee2e2', color: '#991b1b', fontSize: 10, fontWeight: 700 }}>Tanya stok</span>}
                 </div>
