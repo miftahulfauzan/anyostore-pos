@@ -129,13 +129,13 @@ export default function HistoryPage() {
                 <button type="button" className="small secondary" onClick={applyFilter} style={{ alignSelf: 'end', minHeight: 40 }}>Filter</button>
               </div>
             </div>
-            {message && <p className="message">{message}</p>}
+            {message && <p className={`message ${message.toLowerCase().includes('berhasil') || message.toLowerCase().includes('retur') ? 'success' : ''}`}>{message}</p>}
           </section>
 
           <section className="panel">
-            <div className="product-list">
+            <div className="product-list" role="list">
               {transactions.map((t) => (
-                <article key={t.id} onClick={() => inspect(t.id)} style={{ cursor: 'pointer', border: selected?.id === t.id ? '1px solid #2563eb' : undefined, borderRadius: 6, padding: '.6rem', background: selected?.id === t.id ? '#eff6ff' : undefined }}>
+                <article key={t.id} role="button" tabIndex={0} onClick={() => inspect(t.id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inspect(t.id); } }} style={{ cursor: 'pointer', border: selected?.id === t.id ? '1px solid #2563eb' : undefined, borderRadius: 6, padding: '.6rem', background: selected?.id === t.id ? '#eff6ff' : undefined }}>
                   <div>
                     <strong style={{ fontSize: '.9rem' }}>{t.invoice_no}</strong>
                     <span>{t.cashier} {t.customer ? `• ${t.customer} (${t.customer_tier})` : ''} • {new Date(t.created_at).toLocaleString('id-ID')}</span>
@@ -146,8 +146,8 @@ export default function HistoryPage() {
                   </div>
                 </article>
               ))}
-              {!transactions.length && !loading && <p>Belum ada transaksi.</p>}
-              {loading && <p>Memuat…</p>}
+              {!transactions.length && !loading && <p className="muted">Belum ada transaksi.</p>}
+              {loading && <p className="muted">Memuat…</p>}
             </div>
             {totalPages > 1 && (
               <div style={{ display: 'flex', gap: '.5rem', justifyContent: 'center', marginTop: '1rem' }}>

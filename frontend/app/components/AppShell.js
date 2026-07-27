@@ -118,11 +118,13 @@ export default function AppShell({ title, eyebrow, actions, children }) {
     document.documentElement.classList.toggle('dark', next === 'dark');
   }
 
-  // Saring menu: sembunyikan item ownerOnly untuk non-owner. Buang grup yang jadi kosong.
+  // Saring menu: ownerOnly hidden hanya jika role sudah diketahui bukan owner. Selama role null, tampilkan semua supaya tidak flicker.
+  const isOwner = role === 'owner';
+  const roleKnown = role !== null;
   const visibleNavigation = navigation
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => !item.ownerOnly || role === 'owner'),
+      items: group.items.filter((item) => !item.ownerOnly || !roleKnown || isOwner),
     }))
     .filter((group) => group.items.length > 0);
 
