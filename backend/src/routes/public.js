@@ -11,11 +11,10 @@ router.get('/branches', async (_req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// GET /api/public/settings – store info + WA number from branch or fallback
+// GET /api/public/settings – store info + WA numbers (multi admin)
 router.get('/settings', async (req, res, next) => {
   try {
     const branchId = Number(req.query.branch_id) || null;
-    // find Metro by name if not provided
     let effectiveBranchId = branchId;
     if (!effectiveBranchId) {
       const [metro] = await db.execute("SELECT id FROM branches WHERE name LIKE '%metro%' AND is_active=TRUE ORDER BY id LIMIT 1");
@@ -25,12 +24,32 @@ router.get('/settings', async (req, res, next) => {
         if (first[0]) effectiveBranchId = first[0].id;
       }
     }
-    if (!effectiveBranchId) return res.json({ success: true, data: { branch_id: null, store_name: 'Anyostore', whatsapp: '' } });
+    if (!effectiveBranchId) return res.json({ success: true, data: { branch_id: null, store_name: 'Anyostore', whatsapp: '', whatsapp_numbers: [] } });
 
     const [branchRows] = await db.execute('SELECT id, name, address, phone FROM branches WHERE id=? LIMIT 1', [effectiveBranchId]);
     const [settingsRows] = await db.execute('SELECT `key`, `value` FROM store_settings WHERE branch_id=?', [effectiveBranchId]);
     const settings = Object.fromEntries(settingsRows.map((r) => [r.key, r.value]));
     const branch = branchRows[0];
+
+    // collect multi WA: whatsapp_number, whatsapp_number_2, _3, whatsapp_numbers JSON
+    let waList = [];
+    try {
+      if (settings.whatsapp_numbers) {
+        const parsed = JSON.parse(settings.whatsapp_numbers);
+        if (Array.isArray(parsed)) waList = parsed.filter(Boolean);
+      }
+    } catch {}
+    // legacy keys
+    ['whatsapp_number','whatsapp_number_2','whatsapp_number_3','whatsapp_admin_1','whatsapp_admin_2','whatsapp_admin_3'].forEach((k) => {
+      if (settings[k] && !waList.includes(settings[k])) waList.push(settings[k]);
+    });
+    if (!waList.length) {
+      const fallback = settings.store_phone || branch?.phone || '';
+      if (fallback) waList = [fallback];
+    }
+    // dedup
+    waList = [...new Set(waList.filter(Boolean))];
+
     res.json({
       success: true,
       data: {
@@ -38,7 +57,8 @@ router.get('/settings', async (req, res, next) => {
         store_name: settings.store_name || branch?.name || 'Anyostore',
         store_address: settings.store_address || branch?.address || '',
         store_phone: settings.store_phone || branch?.phone || '',
-        whatsapp: settings.whatsapp_number || settings.store_phone || branch?.phone || '',
+        whatsapp: waList[0] || '',
+        whatsapp_numbers: waList,
         receipt_header: settings.receipt_header || '',
       },
     });
@@ -100,14 +120,14 @@ router.get('/products', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// GET /api/public/products/:id – detail with gallery
+// GET /api/public/products/:id – detail with gallery (include variant photos as fallback)
 router.get('/products/:id', async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID tidak valid' });
     const branchId = Number(req.query.branch_id) || null;
 
-    let sql = `SELECT p.id, p.branch_id, p.name, p.description, p.sku, p.price, p.category_id, c.name AS category_name, b.name AS branch_name
+    let sql = `SELECT p.id, p.branch_id, p.name, p.description, p.sku, p.price, p.category_id, c.name AS category_name, b.name AS branch_name, p.photo_path AS legacy_photo
                FROM products p JOIN categories c ON c.id=p.category_id JOIN branches b ON b.id=p.branch_id
                WHERE p.id=? AND p.is_active=TRUE`;
     const params = [id];
@@ -116,10 +136,12 @@ router.get('/products/:id', async (req, res, next) => {
     const [rows] = await db.execute(sql, params);
     if (!rows[0]) return res.status(404).json({ success: false, message: 'Produk tidak ditemukan' });
 
-    const [media] = await db.execute(`SELECT id, path, media_type, is_primary, sort_order FROM product_photos WHERE product_id=? AND variant_id IS NULL ORDER BY is_primary DESC, sort_order ASC, id DESC`, [id]);
-    const [variants] = await db.execute(`SELECT id, color, size, price FROM product_variants WHERE product_id=? AND is_active=TRUE ORDER BY color`, [id]);
+    const [media] = await db.execute(
+      `SELECT id, path, media_type, is_primary, sort_order FROM product_photos WHERE product_id=? ORDER BY is_primary DESC, sort_order ASC, id DESC`,
+      [id]
+    );
+    const [variants] = await db.execute(`SELECT id, color, size, price, (SELECT path FROM product_photos WHERE variant_id=product_variants.id ORDER BY sort_order LIMIT 1) AS photo_path FROM product_variants WHERE product_id=? AND is_active=TRUE ORDER BY color`, [id]);
 
-    // distinct colors for badge
     const colors = [...new Set(variants.map(v => v.color).filter(Boolean))];
 
     res.json({ success: true, data: { ...rows[0], media, variants, colors, min_order_text: 'Minimal pembelian 4 pcs per model' } });

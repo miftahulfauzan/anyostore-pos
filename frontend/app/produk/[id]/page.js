@@ -17,6 +17,7 @@ export default function ProdukDetail({ params }) {
   const [settings, setSettings] = useState(null);
   const [activeImg, setActiveImg] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [imgError, setImgError] = useState({});
 
   useEffect(() => {
     if (!id) return;
@@ -32,18 +33,19 @@ export default function ProdukDetail({ params }) {
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto' }}>Memuat produk…</div>;
-  if (!product) return <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto' }}>Produk tidak ditemukan. <a href="/" style={{ color: '#1e3a5f', fontWeight: 700 }}>Kembali ke katalog</a></div>;
+  if (loading) return <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Memuat produk…</div>;
+  if (!product) return <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Produk tidak ditemukan (ID {id}). <a href="/" style={{ color: '#1e3a5f', fontWeight: 700 }}>Kembali ke katalog</a></div>;
 
   const media = product.media || [];
   const imgs = media.length ? media : product.photo_path ? [{ path: product.photo_path, media_type: 'image' }] : [];
   const waPhone = settings?.whatsapp || settings?.store_phone || '';
+  const waPhones = settings?.whatsapp_numbers?.length ? settings.whatsapp_numbers : waPhone ? [waPhone] : [];
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const prodUrl = `${origin}/produk/${product.id}`;
   const waText = `Halo Admin Anyostore.\n\nSaya tertarik dengan produk berikut.\n\nNama Produk:\n${product.name}\n\nLink Produk:\n${prodUrl}\n\nSaya ingin mengetahui:\n- Harga grosir\n- Stok tersedia\n- Warna yang ready\n- Ukuran yang tersedia\n\nSaya memahami bahwa minimal pembelian adalah 4 pcs per model.\n\nTerima kasih.`;
 
   return (
-    <div style={{ background: '#f8fafc', minHeight: '100vh', color: '#0f172a' }}>
+    <div style={{ background: '#f8fafc', minHeight: '100vh', color: '#0f172a', fontFamily: "'Plus Jakarta Sans', Inter, system-ui, sans-serif" }}>
       <div style={{ position: 'sticky', top: 0, zIndex: 40, background: '#1e3a5f', color: '#fff', textAlign: 'center', padding: '8px 12px', fontSize: 13, fontWeight: 800 }}>
         📦 Minimal pembelian <span style={{ background: '#fff', color: '#1e3a5f', padding: '2px 8px', borderRadius: 999, marginLeft: 6 }}>4 pcs per model</span>
       </div>
@@ -56,14 +58,27 @@ export default function ProdukDetail({ params }) {
       <main style={{ maxWidth: 1100, margin: '0 auto', padding: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
         {/* gallery */}
         <div style={{ display: 'grid', gap: 10 }}>
-          <div style={{ aspectRatio: '1/1', borderRadius: 12, overflow: 'hidden', background: '#fff', border: '1px solid #e2e8f0', display: 'grid', placeItems: 'center' }}>
-            {imgs[activeImg]?.path ? <img src={`${api.replace('/api','')}${imgs[activeImg].path}`} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: '#94a3b8' }}>Tanpa foto</span>}
+          <div style={{ aspectRatio: '1/1', borderRadius: 12, overflow: 'hidden', background: '#fff', border: '1px solid #e2e8f0', display: 'grid', placeItems: 'center', minHeight: 320 }}>
+            {imgs[activeImg]?.path && !imgError[activeImg] ? (
+              <img
+                src={`${api.replace('/api','')}${imgs[activeImg].path}`}
+                alt={product.name}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                onError={() => setImgError((s) => ({ ...s, [activeImg]: true }))}
+              />
+            ) : (
+              <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8' }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>🖼️</div>
+                <div style={{ fontSize: 13 }}>{imgs.length ? 'Gagal memuat foto — file mungkin hilang di server' : 'Belum ada foto produk'}</div>
+                <div style={{ fontSize: 11, marginTop: 6 }}>{product.name}</div>
+              </div>
+            )}
           </div>
           {imgs.length > 1 && (
             <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
               {imgs.map((m, i) => (
-                <button key={i} onClick={() => setActiveImg(i)} style={{ flex: '0 0 64px', width: 64, height: 64, borderRadius: 8, overflow: 'hidden', border: i === activeImg ? '2px solid #1e3a5f' : '1px solid #e2e8f0', padding: 0, background: '#fff' }}>
-                  <img src={`${api.replace('/api','')}${m.path}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <button key={i} onClick={() => { setActiveImg(i); }} style={{ flex: '0 0 64px', width: 64, height: 64, borderRadius: 8, overflow: 'hidden', border: i === activeImg ? '2px solid #1e3a5f' : '1px solid #e2e8f0', padding: 0, background: '#fff' }}>
+                  <img src={`${api.replace('/api','')}${m.path}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                 </button>
               ))}
             </div>
@@ -102,10 +117,20 @@ export default function ProdukDetail({ params }) {
             </div>
           ) : null}
 
-          {/* CTA besar */}
-          <a href={waLink(waPhone, waText)} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 48, borderRadius: 10, background: '#25D366', color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>
-            💬 Tanya via WhatsApp
-          </a>
+          {/* CTA besar - multi admin */}
+          {waPhones.length <= 1 ? (
+            <a href={waLink(waPhone, waText)} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 48, borderRadius: 10, background: '#25D366', color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>
+              💬 Tanya via WhatsApp
+            </a>
+          ) : (
+            <div style={{ display: 'grid', gap: 8 }}>
+              {waPhones.map((ph, idx) => (
+                <a key={idx} href={waLink(ph, waText)} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44, borderRadius: 10, background: idx === 0 ? '#25D366' : '#dcfce7', color: idx === 0 ? '#fff' : '#166534', fontWeight: 800, fontSize: 14, textDecoration: 'none' }}>
+                  💬 WA Admin {idx + 1} — {ph}
+                </a>
+              ))}
+            </div>
+          )}
           <p style={{ margin: 0, fontSize: 11, color: '#64748b', textAlign: 'center' }}>Chat admin untuk harga grosir, stok, warna ready. Syarat 4 pcs per model sudah dipahami.</p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginTop: 4 }}>
@@ -116,7 +141,7 @@ export default function ProdukDetail({ params }) {
         </div>
       </main>
 
-      <FloatingWA phone={waPhone} message={waText} />
+      <FloatingWA phones={waPhones} phone={waPhone} message={waText} />
 
       <style>{`@media(max-width:720px){main{grid-template-columns:1fr !important;}}`}</style>
     </div>

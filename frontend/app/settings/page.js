@@ -218,7 +218,15 @@ export default function SettingsPage() {
           {input('store_phone', 'Telepon', 'tel')}
           {input('store_email', 'Email toko', 'email')}
         </div>
-        {input('store_tax_id', 'NPWP')}
+        <div className="two-fields">
+          {input('whatsapp_number', 'WA Admin 1', 'tel')}
+          {input('whatsapp_number_2', 'WA Admin 2 (opsional)', 'tel')}
+        </div>
+        <div className="two-fields">
+          {input('whatsapp_number_3', 'WA Admin 3 (opsional)', 'tel')}
+          {input('store_tax_id', 'NPWP')}
+        </div>
+        <p className="muted" style={{ fontSize: '.8rem', margin: 0 }}>Nomor WA dipakai di landing grosir (bisa 1-3 admin). Format 08... akan otomatis jadi 62...</p>
         <div style={{ marginTop: '.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
           <h3 style={{ margin: '0 0 .75rem', fontSize: '.95rem' }}>Logo</h3>
           <div className="store-logo-upload">

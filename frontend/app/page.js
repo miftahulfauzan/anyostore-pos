@@ -26,6 +26,7 @@ export default function LandingPage() {
   const [loading, setLoading] = useState(true);
 
   const waPhone = settings?.whatsapp || settings?.store_phone || '';
+  const waPhones = settings?.whatsapp_numbers?.length ? settings.whatsapp_numbers : waPhone ? [waPhone] : [];
 
   useEffect(() => {
     Promise.all([
@@ -50,7 +51,7 @@ export default function LandingPage() {
   const katalogWA = useMemo(() => `Halo Admin Anyostore.\n\nSaya ingin meminta katalog grosir.\n\nSaya mengetahui bahwa minimal pembelian adalah 4 pcs per model.\n\nMohon informasi lebih lanjut.`, []);
 
   return (
-    <div style={{ background: '#f8fafc', color: '#0f172a', minHeight: '100vh' }}>
+    <div style={{ background: '#f8fafc', color: '#0f172a', minHeight: '100vh', fontFamily: "'Plus Jakarta Sans', Inter, system-ui, sans-serif" }}>
       {/* top minimal order banner */}
       <div style={{ position: 'sticky', top: 0, zIndex: 50, background: '#1e3a5f', color: '#fff', textAlign: 'center', padding: '8px 12px', fontSize: 13, fontWeight: 800, letterSpacing: '.02em' }}>
         📦 Minimal pembelian <span style={{ background: '#fff', color: '#1e3a5f', padding: '2px 8px', borderRadius: 999, marginLeft: 6 }}>4 pcs per model</span> — Grosir langsung dari supplier
@@ -68,10 +69,10 @@ export default function LandingPage() {
       <section style={{ maxWidth: 1200, margin: '0 auto', padding: '28px 16px 18px', display: 'grid', gridTemplateColumns: '1.1fr .9fr', gap: 20, alignItems: 'center' }}>
         <div style={{ display: 'grid', gap: 12 }}>
           <p style={{ margin: 0, color: '#2563eb', fontWeight: 800, fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase' }}>Supplier Baju Denim Wanita</p>
-          <h1 style={{ margin: 0, fontSize: 'clamp(28px,5vw,44px)', lineHeight: 1.05, letterSpacing: '-.03em' }}>Supplier Baju Denim Wanita Grosir</h1>
-          <p style={{ margin: 0, color: '#475569', fontSize: 16, lineHeight: 1.5 }}>Belanja grosir langsung dari supplier dengan kualitas terbaik. Ready stock, pengiriman seluruh Indonesia, konsultasi warna & stok via WhatsApp.</p>
+          <h1 style={{ margin: 0, fontSize: 'clamp(28px,5vw,44px)', lineHeight: 1.05, letterSpacing: '-.03em', fontWeight: 800 }}>Supplier Baju Denim Wanita Grosir</h1>
+          <p style={{ margin: 0, color: '#475569', fontSize: 16, lineHeight: 1.55 }}>Belanja grosir langsung dari supplier dengan kualitas terbaik. Ready stock, pengiriman seluruh Indonesia, konsultasi warna & stok via WhatsApp.</p>
 
-          <div style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 10, background: '#fffbeb', border: '2px solid #f59e0b' }}>
+          <div style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: '#fffbeb', border: '2px solid #f59e0b' }}>
             <span style={{ fontSize: 18 }}>📦</span>
             <strong style={{ color: '#92400e' }}>Minimal pembelian 4 pcs per model</strong>
             <span style={{ fontSize: 12, color: '#a16207', background: '#fef3c7', padding: '2px 8px', borderRadius: 999 }}>Wajib untuk semua model</span>
@@ -79,7 +80,7 @@ export default function LandingPage() {
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
             <a href="#produk" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 18px', borderRadius: 8, background: '#1e3a5f', color: '#fff', fontWeight: 800, textDecoration: 'none' }}>Lihat Produk ↓</a>
-            <a href={waLink(waPhone, katalogWA)} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 18px', borderRadius: 8, background: '#25D366', color: '#fff', fontWeight: 800, textDecoration: 'none' }}>💬 Chat Admin</a>
+            <a href={waLink(settings?.whatsapp || waPhone, katalogWA)} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 18px', borderRadius: 8, background: '#25D366', color: '#fff', fontWeight: 800, textDecoration: 'none' }}>💬 Chat Admin</a>
           </div>
 
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 6, color: '#64748b', fontSize: 12 }}>
@@ -88,9 +89,16 @@ export default function LandingPage() {
         </div>
 
         <div style={{ display: 'grid', gap: 10 }}>
-          <div style={{ borderRadius: 12, overflow: 'hidden', background: '#e2e8f0', minHeight: 220, display: 'grid', placeItems: 'center', color: '#64748b', border: '1px solid #cbd5e1' }}>
-            {/* placeholder hero image - first product */}
-            {products[0]?.photo_path ? <img src={`${api.replace('/api','')}${products[0].photo_path}`} alt={products[0].name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span>Foto produk akan tampil di sini</span>}
+          <div style={{ borderRadius: 12, overflow: 'hidden', background: '#e2e8f0', minHeight: 260, display: 'grid', placeItems: 'center', color: '#64748b', border: '1px solid #cbd5e1' }}>
+            {products[0]?.photo_path ? (
+              <img
+                src={`${api.replace('/api','')}${products[0].photo_path}`}
+                alt={products[0].name}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling && (e.currentTarget.nextElementSibling.style.display = 'grid'); }}
+              />
+            ) : null}
+            <span style={{ display: products[0]?.photo_path ? 'none' : 'grid', placeItems: 'center', height: '100%', padding: 20, textAlign: 'center' }}>Foto produk akan tampil di sini — upload foto di POS masih 404? cek /uploads</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div style={{ padding: 12, borderRadius: 10, background: '#fff', border: '1px solid #e2e8f0' }}><strong style={{ display: 'block', fontSize: 12 }}>📦 Min Order</strong><span style={{ fontSize: 12, color: '#475569' }}>4 pcs / model</span></div>
@@ -133,14 +141,16 @@ export default function LandingPage() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 12 }}>
-          {loading && Array.from({ length: 8 }).map((_, i) => <div key={i} style={{ height: 280, borderRadius: 12, background: '#e2e8f0', animation: 'pulse .8s infinite alternate' }} />)}
+          {loading && Array.from({ length: 8 }).map((_, i) => <div key={i} style={{ height: 280, borderRadius: 12, background: '#e2e8f0' }} />)}
           {!loading && products.map((p) => {
             const colors = (p.variant_colors || '').split('|').filter(Boolean).slice(0, 6);
             const img = p.photo_path ? `${api.replace('/api','')}${p.photo_path}` : '';
+            const waMsg = `Halo Admin Anyostore. Saya tertarik dengan ${p.name}. Link: ${typeof window !== 'undefined' ? window.location.origin : ''}/produk/${p.id}. Saya paham minimal 4 pcs per model.`;
             return (
               <article key={p.id} style={{ display: 'grid', gap: 0, borderRadius: 12, overflow: 'hidden', background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(0,0,0,.04)' }}>
                 <div style={{ position: 'relative', aspectRatio: '1/1', background: '#f1f5f9', overflow: 'hidden' }}>
-                  {img ? <img src={img} alt={p.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: '#94a3b8', fontSize: 12 }}>Tanpa foto</div>}
+                  {img ? <img src={img} alt={p.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} /> : null}
+                  <div style={{ display: img ? 'none' : 'grid', placeItems: 'center', height: '100%', color: '#94a3b8', fontSize: 12, position: img ? 'absolute' : 'relative', inset: img ? 0 : undefined }}>Tanpa foto</div>
                   <span style={{ position: 'absolute', left: 8, top: 8, padding: '4px 8px', borderRadius: 999, background: '#fff', border: '1px solid #f59e0b', color: '#92400e', fontSize: 10, fontWeight: 800 }}>Min 4 pcs / model</span>
                   {Number(p.total_stock || 0) > 0 ? <span style={{ position: 'absolute', right: 8, top: 8, padding: '4px 8px', borderRadius: 999, background: '#dcfce7', color: '#166534', fontSize: 10, fontWeight: 700 }}>Ready</span> : <span style={{ position: 'absolute', right: 8, top: 8, padding: '4px 8px', borderRadius: 999, background: '#fee2e2', color: '#991b1b', fontSize: 10, fontWeight: 700 }}>Tanya stok</span>}
                 </div>
@@ -153,7 +163,7 @@ export default function LandingPage() {
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 6, marginTop: 2 }}>
                     <a href={`/produk/${p.id}`} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 36, borderRadius: 8, background: '#1e3a5f', color: '#fff', fontWeight: 700, fontSize: 12, textDecoration: 'none' }}>Lihat Detail</a>
-                    <a href={waLink(waPhone, `Halo Admin Anyostore. Saya tertarik dengan ${p.name}. Link: ${typeof window !== 'undefined' ? window.location.origin : ''}/produk/${p.id}. Saya paham minimal 4 pcs per model.`)} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 36, padding: '0 10px', borderRadius: 8, background: '#dcfce7', color: '#166534', fontWeight: 700, fontSize: 12, textDecoration: 'none' }}>WA</a>
+                    <a href={waLink(waPhone, waMsg)} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 36, padding: '0 10px', borderRadius: 8, background: '#dcfce7', color: '#166534', fontWeight: 700, fontSize: 12, textDecoration: 'none' }}>WA</a>
                   </div>
                   <span style={{ fontSize: 10, color: '#92400e', background: '#fffbeb', border: '1px dashed #fbbf24', padding: '4px 6px', borderRadius: 6, textAlign: 'center' }}>Minimal pembelian <strong>4 pcs per model</strong></span>
                 </div>
@@ -169,7 +179,7 @@ export default function LandingPage() {
         <span><a href="/login" style={{ color: '#1e3a5f', fontWeight: 700 }}>Login Pegawai</a></span>
       </footer>
 
-      <FloatingWA phone={waPhone} message={`Halo Admin Anyostore.\n\nSaya ingin meminta katalog grosir.\n\nSaya mengetahui bahwa minimal pembelian adalah 4 pcs per model.\n\nMohon informasi lebih lanjut.`} />
+      <FloatingWA phones={waPhones} message={`Halo Admin Anyostore.\n\nSaya ingin meminta katalog grosir.\n\nSaya mengetahui bahwa minimal pembelian adalah 4 pcs per model.\n\nMohon informasi lebih lanjut.`} />
 
       <style>{`
         @media (max-width: 720px) {

@@ -5,7 +5,7 @@ const { createMediaUpload, decodeDataUpload, discardUploadedFile, persistUploade
 
 const router = express.Router();
 router.use(authenticate);
-const allowed = new Set(['store_name','store_address','store_phone','store_email','store_tax_id','receipt_header','receipt_footer','receipt_note','printer_size','auto_print','theme','currency','tax_rate','prices_include_tax','loyalty_enabled','loyalty_points_rate','loyalty_points_value','show_logo','show_qr','show_cashier','show_barcode','low_stock_alert','low_stock_email','order_prefix','invoice_prefix','timezone']);
+const allowed = new Set(['store_name','store_address','store_phone','store_email','store_tax_id','receipt_header','receipt_footer','receipt_note','printer_size','auto_print','theme','currency','tax_rate','prices_include_tax','loyalty_enabled','loyalty_points_rate','loyalty_points_value','show_logo','show_qr','show_cashier','show_barcode','low_stock_alert','low_stock_email','order_prefix','invoice_prefix','timezone','whatsapp_number','whatsapp_number_2','whatsapp_number_3','whatsapp_numbers']);
 const profileKeys = new Set(['store_name', 'store_address', 'store_phone', 'store_email', 'store_tax_id']);
 const logoUpload = createMediaUpload('logos', {
   fileSize: 5 * 1024 * 1024,
