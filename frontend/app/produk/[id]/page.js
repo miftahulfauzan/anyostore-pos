@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import FloatingWA from '../../components/FloatingWA';
+import SafeImage from '../../components/SafeImage';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -17,7 +18,6 @@ export default function ProdukDetail({ params }) {
   const [settings, setSettings] = useState(null);
   const [activeImg, setActiveImg] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [imgError, setImgError] = useState({});
 
   useEffect(() => {
     if (!id) return;
@@ -59,30 +59,18 @@ export default function ProdukDetail({ params }) {
         {/* gallery */}
         <div style={{ display: 'grid', gap: 10 }}>
           <div style={{ aspectRatio: '1/1', borderRadius: 12, overflow: 'hidden', background: '#fff', border: '1px solid #e2e8f0', display: 'grid', placeItems: 'center', minHeight: 320 }}>
-            {imgs[activeImg]?.path && !imgError[activeImg] ? (
-              <img
-                src={`${api.replace('/api','')}${imgs[activeImg].path}`}
-                alt={product.name}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                onError={() => setImgError((s) => ({ ...s, [activeImg]: true }))}
-              />
-            ) : (
-              <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8' }}>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>🖼️</div>
-                <div style={{ fontSize: 13 }}>{imgs.length ? 'Gagal memuat foto — file mungkin hilang di server' : 'Belum ada foto produk'}</div>
-                <div style={{ fontSize: 11, marginTop: 6 }}>{product.name}</div>
-              </div>
-            )}
+            <SafeImage src={imgs[activeImg]?.path ? `${api.replace('/api','')}${imgs[activeImg].path}` : ''} alt={product.name} style={{ width: '100%', height: '100%' }} />
           </div>
           {imgs.length > 1 && (
             <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
               {imgs.map((m, i) => (
-                <button key={i} onClick={() => { setActiveImg(i); }} style={{ flex: '0 0 64px', width: 64, height: 64, borderRadius: 8, overflow: 'hidden', border: i === activeImg ? '2px solid #1e3a5f' : '1px solid #e2e8f0', padding: 0, background: '#fff' }}>
-                  <img src={`${api.replace('/api','')}${m.path}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                <button key={`${m.id}-${i}`} onClick={() => setActiveImg(i)} style={{ flex: '0 0 64px', width: 64, height: 64, borderRadius: 8, overflow: 'hidden', border: i === activeImg ? '2px solid #1e3a5f' : '1px solid #e2e8f0', padding: 0, background: '#fff' }}>
+                  <SafeImage src={`${api.replace('/api','')}${m.path}`} alt="" style={{ width: '100%', height: '100%' }} />
                 </button>
               ))}
             </div>
           )}
+          {imgs.length === 0 && <div style={{ padding: 10, fontSize: 12, color: '#64748b', textAlign: 'center', border: '1px dashed #cbd5e1', borderRadius: 8 }}>Belum ada foto — upload di POS /products/{product.id}/edit</div>}
         </div>
 
         {/* info */}

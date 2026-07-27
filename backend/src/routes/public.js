@@ -106,7 +106,7 @@ router.get('/products', async (req, res, next) => {
 
     const [rows] = await db.execute(
       `SELECT p.id, p.name, p.sku, p.price, p.category_id, c.name AS category_name,
-              (SELECT pp.path FROM product_photos pp WHERE pp.product_id=p.id AND pp.variant_id IS NULL AND pp.media_type='image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
+              (SELECT pp.path FROM product_photos pp WHERE pp.product_id=p.id AND pp.variant_id IS NULL ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
               (SELECT COUNT(*) FROM product_variants pv WHERE pv.product_id=p.id AND pv.is_active=TRUE) AS variant_count,
               (SELECT GROUP_CONCAT(DISTINCT pv.color ORDER BY pv.color SEPARATOR '|') FROM product_variants pv WHERE pv.product_id=p.id AND pv.is_active=TRUE AND pv.color IS NOT NULL AND pv.color<>'') AS variant_colors,
               (SELECT COALESCE(SUM(ws.quantity),0) FROM warehouse_stocks ws JOIN warehouses w ON w.id=ws.warehouse_id WHERE ws.product_id=p.id AND w.branch_id=p.branch_id) AS total_stock
@@ -117,7 +117,10 @@ router.get('/products', async (req, res, next) => {
     );
 
     res.json({ success: true, data: rows, total, page, totalPages: Math.ceil(total / limit), branch_id: effectiveBranchId });
-  } catch (e) { next(e); }
+  } catch (e) {
+    console.error('[public/products]', e);
+    next(e);
+  }
 });
 
 // GET /api/public/products/:id – detail with gallery (include variant photos as fallback)
