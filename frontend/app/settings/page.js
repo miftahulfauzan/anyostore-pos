@@ -24,6 +24,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [waList, setWaList] = useState([]);
 
   // new branch state
   const [newBranch, setNewBranch] = useState({ name: '', address: '', phone: '', email: '', source_branch_id: '', price_multiplier: '1', clone_photos: true, pricing_tier_enabled: true });
@@ -40,6 +41,7 @@ export default function SettingsPage() {
       const body = await response.json();
       if (!response.ok) throw new Error(body.message);
       setForm({ ...defaults, ...body.data });
+      setWaList(buildWaList(body.data));
     } catch (error) { setMessage(error.message); }
   }
 
@@ -70,6 +72,12 @@ export default function SettingsPage() {
   const input = (key, label, type = 'text') => <label>{label}<input type={type} value={form[key] ?? ''} onChange={(event) => setForm({ ...form, [key]: event.target.value })} /></label>;
   const select = (key, label, items) => <label>{label}<select value={form[key] ?? ''} onChange={(event) => setForm({ ...form, [key]: event.target.value })}>{items.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>;
 
+  function buildWaList(f) {
+    if (Array.isArray(f.whatsapp_numbers)) return f.whatsapp_numbers.map(String).filter(Boolean);
+    try { const parsed = JSON.parse(f.whatsapp_numbers); if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean); } catch {}
+    return [f.whatsapp_number, f.whatsapp_number_2, f.whatsapp_number_3].map((v) => String(v || '').trim()).filter(Boolean);
+  }
+
   async function uploadLogo(file) {
     if (!file) return;
     const invalid = validateDataUpload(file, ['image/jpeg', 'image/png', 'image/webp']);
@@ -89,10 +97,16 @@ export default function SettingsPage() {
     setSaving(true);
     setMessage('');
     try {
+      const cleanWa = waList.map((n) => String(n).trim()).filter(Boolean);
+      const payload = { ...form, branch_id: Number(branch) };
+      payload.whatsapp_number = cleanWa[0] || '';
+      payload.whatsapp_number_2 = cleanWa[1] || '';
+      payload.whatsapp_number_3 = cleanWa[2] || '';
+      payload.whatsapp_numbers = JSON.stringify(cleanWa);
       const response = await fetch(api + '/settings', {
         method: 'PUT',
         headers: jsonHeaders(),
-        body: JSON.stringify({ ...form, branch_id: Number(branch) })
+        body: JSON.stringify(payload)
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message);
@@ -218,15 +232,19 @@ export default function SettingsPage() {
           {input('store_phone', 'Telepon', 'tel')}
           {input('store_email', 'Email toko', 'email')}
         </div>
-        <div className="two-fields">
-          {input('whatsapp_number', 'WA Admin 1', 'tel')}
-          {input('whatsapp_number_2', 'WA Admin 2 (opsional)', 'tel')}
+        <div style={{ display: 'grid', gap: '.5rem' }}>
+          <strong style={{ fontSize: '.9rem' }}>Nomor WhatsApp Admin</strong>
+          {waList.length === 0 && <p className="muted" style={{ fontSize: '.82rem', margin: 0 }}>Belum ada nomor. Tambah minimal 1 nomor untuk tombol chat di landing.</p>}
+          {waList.map((num, i) => (
+            <div key={i} style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+              <input type="tel" value={num} placeholder={`WA Admin ${i + 1}`} onChange={(e) => { const next = [...waList]; next[i] = e.target.value; setWaList(next); }} style={{ flex: 1 }} />
+              <button type="button" onClick={() => setWaList(waList.filter((_, j) => j !== i))} aria-label="Hapus nomor" style={{ minWidth: 40, minHeight: 40, borderRadius: '.45rem', border: '1px solid var(--border)', background: '#fff', color: '#dc2626', fontWeight: 800, cursor: 'pointer' }}>×</button>
+            </div>
+          ))}
+          <button type="button" onClick={() => setWaList([...waList, ''])} style={{ justifySelf: 'start', minHeight: 38, padding: '0 14px', borderRadius: '.45rem', border: '1px dashed #2563eb', background: '#eff6ff', color: '#1e3a5f', fontWeight: 700, cursor: 'pointer' }}>+ Tambah nomor WA</button>
+          <p className="muted" style={{ fontSize: '.8rem', margin: 0 }}>Nomor dipakai di landing grosir (bisa lebih dari 1 admin, tampil popup pilih admin). Format 08... otomatis jadi 62...</p>
         </div>
-        <div className="two-fields">
-          {input('whatsapp_number_3', 'WA Admin 3 (opsional)', 'tel')}
-          {input('store_tax_id', 'NPWP')}
-        </div>
-        <p className="muted" style={{ fontSize: '.8rem', margin: 0 }}>Nomor WA dipakai di landing grosir (bisa 1-3 admin). Format 08... akan otomatis jadi 62...</p>
+        {input('store_tax_id', 'NPWP')}
         <div style={{ marginTop: '.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
           <h3 style={{ margin: '0 0 .75rem', fontSize: '.95rem' }}>Logo</h3>
           <div className="store-logo-upload">
