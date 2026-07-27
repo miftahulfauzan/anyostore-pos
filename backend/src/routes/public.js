@@ -130,7 +130,7 @@ router.get('/products/:id', async (req, res, next) => {
     if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID tidak valid' });
     const branchId = Number(req.query.branch_id) || null;
 
-    let sql = `SELECT p.id, p.branch_id, p.name, p.description, p.sku, p.price, p.category_id, c.name AS category_name, b.name AS branch_name, p.photo_path AS legacy_photo
+    let sql = `SELECT p.id, p.branch_id, p.name, p.description, p.sku, p.price, p.category_id, c.name AS category_name, b.name AS branch_name
                FROM products p JOIN categories c ON c.id=p.category_id JOIN branches b ON b.id=p.branch_id
                WHERE p.id=? AND p.is_active=TRUE`;
     const params = [id];
