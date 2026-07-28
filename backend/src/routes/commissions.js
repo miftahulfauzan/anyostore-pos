@@ -255,10 +255,6 @@ router.delete('/rules/:id', authenticate, authorize('owner'), async (req, res, n
     if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID tidak valid' });
     const [rows] = await db.execute('SELECT id, branch_id FROM commission_rules WHERE id=?', [id]);
     if (!rows[0]) return res.status(404).json({ success: false, message: 'Aturan tidak ditemukan' });
-    // owner can delete only own branch or global
-    if (rows[0].branch_id != null && Number(rows[0].branch_id) !== Number(req.user.branch_id)) {
-      return res.status(403).json({ success: false, message: 'Tidak bisa hapus aturan cabang lain' });
-    }
     const conn = await db.getConnection();
     try {
       await conn.beginTransaction();
