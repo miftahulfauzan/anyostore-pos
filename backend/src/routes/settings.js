@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { authenticate, authorize } = require('../auth');
-const { createMediaUpload, decodeDataUpload, discardUploadedFile, persistUploadedFile, removeMedia } = require('../media-storage');
+const { createMediaUpload, decodeDataUpload, discardUploadedFile, persistUploadedFile, removeMedia, copyMediaFile } = require('../media-storage');
 
 const router = express.Router();
 router.use(authenticate);
@@ -147,9 +147,10 @@ router.post('/branches', authorize('owner'), async (req, res, next) => {
         if (clonePhotos) {
           const [photos] = await connection.execute('SELECT filename, path, media_type, is_primary, sort_order FROM product_photos WHERE product_id=? AND variant_id IS NULL', [p.id]);
           for (const ph of photos) {
+            const newPath = await copyMediaFile(ph.path, 'products');
             await connection.execute(
               'INSERT INTO product_photos (product_id, filename, path, media_type, is_primary, sort_order) VALUES (?,?,?,?,?,?)',
-              [newProductId, ph.filename, ph.path, ph.media_type, ph.is_primary, ph.sort_order]
+              [newProductId, ph.filename, newPath, ph.media_type, ph.is_primary, ph.sort_order]
             );
           }
         }

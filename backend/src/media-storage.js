@@ -106,6 +106,31 @@ async function discardUploadedFile(file) {
   await fs.promises.unlink(file.path).catch(() => {});
 }
 
+// Copy an existing media file to a brand-new path so callers (e.g. branch
+// clone) get an independent copy instead of sharing the source file.
+async function copyMediaFile(srcPublicPath, folder) {
+  if (!srcPublicPath?.startsWith('/uploads/')) return srcPublicPath;
+  let buffer;
+  let mimetype = 'application/octet-stream';
+  if (useDatabase()) {
+    const key = srcPublicPath.slice('/uploads/'.length);
+    const [rows] = await db.execute('SELECT content_type, data FROM media_files WHERE `key` = ? LIMIT 1', [key]);
+    if (!rows[0]) return srcPublicPath;
+    const media = decodeMediaFromStorage(rows[0]);
+    buffer = media.data;
+    mimetype = media.contentType || 'application/octet-stream';
+  } else {
+    const src = path.join(process.cwd(), srcPublicPath.replace(/^\/+/, ''));
+    try { buffer = await fs.promises.readFile(src); } catch { return srcPublicPath; }
+    const ext = path.extname(src).toLowerCase();
+    const map = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.mp4': 'video/mp4', '.webm': 'video/webm' };
+    mimetype = map[ext] || 'application/octet-stream';
+  }
+  const ext = path.extname(srcPublicPath).toLowerCase();
+  const fakeFile = { buffer, mimetype, originalname: `copy${ext}` };
+  return persistUploadedFile(fakeFile, folder);
+}
+
 async function serveBlob(req, res, next) {
   if (!useDatabase()) return next();
   try {
@@ -124,4 +149,4 @@ async function serveBlob(req, res, next) {
   }
 }
 
-module.exports = { createMediaUpload, decodeDataUpload, decodeMediaFromStorage, discardUploadedFile, encodeMediaForStorage, persistUploadedFile, removeMedia, serveBlob };
+module.exports = { createMediaUpload, decodeDataUpload, decodeMediaFromStorage, discardUploadedFile, encodeMediaForStorage, persistUploadedFile, removeMedia, serveBlob, copyMediaFile };
