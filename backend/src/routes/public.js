@@ -82,6 +82,13 @@ router.get('/products', async (req, res, next) => {
     const branchId = Number(req.query.branch_id) || null;
     const categoryId = Number(req.query.category_id) || null;
     const search = (req.query.search || '').trim();
+    const sortMap = {
+      newest: 'p.created_at DESC',
+      price_asc: 'p.price ASC',
+      price_desc: 'p.price DESC',
+      name: 'p.name ASC',
+    };
+    const order = sortMap[req.query.sort] || sortMap.newest;
 
     // resolve metro branch id if not given
     let effectiveBranchId = branchId;
@@ -111,9 +118,9 @@ router.get('/products', async (req, res, next) => {
               (SELECT GROUP_CONCAT(DISTINCT pv.color ORDER BY pv.color SEPARATOR '|') FROM product_variants pv WHERE pv.product_id=p.id AND pv.is_active=TRUE AND pv.color IS NOT NULL AND pv.color<>'') AS variant_colors,
               (SELECT COALESCE(SUM(ws.quantity),0) FROM warehouse_stocks ws JOIN warehouses w ON w.id=ws.warehouse_id WHERE ws.product_id=p.id AND w.branch_id=p.branch_id) AS total_stock
        FROM products p JOIN categories c ON c.id=p.category_id
-       ${where}
-       ORDER BY p.created_at DESC LIMIT ${limit} OFFSET ${offset}`,
-      params
+        ${where}
+        ORDER BY ${order} LIMIT ${limit} OFFSET ${offset}`,
+        params
     );
 
     res.json({ success: true, data: rows, total, page, totalPages: Math.ceil(total / limit), branch_id: effectiveBranchId });
