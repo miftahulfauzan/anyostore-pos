@@ -107,11 +107,11 @@ router.get('/products', async (req, res, next) => {
     const params = [effectiveBranchId];
     if (categoryId) { where += ' AND p.category_id=?'; params.push(categoryId); }
     if (search) {
-      // Escape user-provided '%' and '_' to prevent unintended matches
-      let esc = search.replace(/\\/g, '\\\\').replace(/[_%]/g, '\\$&');
+      // Escape user-provided '\', '%' and '_' so they are treated literally
+      const esc = search.replace(/[\\%_]/g, (m) => '\\' + m);
       const like = `%${esc}%`;
-      where += ' AND (p.name LIKE ? ESCAPE \\' OR p.sku LIKE ? ESCAPE \\\')';
-      params.push(like, like);
+      where += ' AND (p.name LIKE ? ESCAPE ? OR p.sku LIKE ? ESCAPE ?)';
+      params.push(like, '\\', like, '\\');
     }
 
     const [countRows] = await db.execute(`SELECT COUNT(*) AS total FROM products p ${where}`, params);
