@@ -45,6 +45,24 @@ export default function NewProductPage() {
     setImagePreviews((current) => current.map((item, itemIndex) => itemIndex === index ? URL.createObjectURL(file) : item));
     setMessage('');
   }
+  function chooseMany(files) {
+    const incoming = Array.from(files || []).filter((f) => f.type.startsWith('image/'));
+    if (!incoming.length) return;
+    for (const f of incoming) { const e = validateDataUpload(f, ['image/jpeg', 'image/png', 'image/webp']); if (e) { setMessage(e); return; } }
+    let p = 0;
+    setImageFiles((current) => {
+      const next = [...current];
+      for (let i = 0; i < next.length && p < incoming.length; i++) { if (!next[i]) { next[i] = incoming[p]; p++; } }
+      return next;
+    });
+    p = 0;
+    setImagePreviews((current) => {
+      const next = [...current];
+      for (let i = 0; i < next.length && p < incoming.length; i++) { if (!next[i]) { next[i] = URL.createObjectURL(incoming[p]); p++; } }
+      return next;
+    });
+    setMessage('');
+  }
   function chooseVideo(file) {
     if (!file) return;
     const error = validateDataUpload(file, ['video/mp4', 'video/webm']);
@@ -108,7 +126,7 @@ export default function NewProductPage() {
       <section className="form-page">
         <form className="panel product-form" onSubmit={submit}>
           <div><h2>Informasi produk</h2><p className="muted">Isi data produk sekaligus dengan maksimal 10 foto dan 1 video.</p></div>
-          <section className="media-manager new-product-media"><div className="section-heading"><div><h3>Foto & video produk</h3><p>Klik setiap kotak untuk memilih media. Foto pertama menjadi gambar utama.</p></div><span className="media-counter">{imageFiles.filter(Boolean).length}/10 foto · {videoFile ? 1 : 0}/1 video</span></div><div className="media-grid">{imageFiles.map((file, index) => imagePreviews[index] ? <figure key={index} className={`media-draggable${dragFrom === index ? ' is-dragging' : ''}${dropTarget === index && dragFrom !== index ? ' drop-target' : ''}`} draggable onDragStart={onDragStart(index)} onDragEnd={onDragEnd} onDragOver={onDragOver(index)} onDrop={onDrop(index)}><img src={imagePreviews[index]} alt={'Pratinjau foto produk ' + (index + 1)} /><span className="media-drag-handle" aria-hidden="true"><GripVertical size={14} /></span><button type="button" className="media-delete" aria-label={'Hapus foto ' + (index + 1)} onClick={() => removeImage(index)}><X aria-hidden="true" size={14} /></button><figcaption>{index === 0 ? 'Foto utama' : 'Foto ' + (index + 1)}</figcaption></figure> : <label className="media-slot" key={index}><strong>Foto {index + 1}</strong><span>JPG, PNG, WebP</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => chooseImage(index, event.target.files?.[0])} /></label>)}<label className="media-slot video-slot">{videoPreview ? <video src={videoPreview} muted /> : <><strong>Video</strong><span>MP4 atau WebM</span></>}<input type="file" accept="video/mp4,video/webm" onChange={(event) => chooseVideo(event.target.files?.[0])} /></label></div></section>
+          <section className="media-manager new-product-media"><div className="section-heading"><div><h3>Foto & video produk</h3><p>Klik setiap kotak untuk memilih media. Foto pertama menjadi gambar utama.</p></div><span className="media-counter">{imageFiles.filter(Boolean).length}/10 foto · {videoFile ? 1 : 0}/1 video</span></div><div className="media-grid">{imageFiles.map((file, index) => imagePreviews[index] ? <figure key={index} className={`media-draggable${dragFrom === index ? ' is-dragging' : ''}${dropTarget === index && dragFrom !== index ? ' drop-target' : ''}`} draggable onDragStart={onDragStart(index)} onDragEnd={onDragEnd} onDragOver={onDragOver(index)} onDrop={onDrop(index)}><img src={imagePreviews[index]} alt={'Pratinjau foto produk ' + (index + 1)} /><span className="media-drag-handle" aria-hidden="true"><GripVertical size={14} /></span><button type="button" className="media-delete" aria-label={'Hapus foto ' + (index + 1)} onClick={() => removeImage(index)}><X aria-hidden="true" size={14} /></button><figcaption>{index === 0 ? 'Foto utama' : 'Foto ' + (index + 1)}</figcaption></figure> : <label className="media-slot" key={index}><strong>Foto {index + 1}</strong><span>JPG, PNG, WebP</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(event) => chooseMany(event.target.files)} /></label>)}<label className="media-slot video-slot">{videoPreview ? <video src={videoPreview} muted /> : <><strong>Video</strong><span>MP4 atau WebM</span></>}<input type="file" accept="video/mp4,video/webm" onChange={(event) => chooseVideo(event.target.files?.[0])} /></label></div></section>
           <label>Nama produk<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required autoFocus /></label>
           <label>Kategori<select value={form.category_id} onChange={(event) => setForm({ ...form, category_id: event.target.value })} required><option value="">Pilih kategori</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
           <div className="two-fields"><label>SKU<input value={form.sku} onChange={(event) => setForm({ ...form, sku: event.target.value })} /></label><label>Barcode<input value={form.barcode} onChange={(event) => setForm({ ...form, barcode: event.target.value })} /></label></div>
