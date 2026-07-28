@@ -19,6 +19,7 @@ import {
   Package,
   PlusCircle,
   ReceiptText,
+  Receipt,
   Settings,
   Sun,
   Tags,
@@ -58,6 +59,7 @@ const navigation = [
       { href: '/expenses', label: 'Pengeluaran & Pemasukan', icon: WalletCards },
       { href: '/operations', label: 'Operasional', icon: ClipboardCheck },
       { href: '/reports', label: 'Laporan', icon: ChartNoAxesCombined },
+      { href: '/reports/tax', label: 'Laporan Pajak', icon: Receipt, ownerOnly: true },
     ],
   },
   {

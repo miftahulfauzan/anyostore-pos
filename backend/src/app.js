@@ -22,6 +22,7 @@ const settingsRouter = require('./routes/settings');
 const dashboardRouter = require('./routes/dashboard');
 const commissionsRouter = require('./routes/commissions');
 const { router: promotionsRouter } = require('./routes/promotions');
+const taxRouter = require('./routes/tax');
 const publicRouter = require('./routes/public');
 const path = require('path');
 const { serveBlob } = require('./media-storage');
@@ -86,6 +87,7 @@ app.use('/api/settings', settingsRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/commissions', commissionsRouter);
 app.use('/api/promotions', promotionsRouter);
+app.use('/api/tax', taxRouter);
 
 app.use((req, res) => res.status(404).json({ success: false, message: 'Endpoint tidak ditemukan' }));
 app.use((error, _req, res, _next) => {
