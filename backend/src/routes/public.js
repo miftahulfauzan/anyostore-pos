@@ -106,7 +106,13 @@ router.get('/products', async (req, res, next) => {
     let where = 'WHERE p.branch_id=? AND p.is_active=TRUE';
     const params = [effectiveBranchId];
     if (categoryId) { where += ' AND p.category_id=?'; params.push(categoryId); }
-    if (search) { where += ' AND (p.name LIKE ? OR p.sku LIKE ?)'; const like = `%${search}%`; params.push(like, like); }
+    if (search) {
+      // Escape user-provided '%' and '_' to prevent unintended matches
+      let esc = search.replace(/\\/g, '\\\\').replace(/[_%]/g, '\\$&');
+      const like = `%${esc}%`;
+      where += ' AND (p.name LIKE ? ESCAPE \\' OR p.sku LIKE ? ESCAPE \\\')';
+      params.push(like, like);
+    }
 
     const [countRows] = await db.execute(`SELECT COUNT(*) AS total FROM products p ${where}`, params);
     const total = Number(countRows[0].total);
