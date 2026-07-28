@@ -50,7 +50,7 @@ services:
       - uploads_data:/app/uploads
       - ./backend/migrations:/app/migrations:ro
       - ./backend/scripts:/app/scripts:ro
-    entrypoint: ["sh","-c","node scripts/migrate.js || true; node src/index.js"]
+    entrypoint: ["sh","-c","node scripts/migrate.js || true; node scripts/fix-clone-paths.js || true; node src/index.js"]
     depends_on:
       db:
         condition: service_healthy
