@@ -1,5 +1,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+
+// Set test env before importing modules that depend on config/db
+process.env.DB_HOST = 'test';
+process.env.DB_USER = 'test';
+process.env.DB_PASSWORD = 'test';
+process.env.DB_NAME = 'test';
+process.env.JWT_SECRET = 'test';
+process.env.JWT_REFRESH_SECRET = 'test';
+
 const { decodeDataUpload, decodeMediaFromStorage, encodeMediaForStorage } = require('../src/media-storage');
 
 const onePixelPng = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
