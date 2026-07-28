@@ -51,22 +51,65 @@ router.delete('/branches/:id', authorize('owner'), async (req, res, next) => {
         // 1. Collect all product IDs and their media paths
         const [products] = await connection.execute('SELECT id FROM products WHERE branch_id=?', [id]);
         const productIds = products.map((p) => p.id);
+
+        // 2. Remove media files (product_photos paths) before deleting rows
         if (productIds.length) {
           const placeholders = productIds.map(() => '?').join(',');
-          // 2. Remove media files (product_photos paths)
           const [photos] = await connection.execute(`SELECT DISTINCT path FROM product_photos WHERE product_id IN (${placeholders}) AND path IS NOT NULL AND path <> ''`, productIds);
           for (const ph of photos) { try { await removeMedia(ph.path); } catch {} }
-          // 3. Cascade delete child tables
-          await connection.execute(`DELETE FROM product_photos WHERE product_id IN (${placeholders})`, productIds);
-          await connection.execute(`DELETE FROM product_variants WHERE product_id IN (${placeholders})`, productIds);
-          await connection.execute(`DELETE FROM wholesale_prices WHERE product_id IN (${placeholders})`, productIds);
-          await connection.execute(`DELETE FROM warehouse_stocks WHERE product_id IN (${placeholders})`, productIds);
-          await connection.execute(`DELETE FROM stock_mutations WHERE product_id IN (${placeholders})`, productIds);
-          await connection.execute(`DELETE FROM products WHERE branch_id=?`, [id]);
         }
-        // 4. Delete warehouses, store_settings, and the branch itself
-        await connection.execute('DELETE FROM warehouses WHERE branch_id=?', [id]);
-        await connection.execute('DELETE FROM store_settings WHERE branch_id=?', [id]);
+
+        // 3. Delete child tables of products (no direct branch_id FK but reference product_id)
+        if (productIds.length) {
+          const ph = productIds.map(() => '?').join(',');
+          await connection.execute(`DELETE FROM product_photos WHERE product_id IN (${ph})`, productIds);
+          await connection.execute(`DELETE FROM product_variants WHERE product_id IN (${ph})`, productIds);
+          await connection.execute(`DELETE FROM wholesale_prices WHERE product_id IN (${ph})`, productIds);
+          await connection.execute(`DELETE FROM warehouse_stocks WHERE product_id IN (${ph})`, productIds);
+          await connection.execute(`DELETE FROM stock_mutations WHERE product_id IN (${ph})`, productIds);
+        }
+
+        // 4. Delete ALL tables with branch_id FK (order: child tables first, then parent)
+        //    Tables are ordered so that tables referencing other tables come first.
+        const branchTables = [
+          'commission_items',       // references commission_records
+          'commission_records',     // references commission_rules
+          'commission_rules',
+          'return_items',           // references returns
+          'returns',
+          'purchase_order_items',   // references purchase_orders
+          'purchase_orders',
+          'stock_transfer_items',   // references stock_transfers
+          'stock_transfers',
+          'stock_opname_items',     // references stock_opnames
+          'stock_opnames',
+          'cash_drawer_movements',  // references cash_drawers
+          'cash_drawers',
+          'transaction_items',      // references transactions (should be 0 but safe)
+          'transactions',
+          'pending_transactions',
+          'invoice_sequences',
+          'journal_entry_items',    // references journal_entries
+          'journal_entries',
+          'periods',
+          'loyalty_points',
+          'employee_schedules',
+          'shift_templates',
+          'shifts',
+          'expense_budgets',
+          'expenses',
+          'activity_logs',
+          'products',
+          'warehouses',
+          'customers',
+          'suppliers',
+          'store_settings',
+        ];
+        for (const table of branchTables) {
+          await connection.execute(`DELETE FROM ${table} WHERE branch_id=?`, [id]).catch(() => {});
+        }
+
+        // 5. Delete the branch itself
         await connection.execute('DELETE FROM branches WHERE id=?', [id]);
         await connection.commit();
         res.json({ success: true, data: { permanent: true, deleted_products: productIds.length } });
