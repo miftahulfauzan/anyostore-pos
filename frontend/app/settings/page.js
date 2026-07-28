@@ -204,17 +204,21 @@ export default function SettingsPage() {
                     <td>{s.is_active ? <span className="status paid">aktif</span> : <span className="status pending">nonaktif</span>}</td>
                     <td>
                       <button type="button" className="small secondary" disabled={String(s.id) === String(branch)} onClick={async () => {
-                        if (!confirm(`Hapus toko "${s.name}"? Akan dinonaktifkan. Tidak bisa jika ada transaksi.`)) return;
+                        const isPermanent = !s.is_active;
+                        const msg = isPermanent
+                          ? `Hapus PERMANEN toko "${s.name}"? Semua produk, foto, dan data toko akan dihapus selamanya. Tidak bisa dibatalkan.`
+                          : `Nonaktifkan toko "${s.name}"? Tidak bisa jika ada transaksi.`;
+                        if (!confirm(msg)) return;
                         try {
                           const r = await fetch(`${api}/settings/branches/${s.id}`, { method: 'DELETE', headers: jsonHeaders() });
                           const b = await r.json();
                           if (!r.ok) throw new Error(b.message);
-                          setMessage(`Toko ${s.name} dinonaktifkan.`);
+                          setMessage(isPermanent ? `Toko ${s.name} dihapus permanen.` : `Toko ${s.name} dinonaktifkan.`);
                           const fresh = await loadBranches();
                           const nextId = fresh.find((x) => x.is_active)?.id || fresh[0]?.id;
                           if (nextId) { setBranch(String(nextId)); load(String(nextId)); }
                         } catch (e) { setMessage(e.message); }
-                      }}>Hapus</button>
+                      }}>{s.is_active ? 'Nonaktifkan' : 'Hapus Permanen'}</button>
                     </td>
                   </tr>
                 ))}

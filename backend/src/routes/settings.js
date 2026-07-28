@@ -29,6 +29,7 @@ router.get('/branches', async (req, res, next) => {
 });
 
 router.delete('/branches/:id', authorize('owner'), async (req, res, next) => {
+  const connection = await db.getConnection();
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID cabang tidak valid' });
@@ -42,10 +43,41 @@ router.delete('/branches/:id', authorize('owner'), async (req, res, next) => {
       [id, id, id]
     );
     if (Number(checks[0].trx) > 0) return res.status(400).json({ success: false, message: `Toko punya ${checks[0].trx} transaksi — tidak bisa dihapus. Nonaktifkan saja.` });
-    // soft-delete: set inactive + archive products/users
+
+    // If branch is already inactive → hard delete (cascade all data)
+    if (!branches[0].is_active) {
+      await connection.beginTransaction();
+      try {
+        // 1. Collect all product IDs and their media paths
+        const [products] = await connection.execute('SELECT id FROM products WHERE branch_id=?', [id]);
+        const productIds = products.map((p) => p.id);
+        if (productIds.length) {
+          const placeholders = productIds.map(() => '?').join(',');
+          // 2. Remove media files (product_photos paths)
+          const [photos] = await connection.execute(`SELECT DISTINCT path FROM product_photos WHERE product_id IN (${placeholders}) AND path IS NOT NULL AND path <> ''`, productIds);
+          for (const ph of photos) { try { await removeMedia(ph.path); } catch {} }
+          // 3. Cascade delete child tables
+          await connection.execute(`DELETE FROM product_photos WHERE product_id IN (${placeholders})`, productIds);
+          await connection.execute(`DELETE FROM product_variants WHERE product_id IN (${placeholders})`, productIds);
+          await connection.execute(`DELETE FROM wholesale_prices WHERE product_id IN (${placeholders})`, productIds);
+          await connection.execute(`DELETE FROM warehouse_stocks WHERE product_id IN (${placeholders})`, productIds);
+          await connection.execute(`DELETE FROM stock_mutations WHERE product_id IN (${placeholders})`, productIds);
+          await connection.execute(`DELETE FROM products WHERE branch_id=?`, [id]);
+        }
+        // 4. Delete warehouses, store_settings, and the branch itself
+        await connection.execute('DELETE FROM warehouses WHERE branch_id=?', [id]);
+        await connection.execute('DELETE FROM store_settings WHERE branch_id=?', [id]);
+        await connection.execute('DELETE FROM branches WHERE id=?', [id]);
+        await connection.commit();
+        res.json({ success: true, data: { permanent: true, deleted_products: productIds.length } });
+      } catch (err) { await connection.rollback(); throw err; }
+      return;
+    }
+
+    // Otherwise → soft-delete (deactivate)
     await db.execute('UPDATE branches SET is_active=FALSE WHERE id=?', [id]);
     res.json({ success: true, data: { archived: { products: Number(checks[0].products), users: Number(checks[0].users) } } });
-  } catch (error) { next(error); }
+  } catch (error) { next(error); } finally { connection.release(); }
 });
 
 router.post('/branches', authorize('owner'), async (req, res, next) => {
