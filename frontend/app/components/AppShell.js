@@ -49,6 +49,7 @@ const navigation = [
       { href: '/inventory/incoming', label: 'Produk Masuk', icon: ArrowDownToLine },
       { href: '/inventory/outgoing', label: 'Produk Keluar', icon: ArrowUpFromLine },
       { href: '/inventory/opname', label: 'Stok Opname', icon: ClipboardCheck },
+      { href: '/inventory/stock', label: 'Laporan Stok', icon: ChartNoAxesCombined },
     ],
   },
   {

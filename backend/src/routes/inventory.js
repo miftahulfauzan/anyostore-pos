@@ -116,6 +116,49 @@ router.get('/stock', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+// GET /api/inventory/stock-total — total stock per product across all warehouses
+router.get('/stock-total', async (req, res, next) => {
+  try {
+    const branchId = req.user.role === 'owner' ? (Number(req.query.branch_id) || req.user.branch_id) : req.user.branch_id;
+    const search = (req.query.search || '').trim();
+    const categoryId = Number(req.query.category_id) || null;
+
+    let where = 'WHERE p.branch_id = ? AND p.is_active = TRUE';
+    const params = [branchId];
+    if (search) { where += ' AND (p.name LIKE ? OR p.sku LIKE ?)'; const s = `%${search}%`; params.push(s, s); }
+    if (categoryId) { where += ' AND p.category_id = ?'; params.push(categoryId); }
+
+    const [rows] = await db.execute(
+      `SELECT p.id, p.name, p.sku, p.stock AS product_stock, p.min_stock, c.name AS category_name,
+              COALESCE(SUM(ws.quantity), 0) AS total_stock,
+              COALESCE(SUM(ws.reserved_quantity), 0) AS reserved,
+              (SELECT COUNT(*) FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_active = TRUE) AS variant_count,
+              (SELECT GROUP_CONCAT(DISTINCT pv.color SEPARATOR '|') FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_active = TRUE AND pv.color IS NOT NULL AND pv.color <> '') AS colors
+       FROM products p
+       LEFT JOIN categories c ON c.id = p.category_id
+       LEFT JOIN warehouse_stocks ws ON ws.product_id = p.id
+       ${where}
+       GROUP BY p.id, p.name, p.sku, p.stock, p.min_stock, c.name
+       ORDER BY p.name ASC`,
+      params
+    );
+
+    // Summary
+    const totalProducts = rows.length;
+    const totalStock = rows.reduce((sum, r) => sum + Number(r.total_stock || 0), 0);
+    const lowStock = rows.filter((r) => Number(r.total_stock) <= Number(r.min_stock)).length;
+    const outOfStock = rows.filter((r) => Number(r.total_stock) === 0).length;
+
+    res.json({
+      success: true,
+      data: {
+        summary: { total_products: totalProducts, total_stock: totalStock, low_stock: lowStock, out_of_stock: outOfStock },
+        products: rows,
+      },
+    });
+  } catch (error) { next(error); }
+});
+
 router.post('/mutations', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   const connection = await db.getConnection();
   try {
