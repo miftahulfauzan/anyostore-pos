@@ -252,7 +252,10 @@ router.delete('/:id/media/:mediaId', authorize('owner', 'manager', 'admin'), asy
     const media = rows[0];
     if (!media) return res.status(404).json({ success: false, message: 'Media produk tidak ditemukan' });
     await db.execute('DELETE FROM product_photos WHERE id = ?', [media.id]);
-    await removeMedia(media.path);
+    // Guard: only unlink the file if no other product_photos row still references it
+    // (branch clone reuses the same path, so a shared file must not be deleted early).
+    const [ref] = await db.execute('SELECT COUNT(*) AS cnt FROM product_photos WHERE path = ?', [media.path]);
+    if (Number(ref[0].cnt) === 0) await removeMedia(media.path);
     if (media.media_type === 'image' && media.is_primary) {
       await db.execute(`UPDATE product_photos SET is_primary = TRUE WHERE id = (
         SELECT id FROM (SELECT id FROM product_photos WHERE product_id = ? AND variant_id IS NULL AND media_type = 'image' ORDER BY sort_order, id LIMIT 1) AS next_photo
