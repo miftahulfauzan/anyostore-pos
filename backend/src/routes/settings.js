@@ -77,10 +77,10 @@ router.delete('/branches/:id', authorize('owner'), async (req, res, next) => {
           'journal_entry_items', 'journal_entries', 'periods',
           'loyalty_points', 'employee_schedules', 'shift_templates', 'shifts',
           'expense_budgets', 'expenses', 'activity_logs',
-          'customers', 'suppliers', 'store_settings',
+          'customers', 'suppliers', 'store_settings', 'warehouses',
         ];
         for (const t of tables) {
-          await connection.execute(`DELETE FROM \`${t}\` WHERE branch_id=?`, [id]);
+          await connection.execute(`DELETE FROM \`${t}\` WHERE branch_id=?`, [id]).catch(() => {});
         }
 
         // 4. Delete the branch itself
