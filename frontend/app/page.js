@@ -144,8 +144,8 @@ export default function LandingPage() {
           Anyostore
         </div>
         <nav style={{ display: 'flex', gap: 8 }}>
-          <a href="#produk" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 42, padding: '0 16px', borderRadius: 10, background: '#1e3a5f', color: '#fff', fontWeight: 700, textDecoration: 'none', fontSize: 13 }}>Lihat Produk</a>
-          <a href="#" onClick={(e) => { e.preventDefault(); pickWa(katalogWA); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 42, padding: '0 16px', borderRadius: 10, border: '1px solid #cbd5e1', background: '#fff', color: '#1e3a5f', fontWeight: 700, textDecoration: 'none', fontSize: 13, cursor: 'pointer' }}><ICON.chat style={{ width: 16, height: 16 }} /> Chat Admin</a>
+          <a href="#produk" className="btn" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 42, padding: '0 16px', borderRadius: 10, background: '#1e3a5f', color: '#fff', fontWeight: 700, textDecoration: 'none', fontSize: 13 }}>Lihat Produk</a>
+          <a href="#" onClick={(e) => { e.preventDefault(); pickWa(katalogWA); }} className="btn" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 42, padding: '0 16px', borderRadius: 10, border: '1px solid #cbd5e1', background: '#fff', color: '#1e3a5f', fontWeight: 700, textDecoration: 'none', fontSize: 13, cursor: 'pointer' }}><ICON.chat style={{ width: 16, height: 16 }} /> Chat Admin</a>
         </nav>
       </header>
 
@@ -154,7 +154,7 @@ export default function LandingPage() {
         <div
           onMouseEnter={() => setPaused(true)}
           onMouseLeave={() => setPaused(false)}
-          style={{ position: 'relative', borderRadius: 22, overflow: 'hidden', background: 'linear-gradient(135deg,#13243d 0%,#1e3a5f 55%,#2563eb 100%)', color: '#fff', minHeight: 460, display: 'grid', gridTemplateColumns: '1.05fr .95fr', alignItems: 'center', gap: 24, padding: '40px 44px' }}
+          style={{ position: 'relative', borderRadius: 22, overflow: 'hidden', background: 'radial-gradient(120% 130% at 82% 0%, rgba(202,138,4,.20), transparent 52%), linear-gradient(135deg,#13243d 0%,#1e3a5f 55%,#2563eb 100%)', color: '#fff', minHeight: 460, display: 'grid', gridTemplateColumns: '1.05fr .95fr', alignItems: 'center', gap: 24, padding: '40px 44px' }}
         >
           {slide ? (
             <div key={slide.id} className="slide-fade" style={{ display: 'grid', gridTemplateColumns: '1.05fr .95fr', alignItems: 'center', gap: 24, width: '100%' }}>
@@ -162,12 +162,12 @@ export default function LandingPage() {
                 <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.16em', textTransform: 'uppercase', color: '#bfdbfe' }}>{slide.category_name || 'Denim'}</span>
                 <h1 style={{ margin: 0, fontSize: 'clamp(28px,4vw,44px)', lineHeight: 1.08, letterSpacing: '-.03em', fontWeight: 800 }}>{slide.name}</h1>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                  <strong style={{ fontSize: 28, fontWeight: 800 }}>Rp{Number(slide.price || 0).toLocaleString('id-ID')}</strong>
+                  <strong style={{ fontSize: 28, fontWeight: 800, color: '#fde68a' }}>Rp{Number(slide.price || 0).toLocaleString('id-ID')}</strong>
                   <span style={{ fontSize: 12, color: '#cbd5e1' }}>/ pcs · grosir</span>
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  <a href={`/produk/${slide.id}`} style={{ display: 'inline-flex', alignItems: 'center', minHeight: 46, padding: '0 22px', borderRadius: 11, background: '#fff', color: '#1e3a5f', fontWeight: 800, textDecoration: 'none' }}>Lihat Produk <ICON.arrow style={{ width: 16, height: 16, marginLeft: 8 }} /></a>
-                  <a href="#" onClick={(e) => { e.preventDefault(); pickWa(waTemplateProduct(slide, '')); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 46, padding: '0 22px', borderRadius: 11, background: 'rgba(255,255,255,.14)', color: '#fff', fontWeight: 800, textDecoration: 'none', border: '1px solid rgba(255,255,255,.3)' }}><ICON.chat style={{ width: 18, height: 18 }} /> Chat Admin</a>
+                  <a href={`/produk/${slide.id}`} className="btn" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 46, padding: '0 22px', borderRadius: 11, background: '#fff', color: '#1e3a5f', fontWeight: 800, textDecoration: 'none' }}>Lihat Produk <ICON.arrow style={{ width: 16, height: 16, marginLeft: 8 }} /></a>
+                  <a href="#" onClick={(e) => { e.preventDefault(); pickWa(waTemplateProduct(slide, '')); }} className="btn" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 46, padding: '0 22px', borderRadius: 11, background: 'rgba(255,255,255,.14)', color: '#fff', fontWeight: 800, textDecoration: 'none', border: '1px solid rgba(255,255,255,.3)' }}><ICON.chat style={{ width: 18, height: 18 }} /> Chat Admin</a>
                 </div>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#bfdbfe', background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.2)', padding: '6px 12px', borderRadius: 999, width: 'fit-content' }}><ICON.box style={{ width: 13, height: 13 }} /> Minimal 4 pcs per model</span>
               </div>
@@ -282,6 +282,15 @@ export default function LandingPage() {
         )}
       </section>
 
+      {/* CLOSING CTA */}
+      <section style={{ maxWidth: 1200, margin: '0 auto', padding: '8px 16px 4px' }}>
+        <div style={{ borderRadius: 20, padding: '40px 32px', textAlign: 'center', background: 'radial-gradient(120% 140% at 50% 0%, rgba(202,138,4,.16), transparent 55%), linear-gradient(135deg,#1e3a5f,#13243d)', color: '#fff' }}>
+          <h2 style={{ margin: '0 0 8px', fontSize: 'clamp(22px,3.5vw,32px)', letterSpacing: '-.02em' }}>Siap order grosir hari ini?</h2>
+          <p style={{ margin: '0 auto 18px', maxWidth: 520, color: '#cbd5e1', fontSize: 15 }}>Konsultasikan warna, stok, dan harga grosir langsung dengan admin via WhatsApp. Minimal 4 pcs per model.</p>
+          <a href="#" onClick={(e) => { e.preventDefault(); pickWa(katalogWA); }} className="btn" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 48, padding: '0 26px', borderRadius: 12, background: '#25D366', color: '#fff', fontWeight: 800, textDecoration: 'none', fontSize: 15 }}><ICON.chat style={{ width: 18, height: 18 }} /> Chat Admin Sekarang</a>
+        </div>
+      </section>
+
       <footer style={{ maxWidth: 1200, margin: '0 auto', padding: '22px 16px 90px', color: '#64748b', fontSize: 12, borderTop: '1px solid #eef2f7', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <span>© {new Date().getFullYear()} Anyostore • Supplier Baju Denim Wanita Grosir • Minimal 4 pcs per model</span>
         <span><a href="/login" style={{ color: '#1e3a5f', fontWeight: 700 }}>Login Pegawai</a></span>
@@ -310,11 +319,16 @@ export default function LandingPage() {
 
       <style>{`
         .site-header { background: rgba(255,255,255,.85); backdrop-filter: blur(12px); border-bottom: 1px solid #eef2f7; }
+        h1, h2 { font-family: 'DM Sans', 'Plus Jakarta Sans', system-ui, sans-serif; }
         .product-card { transition: transform .2s ease, box-shadow .2s ease; }
         .product-card:hover { transform: translateY(-4px); box-shadow: 0 16px 34px rgba(15,23,42,.1); }
+        .btn { transition: transform .2s ease, box-shadow .2s ease, filter .2s ease; }
+        .btn:hover { filter: brightness(1.06); box-shadow: 0 10px 24px rgba(15,23,42,.18); }
+        .btn:active { transform: translateY(1px); }
         .slide-fade { animation: slideFade .5s ease; }
         @keyframes slideFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         a, button { -webkit-tap-highlight-color: transparent; }
+        a:focus-visible, button:focus-visible { outline: 2px solid #ca8a04; outline-offset: 2px; border-radius: 6px; }
         @media (max-width: 720px) {
           header.site-header + section { }
           div[style*="gridTemplateColumns: '1.05fr .95fr'"], .slide-fade { grid-template-columns: 1fr !important; }
@@ -323,7 +337,7 @@ export default function LandingPage() {
           div[style*="repeat(auto-fill"] { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
         }
         @media (prefers-reduced-motion: reduce) {
-          .product-card, .slide-fade { transition: none; animation: none; }
+          .product-card, .slide-fade, .btn { transition: none; animation: none; }
         }
       `}</style>
     </div>
