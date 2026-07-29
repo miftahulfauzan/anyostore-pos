@@ -218,7 +218,7 @@ export default function AppShell({ title, eyebrow, actions, children }) {
         <button className="logout" onClick={logout}><LogOut aria-hidden="true" size={15} /> Keluar</button>
       </aside>
 
-      <main className="app-main" style={{ marginLeft: collapsed ? 84 : 308 }}>
+      <main className={`app-main${collapsed ? ' sidebar-collapsed' : ''}`}>
         <header className="app-header">
           <div className="app-header-heading">
             <button
