@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { GripVertical, ImagePlus, Plus, Video, X } from 'lucide-react';
 import AppShell from '../../../components/AppShell';
 import { uploadMediaData, validateDataUpload } from '../../../lib/media-upload';
@@ -8,7 +9,7 @@ import { uploadMediaData, validateDataUpload } from '../../../lib/media-upload';
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const emptyVariant = () => ({ color: '', size: '', sku: '', barcode: '', price: '' });
 
-export default function EditProductPage({ params }) {
+export default function EditProductPage() {
   const [product, setProduct] = useState(null);
   const [categories, setCategories] = useState([]);
   const [form, setForm] = useState(null);
@@ -20,6 +21,7 @@ export default function EditProductPage({ params }) {
   const [variants, setVariants] = useState([]);
   const [media, setMedia] = useState([]);
   const [mediaUploading, setMediaUploading] = useState(false);
+  const params = useParams();
   const productId = params?.id;
   const token = () => typeof window === 'undefined' ? '' : localStorage.getItem('pos_access_token');
   const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` });
