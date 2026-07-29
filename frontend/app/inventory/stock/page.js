@@ -10,8 +10,11 @@ export default function StockReportPage() {
   const [products, setProducts] = useState([]);
   const [summary, setSummary] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [branches, setBranches] = useState([]);
   const [cat, setCat] = useState('');
   const [q, setQ] = useState('');
+  const [branchId, setBranchId] = useState('');
+  const [isOwner, setIsOwner] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 
@@ -21,15 +24,32 @@ export default function StockReportPage() {
   useEffect(() => { if (!token()) { window.location.assign('/'); } }, []);
 
   useEffect(() => {
-    fetch(`${api}/products/categories`, { headers: headers() })
+    fetch(`${api}/auth/me`, { headers: headers() })
       .then((r) => r.json())
-      .then((b) => setCategories(b.data || []))
+      .then((b) => { if (b?.data?.role === 'owner') setIsOwner(true); })
       .catch(() => {});
   }, []);
 
   useEffect(() => {
+    Promise.all([
+      fetch(`${api}/products/categories`, { headers: headers() }).then((r) => r.json()).then((b) => b.data || []).catch(() => []),
+      fetch(`${api}/settings/branches`, { headers: headers() }).then((r) => r.json()).then((b) => b.data || []).catch(() => []),
+    ]).then(([cats, brs]) => {
+      setCategories(cats);
+      setBranches(brs);
+    });
+  }, []);
+
+  useEffect(() => {
     setLoading(true);
-    const qs = new URLSearchParams({ ...(cat ? { category_id: cat } : {}), ...(q ? { search: q } : {}) }).toString();
+    const params = {};
+    if (cat) params.category_id = cat;
+    if (q) params.search = q;
+    if (isOwner) {
+      if (branchId) params.branch_id = branchId;
+      else params.branch_id = 'all';
+    }
+    const qs = new URLSearchParams(params).toString();
     fetch(`${api}/inventory/stock-total?${qs}`, { headers: headers() })
       .then((r) => r.json())
       .then((b) => {
@@ -39,7 +59,9 @@ export default function StockReportPage() {
       })
       .catch((e) => setMessage(e.message))
       .finally(() => setLoading(false));
-  }, [cat, q]);
+  }, [cat, q, branchId, isOwner]);
+
+  const showAll = isOwner && !branchId;
 
   return (
     <AppShell title="Laporan Stok" eyebrow="INVENTORY">
@@ -51,6 +73,7 @@ export default function StockReportPage() {
               <div style={{ padding: 16, borderRadius: 8, background: 'var(--muted)', textAlign: 'center' }}>
                 <p style={{ margin: 0, fontSize: 11, color: 'var(--muted-foreground)' }}>Total Produk</p>
                 <strong style={{ fontSize: 24 }}>{money(summary.total_products)}</strong>
+                {showAll && <p style={{ margin: '2px 0 0', fontSize: 10, color: 'var(--muted-foreground)' }}>{summary.total_branches} toko</p>}
               </div>
               <div style={{ padding: 16, borderRadius: 8, background: 'var(--muted)', textAlign: 'center' }}>
                 <p style={{ margin: 0, fontSize: 11, color: 'var(--muted-foreground)' }}>Total Stok</p>
@@ -68,12 +91,18 @@ export default function StockReportPage() {
           )}
 
           {/* Filters */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
             <input placeholder="Cari nama/SKU…" value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: 1, minWidth: 180, minHeight: 40 }} />
             <select value={cat} onChange={(e) => setCat(e.target.value)} style={{ minWidth: 150, minHeight: 40 }}>
               <option value="">Semua kategori</option>
               {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
+            {isOwner && (
+              <select value={branchId} onChange={(e) => setBranchId(e.target.value)} style={{ minWidth: 160, minHeight: 40 }}>
+                <option value="">Semua Toko</option>
+                {branches.filter((b) => b.is_active).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            )}
           </div>
 
           {message && <p className="message" role="status">{message}</p>}
@@ -83,6 +112,7 @@ export default function StockReportPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
+                  {showAll && <th style={{ padding: '8px 10px' }}>Toko</th>}
                   <th style={{ padding: '8px 10px' }}>Produk</th>
                   <th style={{ padding: '8px 10px' }}>SKU</th>
                   <th style={{ padding: '8px 10px' }}>Kategori</th>
@@ -96,7 +126,7 @@ export default function StockReportPage() {
               </thead>
               <tbody>
                 {loading && Array.from({ length: 8 }).map((_, i) => (
-                  <tr key={i}><td colSpan={9} style={{ padding: 10, color: 'var(--muted-foreground)' }}>Memuat…</td></tr>
+                  <tr key={i}><td colSpan={showAll ? 10 : 9} style={{ padding: 10, color: 'var(--muted-foreground)' }}>Memuat…</td></tr>
                 ))}
                 {!loading && products.map((p) => {
                   const stock = Number(p.total_stock || 0);
@@ -108,6 +138,7 @@ export default function StockReportPage() {
                   const isOut = stock === 0;
                   return (
                     <tr key={p.id} style={{ borderBottom: '1px solid var(--border)', background: isOut ? '#fef2f2' : isLow ? '#fffbeb' : 'transparent' }}>
+                      {showAll && <td style={{ padding: '8px 10px', fontSize: 11, color: 'var(--primary)', fontWeight: 600 }}>{p.branch_name || '-'}</td>}
                       <td style={{ padding: '8px 10px', fontWeight: 600 }}>{p.name}</td>
                       <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: 11, color: 'var(--muted-foreground)' }}>{p.sku || '-'}</td>
                       <td style={{ padding: '8px 10px', color: 'var(--muted-foreground)' }}>{p.category_name || '-'}</td>
@@ -128,7 +159,7 @@ export default function StockReportPage() {
                   );
                 })}
                 {!loading && !products.length && (
-                  <tr><td colSpan={9} style={{ padding: 20, textAlign: 'center', color: 'var(--muted-foreground)' }}>Tidak ada data stok</td></tr>
+                  <tr><td colSpan={showAll ? 10 : 9} style={{ padding: 20, textAlign: 'center', color: 'var(--muted-foreground)' }}>Tidak ada data stok</td></tr>
                 )}
               </tbody>
             </table>

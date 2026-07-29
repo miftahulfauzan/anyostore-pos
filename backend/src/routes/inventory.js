@@ -117,29 +117,33 @@ router.get('/stock', async (req, res, next) => {
 });
 
 // GET /api/inventory/stock-total — total stock per product across all warehouses
+// Owner: ?branch_id=N for one branch, ?branch_id=all for all branches (default = own branch)
 router.get('/stock-total', async (req, res, next) => {
   try {
-    const branchId = req.user.role === 'owner' ? (Number(req.query.branch_id) || req.user.branch_id) : req.user.branch_id;
+    const showAll = req.user.role === 'owner' && req.query.branch_id === 'all';
+    const branchId = showAll ? null : (req.user.role === 'owner' ? (Number(req.query.branch_id) || req.user.branch_id) : req.user.branch_id);
     const search = (req.query.search || '').trim();
     const categoryId = Number(req.query.category_id) || null;
 
-    let where = 'WHERE p.branch_id = ? AND p.is_active = TRUE';
-    const params = [branchId];
+    let where = 'WHERE p.is_active = TRUE';
+    const params = [];
+    if (!showAll) { where += ' AND p.branch_id = ?'; params.push(branchId); }
     if (search) { where += ' AND (p.name LIKE ? OR p.sku LIKE ?)'; const s = `%${search}%`; params.push(s, s); }
     if (categoryId) { where += ' AND p.category_id = ?'; params.push(categoryId); }
 
     const [rows] = await db.execute(
-      `SELECT p.id, p.name, p.sku, p.stock AS product_stock, p.min_stock, c.name AS category_name,
+      `SELECT p.id, p.name, p.sku, p.stock AS product_stock, p.min_stock, c.name AS category_name, b.name AS branch_name,
               COALESCE(SUM(ws.quantity), 0) AS total_stock,
               COALESCE(SUM(ws.reserved_quantity), 0) AS reserved,
               (SELECT COUNT(*) FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_active = TRUE) AS variant_count,
               (SELECT GROUP_CONCAT(DISTINCT pv.color SEPARATOR '|') FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_active = TRUE AND pv.color IS NOT NULL AND pv.color <> '') AS colors
        FROM products p
+       JOIN branches b ON b.id = p.branch_id
        LEFT JOIN categories c ON c.id = p.category_id
        LEFT JOIN warehouse_stocks ws ON ws.product_id = p.id
        ${where}
-       GROUP BY p.id, p.name, p.sku, p.stock, p.min_stock, c.name
-       ORDER BY p.name ASC`,
+       GROUP BY p.id, p.name, p.sku, p.stock, p.min_stock, c.name, b.name
+       ORDER BY b.name, p.name ASC`,
       params
     );
 
@@ -148,12 +152,14 @@ router.get('/stock-total', async (req, res, next) => {
     const totalStock = rows.reduce((sum, r) => sum + Number(r.total_stock || 0), 0);
     const lowStock = rows.filter((r) => Number(r.total_stock) <= Number(r.min_stock)).length;
     const outOfStock = rows.filter((r) => Number(r.total_stock) === 0).length;
+    const totalBranches = showAll ? [...new Set(rows.map((r) => r.branch_name))].length : 1;
 
     res.json({
       success: true,
       data: {
-        summary: { total_products: totalProducts, total_stock: totalStock, low_stock: lowStock, out_of_stock: outOfStock },
+        summary: { total_products: totalProducts, total_stock: totalStock, low_stock: lowStock, out_of_stock: outOfStock, total_branches: totalBranches },
         products: rows,
+        branch_mode: showAll ? 'all' : 'single',
       },
     });
   } catch (error) { next(error); }
