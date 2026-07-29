@@ -136,7 +136,8 @@ router.get('/', async (req, res, next) => {
     const [rows] = await db.execute(
       `SELECT p.id, p.name, p.sku, p.barcode, p.price, p.cost, p.stock, p.min_stock, p.gender,
               c.name AS category_name,
-              (SELECT pp.path FROM product_photos pp WHERE pp.product_id = p.id AND pp.variant_id IS NULL AND pp.media_type = 'image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
+               (SELECT pp.path FROM product_photos pp WHERE pp.product_id = p.id AND pp.variant_id IS NULL AND pp.media_type = 'image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
+               (SELECT pp.\`transform\` FROM product_photos pp WHERE pp.product_id = p.id AND pp.variant_id IS NULL AND pp.media_type = 'image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_transform,
               (SELECT COUNT(*) FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_active = TRUE) AS variant_count,
               (SELECT COALESCE(SUM(pv.stock), 0) FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_active = TRUE) AS variant_stock_total,
               (SELECT GROUP_CONCAT(DISTINCT pv.color ORDER BY pv.color SEPARATOR '|') FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_active = TRUE AND pv.color IS NOT NULL AND pv.color <> '') AS variant_colors${wholesaleSelect}
@@ -159,13 +160,14 @@ router.get('/:id', async (req, res, next) => {
     const [rows] = await db.execute(
       `SELECT p.id, p.name, p.description, p.category_id, p.sku, p.barcode, p.price, p.cost, p.stock, p.min_stock, p.gender,
               c.name AS category_name,
-              (SELECT pp.path FROM product_photos pp WHERE pp.product_id = p.id AND pp.variant_id IS NULL AND pp.media_type = 'image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path
-       FROM products p JOIN categories c ON c.id = p.category_id WHERE p.id = ? AND p.branch_id = ?`,
+               (SELECT pp.path FROM product_photos pp WHERE pp.product_id = p.id AND pp.variant_id IS NULL AND pp.media_type = 'image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
+               (SELECT pp.\`transform\` FROM product_photos pp WHERE pp.product_id = p.id AND pp.variant_id IS NULL AND pp.media_type = 'image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_transform
+        FROM products p JOIN categories c ON c.id = p.category_id WHERE p.id = ? AND p.branch_id = ?`,
       [req.params.id, readableBranchId(req)]
     );
     if (!rows[0]) return res.status(404).json({ success: false, message: 'Produk tidak ditemukan' });
     const [wholesalePrices] = await db.execute('SELECT id, min_qty, max_qty, price FROM wholesale_prices WHERE product_id = ? AND is_active = TRUE ORDER BY min_qty', [rows[0].id]);
-    const [media] = await db.execute('SELECT id, variant_id, path, media_type, is_primary, sort_order FROM product_photos WHERE product_id = ? AND variant_id IS NULL ORDER BY media_type, is_primary DESC, sort_order, id', [rows[0].id]);
+    const [media] = await db.execute('SELECT id, variant_id, path, media_type, is_primary, sort_order, `transform` FROM product_photos WHERE product_id = ? AND variant_id IS NULL ORDER BY media_type, is_primary DESC, sort_order, id', [rows[0].id]);
     const [variants] = await db.execute(`SELECT pv.id, pv.color, pv.size, pv.sku, pv.barcode, pv.price, pv.stock,
       (SELECT pp.path FROM product_photos pp WHERE pp.variant_id = pv.id AND pp.media_type = 'image' ORDER BY pp.sort_order, pp.id DESC LIMIT 1) AS photo_path
       FROM product_variants pv WHERE pv.product_id = ? AND pv.is_active = TRUE ORDER BY pv.color, pv.size, pv.id`, [rows[0].id]);
@@ -295,6 +297,23 @@ router.post('/:id/variants/:variantId/photo', authorize('owner', 'manager', 'adm
     await db.execute('INSERT INTO product_photos (product_id, variant_id, filename, path, media_type, is_primary, sort_order) VALUES (?, ?, ?, ?, \'image\', FALSE, 0)', [req.params.id, variants[0].id, req.file.filename, publicPath]);
     for (const item of previous) await removeMedia(item.path);
     res.status(201).json({ success: true, data: { path: publicPath } });
+  } catch (error) { next(error); }
+});
+
+// PATCH /api/products/:id/media/:mediaId/transform — save zoom/pan adjustment
+router.patch('/:id/media/:mediaId/transform', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+  try {
+    const { transform } = req.body;
+    if (typeof transform !== 'string' || (transform !== null && !/^-?\d+(\.\d+)?,-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(transform))) {
+      return res.status(400).json({ success: false, message: 'Format transform tidak valid (scale,x,y)' });
+    }
+    const [rows] = await db.execute(
+      'SELECT pp.id FROM product_photos pp JOIN products p ON p.id = pp.product_id WHERE pp.id = ? AND pp.product_id = ? AND p.branch_id = ?',
+      [req.params.mediaId, req.params.id, req.user.branch_id]
+    );
+    if (!rows[0]) return res.status(404).json({ success: false, message: 'Media tidak ditemukan' });
+    await db.execute('UPDATE product_photos SET `transform` = ? WHERE id = ?', [transform, req.params.mediaId]);
+    res.json({ success: true });
   } catch (error) { next(error); }
 });
 

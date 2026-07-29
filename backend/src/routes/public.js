@@ -153,7 +153,7 @@ router.get('/products/:id', async (req, res, next) => {
     if (!rows[0]) return res.status(404).json({ success: false, message: 'Produk tidak ditemukan' });
 
     const [media] = await db.execute(
-      `SELECT id, path, media_type, is_primary, sort_order FROM product_photos WHERE product_id=? ORDER BY is_primary DESC, sort_order ASC, id DESC`,
+      `SELECT id, path, media_type, is_primary, sort_order, \`transform\` FROM product_photos WHERE product_id=? ORDER BY is_primary DESC, sort_order ASC, id DESC`,
       [id]
     );
     const [variants] = await db.execute(`SELECT id, color, size, price, (SELECT path FROM product_photos WHERE variant_id=product_variants.id ORDER BY sort_order LIMIT 1) AS photo_path FROM product_variants WHERE product_id=? AND is_active=TRUE ORDER BY color`, [id]);
