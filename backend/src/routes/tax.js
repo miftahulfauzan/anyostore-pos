@@ -175,7 +175,7 @@ router.get('/pph23', async (req, res, next) => {
       `SELECT e.id, e.description, e.amount, e.expense_date, e.status, ec.name AS category_name
        FROM expenses e
        LEFT JOIN expense_categories ec ON ec.id = e.category_id
-       WHERE e.branch_id=? AND e.type='expense' AND e.status='approved' AND DATE(e.expense_date) BETWEEN ? AND ?
+       WHERE e.branch_id=? AND (e.type IS NULL OR e.type='expense') AND e.status='approved' AND DATE(e.expense_date) BETWEEN ? AND ?
        ORDER BY e.expense_date ASC`,
       [branchId, start, end]
     );
