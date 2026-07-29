@@ -206,7 +206,7 @@ export default function LandingPage() {
             return (
               <article key={p.id} className="pcard" style={{ display: 'flex', flexDirection: 'column', borderRadius: 8, overflow: 'hidden', background: C.white, border: `1px solid ${C.border}` }}>
                 <a href={`/produk/${p.id}`} style={{ position: 'relative', aspectRatio: '1/1', background: C.bg, overflow: 'hidden', display: 'grid', placeItems: 'center', textDecoration: 'none' }}>
-                  <SafeImage src={img} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  <SafeImage src={img} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'contain', ...(p.photo_transform ? (() => { const t = (p.photo_transform||'').split(',').map(Number); return { objectFit: 'none', transform: `scale(${t[0]}) translate(${t[1]||0}px, ${t[2]||0}px)` }; })() : {}) }} />
                   {Number(p.total_stock || 0) > 0 ? null : <span style={{ position: 'absolute', right: 6, top: 6, padding: '2px 6px', borderRadius: 4, background: C.redLight, color: C.red, fontSize: 10, fontWeight: 600 }}>Tanya stok</span>}
                 </a>
                 <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
