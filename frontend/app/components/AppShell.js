@@ -77,6 +77,7 @@ const navigation = [
 export default function AppShell({ title, eyebrow, actions, children }) {
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => typeof window !== 'undefined' ? localStorage.getItem('pos_sidebar_collapsed') === 'true' : false);
   const [role, setRole] = useState(null);
   const [userName, setUserName] = useState('');
   const [theme, setTheme] = useState('light');
@@ -154,6 +155,14 @@ export default function AppShell({ title, eyebrow, actions, children }) {
     window.location.assign('/');
   }
 
+  function toggleCollapse() {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem('pos_sidebar_collapsed', String(next));
+  }
+
+  const sidebarClass = `sidebar${collapsed ? ' collapsed' : ''}${mobileNavOpen ? ' mobile-open' : ''}`;
+
   return (
     <div className="app-shell">
       <button
@@ -164,7 +173,7 @@ export default function AppShell({ title, eyebrow, actions, children }) {
         tabIndex={mobileNavOpen ? 0 : -1}
         onClick={() => setMobileNavOpen(false)}
       />
-      <aside className={`sidebar ${mobileNavOpen ? 'mobile-open' : ''}`} aria-label="Navigasi utama" id="mobile-navigation">
+      <aside className={sidebarClass} aria-label="Navigasi utama" id="mobile-navigation">
         <button type="button" className="sidebar-close" onClick={() => setMobileNavOpen(false)} aria-label="Tutup menu">
           <X aria-hidden="true" size={20} />
         </button>
@@ -201,12 +210,15 @@ export default function AppShell({ title, eyebrow, actions, children }) {
 
         <div className="sidebar-footer">
           <span className="sidebar-store-dot" aria-hidden="true" />
-          <div><strong>{userName || 'Sesi aktif'}</strong><small>{role ? role.charAt(0).toUpperCase() + role.slice(1) : 'Kelola toko dengan aman'}</small></div>
+          {!collapsed && <div><strong>{userName || 'Sesi aktif'}</strong><small>{role ? role.charAt(0).toUpperCase() + role.slice(1) : 'Kelola toko dengan aman'}</small></div>}
+          <button type="button" className="collapse-toggle" onClick={toggleCollapse} aria-label={collapsed ? 'Perluas sidebar' : 'Ciutkan sidebar'}>
+            <ChevronDown aria-hidden="true" size={16} style={{ transform: collapsed ? 'rotate(90deg)' : 'rotate(-90deg)', transition: 'transform .2s' }} />
+          </button>
         </div>
         <button className="logout" onClick={logout}><LogOut aria-hidden="true" size={15} /> Keluar</button>
       </aside>
 
-      <main className="app-main">
+      <main className="app-main" style={{ marginLeft: collapsed ? 84 : 308 }}>
         <header className="app-header">
           <div className="app-header-heading">
             <button
