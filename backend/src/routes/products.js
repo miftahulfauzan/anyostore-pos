@@ -372,4 +372,38 @@ router.put('/:id', authorize('owner', 'manager', 'admin'), async (req, res, next
   } catch (error) { next(error); }
 });
 
+// DELETE /api/products/:id — soft-delete (is_active=false) if has transactions, else hard-delete
+router.delete('/:id', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID tidak valid' });
+
+    // Verify product belongs to user's branch
+    const [product] = await db.execute('SELECT id, name, is_active FROM products WHERE id=? AND branch_id=?', [id, req.user.branch_id]);
+    if (!product[0]) return res.status(404).json({ success: false, message: 'Produk tidak ditemukan' });
+
+    // Check if product has been sold
+    const [trx] = await db.execute('SELECT COUNT(*) AS cnt FROM transaction_items WHERE product_id=?', [id]);
+    const hasTransactions = Number(trx[0].cnt) > 0;
+
+    if (hasTransactions) {
+      // Soft-delete: product stays for historical data
+      await db.execute('UPDATE products SET is_active=FALSE WHERE id=?', [id]);
+      await db.execute('UPDATE product_variants SET is_active=FALSE WHERE product_id=?', [id]);
+      res.json({ success: true, data: { message: 'Produk dinonaktifkan (masih memiliki riwayat transaksi)', soft: true } });
+    } else {
+      // Hard-delete: cascade all related data
+      const [photos] = await db.execute('SELECT path FROM product_photos WHERE product_id=?', [id]);
+      for (const ph of photos) { try { await removeMedia(ph.path); } catch {} }
+      await db.execute('DELETE FROM product_photos WHERE product_id=?', [id]);
+      await db.execute('DELETE FROM product_variants WHERE product_id=?', [id]);
+      await db.execute('DELETE FROM wholesale_prices WHERE product_id=?', [id]);
+      await db.execute('DELETE FROM warehouse_stocks WHERE product_id=?', [id]);
+      await db.execute('DELETE FROM stock_mutations WHERE product_id=?', [id]);
+      await db.execute('DELETE FROM products WHERE id=?', [id]);
+      res.json({ success: true, data: { message: 'Produk berhasil dihapus permanen', soft: false } });
+    }
+  } catch (error) { next(error); }
+});
+
 module.exports = router;
