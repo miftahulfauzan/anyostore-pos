@@ -139,8 +139,10 @@ export default function EditProductPage({ params }) {
         setPreview('');
       }
       setMessage('Produk dan varian berhasil diperbarui.');
+      window.location.href = '/products';
     } catch (error) { setMessage(error.message); } finally { setSaving(false); }
   }
+      window.location.href = '/products';
 
   const productImages = media.filter((item) => item.media_type === 'image');
   const productVideo = media.find((item) => item.media_type === 'video');
