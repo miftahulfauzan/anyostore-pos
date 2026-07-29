@@ -1,6 +1,7 @@
 'use client';
 
-import { use, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { GripVertical, ImagePlus, Plus, Video, X } from 'lucide-react';
 import AppShell from '../../../components/AppShell';
 import { uploadMediaData, validateDataUpload } from '../../../lib/media-upload';
@@ -20,7 +21,8 @@ export default function EditProductPage({ params }) {
   const [variants, setVariants] = useState([]);
   const [media, setMedia] = useState([]);
   const [mediaUploading, setMediaUploading] = useState(false);
-  const { id: productId } = use(params);
+  const params = useParams();
+  const productId = params?.id;
   const token = () => typeof window === 'undefined' ? '' : localStorage.getItem('pos_access_token');
   const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` });
   const mediaUrl = (path) => path ? `${apiUrl.replace('/api', '')}${path}` : '';
