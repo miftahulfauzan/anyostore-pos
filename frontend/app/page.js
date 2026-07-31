@@ -177,7 +177,7 @@ export default function LandingPage() {
   }, [page, totalPages]);
 
   const slide = slides[slideIdx];
-  const slidePhotos = useMemo(() => parsePhotos(slide?.photo_paths), [slide?.photo_paths]);
+  const slidePhotos = useMemo(() => parsePhotos(slide?.photo_paths, slide?.photo_path), [slide?.photo_paths, slide?.photo_path]);
 
   return (
     <div style={{ background: C.bg, color: C.ink, minHeight: '100vh', fontFamily: "'DM Sans', system-ui, sans-serif" }}>

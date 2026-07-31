@@ -102,7 +102,9 @@ async function syncVariantColorsAcrossStores(productId, branchId) {
 
 router.get('/categories', async (req, res, next) => {
   try {
-    const [categories] = await db.execute('SELECT id, name, slug, sku_prefix FROM categories WHERE is_active = TRUE ORDER BY name');
+    const showAll = req.query.all === 'true' && req.user.role === 'owner';
+    const where = showAll ? '' : ' WHERE is_active = TRUE';
+    const [categories] = await db.execute(`SELECT id, name, slug, sku_prefix FROM categories${where} ORDER BY name`);
     res.json({ success: true, data: categories });
   } catch (error) { next(error); }
 });
