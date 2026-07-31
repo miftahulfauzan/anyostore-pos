@@ -118,7 +118,7 @@ a { color: var(--secondary); font-weight: 600; text-decoration: none; }
 .metrics-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; max-width: 1440px; margin: 0 auto 1rem; }
 .metric-card { display: grid; gap: .5rem; min-height: 150px; padding: 1.15rem; border: 1px solid var(--border); border-radius: .5rem; background: var(--card); box-shadow: 0 8px 28px rgba(15,23,42,.06); }
 .metric-card span, .metric-card small, .muted { color: #627167; }
-.metric-card strong { align-self: end; font-size: clamp(1.35rem, 2vw, 1.85rem); letter-spacing: -.04em; }
+.metric-card strong { align-self: start; font-size: clamp(1.05rem, 1.8vw, 1.55rem); letter-spacing: -.03em; line-height: 1.15; overflow-wrap: anywhere; word-break: break-word; max-width: 100%; }
 .dashboard-grid, .commission-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr); gap: 1rem; max-width: 1440px; margin: 0 auto 1rem; align-items: start; }
 .dashboard-charts { grid-template-columns: minmax(0,1.35fr) minmax(280px,.65fr); }
 .bar-chart { min-height:220px; display:flex; align-items:end; gap:.75rem; padding-top:1rem; border-bottom:1px solid #d4dce6; }
@@ -389,11 +389,14 @@ html[data-theme="green"] .button-link, html[data-theme="blue"] .button-link, htm
 .metrics-grid, .dashboard-grid, .commission-layout, .records, .report-grid, .report-filter { max-width: 1500px; }
 .metric-card {
   position: relative;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-  min-height: 132px;
+  display: grid;
+  grid-template-columns: 1fr;
+  align-content: start;
+  gap: 6px;
+  min-height: 120px;
   padding: 17px;
-  overflow: hidden;
+  overflow: visible;
+  min-width: 0;
 }
 .metric-card::before {
   content: '';
@@ -407,8 +410,17 @@ html[data-theme="green"] .button-link, html[data-theme="blue"] .button-link, htm
 .metric-card:nth-child(2)::before { background: #2563eb; }
 .metric-card:nth-child(3)::before { background: #16a34a; }
 .metric-card:nth-child(4)::before { background: #d97706; }
-.metric-card > div { display: grid; gap: 5px; }
-.metric-card strong { color: #111827; }
+.metric-card > div { display: grid; gap: 5px; min-width: 0; }
+.metric-card strong {
+  color: #111827;
+  font-size: clamp(1.05rem, 1.8vw, 1.55rem);
+  letter-spacing: -.03em;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+  align-self: start;
+}
 .metric-icon {
   display: grid;
   width: 32px;
