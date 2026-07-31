@@ -17,16 +17,17 @@ function dateRange(query) {
 router.get('/sales', async (req, res, next) => {
   try {
     const { start, end } = dateRange(req.query);
-    const [summary] = await db.execute("SELECT COUNT(*) AS transactions, COALESCE(SUM(grand_total - cancelled_amount), 0) AS gross_sales, COALESCE(SUM(discount), 0) AS discounts FROM transactions WHERE branch_id = ? AND status IN ('completed','partially_cancelled') AND DATE(created_at) BETWEEN ? AND ?", [req.user.branch_id, start, end]);
-    const [payments] = await db.execute("SELECT tp.payment_method, COALESCE(SUM(tp.amount), 0) AS amount FROM transaction_payments tp JOIN transactions t ON t.id = tp.transaction_id WHERE t.branch_id = ? AND t.status = 'completed' AND DATE(t.created_at) BETWEEN ? AND ? GROUP BY tp.payment_method", [req.user.branch_id, start, end]);
-    res.json({ success: true, data: { start, end, ...summary[0], payments } });
+    const branchId = req.user.role === 'owner' ? (Number(req.query.branch_id) || req.user.branch_id) : req.user.branch_id;
+    const [summary] = await db.execute("SELECT COUNT(*) AS transactions, COALESCE(SUM(grand_total - cancelled_amount), 0) AS gross_sales, COALESCE(SUM(discount), 0) AS discounts FROM transactions WHERE branch_id = ? AND status IN ('completed','partially_cancelled') AND DATE(created_at) BETWEEN ? AND ?", [branchId, start, end]);
+    const [payments] = await db.execute("SELECT tp.payment_method, COALESCE(SUM(tp.amount), 0) AS amount FROM transaction_payments tp JOIN transactions t ON t.id = tp.transaction_id WHERE t.branch_id = ? AND t.status = 'completed' AND DATE(t.created_at) BETWEEN ? AND ? GROUP BY tp.payment_method", [branchId, start, end]);
+    res.json({ success: true, data: { branch_id: branchId, start, end, ...summary[0], payments } });
   } catch (error) { next(error); }
 });
 
 router.get('/overview', async (req, res, next) => {
   try {
     const { start, end } = dateRange(req.query);
-    const branchId = req.user.branch_id;
+    const branchId = req.user.role === 'owner' ? (Number(req.query.branch_id) || req.user.branch_id) : req.user.branch_id;
     const [[sales], [costs], [expenses], payments, products, cashiers, customers, lowStock, dailySales, priceTiers, transactions] = await Promise.all([
       db.execute("SELECT COUNT(*) AS transactions, COALESCE(SUM(grand_total - cancelled_amount), 0) AS revenue, COALESCE(SUM(discount), 0) AS discounts FROM transactions WHERE branch_id = ? AND status IN ('completed','partially_cancelled') AND DATE(created_at) BETWEEN ? AND ?", [branchId, start, end]),
       db.execute("SELECT COALESCE(SUM(ti.cost * ti.quantity), 0) AS cost_of_goods, COALESCE(SUM(ti.subtotal - (ti.cost * ti.quantity)), 0) AS item_profit FROM transaction_items ti JOIN transactions t ON t.id = ti.transaction_id WHERE t.branch_id = ? AND t.status = 'completed' AND DATE(t.created_at) BETWEEN ? AND ?", [branchId, start, end]),
@@ -44,8 +45,10 @@ router.get('/overview', async (req, res, next) => {
     const costOfGoods = Number(costs[0].cost_of_goods);
     const approvedExpenses = Number(expenses[0].amount);
     const income = Number(expenses[0].income);
+    const [branch] = await db.execute('SELECT name FROM branches WHERE id=?', [branchId]);
+    const branchName = branch[0]?.name || '';
     res.json({ success: true, data: {
-      start, end,
+      start, end, branch_id: branchId, branch_name: branchName,
       summary: { transactions: sales[0].transactions, revenue, discounts: sales[0].discounts, cost_of_goods: costOfGoods, gross_profit: revenue - costOfGoods, expenses: approvedExpenses, income, net_profit: money(revenue - costOfGoods - approvedExpenses) },
       payment_methods: payments[0], products: products[0], cashiers: cashiers[0], customers: customers[0], low_stock: lowStock[0], daily_sales: dailySales[0], price_tiers: priceTiers[0], transactions: transactions[0]
     } });

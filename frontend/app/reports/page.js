@@ -70,6 +70,9 @@ export default function ReportsPage() {
   const [store, setStore] = useState(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
+  const [branches, setBranches] = useState([]);
+  const [branchId, setBranchId] = useState("");
   const token = () =>
     typeof window === "undefined"
       ? ""
@@ -82,8 +85,10 @@ export default function ReportsPage() {
     setLoading(true);
     setMessage("");
     try {
+      const qs = new URLSearchParams({ start: nextPeriod.start, end: nextPeriod.end });
+      if (isOwner && branchId) qs.set('branch_id', branchId);
       const response = await fetch(
-        `${apiUrl}/reports/overview?start=${nextPeriod.start}&end=${nextPeriod.end}`,
+        `${apiUrl}/reports/overview?${qs}`,
         { headers: { Authorization: `Bearer ${token()}` } },
       );
       const body = await response.json();
@@ -98,11 +103,19 @@ export default function ReportsPage() {
   }
   useEffect(() => {
     load();
-    fetch(apiUrl + "/settings", {
-      headers: { Authorization: "Bearer " + token() },
-    })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((body) => setStore(body?.data || null));
+    Promise.all([
+      fetch(apiUrl + "/settings", { headers: { Authorization: "Bearer " + token() } }).then((r) => r.ok ? r.json() : null),
+      fetch(apiUrl + "/auth/me", { headers: { Authorization: "Bearer " + token() } }).then((r) => r.ok ? r.json() : null),
+      fetch(apiUrl + "/settings/branches", { headers: { Authorization: "Bearer " + token() } }).then((r) => r.ok ? r.json() : null),
+    ]).then(([storeData, meData, branchesData]) => {
+      setStore(storeData?.data || null);
+      if (meData?.data?.role === 'owner') {
+        setIsOwner(true);
+        const brs = branchesData?.data?.filter((b) => b.is_active) || [];
+        setBranches(brs);
+        if (brs.length) setBranchId(String(brs[0].id));
+      }
+    });
   }, []);
   const summary = report?.summary || {};
   const logo = store?.store_logo
@@ -143,6 +156,14 @@ export default function ReportsPage() {
             Gunakan periode yang sama untuk semua laporan.
           </p>
         </div>
+        {isOwner && branches.length > 0 && (
+          <label>
+            Toko
+            <select value={branchId} onChange={(e) => setBranchId(e.target.value)}>
+              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          </label>
+        )}
         <label>
           Mulai
           <input
