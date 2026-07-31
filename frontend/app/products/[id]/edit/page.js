@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { GripVertical, ImagePlus, Plus, Video, X } from 'lucide-react';
 import AppShell from '../../../components/AppShell';
@@ -8,6 +8,64 @@ import { uploadMediaData, validateDataUpload } from '../../../lib/media-upload';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const emptyVariant = () => ({ color: '', size: '', sku: '', barcode: '', price: '' });
+
+function AdjModal({ photo, mediaUrl, onClose, onSave, onUpdate }) {
+  const [dragging, setDragging] = useState(false);
+  const [last, setLast] = useState({ x: 0, y: 0 });
+  const viewportRef = useRef(null);
+
+  function onWheel(e) {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.08 : 0.08;
+    const next = Math.min(5, Math.max(0.3, photo.scale + delta));
+    onUpdate({ ...photo, scale: Math.round(next * 100) / 100 });
+  }
+
+  function onPointerDown(e) {
+    e.preventDefault();
+    setDragging(true);
+    setLast({ x: e.clientX, y: e.clientY });
+    if (viewportRef.current) viewportRef.current.setPointerCapture(e.pointerId);
+  }
+  function onPointerMove(e) {
+    if (!dragging) return;
+    const dx = e.clientX - last.x;
+    const dy = e.clientY - last.y;
+    setLast({ x: e.clientX, y: e.clientY });
+    onUpdate({ ...photo, x: photo.x + dx, y: photo.y + dy });
+  }
+  function onPointerUp(e) {
+    setDragging(false);
+    if (viewportRef.current) viewportRef.current.releasePointerCapture(e.pointerId);
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'grid', placeItems: 'center', zIndex: 100, padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, padding: 20, maxWidth: 440, width: '100%', display: 'grid', gap: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <strong style={{ fontSize: 15 }}>Atur Foto</strong>
+          <button onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: 22, lineHeight: 1, cursor: 'pointer', color: '#64748b' }}>×</button>
+        </div>
+        <div
+          ref={viewportRef}
+          onWheel={onWheel}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerLeave={onPointerUp}
+          style={{ width: '100%', aspectRatio: '3/4', overflow: 'hidden', borderRadius: 8, background: '#f1f5f9', border: '1px solid #e2e8f0', cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
+        >
+          <img src={mediaUrl(photo.path)} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'none', transform: `scale(${photo.scale}) translate(${photo.x}px, ${photo.y}px)`, pointerEvents: 'none' }} />
+        </div>
+        <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>Scroll untuk zoom · Geser untuk posisi · {photo.scale.toFixed(1)}× · ({Math.round(photo.x)}, {Math.round(photo.y)})</p>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={onSave} style={{ flex: 1, minHeight: 42, borderRadius: 8, border: 'none', background: '#1e3a5f', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Simpan</button>
+          <button onClick={() => onUpdate({ ...photo, scale: 1, x: 0, y: 0 })} style={{ minHeight: 42, padding: '0 16px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>Reset</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function EditProductPage() {
   const [product, setProduct] = useState(null);
@@ -190,35 +248,7 @@ export default function EditProductPage() {
       </section>
 
       {adjPhoto && (
-        <div onClick={() => setAdjPhoto(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'grid', placeItems: 'center', zIndex: 100, padding: 20 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, padding: 20, maxWidth: 440, width: '100%', display: 'grid', gap: 14 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <strong style={{ fontSize: 15 }}>Atur Foto</strong>
-              <button onClick={() => setAdjPhoto(null)} style={{ border: 'none', background: 'transparent', fontSize: 22, lineHeight: 1, cursor: 'pointer', color: '#64748b' }}>×</button>
-            </div>
-            <div style={{ width: '100%', aspectRatio: '3/4', overflow: 'hidden', borderRadius: 8, background: '#f1f5f9', border: '1px solid #e2e8f0' }}>
-              <img src={mediaUrl(adjPhoto.path)} alt="" style={{ width: '100%', height: '100%', objectFit: 'none', transform: `scale(${adjPhoto.scale}) translate(${adjPhoto.x}px, ${adjPhoto.y}px)` }} />
-            </div>
-            <div style={{ display: 'grid', gap: 10, padding: '0 4px' }}>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', marginBottom: 4 }}><span>Zoom</span><span style={{ fontWeight: 700 }}>{adjPhoto.scale.toFixed(1)}×</span></div>
-                <input type="range" min="0.3" max="3" step="0.1" value={adjPhoto.scale} onChange={(e) => setAdjPhoto({ ...adjPhoto, scale: Number(e.target.value) })} style={{ width: '100%', accentColor: '#1e3a5f' }} />
-              </div>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', marginBottom: 4 }}><span>Geser horizontal</span><span style={{ fontWeight: 700 }}>{adjPhoto.x}px</span></div>
-                <input type="range" min="-300" max="300" step="1" value={adjPhoto.x} onChange={(e) => setAdjPhoto({ ...adjPhoto, x: Number(e.target.value) })} style={{ width: '100%', accentColor: '#1e3a5f' }} />
-              </div>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', marginBottom: 4 }}><span>Geser vertikal</span><span style={{ fontWeight: 700 }}>{adjPhoto.y}px</span></div>
-                <input type="range" min="-300" max="300" step="1" value={adjPhoto.y} onChange={(e) => setAdjPhoto({ ...adjPhoto, y: Number(e.target.value) })} style={{ width: '100%', accentColor: '#1e3a5f' }} />
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={saveAdj} style={{ flex: 1, minHeight: 42, borderRadius: 8, border: 'none', background: '#1e3a5f', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Simpan</button>
-              <button onClick={() => setAdjPhoto({ ...adjPhoto, scale: 1, x: 0, y: 0 })} style={{ minHeight: 42, padding: '0 16px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>Reset</button>
-            </div>
-          </div>
-        </div>
+        <AdjModal photo={adjPhoto} mediaUrl={mediaUrl} onClose={() => setAdjPhoto(null)} onSave={saveAdj} onUpdate={setAdjPhoto} />
       )}
 
     </AppShell>
