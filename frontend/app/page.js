@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import FloatingWA from './components/FloatingWA';
 import SafeImage from './components/SafeImage';
 
@@ -16,8 +16,6 @@ const C = {
   accentLight: '#eef2ff',
   green: '#16a34a',
   greenLight: '#dcfce7',
-  red: '#dc2626',
-  redLight: '#fef2f2',
 };
 
 const I = {
@@ -37,6 +35,12 @@ function waLink(phone, text) {
   return `https://wa.me/${clean}?text=${encodeURIComponent(text)}`;
 }
 
+function parsePhotos(photoPaths, transformStr) {
+  if (!photoPaths) return [];
+  const paths = photoPaths.split('||').filter(Boolean);
+  return paths.map((path) => ({ path: path.trim() }));
+}
+
 const SORTS = [
   { value: 'newest', label: 'Terbaru' },
   { value: 'price_asc', label: 'Harga Termurah' },
@@ -50,6 +54,57 @@ function seededShuffle(arr, seed) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; s >>>= 0; const j = s % (i + 1); [a[i], a[j]] = [a[j], a[i]]; }
   return a;
+}
+
+function ProductCard({ product }) {
+  const [hoverIdx, setHoverIdx] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  const intervalRef = useRef(null);
+  const photos = useMemo(() => parsePhotos(product.photo_paths), [product.photo_paths]);
+  const hasMultiple = photos.length > 1;
+
+  useEffect(() => {
+    if (isHovered && hasMultiple) {
+      intervalRef.current = setInterval(() => setHoverIdx((i) => (i + 1) % photos.length), 1500);
+    }
+    return () => clearInterval(intervalRef.current);
+  }, [isHovered, hasMultiple, photos.length]);
+
+  const img = photos.length ? `${api.replace('/api', '')}${photos[hoverIdx]?.path}` : '';
+  const colors = (product.variant_colors || '').split('|').filter(Boolean).slice(0, 6);
+
+  return (
+    <article className="pcard"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => { setIsHovered(false); setHoverIdx(0); }}
+    >
+      <a href={`/produk/${product.id}`} className="pcard-img" style={{ textDecoration: 'none' }}>
+        <SafeImage
+          src={img}
+          alt={product.name}
+          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+        />
+        {hasMultiple && (
+          <div className="pcard-dots">
+            {photos.map((_, i) => (
+              <span key={i} className={i === hoverIdx ? 'active' : ''} />
+            ))}
+          </div>
+        )}
+      </a>
+      <div className="pcard-body">
+        <a href={`/produk/${product.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+          <strong>{product.name}</strong>
+        </a>
+        <span className="pcard-price">Rp{Number(product.price || 0).toLocaleString('id-ID')}</span>
+        {colors.length > 0 && (
+          <div className="pcard-colors">
+            {colors.map((c) => <span key={c}>{c}</span>)}
+          </div>
+        )}
+      </div>
+    </article>
+  );
 }
 
 export default function LandingPage() {
@@ -83,7 +138,7 @@ export default function LandingPage() {
   useEffect(() => { if (slideIdx >= slides.length && slides.length) setSlideIdx(0); }, [slides, slideIdx]);
   useEffect(() => {
     if (slides.length <= 1 || paused) return;
-    const t = setInterval(() => setSlideIdx((i) => (i + 1) % slides.length), 5000);
+    const t = setInterval(() => setSlideIdx((i) => (i + 1) % slides.length), 4000);
     return () => clearInterval(t);
   }, [slides.length, paused]);
 
@@ -96,7 +151,7 @@ export default function LandingPage() {
 
   useEffect(() => {
     setLoading(true);
-    const qs = new URLSearchParams({ limit: '48', page: String(page), ...(cat ? { category_id: cat } : {}), ...(q ? { search: q } : {}), ...(sort ? { sort } : {}) }).toString();
+    const qs = new URLSearchParams({ limit: '24', page: String(page), ...(cat ? { category_id: cat } : {}), ...(q ? { search: q } : {}), ...(sort ? { sort } : {}) }).toString();
     fetch(`${api}/public/products?${qs}`)
       .then((r) => r.json()).then((b) => { setProducts(b.data || []); setTotalPages(b.totalPages || 1); setTotal(b.total || 0); })
       .catch(() => setProducts([])).finally(() => setLoading(false));
@@ -112,6 +167,7 @@ export default function LandingPage() {
   }, [page, totalPages]);
 
   const slide = slides[slideIdx];
+  const slidePhotos = useMemo(() => parsePhotos(slide?.photo_paths), [slide?.photo_paths]);
 
   return (
     <div style={{ background: C.bg, color: C.ink, minHeight: '100vh', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
@@ -131,22 +187,32 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Hero — clean slideshow */}
+      {/* Hero slideshow */}
       <section style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 16px' }}>
-        <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', background: C.white, border: `1px solid ${C.border}`, display: 'grid', gridTemplateColumns: '1fr 1fr', alignItems: 'center' }}>
+        <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', background: C.white, border: `1px solid ${C.border}`, display: 'grid', gridTemplateColumns: '1fr 1fr', alignItems: 'center', minHeight: 340 }}>
           {slide ? (
             <div key={slide.id} className="slide-fade" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', width: '100%' }}>
               <div style={{ padding: 32, display: 'grid', gap: 12 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: C.muted }}>{slide.category_name || 'Denim'}</span>
-                <h1 style={{ margin: 0, fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 'clamp(26px,3.5vw,38px)', fontWeight: 400, lineHeight: 1.1, color: C.ink }}>{slide.name}</h1>
+                <h1 style={{ margin: 0, fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 'clamp(26px, 3.5vw, 38px)', fontWeight: 400, lineHeight: 1.1, color: C.ink }}>{slide.name}</h1>
                 <strong style={{ fontSize: 22, color: C.accent }}>Rp{Number(slide.price || 0).toLocaleString('id-ID')}</strong>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <a href={`/produk/${slide.id}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 42, padding: '0 18px', borderRadius: 6, background: C.accent, color: C.white, fontWeight: 600, fontSize: 13, textDecoration: 'none' }}>Lihat Detail</a>
-                  <a href="#" onClick={(e) => { e.preventDefault(); pickWa(`Saya tertarik dengan ${slide.name} (${slide.id})`); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 42, padding: '0 18px', borderRadius: 6, border: `1px solid ${C.border}`, color: C.ink, fontWeight: 500, fontSize: 13, textDecoration: 'none' }}><I.chat style={{ width: 14, height: 14 }} /> WA</a>
+                  <a href="#" onClick={(e) => { e.preventDefault(); pickWa(`Saya tertarik dengan ${slide.name}`); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 42, padding: '0 18px', borderRadius: 6, border: `1px solid ${C.border}`, color: C.ink, fontWeight: 500, fontSize: 13, textDecoration: 'none' }}><I.chat style={{ width: 14, height: 14 }} /> WA</a>
                 </div>
               </div>
               <div style={{ display: 'grid', placeItems: 'center', background: C.bg, minHeight: 320, padding: 16 }}>
-                <SafeImage src={slide.photo_path ? `${api.replace('/api', '')}${slide.photo_path}` : ''} alt={slide.name} style={{ maxWidth: '100%', maxHeight: 300, objectFit: 'contain' }} />
+                {slidePhotos.length > 0 ? (
+                  <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                    {slidePhotos.map((ph, i) => (
+                      <div key={i} style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', padding: 16, opacity: i === 0 ? 1 : 0, transition: 'opacity .5s' }}>
+                        <SafeImage src={`${api.replace('/api', '')}${ph.path}`} alt={slide.name} style={{ maxWidth: '100%', maxHeight: 300, objectFit: 'contain' }} />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ color: C.muted, fontSize: 13 }}>Foto produk</div>
+                )}
               </div>
             </div>
           ) : <div style={{ gridColumn: '1/-1', padding: 48, textAlign: 'center', color: C.muted }}>Memuat…</div>}
@@ -198,33 +264,9 @@ export default function LandingPage() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 12 }}>
-          {loading && Array.from({ length: 12 }).map((_, i) => <div key={i} style={{ height: 280, borderRadius: 8, background: C.border }} />)}
-          {!loading && products.map((p) => {
-            const colors = (p.variant_colors || '').split('|').filter(Boolean).slice(0, 6);
-            const img = p.photo_path ? `${api.replace('/api', '')}${p.photo_path}` : '';
-            return (
-              <article key={p.id} className="pcard" style={{ display: 'flex', flexDirection: 'column', borderRadius: 8, overflow: 'hidden', background: C.white, border: `1px solid ${C.border}` }}>
-                <a href={`/produk/${p.id}`} style={{ position: 'relative', aspectRatio: '1/1', background: C.bg, overflow: 'hidden', display: 'grid', placeItems: 'center', textDecoration: 'none' }}>
-                  <SafeImage src={img} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'contain', ...(p.photo_transform ? (() => { const t = (p.photo_transform||'').split(',').map(Number); return { objectFit: 'none', transform: `scale(${t[0]}) translate(${t[1]||0}px, ${t[2]||0}px)` }; })() : {}) }} />
-                  {Number(p.total_stock || 0) > 0 ? null : <span style={{ position: 'absolute', right: 6, top: 6, padding: '2px 6px', borderRadius: 4, background: C.redLight, color: C.red, fontSize: 10, fontWeight: 600 }}>Tanya stok</span>}
-                </a>
-                <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
-                  <a href={`/produk/${p.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                    <strong style={{ fontSize: 13, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.name}</strong>
-                  </a>
-                  <span style={{ color: C.accent, fontWeight: 700, fontSize: 14 }}>Rp{Number(p.price || 0).toLocaleString('id-ID')}</span>
-                  <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', minHeight: 16 }}>
-                    {colors.map((c) => <span key={c} style={{ padding: '1px 5px', borderRadius: 3, background: C.accentLight, fontSize: 9, color: C.accent }}>{c}</span>)}
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 6, marginTop: 'auto', paddingTop: 8 }}>
-                    <a href={`/produk/${p.id}`} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 34, borderRadius: 5, border: `1px solid ${C.accent}`, color: C.accent, fontWeight: 600, fontSize: 11, textDecoration: 'none', background: C.white }}>Detail</a>
-                    <a href="#" onClick={(e) => { e.preventDefault(); pickWa(`Saya tertarik dengan ${p.name} (${p.id})`); }} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 34, padding: '0 8px', borderRadius: 5, background: C.greenLight, color: C.green, fontWeight: 700, fontSize: 11, textDecoration: 'none', cursor: 'pointer' }}>WA</a>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
+        <div className="pcard-grid">
+          {loading && Array.from({ length: 8 }).map((_, i) => <div key={i} className="pcard-skeleton" />)}
+          {!loading && products.map((p) => <ProductCard key={p.id} product={p} />)}
         </div>
         {!loading && !products.length && <p style={{ textAlign: 'center', color: C.muted, marginTop: 24, fontSize: 14 }}>Tidak ada produk ditemukan.</p>}
 
@@ -242,7 +284,7 @@ export default function LandingPage() {
       {/* CTA */}
       <section style={{ maxWidth: 1200, margin: '0 auto', padding: '0 16px 12px' }}>
         <div style={{ borderRadius: 12, padding: '36px 32px', textAlign: 'center', border: `1px solid ${C.border}`, background: C.white }}>
-          <h2 style={{ margin: '0 0 6px', fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 'clamp(20px,2.5vw,28px)', fontWeight: 400 }}>Siap order grosir?</h2>
+          <h2 style={{ margin: '0 0 6px', fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 'clamp(20px, 2.5vw, 28px)', fontWeight: 400 }}>Siap order grosir?</h2>
           <p style={{ margin: '0 auto 16px', maxWidth: 420, color: C.muted, fontSize: 14 }}>Konsultasi langsung dengan admin via WhatsApp.</p>
           <a href="#" onClick={(e) => { e.preventDefault(); pickWa(''); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 44, padding: '0 24px', borderRadius: 6, background: '#25D366', color: C.white, fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
             <I.chat style={{ width: 16, height: 16 }} /> Chat Admin Sekarang
@@ -278,17 +320,23 @@ export default function LandingPage() {
       <FloatingWA phones={waPhones} message="Halo Admin Anyostore, saya ingin order grosir." />
 
       <style>{`
-        .pcard { transition: transform .2s ease, box-shadow .2s ease; }
-        .pcard:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(15,23,42,.08); }
-        .slide-fade { animation: fadeIn .4s ease; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        a, button { -webkit-tap-highlight-color: transparent; }
-        a:focus-visible, button:focus-visible { outline: 2px solid ${C.accent}; outline-offset: 2px; }
-        @media (max-width: 720px) {
-          section > div[style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; }
-          div[style*="repeat(4,1fr)"] { grid-template-columns: repeat(2,1fr) !important; }
-          div[style*="repeat(auto-fill"] { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
-        }
+        .pcard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+        .pcard { display: flex; flex-direction: column; border-radius: 10px; overflow: hidden; background: #fff; border: 1px solid #e2e8f0; cursor: pointer; transition: transform .25s ease, box-shadow .25s ease; }
+        .pcard:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(15,23,42,.1); }
+        .pcard-img { display: grid; place-items: center; aspect-ratio: 3/4; background: #f8fafc; overflow: hidden; position: relative; }
+        .pcard-dots { display: flex; gap: 4px; justify-content: center; position: absolute; bottom: 8px; left: 0; right: 0; }
+        .pcard-dots span { width: 6px; height: 6px; border-radius: 999px; background: #cbd5e1; transition: background .2s, width .2s; }
+        .pcard-dots span.active { background: #1e3a5f; width: 16px; }
+        .pcard-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 6px; }
+        .pcard-body strong { font-size: 14px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .pcard-price { color: #1e3a5f; font-weight: 700; font-size: 15px; }
+        .pcard-colors { display: flex; gap: 4px; flex-wrap: wrap; }
+        .pcard-colors span { padding: 2px 6px; border-radius: 3px; background: #eef2ff; font-size: 10px; color: #1e3a5f; }
+        .pcard-skeleton { height: 360px; border-radius: 10px; background: #e2e8f0; }
+        .slide-fade { animation: slideFade .5s ease; }
+        @keyframes slideFade { from { opacity: 0; } to { opacity: 1; } }
+        @media (max-width: 900px) { .pcard-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 600px) { .pcard-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } section > div[style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; } div[style*="repeat(4,1fr)"] { grid-template-columns: repeat(2,1fr) !important; } }
         @media (prefers-reduced-motion: reduce) { .pcard, .slide-fade { transition: none; animation: none; } }
       `}</style>
     </div>
