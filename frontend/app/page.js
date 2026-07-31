@@ -35,10 +35,10 @@ function waLink(phone, text) {
   return `https://wa.me/${clean}?text=${encodeURIComponent(text)}`;
 }
 
-function parsePhotos(photoPaths, transformStr) {
-  if (!photoPaths) return [];
-  const paths = photoPaths.split('||').filter(Boolean);
-  return paths.map((path) => ({ path: path.trim() }));
+function parsePhotos(photoPaths, photoPath) {
+  if (photoPaths) return photoPaths.split('||').filter(Boolean).map((p) => ({ path: p.trim() }));
+  if (photoPath) return [{ path: photoPath }];
+  return [];
 }
 
 const SORTS = [
@@ -60,7 +60,7 @@ function ProductCard({ product }) {
   const [hoverIdx, setHoverIdx] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const intervalRef = useRef(null);
-  const photos = useMemo(() => parsePhotos(product.photo_paths), [product.photo_paths]);
+  const photos = useMemo(() => parsePhotos(product.photo_paths, product.photo_path), [product.photo_paths, product.photo_path]);
   const hasMultiple = photos.length > 1;
 
   useEffect(() => {
