@@ -68,7 +68,7 @@ export default function ProdukDetail() {
 
       <main style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, alignItems: 'start' }}>
         {/* gallery */}
-        <div style={{ display: 'grid', gap: 10 }}>
+        <div style={{ display: 'grid', gap: 10 }} className="m-fade-up">
           <div style={{ borderRadius: 12, overflow: 'hidden', background: C.white, border: `1px solid ${C.border}`, display: 'grid', placeItems: 'center', minHeight: 380 }}>
             <SafeImage src={imgs[activeImg]?.path ? `${api.replace('/api','')}${imgs[activeImg].path}` : ''} alt={product.name} style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'cover', objectPosition: 'center', ...((imgs[activeImg]?.transform||'').trim() ? (() => { const t = (imgs[activeImg].transform||'').split(',').map(Number); return { objectFit: 'none', transform: `scale(${t[0]}) translate(${t[1]||0}px, ${t[2]||0}px)` }; })() : {}) }} />
           </div>
@@ -84,7 +84,7 @@ export default function ProdukDetail() {
         </div>
 
         {/* info */}
-        <div style={{ display: 'grid', gap: 16 }}>
+        <div style={{ display: 'grid', gap: 16 }} className="m-fade-up">
           <div>
             <p style={{ margin: 0, color: C.muted, fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' }}>{product.category_name || 'Denim'}</p>
             <h1 style={{ margin: '6px 0 0', fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 26, fontWeight: 400, lineHeight: 1.15 }}>{product.name}</h1>

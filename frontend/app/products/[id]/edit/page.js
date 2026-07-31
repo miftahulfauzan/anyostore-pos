@@ -44,7 +44,7 @@ function AdjModal({ photo, mediaUrl, onClose, onSave, onUpdate }) {
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'grid', placeItems: 'center', zIndex: 100, padding: 20 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, padding: 20, maxWidth: 440, width: '100%', display: 'grid', gap: 14 }}>
+      <div onClick={(e) => e.stopPropagation()} className="m-modal-in" style={{ background: '#fff', borderRadius: 12, padding: 20, maxWidth: 440, width: '100%', display: 'grid', gap: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <strong style={{ fontSize: 15 }}>Atur Foto</strong>
           <button onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: 22, lineHeight: 1, cursor: 'pointer', color: '#64748b' }}>×</button>

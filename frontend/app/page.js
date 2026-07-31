@@ -207,8 +207,8 @@ export default function LandingPage() {
                 <h1 style={{ margin: 0, fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 'clamp(26px, 3.5vw, 38px)', fontWeight: 400, lineHeight: 1.1, color: C.ink }}>{slide.name}</h1>
                 <strong style={{ fontSize: 22, color: C.accent }}>Rp{Number(slide.price || 0).toLocaleString('id-ID')}</strong>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <a href={`/produk/${slide.id}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 42, padding: '0 18px', borderRadius: 6, background: C.accent, color: C.white, fontWeight: 600, fontSize: 13, textDecoration: 'none' }}>Lihat Detail</a>
-                  <a href="#" onClick={(e) => { e.preventDefault(); pickWa(`Saya tertarik dengan ${slide.name}`); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 42, padding: '0 18px', borderRadius: 6, border: `1px solid ${C.border}`, color: C.ink, fontWeight: 500, fontSize: 13, textDecoration: 'none' }}><I.chat style={{ width: 14, height: 14 }} /> WA</a>
+                  <a href={`/produk/${slide.id}`} className="hero-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 42, padding: '0 18px', borderRadius: 6, background: C.accent, color: C.white, fontWeight: 600, fontSize: 13, textDecoration: 'none' }}>Lihat Detail</a>
+                  <a href="#" onClick={(e) => { e.preventDefault(); pickWa(`Saya tertarik dengan ${slide.name}`); }} className="hero-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 42, padding: '0 18px', borderRadius: 6, border: `1px solid ${C.border}`, color: C.ink, fontWeight: 500, fontSize: 13, textDecoration: 'none' }}><I.chat style={{ width: 14, height: 14 }} /> WA</a>
                 </div>
               </div>
               <div style={{ display: 'grid', placeItems: 'center', background: C.bg, minHeight: 320, padding: 16 }}>
@@ -245,7 +245,7 @@ export default function LandingPage() {
       {/* Trust strip */}
       <section style={{ maxWidth: 1200, margin: '0 auto', padding: '4px 16px 20px', display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
         {[{ icon: I.box, label: 'Min 4 pcs/model' }, { icon: I.truck, label: 'Kirim nasional' }, { icon: I.store, label: 'Ready stock' }, { icon: I.chat, label: 'Konsultasi WA' }].map((it, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', border: `1px solid ${C.border}`, borderRadius: 8, background: C.white }}>
+            <div key={i} className="fade-up" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', border: `1px solid ${C.border}`, borderRadius: 8, background: C.white, animationDelay: `${i * 60}ms` }}>
             <it.icon style={{ width: 16, height: 16, color: C.muted, flexShrink: 0 }} />
             <span style={{ fontSize: 12, fontWeight: 600, color: C.ink }}>{it.label}</span>
           </div>
@@ -259,7 +259,7 @@ export default function LandingPage() {
             <h2 style={{ margin: 0, fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 26, fontWeight: 400 }}>Katalog Produk</h2>
             <p style={{ margin: '2px 0 0', fontSize: 13, color: C.muted }}>{total} produk</p>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }} className="fade-up">
             <div style={{ position: 'relative' }}>
               <I.search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: C.muted, pointerEvents: 'none' }} />
               <input placeholder="Cari produk…" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} style={{ minHeight: 40, minWidth: 180, paddingLeft: 32, paddingRight: 12, borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, fontSize: 13 }} />
@@ -293,7 +293,7 @@ export default function LandingPage() {
 
       {/* CTA */}
       <section style={{ maxWidth: 1200, margin: '0 auto', padding: '0 16px 12px' }}>
-        <div style={{ borderRadius: 12, padding: '36px 32px', textAlign: 'center', border: `1px solid ${C.border}`, background: C.white }}>
+        <div style={{ borderRadius: 12, padding: '36px 32px', textAlign: 'center', border: `1px solid ${C.border}`, background: C.white }} className="fade-up">
           <h2 style={{ margin: '0 0 6px', fontFamily: "'DM Sans', sans-serif", fontSize: 'clamp(22px, 2.5vw, 30px)', fontWeight: 700, letterSpacing: '-.02em', color: C.ink }}>Siap order grosir?</h2>
           <p style={{ margin: '0 auto 16px', maxWidth: 420, color: C.muted, fontSize: 14 }}>Konsultasi langsung dengan admin via WhatsApp.</p>
           <a href="#" onClick={(e) => { e.preventDefault(); pickWa(''); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 44, padding: '0 24px', borderRadius: 6, background: '#0e9f6e', color: C.white, fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
@@ -311,7 +311,7 @@ export default function LandingPage() {
       {/* WA picker */}
       {waPicker && (
         <div onClick={() => setWaPicker(false)} role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.5)', display: 'grid', placeItems: 'center', zIndex: 100, padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: C.white, borderRadius: 12, padding: 24, maxWidth: 360, width: '100%', display: 'grid', gap: 12, boxShadow: '0 20px 60px rgba(0,0,0,.15)' }}>
+          <div onClick={(e) => e.stopPropagation()} className="wa-modal-in" style={{ background: C.white, borderRadius: 12, padding: 24, maxWidth: 360, width: '100%', display: 'grid', gap: 12, boxShadow: '0 20px 60px rgba(0,0,0,.15)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <strong style={{ fontSize: 15 }}>Pilih Admin WhatsApp</strong>
               <button onClick={() => setWaPicker(false)} aria-label="Tutup" style={{ border: 'none', background: 'transparent', fontSize: 22, lineHeight: 1, cursor: 'pointer', color: C.muted }}>×</button>
@@ -331,8 +331,9 @@ export default function LandingPage() {
 
       <style>{`
         .pcard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-        .pcard { display: flex; flex-direction: column; border-radius: 10px; overflow: hidden; background: #fff; border: 1px solid #e2e8f0; cursor: pointer; transition: transform .25s ease, box-shadow .25s ease; }
+        .pcard { display: flex; flex-direction: column; border-radius: 10px; overflow: hidden; background: #fff; border: 1px solid #e2e8f0; cursor: pointer; transition: transform .25s cubic-bezier(0.4,0,0.2,1), box-shadow .25s cubic-bezier(0.4,0,0.2,1); }
         .pcard:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(15,23,42,.1); }
+        .pcard:active { transform: scale(.985); }
         .pcard-img { display: grid; place-items: center; aspect-ratio: 3/4; background: #f8fafc; overflow: hidden; position: relative; }
         .pcard-dots { display: flex; gap: 4px; justify-content: center; position: absolute; bottom: 8px; left: 0; right: 0; }
         .pcard-dots span { width: 6px; height: 6px; border-radius: 999px; background: #cbd5e1; transition: background .2s, width .2s; }
@@ -343,11 +344,32 @@ export default function LandingPage() {
         .pcard-colors { display: flex; gap: 4px; flex-wrap: wrap; }
         .pcard-colors span { padding: 2px 6px; border-radius: 3px; background: #eef2ff; font-size: 10px; color: #1e3a5f; }
         .pcard-skeleton { height: 360px; border-radius: 10px; background: #e2e8f0; }
-        .slide-fade { animation: slideFade .5s ease; }
-        @keyframes slideFade { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Motion identity — Premium */
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn { from { opacity: 0; transform: scale(.985) translateY(10px); } to { opacity: 1; transform: none; } }
+        @keyframes modalIn { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: none; } }
+        .slide-fade { animation: slideIn .45s cubic-bezier(0.4,0,0.2,1); }
+        .fade-up { animation: fadeUp .5s cubic-bezier(0.4,0,0.2,1) both; }
+        .wa-modal-in { animation: modalIn .35s cubic-bezier(0.4,0,0.2,1); }
+        .pcard-grid .pcard { animation: fadeUp .5s cubic-bezier(0.4,0,0.2,1) both; }
+        .pcard-grid .pcard:nth-child(1) { animation-delay: 0ms; }
+        .pcard-grid .pcard:nth-child(2) { animation-delay: 50ms; }
+        .pcard-grid .pcard:nth-child(3) { animation-delay: 100ms; }
+        .pcard-grid .pcard:nth-child(4) { animation-delay: 150ms; }
+        .pcard-grid .pcard:nth-child(5) { animation-delay: 200ms; }
+        .pcard-grid .pcard:nth-child(6) { animation-delay: 250ms; }
+        .pcard-grid .pcard:nth-child(7) { animation-delay: 300ms; }
+        .pcard-grid .pcard:nth-child(8) { animation-delay: 350ms; }
+        .pcard-grid .pcard:nth-child(n+9) { animation-delay: 400ms; }
+        .hero-btn { transition: transform .18s cubic-bezier(0.4,0,0.2,1), box-shadow .18s; }
+        .hero-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(15,23,42,.15); }
+        .hero-btn:active { transform: scale(.97); }
+        .dot-anim { transition: width .2s cubic-bezier(0.4,0,0.2,1), background .2s; }
+
         @media (max-width: 900px) { .pcard-grid { grid-template-columns: repeat(3, 1fr); } }
         @media (max-width: 600px) { .pcard-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } section > div[style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; } div[style*="repeat(4,1fr)"] { grid-template-columns: repeat(2,1fr) !important; } }
-        @media (prefers-reduced-motion: reduce) { .pcard, .slide-fade { transition: none; animation: none; } }
+        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0ms !important; transition-duration: .01ms !important; } }
       `}</style>
     </div>
   );
