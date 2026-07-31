@@ -65,13 +65,13 @@ export default function ProdukDetail() {
         {/* gallery */}
         <div style={{ display: 'grid', gap: 10 }}>
           <div style={{ borderRadius: 12, overflow: 'hidden', background: '#fff', border: '1px solid #e2e8f0', display: 'grid', placeItems: 'center', minHeight: 320, padding: 8 }}>
-            <SafeImage src={imgs[activeImg]?.path ? `${api.replace('/api','')}${imgs[activeImg].path}` : ''} alt={product.name} style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'contain', ...((imgs[activeImg]?.transform||'').trim() ? (() => { const t = (imgs[activeImg].transform||'').split(',').map(Number); return { objectFit: 'none', transform: `scale(${t[0]}) translate(${t[1]||0}px, ${t[2]||0}px)` }; })() : {}) }} />
+            <SafeImage src={imgs[activeImg]?.path ? `${api.replace('/api','')}${imgs[activeImg].path}` : ''} alt={product.name} style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'cover', objectPosition: 'center', ...((imgs[activeImg]?.transform||'').trim() ? (() => { const t = (imgs[activeImg].transform||'').split(',').map(Number); return { objectFit: 'none', transform: `scale(${t[0]}) translate(${t[1]||0}px, ${t[2]||0}px)` }; })() : {}) }} />
           </div>
           {imgs.length > 1 && (
             <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
               {imgs.map((m, i) => (
                 <button key={`${m.path}-${i}`} onClick={() => setActiveImg(i)} title={m.color || ''} style={{ flex: '0 0 64px', width: 64, height: 64, borderRadius: 8, overflow: 'hidden', border: i === activeImg ? '2px solid #1e3a5f' : '1px solid #e2e8f0', padding: 0, background: '#fff', display: 'grid', placeItems: 'center' }}>
-                  <SafeImage src={`${api.replace('/api','')}${m.path}`} alt={m.color || ''} style={{ width: '100%', height: '100%', objectFit: 'contain', ...((m.transform||'').trim() ? (() => { const t = (m.transform||'').split(',').map(Number); return { objectFit: 'none', transform: `scale(${t[0]}) translate(${t[1]||0}px, ${t[2]||0}px)` }; })() : {}) }} />
+                  <SafeImage src={`${api.replace('/api','')}${m.path}`} alt={m.color || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', ...((m.transform||'').trim() ? (() => { const t = (m.transform||'').split(',').map(Number); return { objectFit: 'none', transform: `scale(${t[0]}) translate(${t[1]||0}px, ${t[2]||0}px)` }; })() : {}) }} />
                 </button>
               ))}
             </div>
@@ -106,7 +106,7 @@ export default function ProdukDetail() {
                 {variants.length ? variants.map((v, i) => (
                   <button key={`${v.id}-${i}`} onClick={() => { const idx = imgs.findIndex((m) => m.path === v.photo_path); if (idx >= 0) setActiveImg(idx); }} style={{ padding: 0, border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', overflow: 'hidden', cursor: v.photo_path ? 'pointer' : 'default', textAlign: 'center' }}>
                     <div style={{ aspectRatio: '1/1', background: '#f1f5f9', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
-                      {v.photo_path ? <SafeImage src={`${api.replace('/api','')}${v.photo_path}`} alt={v.color || ''} style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <span style={{ fontSize: 11, color: '#94a3b8' }}>🖼️</span>}
+                      {v.photo_path ? <SafeImage src={`${api.replace('/api','')}${v.photo_path}`} alt={v.color || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} /> : <span style={{ fontSize: 11, color: '#94a3b8' }}>🖼️</span>}
                     </div>
                     <span style={{ display: 'block', padding: '4px 6px', fontSize: 11, fontWeight: 700, color: '#0f172a' }}>{v.color || 'Warna'}</span>
                   </button>

@@ -82,7 +82,7 @@ function ProductCard({ product }) {
         <SafeImage
           src={img}
           alt={product.name}
-          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }}
         />
         {hasMultiple && (
           <div className="pcard-dots">
@@ -210,7 +210,7 @@ export default function LandingPage() {
                   <div style={{ position: 'relative', width: '100%', height: '100%' }}>
                     {slidePhotos.map((ph, i) => (
                       <div key={i} style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', padding: 16, opacity: i === 0 ? 1 : 0, transition: 'opacity .5s' }}>
-                        <SafeImage src={`${api.replace('/api', '')}${ph.path}`} alt={slide.name} style={{ maxWidth: '100%', maxHeight: 300, objectFit: 'contain' }} />
+                        <SafeImage src={`${api.replace('/api', '')}${ph.path}`} alt={slide.name} style={{ maxWidth: '100%', maxHeight: 300, objectFit: 'cover', objectPosition: 'center' }} />
                       </div>
                     ))}
                   </div>
