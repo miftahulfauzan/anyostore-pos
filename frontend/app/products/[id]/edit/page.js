@@ -13,6 +13,7 @@ function AdjModal({ photo, mediaUrl, onClose, onSave, onUpdate }) {
   const [dragging, setDragging] = useState(false);
   const [last, setLast] = useState({ x: 0, y: 0 });
   const viewportRef = useRef(null);
+  const fittedRef = useRef(false);
 
   function onWheel(e) {
     e.preventDefault();
@@ -20,6 +21,8 @@ function AdjModal({ photo, mediaUrl, onClose, onSave, onUpdate }) {
     const next = Math.min(5, Math.max(0.3, photo.scale + delta));
     onUpdate({ ...photo, scale: Math.round(next * 100) / 100 });
   }
+
+  useEffect(() => { fittedRef.current = false; }, [photo.mediaId]);
 
   function onPointerDown(e) {
     e.preventDefault();
@@ -55,7 +58,21 @@ function AdjModal({ photo, mediaUrl, onClose, onSave, onUpdate }) {
           onPointerLeave={onPointerUp}
           style={{ width: '100%', aspectRatio: '3/4', overflow: 'hidden', borderRadius: 8, background: '#f1f5f9', border: '1px solid #e2e8f0', cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
         >
-          <img src={mediaUrl(photo.path)} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'none', transform: `scale(${photo.scale}) translate(${photo.x}px, ${photo.y}px)`, pointerEvents: 'none' }} />
+          <img
+            src={mediaUrl(photo.path)}
+            alt=""
+            draggable={false}
+            onLoad={(e) => {
+              if (fittedRef.current) return;
+              fittedRef.current = true;
+              const img = e.target;
+              const vw = viewportRef.current?.clientWidth || 300;
+              const vh = viewportRef.current?.clientHeight || 400;
+              const fitScale = Math.min(vw / img.naturalWidth, vh / img.naturalHeight);
+              if (fitScale < 1) onUpdate({ ...photo, scale: Math.round(fitScale * 100) / 100 });
+            }}
+            style={{ width: '100%', height: '100%', objectFit: 'none', transform: `scale(${photo.scale}) translate(${photo.x}px, ${photo.y}px)`, pointerEvents: 'none' }}
+          />
         </div>
         <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>Scroll untuk zoom · Geser untuk posisi · {photo.scale.toFixed(1)}× · ({Math.round(photo.x)}, {Math.round(photo.y)})</p>
         <div style={{ display: 'flex', gap: 8 }}>
