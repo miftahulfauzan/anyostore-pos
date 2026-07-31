@@ -134,7 +134,13 @@ export default function LandingPage() {
   }
 
   const today = `${new Date().getFullYear()}-${new Date().getMonth() + 1}-${new Date().getDate()}`;
-  const slides = useMemo(() => (slidesAll.length ? seededShuffle(slidesAll, today).slice(0, 10) : []), [slidesAll, today]);
+  const slides = useMemo(() => {
+    if (!slidesAll.length) return [];
+    const withPhotos = slidesAll.filter((p) => p.photo_path);
+    const rest = slidesAll.filter((p) => !p.photo_path);
+    const pool = withPhotos.length >= 10 ? withPhotos : [...withPhotos, ...rest];
+    return seededShuffle(pool, today).slice(0, 10);
+  }, [slidesAll, today]);
   useEffect(() => { if (slideIdx >= slides.length && slides.length) setSlideIdx(0); }, [slides, slideIdx]);
   useEffect(() => {
     if (slides.length <= 1 || paused) return;
