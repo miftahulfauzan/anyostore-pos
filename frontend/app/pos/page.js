@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUpRight, LayoutDashboard, LogOut, ShoppingCart, Store as StoreIcon, X } from 'lucide-react';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -30,6 +30,10 @@ export default function PosPage() {
   const [search, setSearch] = useState('');
   const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('pos_access_token')}` });
   const mediaUrl = (photoPath) => photoPath ? `${apiUrl.replace('/api', '')}${photoPath}` : '';
+  const pendingTransactionId = useRef(null);
+  const newClientTransactionId = () => (typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); }));
 
   useEffect(() => {
     if (!localStorage.getItem('pos_access_token')) { window.location.assign('/'); return; }
@@ -103,6 +107,7 @@ export default function PosPage() {
     if (!nextId || nextId === storeId) return;
     const nextStore = stores.find((store) => String(store.id) === nextId);
     setCart([]); setPromo(null); setPromoCode(''); setCash(''); setVariantProduct(null); setCustomerId(''); setPriceTier('retail');
+    pendingTransactionId.current = null;
     try {
       await loadStore(nextId);
       setStoreId(nextId);
@@ -199,12 +204,14 @@ export default function PosPage() {
     setSubmitting(true); setMessage('');
     try {
       const items = cart.map((item) => ({ product_id: item.id, variant_id: item.variant_id || undefined, quantity: item.quantity, price_override: item.price_override || undefined }));
-      const bodyPayload = { branch_id: Number(storeId), warehouse_id: Number(warehouseId), items, payment_method: paymentMethod, amount_paid: amountPaid, promo_code: promo?.code || undefined };
+      if (!pendingTransactionId.current) pendingTransactionId.current = newClientTransactionId();
+      const bodyPayload = { branch_id: Number(storeId), warehouse_id: Number(warehouseId), items, payment_method: paymentMethod, amount_paid: amountPaid, promo_code: promo?.code || undefined, client_transaction_id: pendingTransactionId.current };
       if (customerId) bodyPayload.customer_id = Number(customerId);
       const response = await fetch(`${apiUrl}/transactions`, { method: 'POST', headers: headers(), body: JSON.stringify(bodyPayload) });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message || 'Transaksi gagal');
       setCart([]); setCash(''); setPromoCode(''); setPromo(null); setPaymentMethod('cash'); setMobileCartOpen(false); setCustomerId(''); setPriceTier('retail');
+      pendingTransactionId.current = null;
       setPrintPrompt(body.data);
       loadStore(storeId).catch(() => setMessage('Transaksi berhasil, tetapi stok terbaru belum dapat dimuat. Muat ulang halaman untuk memperbarui stok.'));
   } catch (error) { setMessage(error.message); } finally { setSubmitting(false); }

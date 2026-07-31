@@ -20,3 +20,5 @@ uploads/
 
 # Local OpenCode skills
 .opencode/
+.agents/
+skills-lock.json

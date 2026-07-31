@@ -59,7 +59,7 @@ async function syncVariantColorsAcrossStores(productId, branchId) {
   const source = sourceRows[0];
   if (!source?.sku?.trim()) return;
 
-  const catalogueSku = source.sku.trim().replace(/^B-/i, '');
+  const catalogueSku = source.sku.trim().replace(/^B\d*-/i, '');
   const [sourceVariants] = await db.execute(
     `SELECT DISTINCT TRIM(color) AS color
      FROM product_variants
@@ -68,12 +68,15 @@ async function syncVariantColorsAcrossStores(productId, branchId) {
   );
   if (!sourceVariants.length) return;
 
+  const catalogueSkuUpper = catalogueSku.toUpperCase();
   const [targetProducts] = await db.execute(
     `SELECT id
      FROM products
      WHERE id <> ? AND is_active = TRUE
-       AND REPLACE(UPPER(TRIM(sku)), 'B-', '') = ?`,
-    [source.id, catalogueSku.toUpperCase()]
+       AND (UPPER(TRIM(sku)) = ?
+            OR UPPER(TRIM(sku)) = CONCAT('B-', ?)
+            OR UPPER(TRIM(sku)) = CONCAT('B', branch_id, '-', ?))`,
+    [source.id, catalogueSkuUpper, catalogueSkuUpper, catalogueSkuUpper]
   );
 
   for (const target of targetProducts) {
@@ -429,15 +432,20 @@ router.delete('/:id', authorize('owner', 'manager', 'admin'), async (req, res, n
     const [product] = await db.execute('SELECT id, name, is_active FROM products WHERE id=? AND branch_id=?', [id, req.user.branch_id]);
     if (!product[0]) return res.status(404).json({ success: false, message: 'Produk tidak ditemukan' });
 
-    // Check if product has been sold
-    const [trx] = await db.execute('SELECT COUNT(*) AS cnt FROM transaction_items WHERE product_id=?', [id]);
-    const hasTransactions = Number(trx[0].cnt) > 0;
+    // Check if product has any history that must keep it alive (sales, PO, supplier mapping)
+    const [trx] = await db.execute(
+      `SELECT (SELECT COUNT(*) FROM transaction_items WHERE product_id=?) +
+              (SELECT COUNT(*) FROM purchase_order_items WHERE product_id=?) +
+              (SELECT COUNT(*) FROM supplier_products WHERE product_id=?) AS cnt`,
+      [id, id, id]
+    );
+    const hasHistory = Number(trx[0].cnt) > 0;
 
-    if (hasTransactions) {
+    if (hasHistory) {
       // Soft-delete: product stays for historical data
       await db.execute('UPDATE products SET is_active=FALSE WHERE id=?', [id]);
       await db.execute('UPDATE product_variants SET is_active=FALSE WHERE product_id=?', [id]);
-      res.json({ success: true, data: { message: 'Produk dinonaktifkan (masih memiliki riwayat transaksi)', soft: true } });
+      res.json({ success: true, data: { message: 'Produk dinonaktifkan (masih memiliki riwayat transaksi atau pesanan)', soft: true } });
     } else {
       // Hard-delete: cascade all related data
       const [photos] = await db.execute('SELECT path FROM product_photos WHERE product_id=?', [id]);

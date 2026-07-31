@@ -34,7 +34,6 @@
     "sharp@0.35.3": true
   },
   "devDependencies": {
-    "@netlify/plugin-nextjs": "5.15.12",
     "shadcn": "^4.13.1"
   }
 }

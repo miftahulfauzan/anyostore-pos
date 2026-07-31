@@ -63,6 +63,33 @@ export default function NotificationCenter() {
       close: () => setNotice(null)
     };
 
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+
+    const tryRefresh = async () => {
+      const refreshToken = localStorage.getItem('pos_refresh_token');
+      if (!refreshToken) return false;
+      const response = await originalFetch(`${apiBase}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+      if (!response.ok) return false;
+      const body = await response.json().catch(() => ({}));
+      if (!body?.data?.accessToken || !body?.data?.refreshToken) return false;
+      localStorage.setItem('pos_access_token', body.data.accessToken);
+      localStorage.setItem('pos_refresh_token', body.data.refreshToken);
+      return true;
+    };
+
+    const retryWithFreshToken = async (input, init) => {
+      const accessToken = localStorage.getItem('pos_access_token');
+      const headers = new Headers(init?.headers || (input instanceof Request ? input.headers : {}));
+      headers.set('Authorization', `Bearer ${accessToken}`);
+      const nextInit = { ...init, headers };
+      if (input instanceof Request) return originalFetch(new Request(input, nextInit));
+      return originalFetch(input, nextInit);
+    };
+
     const wrappedFetch = async (input, init = {}) => {
       const method = String(init.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
       const isMutation = !['GET', 'HEAD', 'OPTIONS'].includes(method);
@@ -77,7 +104,18 @@ export default function NotificationCenter() {
       }
 
       try {
-        const response = await originalFetch(input, init);
+        const hasAuth = Boolean(new Headers(init?.headers || (input instanceof Request ? input.headers : {})).get('Authorization'));
+        let response = await originalFetch(input, init);
+        if (response.status === 401 && hasAuth && !/auth\/refresh/.test(String(init.body || ''))) {
+          const refreshed = await tryRefresh();
+          if (refreshed) {
+            response = await retryWithFreshToken(input, init);
+          } else {
+            localStorage.removeItem('pos_access_token');
+            localStorage.removeItem('pos_refresh_token');
+            if (window.location.pathname !== '/login') window.location.assign('/');
+          }
+        }
         completedSuccessfully = response.ok;
         if (!response.ok) {
           let body = null;
