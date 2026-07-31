@@ -242,18 +242,17 @@ export default function LandingPage() {
         )}
       </section>
 
-      {/* Trust strip */}
-      <section style={{ maxWidth: 1200, margin: '0 auto', padding: '4px 16px 20px', display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
+      {/* Trust strip — thin row */}
+      <section style={{ maxWidth: 1200, margin: '0 auto', padding: '0 16px 4px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
         {[{ icon: I.box, label: 'Min 4 pcs/model' }, { icon: I.truck, label: 'Kirim nasional' }, { icon: I.store, label: 'Ready stock' }, { icon: I.chat, label: 'Konsultasi WA' }].map((it, i) => (
-            <div key={i} className="fade-up" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', border: `1px solid ${C.border}`, borderRadius: 8, background: C.white, animationDelay: `${i * 60}ms` }}>
-            <it.icon style={{ width: 16, height: 16, color: C.muted, flexShrink: 0 }} />
-            <span style={{ fontSize: 12, fontWeight: 600, color: C.ink }}>{it.label}</span>
-          </div>
+          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.muted }}>
+            <it.icon style={{ width: 14, height: 14, color: C.accent, flexShrink: 0 }} /> {it.label}
+          </span>
         ))}
       </section>
 
       {/* Katalog */}
-      <section id="produk" style={{ maxWidth: 1200, margin: '0 auto', padding: '8px 16px 40px' }}>
+      <section id="produk" style={{ maxWidth: 1200, margin: '0 auto', padding: '28px 16px 40px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
           <div>
             <h2 style={{ margin: 0, fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 26, fontWeight: 400 }}>Katalog Produk</h2>
@@ -292,7 +291,7 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section style={{ maxWidth: 1200, margin: '0 auto', padding: '0 16px 12px' }}>
+      <section style={{ maxWidth: 1200, margin: '0 auto', padding: '8px 16px 28px' }}>
         <div style={{ borderRadius: 12, padding: '36px 32px', textAlign: 'center', border: `1px solid ${C.border}`, background: C.white }} className="fade-up">
           <h2 style={{ margin: '0 0 6px', fontFamily: "'DM Sans', sans-serif", fontSize: 'clamp(22px, 2.5vw, 30px)', fontWeight: 700, letterSpacing: '-.02em', color: C.ink }}>Siap order grosir?</h2>
           <p style={{ margin: '0 auto 16px', maxWidth: 420, color: C.muted, fontSize: 14 }}>Konsultasi langsung dengan admin via WhatsApp.</p>
@@ -352,16 +351,6 @@ export default function LandingPage() {
         .slide-fade { animation: slideIn .45s cubic-bezier(0.4,0,0.2,1); }
         .fade-up { animation: fadeUp .5s cubic-bezier(0.4,0,0.2,1) both; }
         .wa-modal-in { animation: modalIn .35s cubic-bezier(0.4,0,0.2,1); }
-        .pcard-grid .pcard { animation: fadeUp .5s cubic-bezier(0.4,0,0.2,1) both; }
-        .pcard-grid .pcard:nth-child(1) { animation-delay: 0ms; }
-        .pcard-grid .pcard:nth-child(2) { animation-delay: 50ms; }
-        .pcard-grid .pcard:nth-child(3) { animation-delay: 100ms; }
-        .pcard-grid .pcard:nth-child(4) { animation-delay: 150ms; }
-        .pcard-grid .pcard:nth-child(5) { animation-delay: 200ms; }
-        .pcard-grid .pcard:nth-child(6) { animation-delay: 250ms; }
-        .pcard-grid .pcard:nth-child(7) { animation-delay: 300ms; }
-        .pcard-grid .pcard:nth-child(8) { animation-delay: 350ms; }
-        .pcard-grid .pcard:nth-child(n+9) { animation-delay: 400ms; }
         .hero-btn { transition: transform .18s cubic-bezier(0.4,0,0.2,1), box-shadow .18s; }
         .hero-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(15,23,42,.15); }
         .hero-btn:active { transform: scale(.97); }
