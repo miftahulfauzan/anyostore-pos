@@ -49,8 +49,8 @@ export default function CategoryManager({ api, token, headers }) {
       const r = await fetch(`${api}/products/categories/${id}`, { method: 'DELETE', headers: headers() });
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
+      setCategories((current) => current.filter((c) => c.id !== id));
       setMessage('Kategori berhasil dihapus.');
-      load();
     } catch (e) { setMessage(e.message); }
   }
 
