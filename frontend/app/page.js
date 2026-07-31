@@ -6,7 +6,7 @@ import SafeImage from './components/SafeImage';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
-const T = { black: '#1a1a1a', bronze: '#c8956a', bg: '#fafafa', card: '#ffffff', muted: '#6b7280', border: '#e5e7eb' };
+const T = { black: '#1a1a1a', blue: '#1e3a5f', bg: '#fafafa', card: '#ffffff', muted: '#71717a', border: '#e5e7eb' };
 
 const I = {
   box: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></svg>),
@@ -96,7 +96,7 @@ export default function LandingPage() {
   return (
     <div style={{ background: T.bg, color: T.black, minHeight: '100vh', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       {/* 1. Top bar */}
-      <div style={{ background: '#111', color: '#fff', textAlign: 'center', padding: '6px 16px', fontSize: 11, fontWeight: 500, letterSpacing: '.04em' }}>
+      <div style={{ background: T.black, color: '#fff', textAlign: 'center', padding: '6px 16px', fontSize: 11, fontWeight: 500, letterSpacing: '.04em' }}>
         Minimal 4 pcs per model · Grosir langsung dari supplier
       </div>
 
@@ -117,9 +117,9 @@ export default function LandingPage() {
           {slide ? (
             <div key={slide.id} className="slide-fade" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', width: '100%', height: '100%' }}>
               <div style={{ padding: '44px 40px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 16 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: T.bronze }}>{slide.category_name || 'Denim'}</span>
+                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: T.blue }}>{slide.category_name || 'Denim'}</span>
                 <h1 style={{ margin: 0, fontFamily: "'DM Sans', sans-serif", fontSize: 'clamp(22px, 3vw, 34px)', fontWeight: 700, lineHeight: 1.15, color: T.black }}>{slide.name}</h1>
-                <strong style={{ fontSize: 28, fontWeight: 800, color: T.bronze }}>Rp{Number(slide.price || 0).toLocaleString('id-ID')}</strong>
+                <strong style={{ fontSize: 28, fontWeight: 800, color: T.blue }}>Rp{Number(slide.price || 0).toLocaleString('id-ID')}</strong>
                 <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
                   <a href={`/produk/${slide.id}`} className="hero-btn btn-primary">Lihat Produk</a>
                   <a href="#" onClick={(e) => { e.preventDefault(); pickWa(`Saya tertarik dengan ${slide.name}`); }} className="hero-btn btn-outline"><I.chat style={{ width: 14, height: 14 }} /> Hubungi Admin</a>
@@ -154,9 +154,9 @@ export default function LandingPage() {
 
       {/* 4. Feature strip */}
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 16px 8px', display: 'flex', justifyContent: 'center', gap: 28, flexWrap: 'wrap', color: T.muted, fontSize: 13 }}>
-        <span><I.box style={{ width: 14, height: 14, verticalAlign: '-2px', marginRight: 6, color: T.bronze }} />Min 4 pcs/model</span>
-        <span><I.truck style={{ width: 14, height: 14, verticalAlign: '-2px', marginRight: 6, color: T.bronze }} />Pengiriman nasional</span>
-        <span><I.chat style={{ width: 14, height: 14, verticalAlign: '-2px', marginRight: 6, color: T.bronze }} />Konsultasi via WhatsApp</span>
+        <span><I.box style={{ width: 14, height: 14, verticalAlign: '-2px', marginRight: 6, color: T.blue }} />Min 4 pcs/model</span>
+        <span><I.truck style={{ width: 14, height: 14, verticalAlign: '-2px', marginRight: 6, color: T.blue }} />Pengiriman nasional</span>
+        <span><I.chat style={{ width: 14, height: 14, verticalAlign: '-2px', marginRight: 6, color: T.blue }} />Konsultasi via WhatsApp</span>
       </div>
 
       {/* 5. Category chips */}
@@ -207,7 +207,7 @@ export default function LandingPage() {
         <div style={{ borderRadius: 14, padding: '48px 32px', textAlign: 'center', background: T.black, color: T.white }}>
           <h2 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 700 }}>Siap order grosir?</h2>
           <p style={{ margin: '0 auto 20px', maxWidth: 440, color: '#9ca3af', fontSize: 15, lineHeight: 1.6 }}>Konsultasi harga, stok, dan warna langsung dengan admin via WhatsApp.</p>
-          <a href="#" onClick={(e) => { e.preventDefault(); pickWa(''); }} className="hero-btn btn-primary" style={{ background: T.bronze, padding: '0 28px', fontSize: 15 }}>Chat Admin Sekarang</a>
+          <a href="#" onClick={(e) => { e.preventDefault(); pickWa(''); }} className="hero-btn btn-primary" style={{ background: T.blue, padding: '0 28px', fontSize: 15 }}>Chat Admin Sekarang</a>
         </div>
       </section>
 
@@ -281,7 +281,7 @@ export default function LandingPage() {
         .pcard-img { display: grid; place-items: center; aspect-ratio: 3/4; overflow: hidden; position: relative; background: #f3f4f6; }
         .pcard-body { padding: 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
         .pcard-body strong { font-size: 14px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .pcard-price { color: ${T.bronze}; font-weight: 700; font-size: 16px; }
+        .pcard-price { color: ${T.blue}; font-weight: 700; font-size: 16px; }
         .pcard-color { padding: 2px 8px; border-radius: 4px; background: #f3f4f6; font-size: 11px; color: ${T.muted}; }
         .pcard-actions { display: flex; gap: 8; margin-top: auto; padding-top: 8px; }
         .pcard-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 36px; border-radius: 6; font-size: 12px; font-weight: 600; text-decoration: none; cursor: pointer; transition: all .2s; }
