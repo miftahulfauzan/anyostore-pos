@@ -11,6 +11,7 @@ export default function StockMovementsPage() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ date_from: '', date_to: '', type: '' });
+  const [selected, setSelected] = useState(null);
   const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
 
   async function load(activeFilters = filters) {
@@ -48,18 +49,30 @@ export default function StockMovementsPage() {
       </form>
     </section>
     {message && <p className="message records" role="status">{message}</p>}
-    <section className="panel records">
-      <div className="section-heading"><div><h2>Aktivitas terbaru</h2><p>{rows.length} catatan ditampilkan</p></div></div>
-      <div className="table-wrap"><table className="movement-table"><thead><tr><th>Waktu</th><th>Produk</th><th>Aktivitas</th><th>Perubahan</th><th>Stok</th><th>Petugas</th><th>Catatan</th></tr></thead><tbody>
-        {rows.map((row) => <tr key={row.id}>
-          <td><strong>{new Date(row.created_at).toLocaleDateString('id-ID')}</strong><small>{new Date(row.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} · {row.warehouse_name || row.branch_name}</small></td>
-          <td><strong>{row.product_name}</strong><small>{row.product_sku || 'Tanpa SKU'}{row.variant_color ? ' · ' + row.variant_color : ''}</small></td>
-          <td><span className={'mutation-type ' + (row.qty >= 0 ? 'increase' : 'decrease')}>{typeLabels[row.type] || row.type}</span><small>{row.reference_type?.replaceAll('_', ' ') || 'Manual'}</small></td>
-          <td className={row.qty >= 0 ? 'stock-increase' : 'stock-decrease'}>{row.qty >= 0 ? '+' : ''}{row.qty}</td>
-          <td><strong>{row.stock_before ?? '—'} → {row.stock_after ?? '—'}</strong></td><td>{row.user_name || 'Sistem'}</td><td>{row.notes || '—'}</td>
-        </tr>)}
-        {!loading && !rows.length && <tr><td colSpan="7" className="empty-table">Belum ada riwayat stok untuk filter ini.</td></tr>}
-      </tbody></table></div>
-    </section>
+
+    <div style={{ display: 'grid', gap: '.75rem', maxWidth: 1400, margin: '0 auto' }}>
+      {loading && Array.from({ length: 5 }).map((_, i) => <div key={i} className="panel" style={{ height: 80, borderRadius: 10, background: '#f1f5f9' }} />)}
+      {!loading && rows.map((row) => (
+        <article key={row.id} className="panel movement-card" onClick={() => setSelected(selected?.id === row.id ? null : row)} style={{ cursor: 'pointer', borderRadius: 10, padding: '14px 16px', display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', alignItems: 'start', borderLeft: row.qty >= 0 ? '3px solid #16a34a' : '3px solid #dc2626' }}>
+          <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <strong style={{ fontSize: 14 }}>{row.product_name}</strong>
+              <span className={`mutation-type ${row.qty >= 0 ? 'increase' : 'decrease'}`} style={{ padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: row.qty >= 0 ? '#dcfce7' : '#fef2f2', color: row.qty >= 0 ? '#16a34a' : '#dc2626' }}>{typeLabels[row.type] || row.type}</span>
+            </div>
+            <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>
+              {row.product_sku || ''}{row.variant_color ? ` · ${row.variant_color}` : ''} • {new Date(row.created_at).toLocaleString('id-ID')}
+            </p>
+            <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>
+              {row.user_name || 'Sistem'}{row.notes ? ` · ${row.notes}` : ''}{row.warehouse_name ? ` · ${row.warehouse_name}` : ''}
+            </p>
+          </div>
+          <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: row.qty >= 0 ? '#16a34a' : '#dc2626' }}>{row.qty >= 0 ? '+' : ''}{row.qty}</div>
+            <div style={{ fontSize: 11, color: '#94a3b8' }}>{row.stock_before ?? '—'} → {row.stock_after ?? '—'}</div>
+          </div>
+        </article>
+      ))}
+      {!loading && !rows.length && <div className="panel" style={{ padding: 24, textAlign: 'center', color: '#94a3b8' }}>Belum ada riwayat stok untuk filter ini.</div>}
+    </div>
   </AppShell>;
 }

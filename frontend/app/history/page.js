@@ -182,9 +182,18 @@ export default function HistoryPage() {
                 {activeTab === 'info' && (
                   <div style={{ display: 'grid', gap: '.5rem' }}>
                     <p className="muted" style={{ margin: 0 }}>Klik Cetak ulang untuk struk. {selected.status !== 'completed' ? `Status: ${selected.status}. Alasan: ${selected.cancel_reason || '-'}` : ''}</p>
-                    <div className="table-wrap"><table><thead><tr><th>Produk</th><th>Qty</th><th>Harga</th></tr></thead><tbody>
-                      {selected.items.map((it) => <tr key={it.transaction_item_id}><td><strong>{it.product_name}</strong><br /><small className="muted">{it.product_sku} {it.variant_detail ? `• ${it.variant_detail}` : ''}{it.cancelled_qty ? ` • batal ${it.cancelled_qty}` : ''}</small></td><td>{it.quantity}</td><td>{rp(it.price)}</td></tr>)}
-                    </tbody></table></div>
+                    {selected.items.map((it) => (
+                      <div key={it.transaction_item_id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <strong style={{ fontSize: 13 }}>{it.product_name}</strong>
+                          <p style={{ margin: '2px 0 0', fontSize: 11, color: '#64748b' }}>{it.product_sku} {it.variant_detail ? `· ${it.variant_detail}` : ''}{it.cancelled_qty ? ` · batal ${it.cancelled_qty}` : ''}</p>
+                        </div>
+                        <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: 13, fontWeight: 600 }}>×{it.quantity}</div>
+                          <div style={{ fontSize: 12, color: '#64748b' }}>{rp(it.price)}</div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
                 {activeTab === 'retur' && (
@@ -192,20 +201,22 @@ export default function HistoryPage() {
                     <p className="muted" style={{ margin: 0, fontSize: '.85rem' }}>Pilih qty yang mau diretur. Stok akan kembali setelah approve.</p>
                     {selected.items.map((item) => {
                       const remaining = item.quantity - (item.cancelled_qty || 0);
+                      const qty = quantities[item.transaction_item_id] ?? 0;
                       return (
-                        <div key={item.transaction_item_id} style={{ display: 'grid', gap: '.3rem', padding: '.6rem', border: '1px solid var(--border)', borderRadius: 6 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '.5rem' }}>
-                            <strong style={{ fontSize: '.9rem' }}>{item.product_name}</strong>
-                            <span className="muted" style={{ fontSize: '.8rem' }}>sisa {remaining}/{item.quantity}</span>
+                        <div key={item.transaction_item_id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8, background: qty > 0 ? '#f0fdf4' : undefined }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <strong style={{ fontSize: 13 }}>{item.product_name}</strong>
+                            <p style={{ margin: '2px 0 0', fontSize: 11, color: '#64748b' }}>sisa {remaining}/{item.quantity} · Rp{Number(item.price || 0).toLocaleString('id-ID')}</p>
                           </div>
-                          <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
-                            <label style={{ flex: 1 }}>Qty retur<input type="number" min="0" max={remaining} value={quantities[item.transaction_item_id] ?? 0} onChange={(e) => setQuantities({ ...quantities, [item.transaction_item_id]: Math.min(remaining, Math.max(0, Number(e.target.value))) })} /></label>
-                            <button type="button" className="small secondary" onClick={() => setQuantities({ ...quantities, [item.transaction_item_id]: remaining })} style={{ alignSelf: 'end' }}>Max</button>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <button type="button" onClick={() => setQuantities({ ...quantities, [item.transaction_item_id]: Math.max(0, qty - 1) })} disabled={qty <= 0} style={{ width: 32, height: 32, borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', fontWeight: 700, cursor: qty <= 0 ? 'default' : 'pointer', opacity: qty <= 0 ? .4 : 1 }}>−</button>
+                            <input type="number" min="0" max={remaining} value={qty} onChange={(e) => setQuantities({ ...quantities, [item.transaction_item_id]: Math.min(remaining, Math.max(0, Number(e.target.value))) })} style={{ width: 48, height: 36, textAlign: 'center', borderRadius: 6, border: '1px solid #e2e8f0', fontWeight: 700, fontSize: 14 }} />
+                            <button type="button" onClick={() => setQuantities({ ...quantities, [item.transaction_item_id]: Math.min(remaining, qty + 1) })} disabled={qty >= remaining} style={{ width: 32, height: 32, borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', fontWeight: 700, cursor: qty >= remaining ? 'default' : 'pointer', opacity: qty >= remaining ? .4 : 1 }}>+</button>
                           </div>
                         </div>
                       );
                     })}
-                    <button disabled={saving} onClick={createReturn}>{saving ? '...' : 'Buat retur'}</button>
+                    <button disabled={saving} onClick={createReturn} style={{ minHeight: 44 }}>{saving ? '…' : 'Buat retur'}</button>
                   </div>
                 )}
                 {activeTab === 'cancel' && canCancel && (
@@ -215,21 +226,23 @@ export default function HistoryPage() {
                       {selected.items.map((item) => {
                         const remaining = item.quantity - (item.cancelled_qty || 0);
                         if (remaining <= 0) return null;
+                        const qty = cancelQuantities[item.transaction_item_id] ?? 0;
                         return (
-                          <div key={item.transaction_item_id} style={{ display: 'grid', gap: '.3rem', padding: '.6rem', border: '1px solid var(--border)', borderRadius: 6 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <strong style={{ fontSize: '.9rem' }}>{item.product_name}</strong>
-                              <span className="muted" style={{ fontSize: '.8rem' }}>sisa {remaining}</span>
+                          <div key={item.transaction_item_id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8, background: qty > 0 ? '#fef2f2' : undefined }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <strong style={{ fontSize: 13 }}>{item.product_name}</strong>
+                              <p style={{ margin: '2px 0 0', fontSize: 11, color: '#64748b' }}>sisa {remaining} · Rp{Number(item.price || 0).toLocaleString('id-ID')}</p>
                             </div>
-                            <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
-                              <label style={{ flex: 1 }}>Qty batal<input type="number" min="0" max={remaining} value={cancelQuantities[item.transaction_item_id] ?? 0} onChange={(e) => setCancelQuantities({ ...cancelQuantities, [item.transaction_item_id]: Math.min(remaining, Math.max(0, Number(e.target.value))) })} /></label>
-                              <button type="button" className="small secondary" onClick={() => setCancelQuantities({ ...cancelQuantities, [item.transaction_item_id]: remaining })} style={{ alignSelf: 'end' }}>Max</button>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                              <button type="button" onClick={() => setCancelQuantities({ ...cancelQuantities, [item.transaction_item_id]: Math.max(0, qty - 1) })} disabled={qty <= 0} style={{ width: 32, height: 32, borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', fontWeight: 700, cursor: qty <= 0 ? 'default' : 'pointer', opacity: qty <= 0 ? .4 : 1 }}>−</button>
+                              <input type="number" min="0" max={remaining} value={qty} onChange={(e) => setCancelQuantities({ ...cancelQuantities, [item.transaction_item_id]: Math.min(remaining, Math.max(0, Number(e.target.value))) })} style={{ width: 48, height: 36, textAlign: 'center', borderRadius: 6, border: '1px solid #e2e8f0', fontWeight: 700, fontSize: 14 }} />
+                              <button type="button" onClick={() => setCancelQuantities({ ...cancelQuantities, [item.transaction_item_id]: Math.min(remaining, qty + 1) })} disabled={qty >= remaining} style={{ width: 32, height: 32, borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', fontWeight: 700, cursor: qty >= remaining ? 'default' : 'pointer', opacity: qty >= remaining ? .4 : 1 }}>+</button>
                             </div>
                           </div>
                         );
                       })}
-                      <label>Alasan batal<input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Opsional — misal salah input" /></label>
-                      <button className="secondary" disabled={saving} onClick={cancelItems}>{saving ? '...' : 'Batalkan item'}</button>
+                      <label style={{ fontSize: 13 }}>Alasan batal<input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Opsional — misal salah input" style={{ marginTop: 4 }} /></label>
+                      <button className="secondary" disabled={saving} onClick={cancelItems} style={{ minHeight: 44 }}>{saving ? '…' : 'Batalkan item'}</button>
                     </>}
                   </div>
                 )}
