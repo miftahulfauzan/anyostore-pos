@@ -158,6 +158,10 @@ export default function LandingPage() {
   }, [cat, q, sort, page]);
 
   useEffect(() => {
+    document.title = 'Anyostore Grosir PGMTA';
+  }, []);
+
+  useEffect(() => {
     fetch(`${api}/public/products?limit=60`).then((r) => r.json()).then((b) => setSlidesAll(b.data || [])).catch(() => {});
   }, []);
 
