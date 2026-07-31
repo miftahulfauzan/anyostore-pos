@@ -6,7 +6,7 @@ import AppShell from '../../components/AppShell';
 import { uploadMediaData, validateDataUpload } from '../../lib/media-upload';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-const emptyForm = { name: '', category_id: '', sku: '', barcode: '', price: '', cost: '', min_stock: '5', gender: 'unisex' };
+const emptyForm = { name: '', category_id: '', sku: '', barcode: '', price: '', cost: '', min_stock: '5', gender: 'unisex', description: '' };
 const emptyVariant = () => ({ color: '', size: '', sku: '', barcode: '', price: '' });
 
 export default function NewProductPage() {
@@ -132,6 +132,7 @@ export default function NewProductPage() {
           <div className="two-fields"><label>SKU<input value={form.sku} onChange={(event) => setForm({ ...form, sku: event.target.value })} /></label><label>Barcode<input value={form.barcode} onChange={(event) => setForm({ ...form, barcode: event.target.value })} /></label></div>
           <div className="two-fields"><label>Harga jual<input type="number" min="0" value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} required /></label><label>Harga beli<input type="number" min="0" value={form.cost} onChange={(event) => setForm({ ...form, cost: event.target.value })} /></label></div>
           <div className="two-fields"><label>Stok minimum<input type="number" min="0" value={form.min_stock} onChange={(event) => setForm({ ...form, min_stock: event.target.value })} required /></label><label>Target pengguna<select value={form.gender} onChange={(event) => setForm({ ...form, gender: event.target.value })}><option value="unisex">Unisex</option><option value="male">Pria</option><option value="female">Wanita</option><option value="kids">Anak</option></select></label></div>
+          <label>Deskripsi<textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} rows={5} style={{ resize: 'vertical', minHeight: 100 }} /></label>
           <section className="variant-section">
             <div className="section-heading"><div><h3>Varian warna</h3><p>Tambahkan warna dan harga khusus bila diperlukan. Stok setiap warna diatur dari menu inventori.</p></div><button type="button" className="secondary small" onClick={() => setVariants((current) => [...current, emptyVariant()])}><Plus aria-hidden="true" size={14} /> Tambah warna</button></div>
             {variants.length > 0 && <div className="variant-list">{variants.map((variant, index) => <div className="variant-row" key={index}><label>Warna<input value={variant.color} onChange={(event) => updateVariant(index, 'color', event.target.value)} placeholder="Contoh: Navy" required /></label><label>SKU varian<input value={variant.sku} onChange={(event) => updateVariant(index, 'sku', event.target.value)} placeholder="Opsional" /></label><label>Harga khusus<input type="number" min="0" value={variant.price} onChange={(event) => updateVariant(index, 'price', event.target.value)} placeholder="Harga produk" /></label><button className="remove-variant" type="button" onClick={() => setVariants((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Hapus varian ${index + 1}`}><X aria-hidden="true" size={16} /></button></div>)}</div>}
