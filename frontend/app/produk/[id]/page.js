@@ -6,10 +6,18 @@ import FloatingWA from '../../components/FloatingWA';
 import SafeImage from '../../components/SafeImage';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const C = { white: '#ffffff', bg: '#f8fafc', ink: '#0f172a', muted: '#64748b', border: '#e2e8f0', accent: '#1e3a5f', accentLight: '#eef2ff' };
+
+const I = {
+  box: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></svg>),
+  truck: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M14 18V6a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h2" /><path d="M14 9h4l3 3v5a1 1 0 0 1-1 1h-1" /><circle cx="7" cy="18" r="2" /><circle cx="17" cy="18" r="2" /></svg>),
+  chat: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></svg>),
+  store: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 9l1-5h16l1 5" /><path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9" /><path d="M3 9a2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0" /></svg>),
+};
 
 function waLink(phone, text) {
-  const clean = String(phone || '').replace(/[^0-9+]/g, '').replace(/^0/, '62');
-  if (!clean) return '#';
+  if (!phone) return '#';
+  const clean = String(phone).replace(/[^0-9+]/g, '').replace(/^0/, '62');
   return `https://wa.me/${clean}?text=${encodeURIComponent(text)}`;
 }
 
@@ -22,21 +30,22 @@ export default function ProdukDetail() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    document.title = 'Detail Produk — Anyostore';
+  }, []);
+
+  useEffect(() => {
     if (!id) return;
     setLoading(true);
     Promise.all([
       fetch(`${api}/public/products/${id}`).then((r) => r.json()).then((b) => b.data || null).catch(() => null),
       fetch(`${api}/public/settings`).then((r) => r.json()).then((b) => b.data || null).catch(() => null),
     ])
-      .then(([p, s]) => {
-        setProduct(p);
-        setSettings(s);
-      })
+      .then(([p, s]) => { setProduct(p); setSettings(s); })
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Memuat produk…</div>;
-  if (!product) return <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Produk tidak ditemukan (ID {id}). <a href="/" style={{ color: '#1e3a5f', fontWeight: 700 }}>Kembali ke katalog</a></div>;
+  if (loading) return <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto', fontFamily: "'DM Sans', sans-serif" }}>Memuat produk…</div>;
+  if (!product) return <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto', fontFamily: "'DM Sans', sans-serif" }}>Produk tidak ditemukan. <a href="/" style={{ color: C.accent, fontWeight: 700 }}>Kembali ke katalog</a></div>;
 
   const media = product.media || [];
   const variants = product.variants || [];
@@ -44,105 +53,86 @@ export default function ProdukDetail() {
     ...media.map((m) => ({ path: m.path, color: null })),
     ...variants.filter((v) => v.photo_path).map((v) => ({ path: v.photo_path, color: v.color })),
   ];
+  const waPhones = settings?.whatsapp_numbers?.length ? settings.whatsapp_numbers : [];
   const waPhone = settings?.whatsapp || settings?.store_phone || '';
-  const waPhones = settings?.whatsapp_numbers?.length ? settings.whatsapp_numbers : waPhone ? [waPhone] : [];
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const prodUrl = `${origin}/produk/${product.id}`;
-  const waText = `Halo Admin Anyostore.\n\nSaya tertarik dengan produk berikut.\n\nNama Produk:\n${product.name}\n\nLink Produk:\n${prodUrl}\n\nSaya ingin mengetahui:\n- Harga grosir\n- Stok tersedia\n- Warna yang ready\n- Ukuran yang tersedia\n\nSaya memahami bahwa minimal pembelian adalah 4 pcs per model.\n\nTerima kasih.`;
+  if (!waPhones.length && waPhone) waPhones.push(waPhone);
 
   return (
-    <div style={{ background: '#f8fafc', minHeight: '100vh', color: '#0f172a', fontFamily: "'Plus Jakarta Sans', Inter, system-ui, sans-serif" }}>
-      <div style={{ position: 'sticky', top: 0, zIndex: 40, background: '#1e3a5f', color: '#fff', textAlign: 'center', padding: '8px 12px', fontSize: 13, fontWeight: 800 }}>
-        📦 Minimal pembelian <span style={{ background: '#fff', color: '#1e3a5f', padding: '2px 8px', borderRadius: 999, marginLeft: 6 }}>4 pcs per model</span>
-      </div>
-
-      <header style={{ maxWidth: 1100, margin: '0 auto', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <a href="/" style={{ fontWeight: 900, textDecoration: 'none', color: '#0f172a' }}>← Katalog</a>
-        <a href="/login" style={{ fontSize: 12, color: '#64748b', textDecoration: 'none' }}>Login</a>
+    <div style={{ background: C.bg, color: C.ink, minHeight: '100vh', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <header style={{ background: C.white, borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, zIndex: 40 }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <a href="/" style={{ fontSize: 14, fontWeight: 600, color: C.ink, textDecoration: 'none' }}>← Katalog</a>
+          <span style={{ fontSize: 13, color: C.muted }}>{product.branch_name || ''}</span>
+        </div>
       </header>
 
-      <main style={{ maxWidth: 1100, margin: '0 auto', padding: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+      <main style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, alignItems: 'start' }}>
         {/* gallery */}
         <div style={{ display: 'grid', gap: 10 }}>
-          <div style={{ borderRadius: 12, overflow: 'hidden', background: '#fff', border: '1px solid #e2e8f0', display: 'grid', placeItems: 'center', minHeight: 320, padding: 8 }}>
+          <div style={{ borderRadius: 12, overflow: 'hidden', background: C.white, border: `1px solid ${C.border}`, display: 'grid', placeItems: 'center', minHeight: 380 }}>
             <SafeImage src={imgs[activeImg]?.path ? `${api.replace('/api','')}${imgs[activeImg].path}` : ''} alt={product.name} style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'cover', objectPosition: 'center', ...((imgs[activeImg]?.transform||'').trim() ? (() => { const t = (imgs[activeImg].transform||'').split(',').map(Number); return { objectFit: 'none', transform: `scale(${t[0]}) translate(${t[1]||0}px, ${t[2]||0}px)` }; })() : {}) }} />
           </div>
           {imgs.length > 1 && (
-            <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
+            <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
               {imgs.map((m, i) => (
-                <button key={`${m.path}-${i}`} onClick={() => setActiveImg(i)} title={m.color || ''} style={{ flex: '0 0 64px', width: 64, height: 64, borderRadius: 8, overflow: 'hidden', border: i === activeImg ? '2px solid #1e3a5f' : '1px solid #e2e8f0', padding: 0, background: '#fff', display: 'grid', placeItems: 'center' }}>
-                  <SafeImage src={`${api.replace('/api','')}${m.path}`} alt={m.color || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', ...((m.transform||'').trim() ? (() => { const t = (m.transform||'').split(',').map(Number); return { objectFit: 'none', transform: `scale(${t[0]}) translate(${t[1]||0}px, ${t[2]||0}px)` }; })() : {}) }} />
+                <button key={`${m.path}-${i}`} onClick={() => setActiveImg(i)} title={m.color || ''} style={{ flex: '0 0 56px', width: 56, height: 56, borderRadius: 6, overflow: 'hidden', border: i === activeImg ? `2px solid ${C.accent}` : `1px solid ${C.border}`, padding: 0, background: C.white }}>
+                  <SafeImage src={`${api.replace('/api','')}${m.path}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
                 </button>
               ))}
             </div>
           )}
-          {imgs.length === 0 && <div style={{ padding: 10, fontSize: 12, color: '#64748b', textAlign: 'center', border: '1px dashed #cbd5e1', borderRadius: 8 }}>Belum ada foto — upload di POS /products/{product.id}/edit</div>}
         </div>
 
         {/* info */}
-        <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ display: 'grid', gap: 16 }}>
           <div>
-            <p style={{ margin: 0, color: '#2563eb', fontSize: 11, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase' }}>{product.category_name || 'Denim'}</p>
-            <h1 style={{ margin: '6px 0 0', fontSize: 24, lineHeight: 1.2 }}>{product.name}</h1>
-            <p style={{ margin: '6px 0 0', color: '#64748b', fontSize: 12 }}>{product.branch_name} • {product.sku || ''}</p>
+            <p style={{ margin: 0, color: C.muted, fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' }}>{product.category_name || 'Denim'}</p>
+            <h1 style={{ margin: '6px 0 0', fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 26, fontWeight: 400, lineHeight: 1.15 }}>{product.name}</h1>
+            <p style={{ margin: '6px 0 0', color: C.muted, fontSize: 13 }}>{product.sku || ''}</p>
           </div>
 
-          <div style={{ display: 'grid', gap: 4 }}>
-            <strong style={{ fontSize: 22, color: '#1e3a5f' }}>Rp{Number(product.price || 0).toLocaleString('id-ID')}</strong>
+          <strong style={{ fontSize: 24, color: C.accent }}>Rp{Number(product.price || 0).toLocaleString('id-ID')}</strong>
+
+          {product.description && <div style={{ padding: 14, borderRadius: 8, background: C.white, border: `1px solid ${C.border}`, fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{product.description}</div>}
+
+          <div style={{ padding: '12px 14px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, fontSize: 13, color: C.muted }}>
+            Minimal pembelian <strong style={{ color: C.ink }}>4 pcs per model</strong>. Bisa mix warna.
           </div>
 
-          {/* Syarat pembelian grosir - kontras */}
-          <div style={{ padding: '12px 14px', borderRadius: 10, background: '#fffbeb', border: '2px solid #f59e0b' }}>
-            <strong style={{ display: 'block', color: '#92400e', fontSize: 13, marginBottom: 4 }}>Syarat Pembelian Grosir</strong>
-            <span style={{ fontSize: 13, color: '#78350f' }}>Minimal pembelian <strong style={{ background: '#fff', padding: '1px 6px', borderRadius: 999, border: '1px solid #fbbf24' }}>4 pcs untuk setiap model</strong>.</span>
-          </div>
-
-          {product.description && <div style={{ padding: 12, borderRadius: 10, background: '#fff', border: '1px solid #e2e8f0', fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{product.description}</div>}
-
-          {product.colors?.length || product.variants?.length ? (
-            <div style={{ padding: 12, borderRadius: 10, background: '#fff', border: '1px solid #e2e8f0' }}>
-              <strong style={{ fontSize: 13 }}>Warna Tersedia</strong>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(90px,1fr))', gap: 8, marginTop: 8 }}>
-                {variants.length ? variants.map((v, i) => (
-                  <button key={`${v.id}-${i}`} onClick={() => { const idx = imgs.findIndex((m) => m.path === v.photo_path); if (idx >= 0) setActiveImg(idx); }} style={{ padding: 0, border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', overflow: 'hidden', cursor: v.photo_path ? 'pointer' : 'default', textAlign: 'center' }}>
-                    <div style={{ aspectRatio: '1/1', background: '#f1f5f9', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
-                      {v.photo_path ? <SafeImage src={`${api.replace('/api','')}${v.photo_path}`} alt={v.color || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} /> : <span style={{ fontSize: 11, color: '#94a3b8' }}>🖼️</span>}
-                    </div>
-                    <span style={{ display: 'block', padding: '4px 6px', fontSize: 11, fontWeight: 700, color: '#0f172a' }}>{v.color || 'Warna'}</span>
-                  </button>
-                )) : (product.colors || []).map((c) => (
-                  <span key={c} style={{ padding: '4px 10px', borderRadius: 999, background: '#f1f5f9', border: '1px solid #e2e8f0', fontSize: 12, justifySelf: 'start' }}>{c}</span>
+          {variants.length > 0 && (
+            <div style={{ padding: 14, borderRadius: 8, background: C.white, border: `1px solid ${C.border}` }}>
+              <strong style={{ fontSize: 13, color: C.ink }}>Warna Tersedia</strong>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                {variants.map((v, i) => (
+                  <span key={i} onClick={() => { if (v.photo_path) { const idx = imgs.findIndex((m) => m.path === v.photo_path); if (idx >= 0) setActiveImg(idx); } }} style={{ padding: '4px 10px', borderRadius: 6, background: C.accentLight, border: `1px solid ${C.border}`, fontSize: 12, fontWeight: 600, cursor: v.photo_path ? 'pointer' : 'default', color: C.accent }}>{v.color || 'Warna'}</span>
                 ))}
               </div>
-              <p style={{ margin: '10px 0 0', fontSize: 11, color: '#92400e', background: '#fffbeb', border: '1px dashed #fbbf24', padding: '6px 8px', borderRadius: 6 }}>Minimal pembelian <strong>4 pcs per model</strong> — bisa mix warna dalam 1 model.</p>
-            </div>
-          ) : null}
-
-          {/* CTA besar - multi admin */}
-          {waPhones.length <= 1 ? (
-            <a href={waLink(waPhone, waText)} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 48, borderRadius: 10, background: '#25D366', color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>
-              💬 Tanya via WhatsApp
-            </a>
-          ) : (
-            <div style={{ display: 'grid', gap: 8 }}>
-              {waPhones.map((ph, idx) => (
-                <a key={idx} href={waLink(ph, waText)} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44, borderRadius: 10, background: idx === 0 ? '#25D366' : '#dcfce7', color: idx === 0 ? '#fff' : '#166534', fontWeight: 800, fontSize: 14, textDecoration: 'none' }}>
-                  💬 WA Admin {idx + 1} — {ph}
-                </a>
-              ))}
             </div>
           )}
-          <p style={{ margin: 0, fontSize: 11, color: '#64748b', textAlign: 'center' }}>Chat admin untuk harga grosir, stok, warna ready. Syarat 4 pcs per model sudah dipahami.</p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginTop: 4 }}>
-            <div style={{ padding: 10, borderRadius: 8, background: '#fff', border: '1px solid #e2e8f0', textAlign: 'center' }}><span style={{ fontSize: 16 }}>📦</span><br /><span style={{ fontSize: 11, fontWeight: 700 }}>Min 4 pcs/model</span></div>
-            <div style={{ padding: 10, borderRadius: 8, background: '#fff', border: '1px solid #e2e8f0', textAlign: 'center' }}><span style={{ fontSize: 16 }}>🚚</span><br /><span style={{ fontSize: 11, fontWeight: 700 }}>Kirim Nasional</span></div>
-            <div style={{ padding: 10, borderRadius: 8, background: '#fff', border: '1px solid #e2e8f0', textAlign: 'center' }}><span style={{ fontSize: 16 }}>🏪</span><br /><span style={{ fontSize: 11, fontWeight: 700 }}>Ready Stock</span></div>
+          {/* CTA */}
+          <div style={{ display: 'grid', gap: 8 }}>
+            {waPhones.map((ph, idx) => (
+              <a key={idx} href={waLink(ph, `Saya tertarik dengan ${product.name}. Link: /produk/${product.id}. Harga grosir, stok, warna ready?`)} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44, borderRadius: 8, background: C.accent, color: C.white, fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
+                <I.chat style={{ width: 16, height: 16 }} /> WA Admin {waPhones.length > 1 ? `${idx + 1}` : ''} — {ph}
+              </a>
+            ))}
+          </div>
+          <p style={{ margin: 0, fontSize: 11, color: C.muted, textAlign: 'center' }}>Chat admin untuk harga grosir, stok, warna ready.</p>
+
+          {/* trust strip */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+            {[{ icon: I.box, label: 'Min 4 pcs/model' }, { icon: I.truck, label: 'Kirim Nasional' }, { icon: I.store, label: 'Ready Stock' }].map((it, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 6, background: C.white, justifyContent: 'center' }}>
+                <it.icon style={{ width: 15, height: 15, color: C.muted }} />
+                <span style={{ fontSize: 11, fontWeight: 600, color: C.ink }}>{it.label}</span>
+              </div>
+            ))}
           </div>
         </div>
       </main>
 
-      <FloatingWA phones={waPhones} phone={waPhone} message={waText} />
+      <FloatingWA phones={waPhones} message={`Saya tertarik dengan ${product.name}. Harga grosir, stok, warna ready?`} />
 
       <style>{`@media(max-width:720px){main{grid-template-columns:1fr !important;}}`}</style>
     </div>
