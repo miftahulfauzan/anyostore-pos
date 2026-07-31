@@ -119,7 +119,7 @@ router.get('/products', async (req, res, next) => {
 
     const [rows] = await db.execute(
       `SELECT p.id, p.name, p.sku, p.price, p.category_id, c.name AS category_name,
-              (SELECT GROUP_CONCAT(sub.path ORDER BY sub.is_primary DESC, sub.sort_order ASC, sub.id DESC SEPARATOR '||') FROM (SELECT path FROM product_photos sub WHERE sub.product_id=p.id AND sub.variant_id IS NULL AND sub.media_type='image' LIMIT 5) sub) AS photo_paths,
+              (SELECT pp.path FROM product_photos pp WHERE pp.product_id=p.id AND pp.variant_id IS NULL ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
               (SELECT COUNT(*) FROM product_variants pv WHERE pv.product_id=p.id AND pv.is_active=TRUE) AS variant_count,
               (SELECT GROUP_CONCAT(DISTINCT pv.color ORDER BY pv.color SEPARATOR '|') FROM product_variants pv WHERE pv.product_id=p.id AND pv.is_active=TRUE AND pv.color IS NOT NULL AND pv.color<>'') AS variant_colors,
               (SELECT COALESCE(SUM(ws.quantity),0) FROM warehouse_stocks ws JOIN warehouses w ON w.id=ws.warehouse_id WHERE ws.product_id=p.id AND w.branch_id=p.branch_id) AS total_stock
