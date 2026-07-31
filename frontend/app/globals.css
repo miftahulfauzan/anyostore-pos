@@ -782,6 +782,11 @@ html[data-theme="green"] .button-link, html[data-theme="blue"] .button-link, htm
 .cart-item-info s { color: #94a3b8; font-size: .85em; }
 .price-override { display: block; margin-top: 4px; color: #64748b; font-size: 9px; font-weight: 600; }
 .price-override input { width: 100%; min-height: 30px; margin-top: 2px; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 11px; }
+.cart-unit-price { display: inline-flex; align-items: center; gap: 2px; margin: 0; min-width: 96px; color: #0f172a; font-size: 13px; font-weight: 700; }
+.cart-unit-price .price-prefix { flex: 0 0 auto; color: #0f172a; font-size: 13px; font-weight: 800; }
+.cart-unit-price input { width: 88px; min-height: 36px; margin: 0; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #0f172a; font-size: 13px; font-weight: 800; text-align: right; }
+.cart-unit-price input:focus { outline: 2px solid #1e3a5f; outline-offset: 1px; border-color: #1e3a5f; }
+.cart-line-total { display: block; margin-top: 2px; color: #64748b; font-size: 11px; font-weight: 600; }
 .promo-entry { display: grid; grid-template-columns: 1fr auto; gap: 6px; margin-top: 4px; }
 .promo-entry input { min-height: 34px; padding: 4px 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 11px; }
 .promo-entry button { min-height: 34px; padding: 6px 12px; border-radius: 4px; font-size: 11px; }
