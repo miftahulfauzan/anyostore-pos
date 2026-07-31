@@ -20,7 +20,7 @@ export default function FloatingWA({ phone, phones, message }) {
         position: 'fixed', zIndex: 90, right: 16, bottom: 16,
         display: 'inline-flex', alignItems: 'center', gap: 8,
         minHeight: 52, padding: '0 16px', borderRadius: 999,
-        background: '#25D366', color: '#fff', fontWeight: 800, fontSize: 14,
+        background: '#0e9f6e', color: '#fff', fontWeight: 800, fontSize: 14,
         boxShadow: '0 12px 28px rgba(0,0,0,.22)', textDecoration: 'none'
       }}>
         <span style={{ fontSize: 20 }}>💬</span> Chat Admin
@@ -35,11 +35,11 @@ export default function FloatingWA({ phone, phones, message }) {
           <strong style={{ fontSize: 12 }}>Pilih Admin</strong>
           {list.map((ph, i) => {
             const url = `https://wa.me/${cleanNum(ph)}?text=${encodeURIComponent(defaultMsg)}`;
-            return <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', borderRadius: 8, background: '#f0fdf4', color: '#166534', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>Admin {i + 1} <span>{ph}</span></a>;
+            return <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', borderRadius: 8, background: '#e6f4f1', color: '#0f766e', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>Admin {i + 1} <span>{ph}</span></a>;
           })}
         </div>
       )}
-      <button type="button" onClick={() => setOpen((v) => !v)} aria-label="Chat WhatsApp" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 52, padding: '0 16px', borderRadius: 999, background: '#25D366', color: '#fff', fontWeight: 800, fontSize: 14, border: 0, boxShadow: '0 12px 28px rgba(0,0,0,.22)', cursor: 'pointer' }}>
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-label="Chat WhatsApp" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 52, padding: '0 16px', borderRadius: 999, background: '#0e9f6e', color: '#fff', fontWeight: 800, fontSize: 14, border: 0, boxShadow: '0 12px 28px rgba(0,0,0,.22)', cursor: 'pointer' }}>
         <span style={{ fontSize: 20 }}>💬</span> Chat Admin {list.length > 1 ? `(${list.length})` : ''}
       </button>
     </div>

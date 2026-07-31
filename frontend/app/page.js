@@ -294,9 +294,9 @@ export default function LandingPage() {
       {/* CTA */}
       <section style={{ maxWidth: 1200, margin: '0 auto', padding: '0 16px 12px' }}>
         <div style={{ borderRadius: 12, padding: '36px 32px', textAlign: 'center', border: `1px solid ${C.border}`, background: C.white }}>
-          <h2 style={{ margin: '0 0 6px', fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 'clamp(20px, 2.5vw, 28px)', fontWeight: 400 }}>Siap order grosir?</h2>
+          <h2 style={{ margin: '0 0 6px', fontFamily: "'DM Sans', sans-serif", fontSize: 'clamp(22px, 2.5vw, 30px)', fontWeight: 700, letterSpacing: '-.02em', color: C.ink }}>Siap order grosir?</h2>
           <p style={{ margin: '0 auto 16px', maxWidth: 420, color: C.muted, fontSize: 14 }}>Konsultasi langsung dengan admin via WhatsApp.</p>
-          <a href="#" onClick={(e) => { e.preventDefault(); pickWa(''); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 44, padding: '0 24px', borderRadius: 6, background: '#25D366', color: C.white, fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
+          <a href="#" onClick={(e) => { e.preventDefault(); pickWa(''); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 44, padding: '0 24px', borderRadius: 6, background: '#0e9f6e', color: C.white, fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
             <I.chat style={{ width: 16, height: 16 }} /> Chat Admin Sekarang
           </a>
         </div>
@@ -318,7 +318,7 @@ export default function LandingPage() {
             </div>
             <div style={{ display: 'grid', gap: 8 }}>
               {waPhones.map((ph, idx) => (
-                <a key={idx} href={waLink(ph, waMsg)} target="_blank" rel="noopener noreferrer" onClick={() => setWaPicker(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44, borderRadius: 6, background: idx === 0 ? '#25D366' : '#f0fdf4', color: idx === 0 ? '#fff' : '#166534', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
+                <a key={idx} href={waLink(ph, waMsg)} target="_blank" rel="noopener noreferrer" onClick={() => setWaPicker(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44, borderRadius: 6, background: idx === 0 ? '#0e9f6e' : '#e6f4f1', color: idx === 0 ? '#fff' : '#0f766e', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
                   <I.chat style={{ width: 16, height: 16 }} /> WA Admin {idx + 1} — {ph}
                 </a>
               ))}
