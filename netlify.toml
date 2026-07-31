@@ -1,0 +1,28 @@
+[build]
+  base = "frontend"
+  command = "npm --prefix ../backend ci && npm ci && npm run build"
+  publish = "frontend/.next"
+  functions = "frontend/netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NEXT_PUBLIC_API_URL = "/api"
+
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["backend/src/**"]
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/uploads/*"
+  to = "/.netlify/functions/api/uploads/:splat"
+  status = 200
+  force = true
