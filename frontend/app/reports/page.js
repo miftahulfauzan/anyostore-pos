@@ -65,7 +65,7 @@ function ReportTable({
 }
 
 export default function ReportsPage() {
-  const [period, setPeriod] = useState({ start: firstOfMonth, end: today });
+  const [period, setPeriod] = useState({ start: '', end: '' });
   const [report, setReport] = useState(null);
   const [store, setStore] = useState(null);
   const [message, setMessage] = useState("");
@@ -117,6 +117,13 @@ export default function ReportsPage() {
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (period.start) load();
+  }, [period.start, period.end, branchId]);
+
+  useEffect(() => { if (!period.start) setPeriod({ start: firstOfMonth, end: today }); }, []);
+
   const summary = report?.summary || {};
   const logo = store?.store_logo
     ? apiUrl.replace("/api", "") + store.store_logo
