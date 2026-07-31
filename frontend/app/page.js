@@ -182,46 +182,44 @@ export default function LandingPage() {
   return (
     <div style={{ background: C.bg, color: C.ink, minHeight: '100vh', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       {/* Top banner */}
-      <div style={{ background: C.accent, color: C.white, textAlign: 'center', padding: '6px 16px', fontSize: 12, fontWeight: 600 }}>
-        Minimal pembelian 4 pcs per model — Grosir langsung dari supplier
+      <div style={{ background: C.accent, color: C.white, textAlign: 'center', padding: '7px 16px', fontSize: 12, fontWeight: 600, letterSpacing: '.02em' }}>
+        <I.box style={{ width: 13, height: 13, verticalAlign: '-2px', marginRight: 6 }} /> Minimal pembelian 4 pcs per model — Grosir langsung dari supplier
       </div>
 
       {/* Header */}
       <header style={{ background: C.white, borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, zIndex: 40 }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 16px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <a href="/" style={{ fontSize: 20, fontWeight: 800, color: C.accent, textDecoration: 'none', letterSpacing: '-.02em' }}>Anyostore</a>
-          <nav style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <a href="#produk" style={{ fontSize: 13, fontWeight: 600, color: C.ink, textDecoration: 'none', padding: '8px 14px' }}>Katalog</a>
-            <a href="#" onClick={(e) => { e.preventDefault(); pickWa(''); }} style={{ fontSize: 13, fontWeight: 600, color: C.white, background: C.accent, padding: '8px 16px', borderRadius: 6, textDecoration: 'none' }}>Chat Admin</a>
+          <nav style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <a href="#produk" style={{ fontSize: 13, fontWeight: 600, color: C.ink, textDecoration: 'none', padding: '8px 14px', borderRadius: 6 }}>Katalog</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); pickWa(''); }} style={{ fontSize: 13, fontWeight: 600, color: C.white, background: C.accent, padding: '9px 16px', borderRadius: 6, textDecoration: 'none' }}>Chat Admin</a>
           </nav>
         </div>
       </header>
 
       {/* Hero slideshow */}
-      <section style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 16px' }}>
-        <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', background: C.white, border: `1px solid ${C.border}`, display: 'grid', gridTemplateColumns: '1fr 1fr', alignItems: 'center', minHeight: 340 }}>
+      <section style={{ maxWidth: 1200, margin: '0 auto', padding: '28px 16px 20px' }}>
+        <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', background: C.white, border: `1px solid ${C.border}`, display: 'grid', gridTemplateColumns: '1fr 1fr', height: 380 }}>
           {slide ? (
-            <div key={slide.id} className="slide-fade" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', width: '100%' }}>
-              <div style={{ padding: 32, display: 'grid', gap: 12 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: C.muted }}>{slide.category_name || 'Denim'}</span>
-                <h1 style={{ margin: 0, fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 'clamp(26px, 3.5vw, 38px)', fontWeight: 400, lineHeight: 1.1, color: C.ink }}>{slide.name}</h1>
-                <strong style={{ fontSize: 22, color: C.accent }}>Rp{Number(slide.price || 0).toLocaleString('id-ID')}</strong>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <a href={`/produk/${slide.id}`} className="hero-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 42, padding: '0 18px', borderRadius: 6, background: C.accent, color: C.white, fontWeight: 600, fontSize: 13, textDecoration: 'none' }}>Lihat Detail</a>
-                  <a href="#" onClick={(e) => { e.preventDefault(); pickWa(`Saya tertarik dengan ${slide.name}`); }} className="hero-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 42, padding: '0 18px', borderRadius: 6, border: `1px solid ${C.border}`, color: C.ink, fontWeight: 500, fontSize: 13, textDecoration: 'none' }}><I.chat style={{ width: 14, height: 14 }} /> WA</a>
+            <div key={slide.id} className="slide-fade" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', width: '100%', height: '100%' }}>
+              <div style={{ padding: '40px 36px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 14 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: C.muted }}>{slide.category_name || 'Denim'}</span>
+                <h1 style={{ margin: 0, fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 'clamp(24px, 3vw, 36px)', fontWeight: 400, lineHeight: 1.15, color: C.ink }}>{slide.name}</h1>
+                <strong style={{ fontSize: 24, color: C.accent }}>Rp{Number(slide.price || 0).toLocaleString('id-ID')}</strong>
+                <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+                  <a href={`/produk/${slide.id}`} className="hero-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44, padding: '0 20px', borderRadius: 6, background: C.accent, color: C.white, fontWeight: 600, fontSize: 13, textDecoration: 'none' }}>Lihat Detail</a>
+                  <a href="#" onClick={(e) => { e.preventDefault(); pickWa(`Saya tertarik dengan ${slide.name}`); }} className="hero-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44, padding: '0 20px', borderRadius: 6, border: `1px solid ${C.border}`, color: C.ink, fontWeight: 500, fontSize: 13, textDecoration: 'none' }}><I.chat style={{ width: 14, height: 14 }} /> WA</a>
                 </div>
               </div>
-              <div style={{ display: 'grid', placeItems: 'center', background: C.bg, minHeight: 320, padding: 16 }}>
+              <div style={{ position: 'relative', borderLeft: `1px solid ${C.border}`, background: C.bg, overflow: 'hidden' }}>
                 {slidePhotos.length > 0 ? (
-                  <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                  <div style={{ position: 'absolute', inset: 0 }}>
                     {slidePhotos.map((ph, i) => (
-                      <div key={i} style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', padding: 16, opacity: i === 0 ? 1 : 0, transition: 'opacity .5s' }}>
-                        <SafeImage src={`${api.replace('/api', '')}${ph.path}`} alt={slide.name} style={{ maxWidth: '100%', maxHeight: 300, objectFit: 'cover', objectPosition: 'center' }} />
-                      </div>
+                      <SafeImage key={i} src={`${api.replace('/api', '')}${ph.path}`} alt={slide.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', opacity: i === 0 ? 1 : 0, transition: 'opacity .5s' }} />
                     ))}
                   </div>
                 ) : (
-                  <div style={{ color: C.muted, fontSize: 13 }}>Foto produk</div>
+                  <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: C.muted, fontSize: 13 }}>Foto produk</div>
                 )}
               </div>
             </div>
@@ -253,24 +251,23 @@ export default function LandingPage() {
 
       {/* Katalog */}
       <section id="produk" style={{ maxWidth: 1200, margin: '0 auto', padding: '28px 16px 40px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
-          <div>
-            <h2 style={{ margin: 0, fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 26, fontWeight: 400 }}>Katalog Produk</h2>
-            <p style={{ margin: '2px 0 0', fontSize: 13, color: C.muted }}>{total} produk</p>
+        <div style={{ marginBottom: 18 }}>
+          <h2 style={{ margin: 0, fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 26, fontWeight: 400 }}>Katalog Produk</h2>
+          <p style={{ margin: '2px 0 0', fontSize: 13, color: C.muted }}>{total} produk</p>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 24 }}>
+          <div style={{ position: 'relative', flex: '1 1 240px', minWidth: 200 }}>
+            <I.search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: C.muted, pointerEvents: 'none' }} />
+            <input placeholder="Cari produk…" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} style={{ width: '100%', height: 44, paddingLeft: 34, paddingRight: 12, borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, fontSize: 13 }} />
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }} className="fade-up">
-            <div style={{ position: 'relative' }}>
-              <I.search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: C.muted, pointerEvents: 'none' }} />
-              <input placeholder="Cari produk…" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} style={{ minHeight: 40, minWidth: 180, paddingLeft: 32, paddingRight: 12, borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, fontSize: 13 }} />
-            </div>
-            <select value={cat} onChange={(e) => { setCat(e.target.value); setPage(1); }} style={{ minHeight: 40, minWidth: 130, borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, fontSize: 13, padding: '0 10px' }}>
-              <option value="">Semua kategori</option>
-              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <select value={sort} onChange={(e) => { setSort(e.target.value); setPage(1); }} style={{ minHeight: 40, minWidth: 130, borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, fontSize: 13, padding: '0 10px' }}>
-              {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
-          </div>
+          <select value={cat} onChange={(e) => { setCat(e.target.value); setPage(1); }} style={{ height: 44, minWidth: 140, borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, fontSize: 13, padding: '0 12px' }}>
+            <option value="">Semua kategori</option>
+            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <select value={sort} onChange={(e) => { setSort(e.target.value); setPage(1); }} style={{ height: 44, minWidth: 140, borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, fontSize: 13, padding: '0 12px' }}>
+            {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
         </div>
 
         <div className="pcard-grid">
