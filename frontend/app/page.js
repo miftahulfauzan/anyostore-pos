@@ -228,8 +228,8 @@ export default function LandingPage() {
           ) : <div style={{ gridColumn: '1/-1', padding: 48, textAlign: 'center', color: C.muted }}>Memuat…</div>}
           {slides.length > 1 && (
             <>
-              <button aria-label="Prev" onClick={() => setSlideIdx((i) => (i - 1 + slides.length) % slides.length)} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 34, height: 34, borderRadius: '50%', border: `1px solid ${C.border}`, background: C.white, color: C.ink, cursor: 'pointer', display: 'grid', placeItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,.08)' }}><I.chevL style={{ width: 16, height: 16 }} /></button>
-              <button aria-label="Next" onClick={() => setSlideIdx((i) => (i + 1) % slides.length)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', width: 34, height: 34, borderRadius: '50%', border: `1px solid ${C.border}`, background: C.white, color: C.ink, cursor: 'pointer', display: 'grid', placeItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,.08)' }}><I.chevR style={{ width: 16, height: 16 }} /></button>
+              <button aria-label="Prev" onClick={() => setSlideIdx((i) => (i - 1 + slides.length) % slides.length)} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, borderRadius: '50%', border: 'none', background: C.accent, color: C.white, cursor: 'pointer', display: 'grid', placeItems: 'center', boxShadow: '0 4px 12px rgba(15,23,42,.25)', zIndex: 5 }}><I.chevL style={{ width: 18, height: 18 }} /></button>
+              <button aria-label="Next" onClick={() => setSlideIdx((i) => (i + 1) % slides.length)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, borderRadius: '50%', border: 'none', background: C.accent, color: C.white, cursor: 'pointer', display: 'grid', placeItems: 'center', boxShadow: '0 4px 12px rgba(15,23,42,.25)', zIndex: 5 }}><I.chevR style={{ width: 18, height: 18 }} /></button>
             </>
           )}
         </div>
