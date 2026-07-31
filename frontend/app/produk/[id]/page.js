@@ -93,7 +93,7 @@ export default function ProdukDetail() {
 
           <strong style={{ fontSize: 24, color: C.accent }}>Rp{Number(product.price || 0).toLocaleString('id-ID')}</strong>
 
-          {product.description && <div style={{ padding: 14, borderRadius: 8, background: C.white, border: `1px solid ${C.border}`, fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{product.description}</div>}
+          
 
           <div style={{ padding: '12px 14px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, fontSize: 13, color: C.muted }}>
             Minimal pembelian <strong style={{ color: C.ink }}>4 pcs per model</strong>. Bisa mix warna.
@@ -131,6 +131,15 @@ export default function ProdukDetail() {
           </div>
         </div>
       </main>
+
+      {product.description && (
+        <section style={{ maxWidth: 1100, margin: '0 auto', padding: '0 16px 24px' }}>
+          <div style={{ padding: 20, borderRadius: 10, background: C.white, border: `1px solid ${C.border}` }}>
+            <h2 style={{ margin: '0 0 10px', fontSize: 16, fontWeight: 700 }}>Deskripsi Produk</h2>
+            <div style={{ fontSize: 14, lineHeight: 1.7, color: '#334155', whiteSpace: 'pre-wrap' }}>{product.description}</div>
+          </div>
+        </section>
+      )}
 
       <FloatingWA phones={waPhones} message={`Saya tertarik dengan ${product.name}. Harga grosir, stok, warna ready?`} />
 
