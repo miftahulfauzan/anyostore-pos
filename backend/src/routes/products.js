@@ -97,9 +97,11 @@ async function syncVariantColorsAcrossStores(productId, branchId) {
   }
 }
 
-router.get('/categories', async (_req, res, next) => {
+router.get('/categories', async (req, res, next) => {
   try {
-    const [categories] = await db.execute('SELECT id, name, slug, sku_prefix FROM categories WHERE is_active = TRUE ORDER BY name');
+    const showAll = req.query.all === 'true' && req.user.role === 'owner';
+    const where = showAll ? '' : ' WHERE is_active = TRUE';
+    const [categories] = await db.execute(`SELECT id, name, slug, sku_prefix FROM categories${where} ORDER BY name`);
     res.json({ success: true, data: categories });
   } catch (error) { next(error); }
 });
@@ -113,6 +115,32 @@ router.post('/categories', authorize('owner', 'manager', 'admin'), async (req, r
       [name.trim(), slug?.trim() || null, skuPrefix?.trim() || null, description?.trim() || null]
     );
     res.status(201).json({ success: true, data: { id: result.insertId } });
+  } catch (error) { next(error); }
+});
+
+router.put('/categories/:id', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID tidak valid' });
+    const { name, slug, sku_prefix: skuPrefix, description } = req.body;
+    if (!name?.trim()) return res.status(400).json({ success: false, message: 'Nama kategori wajib diisi' });
+    const [existing] = await db.execute('SELECT id FROM categories WHERE id = ?', [id]);
+    if (!existing[0]) return res.status(404).json({ success: false, message: 'Kategori tidak ditemukan' });
+    await db.execute('UPDATE categories SET name = ?, slug = ?, sku_prefix = ?, description = ? WHERE id = ?', [name.trim(), slug?.trim() || null, skuPrefix?.trim() || null, description?.trim() || null, id]);
+    res.json({ success: true });
+  } catch (error) { next(error); }
+});
+
+router.delete('/categories/:id', authorize('owner'), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID tidak valid' });
+    const [existing] = await db.execute('SELECT id FROM categories WHERE id = ?', [id]);
+    if (!existing[0]) return res.status(404).json({ success: false, message: 'Kategori tidak ditemukan' });
+    const [products] = await db.execute('SELECT COUNT(*) AS cnt FROM products WHERE category_id = ? AND is_active = TRUE', [id]);
+    if (Number(products[0].cnt) > 0) return res.status(400).json({ success: false, message: `Kategori masih digunakan oleh ${products[0].cnt} produk. Pindahkan produk ke kategori lain terlebih dahulu.` });
+    await db.execute('UPDATE categories SET is_active = FALSE WHERE id = ?', [id]);
+    res.json({ success: true, data: { message: 'Kategori berhasil dihapus' } });
   } catch (error) { next(error); }
 });
 

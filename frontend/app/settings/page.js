@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AppShell from '../components/AppShell';
+import CategoryManager from '../components/CategoryManager';
 import { uploadMediaData, validateDataUpload } from '../lib/media-upload';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -227,6 +228,8 @@ export default function SettingsPage() {
           </div>
         </section>
       )}
+      <CategoryManager api={api} token={token} headers={jsonHeaders} />
+
       <section className="panel">
         <h2>Toko aktif & identitas</h2>
         {stores.length > 1 && <label>Pilih toko<select value={branch} onChange={(event) => { setBranch(event.target.value); load(event.target.value); }}>{stores.map((store) => <option key={store.id} value={store.id} style={{ opacity: store.is_active ? 1 : .5 }}>{store.name}{store.is_active ? '' : ' (nonaktif)'}</option>)}</select></label>}
