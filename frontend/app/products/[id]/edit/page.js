@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { GripVertical, ImagePlus, Plus, Video, X } from 'lucide-react';
 import AppShell from '../../../components/AppShell';
