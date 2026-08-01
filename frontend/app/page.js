@@ -106,7 +106,7 @@ export default function LandingPage() {
           <a href="/" style={{ fontSize: 18, fontWeight: 800, color: T.black, textDecoration: 'none', letterSpacing: '-.02em' }}>ANYOSTORE</a>
           <nav style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
             <a href="#produk" style={{ fontSize: 13, fontWeight: 500, color: T.muted, textDecoration: 'none', padding: '8px 12px', borderRadius: 6, transition: 'color .2s' }} onMouseOver={(e) => e.target.style.color = T.black} onMouseOut={(e) => e.target.style.color = T.muted}>Produk</a>
-            <a href="#" onClick={(e) => { e.preventDefault(); pickWa(''); }} style={{ fontSize: 13, fontWeight: 600, color: '#fff', background: T.black, padding: '9px 18px', borderRadius: 6, textDecoration: 'none', transition: 'background .2s' }} className="hero-btn">Hubungi Kami</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); pickWa(''); }} style={{ fontSize: 13, fontWeight: 600, color: '#fff', background: T.blue, padding: '9px 18px', borderRadius: 6, textDecoration: 'none', transition: 'all .2s', boxShadow: '0 2px 8px rgba(30,58,95,.25)' }} className="hero-btn">Hubungi Kami</a>
           </nav>
         </div>
       </header>
@@ -261,10 +261,11 @@ export default function LandingPage() {
 
       <style>{`
         .site-header { background: rgba(255,255,255,.9); backdrop-filter: blur(12px); border-bottom: 1px solid ${T.border}; }
-        .btn-primary { display: inline-flex; align-items: center; gap: 6; minHeight: 44px; padding: 0 20px; border-radius: 8; background: ${T.black}; color: ${T.white}; font-weight: 600; font-size: 13; text-decoration: none; border: none; cursor: pointer; transition: all .2s; }
-        .btn-primary:hover { background: #333; }
-        .btn-outline { display: inline-flex; align-items: center; gap: 6; minHeight: 44px; padding: 0 20px; border-radius: 8; background: transparent; color: ${T.black}; font-weight: 500; font-size: 13; text-decoration: none; border: 1px solid ${T.border}; cursor: pointer; transition: all .2s; }
-        .btn-outline:hover { border-color: ${T.black}; }
+        .btn-primary { display: inline-flex; align-items: center; gap: 6; min-height: 44px; padding: 0 22px; border-radius: 8px; background: ${T.blue}; color: #fff; font-weight: 700; font-size: 14px; text-decoration: none; border: none; cursor: pointer; box-shadow: 0 2px 8px rgba(30,58,95,.25); transition: all .2s; }
+        .btn-primary:hover { background: #152d4a; box-shadow: 0 4px 14px rgba(30,58,95,.35); transform: translateY(-1px); }
+        .btn-primary:active { transform: scale(.98); }
+        .btn-outline { display: inline-flex; align-items: center; gap: 6; min-height: 44px; padding: 0 22px; border-radius: 8px; background: ${T.white}; color: ${T.blue}; font-weight: 700; font-size: 14px; text-decoration: none; border: 2px solid ${T.blue}; cursor: pointer; transition: all .2s; }
+        .btn-outline:hover { background: ${T.blue}; color: #fff; }
         .hero-btn { transition: transform .18s cubic-bezier(.4,0,.2,1), box-shadow .18s; }
         .hero-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.1); }
         .hero-btn:active { transform: scale(.98); }
@@ -284,15 +285,15 @@ export default function LandingPage() {
         .pcard-price { color: ${T.blue}; font-weight: 700; font-size: 16px; }
         .pcard-color { padding: 2px 8px; border-radius: 4px; background: #f3f4f6; font-size: 11px; color: ${T.muted}; }
         .pcard-actions { display: flex; gap: 8; margin-top: auto; padding-top: 8px; }
-        .pcard-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 36px; border-radius: 6; font-size: 12px; font-weight: 600; text-decoration: none; cursor: pointer; transition: all .2s; }
-        .pcard-btn.primary { background: ${T.black}; color: ${T.white}; border: none; }
-        .pcard-btn.primary:hover { background: #333; }
-        .pcard-btn.secondary { background: transparent; color: ${T.black}; border: 1px solid ${T.border}; }
-        .pcard-btn.secondary:hover { border-color: ${T.black}; }
+        .pcard-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 36px; border-radius: 6px; font-size: 12px; font-weight: 600; text-decoration: none; cursor: pointer; transition: all .2s; }
+        .pcard-btn.primary { background: ${T.blue}; color: #fff; border: none; box-shadow: 0 1px 4px rgba(30,58,95,.2); }
+        .pcard-btn.primary:hover { background: #152d4a; transform: translateY(-1px); box-shadow: 0 3px 10px rgba(30,58,95,.3); }
+        .pcard-btn.secondary { background: ${T.white}; color: ${T.blue}; border: 1.5px solid ${T.blue}; }
+        .pcard-btn.secondary:hover { background: ${T.blue}; color: #fff; }
         .pcard-skeleton { height: 380px; border-radius: 12px; background: #f3f4f6; }
         .page-btn { min-width: 40px; min-height: 40px; border-radius: 6px; border: 1px solid ${T.border}; background: ${T.card}; font-weight: 500; font-size: 13; cursor: pointer; transition: all .2s; }
         .page-btn:hover { border-color: ${T.black}; }
-        .page-btn.active { background: ${T.black}; color: ${T.white}; border-color: ${T.black}; }
+        .page-btn.active { background: ${T.blue}; color: ${T.white}; border-color: ${T.blue}; }
         @keyframes slideIn { from { opacity: 0; transform: scale(.985) translateY(8px); } to { opacity: 1; transform: none; } }
         .wa-modal-in { animation: modalIn .3s cubic-bezier(.4,0,.2,1); }
         @keyframes modalIn { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
