@@ -115,7 +115,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 - Konsisten di: modal "Atur" (edit page), grid produk admin, landing page, detail produk.
 - `openAdj` harus load transform yang sudah disimpan (parsing `scale,x,y`), bukan reset ke `1,0,0`.
 - Pan di-clamp supaya tepi foto tidak bolong: `max = (boxSize * (s - 1)) / 2`.
-- Grid edit produk selalu `contain` (foto utuh), modal "Atur" punya thumbnail foto utuh di pojok.
+- Grid edit produk: tanpa transform = `contain` (foto utuh); dengan transform = `cover` + transform (WYSIWYG hasil crop). Modal "Atur" punya thumbnail foto utuh di pojok.
 
 ## Frontend
 
