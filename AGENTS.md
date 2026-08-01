@@ -111,8 +111,11 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 - Upload: max 10 foto + 1 video per produk
 - Foto varian: per-variant photo
 - `transform` (zoom/pan): format `scale,x,y`, disimpan di `product_photos.transform`
-- Tampilan: tanpa transform = `objectFit: cover`; dengan transform = `objectFit: none` + `transform: scale(s) translate(x,y)`
-- Grid edit produk selalu `contain` (foto utuh), modal "Atur" pakai thumbnail foto utuh
+- **Render transform (WYSIWYG)**: `objectFit: cover` SELALU sebagai basis, lalu `transform: translate(xpx, ypx) scale(s)` di atasnya. Jangan pakai `objectFit: none` (basis render berbeda → hasil simpan tidak cocok dengan preview).
+- Konsisten di: modal "Atur" (edit page), grid produk admin, landing page, detail produk.
+- `openAdj` harus load transform yang sudah disimpan (parsing `scale,x,y`), bukan reset ke `1,0,0`.
+- Pan di-clamp supaya tepi foto tidak bolong: `max = (boxSize * (s - 1)) / 2`.
+- Grid edit produk selalu `contain` (foto utuh), modal "Atur" punya thumbnail foto utuh di pojok.
 
 ## Frontend
 

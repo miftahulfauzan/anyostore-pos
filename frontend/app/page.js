@@ -32,6 +32,10 @@ function parsePhotos(paths, single) {
   if (paths) return paths.split('||').filter(Boolean).map((p) => ({ path: p.trim() }));
   if (single) return [{ path: single }]; return [];
 }
+function photoStyle(transform, base) {
+  const t = String(transform || '').split(',').map(Number);
+  return t.length === 3 && isFinite(t[0]) ? { objectFit: 'cover', objectPosition: 'center', transform: `translate(${t[1] || 0}px, ${t[2] || 0}px) scale(${t[0]})`, ...base } : { objectFit: 'cover', objectPosition: 'center', ...base };
+}
 
 function ProductCard({ product, onWa }) {
   const photos = useMemo(() => parsePhotos(product.photo_paths, product.photo_path), [product.photo_paths, product.photo_path]);
@@ -39,7 +43,7 @@ function ProductCard({ product, onWa }) {
   return (
     <article className="pcard">
       <a href={`/produk/${product.id}`} className="pcard-img">
-        <SafeImage src={photos[0] ? `${api.replace('/api', '')}${photos[0].path}` : ''} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
+        <SafeImage src={photos[0] ? `${api.replace('/api', '')}${photos[0].path}` : ''} alt={product.name} style={photoStyle(product.photo_transform, { width: '100%', height: '100%' })} />
         {!photos.length && <span style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: T.muted, fontSize: 12, background: '#f3f4f6' }}>Tanpa foto</span>}
       </a>
       <div className="pcard-body">
@@ -129,7 +133,7 @@ export default function LandingPage() {
                 {slidePhotos.length > 0 ? (
                   <div style={{ position: 'absolute', inset: 0 }}>
                     {slidePhotos.map((ph, i) => (
-                      <SafeImage key={i} src={`${api.replace('/api', '')}${ph.path}`} alt={slide.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', opacity: i === 0 ? 1 : 0, transition: 'opacity .5s' }} />
+                      <SafeImage key={i} src={`${api.replace('/api', '')}${ph.path}`} alt={slide.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: i === 0 ? 1 : 0, transition: 'opacity .5s', ...photoStyle(i === 0 ? slide.photo_transform : '') }} />
                     ))}
                   </div>
                 ) : (

@@ -13,13 +13,20 @@ function AdjModal({ photo, mediaUrl, onClose, onSave, onUpdate }) {
   const [dragging, setDragging] = useState(false);
   const [last, setLast] = useState({ x: 0, y: 0 });
   const viewportRef = useRef(null);
-  const isDefault = photo.scale === 1 && photo.x === 0 && photo.y === 0;
+
+  function clampPan(p) {
+    const el = viewportRef.current;
+    if (!el) return p;
+    const maxX = (el.clientWidth * (p.scale - 1)) / 2;
+    const maxY = (el.clientHeight * (p.scale - 1)) / 2;
+    return { ...p, x: Math.max(-maxX, Math.min(maxX, p.x)), y: Math.max(-maxY, Math.min(maxY, p.y)) };
+  }
 
   function onWheel(e) {
     e.preventDefault();
     const delta = e.deltaY > 0 ? -0.08 : 0.08;
     const next = Math.min(4, Math.max(1, photo.scale + delta));
-    onUpdate({ ...photo, scale: Math.round(next * 100) / 100 });
+    onUpdate(clampPan({ ...photo, scale: Math.round(next * 100) / 100 }));
   }
 
   function onPointerDown(e) {
@@ -33,7 +40,7 @@ function AdjModal({ photo, mediaUrl, onClose, onSave, onUpdate }) {
     const dx = e.clientX - last.x;
     const dy = e.clientY - last.y;
     setLast({ x: e.clientX, y: e.clientY });
-    onUpdate({ ...photo, x: photo.x + dx, y: photo.y + dy });
+    onUpdate(clampPan({ ...photo, x: photo.x + dx, y: photo.y + dy }));
   }
   function onPointerUp(e) {
     setDragging(false);
@@ -60,7 +67,7 @@ function AdjModal({ photo, mediaUrl, onClose, onSave, onUpdate }) {
             src={mediaUrl(photo.path)}
             alt=""
             draggable={false}
-            style={{ width: '100%', height: '100%', objectFit: isDefault ? 'cover' : 'none', objectPosition: 'center', transform: isDefault ? 'none' : `scale(${photo.scale}) translate(${photo.x}px, ${photo.y}px)`, pointerEvents: 'none' }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', transform: `translate(${photo.x}px, ${photo.y}px) scale(${photo.scale})`, pointerEvents: 'none' }}
           />
           {/* Full-image thumbnail for context */}
           <div style={{ position: 'absolute', right: 8, bottom: 8, width: 72, height: 96, borderRadius: 6, overflow: 'hidden', border: '2px solid #fff', boxShadow: '0 2px 10px rgba(0,0,0,.35)', background: '#fff', pointerEvents: 'none' }}>
@@ -189,7 +196,8 @@ export default function EditProductPage() {
 
   function openAdj(m) {
     if (m.media_type !== 'image') return;
-    setAdjPhoto({ mediaId: m.id, path: m.path, scale: 1, x: 0, y: 0 });
+    const t = (m.transform || '1,0,0').split(',').map(Number);
+    setAdjPhoto({ mediaId: m.id, path: m.path, scale: isFinite(t[0]) ? t[0] : 1, x: isFinite(t[1]) ? t[1] : 0, y: isFinite(t[2]) ? t[2] : 0 });
   }
   async function saveAdj() {
     if (!adjPhoto) return;
