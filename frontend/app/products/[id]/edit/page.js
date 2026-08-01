@@ -184,8 +184,7 @@ export default function EditProductPage() {
 
   function openAdj(m) {
     if (m.media_type !== 'image') return;
-    try { const t = (m.transform || '').split(',').map(Number); setAdjPhoto({ mediaId: m.id, path: m.path, scale: t[0] || 1, x: t[1] || 0, y: t[2] || 0 }); }
-    catch { setAdjPhoto({ mediaId: m.id, path: m.path, scale: 1, x: 0, y: 0 }); }
+    setAdjPhoto({ mediaId: m.id, path: m.path, scale: 1, x: 0, y: 0 });
   }
   async function saveAdj() {
     if (!adjPhoto) return;
