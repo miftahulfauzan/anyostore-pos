@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { GripVertical, ImagePlus, Plus, Video, X } from 'lucide-react';
 import AppShell from '../../../components/AppShell';
@@ -9,18 +9,65 @@ import { uploadMediaData, validateDataUpload } from '../../../lib/media-upload';
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const emptyVariant = () => ({ color: '', size: '', sku: '', barcode: '', price: '' });
 
-function AdjModal({ photo, mediaUrl, onClose }) {
+function AdjModal({ photo, mediaUrl, onClose, onSave, onUpdate }) {
+  const [dragging, setDragging] = useState(false);
+  const [last, setLast] = useState({ x: 0, y: 0 });
+  const viewportRef = useRef(null);
+  const isDefault = photo.scale === 1 && photo.x === 0 && photo.y === 0;
+
+  function onWheel(e) {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.08 : 0.08;
+    const next = Math.min(4, Math.max(1, photo.scale + delta));
+    onUpdate({ ...photo, scale: Math.round(next * 100) / 100 });
+  }
+
+  function onPointerDown(e) {
+    e.preventDefault();
+    setDragging(true);
+    setLast({ x: e.clientX, y: e.clientY });
+    if (viewportRef.current) viewportRef.current.setPointerCapture(e.pointerId);
+  }
+  function onPointerMove(e) {
+    if (!dragging) return;
+    const dx = e.clientX - last.x;
+    const dy = e.clientY - last.y;
+    setLast({ x: e.clientX, y: e.clientY });
+    onUpdate({ ...photo, x: photo.x + dx, y: photo.y + dy });
+  }
+  function onPointerUp(e) {
+    setDragging(false);
+    if (viewportRef.current) viewportRef.current.releasePointerCapture(e.pointerId);
+  }
+
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'grid', placeItems: 'center', zIndex: 100, padding: 20 }}>
       <div onClick={(e) => e.stopPropagation()} className="m-modal-in" style={{ background: '#fff', borderRadius: 12, padding: 20, maxWidth: 440, width: '100%', display: 'grid', gap: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <strong style={{ fontSize: 15 }}>Pratinjau Foto</strong>
+          <strong style={{ fontSize: 15 }}>Atur Foto</strong>
           <button onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: 22, lineHeight: 1, cursor: 'pointer', color: '#64748b' }}>×</button>
         </div>
-        <div style={{ width: '100%', aspectRatio: '3/4', overflow: 'hidden', borderRadius: 8, background: '#f1f5f9', border: '1px solid #e2e8f0' }}>
-          <img src={mediaUrl(photo.path)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
+        <div
+          ref={viewportRef}
+          onWheel={onWheel}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerLeave={onPointerUp}
+          style={{ width: '100%', aspectRatio: '3/4', overflow: 'hidden', borderRadius: 8, background: '#f1f5f9', border: '1px solid #e2e8f0', cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
+        >
+          <img
+            src={mediaUrl(photo.path)}
+            alt=""
+            draggable={false}
+            style={{ width: '100%', height: '100%', objectFit: isDefault ? 'cover' : 'none', objectPosition: 'center', transform: isDefault ? 'none' : `scale(${photo.scale}) translate(${photo.x}px, ${photo.y}px)`, pointerEvents: 'none' }}
+          />
         </div>
-        <button onClick={onClose} style={{ flex: 1, minHeight: 42, borderRadius: 8, border: 'none', background: '#1e3a5f', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Tutup</button>
+        <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>Scroll untuk zoom · Geser untuk posisi · {photo.scale.toFixed(1)}× · ({Math.round(photo.x)}, {Math.round(photo.y)})</p>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={onSave} style={{ flex: 1, minHeight: 42, borderRadius: 8, border: 'none', background: '#1e3a5f', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Simpan</button>
+          <button onClick={() => onUpdate({ ...photo, scale: 1, x: 0, y: 0 })} style={{ minHeight: 42, padding: '0 16px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>Reset</button>
+        </div>
       </div>
     </div>
   );
@@ -135,6 +182,21 @@ export default function EditProductPage() {
   const [dragFrom, setDragFrom] = useState(null);
   const [dropTarget, setDropTarget] = useState(null);
   const [adjPhoto, setAdjPhoto] = useState(null);
+
+  function openAdj(m) {
+    if (m.media_type !== 'image') return;
+    setAdjPhoto({ mediaId: m.id, path: m.path, scale: 1, x: 0, y: 0 });
+  }
+  async function saveAdj() {
+    if (!adjPhoto) return;
+    try {
+      const r = await fetch(`${apiUrl}/products/${productId}/media/${adjPhoto.mediaId}/transform`, { method: 'PATCH', headers: headers(), body: JSON.stringify({ transform: `${adjPhoto.scale},${adjPhoto.x},${adjPhoto.y}` }) });
+      if (!r.ok) throw new Error((await r.json()).message);
+      setMedia((current) => current.map((m) => m.id === adjPhoto.mediaId ? { ...m, transform: `${adjPhoto.scale},${adjPhoto.x},${adjPhoto.y}` } : m));
+      setAdjPhoto(null);
+      setMessage('Aturan foto tersimpan.');
+    } catch (e) { setMessage(e.message); }
+  }
   function onDragStart(index) { return (event) => { setDragFrom(index); event.dataTransfer.effectAllowed = 'move'; }; }
   function onDragEnd() { setDragFrom(null); setDropTarget(null); }
   function onDragOver(index) { return (event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; if (dropTarget !== index) setDropTarget(index); }; }
@@ -172,7 +234,7 @@ export default function EditProductPage() {
         {!form ? <section className="panel"><p>Memuat data produk…</p>{message && <p className="message">{message}</p>}</section> : (
           <form className="panel product-form" onSubmit={submit}>
             <div><h2>{product.name}</h2><p className="muted">Stok saat ini {product.stock}. Ubah stok melalui menu inventori agar mutasi tercatat.</p></div>
-            <section className="media-manager"><div className="section-heading"><div><h3>Media produk</h3><p>Isi hingga 10 foto dan 1 video. Kotak pertama akan menjadi foto utama katalog.</p></div><span className="media-counter">{productImages.length}/10 foto · {productVideo ? '1/1 video' : '0/1 video'}</span></div>            <div className="media-grid">{Array.from({ length: 10 }, (_, index) => { const item = productImages[index]; return item ? <figure key={item.id} draggable onDragStart={onDragStart(index)} onDragEnd={onDragEnd} onDragOver={onDragOver(index)} onDrop={onDrop(index)} className={`media-draggable${dragFrom === index ? ' is-dragging' : ''}${dropTarget === index && dragFrom !== index ? ' drop-target' : ''}`}>          <img src={mediaUrl(item.path)} alt={`Foto ${index + 1} ${product.name}`} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} /><span className="media-drag-handle" aria-hidden="true"><GripVertical size={14} /></span><button type="button" className="media-delete" aria-label={`Hapus foto ${index + 1}`} onClick={() => deleteMedia(item.id)}><X aria-hidden="true" size={14} /></button><figcaption>{index === 0 ? 'Foto utama' : `Foto ${index + 1}`}</figcaption></figure> : <label className="media-slot" key={`slot-${index}`}><ImagePlus aria-hidden="true" size={18} /><span>Foto {index + 1}</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={mediaUploading} onChange={(event) => uploadMedia(event.target.files)} /></label>; })}<label className="media-slot video-slot">{productVideo ? <video controls preload="metadata" src={mediaUrl(productVideo.path)} /> : <><Video aria-hidden="true" size={18} /><span>Video produk</span></>}<input type="file" accept="video/mp4,video/webm" disabled={mediaUploading || Boolean(productVideo)} onChange={(event) => uploadMedia(event.target.files)} /></label></div>{mediaUploading && <p className="muted">Mengunggah media…</p>}</section>
+            <section className="media-manager"><div className="section-heading"><div><h3>Media produk</h3><p>Isi hingga 10 foto dan 1 video. Kotak pertama akan menjadi foto utama katalog.</p></div><span className="media-counter">{productImages.length}/10 foto · {productVideo ? '1/1 video' : '0/1 video'}</span></div>            <div className="media-grid">{Array.from({ length: 10 }, (_, index) => { const item = productImages[index]; return item ? <figure key={item.id} draggable onDragStart={onDragStart(index)} onDragEnd={onDragEnd} onDragOver={onDragOver(index)} onDrop={onDrop(index)} className={`media-draggable${dragFrom === index ? ' is-dragging' : ''}${dropTarget === index && dragFrom !== index ? ' drop-target' : ''}`}>          <img src={mediaUrl(item.path)} alt={`Foto ${index + 1} ${product.name}`} style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center' }} /><span className="media-drag-handle" aria-hidden="true"><GripVertical size={14} /></span><button type="button" className="media-delete" aria-label={`Hapus foto ${index + 1}`} onClick={() => deleteMedia(item.id)}><X aria-hidden="true" size={14} /></button><button type="button" onClick={() => openAdj(item)} style={{ position: 'absolute', left: 4, bottom: 4, padding: '2px 6px', borderRadius: 4, border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 9, cursor: 'pointer' }}>Atur</button><figcaption>{index === 0 ? 'Foto utama' : `Foto ${index + 1}`}</figcaption></figure> : <label className="media-slot" key={`slot-${index}`}><ImagePlus aria-hidden="true" size={18} /><span>Foto {index + 1}</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={mediaUploading} onChange={(event) => uploadMedia(event.target.files)} /></label>; })}<label className="media-slot video-slot">{productVideo ? <video controls preload="metadata" src={mediaUrl(productVideo.path)} /> : <><Video aria-hidden="true" size={18} /><span>Video produk</span></>}<input type="file" accept="video/mp4,video/webm" disabled={mediaUploading || Boolean(productVideo)} onChange={(event) => uploadMedia(event.target.files)} /></label></div>{mediaUploading && <p className="muted">Mengunggah media…</p>}</section>
             <label>Nama produk<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></label>
             <label>Kategori<select value={form.category_id} onChange={(event) => setForm({ ...form, category_id: event.target.value })} required><option value="">Pilih kategori</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
             <div className="two-fields"><label>SKU<input value={form.sku} onChange={(event) => setForm({ ...form, sku: event.target.value })} /></label><label>Barcode<input value={form.barcode} onChange={(event) => setForm({ ...form, barcode: event.target.value })} /></label></div>
@@ -191,7 +253,7 @@ export default function EditProductPage() {
       </section>
 
       {adjPhoto && (
-        <AdjModal photo={adjPhoto} mediaUrl={mediaUrl} onClose={() => setAdjPhoto(null)} />
+        <AdjModal photo={adjPhoto} mediaUrl={mediaUrl} onClose={() => setAdjPhoto(null)} onSave={saveAdj} onUpdate={setAdjPhoto} />
       )}
 
     </AppShell>
