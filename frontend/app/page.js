@@ -243,16 +243,17 @@ export default function LandingPage() {
       {/* WA picker modal */}
       {waPicker && (
         <div onClick={() => setWaPicker(false)} role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'grid', placeItems: 'center', zIndex: 100, padding: 16, backdropFilter: 'blur(4px)' }}>
-          <div onClick={(e) => e.stopPropagation()} className="wa-modal-in" style={{ background: T.card, borderRadius: 12, padding: 24, maxWidth: 380, width: '100%', boxShadow: '0 24px 48px rgba(0,0,0,.18)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <strong style={{ fontSize: 16, color: T.black }}>Pilih Admin WhatsApp</strong>
-              <button onClick={() => setWaPicker(false)} style={{ border: 'none', background: 'transparent', fontSize: 20, lineHeight: 1, cursor: 'pointer', color: T.muted }}>×</button>
+          <div onClick={(e) => e.stopPropagation()} className="wa-modal-in" style={{ background: T.card, borderRadius: 14, padding: 28, maxWidth: 400, width: '100%', boxShadow: '0 24px 48px rgba(0,0,0,.18)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.black }}>Pilih Admin WhatsApp</h3>
+              <button onClick={() => setWaPicker(false)} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, fontSize: 16, lineHeight: 1, cursor: 'pointer', color: T.muted, display: 'grid', placeItems: 'center' }} aria-label="Tutup">×</button>
             </div>
-            <div style={{ display: 'grid', gap: 8 }}>
+            <div style={{ display: 'grid', gap: 10 }}>
               {waPhones.map((ph, idx) => (
-                <a key={idx} href={waLink(ph, waMsg)} target="_blank" rel="noopener noreferrer" onClick={() => setWaPicker(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44, borderRadius: 8, background: idx === 0 ? T.black : '#f3f4f6', color: idx === 0 ? T.white : T.black, fontWeight: 600, fontSize: 14, textDecoration: 'none' }}><I.chat style={{ width: 16, height: 16 }} /> Admin {idx + 1} — {ph}</a>
+                <a key={idx} href={waLink(ph, waMsg)} target="_blank" rel="noopener noreferrer" onClick={() => setWaPicker(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 46, borderRadius: 8, background: T.blue, color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none', boxShadow: '0 2px 8px rgba(30,58,95,.2)', transition: 'all .2s' }}><I.chat style={{ width: 16, height: 16 }} /> Admin {idx + 1} — {ph}</a>
               ))}
             </div>
+            <p style={{ margin: '16px 0 0', fontSize: 12, color: T.muted, textAlign: 'center' }}>Pilih admin untuk chat harga grosir & stok.</p>
           </div>
         </div>
       )}
