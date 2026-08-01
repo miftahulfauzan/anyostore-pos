@@ -17,6 +17,7 @@ jobs:
           script: |
             cd /home/ubuntu/anyostore-pos
             git pull origin main
-            sudo docker builder prune -af
+            sudo docker image prune -f
+            sudo docker builder prune -f --filter "until=168h"
             sudo docker compose -f docker-compose.production.yml --env-file .env.production up -d --build
             sudo docker compose -f docker-compose.production.yml ps

@@ -9,7 +9,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 - **Backend**: Express (Node 20), MySQL 8.4, `backend/src/`
 - **Frontend**: Next.js 16 App Router (`output: 'standalone'`), React 18, `frontend/app/`
 - **Mobile**: Flutter (`mobile/`) — terpisah, CI `continue-on-error`
-- **Deploy**: GitHub Actions `deploy.yml` → SSH ke VPS → `docker compose up -d --build` (selalu `docker builder prune -af` sebelum build supaya cache tidak bengkak 15GB). CI `ci.yml` menjalankan `npm test` (backend) + `npm run build` (frontend).
+- **Deploy**: GitHub Actions `deploy.yml` → SSH ke VPS → `docker compose up -d --build`. Build pakai BuildKit cache mount (`--mount=type=cache` di Dockerfile) supaya `npm ci`/`next build` cepat; deploy.yml hanya prune cache >7 hari (`builder prune -f --filter "until=168h"`) + `image prune -f`, BUKAN `builder prune -af` (menghapus semua cache → deploy jadi 8 menit). CI `ci.yml` menjalankan `npm test` (backend) + `npm run build` (frontend).
 
 ## Arsitektur Backend
 
@@ -174,7 +174,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 
 ### Workflow
 1. Push ke `main` → `ci.yml` (test + build) dan `deploy.yml` jalan paralel
-2. `deploy.yml`: SSH ke VPS → `git pull` → `docker builder prune -af` → `docker compose up -d --build` → `docker compose ps`
+2. `deploy.yml`: SSH ke VPS → `git pull` → `image prune -f` + `builder prune -f --filter "until=168h"` → `docker compose up -d --build` → `docker compose ps`
 3. Caddy handle HTTPS otomatis (Let's Encrypt)
 
 ### Docker compose production
