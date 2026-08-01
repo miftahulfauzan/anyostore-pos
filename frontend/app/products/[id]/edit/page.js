@@ -25,8 +25,6 @@ function AdjModal({ photo, mediaUrl, onClose }) {
     </div>
   );
 }
-  );
-}
 
 export default function EditProductPage() {
   const [product, setProduct] = useState(null);
