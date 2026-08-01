@@ -283,16 +283,16 @@ export default function LandingPage() {
         .pcard-body { padding: 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
         .pcard-body strong { font-size: 14px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .pcard-price { color: ${T.blue}; font-weight: 700; font-size: 16px; }
-        .pcard-color { padding: 2px 8px; border-radius: 4px; background: #f3f4f6; font-size: 11px; color: ${T.muted}; }
-        .pcard-actions { display: flex; gap: 8; margin-top: auto; padding-top: 8px; }
-        .pcard-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 36px; border-radius: 6px; font-size: 12px; font-weight: 600; text-decoration: none; cursor: pointer; transition: all .2s; }
-        .pcard-btn.primary { background: ${T.blue}; color: #fff; border: none; box-shadow: 0 1px 4px rgba(30,58,95,.2); }
-        .pcard-btn.primary:hover { background: #152d4a; transform: translateY(-1px); box-shadow: 0 3px 10px rgba(30,58,95,.3); }
-        .pcard-btn.secondary { background: ${T.white}; color: ${T.blue}; border: 1.5px solid ${T.blue}; }
-        .pcard-btn.secondary:hover { background: ${T.blue}; color: #fff; }
+        .pcard-color { padding: 2px 8px; border-radius: 4px; background: #f3f4f6; font-size: 11px; color: #52525b; }
+        .pcard-actions { display: flex; gap: 12px; margin-top: auto; padding-top: 10px; }
+        .pcard-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 38px; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; transition: all .2s; }
+        .pcard-btn.primary { background: ${T.blue}; color: #fff; border: none; }
+        .pcard-btn.primary:hover { background: #152d4a; transform: translateY(-1px); }
+        .pcard-btn.secondary { background: ${T.white}; color: ${T.blue}; border: 1px solid #93b0d6; }
+        .pcard-btn.secondary:hover { background: ${T.blue}; color: #fff; border-color: ${T.blue}; }
         .pcard-skeleton { height: 380px; border-radius: 12px; background: #f3f4f6; }
-        .page-btn { min-width: 40px; min-height: 40px; border-radius: 6px; border: 1px solid ${T.border}; background: ${T.card}; font-weight: 500; font-size: 13; cursor: pointer; transition: all .2s; }
-        .page-btn:hover { border-color: ${T.black}; }
+        .page-btn { min-width: 42px; min-height: 42px; border-radius: 8px; border: 1.5px solid #cbd5e1; background: ${T.card}; font-weight: 600; font-size: 14px; color: ${T.black}; cursor: pointer; transition: all .2s; display: inline-flex; align-items: center; justify-content: center; }
+        .page-btn:hover { border-color: ${T.blue}; color: ${T.blue}; }
         .page-btn.active { background: ${T.blue}; color: ${T.white}; border-color: ${T.blue}; }
         @keyframes slideIn { from { opacity: 0; transform: scale(.985) translateY(8px); } to { opacity: 1; transform: none; } }
         .wa-modal-in { animation: modalIn .3s cubic-bezier(.4,0,.2,1); }
