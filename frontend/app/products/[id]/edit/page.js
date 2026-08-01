@@ -59,7 +59,7 @@ function AdjModal({ photo, mediaUrl, onClose, onSave, onUpdate }) {
             src={mediaUrl(photo.path)}
             alt=""
             draggable={false}
-            style={{ width: '100%', height: '100%', objectFit: 'contain', transform: `scale(${photo.scale}) translate(${photo.x}px, ${photo.y}px)`, pointerEvents: 'none' }}
+            style={{ width: '100%', height: '100%', objectFit: photo.scale === 1 && photo.x === 0 && photo.y === 0 ? 'cover' : 'none', objectPosition: 'center', transform: photo.scale === 1 && photo.x === 0 && photo.y === 0 ? 'none' : `scale(${photo.scale}) translate(${photo.x}px, ${photo.y}px)`, pointerEvents: 'none' }}
           />
         </div>
         <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>Scroll untuk zoom · Geser untuk posisi · {photo.scale.toFixed(1)}× · ({Math.round(photo.x)}, {Math.round(photo.y)})</p>
