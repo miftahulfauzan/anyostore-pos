@@ -125,7 +125,7 @@ export default function LandingPage() {
                   <a href="#" onClick={(e) => { e.preventDefault(); pickWa(`Saya tertarik dengan ${slide.name}`); }} className="hero-btn btn-outline"><I.chat style={{ width: 14, height: 14 }} /> Hubungi Admin</a>
                 </div>
               </div>
-              <div style={{ position: 'relative', borderLeft: `1px solid ${T.border}`, background: '#f3f4f6', overflow: 'hidden' }}>
+              <div style={{ position: 'relative', borderLeft: '1px solid rgba(255,255,255,.15)', background: 'linear-gradient(135deg, rgba(30,58,95,.06), rgba(30,58,95,.02))', overflow: 'hidden' }}>
                 {slidePhotos.length > 0 ? (
                   <div style={{ position: 'absolute', inset: 0 }}>
                     {slidePhotos.map((ph, i) => (
@@ -261,42 +261,42 @@ export default function LandingPage() {
       <FloatingWA phones={waPhones} message="Halo Anyostore, saya ingin order grosir." />
 
       <style>{`
-        .site-header { background: rgba(255,255,255,.9); backdrop-filter: blur(12px); border-bottom: 1px solid ${T.border}; }
-        .btn-primary { display: inline-flex; align-items: center; gap: 6; min-height: 44px; padding: 0 22px; border-radius: 8px; background: ${T.blue}; color: #fff; font-weight: 700; font-size: 14px; text-decoration: none; border: none; cursor: pointer; box-shadow: 0 2px 8px rgba(30,58,95,.25); transition: all .2s; }
-        .btn-primary:hover { background: #152d4a; box-shadow: 0 4px 14px rgba(30,58,95,.35); transform: translateY(-1px); }
-        .btn-primary:active { transform: scale(.98); }
-        .btn-outline { display: inline-flex; align-items: center; gap: 6; min-height: 44px; padding: 0 22px; border-radius: 8px; background: ${T.white}; color: ${T.blue}; font-weight: 700; font-size: 14px; text-decoration: none; border: 2px solid ${T.blue}; cursor: pointer; transition: all .2s; }
-        .btn-outline:hover { background: ${T.blue}; color: #fff; }
-        .hero-btn { transition: transform .18s cubic-bezier(.4,0,.2,1), box-shadow .18s; }
-        .hero-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.1); }
-        .hero-btn:active { transform: scale(.98); }
-        .slide-fade { animation: slideIn .45s cubic-bezier(.4,0,.2,1); }
-        @keyframes slideIn { from { opacity: 0; transform: scale(.985) translateY(8px); } to { opacity: 1; transform: none; } }
-        .slide-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border-radius: 50%; border: none; background: ${T.card}; color: ${T.black}; cursor: pointer; display: grid; place-items: center; box-shadow: 0 4px 16px rgba(0,0,0,.12); z-index: 5; transition: transform .15s, box-shadow .15s; }
-        .slide-arrow:hover { transform: translateY(-50%) scale(1.05); box-shadow: 0 6px 20px rgba(0,0,0,.16); }
+        .site-header { background: rgba(255,255,255,.6); backdrop-filter: blur(20px) saturate(180%); border-bottom: 1px solid rgba(255,255,255,.3); -webkit-backdrop-filter: blur(20px) saturate(180%); }
+        .btn-primary { display: inline-flex; align-items: center; gap: 6; min-height: 44px; padding: 0 22px; border-radius: 12px; background: ${T.blue}; color: #fff; font-weight: 700; font-size: 14px; text-decoration: none; border: none; cursor: pointer; box-shadow: 0 4px 16px rgba(30,58,95,.3); transition: all .35s cubic-bezier(.4,0,.2,1); }
+        .btn-primary:hover { background: #152d4a; box-shadow: 0 8px 24px rgba(30,58,95,.4); transform: translateY(-2px); }
+        .btn-primary:active { transform: scale(.97); }
+        .btn-outline { display: inline-flex; align-items: center; gap: 6; min-height: 44px; padding: 0 22px; border-radius: 12px; background: rgba(255,255,255,.15); backdrop-filter: blur(12px); color: #fff; font-weight: 700; font-size: 14px; text-decoration: none; border: 1px solid rgba(255,255,255,.25); cursor: pointer; transition: all .35s cubic-bezier(.4,0,.2,1); -webkit-backdrop-filter: blur(12px); }
+        .btn-outline:hover { background: rgba(255,255,255,.25); border-color: rgba(255,255,255,.4); }
+        .hero-btn { transition: all .35s cubic-bezier(.4,0,.2,1); }
+        .hero-btn:hover { transform: translateY(-2px); }
+        .hero-btn:active { transform: scale(.97); }
+        .slide-fade { animation: slideIn .5s cubic-bezier(.4,0,.2,1); }
+        @keyframes slideIn { from { opacity: 0; transform: scale(.985) translateY(10px); } to { opacity: 1; transform: none; } }
+        .slide-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.15); backdrop-filter: blur(12px); color: #fff; cursor: pointer; display: grid; place-items: center; box-shadow: 0 4px 16px rgba(0,0,0,.2); z-index: 5; transition: all .35s cubic-bezier(.4,0,.2,1); -webkit-backdrop-filter: blur(12px); }
+        .slide-arrow:hover { transform: translateY(-50%) scale(1.08); background: rgba(255,255,255,.3); box-shadow: 0 6px 24px rgba(0,0,0,.3); }
         .slide-arrow.left { left: 14px; }
         .slide-arrow.right { right: 14px; }
         .pcard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
-        .pcard { display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; background: ${T.card}; border: 1px solid ${T.border}; transition: transform .25s cubic-bezier(.4,0,.2,1), box-shadow .25s cubic-bezier(.4,0,.2,1); }
-        .pcard:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+        .pcard { display: flex; flex-direction: column; border-radius: 16px; overflow: hidden; background: rgba(255,255,255,.55); backdrop-filter: blur(16px) saturate(150%); border: 1px solid rgba(255,255,255,.4); transition: all .35s cubic-bezier(.4,0,.2,1); box-shadow: 0 4px 24px rgba(0,0,0,.04); -webkit-backdrop-filter: blur(16px) saturate(150%); }
+        .pcard:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,.1); background: rgba(255,255,255,.7); }
         .pcard:active { transform: scale(.985); }
         .pcard-img { display: grid; place-items: center; aspect-ratio: 3/4; overflow: hidden; position: relative; background: #f3f4f6; }
         .pcard-body { padding: 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
         .pcard-body strong { font-size: 14px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .pcard-price { color: ${T.blue}; font-weight: 700; font-size: 16px; }
-        .pcard-color { padding: 2px 8px; border-radius: 4px; background: #f3f4f6; font-size: 11px; color: #52525b; }
+        .pcard-color { padding: 2px 8px; border-radius: 4px; background: rgba(30,58,95,.08); font-size: 11px; color: #52525b; }
         .pcard-actions { display: flex; gap: 12px; margin-top: auto; padding-top: 10px; }
-        .pcard-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 38px; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; transition: all .2s; }
+        .pcard-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 38px; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; transition: all .3s cubic-bezier(.4,0,.2,1); }
         .pcard-btn.primary { background: ${T.blue}; color: #fff; border: none; }
         .pcard-btn.primary:hover { background: #152d4a; transform: translateY(-1px); }
-        .pcard-btn.secondary { background: ${T.white}; color: ${T.blue}; border: 1px solid #93b0d6; }
+        .pcard-btn.secondary { background: rgba(255,255,255,.4); backdrop-filter: blur(8px); color: ${T.blue}; border: 1px solid rgba(30,58,95,.2); -webkit-backdrop-filter: blur(8px); }
         .pcard-btn.secondary:hover { background: ${T.blue}; color: #fff; border-color: ${T.blue}; }
-        .pcard-skeleton { height: 380px; border-radius: 12px; background: #f3f4f6; }
-        .page-btn { min-width: 42px; min-height: 42px; border-radius: 8px; border: 1.5px solid #cbd5e1; background: ${T.card}; font-weight: 600; font-size: 14px; color: ${T.black}; cursor: pointer; transition: all .2s; display: inline-flex; align-items: center; justify-content: center; }
-        .page-btn:hover { border-color: ${T.blue}; color: ${T.blue}; }
-        .page-btn.active { background: ${T.blue}; color: ${T.white}; border-color: ${T.blue}; }
+        .pcard-skeleton { height: 380px; border-radius: 16px; background: linear-gradient(135deg, rgba(243,244,246,.8), rgba(243,244,246,.4)); }
+        .page-btn { min-width: 42px; min-height: 42px; border-radius: 12px; border: 1.5px solid #cbd5e1; background: rgba(255,255,255,.55); backdrop-filter: blur(12px); font-weight: 600; font-size: 14px; color: ${T.black}; cursor: pointer; transition: all .3s cubic-bezier(.4,0,.2,1); display: inline-flex; align-items: center; justify-content: center; -webkit-backdrop-filter: blur(12px); }
+        .page-btn:hover { border-color: ${T.blue}; color: ${T.blue}; background: rgba(255,255,255,.8); }
+        .page-btn.active { background: ${T.blue}; color: ${T.white}; border-color: ${T.blue}; box-shadow: 0 2px 8px rgba(30,58,95,.25); }
         @keyframes slideIn { from { opacity: 0; transform: scale(.985) translateY(8px); } to { opacity: 1; transform: none; } }
-        .wa-modal-in { animation: modalIn .3s cubic-bezier(.4,0,.2,1); }
+        .wa-modal-in { animation: modalIn .35s cubic-bezier(.4,0,.2,1); }
         @keyframes modalIn { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
         @media (max-width: 900px) { .pcard-grid { grid-template-columns: repeat(3, 1fr); } }
         @media (max-width: 600px) { .pcard-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; } .hero-wrap { grid-template-columns: 1fr !important; height: auto !important; } }
