@@ -54,7 +54,7 @@ function AdjModal({ photo, mediaUrl, onClose, onSave, onUpdate }) {
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerLeave={onPointerUp}
-          style={{ width: '100%', aspectRatio: '3/4', overflow: 'hidden', borderRadius: 8, background: '#f1f5f9', border: '1px solid #e2e8f0', cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
+          style={{ width: '100%', aspectRatio: '3/4', overflow: 'hidden', borderRadius: 8, background: '#f1f5f9', border: '1px solid #e2e8f0', cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none', position: 'relative' }}
         >
           <img
             src={mediaUrl(photo.path)}
@@ -62,8 +62,12 @@ function AdjModal({ photo, mediaUrl, onClose, onSave, onUpdate }) {
             draggable={false}
             style={{ width: '100%', height: '100%', objectFit: isDefault ? 'cover' : 'none', objectPosition: 'center', transform: isDefault ? 'none' : `scale(${photo.scale}) translate(${photo.x}px, ${photo.y}px)`, pointerEvents: 'none' }}
           />
+          {/* Full-image thumbnail for context */}
+          <div style={{ position: 'absolute', right: 8, bottom: 8, width: 72, height: 96, borderRadius: 6, overflow: 'hidden', border: '2px solid #fff', boxShadow: '0 2px 10px rgba(0,0,0,.35)', background: '#fff', pointerEvents: 'none' }}>
+            <img src={mediaUrl(photo.path)} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          </div>
         </div>
-        <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>Scroll untuk zoom · Geser untuk posisi · {photo.scale.toFixed(1)}× · ({Math.round(photo.x)}, {Math.round(photo.y)})</p>
+        <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>Area besar = hasil di kartu · Scroll zoom · Geser posisi · {photo.scale.toFixed(1)}× · ({Math.round(photo.x)}, {Math.round(photo.y)})</p>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={onSave} style={{ flex: 1, minHeight: 42, borderRadius: 8, border: 'none', background: '#1e3a5f', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Simpan</button>
           <button onClick={() => onUpdate({ ...photo, scale: 1, x: 0, y: 0 })} style={{ minHeight: 42, padding: '0 16px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>Reset</button>
