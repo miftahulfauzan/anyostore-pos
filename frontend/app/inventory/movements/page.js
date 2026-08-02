@@ -5,10 +5,10 @@ import AppShell from '../../components/AppShell';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const typeLabels = { sale: 'Penjualan', purchase: 'Produk masuk', adjustment: 'Penyesuaian', transfer_in: 'Transfer masuk', transfer_out: 'Transfer keluar', sale_return: 'Retur penjualan', damage: 'Barang rusak', loss: 'Kehilangan', gift: 'Hadiah' };
-const channelLabel = (c) => ({ wa: 'WA', shopee: 'Shopee', tiktok: 'TikTok', reseller: 'Reseller', toko: 'Toko' }[c] || c);
 
 export default function StockMovementsPage() {
   const [rows, setRows] = useState([]);
+  const [channels, setChannels] = useState({});
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ date_from: '', date_to: '', type: '' });
@@ -34,6 +34,10 @@ export default function StockMovementsPage() {
   useEffect(() => {
     if (!localStorage.getItem('pos_access_token')) return window.location.assign('/');
     load().catch(() => {});
+    fetch(api + '/inventory/channels', { headers: headers() })
+      .then((r) => r.json())
+      .then((b) => { if (b?.data) setChannels(Object.fromEntries(b.data.map((c) => [c.value, c.name]))); })
+      .catch(() => {});
   }, []);
 
   function apply(event) {
@@ -67,7 +71,7 @@ export default function StockMovementsPage() {
               {row.product_sku || ''}{row.variant_color ? ` · ${row.variant_color}` : ''} • {new Date(row.created_at).toLocaleString('id-ID')}
             </p>
             <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>
-              {row.user_name || 'Sistem'}{row.channel ? ` · ${channelLabel(row.channel)}` : ''}{row.notes ? ` · ${row.notes}` : ''}{row.warehouse_name ? ` · ${row.warehouse_name}` : ''}
+              {row.user_name || 'Sistem'}{row.channel ? ` · ${channels[row.channel] || row.channel}` : ''}{row.notes ? ` · ${row.notes}` : ''}{row.warehouse_name ? ` · ${row.warehouse_name}` : ''}
             </p>
           </div>
           <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>

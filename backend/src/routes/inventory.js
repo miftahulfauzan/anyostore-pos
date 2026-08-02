@@ -249,6 +249,57 @@ router.get('/stock-by-warehouse', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+// GET /api/inventory/channels — saluran penjualan (Keperluan/saluran)
+router.get('/channels', async (req, res, next) => {
+  try {
+    const [rows] = await db.execute('SELECT id, value, name, is_active FROM sales_channels ORDER BY sort_order, id');
+    res.json({ success: true, data: rows });
+  } catch (error) { next(error); }
+});
+
+// POST /api/inventory/channels — tambah saluran
+router.post('/channels', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+  try {
+    const { value, name } = req.body;
+    const val = String(value || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    if (!val || !name?.trim()) return res.status(400).json({ success: false, message: 'Nilai dan nama saluran wajib diisi' });
+    const [exists] = await db.execute('SELECT id FROM sales_channels WHERE value=?', [val]);
+    if (exists[0]) return res.status(400).json({ success: false, message: 'Nilai saluran sudah ada' });
+    const [r] = await db.execute('INSERT INTO sales_channels (value, name, sort_order) VALUES (?,?,?)', [val, name.trim(), 99]);
+    res.status(201).json({ success: true, data: { id: r.insertId, value: val, name: name.trim() } });
+  } catch (error) { next(error); }
+});
+
+// PUT /api/inventory/channels/:id — edit saluran (nama / aktif)
+router.put('/channels/:id', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const { name, is_active: isActive } = req.body;
+    if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID tidak valid' });
+    if (name == null && isActive == null) return res.status(400).json({ success: false, message: 'Tidak ada perubahan' });
+    if (name != null && !name?.trim()) return res.status(400).json({ success: false, message: 'Nama wajib diisi' });
+    const sets = [];
+    const values = [];
+    if (name != null) { sets.push('name = ?'); values.push(name.trim()); }
+    if (isActive != null) { sets.push('is_active = ?'); values.push(isActive ? 1 : 0); }
+    values.push(id);
+    const [r] = await db.execute(`UPDATE sales_channels SET ${sets.join(', ')} WHERE id = ?`, values);
+    if (!r.affectedRows) return res.status(404).json({ success: false, message: 'Saluran tidak ditemukan' });
+    res.json({ success: true });
+  } catch (error) { next(error); }
+});
+
+// DELETE /api/inventory/channels/:id — hapus saluran
+router.delete('/channels/:id', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID tidak valid' });
+    const [r] = await db.execute('DELETE FROM sales_channels WHERE id = ?', [id]);
+    if (!r.affectedRows) return res.status(404).json({ success: false, message: 'Saluran tidak ditemukan' });
+    res.json({ success: true });
+  } catch (error) { next(error); }
+});
+
 router.post('/mutations', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   const connection = await db.getConnection();
   try {

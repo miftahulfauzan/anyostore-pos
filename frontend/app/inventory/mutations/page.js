@@ -4,13 +4,6 @@ import AppShell from '../../components/AppShell';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const blank = () => ({ product_id: '', variant_id: '', quantity: '', cost: '' });
-const CHANNELS = [
-  { value: 'toko', label: 'Toko / internal' },
-  { value: 'wa', label: 'Penjualan WhatsApp' },
-  { value: 'shopee', label: 'Shopee' },
-  { value: 'tiktok', label: 'TikTok' },
-  { value: 'reseller', label: 'Reseller' },
-];
 
 export default function Mutations() {
   const [mode, setMode] = useState('in');
@@ -19,14 +12,24 @@ export default function Mutations() {
   const [store, setStore] = useState('');
   const [items, setItems] = useState([blank()]);
   const [notes, setNotes] = useState('');
+  const [channels, setChannels] = useState([]);
   const [channel, setChannel] = useState('toko');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(new Set());
   const [showPicker, setShowPicker] = useState(false);
+  const [showChannels, setShowChannels] = useState(false);
+  const [newChannel, setNewChannel] = useState({ value: '', name: '' });
   const h = () => ({ 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
 
+  async function loadChannels() {
+    const r = await fetch(api + '/inventory/channels', { headers: h() });
+    const b = await r.json();
+    if (!r.ok) throw new Error(b.message);
+    setChannels(b.data || []);
+    setChannel((c) => (b.data || []).some((x) => x.value === c) ? c : ((b.data || [])[0]?.value || 'toko'));
+  }
   async function loadProducts(id) {
     const r = await fetch(api + '/inventory/incoming/products?branch_id=' + id, { headers: h() });
     const b = await r.json();
@@ -35,6 +38,7 @@ export default function Mutations() {
   }
   useEffect(() => {
     if (!localStorage.getItem('pos_access_token')) return window.location.assign('/');
+    loadChannels().catch((e) => setMessage(e.message));
     fetch(api + '/inventory/incoming/targets', { headers: h() }).then(async (r) => {
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
@@ -78,7 +82,7 @@ export default function Mutations() {
       const r = await fetch(api + '/inventory/' + (mode === 'in' ? 'incoming' : 'outgoing'), { method: 'POST', headers: h(), body: JSON.stringify(body) });
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
-      const channelLabel = mode === 'out' ? (CHANNELS.find((c) => c.value === channel)?.label || channel) : '';
+      const channelLabel = mode === 'out' ? (channels.find((c) => c.value === channel)?.name || channel) : '';
       setMessage(b.data.items + ' produk ' + (mode === 'in' ? 'masuk' : 'keluar') + ' berhasil dicatat' + (channelLabel ? ' (' + channelLabel + ')' : '') + '.');
       setItems([blank()]);
       setNotes('');
@@ -101,9 +105,52 @@ export default function Mutations() {
         </label>
         {mode === 'out' && (
           <label>Keperluan / saluran
-            <select value={channel} onChange={(e) => setChannel(e.target.value)}>
-              {CHANNELS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-            </select>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <select style={{ flex: 1 }} value={channel} onChange={(e) => setChannel(e.target.value)}>
+                {channels.filter((c) => c.is_active !== false).map((c) => <option key={c.id} value={c.value}>{c.name}</option>)}
+              </select>
+              <button type="button" className="button-link" onClick={() => setShowChannels((v) => !v)}>{showChannels ? 'Tutup' : 'Kelola saluran'}</button>
+            </div>
+            {showChannels && (
+              <div style={{ display: 'grid', gap: 8, padding: 12, border: '1px solid #e2e8f0', borderRadius: 8, marginTop: 8 }}>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input placeholder="Nilai (misal: offline)" value={newChannel.value} onChange={(e) => setNewChannel({ ...newChannel, value: e.target.value })} style={{ flex: 1 }} />
+                  <input placeholder="Nama (misal: Penjualan Offline)" value={newChannel.name} onChange={(e) => setNewChannel({ ...newChannel, name: e.target.value })} style={{ flex: 1.4 }} />
+                  <button type="button" onClick={async () => {
+                    try {
+                      const r = await fetch(api + '/inventory/channels', { method: 'POST', headers: h(), body: JSON.stringify(newChannel) });
+                      const b = await r.json();
+                      if (!r.ok) throw new Error(b.message);
+                      setNewChannel({ value: '', name: '' });
+                      setMessage('Saluran "' + b.data.name + '" ditambahkan.');
+                      loadChannels();
+                    } catch (e) { setMessage(e.message); }
+                  }}>Tambah</button>
+                </div>
+                <div style={{ display: 'grid', gap: 6 }}>
+                  {channels.map((c) => (
+                    <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ flex: 1, fontSize: 13 }}>{c.name}<small style={{ display: 'block', color: 'var(--muted-foreground)' }}>{c.value}{c.is_active === false ? ' · nonaktif' : ''}</small></span>
+                      <button type="button" className="button-link" style={{ minHeight: 28, padding: '0 8px', fontSize: 12 }} onClick={() => {
+                        const next = window.prompt('Nama saluran:', c.name);
+                        if (!next?.trim() || next.trim() === c.name) return;
+                        fetch(api + '/inventory/channels/' + c.id, { method: 'PUT', headers: h(), body: JSON.stringify({ name: next.trim() }) })
+                          .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setMessage('Saluran diganti nama.'); loadChannels(); }).catch((e) => setMessage(e.message));
+                      }}>Edit</button>
+                      <button type="button" className="button-link" style={{ minHeight: 28, padding: '0 8px', fontSize: 12 }} onClick={() => {
+                        fetch(api + '/inventory/channels/' + c.id, { method: 'PUT', headers: h(), body: JSON.stringify({ is_active: c.is_active === false }) })
+                          .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setMessage(c.is_active === false ? 'Saluran diaktifkan.' : 'Saluran dinonaktifkan.'); loadChannels(); }).catch((e) => setMessage(e.message));
+                      }}>{c.is_active === false ? 'Aktifkan' : 'Nonaktifkan'}</button>
+                      <button type="button" className="button-link" style={{ minHeight: 28, padding: '0 8px', fontSize: 12, color: '#dc2626' }} onClick={() => {
+                        if (!window.confirm('Hapus saluran "' + c.name + '"?')) return;
+                        fetch(api + '/inventory/channels/' + c.id, { method: 'DELETE', headers: h() })
+                          .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setMessage('Saluran dihapus.'); loadChannels(); }).catch((e) => setMessage(e.message));
+                      }}>Hapus</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </label>
         )}
 
