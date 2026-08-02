@@ -8,6 +8,17 @@ import { uploadMediaData, validateDataUpload } from '../../../lib/media-upload';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const emptyVariant = () => ({ color: '', size: '', sku: '', barcode: '', price: '' });
+const ACCENT = '#1e3a5f';
+
+// Transform disimpan sebagai "scale,xPct,yPct" — pan dalam persen terhadap box,
+// supaya hasil crop konsisten di semua ukuran box (modal, detail, landing, grid).
+// maxPanPct = (scale - 1) / 2 * 100, berlaku untuk sumbu X dan Y.
+const parseTransform = (raw) => {
+  const t = String(raw || '').split(',').map(Number);
+  return { scale: t.length >= 3 && isFinite(t[0]) && t[0] > 0 ? t[0] : 1, x: isFinite(t[1]) ? t[1] : 0, y: isFinite(t[2]) ? t[2] : 0 };
+};
+const formatTransform = (p) => `${Math.round(p.scale * 100) / 100},${Math.round(p.x * 100) / 100},${Math.round(p.y * 100) / 100}`;
+const maxPanPct = (scale) => ((scale - 1) / 2) * 100;
 
 function AdjModal({ photo, mediaUrl, onClose, onSave, onUpdate }) {
   const [dragging, setDragging] = useState(false);
@@ -15,20 +26,17 @@ function AdjModal({ photo, mediaUrl, onClose, onSave, onUpdate }) {
   const viewportRef = useRef(null);
 
   function clampPan(p) {
-    const el = viewportRef.current;
-    if (!el) return p;
-    const maxX = (el.clientWidth * (p.scale - 1)) / 2;
-    const maxY = (el.clientHeight * (p.scale - 1)) / 2;
-    return { ...p, x: Math.max(-maxX, Math.min(maxX, p.x)), y: Math.max(-maxY, Math.min(maxY, p.y)) };
+    const max = maxPanPct(p.scale);
+    return { ...p, x: Math.max(-max, Math.min(max, p.x)), y: Math.max(-max, Math.min(max, p.y)) };
   }
-
+  function zoomBy(delta) {
+    const next = Math.min(4, Math.max(1, Math.round((photo.scale + delta) * 100) / 100));
+    onUpdate(clampPan({ ...photo, scale: next }));
+  }
   function onWheel(e) {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.08 : 0.08;
-    const next = Math.min(4, Math.max(1, photo.scale + delta));
-    onUpdate(clampPan({ ...photo, scale: Math.round(next * 100) / 100 }));
+    zoomBy(e.deltaY > 0 ? -0.08 : 0.08);
   }
-
   function onPointerDown(e) {
     e.preventDefault();
     setDragging(true);
@@ -37,47 +45,69 @@ function AdjModal({ photo, mediaUrl, onClose, onSave, onUpdate }) {
   }
   function onPointerMove(e) {
     if (!dragging) return;
+    const el = viewportRef.current;
+    if (!el) return;
     const dx = e.clientX - last.x;
     const dy = e.clientY - last.y;
     setLast({ x: e.clientX, y: e.clientY });
-    onUpdate(clampPan({ ...photo, x: photo.x + dx, y: photo.y + dy }));
+    onUpdate(clampPan({ ...photo, x: photo.x + (dx / el.clientWidth) * 100, y: photo.y + (dy / el.clientHeight) * 100 }));
   }
   function onPointerUp(e) {
     setDragging(false);
     if (viewportRef.current) viewportRef.current.releasePointerCapture(e.pointerId);
   }
+  const pct = (v) => `${Math.round(v * 10) / 10}%`;
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'grid', placeItems: 'center', zIndex: 100, padding: 20 }}>
-      <div onClick={(e) => e.stopPropagation()} className="m-modal-in" style={{ background: '#fff', borderRadius: 12, padding: 20, maxWidth: 440, width: '100%', display: 'grid', gap: 14 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <strong style={{ fontSize: 15 }}>Atur Foto</strong>
-          <button onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: 22, lineHeight: 1, cursor: 'pointer', color: '#64748b' }}>×</button>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, .62)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', zIndex: 100, padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Atur Foto" style={{ background: '#fff', borderRadius: 16, padding: 0, maxWidth: 460, width: '100%', overflow: 'hidden', boxShadow: '0 24px 60px rgba(15, 23, 42, .35)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #eef1f5' }}>
+          <div>
+            <strong style={{ fontSize: 15, color: '#0f172a' }}>Atur Foto</strong>
+            <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94a3b8' }}>Crop 3:4 — hasil sama dengan kartu produk</p>
+          </div>
+          <button onClick={onClose} aria-label="Tutup" style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: '#f1f5f9', fontSize: 16, lineHeight: 1, cursor: 'pointer', color: '#475569', display: 'grid', placeItems: 'center' }}>×</button>
         </div>
-        <div
-          ref={viewportRef}
-          onWheel={onWheel}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerLeave={onPointerUp}
-          style={{ width: '100%', aspectRatio: '3/4', overflow: 'hidden', borderRadius: 8, background: '#f1f5f9', border: '1px solid #e2e8f0', cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none', position: 'relative' }}
-        >
-          <img
-            src={mediaUrl(photo.path)}
-            alt=""
-            draggable={false}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', transform: `translate(${photo.x}px, ${photo.y}px) scale(${photo.scale})`, pointerEvents: 'none' }}
-          />
-          {/* Full-image thumbnail for context */}
-          <div style={{ position: 'absolute', right: 8, bottom: 8, width: 72, height: 96, borderRadius: 6, overflow: 'hidden', border: '2px solid #fff', boxShadow: '0 2px 10px rgba(0,0,0,.35)', background: '#fff', pointerEvents: 'none' }}>
-            <img src={mediaUrl(photo.path)} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+
+        {/* Viewport: dark checkerboard + rule-of-thirds grid overlay */}
+        <div style={{ padding: '14px 20px' }}>
+          <div
+            ref={viewportRef}
+            onWheel={onWheel}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerLeave={onPointerUp}
+            style={{ position: 'relative', width: '100%', aspectRatio: '3/4', overflow: 'hidden', borderRadius: 10, background: 'repeating-conic-gradient(#e2e8f0 0% 25%, #f8fafc 0% 50%) 0 0 / 24px 24px', border: '1px solid #e2e8f0', cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none', userSelect: 'none' }}
+          >
+            <img src={mediaUrl(photo.path)} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', transform: `translate(${photo.x}%, ${photo.y}%) scale(${photo.scale})`, pointerEvents: 'none', display: 'block' }} />
+            {/* Rule-of-thirds overlay */}
+            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+              <div style={{ position: 'absolute', left: '33.33%', top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,.35)' }} />
+              <div style={{ position: 'absolute', left: '66.66%', top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,.35)' }} />
+              <div style={{ position: 'absolute', top: '33.33%', left: 0, right: 0, height: 1, background: 'rgba(255,255,255,.35)' }} />
+              <div style={{ position: 'absolute', top: '66.66%', left: 0, right: 0, height: 1, background: 'rgba(255,255,255,.35)' }} />
+            </div>
+            {/* Full-image thumbnail for context */}
+            <div style={{ position: 'absolute', right: 8, bottom: 8, width: 64, height: 85, borderRadius: 6, overflow: 'hidden', border: '2px solid #fff', boxShadow: '0 2px 10px rgba(0,0,0,.35)', background: '#fff', pointerEvents: 'none' }}>
+              <img src={mediaUrl(photo.path)} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+            </div>
           </div>
         </div>
-        <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>Area besar = hasil di kartu · Scroll zoom · Geser posisi · {photo.scale.toFixed(1)}× · ({Math.round(photo.x)}, {Math.round(photo.y)})</p>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={onSave} style={{ flex: 1, minHeight: 42, borderRadius: 8, border: 'none', background: '#1e3a5f', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Simpan</button>
+
+        {/* Zoom controls */}
+        <div style={{ padding: '0 20px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button onClick={() => zoomBy(-0.1)} aria-label="Perkecil" style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#475569', fontSize: 16, lineHeight: 1, cursor: 'pointer', flexShrink: 0 }}>−</button>
+          <input type="range" min="1" max="4" step="0.01" value={photo.scale} onChange={(e) => onUpdate(clampPan({ ...photo, scale: Number(e.target.value) }))} aria-label="Perbesar" style={{ flex: 1, accentColor: ACCENT }} />
+          <button onClick={() => zoomBy(0.1)} aria-label="Perbesar" style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#475569', fontSize: 16, lineHeight: 1, cursor: 'pointer', flexShrink: 0 }}>+</button>
+          <span style={{ fontSize: 12, color: '#475569', minWidth: 52, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{photo.scale.toFixed(2)}×</span>
+        </div>
+        <p style={{ margin: '8px 20px 0', fontSize: 11, color: '#94a3b8' }}>Geser untuk posisi · Gulir / slider untuk zoom · Pan maksimal ±{pct(maxPanPct(photo.scale))}</p>
+
+        <div style={{ display: 'flex', gap: 8, padding: 16, borderTop: '1px solid #eef1f5', marginTop: 14 }}>
           <button onClick={() => onUpdate({ ...photo, scale: 1, x: 0, y: 0 })} style={{ minHeight: 42, padding: '0 16px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#1e293b', cursor: 'pointer', fontWeight: 600 }}>Reset</button>
+          <div style={{ flex: 1 }} />
+          <button onClick={onSave} style={{ flex: 1, minHeight: 42, borderRadius: 8, border: 'none', background: ACCENT, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Simpan</button>
         </div>
       </div>
     </div>
@@ -102,8 +132,8 @@ export default function EditProductPage() {
   const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` });
   const mediaUrl = (path) => path ? `${apiUrl.replace('/api', '')}${path}` : '';
   const thumbStyle = (m) => {
-    const t = String(m.transform || '').split(',').map(Number);
-    return t.length === 3 && isFinite(t[0]) ? { objectFit: 'cover', objectPosition: 'center', transform: `translate(${t[1] || 0}px, ${t[2] || 0}px) scale(${t[0]})` } : { objectFit: 'contain', objectPosition: 'center' };
+    const t = parseTransform(m.transform);
+    return t.scale !== 1 || t.x !== 0 || t.y !== 0 ? { objectFit: 'cover', objectPosition: 'center', transform: `translate(${t.x}%, ${t.y}%) scale(${t.scale})` } : { objectFit: 'contain', objectPosition: 'center' };
   };
 
   useEffect(() => {
@@ -200,15 +230,15 @@ export default function EditProductPage() {
 
   function openAdj(m) {
     if (m.media_type !== 'image') return;
-    const t = (m.transform || '1,0,0').split(',').map(Number);
-    setAdjPhoto({ mediaId: m.id, path: m.path, scale: isFinite(t[0]) ? t[0] : 1, x: isFinite(t[1]) ? t[1] : 0, y: isFinite(t[2]) ? t[2] : 0 });
+    setAdjPhoto({ mediaId: m.id, path: m.path, ...parseTransform(m.transform) });
   }
   async function saveAdj() {
     if (!adjPhoto) return;
     try {
-      const r = await fetch(`${apiUrl}/products/${productId}/media/${adjPhoto.mediaId}/transform`, { method: 'PATCH', headers: headers(), body: JSON.stringify({ transform: `${adjPhoto.scale},${adjPhoto.x},${adjPhoto.y}` }) });
+      const transform = formatTransform(adjPhoto);
+      const r = await fetch(`${apiUrl}/products/${productId}/media/${adjPhoto.mediaId}/transform`, { method: 'PATCH', headers: headers(), body: JSON.stringify({ transform }) });
       if (!r.ok) throw new Error((await r.json()).message);
-      setMedia((current) => current.map((m) => m.id === adjPhoto.mediaId ? { ...m, transform: `${adjPhoto.scale},${adjPhoto.x},${adjPhoto.y}` } : m));
+      setMedia((current) => current.map((m) => m.id === adjPhoto.mediaId ? { ...m, transform } : m));
       setAdjPhoto(null);
       setMessage('Aturan foto tersimpan.');
     } catch (e) { setMessage(e.message); }

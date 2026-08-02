@@ -83,7 +83,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 
 ### Migrasi (`backend/migrations/`)
 
-14 file: promotions, branch_contact_tax, denim_variant_stock, product_media (variant_id, media_type), sync_variant_colours, media_files, price_tiers, customer_price_tier, transaction_cancellation, branch_pricing_tier, expense_income_type, commission_per_pcs_customer_tier, product_photo_transform, partial_cancel_purchase_received (tambah `partially_cancelled` ke ENUM status transactions + kolom `received_at` di purchase_orders untuk laporan PPN Masukan).
+15 file: promotions, branch_contact_tax, denim_variant_stock, product_media (variant_id, media_type), sync_variant_colours, media_files, price_tiers, customer_price_tier, transaction_cancellation, branch_pricing_tier, expense_income_type, commission_per_pcs_customer_tier, product_photo_transform, partial_cancel_purchase_received (tambah `partially_cancelled` ke ENUM status transactions + kolom `received_at` di purchase_orders untuk laporan PPN Masukan), photo_transform_percent (konversi pan px→% supaya crop konsisten lintas ukuran box).
 
 **Jebakan**: `migrate.js` pakai INSERT IGNORE toleransi kolom duplikat — bisa sembunyikan error migrasi lain. Kalau migrasi baru gagal, cek log container backend.
 
@@ -110,11 +110,11 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 ### Media/foto
 - Upload: max 10 foto + 1 video per produk
 - Foto varian: per-variant photo
-- `transform` (zoom/pan): format `scale,x,y`, disimpan di `product_photos.transform`
-- **Render transform (WYSIWYG)**: `objectFit: cover` SELALU sebagai basis, lalu `transform: translate(xpx, ypx) scale(s)` di atasnya. Jangan pakai `objectFit: none` (basis render berbeda → hasil simpan tidak cocok dengan preview).
+- `transform` (zoom/pan): format `scale,xPct,yPct` — **pan dalam persen terhadap box** (`maxPanPct = (scale-1)/2*100`), disimpan di `product_photos.transform`
+- **Render transform (WYSIWYG)**: `objectFit: cover` SELALU sebagai basis, lalu `transform: translate(xPct%, yPct%) scale(s)` di atasnya. Jangan pakai `objectFit: none` (basis render berbeda → hasil simpan tidak cocok dengan preview). Pan pakai persen supaya hasil crop konsisten di semua ukuran box (modal, grid admin, landing, detail).
 - Konsisten di: modal "Atur" (edit page), grid produk admin, landing page, detail produk.
-- `openAdj` harus load transform yang sudah disimpan (parsing `scale,x,y`), bukan reset ke `1,0,0`.
-- Pan di-clamp supaya tepi foto tidak bolong: `max = (boxSize * (s - 1)) / 2`.
+- `openAdj` harus load transform yang sudah disimpan (parsing `scale,xPct,yPct`), bukan reset ke `1,0,0`.
+- Pan di-clamp: `maxPanPct = (scale - 1) / 2 * 100` (persen, berlaku X & Y).
 - Grid edit produk: tanpa transform = `contain` (foto utuh); dengan transform = `cover` + transform (WYSIWYG hasil crop). Modal "Atur" punya thumbnail foto utuh di pojok.
 
 ## Frontend

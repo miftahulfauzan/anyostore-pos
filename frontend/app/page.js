@@ -34,7 +34,7 @@ function parsePhotos(paths, single) {
 }
 function photoStyle(transform, base) {
   const t = String(transform || '').split(',').map(Number);
-  return t.length === 3 && isFinite(t[0]) ? { objectFit: 'cover', objectPosition: 'center', transform: `translate(${t[1] || 0}px, ${t[2] || 0}px) scale(${t[0]})`, ...base } : { objectFit: 'cover', objectPosition: 'center', ...base };
+  return t.length === 3 && isFinite(t[0]) && (t[0] !== 1 || t[1] !== 0 || t[2] !== 0) ? { objectFit: 'cover', objectPosition: 'center', transform: `translate(${t[1] || 0}%, ${t[2] || 0}%) scale(${t[0]})`, ...base } : { objectFit: 'cover', objectPosition: 'center', ...base };
 }
 
 function ProductCard({ product, onWa }) {

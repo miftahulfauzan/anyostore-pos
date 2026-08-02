@@ -70,7 +70,7 @@ export default function ProdukDetail() {
         {/* gallery */}
         <div style={{ display: 'grid', gap: 10 }} className="m-fade-up">
           <div style={{ borderRadius: 12, overflow: 'hidden', background: C.white, border: `1px solid ${C.border}`, aspectRatio: '3 / 4', display: 'grid', placeItems: 'center' }}>
-            <SafeImage src={imgs[activeImg]?.path ? `${api.replace('/api','')}${imgs[activeImg].path}` : ''} alt={product.name} style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover', objectPosition: 'center', ...((imgs[activeImg]?.transform||'').trim() ? (() => { const t = (imgs[activeImg].transform||'').split(',').map(Number); return { objectFit: 'cover', transform: `translate(${t[1]||0}px, ${t[2]||0}px) scale(${t[0]})` }; })() : {}) }} />
+            <SafeImage src={imgs[activeImg]?.path ? `${api.replace('/api','')}${imgs[activeImg].path}` : ''} alt={product.name} style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover', objectPosition: 'center', ...((imgs[activeImg]?.transform||'').trim() ? (() => { const t = (imgs[activeImg].transform||'').split(',').map(Number); return { objectFit: 'cover', transform: `translate(${t[1]||0}%, ${t[2]||0}%) scale(${t[0]})` }; })() : {}) }} />
           </div>
           {imgs.length > 1 && (
             <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
