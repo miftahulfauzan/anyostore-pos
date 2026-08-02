@@ -156,7 +156,7 @@ export default function EditProductPage() {
 
   function choosePhoto(file) {
     if (!file) return;
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) { setMessage('Pilih JPG, PNG, atau WebP dengan ukuran maksimal 5 MB.'); return; }
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { setMessage('Pilih JPG, PNG, atau WebP.'); return; }
     setPhoto(file);
     setPreview(URL.createObjectURL(file));
     setMessage('');
@@ -275,7 +275,7 @@ export default function EditProductPage() {
   const productVideo = media.find((item) => item.media_type === 'video');
 
   return (
-    <AppShell title="Edit Produk" eyebrow="KATALOG PRODUK" actions={<a className="button-link secondary-link" href="/products">Kembali ke Daftar</a>}>
+    <AppShell title="Edit Produk" eyebrow="KATALOG PRODUK" actions={<><a className="button-link" href={`/produk/${productId}`} target="_blank" rel="noopener noreferrer">Cek Detail Produk</a><a className="button-link secondary-link" href="/products">Kembali ke Daftar</a></>}>
       <section className="form-page">
         {!form ? <section className="panel"><p>Memuat data produk…</p>{message && <p className="message">{message}</p>}</section> : (
           <form className="panel product-form" onSubmit={submit}>
