@@ -1,11 +1,11 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import AppShell from '../components/AppShell';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rp = (n) => 'Rp' + Number(n || 0).toLocaleString('id-ID');
-const today = new Date().toISOString().slice(0, 10);
-const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const firstOfMonthStr = () => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), 1).toISOString().slice(0, 10); };
 
 export default function HistoryPage() {
   const [transactions, setTransactions] = useState([]);
@@ -19,28 +19,31 @@ export default function HistoryPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [role, setRole] = useState(null);
-  const [filters, setFilters] = useState({ search: '', date_from: firstOfMonth, date_to: today, status: '' });
+  const [filters, setFilters] = useState({ search: '', date_from: '', date_to: '', status: '' });
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('retur'); // retur | cancel | info
+  const loadSeq = useRef(0);
 
   const h = () => ({ Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
   const canCancel = ['owner', 'manager', 'admin'].includes(role);
 
   async function load(p = page) {
     setLoading(true);
+    const seq = ++loadSeq.current;
     try {
       const qs = new URLSearchParams({ page: String(p), limit: '20', search: filters.search, date_from: filters.date_from, date_to: filters.date_to, status: filters.status }).toString();
       const r = await fetch(api + '/transactions?' + qs, { headers: h() });
       const b = await r.json();
+      if (seq !== loadSeq.current) return;
       if (!r.ok) throw Error(b.message);
       setTransactions(b.data);
       setTotal(b.total || 0);
       setTotalPages(b.totalPages || 1);
       setPage(b.page || p);
     } catch (e) {
-      setMessage(e.message);
+      if (seq === loadSeq.current) setMessage(e.message);
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }
 
@@ -51,6 +54,8 @@ export default function HistoryPage() {
       .then((b) => { if (b?.data?.role) setRole(b.data.role); })
       .catch(() => {});
   }, []);
+
+  useEffect(() => { if (!filters.date_from || !filters.date_to) setFilters((f) => ({ ...f, date_from: f.date_from || firstOfMonthStr(), date_to: f.date_to || todayStr() })); }, []);
 
   useEffect(() => { load(1); }, []);
 

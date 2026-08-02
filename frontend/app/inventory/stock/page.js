@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import AppShell from '../../components/AppShell';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -17,6 +17,7 @@ export default function StockReportPage() {
   const [isOwner, setIsOwner] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const loadSeq = useRef(0);
 
   const token = () => localStorage.getItem('pos_access_token');
   const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` });
@@ -42,6 +43,7 @@ export default function StockReportPage() {
 
   useEffect(() => {
     setLoading(true);
+    const seq = ++loadSeq.current;
     const params = {};
     if (cat) params.category_id = cat;
     if (q) params.search = q;
@@ -53,12 +55,13 @@ export default function StockReportPage() {
     fetch(`${api}/inventory/stock-total?${qs}`, { headers: headers() })
       .then((r) => r.json())
       .then((b) => {
+        if (seq !== loadSeq.current) return;
         if (!b.success) throw new Error(b.message);
         setProducts(b.data.products || []);
         setSummary(b.data.summary || null);
       })
-      .catch((e) => setMessage(e.message))
-      .finally(() => setLoading(false));
+      .catch((e) => { if (seq === loadSeq.current) setMessage(e.message); })
+      .finally(() => { if (seq === loadSeq.current) setLoading(false); });
   }, [cat, q, branchId, isOwner]);
 
   const showAll = isOwner && !branchId;

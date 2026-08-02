@@ -5,8 +5,8 @@ import AppShell from '../components/AppShell';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rupiah = (value) => `Rp${Number(value || 0).toLocaleString('id-ID')}`;
-const today = new Date().toISOString().slice(0, 10);
-const firstOfMonth = `${today.slice(0, 8)}01`;
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const firstOfMonthStr = () => `${todayStr().slice(0, 8)}01`;
 
 export default function CommissionsPage() {
   const [rules, setRules] = useState([]);
@@ -30,10 +30,10 @@ export default function CommissionsPage() {
     commission_grosir_seri_per_pcs: '1000',
     min_target: '0',
     min_transactions: '0',
-    start_date: today,
+    start_date: '',
   });
-  const [period, setPeriod] = useState({ period_start: firstOfMonth, period_end: today });
-  const [reportPeriod, setReportPeriod] = useState({ start: firstOfMonth, end: today });
+  const [period, setPeriod] = useState({ period_start: '', period_end: '' });
+  const [reportPeriod, setReportPeriod] = useState({ start: '', end: '' });
 
   const token = () => typeof window === 'undefined' ? '' : localStorage.getItem('pos_access_token');
   const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` });
@@ -83,6 +83,10 @@ export default function CommissionsPage() {
     } catch {}
   }
 
+  useEffect(() => {
+    setPeriod((p) => ({ period_start: p.period_start || firstOfMonthStr(), period_end: p.period_end || todayStr() }));
+    setReportPeriod((p) => ({ start: p.start || firstOfMonthStr(), end: p.end || todayStr() }));
+  }, []);
   useEffect(() => {
     if (!token()) { window.location.assign('/'); return; }
     loadBranches();

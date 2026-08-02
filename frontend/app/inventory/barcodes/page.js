@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '../../components/AppShell';
 import BarcodeLabel from '../../components/BarcodeLabel';
 
@@ -12,18 +12,21 @@ export default function BarcodePage() {
   const [search, setSearch] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const loadSeq = useRef(0);
   const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
 
   async function load(keyword = '') {
     setLoading(true);
+    const seq = ++loadSeq.current;
     try {
       const query = keyword.trim() ? '?search=' + encodeURIComponent(keyword.trim()) : '';
       const response = await fetch(api + '/inventory/barcode-items' + query, { headers: headers() });
       const body = await response.json();
+      if (seq !== loadSeq.current) return;
       if (!response.ok) throw new Error(body.message || 'Data barcode tidak dapat dimuat');
       setItems(body.data || []);
-    } catch (error) { setMessage(error.message); }
-    finally { setLoading(false); }
+    } catch (error) { if (seq === loadSeq.current) setMessage(error.message); }
+    finally { if (seq === loadSeq.current) setLoading(false); }
   }
 
   useEffect(() => {

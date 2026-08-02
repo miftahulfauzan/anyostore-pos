@@ -6,9 +6,8 @@ import AppShell from '../components/AppShell';
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rp = (n) => `Rp${Number(n || 0).toLocaleString('id-ID')}`;
 
-const now = new Date();
-const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-const todayStr = now.toISOString().slice(0, 10);
+const firstOfMonthStr = () => { const now = new Date(); return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10); };
+const todayStr = () => new Date().toISOString().slice(0, 10);
 
 export default function MyAccount() {
   const [profile, setProfile] = useState(null);
@@ -21,7 +20,7 @@ export default function MyAccount() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
-  const [range, setRange] = useState({ start: firstOfMonth, end: todayStr });
+  const [range, setRange] = useState({ start: '', end: '' });
   const [loadingComm, setLoadingComm] = useState(false);
 
   const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('pos_access_token')}` });
@@ -49,6 +48,9 @@ export default function MyAccount() {
   }
 
   useEffect(() => {
+    setRange({ start: firstOfMonthStr(), end: todayStr() });
+  }, []);
+  useEffect(() => {
     const token = localStorage.getItem('pos_access_token');
     if (!token) { window.location.assign('/'); return; }
     fetch(`${api}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
@@ -60,8 +62,11 @@ export default function MyAccount() {
         setEmail(b.data?.email || '');
       })
       .catch((e) => setMessage(e.message || String(e)));
-    fetchCommission(range.start, range.end);
   }, []);
+  useEffect(() => {
+    if (range.start && range.end) fetchCommission(range.start, range.end);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range.start, range.end]);
 
   function applyRange() {
     if (range.start > range.end) return setMessage('Tanggal mulai tidak boleh setelah akhir');

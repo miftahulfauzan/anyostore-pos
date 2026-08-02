@@ -81,7 +81,8 @@ export default function LandingPage() {
   const waPhones = settings?.whatsapp_numbers?.length ? settings.whatsapp_numbers : waPhone ? [waPhone] : [];
   function pickWa(msg) { if (!waPhones.length) return; setWaMsg(msg); setWaPicker(true); }
 
-  const today = `${new Date().getFullYear()}-${new Date().getMonth() + 1}-${new Date().getDate()}`;
+  const [today, setToday] = useState('');
+  useEffect(() => { setToday(`${new Date().getFullYear()}-${new Date().getMonth() + 1}-${new Date().getDate()}`); }, []);
   const slides = useMemo(() => {
     if (!slidesAll.length) return [];
     const hp = slidesAll.filter((p) => p.photo_path);
@@ -240,7 +241,7 @@ export default function LandingPage() {
           </div>
         </div>
         <div style={{ marginTop: 32, paddingTop: 20, borderTop: `1px solid ${T.border}`, fontSize: 12, color: T.muted, textAlign: 'center' }}>
-          © {new Date().getFullYear()} Anyostore. All rights reserved.
+          © {today.slice(0, 4) || new Date().getFullYear()} Anyostore. All rights reserved.
         </div>
       </footer>
 

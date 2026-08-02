@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import AppShell from "../components/AppShell";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
-const today = new Date().toISOString().slice(0, 10);
-const firstOfMonth = `${today.slice(0, 8)}01`;
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const firstOfMonthStr = () => `${todayStr().slice(0, 8)}01`;
 const rp = (value) => `Rp${Number(value || 0).toLocaleString("id-ID")}`;
 
 function ReportTable({
@@ -122,7 +122,7 @@ export default function ReportsPage() {
     if (period.start) load();
   }, [period.start, period.end, branchId]);
 
-  useEffect(() => { if (!period.start) setPeriod({ start: firstOfMonth, end: today }); }, []);
+  useEffect(() => { if (!period.start) setPeriod({ start: firstOfMonthStr(), end: todayStr() }); }, []);
 
   const summary = report?.summary || {};
   const logo = store?.store_logo

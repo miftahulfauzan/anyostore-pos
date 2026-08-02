@@ -7,8 +7,8 @@ const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const money = (v) => Number(v || 0).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 export default function TaxReportPage() {
-  const [start, setStart] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`; });
-  const [end, setEnd] = useState(() => new Date().toISOString().slice(0, 10));
+  const [start, setStart] = useState('');
+  const [end, setEnd] = useState('');
   const [tab, setTab] = useState('ppn');
   const [ppn, setPpn] = useState(null);
   const [faktur, setFaktur] = useState(null);
@@ -20,6 +20,12 @@ export default function TaxReportPage() {
   const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` });
 
   useEffect(() => { if (!token()) { window.location.assign('/'); } }, []);
+  useEffect(() => {
+    if (start && end) return;
+    const d = new Date();
+    setStart(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`);
+    setEnd(d.toISOString().slice(0, 10));
+  }, [start, end]);
 
   async function fetchPpn() {
     setLoading(true); setMessage('');

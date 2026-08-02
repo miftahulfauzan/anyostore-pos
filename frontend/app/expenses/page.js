@@ -10,7 +10,7 @@ const blank = (type) => ({
   name: '',
   amount: '',
   payment_method: 'cash',
-  expense_date: new Date().toISOString().slice(0, 10),
+  expense_date: '',
   notes: '',
   type,
 });
@@ -43,7 +43,7 @@ export default function Expenses() {
     load().catch((e) => setMessage(e.message));
   }, []);
   useEffect(() => {
-    setForm(blank(active));
+    setForm({ ...blank(active), expense_date: new Date().toISOString().slice(0, 10) });
     setNewCategory({ name: '', account_code: active === 'income' ? '4-2000' : '5-1000', type: active });
   }, [active]);
 

@@ -193,7 +193,7 @@ export default function PosPage() {
     return item.price;
   };
   const cartSubtotal = (item) => cartPrice(item) * item.quantity;
-  const subtotal = useMemo(() => cart.reduce((sum, item) => sum + cartSubtotal(item), 0), [cart]);
+  const subtotal = useMemo(() => cart.reduce((sum, item) => sum + cartSubtotal(item), 0), [cart, effectiveTier, priceTier, tiersEnabled]);
   const discount = Number(promo?.discount || 0);
   const total = Math.max(0, subtotal - discount);
   const amountPaid = paymentMethod === 'cash' ? Number(cash || 0) : total;

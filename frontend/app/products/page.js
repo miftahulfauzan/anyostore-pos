@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import AppShell from '../components/AppShell';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -11,19 +11,22 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [view, setView] = useState('grid');
+  const loadSeq = useRef(0);
   const token = () => typeof window === 'undefined' ? '' : localStorage.getItem('pos_access_token');
 
   async function load(keyword = search) {
     if (!token()) { window.location.assign('/'); return; }
     setLoading(true);
+    const seq = ++loadSeq.current;
     try {
       const query = keyword.trim() ? `?limit=500&search=${encodeURIComponent(keyword.trim())}` : '?limit=500';
       const response = await fetch(`${apiUrl}/products${query}`, { headers: { Authorization: `Bearer ${token()}` } });
       const body = await response.json();
+      if (seq !== loadSeq.current) return;
       if (!response.ok) throw new Error(body.message || 'Gagal memuat produk');
       setProducts(body.data || []);
-    } catch (error) { setMessage(error.message); }
-    finally { setLoading(false); }
+    } catch (error) { if (seq === loadSeq.current) setMessage(error.message); }
+    finally { if (seq === loadSeq.current) setLoading(false); }
   }
 
   useEffect(() => { load(''); }, []);

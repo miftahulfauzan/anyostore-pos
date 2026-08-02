@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import AppShell from '../../components/AppShell';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -12,19 +12,22 @@ export default function StockMovementsPage() {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ date_from: '', date_to: '', type: '' });
   const [selected, setSelected] = useState(null);
+  const loadSeq = useRef(0);
   const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
 
   async function load(activeFilters = filters) {
     setLoading(true);
+    const seq = ++loadSeq.current;
     try {
       const query = new URLSearchParams({ limit: '100' });
       Object.entries(activeFilters).forEach(([key, value]) => { if (value) query.set(key, value); });
       const response = await fetch(api + '/inventory/mutations?' + query, { headers: headers() });
       const body = await response.json();
+      if (seq !== loadSeq.current) return;
       if (!response.ok) throw new Error(body.message || 'Riwayat stok tidak dapat dimuat');
       setRows(body.data || []);
-    } catch (error) { setMessage(error.message); }
-    finally { setLoading(false); }
+    } catch (error) { if (seq === loadSeq.current) setMessage(error.message); }
+    finally { if (seq === loadSeq.current) setLoading(false); }
   }
 
   useEffect(() => {
