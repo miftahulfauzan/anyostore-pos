@@ -29,46 +29,47 @@ import {
   X,
 } from 'lucide-react';
 
-// ownerOnly: menu yang hanya tampil untuk role owner.
+// Roles per item: owner/manajer/admin/kasir/gudang.
+// Jika field `roles` tidak ada → tampil untuk semua role login.
 const navigation = [
   {
     label: 'UTAMA',
     items: [
       { href: '/dashboard', label: 'Dasbor', icon: LayoutDashboard },
-      { href: '/history', label: 'Transaksi', icon: ReceiptText },
+      { href: '/history', label: 'Transaksi', icon: ReceiptText, roles: ['owner', 'manager', 'admin'] },
     ],
   },
   {
     label: 'PRODUK & INVENTORI',
     items: [
-      { href: '/products', label: 'Daftar Produk', icon: Package },
-      { href: '/products/new', label: 'Tambah Produk', icon: PlusCircle },
+      { href: '/products', label: 'Daftar Produk', icon: Package, roles: ['owner', 'manager', 'admin'] },
+      { href: '/products/new', label: 'Tambah Produk', icon: PlusCircle, roles: ['owner', 'manager', 'admin'] },
       { href: '/inventory', label: 'Stok Produk', icon: Boxes },
       { href: '/inventory/movements', label: 'Riwayat Stok', icon: History },
       { href: '/inventory/barcodes', label: 'Cetak Barcode', icon: Barcode },
-      { href: '/inventory/incoming', label: 'Produk Masuk', icon: ArrowDownToLine },
-      { href: '/inventory/outgoing', label: 'Produk Keluar', icon: ArrowUpFromLine },
-      { href: '/inventory/opname', label: 'Stok Opname', icon: ClipboardCheck },
-      { href: '/inventory/stock', label: 'Laporan Stok', icon: ChartNoAxesCombined },
+      { href: '/inventory/incoming', label: 'Produk Masuk', icon: ArrowDownToLine, roles: ['owner', 'manager', 'admin', 'gudang'] },
+      { href: '/inventory/outgoing', label: 'Produk Keluar', icon: ArrowUpFromLine, roles: ['owner', 'manager', 'admin', 'gudang'] },
+      { href: '/inventory/opname', label: 'Stok Opname', icon: ClipboardCheck, roles: ['owner', 'manager', 'admin', 'gudang'] },
+      { href: '/inventory/stock', label: 'Laporan Stok', icon: ChartNoAxesCombined, roles: ['owner', 'manager', 'admin'] },
     ],
   },
   {
     label: 'BISNIS',
     items: [
-      { href: '/customers', label: 'Pelanggan', icon: Users },
-      { href: '/promotions', label: 'Promo & Diskon', icon: Tags },
-      { href: '/expenses', label: 'Pengeluaran & Pemasukan', icon: WalletCards },
-      { href: '/operations', label: 'Operasional', icon: ClipboardCheck },
-      { href: '/reports', label: 'Laporan', icon: ChartNoAxesCombined },
-      { href: '/reports/tax', label: 'Laporan Pajak', icon: Receipt, ownerOnly: true },
+      { href: '/customers', label: 'Pelanggan', icon: Users, roles: ['owner', 'manager', 'admin'] },
+      { href: '/promotions', label: 'Promo & Diskon', icon: Tags, roles: ['owner', 'manager', 'admin'] },
+      { href: '/expenses', label: 'Pengeluaran & Pemasukan', icon: WalletCards, roles: ['owner', 'manager', 'admin'] },
+      { href: '/operations', label: 'Operasional', icon: ClipboardCheck, roles: ['owner', 'manager', 'admin'] },
+      { href: '/reports', label: 'Laporan', icon: ChartNoAxesCombined, roles: ['owner', 'manager', 'admin'] },
+      { href: '/reports/tax', label: 'Laporan Pajak', icon: Receipt, roles: ['owner'] },
     ],
   },
   {
     label: 'ADMINISTRASI',
     items: [
-      { href: '/commissions', label: 'Komisi Staf', icon: BadgeDollarSign, ownerOnly: true },
-      { href: '/users', label: 'Pegawai & Akses', icon: Users, ownerOnly: true },
-      { href: '/settings', label: 'Pengaturan', icon: Settings, ownerOnly: true },
+      { href: '/commissions', label: 'Komisi Staf', icon: BadgeDollarSign, roles: ['owner'] },
+      { href: '/users', label: 'Pegawai & Akses', icon: Users, roles: ['owner'] },
+      { href: '/settings', label: 'Pengaturan', icon: Settings, roles: ['owner'] },
       { href: '/profile', label: 'Akun Saya', icon: User },
     ],
   },
@@ -122,13 +123,14 @@ export default function AppShell({ title, eyebrow, actions, children }) {
     document.documentElement.classList.toggle('dark', next === 'dark');
   }
 
-  // Saring menu: ownerOnly hidden hanya jika role sudah diketahui bukan owner. Selama role null, tampilkan semua supaya tidak flicker.
-  const isOwner = role === 'owner';
+  // Saring menu per role: item tanpa field `roles` tampil semua; dengan `roles`
+  // hanya untuk role tersebut. Selama role null (belum termuat), tampilkan semua
+  // supaya tidak flicker.
   const roleKnown = role !== null;
   const visibleNavigation = navigation
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => !item.ownerOnly || !roleKnown || isOwner),
+      items: group.items.filter((item) => !roleKnown || !item.roles || item.roles.includes(role)),
     }))
     .filter((group) => group.items.length > 0);
 
