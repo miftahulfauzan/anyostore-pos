@@ -96,13 +96,13 @@ export default function TransferPage() {
       <form onSubmit={submit}>
         <label>Dari (lokasi asal)
           <select required value={from} onChange={(e) => { setFrom(e.target.value); setItems([blank()]); setSelected(new Set()); setShowPicker(false); loadProducts(e.target.value).catch((x) => setMessage(x.message)); }}>
-            {warehouses.map((w) => <option key={w.id} value={w.id}>{w.branch_name || w.name}{w.type === 'reject' ? ' (Reject)' : ''}</option>)}
+            {warehouses.map((w) => <option key={w.id} value={w.id}>{(w.branch_name || w.name)} — {w.name}{w.type === 'reject' ? ' (Reject)' : ''}</option>)}
           </select>
         </label>
         <label>Ke (lokasi tujuan)
           <select required value={to} onChange={(e) => setTo(e.target.value)}>
             <option value="">Pilih tujuan…</option>
-            {targets.filter((w) => String(w.id) !== String(from)).map((w) => <option key={w.id} value={w.id}>{w.branch_name || w.name}{w.type === 'reject' ? ' (Reject)' : ''}</option>)}
+            {targets.filter((w) => String(w.id) !== String(from)).map((w) => <option key={w.id} value={w.id}>{(w.branch_name || w.name)} — {w.name}{w.type === 'reject' ? ' (Reject)' : ''}</option>)}
           </select>
         </label>
 
