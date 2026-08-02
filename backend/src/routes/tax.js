@@ -40,10 +40,10 @@ router.get('/report', async (req, res, next) => {
 
     // PPN Masukan (from purchase orders received)
     const [purchaseData] = await db.execute(
-      `SELECT COUNT(*) AS orders, COALESCE(SUM(total_cost), 0) AS total_purchase
-       FROM purchase_orders WHERE branch_id=? AND status='received' AND DATE(received_at) BETWEEN ? AND ?`,
+      `SELECT COUNT(*) AS orders, COALESCE(SUM(total_amount), 0) AS total_purchase
+       FROM purchase_orders WHERE branch_id=? AND status IN ('received','completed') AND received_at IS NOT NULL AND DATE(received_at) BETWEEN ? AND ?`,
       [branchId, start, end]
-    ).catch(() => [{ orders: 0, total_purchase: 0 }]);
+    );
     const totalPurchase = Number(purchaseData[0].total_purchase || 0);
     const ppnMasukan = money(totalPurchase * taxRate / 100);
 
@@ -172,7 +172,7 @@ router.get('/pph23', async (req, res, next) => {
     // PPh 23 is 2% of service payments (expenses type=expense with PPh 23 category)
     // For now, show approved expenses that could be subject to PPh 23
     const [expenses] = await db.execute(
-      `SELECT e.id, e.description, e.amount, e.expense_date, e.status, ec.name AS category_name
+      `SELECT e.id, COALESCE(e.name, e.notes, ec.name) AS description, e.amount, e.expense_date, e.status, ec.name AS category_name
        FROM expenses e
        LEFT JOIN expense_categories ec ON ec.id = e.category_id
        WHERE e.branch_id=? AND (e.type IS NULL OR e.type='expense') AND e.status='approved' AND DATE(e.expense_date) BETWEEN ? AND ?

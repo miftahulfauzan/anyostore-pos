@@ -83,7 +83,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 
 ### Migrasi (`backend/migrations/`)
 
-13 file: promotions, branch_contact_tax, denim_variant_stock, product_media (variant_id, media_type), sync_variant_colours, media_files, price_tiers, customer_price_tier, transaction_cancellation, branch_pricing_tier, expense_income_type, commission_per_pcs_customer_tier, product_photo_transform.
+14 file: promotions, branch_contact_tax, denim_variant_stock, product_media (variant_id, media_type), sync_variant_colours, media_files, price_tiers, customer_price_tier, transaction_cancellation, branch_pricing_tier, expense_income_type, commission_per_pcs_customer_tier, product_photo_transform, partial_cancel_purchase_received (tambah `partially_cancelled` ke ENUM status transactions + kolom `received_at` di purchase_orders untuk laporan PPN Masukan).
 
 **Jebakan**: `migrate.js` pakai INSERT IGNORE toleransi kolom duplikat — bisa sembunyikan error migrasi lain. Kalau migrasi baru gagal, cek log container backend.
 
