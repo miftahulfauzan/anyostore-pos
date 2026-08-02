@@ -96,6 +96,8 @@ router.get('/stock', async (req, res, next) => {
   try {
     const warehouseId = Number(req.query.warehouse_id);
     if (!Number.isInteger(warehouseId)) return res.status(400).json({ success: false, message: 'warehouse_id wajib diisi' });
+    const requestedBranch = Number(req.query.branch_id);
+    const branchId = req.user.role === 'owner' && Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
     const [rows] = await db.execute(
       `SELECT ws.product_id, ws.variant_id, ws.quantity, ws.reserved_quantity, p.name, p.sku, p.min_stock, pv.color AS variant_color
        FROM warehouse_stocks ws
@@ -110,9 +112,9 @@ router.get('/stock', async (req, res, next) => {
        WHERE p.branch_id = ? AND p.is_active = TRUE
          AND NOT EXISTS (SELECT 1 FROM warehouse_stocks ws2 WHERE ws2.warehouse_id = ? AND ws2.product_id = p.id AND ws2.variant_id = pv.id)
        ORDER BY name, variant_color`,
-      [warehouseId, req.user.branch_id, req.user.branch_id, warehouseId]
+      [warehouseId, branchId, branchId, warehouseId]
     );
-    res.json({ success: true, data: rows });
+    res.json({ success: true, data: rows, branch_id: branchId });
   } catch (error) { next(error); }
 });
 
@@ -162,6 +164,39 @@ router.get('/stock-total', async (req, res, next) => {
         branch_mode: showAll ? 'all' : 'single',
       },
     });
+  } catch (error) { next(error); }
+});
+
+// GET /api/inventory/stock-by-warehouse — stok per gudang lintas cabang (owner: ?branch_id=all atau tanpa filter)
+router.get('/stock-by-warehouse', async (req, res, next) => {
+  try {
+    const showAll = req.user.role === 'owner' && (req.query.branch_id === 'all' || !req.query.branch_id);
+    const branchId = req.user.role === 'owner' && Number.isInteger(Number(req.query.branch_id)) ? Number(req.query.branch_id) : req.user.branch_id;
+    const search = (req.query.search || '').trim();
+    const categoryId = Number(req.query.category_id) || null;
+
+    let where = 'WHERE w.is_active = TRUE AND p.is_active = TRUE';
+    const params = [];
+    if (!showAll) { where += ' AND w.branch_id = ?'; params.push(branchId); }
+    if (search) { where += ' AND (p.name LIKE ? OR p.sku LIKE ?)'; const s = `%${search}%`; params.push(s, s); }
+    if (categoryId) { where += ' AND p.category_id = ?'; params.push(categoryId); }
+
+    const [rows] = await db.execute(
+      `SELECT b.name AS branch_name, w.id AS warehouse_id, w.name AS warehouse_name,
+              ws.product_id, p.name AS product_name, p.sku, pv.id AS variant_id, pv.color AS variant_color,
+              COALESCE(ws.quantity, 0) AS quantity, COALESCE(ws.reserved_quantity, 0) AS reserved,
+              p.min_stock
+       FROM warehouse_stocks ws
+       JOIN warehouses w ON w.id = ws.warehouse_id
+       JOIN branches b ON b.id = w.branch_id
+       JOIN products p ON p.id = ws.product_id
+       LEFT JOIN product_variants pv ON pv.id = ws.variant_id
+       ${where}
+       ORDER BY b.name, w.name, p.name, pv.color`,
+      params
+    );
+
+    res.json({ success: true, data: rows, branch_mode: showAll ? 'all' : 'single' });
   } catch (error) { next(error); }
 });
 

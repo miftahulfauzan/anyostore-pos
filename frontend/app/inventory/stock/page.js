@@ -9,11 +9,13 @@ const money = (v) => Number(v || 0).toLocaleString('id-ID');
 export default function StockReportPage() {
   const [products, setProducts] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [warehouseRows, setWarehouseRows] = useState([]);
   const [categories, setCategories] = useState([]);
   const [branches, setBranches] = useState([]);
   const [cat, setCat] = useState('');
   const [q, setQ] = useState('');
   const [branchId, setBranchId] = useState('');
+  const [view, setView] = useState('produk');
   const [isOwner, setIsOwner] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -52,17 +54,25 @@ export default function StockReportPage() {
       else params.branch_id = 'all';
     }
     const qs = new URLSearchParams(params).toString();
-    fetch(`${api}/inventory/stock-total?${qs}`, { headers: headers() })
+    const endpoint = view === 'gudang' ? '/inventory/stock-by-warehouse' : '/inventory/stock-total';
+    fetch(`${api}${endpoint}?${qs}`, { headers: headers() })
       .then((r) => r.json())
       .then((b) => {
         if (seq !== loadSeq.current) return;
         if (!b.success) throw new Error(b.message);
-        setProducts(b.data.products || []);
-        setSummary(b.data.summary || null);
+        if (view === 'gudang') {
+          setWarehouseRows(b.data || []);
+          setProducts([]);
+          setSummary(null);
+        } else {
+          setProducts(b.data.products || []);
+          setWarehouseRows([]);
+          setSummary(b.data.summary || null);
+        }
       })
       .catch((e) => { if (seq === loadSeq.current) setMessage(e.message); })
       .finally(() => { if (seq === loadSeq.current) setLoading(false); });
-  }, [cat, q, branchId, isOwner]);
+  }, [cat, q, branchId, isOwner, view]);
 
   const showAll = isOwner && !branchId;
 
@@ -70,6 +80,11 @@ export default function StockReportPage() {
     <AppShell title="Laporan Stok" eyebrow="INVENTORY">
       <section className="form-page" style={{ maxWidth: 1100 }}>
         <div className="panel">
+          {/* Toggle tampilan */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <button type="button" onClick={() => setView('produk')} className={view === 'produk' ? 'view-button selected' : 'view-button'} style={{ minHeight: 36, padding: '.4rem .7rem', borderRadius: 6, border: 'none', background: view === 'produk' ? '#1d5b43' : '#edf4ee', color: view === 'produk' ? '#fff' : '#174c35', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>Per Produk</button>
+            <button type="button" onClick={() => setView('gudang')} className={view === 'gudang' ? 'view-button selected' : 'view-button'} style={{ minHeight: 36, padding: '.4rem .7rem', borderRadius: 6, border: 'none', background: view === 'gudang' ? '#1d5b43' : '#edf4ee', color: view === 'gudang' ? '#fff' : '#174c35', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>Per Gudang</button>
+          </div>
           {/* Summary cards */}
           {summary && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 12, marginBottom: 20 }}>
@@ -167,6 +182,48 @@ export default function StockReportPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Tabel per gudang */}
+          {view === 'gudang' && (
+            <div style={{ overflowX: 'auto', marginTop: 8 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
+                    {showAll && <th style={{ padding: '8px 10px' }}>Toko</th>}
+                    <th style={{ padding: '8px 10px' }}>Gudang</th>
+                    <th style={{ padding: '8px 10px' }}>Produk</th>
+                    <th style={{ padding: '8px 10px' }}>SKU</th>
+                    <th style={{ padding: '8px 10px' }}>Warna</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'right' }}>Stok</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'right' }}>Reserved</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'right' }}>Tersedia</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading && <tr><td colSpan={showAll ? 8 : 7} style={{ padding: 10, color: 'var(--muted-foreground)' }}>Memuat…</td></tr>}
+                  {!loading && warehouseRows.map((r) => {
+                    const qty = Number(r.quantity || 0);
+                    const reserved = Number(r.reserved || 0);
+                    return (
+                      <tr key={`${r.warehouse_id}-${r.product_id}-${r.variant_id || 'x'}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                        {showAll && <td style={{ padding: '8px 10px', fontSize: 11, color: 'var(--primary)', fontWeight: 600 }}>{r.branch_name || '-'}</td>}
+                        <td style={{ padding: '8px 10px', fontWeight: 600 }}>{r.warehouse_name || '-'}</td>
+                        <td style={{ padding: '8px 10px' }}>{r.product_name}</td>
+                        <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: 11, color: 'var(--muted-foreground)' }}>{r.sku || '-'}</td>
+                        <td style={{ padding: '8px 10px' }}>{r.variant_color ? <span style={{ padding: '1px 5px', borderRadius: 4, background: 'var(--muted)', fontSize: 10 }}>{r.variant_color}</span> : <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>-</span>}</td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>{money(qty)}</td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', color: 'var(--muted-foreground)' }}>{money(reserved)}</td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>{money(Math.max(0, qty - reserved))}</td>
+                      </tr>
+                    );
+                  })}
+                  {!loading && !warehouseRows.length && (
+                    <tr><td colSpan={showAll ? 8 : 7} style={{ padding: 20, textAlign: 'center', color: 'var(--muted-foreground)' }}>Belum ada stok tercatat di gudang.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </section>
     </AppShell>

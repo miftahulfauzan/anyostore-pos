@@ -1,16 +1,19 @@
 'use client';
-
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '../components/AppShell';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 export default function InventoryPage() {
+  const [branches, setBranches] = useState([]);
+  const [branchId, setBranchId] = useState('');
   const [warehouses, setWarehouses] = useState([]);
   const [warehouse, setWarehouse] = useState('');
   const [stock, setStock] = useState([]);
   const [message, setMessage] = useState('');
+  const [isOwner, setIsOwner] = useState(false);
   const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
+
   async function load(id) {
     if (!id) return;
     const response = await fetch(api + '/inventory/stock?warehouse_id=' + id, { headers: headers() });
@@ -18,16 +21,33 @@ export default function InventoryPage() {
     if (!response.ok) throw new Error(body.message);
     setStock(body.data);
   }
+  async function loadWarehouses(id) {
+    const q = id ? '?branch_id=' + id : '';
+    const response = await fetch(api + '/inventory/warehouses' + q, { headers: headers() });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.message);
+    setWarehouses(body.data);
+    const first = String(body.data[0]?.id || '');
+    setWarehouse(first);
+    if (first) load(first).catch((error) => setMessage(error.message));
+  }
   useEffect(() => {
     if (!localStorage.getItem('pos_access_token')) return window.location.assign('/');
+    fetch(api + '/auth/me', { headers: headers() })
+      .then((r) => r.json())
+      .then((b) => { if (b?.data?.role === 'owner') setIsOwner(true); })
+      .catch(() => {});
     fetch(api + '/inventory/warehouses', { headers: headers() }).then(async (response) => {
       const body = await response.json();
       if (!response.ok) throw new Error(body.message);
       setWarehouses(body.data);
       const id = String(body.data[0]?.id || '');
       setWarehouse(id);
-      load(id);
+      if (id) load(id).catch((error) => setMessage(error.message));
     }).catch((error) => setMessage(error.message));
+    if (isOwner) {
+      fetch(api + '/settings/branches', { headers: headers() }).then((r) => r.json()).then((b) => setBranches(b.data || [])).catch(() => {});
+    }
   }, []);
 
   const products = useMemo(() => {
@@ -41,5 +61,16 @@ export default function InventoryPage() {
     return Array.from(grouped.values());
   }, [stock]);
 
-  return <AppShell title="Stok Produk" eyebrow="PRODUK & INVENTORI" actions={<a className="button-link" href="/inventory/opname">Stok Opname</a>}><section className="panel inventory-panel"><label>Gudang<select value={warehouse} onChange={(event) => { setWarehouse(event.target.value); load(event.target.value).catch((error) => setMessage(error.message)); }}>{warehouses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><p className="muted">Produk tanpa varian memakai stok produk. Produk berwarna menampilkan stok setiap warna secara terpisah.</p>{message && <p className="message">{message}</p>}<div className="inventory-list">{products.map((product) => <article key={product.id} className="inventory-product"><header><div><strong>{product.name}</strong><span>{product.sku || 'Tanpa SKU'}</span></div>{product.variants.length > 0 ? <b>{product.variants.reduce((total, item) => total + Number(item.quantity), 0)} total varian</b> : <b>{product.standardStock?.quantity || 0} stok</b>}</header>{product.variants.length > 0 ? <div className="inventory-variants">{product.variants.map((variant) => <div key={variant.variant_id}><span className="inventory-color">{variant.variant_color}</span><strong>{variant.quantity}</strong><small>{variant.reserved_quantity} dialokasikan</small></div>)}{product.standardStock && Number(product.standardStock.quantity) > 0 && <p className="unallocated-stock">Stok umum {product.standardStock.quantity} belum dialokasikan ke warna.</p>}</div> : <div className="inventory-standard"><span>Stok produk</span><strong>{product.standardStock?.quantity || 0}</strong><small>{product.standardStock?.reserved_quantity || 0} dialokasikan</small></div>}</article>)}{!products.length && <p>Belum ada stok di gudang ini.</p>}</div></section></AppShell>;
+  return <AppShell title="Stok Produk" eyebrow="PRODUK & INVENTORI" actions={<a className="button-link" href="/inventory/opname">Stok Opname</a>}><section className="panel inventory-panel">
+    {isOwner && (
+      <label>Toko / Cabang<select value={branchId} onChange={(event) => { setBranchId(event.target.value); loadWarehouses(event.target.value).catch((error) => setMessage(error.message)); }}>
+        <option value="">Toko saya</option>
+        {branches.filter((b) => b.is_active).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+      </select></label>
+    )}
+    <label>Gudang<select value={warehouse} onChange={(event) => { setWarehouse(event.target.value); load(event.target.value).catch((error) => setMessage(error.message)); }}>{warehouses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+    <p className="muted">Produk tanpa varian memakai stok produk. Produk berwarna menampilkan stok setiap warna secara terpisah.</p>
+    {message && <p className="message">{message}</p>}
+    <div className="inventory-list">{products.map((product) => <article key={product.id} className="inventory-product"><header><div><strong>{product.name}</strong><span>{product.sku || 'Tanpa SKU'}</span></div>{product.variants.length > 0 ? <b>{product.variants.reduce((total, item) => total + Number(item.quantity), 0)} total varian</b> : <b>{product.standardStock?.quantity || 0} stok</b>}</header>{product.variants.length > 0 ? <div className="inventory-variants">{product.variants.map((variant) => <div key={variant.variant_id}><span className="inventory-color">{variant.variant_color}</span><strong>{variant.quantity}</strong><small>{variant.reserved_quantity} dialokasikan</small></div>)}{product.standardStock && Number(product.standardStock.quantity) > 0 && <p className="unallocated-stock">Stok umum {product.standardStock.quantity} belum dialokasikan ke warna.</p>}</div> : <div className="inventory-standard"><span>Stok produk</span><strong>{product.standardStock?.quantity || 0}</strong><small>{product.standardStock?.reserved_quantity || 0} dialokasikan</small></div>}</article>)}{!products.length && <p>Belum ada stok di gudang ini.</p>}</div>
+  </section></AppShell>;
 }
