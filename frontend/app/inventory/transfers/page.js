@@ -4,7 +4,6 @@ import AppShell from '../../components/AppShell';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const blank = () => ({ product_id: '', variant_id: '', quantity: '' });
-const TYPE_LABEL = { utama: 'Gudang Utama', cadangan: 'Gudang Cadangan', reject: 'Gudang Reject' };
 
 export default function TransferPage() {
   const [warehouses, setWarehouses] = useState([]);
@@ -36,9 +35,11 @@ export default function TransferPage() {
     fetch(api + '/inventory/warehouses/all', { headers: h() }).then(async (r) => {
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
-      setWarehouses(b.data);
-      setTargets(b.data);
-      const first = String(b.data[0]?.id || '');
+      // Sembunyikan gudang cadangan — hanya tampilkan gudang utama & reject per lokasi.
+      const visible = (b.data || []).filter((w) => w.type !== 'cadangan');
+      setWarehouses(visible);
+      setTargets(visible);
+      const first = String(visible[0]?.id || '');
       setFrom(first);
       if (first) loadProducts(first).catch((x) => setMessage(x.message));
     }).catch((e) => setMessage(e.message));
@@ -91,17 +92,17 @@ export default function TransferPage() {
 
   return <AppShell title="Transfer Stok" eyebrow="PRODUK & INVENTORI" actions={<a className="button-link" href="/inventory">Lihat Stok</a>}>
     <section className="panel">
-      <p className="muted">Pindahkan stok antar gudang: gudang → gudang tujuan (termasuk gudang reject), atau antar toko. Stok asal berkurang, stok tujuan bertambah. Produk yang belum ada di toko tujuan dibuat otomatis (katalog, warna, dan foto disalin).</p>
+      <p className="muted">Pindahkan stok antar lokasi (gudang pusat ↔ toko, atau ke gudang reject). Stok asal berkurang, stok tujuan bertambah. Produk yang belum ada di tujuan dibuat otomatis.</p>
       <form onSubmit={submit}>
-        <label>Gudang asal
+        <label>Dari (lokasi asal)
           <select required value={from} onChange={(e) => { setFrom(e.target.value); setItems([blank()]); setSelected(new Set()); setShowPicker(false); loadProducts(e.target.value).catch((x) => setMessage(x.message)); }}>
-            {warehouses.map((w) => <option key={w.id} value={w.id}>{w.branch_name ? `${w.branch_name} — ` : ''}{w.name}{w.type && TYPE_LABEL[w.type] ? ` (${TYPE_LABEL[w.type]})` : ''}</option>)}
+            {warehouses.map((w) => <option key={w.id} value={w.id}>{w.branch_name || w.name}{w.type === 'reject' ? ' (Reject)' : ''}</option>)}
           </select>
         </label>
-        <label>Gudang tujuan
+        <label>Ke (lokasi tujuan)
           <select required value={to} onChange={(e) => setTo(e.target.value)}>
-            <option value="">Pilih gudang tujuan…</option>
-            {targets.filter((w) => String(w.id) !== String(from)).map((w) => <option key={w.id} value={w.id}>{w.branch_name ? `${w.branch_name} — ` : ''}{w.name}{w.type && TYPE_LABEL[w.type] ? ` (${TYPE_LABEL[w.type]})` : ''}</option>)}
+            <option value="">Pilih tujuan…</option>
+            {targets.filter((w) => String(w.id) !== String(from)).map((w) => <option key={w.id} value={w.id}>{w.branch_name || w.name}{w.type === 'reject' ? ' (Reject)' : ''}</option>)}
           </select>
         </label>
 

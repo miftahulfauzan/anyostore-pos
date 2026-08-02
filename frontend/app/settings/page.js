@@ -194,11 +194,11 @@ export default function SettingsPage() {
           <p className="muted" style={{ fontSize: '.85rem' }}>Kelola cabang. Tidak bisa hapus toko dengan transaksi.</p>
           <div className="table-wrap" style={{ marginTop: '.75rem' }}>
             <table>
-              <thead><tr><th>ID</th><th>Nama</th><th>Tipe</th><th>Produk</th><th>User</th><th>Aktif</th><th>Aksi</th></tr></thead>
+              <thead><tr><th>No</th><th>Nama</th><th>Tipe</th><th>Produk</th><th>User</th><th>Aktif</th><th>Aksi</th></tr></thead>
               <tbody>
-                {stores.map((s) => (
+                {stores.map((s, idx) => (
                   <tr key={s.id}>
-                    <td>{s.id}</td>
+                    <td>{idx + 1}</td>
                     <td><strong>{s.name}</strong>{String(s.id) === String(branch) ? <span className="tag" style={{ marginLeft: '.5rem' }}>dipilih</span> : null}<br /><small className="muted">{s.address || '-'}</small></td>
                     <td>
                       <select value={s.type || 'toko'} disabled={String(s.id) === String(branch) || !s.is_active} style={{ padding: '.3rem .4rem', fontSize: '.78rem' }} onChange={async (e) => {
