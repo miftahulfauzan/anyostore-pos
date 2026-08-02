@@ -50,6 +50,7 @@ const navigation = [
       { href: '/inventory/incoming', label: 'Produk Masuk', icon: ArrowDownToLine, roles: ['owner', 'manager', 'admin', 'gudang'] },
       { href: '/inventory/outgoing', label: 'Produk Keluar', icon: ArrowUpFromLine, roles: ['owner', 'manager', 'admin', 'gudang'] },
       { href: '/inventory/opname', label: 'Stok Opname', icon: ClipboardCheck, roles: ['owner', 'manager', 'admin', 'gudang'] },
+      { href: '/inventory/transfers', label: 'Transfer Stok', icon: ArrowUpFromLine, roles: ['owner', 'manager', 'admin', 'gudang'] },
       { href: '/inventory/stock', label: 'Laporan Stok', icon: ChartNoAxesCombined, roles: ['owner', 'manager', 'admin', 'gudang'] },
     ],
   },

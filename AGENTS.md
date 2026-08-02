@@ -71,7 +71,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 | `product_variants` | product_id, size, color, sku, barcode, stock, price, is_active |
 | `product_photos` | product_id, variant_id, filename, path, media_type (image/video), is_primary, sort_order, `transform` (scale,x,y) |
 | `warehouse_stocks` | warehouse_id, product_id, variant_id, quantity, reserved_quantity |
-| `warehouses` | branch_id, name, description |
+| `warehouses` | branch_id, name, description, type (utama/cadangan/reject) |
 | `transactions` | branch_id, invoice_no, client_transaction_id (UNIQUE), user_id, customer_id, subtotal, discount, grand_total, payment_method, status (completed/cancelled/refunded/pending/held), cancelled_amount |
 | `transaction_items` | transaction_id, product_id, variant_id, product_name, quantity, price, original_price, price_override, cost, cancelled_qty |
 | `invoice_sequences` | branch_id + business_date (PK), last_number — counter invoice atomik |
@@ -83,7 +83,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 
 ### Migrasi (`backend/migrations/`)
 
-16 file: promotions, branch_contact_tax, denim_variant_stock, product_media (variant_id, media_type), sync_variant_colours, media_files, price_tiers, customer_price_tier, transaction_cancellation, branch_pricing_tier, expense_income_type, commission_per_pcs_customer_tier, product_photo_transform, partial_cancel_purchase_received (tambah `partially_cancelled` ke ENUM status transactions + kolom `received_at` di purchase_orders untuk laporan PPN Masukan), photo_transform_percent (konversi pan px→% supaya crop konsisten lintas ukuran box), stock_mutation_channel (kolom `channel` di stock_mutations: wa/shopee/tiktok/reseller/toko untuk penjualan gudang via channel).
+17 file: promotions, branch_contact_tax, denim_variant_stock, product_media (variant_id, media_type), sync_variant_colours, media_files, price_tiers, customer_price_tier, transaction_cancellation, branch_pricing_tier, expense_income_type, commission_per_pcs_customer_tier, product_photo_transform, partial_cancel_purchase_received (tambah `partially_cancelled` ke ENUM status transactions + kolom `received_at` di purchase_orders untuk laporan PPN Masukan), photo_transform_percent (konversi pan px→% supaya crop konsisten lintas ukuran box), stock_mutation_channel (kolom `channel` di stock_mutations: wa/shopee/tiktok/reseller/toko untuk penjualan gudang via channel), warehouse_type (kolom `type` di warehouses: utama/cadangan/reject untuk gudang barang reject).
 
 **Jebakan**: `migrate.js` pakai INSERT IGNORE toleransi kolom duplikat — bisa sembunyikan error migrasi lain. Kalau migrasi baru gagal, cek log container backend.
 

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import AppShell from '../components/AppShell';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const TYPE_LABEL = { utama: 'Gudang Utama', cadangan: 'Gudang Cadangan', reject: 'Gudang Reject' };
 
 export default function InventoryPage() {
   const [branches, setBranches] = useState([]);
@@ -12,6 +13,9 @@ export default function InventoryPage() {
   const [stock, setStock] = useState([]);
   const [message, setMessage] = useState('');
   const [isOwner, setIsOwner] = useState(false);
+  const [canManage, setCanManage] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newWh, setNewWh] = useState({ name: '', type: 'utama', description: '' });
   const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
 
   async function load(id) {
@@ -35,7 +39,7 @@ export default function InventoryPage() {
     if (!localStorage.getItem('pos_access_token')) return window.location.assign('/');
     fetch(api + '/auth/me', { headers: headers() })
       .then((r) => r.json())
-      .then((b) => { if (b?.data?.role === 'owner') setIsOwner(true); })
+      .then((b) => { if (b?.data?.role === 'owner') setIsOwner(true); if (['owner', 'manager', 'admin'].includes(b?.data?.role)) setCanManage(true); })
       .catch(() => {});
     fetch(api + '/inventory/warehouses', { headers: headers() }).then(async (response) => {
       const body = await response.json();
@@ -61,14 +65,37 @@ export default function InventoryPage() {
     return Array.from(grouped.values());
   }, [stock]);
 
-  return <AppShell title="Stok Produk" eyebrow="PRODUK & INVENTORI" actions={<a className="button-link" href="/inventory/opname">Stok Opname</a>}><section className="panel inventory-panel">
+  return <AppShell title="Stok Produk" eyebrow="PRODUK & INVENTORI" actions={<><a className="button-link" href="/inventory/transfers">Transfer Stok</a><a className="button-link" href="/inventory/opname">Stok Opname</a></>}><section className="panel inventory-panel">
     {isOwner && (
       <label>Toko / Cabang<select value={branchId} onChange={(event) => { setBranchId(event.target.value); loadWarehouses(event.target.value).catch((error) => setMessage(error.message)); }}>
         <option value="">Toko saya</option>
         {branches.filter((b) => b.is_active).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
       </select></label>
     )}
-    <label>Gudang<select value={warehouse} onChange={(event) => { setWarehouse(event.target.value); load(event.target.value).catch((error) => setMessage(error.message)); }}>{warehouses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+    <label>Gudang<select value={warehouse} onChange={(event) => { setWarehouse(event.target.value); load(event.target.value).catch((error) => setMessage(error.message)); }}>{warehouses.map((item) => <option key={item.id} value={item.id}>{item.name}{item.type && TYPE_LABEL[item.type] ? ` (${TYPE_LABEL[item.type]})` : ''}</option>)}</select></label>
+    {canManage && <button type="button" className="button-link" style={{ marginBottom: 8 }} onClick={() => setShowAdd((v) => !v)}>{showAdd ? 'Tutup' : '+ Tambah Gudang'}</button>}
+    {showAdd && (
+      <div style={{ display: 'grid', gap: 8, padding: 12, border: '1px solid #e2e8f0', borderRadius: 8, marginBottom: 8 }}>
+        <input placeholder="Nama gudang (misal: Gudang Reject)" value={newWh.name} onChange={(e) => setNewWh({ ...newWh, name: e.target.value })} />
+        <select value={newWh.type} onChange={(e) => setNewWh({ ...newWh, type: e.target.value })}>
+          <option value="utama">Gudang Utama</option>
+          <option value="cadangan">Gudang Cadangan</option>
+          <option value="reject">Gudang Reject (barang rusak/retur)</option>
+        </select>
+        <input placeholder="Keterangan (opsional)" value={newWh.description} onChange={(e) => setNewWh({ ...newWh, description: e.target.value })} />
+        <button type="button" onClick={async () => {
+          try {
+            const r = await fetch(api + '/inventory/warehouses', { method: 'POST', headers: { ...headers(), 'Content-Type': 'application/json' }, body: JSON.stringify(newWh) });
+            const b = await r.json();
+            if (!r.ok) throw new Error(b.message);
+            setMessage('Gudang "' + b.data.name + '" dibuat.');
+            setShowAdd(false);
+            setNewWh({ name: '', type: 'utama', description: '' });
+            loadWarehouses(branchId).catch((error) => setMessage(error.message));
+          } catch (e) { setMessage(e.message); }
+        }}>Simpan Gudang</button>
+      </div>
+    )}
     <p className="muted">Produk tanpa varian memakai stok produk. Produk berwarna menampilkan stok setiap warna secara terpisah.</p>
     {message && <p className="message">{message}</p>}
     <div className="inventory-list">{products.map((product) => <article key={product.id} className="inventory-product"><header><div><strong>{product.name}</strong><span>{product.sku || 'Tanpa SKU'}</span></div>{product.variants.length > 0 ? <b>{product.variants.reduce((total, item) => total + Number(item.quantity), 0)} total varian</b> : <b>{product.standardStock?.quantity || 0} stok</b>}</header>{product.variants.length > 0 ? <div className="inventory-variants">{product.variants.map((variant) => <div key={variant.variant_id}><span className="inventory-color">{variant.variant_color}</span><strong>{variant.quantity}</strong><small>{variant.reserved_quantity} dialokasikan</small></div>)}{product.standardStock && Number(product.standardStock.quantity) > 0 && <p className="unallocated-stock">Stok umum {product.standardStock.quantity} belum dialokasikan ke warna.</p>}</div> : <div className="inventory-standard"><span>Stok produk</span><strong>{product.standardStock?.quantity || 0}</strong><small>{product.standardStock?.reserved_quantity || 0} dialokasikan</small></div>}</article>)}{!products.length && <p>Belum ada stok di gudang ini.</p>}</div>

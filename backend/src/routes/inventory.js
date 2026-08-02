@@ -11,17 +11,18 @@ router.get('/warehouses', async (req, res, next) => {
   try {
     const requestedBranch = Number(req.query.branch_id);
     const branchId = req.user.role === 'owner' && Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
-    const [warehouses] = await db.execute('SELECT id, name, description FROM warehouses WHERE branch_id = ? AND is_active = TRUE ORDER BY name', [branchId]);
+    const [warehouses] = await db.execute('SELECT id, name, description, type FROM warehouses WHERE branch_id = ? AND is_active = TRUE ORDER BY name', [branchId]);
     res.json({ success: true, data: warehouses });
   } catch (error) { next(error); }
 });
 
 router.post('/warehouses', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, type } = req.body;
     if (!name?.trim()) return res.status(400).json({ success: false, message: 'Nama gudang wajib diisi' });
-    const [result] = await db.execute('INSERT INTO warehouses (branch_id, name, description) VALUES (?, ?, ?)', [req.user.branch_id, name.trim(), description?.trim() || null]);
-    res.status(201).json({ success: true, data: { id: result.insertId } });
+    const whType = ['utama', 'cadangan', 'reject'].includes(type) ? type : 'utama';
+    const [result] = await db.execute('INSERT INTO warehouses (branch_id, name, description, type) VALUES (?, ?, ?, ?)', [req.user.branch_id, name.trim(), description?.trim() || null, whType]);
+    res.status(201).json({ success: true, data: { id: result.insertId, name: name.trim(), type: whType } });
   } catch (error) { next(error); }
 });
 
