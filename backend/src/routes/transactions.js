@@ -338,6 +338,13 @@ router.put('/:id/cancel', authorize('owner', 'manager', 'admin'), async (req, re
     if (!transactions[0]) throw httpError(404, 'Transaksi tidak ditemukan');
     if (transactions[0].status === 'cancelled') throw httpError(400, 'Transaksi sudah dibatalkan seluruhnya');
 
+    // Refund harus proporsional terhadap yang benar-benar dibayar. Diskon tingkat
+    // transaksi (persen/nominal/promo) dicatat di transactions.discount, sehingga
+    // refund per-item dihitung dari nilai item lalu dikali rasio grand_total/subtotal.
+    const txSubtotal = Number(transactions[0].subtotal || 0);
+    const txGrandTotal = Number(transactions[0].grand_total || 0);
+    const paidRatio = txSubtotal > 0 ? txGrandTotal / txSubtotal : 1;
+
     let totalRefund = 0;
     for (const input of cancelItems) {
       const itemId = Number(input.transaction_item_id);
@@ -359,8 +366,9 @@ router.put('/:id/cancel', authorize('owner', 'manager', 'admin'), async (req, re
       const warehouseId = mutations[0]?.warehouse_id;
       if (!warehouseId) throw httpError(400, `Gudang asal item ${item.product_name} tidak ditemukan`);
 
-      // Hitung refund: qty * harga - proporsi diskon item.
-      const itemRefund = money(cancelQty * item.price - (item.discount / item.quantity) * cancelQty);
+      // Hitung refund: nilai item (qty * harga - proporsi diskon item) * rasio pembayaran.
+      const itemValue = money(cancelQty * item.price - (item.discount / item.quantity) * cancelQty);
+      const itemRefund = money(itemValue * paidRatio);
       totalRefund = money(totalRefund + itemRefund);
 
       // Restore stok.
