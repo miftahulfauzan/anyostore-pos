@@ -25,6 +25,7 @@ services:
       - ./backend/migrations/20260728_commission_per_pcs_customer_tier.sql:/docker-entrypoint-initdb.d/013-commission_per_pcs.sql:ro
       - ./backend/migrations/20260802_partial_cancel_purchase_received.sql:/docker-entrypoint-initdb.d/014-partial_cancel_purchase_received.sql:ro
       - ./backend/migrations/20260802_photo_transform_percent.sql:/docker-entrypoint-initdb.d/015-photo_transform_percent.sql:ro
+      - ./backend/migrations/20260802_stock_mutation_channel.sql:/docker-entrypoint-initdb.d/016-stock_mutation_channel.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p$${MYSQL_ROOT_PASSWORD}"]
       interval: 10s

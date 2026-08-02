@@ -3,7 +3,14 @@ import { useEffect, useMemo, useState } from 'react';
 import AppShell from '../../components/AppShell';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-const blank = () => ({ product_id: '', quantity: '' });
+const blank = () => ({ product_id: '', variant_id: '', quantity: '' });
+const CHANNELS = [
+  { value: 'toko', label: 'Toko / internal' },
+  { value: 'wa', label: 'Penjualan WhatsApp' },
+  { value: 'shopee', label: 'Shopee' },
+  { value: 'tiktok', label: 'TikTok' },
+  { value: 'reseller', label: 'Reseller' },
+];
 
 export default function Outgoing() {
   const [stores, setStores] = useState([]);
@@ -11,6 +18,7 @@ export default function Outgoing() {
   const [store, setStore] = useState('');
   const [items, setItems] = useState([blank()]);
   const [notes, setNotes] = useState('');
+  const [channel, setChannel] = useState('toko');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [query, setQuery] = useState('');
@@ -50,7 +58,7 @@ export default function Outgoing() {
   function addSelected() {
     const rows = [];
     for (const id of selected) {
-      rows.push({ product_id: id, quantity: '' });
+      rows.push({ product_id: id, variant_id: '', quantity: '' });
     }
     if (!rows.length) return;
     setItems((prev) => [...prev.filter((r) => r.product_id), ...rows]);
@@ -63,12 +71,12 @@ export default function Outgoing() {
     e.preventDefault();
     try {
       setSaving(true);
-      const payload = items.map((i) => ({ product_id: Number(i.product_id), quantity: Number(i.quantity) })).filter((i) => i.product_id && i.quantity > 0);
+      const payload = items.map((i) => ({ product_id: Number(i.product_id), variant_id: i.variant_id ? Number(i.variant_id) : undefined, quantity: Number(i.quantity) })).filter((i) => i.product_id && i.quantity > 0);
       if (!payload.length) throw new Error('Tambahkan minimal satu produk dengan jumlah > 0');
-      const r = await fetch(api + '/inventory/outgoing', { method: 'POST', headers: h(), body: JSON.stringify({ branch_id: Number(store), items: payload, notes }) });
+      const r = await fetch(api + '/inventory/outgoing', { method: 'POST', headers: h(), body: JSON.stringify({ branch_id: Number(store), items: payload, notes, channel }) });
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
-      setMessage(b.data.items + ' produk keluar berhasil dicatat dari ' + (stores.find((s) => String(s.id) === store)?.name || '') + '.');
+      setMessage(b.data.items + ' produk keluar berhasil dicatat dari ' + (stores.find((s) => String(s.id) === store)?.name || '') + ' (' + (CHANNELS.find((c) => c.value === channel)?.label || channel) + ').');
       setItems([blank()]);
       setNotes('');
       setShowPicker(false);
@@ -82,6 +90,11 @@ export default function Outgoing() {
         <label>Toko asal
           <select required value={store} onChange={(e) => { setStore(e.target.value); setItems([blank()]); setSelected(new Set()); setShowPicker(false); loadProducts(e.target.value).catch((x) => setMessage(x.message)); }}>
             {stores.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>
+        </label>
+        <label>Keperluan / saluran
+          <select value={channel} onChange={(e) => setChannel(e.target.value)}>
+            {CHANNELS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
         </label>
 
@@ -117,11 +130,19 @@ export default function Outgoing() {
           {items.map((item, index) => (
             <article key={index}>
               <label>Produk
-                <select required value={item.product_id} onChange={(e) => update(index, 'product_id', e.target.value)}>
+                <select required value={item.product_id} onChange={(e) => { update(index, 'product_id', e.target.value); update(index, 'variant_id', ''); }}>
                   <option value="">Pilih produk</option>
                   {products.map((entry) => <option key={entry.id} value={entry.id}>{entry.sku || '—'} — {entry.name}</option>)}
                 </select>
               </label>
+              {(() => { const p = products.find((entry) => String(entry.id) === String(item.product_id)); return p && p.variants && p.variants.length ? (
+                <label>Warna
+                  <select value={item.variant_id} onChange={(e) => update(index, 'variant_id', e.target.value)}>
+                    <option value="">Semua / tanpa warna</option>
+                    {p.variants.map((v) => <option key={v.id} value={v.id}>{v.color}</option>)}
+                  </select>
+                </label>
+              ) : null; })()}
               <label>Jumlah<input required min="1" type="number" value={item.quantity} onChange={(e) => update(index, 'quantity', e.target.value)} /></label>
               {items.length > 1 && <button type="button" onClick={() => remove(index)}>Hapus</button>}
             </article>
