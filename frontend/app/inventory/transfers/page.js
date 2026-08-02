@@ -91,7 +91,7 @@ export default function TransferPage() {
       const r = await fetch(url, { method: 'POST', headers: h(), body: JSON.stringify({ from_warehouse_id: Number(from), to_warehouse_id: Number(to), items: payload, notes }) });
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
-      setMessage('Transfer stok berhasil (' + b.data.status + ').');
+      setMessage('Transfer stok berhasil (' + b.data.status + ').' + (b.data.auto_created ? ' Produk yang belum ada di tujuan dibuat otomatis.' : ''));
       setItems([blank()]);
       setNotes('');
       setShowPicker(false);
@@ -102,7 +102,7 @@ export default function TransferPage() {
 
   return <AppShell title="Transfer Stok" eyebrow="PRODUK & INVENTORI" actions={<a className="button-link" href="/inventory">Lihat Stok</a>}>
     <section className="panel">
-      <p className="muted">Pindahkan stok antar gudang: gudang → gudang tujuan (termasuk gudang reject), atau antar toko. Stok asal berkurang, stok tujuan bertambah.</p>
+      <p className="muted">Pindahkan stok antar gudang: gudang → gudang tujuan (termasuk gudang reject), atau antar toko. Stok asal berkurang, stok tujuan bertambah. Produk yang belum ada di toko tujuan dibuat otomatis (katalog, warna, dan foto disalin).</p>
       <form onSubmit={submit}>
         <label>Gudang asal
           <select required value={from} onChange={(e) => { setFrom(e.target.value); setItems([blank()]); setSelected(new Set()); setShowPicker(false); loadProducts(e.target.value).catch((x) => setMessage(x.message)); }}>
