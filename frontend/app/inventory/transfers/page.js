@@ -35,8 +35,9 @@ export default function TransferPage() {
     fetch(api + '/inventory/warehouses/all', { headers: h() }).then(async (r) => {
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
-      // Hanya tampilkan gudang utama per lokasi (tanpa cadangan & reject).
-      const visible = (b.data || []).filter((w) => w.type === 'utama');
+      // Tampilkan hanya gudang utama per lokasi — buang gudang cadangan & reject,
+      // termasuk yang namanya mengandung "cadangan" (type mungkin masih 'utama').
+      const visible = (b.data || []).filter((w) => w.type !== 'cadangan' && w.type !== 'reject' && !/cadangan/i.test(w.name));
       setWarehouses(visible);
       setTargets(visible);
       const first = String(visible[0]?.id || '');
