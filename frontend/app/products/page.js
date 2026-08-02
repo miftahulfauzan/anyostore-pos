@@ -92,12 +92,5 @@ export default function ProductsPage() {
         </div>
       </div>
     )}
-
-    <style>{`
-      .icon-action { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; color: #334155; cursor: pointer; text-decoration: none; transition: all .2s; }
-      .icon-action:hover { border-color: #1e3a5f; color: #1e3a5f; background: #f8fafc; }
-      .icon-action.danger:hover { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
-      @media print { body * { visibility: hidden; } .barcode-print-area, .barcode-print-area * { visibility: visible; } .barcode-print-area { position: fixed; inset: 0; } }
-    `}</style>
   </AppShell>;
 }
