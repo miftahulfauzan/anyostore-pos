@@ -42,15 +42,15 @@ const navigation = [
   {
     label: 'PRODUK & INVENTORI',
     items: [
-      { href: '/products', label: 'Daftar Produk', icon: Package, roles: ['owner', 'manager', 'admin'] },
-      { href: '/products/new', label: 'Tambah Produk', icon: PlusCircle, roles: ['owner', 'manager', 'admin'] },
+      { href: '/products', label: 'Daftar Produk', icon: Package, roles: ['owner', 'manager', 'admin', 'gudang'] },
+      { href: '/products/new', label: 'Tambah Produk', icon: PlusCircle, roles: ['owner', 'manager', 'admin', 'gudang'] },
       { href: '/inventory', label: 'Stok Produk', icon: Boxes },
       { href: '/inventory/movements', label: 'Riwayat Stok', icon: History },
       { href: '/inventory/barcodes', label: 'Cetak Barcode', icon: Barcode },
       { href: '/inventory/incoming', label: 'Produk Masuk', icon: ArrowDownToLine, roles: ['owner', 'manager', 'admin', 'gudang'] },
       { href: '/inventory/outgoing', label: 'Produk Keluar', icon: ArrowUpFromLine, roles: ['owner', 'manager', 'admin', 'gudang'] },
       { href: '/inventory/opname', label: 'Stok Opname', icon: ClipboardCheck, roles: ['owner', 'manager', 'admin', 'gudang'] },
-      { href: '/inventory/stock', label: 'Laporan Stok', icon: ChartNoAxesCombined, roles: ['owner', 'manager', 'admin'] },
+      { href: '/inventory/stock', label: 'Laporan Stok', icon: ChartNoAxesCombined, roles: ['owner', 'manager', 'admin', 'gudang'] },
     ],
   },
   {

@@ -107,7 +107,7 @@ router.get('/categories', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-router.post('/categories', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+router.post('/categories', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
     const { name, slug, sku_prefix: skuPrefix, description } = req.body;
     if (!name?.trim()) return res.status(400).json({ success: false, message: 'Nama kategori wajib diisi' });
@@ -119,7 +119,7 @@ router.post('/categories', authorize('owner', 'manager', 'admin'), async (req, r
   } catch (error) { next(error); }
 });
 
-router.put('/categories/:id', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+router.put('/categories/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID tidak valid' });
@@ -204,7 +204,7 @@ router.get('/:id', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-router.post('/:id/photo', authorize('owner', 'manager', 'admin'), upload.single('photo'), async (req, res, next) => {
+router.post('/:id/photo', authorize('owner', 'manager', 'admin', 'gudang'), upload.single('photo'), async (req, res, next) => {
   try {
     if (!req.file || !req.file.mimetype.startsWith('image/')) return res.status(400).json({ success: false, message: 'Pilih gambar JPG, PNG, atau WebP (maks. 30 MB)' });
     const [products] = await db.execute('SELECT id FROM products WHERE id = ? AND branch_id = ?', [req.params.id, req.user.branch_id]);
@@ -227,7 +227,7 @@ router.post('/:id/photo', authorize('owner', 'manager', 'admin'), upload.single(
   } catch (error) { next(error); }
 });
 
-router.post('/:id/media', authorize('owner', 'manager', 'admin'), upload.array('media', 11), async (req, res, next) => {
+router.post('/:id/media', authorize('owner', 'manager', 'admin', 'gudang'), upload.array('media', 11), async (req, res, next) => {
   try {
     const files = req.files || [];
     if (!files.length) return res.status(400).json({ success: false, message: 'Pilih foto atau video untuk diunggah' });
@@ -253,7 +253,7 @@ router.post('/:id/media', authorize('owner', 'manager', 'admin'), upload.array('
   }
 });
 
-router.post('/:id/media-data', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+router.post('/:id/media-data', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
     const file = decodeDataUpload(req.body, dataUploadOptions);
     const [products] = await db.execute('SELECT id FROM products WHERE id = ? AND branch_id = ?', [req.params.id, req.user.branch_id]);
@@ -272,7 +272,7 @@ router.post('/:id/media-data', authorize('owner', 'manager', 'admin'), async (re
   } catch (error) { next(error); }
 });
 
-router.delete('/:id/media/:mediaId', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+router.delete('/:id/media/:mediaId', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
     const [rows] = await db.execute(
       `SELECT pp.id, pp.path, pp.media_type, pp.is_primary
@@ -297,7 +297,7 @@ router.delete('/:id/media/:mediaId', authorize('owner', 'manager', 'admin'), asy
 });
 
 // Simpan urutan foto produk (drag & drop). Body: { order: [mediaId, ...] } — index 0 = foto utama.
-router.patch('/:id/media/reorder', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+router.patch('/:id/media/reorder', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
     const order = Array.isArray(req.body.order) ? req.body.order.map((id) => Number(id)).filter(Number.isInteger) : [];
     if (!order.length) return res.status(400).json({ success: false, message: 'Urutan media tidak valid' });
@@ -315,7 +315,7 @@ router.patch('/:id/media/reorder', authorize('owner', 'manager', 'admin'), async
   } catch (error) { next(error); }
 });
 
-router.post('/:id/variants/:variantId/photo', authorize('owner', 'manager', 'admin'), upload.single('media'), async (req, res, next) => {
+router.post('/:id/variants/:variantId/photo', authorize('owner', 'manager', 'admin', 'gudang'), upload.single('media'), async (req, res, next) => {
   try {
     if (!req.file || !req.file.mimetype.startsWith('image/')) return res.status(400).json({ success: false, message: 'Foto varian harus JPG, PNG, atau WebP' });
     const [variants] = await db.execute('SELECT pv.id FROM product_variants pv JOIN products p ON p.id = pv.product_id WHERE pv.id = ? AND pv.product_id = ? AND p.branch_id = ?', [req.params.variantId, req.params.id, req.user.branch_id]);
@@ -330,7 +330,7 @@ router.post('/:id/variants/:variantId/photo', authorize('owner', 'manager', 'adm
 });
 
 // PATCH /api/products/:id/media/:mediaId/transform — save zoom/pan adjustment
-router.patch('/:id/media/:mediaId/transform', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+router.patch('/:id/media/:mediaId/transform', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
     const { transform } = req.body;
     if (typeof transform !== 'string' || (transform !== null && !/^-?\d+(\.\d+)?,-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(transform))) {
@@ -346,7 +346,7 @@ router.patch('/:id/media/:mediaId/transform', authorize('owner', 'manager', 'adm
   } catch (error) { next(error); }
 });
 
-router.post('/:id/variants/:variantId/photo-data', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+router.post('/:id/variants/:variantId/photo-data', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
     const file = decodeDataUpload(req.body, { ...dataUploadOptions, mimeTypes: ['image/jpeg', 'image/png', 'image/webp'] });
     const [variants] = await db.execute('SELECT pv.id FROM product_variants pv JOIN products p ON p.id = pv.product_id WHERE pv.id = ? AND pv.product_id = ? AND p.branch_id = ?', [req.params.variantId, req.params.id, req.user.branch_id]);
@@ -360,7 +360,7 @@ router.post('/:id/variants/:variantId/photo-data', authorize('owner', 'manager',
   } catch (error) { next(error); }
 });
 
-router.post('/', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+router.post('/', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
     const { name, category_id: categoryId, sku, barcode, price, cost = 0, min_stock: minStock = 5, gender = 'unisex', description, wholesale_prices: wholesalePrices, variants: inputVariants } = req.body;
     if (!name?.trim() || !Number.isInteger(Number(categoryId)) || !positiveNumber(price) || !positiveNumber(cost) || !positiveNumber(minStock)) {
@@ -383,7 +383,7 @@ router.post('/', authorize('owner', 'manager', 'admin'), async (req, res, next) 
   } catch (error) { next(error); }
 });
 
-router.put('/:id', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+router.put('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
     const { name, category_id: categoryId, sku, barcode, price, cost = 0, min_stock: minStock = 5, gender = 'unisex', description, wholesale_prices: wholesalePrices, variants: inputVariants } = req.body;
     if (!name?.trim() || !Number.isInteger(Number(categoryId)) || !positiveNumber(price) || !positiveNumber(cost) || !positiveNumber(minStock)) return res.status(400).json({ success: false, message: 'Nama, kategori, harga, biaya, dan stok minimum tidak valid' });
@@ -421,7 +421,7 @@ router.put('/:id', authorize('owner', 'manager', 'admin'), async (req, res, next
 });
 
 // DELETE /api/products/:id — soft-delete (is_active=false) if has transactions, else hard-delete
-router.delete('/:id', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+router.delete('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID tidak valid' });
