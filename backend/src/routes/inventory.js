@@ -26,6 +26,35 @@ router.post('/warehouses', authorize('owner', 'manager', 'admin'), async (req, r
   } catch (error) { next(error); }
 });
 
+// Rename / ubah tipe gudang (owner/manager/admin).
+router.put('/warehouses/:id', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const { name, description, type } = req.body;
+    if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID gudang tidak valid' });
+    if (!name?.trim()) return res.status(400).json({ success: false, message: 'Nama gudang wajib diisi' });
+    const whType = ['utama', 'cadangan', 'reject'].includes(type) ? type : 'utama';
+    const [r] = await db.execute('UPDATE warehouses SET name = ?, description = ?, type = ? WHERE id = ? AND branch_id = ?', [name.trim(), description?.trim() || null, whType, id, req.user.branch_id]);
+    if (!r.affectedRows) return res.status(404).json({ success: false, message: 'Gudang tidak ditemukan' });
+    res.json({ success: true, data: { id, name: name.trim(), type: whType } });
+  } catch (error) { next(error); }
+});
+
+// Hapus gudang (owner/manager/admin). Tolak jika masih ada stok.
+router.delete('/warehouses/:id', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID gudang tidak valid' });
+    const [wh] = await db.execute('SELECT id, branch_id FROM warehouses WHERE id = ? AND branch_id = ?', [id, req.user.branch_id]);
+    if (!wh[0]) return res.status(404).json({ success: false, message: 'Gudang tidak ditemukan' });
+    const [stk] = await db.execute('SELECT COALESCE(SUM(quantity),0) AS qty, COUNT(*) AS rows FROM warehouse_stocks WHERE warehouse_id = ?', [id]);
+    if (Number(stk[0].qty) > 0 || Number(stk[0].rows) > 0) return res.status(400).json({ success: false, message: 'Gudang masih memiliki stok — pindahkan dulu stoknya sebelum dihapus' });
+    await db.execute('DELETE FROM stock_transfers WHERE from_warehouse_id = ? OR to_warehouse_id = ?', [id, id]);
+    await db.execute('DELETE FROM warehouses WHERE id = ?', [id]);
+    res.json({ success: true, message: 'Gudang dihapus' });
+  } catch (error) { next(error); }
+});
+
 router.get('/mutations', async (req, res, next) => {
   try {
     const requestedBranch = Number(req.query.branch_id);
