@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import {
   ArrowDownToLine,
+  ArrowRightLeft,
   ArrowUpFromLine,
-  Barcode,
   BadgeDollarSign,
   Boxes,
   ChartNoAxesCombined,
@@ -47,6 +47,7 @@ const navigation = [
       { href: '/inventory', label: 'Stok Produk', icon: Boxes },
       { href: '/inventory/movements', label: 'Riwayat Stok', icon: History },
       { href: '/inventory/mutations', label: 'Mutasi Stok', icon: ArrowUpFromLine, roles: ['owner', 'manager', 'admin', 'gudang'] },
+      { href: '/inventory/transfers', label: 'Transfer Stok', icon: ArrowRightLeft, roles: ['owner', 'manager', 'admin', 'gudang'] },
       { href: '/inventory/opname', label: 'Stok Opname', icon: ClipboardCheck, roles: ['owner', 'manager', 'admin', 'gudang'] },
       { href: '/inventory/stock', label: 'Laporan Stok', icon: ChartNoAxesCombined, roles: ['owner', 'manager', 'admin', 'gudang'] },
     ],
