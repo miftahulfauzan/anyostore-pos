@@ -15,8 +15,16 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            set -e
             cd /home/ubuntu/anyostore-pos
+            BEFORE=$(git rev-parse HEAD)
             git pull origin main
+            AFTER=$(git rev-parse HEAD)
+            echo "deploy from $BEFORE -> $AFTER"
+            if [ "$BEFORE" = "$AFTER" ]; then
+              echo "::error::Tidak ada commit baru yang ter-pull. Cek repo VPS (git status / konflik lokal)."
+              exit 1
+            fi
             DISK_USAGE=$(df --output=pcent /home/ubuntu/anyostore-pos | tail -1 | tr -dc '0-9')
             echo "Disk usage: ${DISK_USAGE}%"
             if [ "${DISK_USAGE:-0}" -ge 92 ]; then
