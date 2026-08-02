@@ -22,3 +22,4 @@ uploads/
 .opencode/
 .agents/
 skills-lock.json
+.gstack/

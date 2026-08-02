@@ -157,7 +157,7 @@ router.get('/products/:id', async (req, res, next) => {
       `SELECT id, path, media_type, is_primary, sort_order, \`transform\` FROM product_photos WHERE product_id=? ORDER BY is_primary DESC, sort_order ASC, id DESC`,
       [id]
     );
-    const [variants] = await db.execute(`SELECT id, color, size, price, (SELECT path FROM product_photos WHERE variant_id=product_variants.id ORDER BY sort_order LIMIT 1) AS photo_path FROM product_variants WHERE product_id=? AND is_active=TRUE ORDER BY color`, [id]);
+    const [variants] = await db.execute(`SELECT id, color, size, price, (SELECT path FROM product_photos WHERE variant_id=product_variants.id ORDER BY sort_order LIMIT 1) AS photo_path, (SELECT transform FROM product_photos WHERE variant_id=product_variants.id ORDER BY sort_order LIMIT 1) AS photo_transform FROM product_variants WHERE product_id=? AND is_active=TRUE ORDER BY color`, [id]);
 
     const colors = [...new Set(variants.map(v => v.color).filter(Boolean))];
 
