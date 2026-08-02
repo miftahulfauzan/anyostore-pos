@@ -1,11 +1,13 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '../components/AppShell';
+import StockReportSection from './stock-view';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const TYPE_LABEL = { utama: 'Gudang Utama', cadangan: 'Gudang Cadangan', reject: 'Gudang Reject' };
 
 export default function InventoryPage() {
+  const [tab, setTab] = useState('stok');
   const [branches, setBranches] = useState([]);
   const [branchId, setBranchId] = useState('');
   const [warehouses, setWarehouses] = useState([]);
@@ -65,7 +67,13 @@ export default function InventoryPage() {
     return Array.from(grouped.values());
   }, [stock]);
 
-  return <AppShell title="Stok Produk" eyebrow="PRODUK & INVENTORI" actions={<><a className="button-link" href="/inventory/transfers">Transfer Stok</a><a className="button-link" href="/inventory/opname">Stok Opname</a></>}><section className="panel inventory-panel">
+  return <AppShell title="Stok Produk" eyebrow="PRODUK & INVENTORI" actions={<><a className="button-link" href="/inventory/transfers">Transfer Stok</a><a className="button-link" href="/inventory/opname">Stok Opname</a></>}>
+    <div className="tabs">
+      <button type="button" className={tab === 'stok' ? 'active' : ''} onClick={() => setTab('stok')}>Stok Gudang</button>
+      <button type="button" className={tab === 'laporan' ? 'active' : ''} onClick={() => setTab('laporan')}>Laporan Stok</button>
+    </div>
+    {tab === 'laporan' ? <StockReportSection /> : (
+    <section className="panel inventory-panel">
     {isOwner && (
       <label>Toko / Cabang<select value={branchId} onChange={(event) => { setBranchId(event.target.value); loadWarehouses(event.target.value).catch((error) => setMessage(error.message)); }}>
         <option value="">Toko saya</option>
@@ -120,5 +128,7 @@ export default function InventoryPage() {
     )}
     {message && <p className="message">{message}</p>}
     <div className="inventory-list">{products.map((product) => <article key={product.id} className="inventory-product"><header><div><strong>{product.name}</strong><span>{product.sku || 'Tanpa SKU'}</span></div>{product.variants.length > 0 ? <b>{product.variants.reduce((total, item) => total + Number(item.quantity), 0)} total varian</b> : <b>{product.standardStock?.quantity || 0} stok</b>}</header>{product.variants.length > 0 ? <div className="inventory-variants">{product.variants.map((variant) => <div key={variant.variant_id}><span className="inventory-color">{variant.variant_color}</span><strong>{variant.quantity}</strong><small>{variant.reserved_quantity} dialokasikan</small></div>)}{product.standardStock && Number(product.standardStock.quantity) > 0 && <p className="unallocated-stock">Stok umum {product.standardStock.quantity} belum dialokasikan ke warna.</p>}</div> : <div className="inventory-standard"><span>Stok produk</span><strong>{product.standardStock?.quantity || 0}</strong><small>{product.standardStock?.reserved_quantity || 0} dialokasikan</small></div>}</article>)}{!products.length && <p>Belum ada stok di gudang ini.</p>}</div>
-  </section></AppShell>;
+  </section>
+    )}
+  </AppShell>;
 }

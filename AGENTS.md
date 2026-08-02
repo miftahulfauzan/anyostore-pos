@@ -131,19 +131,22 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 | `/products` | `products/page.js` | Daftar produk |
 | `/products/new` | `products/new/page.js` | Tambah produk |
 | `/products/[id]/edit` | `products/[id]/edit/page.js` | Edit produk + media + varian |
-| `/inventory` | `inventory/page.js` | Stok |
-| `/inventory/stock` | `inventory/stock/page.js` | Laporan stok (owner pilih toko) |
+| `/inventory` | `inventory/page.js` | Stok (tab: Stok Gudang per-gudang / Laporan Stok agregat, kelola gudang) |
 | `/inventory/movements` | `inventory/movements/page.js` | Riwayat stok (card list) |
-| `/inventory/{barcodes,incoming,outgoing,opname}` | ... | Cetak barcode, masuk, keluar, opname |
+| `/inventory/mutations` | `inventory/mutations/page.js` | Mutasi stok: tab Produk Masuk/Keluar + dropdown channel (wa/shopee/tiktok/reseller) |
+| `/inventory/transfers` | `inventory/transfers/page.js` | Transfer stok antar gudang/cabang (auto-buat produk di tujuan) |
+| `/inventory/{barcodes,opname}` | ... | Cetak barcode, opname |
+| `/finance` | `finance/page.js` | Keuangan (tab: Ringkasan Laba Rugi / Pengeluaran / Pemasukan) |
 | `/reports` | `reports/page.js` | Laporan (owner pilih toko) |
 | `/reports/tax` | `reports/tax/page.js` | PPN/Faktur/PPh23 |
+| `/finance` | `finance/page.js` | Keuangan (tab: Ringkasan / Pengeluaran / Pemasukan) |
 | `/settings` | `settings/page.js` | Pengaturan + cabang + kategori |
 | `/commissions` | `commissions/page.js` | Komisi staf (owner) |
 | `/users` | `users/page.js` | Pegawai (owner) |
 | `/dashboard` | `dashboard/page.js` | Dasbor |
 | `/profile` | `profile/page.js` | Akun |
 | `/receipt/[id]` | `receipt/[id]/page.js` | Resi |
-| `/operations`, `/finance`, `/customers`, `/expenses`, `/promotions` | ... | Operasional, keuangan, dll |
+| `/operations`, `/customers`, `/promotions` | ... | Operasional, pelanggan, promo |
 
 ### Components (`frontend/app/components/`)
 
