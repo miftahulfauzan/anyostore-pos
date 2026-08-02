@@ -13,6 +13,9 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [view, setView] = useState('grid');
+  const [branches, setBranches] = useState([]);
+  const [branchId, setBranchId] = useState('');
+  const [isOwner, setIsOwner] = useState(false);
   const [barcodeProduct, setBarcodeProduct] = useState(null);
   const [barcodeCopies, setBarcodeCopies] = useState(1);
   const loadSeq = useRef(0);
@@ -23,8 +26,10 @@ export default function ProductsPage() {
     setLoading(true);
     const seq = ++loadSeq.current;
     try {
-      const query = keyword.trim() ? `?limit=500&search=${encodeURIComponent(keyword.trim())}` : '?limit=500';
-      const response = await fetch(`${apiUrl}/products${query}`, { headers: { Authorization: `Bearer ${token()}` } });
+      const params = new URLSearchParams({ limit: '500' });
+      if (keyword.trim()) params.set('search', keyword.trim());
+      if (branchId) params.set('branch_id', branchId);
+      const response = await fetch(`${apiUrl}/products?${params}`, { headers: { Authorization: `Bearer ${token()}` } });
       const body = await response.json();
       if (seq !== loadSeq.current) return;
       if (!response.ok) throw new Error(body.message || 'Gagal memuat produk');
@@ -33,7 +38,25 @@ export default function ProductsPage() {
     finally { if (seq === loadSeq.current) setLoading(false); }
   }
 
-  useEffect(() => { load(''); }, []);
+  useEffect(() => {
+    const t = localStorage.getItem('pos_access_token');
+    if (!t) return;
+    fetch(`${apiUrl}/auth/me`, { headers: { Authorization: `Bearer ${t}` } })
+      .then((r) => r.json())
+      .then((b) => { if (b?.data?.role === 'owner') setIsOwner(true); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!isOwner) return;
+    const t = localStorage.getItem('pos_access_token');
+    fetch(`${apiUrl}/settings/branches`, { headers: { Authorization: `Bearer ${t}` } })
+      .then((r) => r.json())
+      .then((b) => setBranches((b.data || []).filter((br) => br.is_active)))
+      .catch(() => {});
+  }, [isOwner]);
+
+  useEffect(() => { load(''); }, [branchId]);
   useEffect(() => {
     const timer = window.setTimeout(() => load(search), 260);
     return () => window.clearTimeout(timer);
@@ -58,6 +81,12 @@ export default function ProductsPage() {
     <section className="panel catalog-panel">
       <div className="section-heading"><div><h2>Daftar Produk</h2><p>Cari nama, SKU, atau barcode. Kelola foto, video, varian, dan cetak barcode dari daftar ini.</p></div><div className="catalog-view-controls"><span className="item-count">{loading ? 'Memuat…' : `${products.length} produk`}</span><button type="button" className={view === 'grid' ? 'view-button selected' : 'view-button'} onClick={() => setView('grid')} aria-pressed={view === 'grid'}>Tampilan grid</button><button type="button" className={view === 'list' ? 'view-button selected' : 'view-button'} onClick={() => setView('list')} aria-pressed={view === 'list'}>Tampilan daftar</button></div></div>
       <label className="catalog-search">Cari produk<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nama, SKU, atau barcode" autoComplete="off" /></label>
+      {isOwner && (
+        <label style={{ display: 'block', marginBottom: 10 }}>Toko / Cabang<select value={branchId} onChange={(event) => setBranchId(event.target.value)}>
+          <option value="">Toko saya</option>
+          {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select></label>
+      )}
       {message && <p className="message" role="status">{message}</p>}
       {loading ? <p>Memuat produk…</p> : <div className={`product-list ${view === 'grid' ? 'grid-view' : ''}`}>{products.map((product) => <article key={product.id} className="product-row">
         <div className="product-photo">{product.photo_path ? <img src={mediaUrl(product.photo_path)} alt={`Foto ${product.name}`} loading="lazy" style={product.photo_transform ? (()=>{const t=(product.photo_transform||'').split(',').map(Number); return {objectFit:'cover',objectPosition:'center',transform:`translate(${t[1]||0}%,${t[2]||0}%) scale(${t[0]})`,width:'100%',height:'100%'};})():{}} /> : <span>Tanpa foto</span>}</div>
