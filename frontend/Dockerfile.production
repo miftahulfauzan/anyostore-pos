@@ -9,7 +9,8 @@ COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 ARG NEXT_PUBLIC_API_URL=/api
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-RUN mkdir -p public && --mount=type=cache,target=/root/.npm --mount=type=cache,target=/app/.next/cache npm run build
+RUN mkdir -p public
+RUN --mount=type=cache,target=/root/.npm --mount=type=cache,target=/app/.next/cache npm run build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
