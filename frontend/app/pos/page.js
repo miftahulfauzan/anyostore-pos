@@ -41,7 +41,7 @@ export default function PosPage() {
       .then(async (response) => {
         const body = await response.json();
         if (!response.ok) throw new Error(body.message || 'Gagal memuat daftar toko');
-        const availableStores = body.data || [];
+        const availableStores = (body.data || []).filter((store) => store.is_active !== false && store.type !== 'gudang');
         if (!availableStores.length) throw new Error('Tidak ada toko aktif yang dapat dipakai untuk POS');
         setStores(availableStores);
         const remembered = localStorage.getItem('pos_branch_id');

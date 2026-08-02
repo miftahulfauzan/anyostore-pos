@@ -21,10 +21,24 @@ function branchId(req) {
 router.get('/branches', async (req, res, next) => {
   try {
     const sql = req.user.role === 'owner'
-      ? 'SELECT b.id,b.name,b.address,b.phone,b.email,b.npwp,b.pricing_tier_enabled,b.is_active,(SELECT COUNT(*) FROM products WHERE branch_id=b.id) AS product_count,(SELECT COUNT(*) FROM users WHERE branch_id=b.id AND is_active=TRUE) AS user_count FROM branches b ORDER BY b.id'
-      : 'SELECT id,name,address,phone,email,npwp,pricing_tier_enabled FROM branches WHERE id=?';
+      ? 'SELECT b.id,b.name,b.address,b.phone,b.email,b.npwp,b.pricing_tier_enabled,b.is_active,b.type,(SELECT COUNT(*) FROM products WHERE branch_id=b.id) AS product_count,(SELECT COUNT(*) FROM users WHERE branch_id=b.id AND is_active=TRUE) AS user_count FROM branches b ORDER BY b.id'
+      : 'SELECT id,name,address,phone,email,npwp,pricing_tier_enabled,type FROM branches WHERE id=?';
     const [rows] = await db.execute(sql, req.user.role === 'owner' ? [] : [req.user.branch_id]);
     res.json({ success: true, data: rows });
+  } catch (error) { next(error); }
+});
+
+// Ubah tipe cabang: toko / gudang
+router.put('/branches/:id/type', authorize('owner'), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const type = req.body.type;
+    if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID tidak valid' });
+    if (!['toko', 'gudang'].includes(type)) return res.status(400).json({ success: false, message: 'Tipe tidak valid' });
+    if (id === req.user.branch_id) return res.status(400).json({ success: false, message: 'Tidak dapat mengubah tipe cabang yang sedang aktif' });
+    const [r] = await db.execute('UPDATE branches SET type = ? WHERE id = ?', [type, id]);
+    if (!r.affectedRows) return res.status(404).json({ success: false, message: 'Cabang tidak ditemukan' });
+    res.json({ success: true, data: { id, type } });
   } catch (error) { next(error); }
 });
 
@@ -118,9 +132,11 @@ router.post('/branches', authorize('owner'), async (req, res, next) => {
       source_branch_id: sourceBranchId = null,
       price_multiplier: priceMultiplierRaw = 1,
       clone_photos: clonePhotos = true,
+      type: branchType = 'toko',
     } = req.body;
 
     if (!name?.trim()) return res.status(400).json({ success: false, message: 'Nama toko wajib diisi' });
+    const bType = ['toko', 'gudang'].includes(branchType) ? branchType : 'toko';
     const multiplier = priceMultiplierRaw === '' || priceMultiplierRaw == null ? 1 : Number(priceMultiplierRaw);
     if (!Number.isFinite(multiplier) || multiplier <= 0) return res.status(400).json({ success: false, message: 'Pengali harga tidak valid' });
     const sourceId = sourceBranchId ? Number(sourceBranchId) : null;
@@ -134,8 +150,8 @@ router.post('/branches', authorize('owner'), async (req, res, next) => {
     }
 
     const [branchResult] = await connection.execute(
-      'INSERT INTO branches (name, address, phone, email, npwp, pricing_tier_enabled, is_active) VALUES (?,?,?,?,?,?,TRUE)',
-      [name.trim(), address?.trim() || null, phone?.trim() || null, email?.trim() || null, npwp?.trim() || null, pricingEnabled ? 1 : 0]
+      'INSERT INTO branches (name, address, phone, email, npwp, pricing_tier_enabled, is_active, type) VALUES (?,?,?,?,?,?,TRUE,?)',
+      [name.trim(), address?.trim() || null, phone?.trim() || null, email?.trim() || null, npwp?.trim() || null, pricingEnabled ? 1 : 0, bType]
     );
     const newBranchId = branchResult.insertId;
 

@@ -194,12 +194,27 @@ export default function SettingsPage() {
           <p className="muted" style={{ fontSize: '.85rem' }}>Kelola cabang. Tidak bisa hapus toko dengan transaksi.</p>
           <div className="table-wrap" style={{ marginTop: '.75rem' }}>
             <table>
-              <thead><tr><th>ID</th><th>Nama</th><th>Produk</th><th>User</th><th>Aktif</th><th>Aksi</th></tr></thead>
+              <thead><tr><th>ID</th><th>Nama</th><th>Tipe</th><th>Produk</th><th>User</th><th>Aktif</th><th>Aksi</th></tr></thead>
               <tbody>
                 {stores.map((s) => (
                   <tr key={s.id}>
                     <td>{s.id}</td>
                     <td><strong>{s.name}</strong>{String(s.id) === String(branch) ? <span className="tag" style={{ marginLeft: '.5rem' }}>dipilih</span> : null}<br /><small className="muted">{s.address || '-'}</small></td>
+                    <td>
+                      <select value={s.type || 'toko'} disabled={String(s.id) === String(branch) || !s.is_active} style={{ padding: '.3rem .4rem', fontSize: '.78rem' }} onChange={async (e) => {
+                        const next = e.target.value;
+                        try {
+                          const r = await fetch(`${api}/settings/branches/${s.id}/type`, { method: 'PUT', headers: jsonHeaders(), body: JSON.stringify({ type: next }) });
+                          const b = await r.json();
+                          if (!r.ok) throw new Error(b.message);
+                          setMessage(`Tipe ${s.name} diubah ke ${next === 'gudang' ? 'Gudang' : 'Toko'}.`);
+                          loadBranches();
+                        } catch (err) { setMessage(err.message); }
+                      }}>
+                        <option value="toko">Toko</option>
+                        <option value="gudang">Gudang</option>
+                      </select>
+                    </td>
                     <td>{s.product_count ?? '-'}</td>
                     <td>{s.user_count ?? '-'}</td>
                     <td>{s.is_active ? <span className="status paid">aktif</span> : <span className="status pending">nonaktif</span>}</td>

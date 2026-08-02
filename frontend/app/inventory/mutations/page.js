@@ -96,7 +96,7 @@ export default function Mutations() {
       <form onSubmit={submit}>
         <label>Toko / gudang
           <select required value={store} onChange={(e) => { setStore(e.target.value); setItems([blank()]); setSelected(new Set()); setShowPicker(false); loadProducts(e.target.value).catch((x) => setMessage(x.message)); }}>
-            {stores.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            {stores.map((item) => <option key={item.id} value={item.id}>{item.name}{item.type === 'gudang' ? ' (Gudang)' : ''}</option>)}
           </select>
         </label>
         {mode === 'out' && (
