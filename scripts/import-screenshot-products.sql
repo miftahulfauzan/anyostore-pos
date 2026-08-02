@@ -11,8 +11,8 @@ SELECT v.name, v.slug, v.prefix FROM (
 ) v WHERE NOT EXISTS (SELECT 1 FROM categories c WHERE c.name = v.name);
 
 INSERT INTO warehouses (branch_id, name, description)
-SELECT 1, 'Gudang Utara', 'Stok awal hasil import screenshot'
-WHERE NOT EXISTS (SELECT 1 FROM warehouses WHERE branch_id = 1 AND name = 'Gudang Utara');
+SELECT 1, 'Gudang Utama', 'Stok awal hasil import screenshot'
+WHERE NOT EXISTS (SELECT 1 FROM warehouses WHERE branch_id = 1 AND name = 'Gudang Utama');
 
 CREATE TEMPORARY TABLE screenshot_products (
   sku VARCHAR(50) PRIMARY KEY, name VARCHAR(200), category_name VARCHAR(100), stock INT NOT NULL
@@ -31,6 +31,6 @@ FROM screenshot_products p JOIN categories c ON c.name = p.category_name;
 INSERT INTO warehouse_stocks (warehouse_id, product_id, quantity)
 SELECT w.id, p.id, s.stock FROM screenshot_products s
 JOIN products p ON p.sku = s.sku AND p.branch_id = 1
-JOIN warehouses w ON w.branch_id = 1 AND w.name = 'Gudang Utara';
+JOIN warehouses w ON w.branch_id = 1 AND w.name = 'Gudang Utama';
 
 COMMIT;

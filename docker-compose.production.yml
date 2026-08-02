@@ -27,6 +27,7 @@ services:
       - ./backend/migrations/20260802_photo_transform_percent.sql:/docker-entrypoint-initdb.d/015-photo_transform_percent.sql:ro
       - ./backend/migrations/20260802_stock_mutation_channel.sql:/docker-entrypoint-initdb.d/016-stock_mutation_channel.sql:ro
       - ./backend/migrations/20260802_warehouse_type.sql:/docker-entrypoint-initdb.d/017-warehouse_type.sql:ro
+      - ./backend/migrations/20260802_rename_gudang_utara.sql:/docker-entrypoint-initdb.d/018-rename_gudang_utara.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p$${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
