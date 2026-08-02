@@ -451,11 +451,11 @@ router.delete('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (r
       // Hard-delete: cascade all related data
       const [photos] = await db.execute('SELECT path FROM product_photos WHERE product_id=?', [id]);
       for (const ph of photos) { try { await removeMedia(ph.path); } catch {} }
-      await db.execute('DELETE FROM product_photos WHERE product_id=?', [id]);
-      await db.execute('DELETE FROM product_variants WHERE product_id=?', [id]);
-      await db.execute('DELETE FROM wholesale_prices WHERE product_id=?', [id]);
-      await db.execute('DELETE FROM warehouse_stocks WHERE product_id=?', [id]);
       await db.execute('DELETE FROM stock_mutations WHERE product_id=?', [id]);
+      await db.execute('DELETE FROM warehouse_stocks WHERE product_id=?', [id]);
+      await db.execute('DELETE FROM product_photos WHERE product_id=?', [id]);
+      await db.execute('DELETE FROM wholesale_prices WHERE product_id=?', [id]);
+      await db.execute('DELETE FROM product_variants WHERE product_id=?', [id]);
       await db.execute('DELETE FROM products WHERE id=?', [id]);
       res.json({ success: true, data: { message: 'Produk berhasil dihapus permanen', soft: false } });
     }

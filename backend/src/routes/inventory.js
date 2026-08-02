@@ -52,7 +52,8 @@ router.put('/warehouses/:id', authorize('owner', 'manager', 'admin'), async (req
   } catch (error) { next(error); }
 });
 
-// Hapus gudang (owner/manager/admin). Tolak jika masih ada stok.
+// Hapus gudang (owner/manager/admin). Tolak jika masih ada stok atau riwayat
+// (mutasi/opname/transfer) karena itu jejak audit.
 router.delete('/warehouses/:id', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
@@ -61,7 +62,13 @@ router.delete('/warehouses/:id', authorize('owner', 'manager', 'admin'), async (
     if (!wh[0]) return res.status(404).json({ success: false, message: 'Gudang tidak ditemukan' });
     const [stk] = await db.execute('SELECT COALESCE(SUM(quantity),0) AS qty, COUNT(*) AS rows FROM warehouse_stocks WHERE warehouse_id = ?', [id]);
     if (Number(stk[0].qty) > 0 || Number(stk[0].rows) > 0) return res.status(400).json({ success: false, message: 'Gudang masih memiliki stok — pindahkan dulu stoknya sebelum dihapus' });
-    await db.execute('DELETE FROM stock_transfers WHERE from_warehouse_id = ? OR to_warehouse_id = ?', [id, id]);
+    const [hist] = await db.execute(
+      `SELECT (SELECT COUNT(*) FROM stock_mutations WHERE warehouse_id=?) +
+              (SELECT COUNT(*) FROM stock_opnames WHERE warehouse_id=?) +
+              (SELECT COUNT(*) FROM stock_transfers WHERE from_warehouse_id=? OR to_warehouse_id=?) AS cnt`,
+      [id, id, id, id]
+    );
+    if (Number(hist[0].cnt) > 0) return res.status(400).json({ success: false, message: 'Gudang pernah memiliki riwayat mutasi — tidak bisa dihapus. Nonaktifkan saja.' });
     await db.execute('DELETE FROM warehouses WHERE id = ?', [id]);
     res.json({ success: true, message: 'Gudang dihapus' });
   } catch (error) { next(error); }
