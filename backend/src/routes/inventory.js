@@ -16,6 +16,18 @@ router.get('/warehouses', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+// GET /api/inventory/warehouses/all — semua gudang flat lintas cabang (owner).
+// Non-owner melihat gudang cabangnya sendiri.
+router.get('/warehouses/all', async (req, res, next) => {
+  try {
+    const isOwner = req.user.role === 'owner';
+    const [warehouses] = isOwner
+      ? await db.execute('SELECT w.id, w.name, w.description, w.type, w.branch_id, b.name AS branch_name FROM warehouses w JOIN branches b ON b.id = w.branch_id WHERE w.is_active = TRUE AND b.is_active = TRUE ORDER BY b.name, w.name')
+      : await db.execute('SELECT w.id, w.name, w.description, w.type, w.branch_id, b.name AS branch_name FROM warehouses w JOIN branches b ON b.id = w.branch_id WHERE w.branch_id = ? AND w.is_active = TRUE ORDER BY w.name', [req.user.branch_id]);
+    res.json({ success: true, data: warehouses });
+  } catch (error) { next(error); }
+});
+
 router.post('/warehouses', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
   try {
     const { name, description, type } = req.body;

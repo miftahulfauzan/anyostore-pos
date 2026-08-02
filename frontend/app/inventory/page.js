@@ -8,8 +8,6 @@ const TYPE_LABEL = { utama: 'Gudang Utama', cadangan: 'Gudang Cadangan', reject:
 
 export default function InventoryPage() {
   const [tab, setTab] = useState('stok');
-  const [branches, setBranches] = useState([]);
-  const [branchId, setBranchId] = useState('');
   const [warehouses, setWarehouses] = useState([]);
   const [warehouse, setWarehouse] = useState('');
   const [stock, setStock] = useState([]);
@@ -22,14 +20,15 @@ export default function InventoryPage() {
 
   async function load(id) {
     if (!id) return;
-    const response = await fetch(api + '/inventory/stock?warehouse_id=' + id, { headers: headers() });
+    const wh = warehouses.find((w) => String(w.id) === String(id));
+    const q = wh && wh.branch_id ? `?warehouse_id=${id}&branch_id=${wh.branch_id}` : `?warehouse_id=${id}`;
+    const response = await fetch(api + '/inventory/stock' + q, { headers: headers() });
     const body = await response.json();
     if (!response.ok) throw new Error(body.message);
     setStock(body.data);
   }
-  async function loadWarehouses(id) {
-    const q = id ? '?branch_id=' + id : '';
-    const response = await fetch(api + '/inventory/warehouses' + q, { headers: headers() });
+  async function loadWarehouses() {
+    const response = await fetch(api + '/inventory/warehouses/all', { headers: headers() });
     const body = await response.json();
     if (!response.ok) throw new Error(body.message);
     setWarehouses(body.data);
@@ -43,7 +42,7 @@ export default function InventoryPage() {
       .then((r) => r.json())
       .then((b) => { if (b?.data?.role === 'owner') setIsOwner(true); if (['owner', 'manager', 'admin'].includes(b?.data?.role)) setCanManage(true); })
       .catch(() => {});
-    fetch(api + '/inventory/warehouses', { headers: headers() }).then(async (response) => {
+    fetch(api + '/inventory/warehouses/all', { headers: headers() }).then(async (response) => {
       const body = await response.json();
       if (!response.ok) throw new Error(body.message);
       setWarehouses(body.data);
@@ -51,9 +50,6 @@ export default function InventoryPage() {
       setWarehouse(id);
       if (id) load(id).catch((error) => setMessage(error.message));
     }).catch((error) => setMessage(error.message));
-    if (isOwner) {
-      fetch(api + '/settings/branches', { headers: headers() }).then((r) => r.json()).then((b) => setBranches(b.data || [])).catch(() => {});
-    }
   }, []);
 
   const products = useMemo(() => {
@@ -74,13 +70,7 @@ export default function InventoryPage() {
     </div>
     {tab === 'laporan' ? <StockReportSection /> : (
     <section className="panel inventory-panel">
-    {isOwner && (
-      <label>Toko / Cabang<select value={branchId} onChange={(event) => { setBranchId(event.target.value); loadWarehouses(event.target.value).catch((error) => setMessage(error.message)); }}>
-        <option value="">Toko saya</option>
-        {branches.filter((b) => b.is_active).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-      </select></label>
-    )}
-    <label>Gudang<select value={warehouse} onChange={(event) => { setWarehouse(event.target.value); load(event.target.value).catch((error) => setMessage(error.message)); }}>{warehouses.map((item) => <option key={item.id} value={item.id}>{item.name}{item.type && TYPE_LABEL[item.type] ? ` (${TYPE_LABEL[item.type]})` : ''}</option>)}</select></label>
+    <label>Gudang / Lokasi stok<select value={warehouse} onChange={(event) => { setWarehouse(event.target.value); load(event.target.value).catch((error) => setMessage(error.message)); }}>{warehouses.map((item) => <option key={item.id} value={item.id}>{item.branch_name ? `${item.branch_name} — ` : ''}{item.name}{item.type && TYPE_LABEL[item.type] ? ` (${TYPE_LABEL[item.type]})` : ''}</option>)}</select></label>
     {canManage && <button type="button" className="button-link" style={{ marginBottom: 8 }} onClick={() => setShowAdd((v) => !v)}>{showAdd ? 'Tutup' : '+ Tambah Gudang'}</button>}
     {showAdd && (
       <div style={{ display: 'grid', gap: 8, padding: 12, border: '1px solid #e2e8f0', borderRadius: 8, marginBottom: 8 }}>
@@ -99,7 +89,7 @@ export default function InventoryPage() {
             setMessage('Gudang "' + b.data.name + '" dibuat.');
             setShowAdd(false);
             setNewWh({ name: '', type: 'utama', description: '' });
-            loadWarehouses(branchId).catch((error) => setMessage(error.message));
+            loadWarehouses().catch((error) => setMessage(error.message));
           } catch (e) { setMessage(e.message); }
         }}>Simpan Gudang</button>
       </div>
@@ -115,12 +105,12 @@ export default function InventoryPage() {
               const next = prompt('Nama gudang baru:', w.name);
               if (!next?.trim() || next.trim() === w.name) return;
               fetch(api + '/inventory/warehouses/' + w.id, { method: 'PUT', headers: { ...headers(), 'Content-Type': 'application/json' }, body: JSON.stringify({ name: next.trim(), type: w.type, description: w.description }) })
-                .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setMessage('Gudang diganti nama menjadi "' + b.data.name + '".'); loadWarehouses(branchId).catch((x) => setMessage(x.message)); }).catch((e) => setMessage(e.message));
+                .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setMessage('Gudang diganti nama menjadi "' + b.data.name + '".'); loadWarehouses().catch((x) => setMessage(x.message)); }).catch((e) => setMessage(e.message));
             }}>Rename</button>
             <button type="button" className="button-link" style={{ minHeight: 28, padding: '0 8px', fontSize: 12, color: '#dc2626' }} onClick={() => {
               if (!window.confirm('Hapus gudang "' + w.name + '"? (hanya bisa jika stoknya kosong)')) return;
               fetch(api + '/inventory/warehouses/' + w.id, { method: 'DELETE', headers: headers() })
-                .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setMessage(b.message); loadWarehouses(branchId).catch((x) => setMessage(x.message)); }).catch((e) => setMessage(e.message));
+                .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setMessage(b.message); loadWarehouses().catch((x) => setMessage(x.message)); }).catch((e) => setMessage(e.message));
             }}>Hapus</button>
           </div>
         ))}

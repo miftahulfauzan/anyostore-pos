@@ -24,7 +24,8 @@ export default function TransferPage() {
 
   async function loadProducts(warehouseId) {
     if (!warehouseId) return;
-    const r = await fetch(api + '/inventory/incoming/products?branch_id=' + warehouseId.split('-')[0], { headers: h() });
+    const wh = warehouses.find((w) => String(w.id) === String(warehouseId));
+    const r = await fetch(api + '/inventory/incoming/products?branch_id=' + (wh?.branch_id || ''), { headers: h() });
     const b = await r.json();
     if (!r.ok) throw new Error(b.message);
     setProducts(b.data);
@@ -32,30 +33,16 @@ export default function TransferPage() {
 
   useEffect(() => {
     if (!localStorage.getItem('pos_access_token')) return window.location.assign('/');
-    fetch(api + '/auth/me', { headers: h() }).then((r) => r.json()).then((b) => { if (b?.data?.role === 'owner') setIsOwner(true); }).catch(() => {});
-    fetch(api + '/inventory/warehouses', { headers: h() }).then(async (r) => {
+    fetch(api + '/inventory/warehouses/all', { headers: h() }).then(async (r) => {
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
       setWarehouses(b.data);
+      setTargets(b.data);
       const first = String(b.data[0]?.id || '');
       setFrom(first);
       if (first) loadProducts(first).catch((x) => setMessage(x.message));
     }).catch((e) => setMessage(e.message));
   }, []);
-
-  // Tujuan: gudang lain di cabang ini (semua role) + gudang semua cabang (owner)
-  useEffect(() => {
-    if (isOwner) {
-      fetch(api + '/settings/branches', { headers: h() }).then((r) => r.json()).then((b) => {
-        const branches = b.data || [];
-        Promise.all(branches.filter((br) => br.is_active).map((br) =>
-          fetch(api + '/inventory/warehouses?branch_id=' + br.id, { headers: h() }).then((r) => r.json()).then((bb) => (bb.data || []).map((w) => ({ ...w, branch_name: br.name }))).catch(() => [])
-        )).then((all) => setTargets(all.flat()));
-      }).catch(() => {});
-    } else {
-      setTargets(warehouses.map((w) => ({ ...w, branch_name: '' })));
-    }
-  }, [isOwner, warehouses]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -86,7 +73,9 @@ export default function TransferPage() {
       setSaving(true);
       const payload = items.map((i) => ({ product_id: Number(i.product_id), variant_id: i.variant_id ? Number(i.variant_id) : undefined, quantity: Number(i.quantity) })).filter((i) => i.product_id && i.quantity > 0);
       if (!payload.length) throw new Error('Tambahkan minimal satu produk dengan jumlah > 0');
-      const isInter = targets.find((t) => String(t.id) === String(to))?.branch_name;
+      const fromWh = warehouses.find((w) => String(w.id) === String(from));
+      const toWh = targets.find((t) => String(t.id) === String(to));
+      const isInter = fromWh && toWh && fromWh.branch_id !== toWh.branch_id;
       const url = isInter ? api + '/inventory-control/transfers/inter-store' : api + '/inventory-control/transfers';
       const r = await fetch(url, { method: 'POST', headers: h(), body: JSON.stringify({ from_warehouse_id: Number(from), to_warehouse_id: Number(to), items: payload, notes }) });
       const b = await r.json();
@@ -106,7 +95,7 @@ export default function TransferPage() {
       <form onSubmit={submit}>
         <label>Gudang asal
           <select required value={from} onChange={(e) => { setFrom(e.target.value); setItems([blank()]); setSelected(new Set()); setShowPicker(false); loadProducts(e.target.value).catch((x) => setMessage(x.message)); }}>
-            {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}{w.type && TYPE_LABEL[w.type] ? ` (${TYPE_LABEL[w.type]})` : ''}</option>)}
+            {warehouses.map((w) => <option key={w.id} value={w.id}>{w.branch_name ? `${w.branch_name} — ` : ''}{w.name}{w.type && TYPE_LABEL[w.type] ? ` (${TYPE_LABEL[w.type]})` : ''}</option>)}
           </select>
         </label>
         <label>Gudang tujuan
