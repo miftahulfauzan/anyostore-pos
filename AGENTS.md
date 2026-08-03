@@ -86,7 +86,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 
 22 file: promotions, branch_contact_tax, denim_variant_stock, product_media (variant_id, media_type), sync_variant_colours, media_files, price_tiers, customer_price_tier, transaction_cancellation, branch_pricing_tier, expense_income_type, commission_per_pcs_customer_tier, product_photo_transform, partial_cancel_purchase_received (tambah `partially_cancelled` ke ENUM status transactions + kolom `received_at` di purchase_orders untuk laporan PPN Masukan), photo_transform_percent (konversi pan px→% supaya crop konsisten lintas ukuran box), stock_mutation_channel (kolom `channel` di stock_mutations: wa/shopee/tiktok/reseller/toko untuk penjualan gudang via channel), warehouse_type (kolom `type` di warehouses: utama/cadangan/reject untuk gudang barang reject), rename_gudang_utara (rename nama gudang legacy 'Gudang Utara' → 'Gudang Utama'), branch_type (kolom `type` di branches: toko/gudang — gudang murni stok tanpa POS), sales_channels (tabel `sales_channels` + CRUD di `/api/inventory/channels` untuk saluran penjualan dinamis), branch_type_gudang_names (tandai cabang bernama 'Gudang…'/'Riject' sebagai type gudang supaya dipilih admin gudang), warehouse_names_match_branch (rename gudang mengikuti nama cabang: 'Gudang Anyostore Metro', 'Gudang Toko B', dll), stock_mutation_reference_bigint (ubah `stock_mutations.reference_id` INT → BIGINT karena dipakai menyimpan batch id Date.now() 13 digit).
 
-**Jebakan**: `migrate.js` pakai INSERT IGNORE toleransi kolom duplikat — bisa sembunyikan error migrasi lain. Kalau migrasi baru gagal, cek log container backend.
+**Migrasi**: `migrate.js` hanya toleran terhadap error idempotent (duplicate column/entry/already exists, misalnya saat initdb sudah memasang schema lalu migrate.js menjalankan file yang sama). Error lain = kegagalan nyata: file TIDAK ditandai selesai, script exit 1, dan dicoba ulang saat restart/deploy berikutnya. Cari `[migrate] FAILED` di log container backend kalau migrasi baru tidak kelihatan terpasang.
 
 ## Alur bisnis penting
 
@@ -178,7 +178,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 
 ### Workflow
 1. Push ke `main` → `ci.yml` (test + build) dan `deploy.yml` jalan paralel
-2. `deploy.yml`: SSH ke VPS → `git pull` → `image prune -f` + `builder prune -f --filter "until=168h"` → `docker compose up -d --build` → `docker compose ps`
+2. `deploy.yml`: SSH ke VPS → `git pull` → `image prune -f` + `builder prune -f --filter "until=168h"` → `docker compose up -d --build` → `docker compose ps` → cek log backend: kalau ada `[migrate] FAILED`/`[migrate] fatal`, deploy **gagal** (backend tetap start karena entrypoint pakai `|| true`, tapi error tidak disembunyikan lagi)
 3. Caddy handle HTTPS otomatis (Let's Encrypt)
 
 ### Docker compose production

@@ -38,3 +38,23 @@ jobs:
             fi
             sudo docker compose -f docker-compose.production.yml --env-file .env.production up -d --build
             sudo docker compose -f docker-compose.production.yml ps
+            # Deteksi kegagalan migrasi: entrypoint backend memakai `|| true`
+            # (backend tetap start supaya situs tidak down), jadi deploy wajib
+            # menandai kegagalan sendiri lewat log container. File migrasi yang
+            # gagal TIDAK dicatat selesai dan dicoba ulang di deploy berikutnya.
+            MIGRATE_FAILED=0
+            for i in $(seq 1 20); do
+              LOGS=$(sudo docker compose -f docker-compose.production.yml logs --no-color backend 2>/dev/null || true)
+              if printf '%s' "$LOGS" | grep -qE '\[migrate\] (FAILED|fatal)'; then
+                MIGRATE_FAILED=1
+                break
+              fi
+              STATUS=$(sudo docker compose -f docker-compose.production.yml ps backend --format json 2>/dev/null | grep -o '"Health":"[^"]*"' | head -1) || true
+              case "$STATUS" in *healthy*) break ;; esac
+              sleep 3
+            done
+            if [ "$MIGRATE_FAILED" = "1" ]; then
+              printf '%s' "$LOGS" | grep -E '\[migrate\] (FAILED|fatal)' | tail -20
+              echo "::error::Migrasi backend gagal — deploy dibatalkan. Periksa SQL migrasi baru (backend/migrations/) dan log container backend."
+              exit 1
+            fi
