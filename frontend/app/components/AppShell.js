@@ -184,9 +184,9 @@ export default function AppShell({ title, eyebrow, actions, children }) {
         <button type="button" className="sidebar-close" onClick={() => setMobileNavOpen(false)} aria-label="Tutup menu">
           <X aria-hidden="true" size={20} />
         </button>
-        <a className="brand" href="/pos">
+        <a className="brand" href={role === 'gudang' ? '/dashboard' : '/pos'}>
           <span className="brand-mark">A</span>
-          <span>Anyostore<small>Retail operations</small></span>
+          <span>Anyostore<small>{role === 'gudang' ? 'Operasional gudang' : 'Retail operations'}</small></span>
         </a>
 
         <nav className="side-nav">

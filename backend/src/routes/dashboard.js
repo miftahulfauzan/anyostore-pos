@@ -73,6 +73,32 @@ router.get('/', async (req, res, next) => {
     ))[0] : [];
 
     const summary = { ...salesRows[0][0], ...expenseRows[0][0] };
+
+    // Admin Gudang: ringkasan stok gudang (semua cabang tipe gudang)
+    let stockSummary = null;
+    if (req.user.role === 'gudang') {
+      const [stockRows] = await db.execute(
+        `SELECT COUNT(DISTINCT ws.product_id) AS total_products,
+                COALESCE(SUM(ws.quantity), 0) AS total_stock,
+                COALESCE(SUM(ws.reserved_quantity), 0) AS reserved_stock,
+                SUM(CASE WHEN ws.quantity = 0 THEN 1 ELSE 0 END) AS out_of_stock
+         FROM warehouse_stocks ws
+         JOIN warehouses w ON w.id = ws.warehouse_id
+         JOIN branches b ON b.id = w.branch_id
+         WHERE b.type = 'gudang' AND w.is_active = TRUE AND b.is_active = TRUE`
+      );
+      const [recentStock] = await db.execute(
+        `SELECT sm.id, p.name AS product_name, p.sku, sm.qty, sm.channel, sm.created_at
+         FROM stock_mutations sm
+         JOIN products p ON p.id = sm.product_id
+         JOIN warehouses w ON w.id = sm.warehouse_id
+         JOIN branches b ON b.id = w.branch_id
+         WHERE b.type = 'gudang'
+         ORDER BY sm.created_at DESC LIMIT 6`
+      );
+      stockSummary = { ...stockRows[0], recent_mutations: recentStock };
+    }
+
     res.json({
       success: true,
       data: {
@@ -81,7 +107,8 @@ router.get('/', async (req, res, next) => {
         recent_transactions: recent[0],
         sales_trend: sevenDayTrend,
         payment_breakdown: payments[0],
-        stores
+        stores,
+        stock_summary: stockSummary
       }
     });
   } catch (error) { next(error); }

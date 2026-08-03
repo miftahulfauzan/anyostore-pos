@@ -10,10 +10,15 @@ const rupiah = (value) => 'Rp' + Number(value || 0).toLocaleString('id-ID');
 export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [message, setMessage] = useState('');
+  const [role, setRole] = useState(null);
   const token = () => typeof window === 'undefined' ? '' : localStorage.getItem('pos_access_token');
 
   useEffect(() => {
     if (!token()) { window.location.assign('/'); return; }
+    fetch(apiUrl + '/auth/me', { headers: { Authorization: 'Bearer ' + token() } })
+      .then((r) => r.json())
+      .then((b) => { if (b?.data?.role) setRole(b.data.role); })
+      .catch(() => {});
     async function loadDashboard() {
       let response = await fetch(apiUrl + '/dashboard', { headers: { Authorization: 'Bearer ' + token() } });
       if (response.status === 401 && localStorage.getItem('pos_refresh_token')) {
@@ -48,13 +53,29 @@ export default function DashboardPage() {
       });
   }, []);
 
+  const isGudang = role === 'gudang';
   const summary = data?.owner_summary || data?.summary || {};
+  const stock = data?.stock_summary;
   const peakSales = Math.max(1, ...(data?.sales_trend || []).map((item) => Number(item.sales)));
   const paymentTotal = Math.max(1, ...(data?.payment_breakdown || []).map((item) => Number(item.amount)));
 
-  return <AppShell title="Dasbor" eyebrow="RINGKASAN TOKO" actions={<a className="button-link" href="/pos">Buka Kasir <ArrowUpRight aria-hidden="true" size={15} /></a>}>
+  return <AppShell title="Dasbor" eyebrow={isGudang ? 'RINGKASAN GUDANG' : 'RINGKASAN TOKO'} actions={isGudang ? <a className="button-link" href="/inventory">Kelola Stok</a> : <a className="button-link" href="/pos">Buka Kasir <ArrowUpRight aria-hidden="true" size={15} /></a>}>
     {message && <p className="message" role="status">{message}</p>}
-    {!data ? <section className="panel"><p>Memuat ringkasan toko…</p></section> : <>
+    {!data ? <section className="panel"><p>Memuat ringkasan toko…</p></section> : isGudang ? (
+      <>
+        <section className="metrics-grid dashboard-metrics" aria-label="Ringkasan stok gudang">
+          <article className="metric-card sales-metric"><span className="metric-icon"><Banknote aria-hidden="true" size={17} /></span><div><span>Total Produk</span><strong>{Number(stock?.total_products || 0).toLocaleString('id-ID')}</strong><small>Produk unik di semua gudang</small></div></article>
+          <article className="metric-card sales-metric"><span className="metric-icon"><CalendarDays aria-hidden="true" size={17} /></span><div><span>Total Stok</span><strong>{Number(stock?.total_stock || 0).toLocaleString('id-ID')}</strong><small>Stok fisik seluruh gudang</small></div></article>
+          <article className="metric-card sales-metric"><span className="metric-icon"><CreditCard aria-hidden="true" size={17} /></span><div><span>Stok Dialokasikan</span><strong>{Number(stock?.reserved_stock || 0).toLocaleString('id-ID')}</strong><small>Reserved / alokasi</small></div></article>
+          <article className="metric-card expense-metric"><span className="metric-icon"><ReceiptText aria-hidden="true" size={17} /></span><div><span>Stok Habis</span><strong>{Number(stock?.out_of_stock || 0).toLocaleString('id-ID')}</strong><small>Produk dengan stok 0</small></div></article>
+        </section>
+        <section className="panel dashboard-recent">
+          <div className="section-heading"><div><h2>Mutasi Stok Terbaru</h2><p>Aktivitas stok masuk/keluar gudang.</p></div><a href="/inventory/movements">Lihat semua</a></div>
+          <div className="data-list">{(stock?.recent_mutations || []).map((m) => <article key={m.id}><div><strong>{m.product_name}</strong><span>{m.sku} · {new Date(m.created_at).toLocaleString('id-ID')}</span></div><div><strong className={Number(m.qty) >= 0 ? '' : ''}>{Number(m.qty) >= 0 ? '+' : ''}{m.qty}</strong><span className="tag">{m.channel || 'mutasi'}</span></div></article>)}</div>
+          {(stock?.recent_mutations || []).length === 0 && <p>Belum ada mutasi stok.</p>}
+        </section>
+      </>
+    ) : <>
       {data.owner_summary && <p className="dashboard-note"><Sparkles aria-hidden="true" size={15} /> Menampilkan gabungan seluruh toko.</p>}
       <section className="metrics-grid dashboard-metrics" aria-label="Ringkasan penjualan dan pengeluaran">
         <article className="metric-card sales-metric"><span className="metric-icon"><Banknote aria-hidden="true" size={17} /></span><div><span>Penjualan hari ini</span><strong>{rupiah(summary.today_sales)}</strong><small>{summary.today_transactions || 0} transaksi selesai</small></div></article>
