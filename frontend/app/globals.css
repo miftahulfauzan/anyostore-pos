@@ -1462,4 +1462,4 @@ svg { max-width: 100%; }
   .catalog-grid,
   .product-list.grid-view { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
-@media print { body * { visibility: hidden; } .barcode-print-area, .barcode-print-area * { visibility: visible; } .barcode-print-area { position: fixed; inset: 0; } }
+@media print { body:has(.barcode-print-area) * { visibility: hidden; } body:has(.barcode-print-area) .barcode-print-area, body:has(.barcode-print-area) .barcode-print-area * { visibility: visible; } body:has(.barcode-print-area) .barcode-print-area { position: fixed; inset: 0; } }
