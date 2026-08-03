@@ -6,7 +6,7 @@ import SafeImage from './components/SafeImage';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
-const T = { black: '#1a1a1a', blue: '#1e3a5f', bg: '#fafafa', card: '#ffffff', muted: '#71717a', border: '#e5e7eb' };
+const T = { black: '#1a1a1a', blue: '#1e3a5f', white: '#ffffff', bg: '#fafafa', card: '#ffffff', muted: '#71717a', border: '#e5e7eb' };
 
 const I = {
   box: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></svg>),
@@ -209,10 +209,10 @@ export default function LandingPage() {
 
       {/* 7. CTA */}
       <section style={{ maxWidth: 1200, margin: '0 auto', padding: '0 16px 48px' }}>
-        <div style={{ borderRadius: 14, padding: '48px 32px', textAlign: 'center', background: T.black, color: T.white }}>
-          <h2 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 700 }}>Siap order grosir?</h2>
-          <p style={{ margin: '0 auto 20px', maxWidth: 440, color: '#9ca3af', fontSize: 15, lineHeight: 1.6 }}>Konsultasi harga, stok, dan warna langsung dengan admin via WhatsApp.</p>
-          <a href="#" onClick={(e) => { e.preventDefault(); pickWa(''); }} className="hero-btn btn-primary" style={{ background: T.blue, padding: '0 28px', fontSize: 15 }}>Hubungi Admin</a>
+        <div style={{ borderRadius: 14, padding: '48px 32px', textAlign: 'center', background: T.blue, color: T.white }}>
+          <h2 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 700, color: T.white }}>Siap order grosir?</h2>
+          <p style={{ margin: '0 auto 20px', maxWidth: 440, color: 'rgba(255,255,255,.82)', fontSize: 15, lineHeight: 1.6 }}>Konsultasi harga, stok, dan warna langsung dengan admin via WhatsApp.</p>
+          <a href="#" onClick={(e) => { e.preventDefault(); pickWa(''); }} className="hero-btn" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 46, padding: '0 30px', borderRadius: 10, background: T.white, color: T.blue, fontWeight: 700, fontSize: 15, textDecoration: 'none', boxShadow: '0 4px 14px rgba(0,0,0,.18)' }}>Hubungi Admin</a>
         </div>
       </section>
 
