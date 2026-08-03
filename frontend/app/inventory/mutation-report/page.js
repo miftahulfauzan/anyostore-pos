@@ -186,7 +186,7 @@ export default function MutationReportPage() {
       <style>{`
         .report-print-header { display: none; }
         @media print {
-          @page { size: A4 landscape; margin: 10mm; }
+          @page { size: A4 portrait; margin: 12mm; }
           html, body { width: auto !important; }
           .report-print-header { display: block; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #1e3a5f; }
           .print-brand strong { display: block; font-size: 14px; letter-spacing: .14em; color: #1e3a5f; }
