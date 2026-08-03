@@ -16,6 +16,7 @@ export default function TransferPage() {
   const [notes, setNotes] = useState('');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
   const h = () => ({ 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
 
   const targets = useMemo(() => warehouses.filter((w) => String(w.id) !== String(from)), [warehouses, from]);
@@ -95,6 +96,7 @@ export default function TransferPage() {
       if (!r.ok) throw new Error(b.message);
       setMessage('Transfer stok berhasil (' + b.data.status + ').' + (b.data.auto_created ? ' Produk yang belum ada di tujuan dibuat otomatis.' : ''));
       setCart([]);
+      setCartOpen(false);
       loadProducts(from);
     } catch (e) { setMessage(e.message); } finally { setSaving(false); }
   }
@@ -109,6 +111,7 @@ export default function TransferPage() {
             const id = e.target.value;
             setFrom(id);
             setCart([]);
+            setCartOpen(false);
             if (String(to) === String(id)) {
               const next = String(warehouses.find((w) => String(w.id) !== String(id))?.id || '');
               setTo(next);
@@ -160,8 +163,11 @@ export default function TransferPage() {
         </div>
       </section>
 
-      <aside className="panel mutasi-cart">
-        <h2>Keranjang Transfer</h2>
+      <aside className={`panel mutasi-cart${cartOpen ? ' open' : ''}`}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+          <h2 style={{ margin: 0 }}>Keranjang Transfer</h2>
+          <button type="button" className="cart-close" onClick={() => setCartOpen(false)} aria-label="Tutup keranjang">×</button>
+        </div>
         {cart.length === 0 && <p className="muted">Belum ada produk di keranjang.</p>}
         {cart.map((c) => (
           <div key={c.key} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
@@ -180,9 +186,12 @@ export default function TransferPage() {
         {message && <p className="message" role="status" style={{ marginTop: 10 }}>{message}</p>}
       </aside>
     </div>
+    {!cartOpen && <button type="button" className="cart-fab" onClick={() => setCartOpen(true)}>Keranjang · {totalQty} item</button>}
+    {cartOpen && <div className="cart-backdrop" onClick={() => setCartOpen(false)} />}
     <style>{`
       .mutasi-layout { display: grid; grid-template-columns: 1fr 360px; gap: 16; align-items: start; }
       .mutasi-cart { position: sticky; top: 76; }
+      .cart-fab, .cart-backdrop, .cart-close { display: none; }
       .stock-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
       .stock-picker-card { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: #fff; transition: all .2s; }
       .stock-picker-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.08); border-color: #1e3a5f; }
@@ -191,7 +200,11 @@ export default function TransferPage() {
       .stock-picker-badge { padding: 2px 8px; border-radius: 999px; background: #eef2ff; color: #1e3a5f; font-size: 11px; font-weight: 700; }
       @media (max-width: 900px) {
         .mutasi-layout { grid-template-columns: 1fr; }
-        .mutasi-cart { position: static; }
+        .cart-fab { display: flex; position: fixed; right: 14px; bottom: 14px; z-index: 50; align-items: center; gap: 8; min-height: 46px; padding: 0 18px; border-radius: 999px; border: none; background: #1e3a5f; color: #fff; font-weight: 700; font-size: 14px; box-shadow: 0 6px 20px rgba(30,58,95,.35); cursor: pointer; }
+        .cart-backdrop { display: block; position: fixed; inset: 0; z-index: 55; background: rgba(15,23,42,.45); }
+        .cart-close { display: block; width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: #fff; font-size: 16px; cursor: pointer; }
+        .mutasi-cart { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; max-height: 78vh; overflow: auto; border-radius: 14px 14px 0 0; transform: translateY(105%); transition: transform .25s ease; box-shadow: 0 -10px 30px rgba(15,23,42,.2); }
+        .mutasi-cart.open { transform: translateY(0); }
         .stock-picker-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
       }
     `}</style>
