@@ -28,6 +28,7 @@ import {
   WalletCards,
   X,
 } from 'lucide-react';
+import { roleLabel } from '../lib/roles';
 
 // Roles per item: owner/manajer/admin/kasir/gudang.
 // Jika field `roles` tidak ada → tampil untuk semua role login.
@@ -211,7 +212,7 @@ export default function AppShell({ title, eyebrow, actions, children }) {
 
         <div className="sidebar-footer">
           <span className="sidebar-store-dot" aria-hidden="true" />
-          {!collapsed && <div><strong>{userName || 'Sesi aktif'}</strong><small>{role ? role.charAt(0).toUpperCase() + role.slice(1) : 'Kelola toko dengan aman'}</small></div>}
+          {!collapsed && <div><strong>{userName || 'Sesi aktif'}</strong><small>{role ? roleLabel(role) : 'Kelola toko dengan aman'}</small></div>}
           <button type="button" className="collapse-toggle" onClick={toggleCollapse} aria-label={collapsed ? 'Perluas sidebar' : 'Ciutkan sidebar'}>
             <ChevronDown aria-hidden="true" size={16} style={{ transform: collapsed ? 'rotate(90deg)' : 'rotate(-90deg)', transition: 'transform .2s' }} />
           </button>

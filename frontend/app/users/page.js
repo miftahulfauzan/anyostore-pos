@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AppShell from '../components/AppShell';
+import { roleLabel } from '../lib/roles';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const emptyForm = { name: '', email: '', password: '', role: 'kasir', pin: '' };
@@ -125,7 +126,7 @@ export default function Users() {
               <option value="manager">Manager — operasional & laporan toko</option>
               <option value="admin">Admin — produk, stok & pengaturan toko</option>
               <option value="kasir">Kasir — POS, pelanggan & retur</option>
-              <option value="gudang">Gudang — stok, opname & penerimaan</option>
+              <option value="gudang">Admin Gudang — stok, opname, transfer & kelola gudang</option>
             </select>
           </label>
           <label>PIN (opsional)<input pattern="[0-9]{6}" value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} /></label>
@@ -140,7 +141,7 @@ export default function Users() {
               <article key={u.id}>
                 <div>
                   <strong>{u.name}</strong>
-                  <span>{u.email} · {u.role} · {u.branch_name}</span>
+                  <span>{u.email} · {roleLabel(u.role)} · {u.branch_name}</span>
                 </div>
                 <div className="user-actions">
                   <button type="button" className="link-button" onClick={() => setEditing({ id: u.id, name: u.name, email: u.email, role: u.role, pin: '' })}>Edit</button>
@@ -168,7 +169,7 @@ export default function Users() {
                 <option value="manager">Manager</option>
                 <option value="admin">Admin</option>
                 <option value="kasir">Kasir</option>
-                <option value="gudang">Gudang</option>
+                <option value="gudang">Admin Gudang</option>
               </select>
             </label>
             <label>PIN baru (kosongkan jika tidak diubah)<input pattern="[0-9]{6}" value={editing.pin} onChange={(e) => setEditing({ ...editing, pin: e.target.value })} /></label>

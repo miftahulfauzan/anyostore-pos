@@ -28,7 +28,7 @@ router.get('/warehouses/all', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-router.post('/warehouses', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+router.post('/warehouses', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
     const { name, description, type } = req.body;
     if (!name?.trim()) return res.status(400).json({ success: false, message: 'Nama gudang wajib diisi' });
@@ -38,8 +38,8 @@ router.post('/warehouses', authorize('owner', 'manager', 'admin'), async (req, r
   } catch (error) { next(error); }
 });
 
-// Rename / ubah tipe gudang (owner/manager/admin).
-router.put('/warehouses/:id', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+// Rename / ubah tipe gudang.
+router.put('/warehouses/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const { name, description, type } = req.body;
@@ -52,9 +52,9 @@ router.put('/warehouses/:id', authorize('owner', 'manager', 'admin'), async (req
   } catch (error) { next(error); }
 });
 
-// Hapus gudang (owner/manager/admin). Tolak jika masih ada stok atau riwayat
+// Hapus gudang. Tolak jika masih ada stok atau riwayat
 // (mutasi/opname/transfer) karena itu jejak audit.
-router.delete('/warehouses/:id', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+router.delete('/warehouses/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID gudang tidak valid' });

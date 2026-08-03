@@ -269,7 +269,7 @@ export default function CommissionsPage() {
                       <option value="kasir">Kasir</option>
                       <option value="admin">Admin</option>
                       <option value="manager">Manajer</option>
-                      <option value="gudang">Gudang</option>
+                      <option value="gudang">Admin Gudang</option>
                     </select>
                   </label>
                 )}
