@@ -320,7 +320,23 @@ router.get('/mutation-report', authorize('owner','manager','admin','gudang'), as
   try{
     const type = req.query.type === 'out' ? 'out' : 'in';
     const refType = type === 'out' ? 'manual_outgoing' : 'manual_incoming';
-    const branchId = req.user.role === 'owner' ? null : req.user.branch_id;
+    // Visibilitas cabang: owner = semua (atau branch_id pilihan); admin gudang
+    // = semua cabang tipe gudang (atau branch_id tipe gudang pilihan); lainnya
+    // = cabang sendiri.
+    const requestedBranch = Number(req.query.branch_id);
+    let branchId;
+    if (req.user.role === 'owner') {
+      branchId = Number.isInteger(requestedBranch) ? requestedBranch : null;
+    } else if (req.user.role === 'gudang') {
+      if (Number.isInteger(requestedBranch)) {
+        const [b] = await db.execute("SELECT id FROM branches WHERE id=? AND is_active=TRUE AND type='gudang'", [requestedBranch]);
+        branchId = b[0] ? requestedBranch : null;
+      } else {
+        branchId = null;
+      }
+    } else {
+      branchId = req.user.branch_id;
+    }
     const start = /^\d{4}-\d{2}-\d{2}$/.test(req.query.start||'') ? req.query.start : null;
     const end = /^\d{4}-\d{2}-\d{2}$/.test(req.query.end||'') ? req.query.end : null;
     const desc = (req.query.description||'').trim();
@@ -330,6 +346,7 @@ router.get('/mutation-report', authorize('owner','manager','admin','gudang'), as
     let where = "WHERE sm.reference_type = ? AND sm.reference_id IS NOT NULL";
     const params = [refType];
     if (branchId) { where += ' AND sm.branch_id = ?'; params.push(branchId); }
+    else if (req.user.role === 'gudang') { where += " AND sm.branch_id IN (SELECT id FROM branches WHERE type = 'gudang' AND is_active = TRUE)"; }
     if (start) { where += ' AND DATE(sm.created_at) >= ?'; params.push(start); }
     if (end) { where += ' AND DATE(sm.created_at) <= ?'; params.push(end); }
     if (desc) { where += ' AND sm.notes LIKE ?'; params.push('%'+desc+'%'); }

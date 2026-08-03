@@ -10,16 +10,23 @@ const PRESETS = [
   { label: '30 hari', days: 30 },
 ];
 
+// Tanggal lokal WIB — jangan pakai toISOString().slice(0,10) (UTC) untuk
+// "hari ini", karena di pagi hari WIB hasilnya bisa salah sehari.
+function localDate(d = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+}
 function presetDate(days) {
   const d = new Date();
   if (days > 0) d.setDate(d.getDate() - (days - 1));
-  return d.toISOString().slice(0, 10);
+  return localDate(d);
 }
 
 export default function MutationReportPage() {
   const [tab, setTab] = useState('in');
   const [start, setStart] = useState(presetDate(7));
-  const [end, setEnd] = useState(new Date().toISOString().slice(0, 10));
+  const [end, setEnd] = useState(localDate());
+  const [stores, setStores] = useState([]);
+  const [store, setStore] = useState('');
   const [desc, setDesc] = useState('');
   const [rows, setRows] = useState([]);
   const [summary, setSummary] = useState({ product_count: 0, total_qty: 0 });
@@ -41,6 +48,7 @@ export default function MutationReportPage() {
         end: next.end ?? end,
         limit: '500',
       });
+      if (next.store ?? store) params.set('branch_id', next.store ?? store);
       if (next.desc ?? desc) params.set('description', next.desc ?? desc);
       const r = await fetch(`${api}/inventory/mutation-report?${params}`, { headers: headers() });
       const b = await r.json();
@@ -52,15 +60,22 @@ export default function MutationReportPage() {
     finally { if (seq === loadSeq.current) setLoading(false); }
   }
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [tab]);
+  useEffect(() => {
+    if (!localStorage.getItem('pos_access_token')) return window.location.assign('/');
+    fetch(`${api}/inventory/incoming/targets`, { headers: headers() })
+      .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setStores(b.data || []); })
+      .catch((e) => setMessage(e.message));
+    load();
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [tab]);
 
   function applyFilter() { load(); }
   function resetFilter() {
-    setStart(presetDate(7)); setEnd(new Date().toISOString().slice(0, 10)); setDesc('');
-    load({ start: presetDate(7), end: new Date().toISOString().slice(0, 10), desc: '' });
+    setStart(presetDate(7)); setEnd(localDate()); setDesc(''); setStore('');
+    load({ start: presetDate(7), end: localDate(), desc: '', store: '' });
   }
   function applyPreset(days) {
-    const s = presetDate(days), e = new Date().toISOString().slice(0, 10);
+    const s = presetDate(days), e = localDate();
     setStart(s); setEnd(e);
     load({ start: s, end: e });
   }
@@ -125,6 +140,12 @@ export default function MutationReportPage() {
         <section className="panel no-print">
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'end' }}>
             {PRESETS.map((p) => <button key={p.days} type="button" className="small secondary" onClick={() => applyPreset(p.days)}>{p.label}</button>)}
+            <label style={{ minWidth: 180 }}>Toko / Gudang
+              <select value={store} onChange={(e) => { const v = e.target.value; setStore(v); load({ store: v }); }}>
+                <option value="">Semua</option>
+                {stores.map((s) => <option key={s.id} value={s.id}>{s.name}{s.type === 'gudang' ? ' (Gudang)' : ''}</option>)}
+              </select>
+            </label>
             <label style={{ minWidth: 150 }}>Dari<input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
             <label style={{ minWidth: 150 }}>Sampai<input type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
             <label style={{ minWidth: 200, flex: 1 }}>Deskripsi / Filter<input placeholder="Cari deskripsi…" value={desc} onChange={(e) => setDesc(e.target.value)} /></label>
