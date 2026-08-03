@@ -17,7 +17,9 @@ export default function StockVariantPicker({ product, onClose, onAdd }) {
             <strong style={{ fontSize: 15, display: 'block' }}>{product.name}</strong>
             <span style={{ fontSize: 11, color: '#64748b', fontFamily: 'monospace' }}>{product.sku || 'Tanpa SKU'}</span>
           </div>
-          <button type="button" onClick={onClose} aria-label="Tutup" style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#1e3a5f', color: '#fff', fontSize: 16, lineHeight: 1, display: 'grid', placeItems: 'center', cursor: 'pointer', flexShrink: 0 }}>×</button>
+          <button type="button" onClick={onClose} aria-label="Tutup" style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#1e3a5f', color: '#fff', display: 'grid', placeItems: 'center', padding: 0, cursor: 'pointer', flexShrink: 0 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+          </button>
         </div>
         <div>
           <strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Pilih varian (warna)</strong>

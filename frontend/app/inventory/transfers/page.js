@@ -172,7 +172,7 @@ export default function TransferPage() {
       <aside className={`panel mutasi-cart${cartOpen ? ' open' : ''}`}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
           <h2 style={{ margin: 0 }}>Keranjang Transfer</h2>
-          <button type="button" className="cart-close" onClick={() => setCartOpen(false)} aria-label="Tutup keranjang">×</button>
+          <button type="button" className="cart-close" onClick={() => setCartOpen(false)} aria-label="Tutup keranjang"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg></button>
         </div>
         {cart.length === 0 && <p className="muted">Belum ada produk di keranjang.</p>}
         {cart.map((c) => (
