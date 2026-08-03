@@ -1,19 +1,17 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const money = (v) => Number(v || 0).toLocaleString('id-ID');
 
+// Laporan stok Per Gudang (satu-satunya tampilan di Stok Produk).
 export default function StockReportSection() {
-  const [products, setProducts] = useState([]);
-  const [summary, setSummary] = useState(null);
   const [warehouseRows, setWarehouseRows] = useState([]);
   const [categories, setCategories] = useState([]);
   const [branches, setBranches] = useState([]);
   const [cat, setCat] = useState('');
   const [q, setQ] = useState('');
   const [branchId, setBranchId] = useState('');
-  const [view, setView] = useState('produk');
   const [isOwner, setIsOwner] = useState(false);
   const [isGudang, setIsGudang] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -36,8 +34,7 @@ export default function StockReportSection() {
       fetch(`${api}/settings/branches`, { headers: headers() }).then((r) => r.json()).then((b) => b.data || []).catch(() => []),
     ]).then(([cats, brs]) => {
       setCategories(cats);
-      const list = brs || [];
-      setBranches(list.filter((b) => b.is_active !== false));
+      setBranches((brs || []).filter((b) => b.is_active !== false));
     });
   }, []);
 
@@ -52,48 +49,45 @@ export default function StockReportSection() {
       else params.branch_id = 'all';
     }
     const qs = new URLSearchParams(params).toString();
-    const endpoint = view === 'gudang' ? '/inventory/stock-by-warehouse' : '/inventory/stock-total';
-    fetch(`${api}${endpoint}?${qs}`, { headers: headers() })
+    fetch(`${api}/inventory/stock-by-warehouse?${qs}`, { headers: headers() })
       .then((r) => r.json())
       .then((b) => {
         if (seq !== loadSeq.current) return;
         if (!b.success) throw new Error(b.message);
-        if (view === 'gudang') {
-          setWarehouseRows(b.data || []);
-          setProducts([]);
-          setSummary(null);
-        } else {
-          setProducts(b.data.products || []);
-          setWarehouseRows([]);
-          setSummary(b.data.summary || null);
-        }
+        setWarehouseRows(b.data || []);
       })
       .catch((e) => { if (seq === loadSeq.current) setMessage(e.message); })
       .finally(() => { if (seq === loadSeq.current) setLoading(false); });
-  }, [cat, q, branchId, isOwner, isGudang, view]);
+  }, [cat, q, branchId, isOwner, isGudang]);
 
   const showAll = (isOwner || isGudang) && !branchId;
-  const statusLabel = (p) => {
-    const stock = Number(p.total_stock || 0);
-    const min = Number(p.min_stock || 0);
-    return stock === 0 ? 'Habis' : stock <= min ? 'Rendah' : 'Aman';
-  };
+
+  const summary = useMemo(() => {
+    const rows = warehouseRows;
+    return {
+      total_products: new Set(rows.map((r) => r.product_id)).size,
+      total_stock: rows.reduce((s, r) => s + Number(r.quantity || 0), 0),
+      total_branches: new Set(rows.map((r) => r.branch_name)).size,
+      low_stock: rows.filter((r) => Number(r.quantity || 0) > 0 && Number(r.quantity || 0) <= Number(r.min_stock || 0)).length,
+      out_of_stock: rows.filter((r) => Number(r.quantity || 0) === 0).length,
+    };
+  }, [warehouseRows]);
 
   function exportCsv() {
-    const isGudang = view === 'gudang';
-    const rows = isGudang ? warehouseRows : products;
-    if (!rows.length) return;
-    const header = isGudang
-      ? (showAll ? ['Toko', 'Gudang', 'Produk', 'SKU', 'Warna', 'Stok', 'Reserved', 'Tersedia'] : ['Gudang', 'Produk', 'SKU', 'Warna', 'Stok', 'Reserved', 'Tersedia'])
-      : (showAll ? ['Toko', 'Produk', 'SKU', 'Kategori', 'Warna', 'Min', 'Stok', 'Reserved', 'Tersedia', 'Status'] : ['Produk', 'SKU', 'Kategori', 'Warna', 'Min', 'Stok', 'Reserved', 'Tersedia', 'Status']);
-    const lines = rows.map((r) => isGudang
-      ? [...(showAll ? [r.branch_name || ''] : []), r.warehouse_name || '', r.product_name || '', r.sku || '', r.variant_color || '', r.quantity ?? 0, r.reserved ?? 0, Math.max(0, Number(r.quantity || 0) - Number(r.reserved || 0))]
-      : [...(showAll ? [r.branch_name || ''] : []), r.name, r.sku || '', r.category_name || '', (r.colors || '').split('|').join(', '), r.min_stock ?? 0, r.total_stock ?? 0, r.reserved ?? 0, Math.max(0, Number(r.total_stock || 0) - Number(r.reserved || 0)), statusLabel(r)]);
+    if (!warehouseRows.length) return;
+    const header = showAll
+      ? ['Toko', 'Gudang', 'Produk', 'SKU', 'Warna', 'Stok', 'Reserved', 'Tersedia']
+      : ['Gudang', 'Produk', 'SKU', 'Warna', 'Stok', 'Reserved', 'Tersedia'];
+    const lines = warehouseRows.map((r) => [
+      ...(showAll ? [r.branch_name || ''] : []),
+      r.warehouse_name || '', r.product_name || '', r.sku || '', r.variant_color || '',
+      r.quantity ?? 0, r.reserved ?? 0, Math.max(0, Number(r.quantity || 0) - Number(r.reserved || 0)),
+    ]);
     const csv = [header, ...lines].map((row) => row.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `laporan-stok-${view}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `laporan-stok-gudang-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
   }
@@ -104,21 +98,20 @@ export default function StockReportSection() {
         <div className="report-print-header">
           <div className="print-brand">
             <strong>ANYOSTORE</strong>
-            <span>Laporan Stok {view === 'gudang' ? 'Per Gudang' : 'Per Produk'}</span>
+            <span>Laporan Stok Per Gudang</span>
           </div>
           <div className="print-meta">
             <span>Dicetak: {new Date().toLocaleString('id-ID')}</span>
-            {summary && <span>Total Produk: {summary.total_products}</span>}
-            {summary && <span>Total Stok: {summary.total_stock}</span>}
+            <span>Total Produk: {summary.total_products}</span>
+            <span>Total Stok: {money(summary.total_stock)}</span>
             <span>Mode: {showAll ? 'Semua Toko' : 'Satu Toko'}</span>
           </div>
         </div>
+
         <div className="no-print" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-          <button type="button" onClick={() => setView('produk')} style={{ minHeight: 36, padding: '.4rem .7rem', borderRadius: 6, border: 'none', background: view === 'produk' ? '#1d5b43' : '#edf4ee', color: view === 'produk' ? '#fff' : '#174c35', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>Per Produk</button>
-          <button type="button" onClick={() => setView('gudang')} style={{ minHeight: 36, padding: '.4rem .7rem', borderRadius: 6, border: 'none', background: view === 'gudang' ? '#1d5b43' : '#edf4ee', color: view === 'gudang' ? '#fff' : '#174c35', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>Per Gudang</button>
           <span style={{ flex: 1 }} />
-          <button type="button" className="button-link" onClick={exportCsv} disabled={!(view === 'gudang' ? warehouseRows.length : products.length)}>Unduh Excel</button>
-          <button type="button" className="button-link" onClick={() => window.print()} disabled={!(view === 'gudang' ? warehouseRows.length : products.length)}>Unduh PDF</button>
+          <button type="button" className="button-link" onClick={exportCsv} disabled={!warehouseRows.length}>Unduh Excel</button>
+          <button type="button" className="button-link" onClick={() => window.print()} disabled={!warehouseRows.length}>Unduh PDF</button>
         </div>
 
         {summary && (
@@ -164,98 +157,39 @@ export default function StockReportSection() {
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
                 {showAll && <th style={{ padding: '8px 10px' }}>Toko</th>}
+                <th style={{ padding: '8px 10px' }}>Gudang</th>
                 <th style={{ padding: '8px 10px' }}>Produk</th>
                 <th style={{ padding: '8px 10px' }}>SKU</th>
-                <th style={{ padding: '8px 10px' }}>Kategori</th>
                 <th style={{ padding: '8px 10px' }}>Warna</th>
-                <th style={{ padding: '8px 10px', textAlign: 'right' }}>Min</th>
                 <th style={{ padding: '8px 10px', textAlign: 'right' }}>Stok</th>
                 <th style={{ padding: '8px 10px', textAlign: 'right' }}>Reserved</th>
                 <th style={{ padding: '8px 10px', textAlign: 'right' }}>Tersedia</th>
-                <th style={{ padding: '8px 10px' }}>Status</th>
               </tr>
             </thead>
             <tbody>
-              {loading && Array.from({ length: 8 }).map((_, i) => (
-                <tr key={i}><td colSpan={showAll ? 10 : 9} style={{ padding: 10, color: 'var(--muted-foreground)' }}>Memuat…</td></tr>
-              ))}
-              {!loading && products.map((p) => {
-                const stock = Number(p.total_stock || 0);
-                const min = Number(p.min_stock || 0);
-                const reserved = Number(p.reserved || 0);
-                const available = stock - reserved;
-                const colors = (p.colors || '').split('|').filter(Boolean);
-                const isLow = stock > 0 && stock <= min;
-                const isOut = stock === 0;
+              {loading && <tr><td colSpan={showAll ? 8 : 7} style={{ padding: 10, color: 'var(--muted-foreground)' }}>Memuat…</td></tr>}
+              {!loading && warehouseRows.map((r) => {
+                const qty = Number(r.quantity || 0);
+                const reserved = Number(r.reserved || 0);
                 return (
-                  <tr key={p.id} style={{ borderBottom: '1px solid var(--border)', background: isOut ? '#fef2f2' : isLow ? '#fffbeb' : 'transparent' }}>
-                    {showAll && <td style={{ padding: '8px 10px', fontSize: 11, color: 'var(--primary)', fontWeight: 600 }}>{p.branch_name || '-'}</td>}
-                    <td style={{ padding: '8px 10px', fontWeight: 600 }}>{p.name}</td>
-                    <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: 11, color: 'var(--muted-foreground)' }}>{p.sku || '-'}</td>
-                    <td style={{ padding: '8px 10px', color: 'var(--muted-foreground)' }}>{p.category_name || '-'}</td>
-                    <td style={{ padding: '8px 10px' }}>
-                      <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                        {colors.map((c) => <span key={c} style={{ padding: '1px 5px', borderRadius: 4, background: 'var(--muted)', fontSize: 10 }}>{c}</span>)}
-                        {!colors.length && <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>-</span>}
-                      </div>
-                    </td>
-                    <td style={{ padding: '8px 10px', textAlign: 'right' }}>{money(min)}</td>
-                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>{money(stock)}</td>
+                  <tr key={`${r.warehouse_id}-${r.product_id}-${r.variant_id || 'x'}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                    {showAll && <td style={{ padding: '8px 10px', fontSize: 11, color: 'var(--primary)', fontWeight: 600 }}>{r.branch_name || '-'}</td>}
+                    <td style={{ padding: '8px 10px', fontWeight: 600 }}>{r.warehouse_name || '-'}</td>
+                    <td style={{ padding: '8px 10px' }}>{r.product_name}</td>
+                    <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: 11, color: 'var(--muted-foreground)' }}>{r.sku || '-'}</td>
+                    <td style={{ padding: '8px 10px' }}>{r.variant_color ? <span style={{ padding: '1px 5px', borderRadius: 4, background: 'var(--muted)', fontSize: 10 }}>{r.variant_color}</span> : <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>-</span>}</td>
+                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>{money(qty)}</td>
                     <td style={{ padding: '8px 10px', textAlign: 'right', color: 'var(--muted-foreground)' }}>{money(reserved)}</td>
-                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>{money(available)}</td>
-                    <td style={{ padding: '8px 10px' }}>
-                      {isOut ? <span className="status pending">Habis</span> : isLow ? <span className="status pending">Rendah</span> : <span className="status paid">Aman</span>}
-                    </td>
+                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>{money(Math.max(0, qty - reserved))}</td>
                   </tr>
                 );
               })}
-              {!loading && !products.length && (
-                <tr><td colSpan={showAll ? 10 : 9} style={{ padding: 20, textAlign: 'center', color: 'var(--muted-foreground)' }}>Tidak ada data stok</td></tr>
+              {!loading && !warehouseRows.length && (
+                <tr><td colSpan={showAll ? 8 : 7} style={{ padding: 20, textAlign: 'center', color: 'var(--muted-foreground)' }}>Belum ada stok tercatat di gudang.</td></tr>
               )}
             </tbody>
           </table>
         </div>
-
-        {view === 'gudang' && (
-          <div style={{ overflowX: 'auto', marginTop: 8 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
-                  {showAll && <th style={{ padding: '8px 10px' }}>Toko</th>}
-                  <th style={{ padding: '8px 10px' }}>Gudang</th>
-                  <th style={{ padding: '8px 10px' }}>Produk</th>
-                  <th style={{ padding: '8px 10px' }}>SKU</th>
-                  <th style={{ padding: '8px 10px' }}>Warna</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>Stok</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>Reserved</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>Tersedia</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading && <tr><td colSpan={showAll ? 8 : 7} style={{ padding: 10, color: 'var(--muted-foreground)' }}>Memuat…</td></tr>}
-                {!loading && warehouseRows.map((r) => {
-                  const qty = Number(r.quantity || 0);
-                  const reserved = Number(r.reserved || 0);
-                  return (
-                    <tr key={`${r.warehouse_id}-${r.product_id}-${r.variant_id || 'x'}`} style={{ borderBottom: '1px solid var(--border)' }}>
-                      {showAll && <td style={{ padding: '8px 10px', fontSize: 11, color: 'var(--primary)', fontWeight: 600 }}>{r.branch_name || '-'}</td>}
-                      <td style={{ padding: '8px 10px', fontWeight: 600 }}>{r.warehouse_name || '-'}</td>
-                      <td style={{ padding: '8px 10px' }}>{r.product_name}</td>
-                      <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: 11, color: 'var(--muted-foreground)' }}>{r.sku || '-'}</td>
-                      <td style={{ padding: '8px 10px' }}>{r.variant_color ? <span style={{ padding: '1px 5px', borderRadius: 4, background: 'var(--muted)', fontSize: 10 }}>{r.variant_color}</span> : <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>-</span>}</td>
-                      <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>{money(qty)}</td>
-                      <td style={{ padding: '8px 10px', textAlign: 'right', color: 'var(--muted-foreground)' }}>{money(reserved)}</td>
-                      <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>{money(Math.max(0, qty - reserved))}</td>
-                    </tr>
-                  );
-                })}
-                {!loading && !warehouseRows.length && (
-                  <tr><td colSpan={showAll ? 8 : 7} style={{ padding: 20, textAlign: 'center', color: 'var(--muted-foreground)' }}>Belum ada stok tercatat di gudang.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
       <style>{`
         .report-print-header { display: none; }
