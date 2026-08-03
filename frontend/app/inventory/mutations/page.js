@@ -27,7 +27,10 @@ export default function Mutations() {
   const [saving, setSaving] = useState(false);
   const h = () => ({ 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
 
-  const storeWarehouses = useMemo(() => allWarehouses.filter((w) => String(w.branch_id) === String(store)), [allWarehouses, store]);
+  // Gudang tipe utama selalu paling depan, sisanya abjad.
+  const storeWarehouses = useMemo(() => allWarehouses
+    .filter((w) => String(w.branch_id) === String(store))
+    .sort((a, b) => (a.type === 'utama' ? 0 : 1) - (b.type === 'utama' ? 0 : 1) || String(a.name || '').localeCompare(String(b.name || ''))), [allWarehouses, store]);
 
   async function loadChannels() {
     const r = await fetch(api + '/inventory/channels', { headers: h() });
