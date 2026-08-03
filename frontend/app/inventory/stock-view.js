@@ -1,12 +1,13 @@
 'use client';
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const money = (v) => Number(v || 0).toLocaleString('id-ID');
 
-// Laporan stok Per Gudang (satu-satunya tampilan di Stok Produk).
+// Laporan stok matriks: baris produk+warna, kolom per gudang, total di ujung.
 export default function StockReportSection() {
   const [warehouseRows, setWarehouseRows] = useState([]);
+  const [allWarehouses, setAllWarehouses] = useState([]);
   const [categories, setCategories] = useState([]);
   const [branches, setBranches] = useState([]);
   const [cat, setCat] = useState('');
@@ -16,7 +17,6 @@ export default function StockReportSection() {
   const [isGudang, setIsGudang] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
-  const [openKey, setOpenKey] = useState(null);
   const loadSeq = useRef(0);
 
   const token = () => localStorage.getItem('pos_access_token');
@@ -33,9 +33,11 @@ export default function StockReportSection() {
     Promise.all([
       fetch(`${api}/products/categories`, { headers: headers() }).then((r) => r.json()).then((b) => b.data || []).catch(() => []),
       fetch(`${api}/settings/branches`, { headers: headers() }).then((r) => r.json()).then((b) => b.data || []).catch(() => []),
-    ]).then(([cats, brs]) => {
+      fetch(`${api}/inventory/warehouses/all`, { headers: headers() }).then((r) => r.json()).then((b) => b.data || []).catch(() => []),
+    ]).then(([cats, brs, whs]) => {
       setCategories(cats);
       setBranches((brs || []).filter((b) => b.is_active !== false));
+      setAllWarehouses(whs || []);
     });
   }, []);
 
@@ -61,20 +63,30 @@ export default function StockReportSection() {
       .finally(() => { if (seq === loadSeq.current) setLoading(false); });
   }, [cat, q, branchId, isOwner, isGudang]);
 
-  const showAll = (isOwner || isGudang) && !branchId;
+  // Kolom gudang: dari daftar gudang aktif (lingkup pilihan) + gudang yang
+  // muncul di data. Urut gudang utama dulu, sisanya abjad.
+  const whColumns = useMemo(() => {
+    const scoped = allWarehouses.filter((w) => !branchId || String(w.branch_id) === String(branchId));
+    const byId = new Map(scoped.map((w) => [String(w.id), w]));
+    for (const r of warehouseRows) {
+      if (r.warehouse_id != null && !byId.has(String(r.warehouse_id))) {
+        byId.set(String(r.warehouse_id), { id: r.warehouse_id, name: r.warehouse_name, type: null });
+      }
+    }
+    return Array.from(byId.values()).sort((a, b) => (a.type === 'utama' ? 0 : 1) - (b.type === 'utama' ? 0 : 1) || String(a.name || '').localeCompare(String(b.name || '')));
+  }, [allWarehouses, branchId, warehouseRows]);
 
-  // Ringkas per produk+warna: total stok lintas gudang, rincian per gudang
-  // tetap tersedia lewat tombol "n gudang".
+  // Baris: satu per produk+warna, qty per gudang + total.
   const grouped = useMemo(() => {
     const map = new Map();
     for (const r of warehouseRows) {
       const key = `${r.product_id}:${r.variant_id || 'x'}`;
       let g = map.get(key);
       if (!g) {
-        g = { key, product_id: r.product_id, name: r.product_name, sku: r.sku, color: r.variant_color || null, min_stock: Number(r.min_stock || 0), warehouses: [], total: 0, reserved: 0 };
+        g = { key, product_id: r.product_id, name: r.product_name, sku: r.sku, color: r.variant_color || null, min_stock: Number(r.min_stock || 0), qtyByWarehouse: {}, total: 0, reserved: 0 };
         map.set(key, g);
       }
-      g.warehouses.push({ warehouse_name: r.warehouse_name, branch_name: r.branch_name, quantity: Number(r.quantity || 0), reserved: Number(r.reserved || 0) });
+      g.qtyByWarehouse[String(r.warehouse_id)] = Number(r.quantity || 0);
       g.total += Number(r.quantity || 0);
       g.reserved += Number(r.reserved || 0);
     }
@@ -90,48 +102,43 @@ export default function StockReportSection() {
       low_stock: rows.filter((r) => r.total > 0 && r.total <= r.min_stock).length,
       out_of_stock: rows.filter((r) => r.total === 0).length,
     };
-  }, [grouped]);
+  }, [grouped, warehouseRows]);
+
+  const colSpan = 2 + whColumns.length + 1;
 
   function exportCsv() {
     if (!grouped.length) return;
-    const header = showAll
-      ? ['Toko', 'Produk', 'SKU', 'Warna', 'Lokasi', 'Stok', 'Reserved', 'Tersedia']
-      : ['Produk', 'SKU', 'Warna', 'Lokasi', 'Stok', 'Reserved', 'Tersedia'];
-    const lines = grouped.map((g) => [
-      ...(showAll ? [[...new Set(g.warehouses.map((w) => w.branch_name)).filter(Boolean)].join(', ')] : []),
-      g.name, g.sku || '', g.color || '',
-      g.warehouses.map((w) => `${w.warehouse_name}: ${w.quantity}`).join(' | '),
-      g.total, g.reserved, Math.max(0, g.total - g.reserved),
-    ]);
+    const header = ['Produk', 'Warna', ...whColumns.map((w) => w.name), 'Total'];
+    const lines = grouped.map((g) => [g.name, g.color || '', ...whColumns.map((w) => g.qtyByWarehouse[String(w.id)] || 0), g.total]);
     const csv = [header, ...lines].map((row) => row.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `laporan-stok-gudang-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `laporan-stok-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
   }
 
   return (
-    <section className="form-page" style={{ maxWidth: 1100 }}>
+    <section className="form-page" style={{ maxWidth: 1200 }}>
       <div className="panel">
         <div className="report-print-header">
           <div className="print-brand">
             <strong>ANYOSTORE</strong>
-            <span>Laporan Stok Per Gudang</span>
+            <span>Laporan Stok Produk</span>
           </div>
           <div className="print-meta">
             <span>Dicetak: {new Date().toLocaleString('id-ID')}</span>
             <span>Total Produk: {summary.total_products}</span>
             <span>Total Stok: {money(summary.total_stock)}</span>
-            <span>Mode: {showAll ? 'Semua Toko' : 'Satu Toko'}</span>
+            <span>Mode: {branchId ? 'Satu Toko' : 'Semua Toko'}</span>
           </div>
         </div>
 
         <div className="no-print" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
           <span style={{ flex: 1 }} />
-          <button type="button" className="button-link" onClick={exportCsv} disabled={!warehouseRows.length}>Unduh Excel</button>
-          <button type="button" className="button-link" onClick={() => window.print()} disabled={!warehouseRows.length}>Unduh PDF</button>
+          <button type="button" className="button-link" onClick={exportCsv} disabled={!grouped.length}>Unduh Excel</button>
+          <button type="button" className="button-link" onClick={() => window.print()} disabled={!grouped.length}>Unduh PDF</button>
         </div>
 
         {summary && (
@@ -139,7 +146,7 @@ export default function StockReportSection() {
             <div style={{ padding: 16, borderRadius: 8, background: 'var(--muted)', textAlign: 'center' }}>
               <p style={{ margin: 0, fontSize: 11, color: 'var(--muted-foreground)' }}>Total Produk</p>
               <strong style={{ fontSize: 24 }}>{money(summary.total_products)}</strong>
-              {showAll && <p style={{ margin: '2px 0 0', fontSize: 10, color: 'var(--muted-foreground)' }}>{summary.total_branches} toko</p>}
+              {(isOwner || isGudang) && !branchId && <p style={{ margin: '2px 0 0', fontSize: 10, color: 'var(--muted-foreground)' }}>{summary.total_branches} toko</p>}
             </div>
             <div style={{ padding: 16, borderRadius: 8, background: 'var(--muted)', textAlign: 'center' }}>
               <p style={{ margin: 0, fontSize: 11, color: 'var(--muted-foreground)' }}>Total Stok</p>
@@ -176,49 +183,24 @@ export default function StockReportSection() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
-                {showAll && <th style={{ padding: '8px 10px' }}>Toko</th>}
                 <th style={{ padding: '8px 10px' }}>Produk</th>
-                <th style={{ padding: '8px 10px' }}>SKU</th>
                 <th style={{ padding: '8px 10px' }}>Warna</th>
-                <th style={{ padding: '8px 10px' }}>Lokasi</th>
-                <th style={{ padding: '8px 10px', textAlign: 'right' }}>Stok</th>
-                <th style={{ padding: '8px 10px', textAlign: 'right' }}>Reserved</th>
-                <th style={{ padding: '8px 10px', textAlign: 'right' }}>Tersedia</th>
+                {whColumns.map((w) => <th key={w.id} style={{ padding: '8px 10px', textAlign: 'right', whiteSpace: 'nowrap' }}>{w.name}</th>)}
+                <th style={{ padding: '8px 10px', textAlign: 'right' }}>Total</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={showAll ? 8 : 7} style={{ padding: 10, color: 'var(--muted-foreground)' }}>Memuat…</td></tr>}
+              {loading && <tr><td colSpan={colSpan} style={{ padding: 10, color: 'var(--muted-foreground)' }}>Memuat…</td></tr>}
               {!loading && grouped.map((g) => (
-                <Fragment key={g.key}>
-                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {showAll && <td style={{ padding: '8px 10px', fontSize: 11, color: 'var(--primary)', fontWeight: 600 }}>{[...new Set(g.warehouses.map((w) => w.branch_name).filter(Boolean))].join(', ') || '-'}</td>}
-                    <td style={{ padding: '8px 10px', fontWeight: 600 }}>{g.name}</td>
-                    <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: 11, color: 'var(--muted-foreground)' }}>{g.sku || '-'}</td>
-                    <td style={{ padding: '8px 10px' }}>{g.color ? <span style={{ padding: '1px 5px', borderRadius: 4, background: 'var(--muted)', fontSize: 10 }}>{g.color}</span> : <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>-</span>}</td>
-                    <td style={{ padding: '8px 10px' }}>
-                      <button type="button" className="link-button" onClick={() => setOpenKey(openKey === g.key ? null : g.key)}>{g.warehouses.length} gudang {openKey === g.key ? '▲' : '▼'}</button>
-                    </td>
-                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>{money(g.total)}</td>
-                    <td style={{ padding: '8px 10px', textAlign: 'right', color: 'var(--muted-foreground)' }}>{money(g.reserved)}</td>
-                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>{money(Math.max(0, g.total - g.reserved))}</td>
-                  </tr>
-                  {openKey === g.key && (
-                    <tr style={{ borderBottom: '1px solid var(--border)', background: '#f8fafc' }}>
-                      <td colSpan={showAll ? 8 : 7} style={{ padding: '8px 10px' }}>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          {g.warehouses.map((w, i) => (
-                            <span key={i} style={{ padding: '3px 8px', borderRadius: 999, background: '#eef2ff', color: '#1e3a5f', fontSize: 11, fontWeight: 600 }}>
-                              {w.branch_name ? `${w.branch_name} — ` : ''}{w.warehouse_name}: {w.quantity}{w.reserved ? ` (reserved ${w.reserved})` : ''}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
+                <tr key={g.key} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <td style={{ padding: '8px 10px', fontWeight: 600 }}>{g.name}</td>
+                  <td style={{ padding: '8px 10px' }}>{g.color ? <span style={{ padding: '1px 5px', borderRadius: 4, background: 'var(--muted)', fontSize: 10 }}>{g.color}</span> : <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>-</span>}</td>
+                  {whColumns.map((w) => <td key={w.id} style={{ padding: '8px 10px', textAlign: 'right' }}>{money(g.qtyByWarehouse[String(w.id)] || 0)}</td>)}
+                  <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>{money(g.total)}</td>
+                </tr>
               ))}
               {!loading && !grouped.length && (
-                <tr><td colSpan={showAll ? 8 : 7} style={{ padding: 20, textAlign: 'center', color: 'var(--muted-foreground)' }}>Belum ada stok tercatat di gudang.</td></tr>
+                <tr><td colSpan={colSpan} style={{ padding: 20, textAlign: 'center', color: 'var(--muted-foreground)' }}>Belum ada stok tercatat.</td></tr>
               )}
             </tbody>
           </table>
@@ -242,9 +224,9 @@ export default function StockReportSection() {
           .sidebar, .app-header { display: none !important; }
           .form-page { max-width: none !important; }
           .panel { border: none !important; box-shadow: none !important; padding: 0 !important; overflow: visible !important; }
-          table { width: 100% !important; min-width: 800px !important; table-layout: auto !important; border-collapse: collapse !important; font-size: 10px !important; }
-          th { background: #1e3a5f !important; color: #fff !important; padding: 5px 7px !important; text-align: left !important; font-size: 10px !important; white-space: nowrap !important; }
-          td { padding: 5px 7px !important; border-bottom: 1px solid #e5e7eb !important; vertical-align: top !important; }
+          table { width: 100% !important; border-collapse: collapse !important; font-size: 9px !important; }
+          th { background: #1e3a5f !important; color: #fff !important; padding: 4px 6px !important; text-align: left !important; font-size: 9px !important; white-space: nowrap !important; }
+          td { padding: 4px 6px !important; border-bottom: 1px solid #e5e7eb !important; vertical-align: top !important; }
           tr { break-inside: avoid; }
         }
       `}</style>
