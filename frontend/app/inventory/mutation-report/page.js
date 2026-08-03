@@ -104,12 +104,25 @@ export default function MutationReportPage() {
       <button type="button" className="button-link" onClick={() => window.print()} disabled={!rows.length}>Export PDF</button>
     </>}>
       <div style={{ display: 'grid', gap: '1rem', maxWidth: 1400, margin: '0 auto' }}>
-        <div className="tabs">
+        {/* Header khusus cetak */}
+        <div className="report-print-header">
+          <div className="print-brand">
+            <strong>ANYOSTORE</strong>
+            <span>Laporan Riwayat Barang {tab === 'out' ? 'Keluar' : 'Masuk'}</span>
+          </div>
+          <div className="print-meta">
+            <span>Periode: {start} s/d {end}</span>
+            <span>Dicetak: {new Date().toLocaleString('id-ID')}</span>
+            <span>Total Produk: {summary.product_count.toLocaleString('id-ID')}</span>
+            <span>Total Qty: {summary.total_qty.toLocaleString('id-ID')}</span>
+          </div>
+        </div>
+        <div className="tabs no-print">
           <button type="button" className={tab === 'in' ? 'active' : ''} onClick={() => setTab('in')}>Riwayat Masuk</button>
           <button type="button" className={tab === 'out' ? 'active' : ''} onClick={() => setTab('out')}>Riwayat Keluar</button>
         </div>
 
-        <section className="panel">
+        <section className="panel no-print">
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'end' }}>
             {PRESETS.map((p) => <button key={p.days} type="button" className="small secondary" onClick={() => applyPreset(p.days)}>{p.label}</button>)}
             <label style={{ minWidth: 150 }}>Dari<input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
@@ -121,7 +134,7 @@ export default function MutationReportPage() {
           {message && <p className="message" role="status">{message}</p>}
         </section>
 
-        <section className="metrics-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', maxWidth: 480 }}>
+        <section className="metrics-grid no-print" style={{ gridTemplateColumns: 'repeat(2, 1fr)', maxWidth: 480 }}>
           <article className="metric-card"><div><span>Product Count</span><strong>{summary.product_count.toLocaleString('id-ID')}</strong></div></article>
           <article className="metric-card"><div><span>Total Quantity</span><strong>{summary.total_qty.toLocaleString('id-ID')}</strong></div></article>
         </section>
@@ -170,6 +183,27 @@ export default function MutationReportPage() {
           </table>
         </section>
       </div>
+      <style>{`
+        .report-print-header { display: none; }
+        @media print {
+          .report-print-header { display: block; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid #1e3a5f; }
+          .print-brand strong { display: block; font-size: 16px; letter-spacing: .12em; color: #1e3a5f; }
+          .print-brand span { display: block; font-size: 20px; font-weight: 700; margin-top: 2px; color: #111827; }
+          .print-meta { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 8px; font-size: 11px; color: #374151; }
+          .no-print { display: none !important; }
+          body * { visibility: visible !important; }
+          .app-shell, .app-main { display: block !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
+          .sidebar { display: none !important; }
+          .app-header { display: none !important; }
+          .panel { border: none !important; box-shadow: none !important; padding: 0 !important; }
+          table { width: 100% !important; border-collapse: collapse !important; font-size: 11px !important; }
+          th { background: #1e3a5f !important; color: #fff !important; padding: 6px 8px !important; text-align: left !important; font-size: 11px !important; }
+          td { padding: 6px 8px !important; border-bottom: 1px solid #e5e7eb !important; }
+          tr { break-inside: avoid; }
+          .link-button { display: none !important; }
+          .message { display: none !important; }
+        }
+      `}</style>
     </AppShell>
   );
 }
