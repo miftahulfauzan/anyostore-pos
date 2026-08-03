@@ -38,7 +38,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 |--------|--------|-------------|
 | `public.js` | `/api/public` | Landing: settings (multi-WA), categories, products (paginasi/search/sort), products/:id (media+variants) |
 | `products.js` | `/api/products` | CRUD produk, media (max 10 img + 1 video), varian, wholesale prices, categories CRUD, transform foto |
-| `inventory.js` | `/api/inventory` | Warehouse, mutasi, stock-total (branch/all), barcode search |
+| `inventory.js` | `/api/inventory` | Warehouse, mutasi, stock-total (branch/all), barcode search, incoming/outgoing per batch (`batch_number` BATCH-YYYYMMDD-NNN, `warehouse_id`, `transaction_date`) |
 | `inventory-control.js` | `/api/inventory-control` | Transfer antar gudang/cabang, opname |
 | `transactions.js` | `/api/transactions` | Checkout (idempotency `client_transaction_id`), hold/resume, cancel |
 | `printer.js` | `/api/printer` | Struk thermal 58/80mm |
@@ -138,7 +138,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 | `/products/[id]/edit` | `products/[id]/edit/page.js` | Edit produk + media + varian |
 | `/inventory` | `inventory/page.js` | Stok (tab: Stok Gudang per-gudang / Laporan Stok agregat, kelola gudang) |
 | `/inventory/movements` | `inventory/movements/page.js` | Riwayat stok (card list) |
-| `/inventory/mutations` | `inventory/mutations/page.js` | Mutasi stok: tab Produk Masuk/Keluar + dropdown channel (wa/shopee/tiktok/reseller) |
+| `/inventory/mutations` | `inventory/mutations/page.js` | Mutasi stok: form transaksi (tanggal, batch/nota, toko, gudang, keterangan) + katalog grid (foto, stok per gudang, warna) + keranjang; dropdown channel untuk keluar |
 | `/inventory/transfers` | `inventory/transfers/page.js` | Transfer stok antar gudang/cabang (auto-buat produk di tujuan) |
 | `/inventory/{barcodes,opname}` | ... | Cetak barcode, opname |
 | `/finance` | `finance/page.js` | Keuangan (tab: Ringkasan Laba Rugi / Pengeluaran / Pemasukan) |
