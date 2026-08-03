@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const money = (v) => Number(v || 0).toLocaleString('id-ID');
@@ -16,6 +16,7 @@ export default function StockReportSection() {
   const [isGudang, setIsGudang] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [openKey, setOpenKey] = useState(null);
   const loadSeq = useRef(0);
 
   const token = () => localStorage.getItem('pos_access_token');
@@ -62,26 +63,45 @@ export default function StockReportSection() {
 
   const showAll = (isOwner || isGudang) && !branchId;
 
-  const summary = useMemo(() => {
-    const rows = warehouseRows;
-    return {
-      total_products: new Set(rows.map((r) => r.product_id)).size,
-      total_stock: rows.reduce((s, r) => s + Number(r.quantity || 0), 0),
-      total_branches: new Set(rows.map((r) => r.branch_name)).size,
-      low_stock: rows.filter((r) => Number(r.quantity || 0) > 0 && Number(r.quantity || 0) <= Number(r.min_stock || 0)).length,
-      out_of_stock: rows.filter((r) => Number(r.quantity || 0) === 0).length,
-    };
+  // Ringkas per produk+warna: total stok lintas gudang, rincian per gudang
+  // tetap tersedia lewat tombol "n gudang".
+  const grouped = useMemo(() => {
+    const map = new Map();
+    for (const r of warehouseRows) {
+      const key = `${r.product_id}:${r.variant_id || 'x'}`;
+      let g = map.get(key);
+      if (!g) {
+        g = { key, product_id: r.product_id, name: r.product_name, sku: r.sku, color: r.variant_color || null, min_stock: Number(r.min_stock || 0), warehouses: [], total: 0, reserved: 0 };
+        map.set(key, g);
+      }
+      g.warehouses.push({ warehouse_name: r.warehouse_name, branch_name: r.branch_name, quantity: Number(r.quantity || 0), reserved: Number(r.reserved || 0) });
+      g.total += Number(r.quantity || 0);
+      g.reserved += Number(r.reserved || 0);
+    }
+    return Array.from(map.values()).sort((a, b) => String(a.name).localeCompare(String(b.name)));
   }, [warehouseRows]);
 
+  const summary = useMemo(() => {
+    const rows = grouped;
+    return {
+      total_products: new Set(rows.map((r) => r.product_id)).size,
+      total_stock: rows.reduce((s, r) => s + r.total, 0),
+      total_branches: new Set(warehouseRows.map((r) => r.branch_name).filter(Boolean)).size,
+      low_stock: rows.filter((r) => r.total > 0 && r.total <= r.min_stock).length,
+      out_of_stock: rows.filter((r) => r.total === 0).length,
+    };
+  }, [grouped]);
+
   function exportCsv() {
-    if (!warehouseRows.length) return;
+    if (!grouped.length) return;
     const header = showAll
-      ? ['Toko', 'Gudang', 'Produk', 'SKU', 'Warna', 'Stok', 'Reserved', 'Tersedia']
-      : ['Gudang', 'Produk', 'SKU', 'Warna', 'Stok', 'Reserved', 'Tersedia'];
-    const lines = warehouseRows.map((r) => [
-      ...(showAll ? [r.branch_name || ''] : []),
-      r.warehouse_name || '', r.product_name || '', r.sku || '', r.variant_color || '',
-      r.quantity ?? 0, r.reserved ?? 0, Math.max(0, Number(r.quantity || 0) - Number(r.reserved || 0)),
+      ? ['Toko', 'Produk', 'SKU', 'Warna', 'Lokasi', 'Stok', 'Reserved', 'Tersedia']
+      : ['Produk', 'SKU', 'Warna', 'Lokasi', 'Stok', 'Reserved', 'Tersedia'];
+    const lines = grouped.map((g) => [
+      ...(showAll ? [[...new Set(g.warehouses.map((w) => w.branch_name)).filter(Boolean)].join(', ')] : []),
+      g.name, g.sku || '', g.color || '',
+      g.warehouses.map((w) => `${w.warehouse_name}: ${w.quantity}`).join(' | '),
+      g.total, g.reserved, Math.max(0, g.total - g.reserved),
     ]);
     const csv = [header, ...lines].map((row) => row.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
@@ -157,10 +177,10 @@ export default function StockReportSection() {
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
                 {showAll && <th style={{ padding: '8px 10px' }}>Toko</th>}
-                <th style={{ padding: '8px 10px' }}>Gudang</th>
                 <th style={{ padding: '8px 10px' }}>Produk</th>
                 <th style={{ padding: '8px 10px' }}>SKU</th>
                 <th style={{ padding: '8px 10px' }}>Warna</th>
+                <th style={{ padding: '8px 10px' }}>Lokasi</th>
                 <th style={{ padding: '8px 10px', textAlign: 'right' }}>Stok</th>
                 <th style={{ padding: '8px 10px', textAlign: 'right' }}>Reserved</th>
                 <th style={{ padding: '8px 10px', textAlign: 'right' }}>Tersedia</th>
@@ -168,23 +188,36 @@ export default function StockReportSection() {
             </thead>
             <tbody>
               {loading && <tr><td colSpan={showAll ? 8 : 7} style={{ padding: 10, color: 'var(--muted-foreground)' }}>Memuat…</td></tr>}
-              {!loading && warehouseRows.map((r) => {
-                const qty = Number(r.quantity || 0);
-                const reserved = Number(r.reserved || 0);
-                return (
-                  <tr key={`${r.warehouse_id}-${r.product_id}-${r.variant_id || 'x'}`} style={{ borderBottom: '1px solid var(--border)' }}>
-                    {showAll && <td style={{ padding: '8px 10px', fontSize: 11, color: 'var(--primary)', fontWeight: 600 }}>{r.branch_name || '-'}</td>}
-                    <td style={{ padding: '8px 10px', fontWeight: 600 }}>{r.warehouse_name || '-'}</td>
-                    <td style={{ padding: '8px 10px' }}>{r.product_name}</td>
-                    <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: 11, color: 'var(--muted-foreground)' }}>{r.sku || '-'}</td>
-                    <td style={{ padding: '8px 10px' }}>{r.variant_color ? <span style={{ padding: '1px 5px', borderRadius: 4, background: 'var(--muted)', fontSize: 10 }}>{r.variant_color}</span> : <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>-</span>}</td>
-                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>{money(qty)}</td>
-                    <td style={{ padding: '8px 10px', textAlign: 'right', color: 'var(--muted-foreground)' }}>{money(reserved)}</td>
-                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>{money(Math.max(0, qty - reserved))}</td>
+              {!loading && grouped.map((g) => (
+                <Fragment key={g.key}>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    {showAll && <td style={{ padding: '8px 10px', fontSize: 11, color: 'var(--primary)', fontWeight: 600 }}>{[...new Set(g.warehouses.map((w) => w.branch_name).filter(Boolean))].join(', ') || '-'}</td>}
+                    <td style={{ padding: '8px 10px', fontWeight: 600 }}>{g.name}</td>
+                    <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: 11, color: 'var(--muted-foreground)' }}>{g.sku || '-'}</td>
+                    <td style={{ padding: '8px 10px' }}>{g.color ? <span style={{ padding: '1px 5px', borderRadius: 4, background: 'var(--muted)', fontSize: 10 }}>{g.color}</span> : <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>-</span>}</td>
+                    <td style={{ padding: '8px 10px' }}>
+                      <button type="button" className="link-button" onClick={() => setOpenKey(openKey === g.key ? null : g.key)}>{g.warehouses.length} gudang {openKey === g.key ? '▲' : '▼'}</button>
+                    </td>
+                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>{money(g.total)}</td>
+                    <td style={{ padding: '8px 10px', textAlign: 'right', color: 'var(--muted-foreground)' }}>{money(g.reserved)}</td>
+                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>{money(Math.max(0, g.total - g.reserved))}</td>
                   </tr>
-                );
-              })}
-              {!loading && !warehouseRows.length && (
+                  {openKey === g.key && (
+                    <tr style={{ borderBottom: '1px solid var(--border)', background: '#f8fafc' }}>
+                      <td colSpan={showAll ? 8 : 7} style={{ padding: '8px 10px' }}>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {g.warehouses.map((w, i) => (
+                            <span key={i} style={{ padding: '3px 8px', borderRadius: 999, background: '#eef2ff', color: '#1e3a5f', fontSize: 11, fontWeight: 600 }}>
+                              {w.branch_name ? `${w.branch_name} — ` : ''}{w.warehouse_name}: {w.quantity}{w.reserved ? ` (reserved ${w.reserved})` : ''}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
+              {!loading && !grouped.length && (
                 <tr><td colSpan={showAll ? 8 : 7} style={{ padding: 20, textAlign: 'center', color: 'var(--muted-foreground)' }}>Belum ada stok tercatat di gudang.</td></tr>
               )}
             </tbody>
