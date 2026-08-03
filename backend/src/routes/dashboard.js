@@ -36,7 +36,9 @@ router.get('/', async (req, res, next) => {
       'FROM transactions t WHERE t.status IN (\'completed\', \'partially_cancelled\') AND DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)' +
       transactionScope + ' GROUP BY DATE(t.created_at) ORDER BY date';
     const paymentSql =
-      'SELECT tp.payment_method, COALESCE(SUM(tp.amount), 0) AS amount ' +
+      // Refund (cancelled_amount) dikurangi proporsional per metode pembayaran,
+      // supaya breakdown = ringkasan penjualan.
+      'SELECT tp.payment_method, COALESCE(SUM(tp.amount - (t.cancelled_amount * tp.amount / NULLIF(t.grand_total, 0))), 0) AS amount ' +
       'FROM transaction_payments tp JOIN transactions t ON t.id = tp.transaction_id ' +
       'WHERE t.status IN (\'completed\', \'partially_cancelled\') AND DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)' +
       transactionScope + ' GROUP BY tp.payment_method ORDER BY amount DESC';

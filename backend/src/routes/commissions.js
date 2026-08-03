@@ -54,11 +54,11 @@ router.get('/report', authenticate, authorize('owner'), async (req, res, next) =
       if (!applicable.length) continue;
       // aggregate qty per customer tier
       const [rows] = await db.execute(
-        `SELECT COALESCE(c.price_tier, 'reguler') AS tier, COALESCE(SUM(ti.quantity),0) AS qty, COUNT(DISTINCT t.id) AS trx, COALESCE(SUM(t.grand_total),0) AS sales
+        `SELECT COALESCE(c.price_tier, 'reguler') AS tier, COALESCE(SUM(ti.quantity - ti.cancelled_qty),0) AS qty, COUNT(DISTINCT t.id) AS trx, COALESCE(SUM(t.grand_total - t.cancelled_amount),0) AS sales
          FROM transactions t
          JOIN transaction_items ti ON ti.transaction_id=t.id
          LEFT JOIN customers c ON c.id=t.customer_id
-         WHERE t.branch_id=? AND t.user_id=? AND t.status='completed' AND DATE(t.created_at) BETWEEN ? AND ?
+         WHERE t.branch_id=? AND t.user_id=? AND t.status IN ('completed','partially_cancelled') AND DATE(t.created_at) BETWEEN ? AND ?
          GROUP BY tier`,
         [branchId, u.id, start, end]
       );
@@ -76,9 +76,7 @@ router.get('/report', authenticate, authorize('owner'), async (req, res, next) =
         } else if (r.calculation_type === 'percentage_sales') {
           comm = getSales() * Number(r.percentage) / 100;
         } else if (r.calculation_type === 'per_transaction') {
-          const trx = [...new Set(rows.map((x) => Number(x.trx)))].reduce((a, b) => a + b, 0) || rows.reduce((a, rr) => a + Number(rr.trx || 0), 0);
-          // simpler: total distinct transactions
-          const [cntRow] = await db.execute('SELECT COUNT(*) AS cnt FROM transactions WHERE branch_id=? AND user_id=? AND status="completed" AND DATE(created_at) BETWEEN ? AND ?', [branchId, u.id, start, end]);
+          const [cntRow] = await db.execute('SELECT COUNT(*) AS cnt FROM transactions WHERE branch_id=? AND user_id=? AND status IN ("completed","partially_cancelled") AND DATE(created_at) BETWEEN ? AND ?', [branchId, u.id, start, end]);
           comm = Number(cntRow[0].cnt) * Number(r.flat_amount);
         } else {
           comm = Number(r.flat_amount);
@@ -198,11 +196,11 @@ router.post('/generate', authenticate, authorize('owner'), async (req, res, next
 
         // qty per customer tier
         const [tierRows] = await connection.execute(
-          `SELECT COALESCE(c.price_tier, 'reguler') AS tier, COALESCE(SUM(ti.quantity),0) AS qty
+          `SELECT COALESCE(c.price_tier, 'reguler') AS tier, COALESCE(SUM(ti.quantity - ti.cancelled_qty),0) AS qty
            FROM transactions t
            JOIN transaction_items ti ON ti.transaction_id=t.id
            LEFT JOIN customers c ON c.id=t.customer_id
-           WHERE t.branch_id=? AND t.user_id=? AND t.status='completed' AND DATE(t.created_at) BETWEEN ? AND ?
+           WHERE t.branch_id=? AND t.user_id=? AND t.status IN ('completed','partially_cancelled') AND DATE(t.created_at) BETWEEN ? AND ?
            GROUP BY tier`,
           [req.user.branch_id, user.id, periodStart, periodEnd]
         );
@@ -212,9 +210,9 @@ router.post('/generate', authenticate, authorize('owner'), async (req, res, next
         const qtyGrosir = tierQty['grosir_seri'] || 0;
 
         const [transactions] = await connection.execute(
-          `SELECT t.id, t.grand_total, COALESCE(SUM((ti.price - ti.cost) * ti.quantity - ti.discount), 0) AS profit
+          `SELECT t.id, t.grand_total, COALESCE(SUM((ti.price - ti.cost) * (ti.quantity - ti.cancelled_qty) - ti.discount * (ti.quantity - ti.cancelled_qty) / NULLIF(ti.quantity, 0)), 0) AS profit
            FROM transactions t LEFT JOIN transaction_items ti ON ti.transaction_id = t.id
-           WHERE t.branch_id = ? AND t.user_id = ? AND t.status = 'completed' AND DATE(t.created_at) BETWEEN ? AND ? GROUP BY t.id`,
+           WHERE t.branch_id = ? AND t.user_id = ? AND t.status IN ('completed','partially_cancelled') AND DATE(t.created_at) BETWEEN ? AND ? GROUP BY t.id`,
           [req.user.branch_id, user.id, periodStart, periodEnd]
         );
         const totalSales = asMoney(transactions.reduce((sum, row) => sum + Number(row.grand_total), 0));
@@ -310,11 +308,11 @@ router.get('/mine', authenticate, async (req, res, next) => {
 
     if (rules.length) {
       const [tierRows] = await db.execute(
-        `SELECT COALESCE(c.price_tier, 'reguler') AS tier, COALESCE(SUM(ti.quantity),0) AS qty, COUNT(DISTINCT t.id) AS cnt, COALESCE(SUM(t.grand_total),0) AS sales
+        `SELECT COALESCE(c.price_tier, 'reguler') AS tier, COALESCE(SUM(ti.quantity - ti.cancelled_qty),0) AS qty, COUNT(DISTINCT t.id) AS cnt, COALESCE(SUM(t.grand_total - t.cancelled_amount),0) AS sales
          FROM transactions t
          JOIN transaction_items ti ON ti.transaction_id=t.id
          LEFT JOIN customers c ON c.id=t.customer_id
-         WHERE t.branch_id=? AND t.user_id=? AND t.status='completed' AND DATE(t.created_at) BETWEEN ? AND ?
+         WHERE t.branch_id=? AND t.user_id=? AND t.status IN ('completed','partially_cancelled') AND DATE(t.created_at) BETWEEN ? AND ?
          GROUP BY tier`,
         [branchId, userId, monthStart, monthEnd]
       );
@@ -325,7 +323,7 @@ router.get('/mine', authenticate, async (req, res, next) => {
       const sales = tierRows.reduce((s, r) => s + Number(r.sales || 0), 0);
       const cnt = tierRows.reduce((s, r) => s + Number(r.cnt || 0), 0);
       // distinct transactions
-      const [cntRow] = await db.execute('SELECT COUNT(*) AS cnt FROM transactions WHERE branch_id=? AND user_id=? AND status="completed" AND DATE(created_at) BETWEEN ? AND ?', [branchId, userId, monthStart, monthEnd]);
+      const [cntRow] = await db.execute('SELECT COUNT(*) AS cnt FROM transactions WHERE branch_id=? AND user_id=? AND status IN ("completed","partially_cancelled") AND DATE(created_at) BETWEEN ? AND ?', [branchId, userId, monthStart, monthEnd]);
       const totalTrx = Number(cntRow[0].cnt);
 
       let estimated = 0;
@@ -339,9 +337,9 @@ router.get('/mine', authenticate, async (req, res, next) => {
           comm = qtyReg * Number(rule.commission_reguler_per_pcs || 0) + qtySemi * Number(rule.commission_semi_grosir_per_pcs || 0) + qtyGrosir * Number(rule.commission_grosir_seri_per_pcs || 0);
         } else if (rule.calculation_type === 'percentage_profit') {
           const [profitRows] = await db.execute(
-            `SELECT COALESCE(SUM((ti.price - ti.cost) * ti.quantity - ti.discount),0) AS profit
+            `SELECT COALESCE(SUM((ti.price - ti.cost) * (ti.quantity - ti.cancelled_qty) - ti.discount * (ti.quantity - ti.cancelled_qty) / NULLIF(ti.quantity, 0)),0) AS profit
              FROM transactions t JOIN transaction_items ti ON ti.transaction_id=t.id
-             WHERE t.branch_id=? AND t.user_id=? AND t.status='completed' AND DATE(t.created_at) BETWEEN ? AND ?`,
+             WHERE t.branch_id=? AND t.user_id=? AND t.status IN ('completed','partially_cancelled') AND DATE(t.created_at) BETWEEN ? AND ?`,
             [branchId, userId, monthStart, monthEnd]
           );
           comm = Number(profitRows[0]?.profit || 0) * Number(rule.percentage) / 100;

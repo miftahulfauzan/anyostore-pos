@@ -43,6 +43,27 @@ async function loginWithPassword(req, res, next) {
   } catch (error) { return next(error); }
 }
 
+// Login PIN untuk kasir/pegawai. PIN dikelola di halaman Pegawai & Akses
+// (users.js). Sebelumnya pin_hash disimpan tapi tidak pernah dipakai.
+async function loginWithPin(req, res, next) {
+  try {
+    const { email, pin } = req.body;
+    if (!email || !pin) return res.status(400).json({ success: false, message: 'Email dan PIN wajib diisi' });
+    const [rows] = await db.execute(
+      'SELECT id, branch_id, name, email, password, role, pin_hash FROM users WHERE email = ? AND is_active = TRUE LIMIT 1',
+      [email]
+    );
+    const user = rows[0];
+    if (!user?.pin_hash || !(await bcrypt.compare(String(pin), user.pin_hash))) {
+      return res.status(401).json({ success: false, message: 'Email atau PIN tidak valid' });
+    }
+    const tokens = issueTokens(user);
+    await persistRefreshToken(user.id, tokens.refreshToken);
+    await db.execute('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
+    return res.json({ success: true, data: { user: { id: user.id, name: user.name, email: user.email, role: user.role, branch_id: user.branch_id }, ...tokens } });
+  } catch (error) { return next(error); }
+}
+
 async function refresh(req, res, next) {
   try {
     const { refresh_token: token } = req.body;
@@ -88,4 +109,4 @@ function authorize(...roles) {
   };
 }
 
-module.exports = { loginWithPassword, refresh, logout, authenticate, authorize };
+module.exports = { loginWithPassword, loginWithPin, refresh, logout, authenticate, authorize };

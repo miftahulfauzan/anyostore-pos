@@ -9,10 +9,10 @@ const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const defaults = {
   store_name: '', store_address: '', store_phone: '', store_email: '', store_tax_id: '', store_logo: '',
   receipt_header: '', receipt_footer: '', receipt_note: '', printer_size: '80', auto_print: 'false',
-  theme: 'green', currency: 'IDR', tax_rate: '0', prices_include_tax: 'false',
+  theme: 'green', tax_rate: '0', prices_include_tax: 'false',
   loyalty_enabled: 'false', loyalty_points_rate: '1', loyalty_points_value: '0',
   show_logo: 'true', show_qr: 'false', show_cashier: 'true', show_barcode: 'true',
-  low_stock_alert: 'true', low_stock_email: '', order_prefix: '', invoice_prefix: 'INV', timezone: 'Asia/Jakarta'
+  low_stock_alert: 'true', low_stock_email: '', order_prefix: '', invoice_prefix: 'INV'
 };
 
 function sanitizeBranchName(v) { return String(v || '').trim(); }

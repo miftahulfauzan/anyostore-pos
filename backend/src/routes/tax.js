@@ -46,7 +46,10 @@ router.get('/report', async (req, res, next) => {
       [branchId, start, end]
     );
     const totalPurchase = Number(purchaseData[0].total_purchase || 0);
-    const ppnMasukan = money(totalPurchase * taxRate / 100);
+    // Konsisten dengan PPN Keluaran: kalau harga sudah termasuk pajak,
+    // dasar pengenaan harus dibagi (1 + rate) dulu.
+    const ppnMasukanBase = pricesIncludeTax ? totalPurchase / (1 + taxRate / 100) : totalPurchase;
+    const ppnMasukan = money(ppnMasukanBase * taxRate / 100);
 
     const netPpn = money(ppnKeluaran - ppnMasukan);
 
@@ -86,6 +89,7 @@ router.get('/report', async (req, res, next) => {
         ppn_masukan: {
           orders: purchaseData[0].orders,
           total_purchase: money(totalPurchase),
+          ppn_base: money(ppnMasukanBase),
           ppn_amount: ppnMasukan,
         },
         net_ppn: netPpn,

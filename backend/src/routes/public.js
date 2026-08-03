@@ -161,7 +161,7 @@ router.get('/products/:id', async (req, res, next) => {
 
     const colors = [...new Set(variants.map(v => v.color).filter(Boolean))];
 
-    res.json({ success: true, data: { ...rows[0], media, variants, colors, min_order_text: 'Minimal pembelian 4 pcs per model' } });
+    res.json({ success: true, data: { ...rows[0], media, variants, colors } });
   } catch (e) { next(e); }
 });
 

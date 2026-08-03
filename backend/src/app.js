@@ -4,7 +4,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const db = require('./db');
 const { corsOrigin } = require('./config');
-const { authenticate, loginWithPassword, refresh, logout } = require('./auth');
+const { authenticate, loginWithPassword, loginWithPin, refresh, logout } = require('./auth');
 const productsRouter = require('./routes/products');
 const inventoryRouter = require('./routes/inventory');
 const transactionsRouter = require('./routes/transactions');
@@ -57,6 +57,7 @@ app.get('/api/health', async (_req, res, next) => {
   catch (error) { next(error); }
 });
 app.post('/api/auth/login', loginLimiter, loginWithPassword);
+app.post('/api/auth/login-pin', loginLimiter, loginWithPin);
 app.post('/api/auth/refresh', loginLimiter, refresh);
 app.post('/api/auth/logout', logout);
 app.get('/api/auth/me', authenticate, async (req, res, next) => {

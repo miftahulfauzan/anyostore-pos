@@ -18,6 +18,9 @@ function httpError(status, message) {
 
 async function nextInvoice(connection, branchId) {
   const businessDate = localDateString();
+  // Prefix invoice dari Pengaturan (invoice_prefix), default INV.
+  const [prefixRows] = await connection.execute("SELECT `value` FROM store_settings WHERE branch_id = ? AND `key` = 'invoice_prefix' LIMIT 1", [branchId]);
+  const prefix = String(prefixRows[0]?.value || 'INV').trim().toUpperCase();
   await connection.execute(
     `INSERT INTO invoice_sequences (branch_id, business_date, last_number) VALUES (?, ?, 1)
      ON DUPLICATE KEY UPDATE last_number = last_number + 1`,
@@ -28,7 +31,7 @@ async function nextInvoice(connection, branchId) {
     [branchId, businessDate]
   );
   const number = String(sequence[0].last_number).padStart(4, '0');
-  return `INV-${businessDate.replaceAll('-', '')}-B${branchId}-${number}`;
+  return `${prefix}-${businessDate.replaceAll('-', '')}-B${branchId}-${number}`;
 }
 
 function normalizePayments(body, grandTotal) {

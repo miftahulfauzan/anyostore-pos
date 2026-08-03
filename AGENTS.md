@@ -21,7 +21,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 | `src/app.js` | Express setup: helmet, cors, json 6mb, rate limit 600/min, static `/uploads`, mount 18 routers, 404 + error handler |
 | `src/config.js` | Validasi env (DB_HOST/USER/PASS/NAME, JWT_SECRET, JWT_REFRESH_SECRET). Throw kalau kurang |
 | `src/db.js` | mysql2/promise pool, connectionLimit 10 |
-| `src/auth.js` | JWT access 12h + refresh, `authenticate`, `authorize(roles...)` |
+| `src/auth.js` | JWT access 12h + refresh, login password (`/api/auth/login`) & PIN (`/api/auth/login-pin`), `authenticate`, `authorize(roles...)` |
 | `src/media-storage.js` | Storage disk/DB (`MEDIA_STORAGE=database`), `persistUploadedFile`, `removeMedia`, `copyMediaFile`, `serveBlob` |
 | `src/pricing.js` | Satu-satunya logika tier harga (grosir seri/semi grosir/retail + harga wholesale) — dipakai checkout DAN `POST /api/transactions/preview`. JANGAN duplikasi di frontend |
 | `src/stock.js` | Satu-satunya jalur penulisan stok: `adjustStock()` mengubah `warehouse_stocks` + `products.stock` + `product_variants.stock` + `stock_mutations` sekaligus |
@@ -103,7 +103,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 
 ### Transaksi (checkout)
 - `client_transaction_id` UUID → idempotency (retry tidak dobel)
-- Invoice: `INV-YYYYMMDD-B{branch}-0001` via `invoice_sequences` + `FOR UPDATE`
+- Invoice: `{invoice_prefix}-YYYYMMDD-B{branch}-0001` (prefix dari `store_settings.invoice_prefix`, default `INV`) via `invoice_sequences` + `FOR UPDATE`; PO pakai `order_prefix` (default `PO`)
 - Harga otomatis: tier pelanggan → wholesale price → override manual (`price_override` di audit)
 - Cancel/retur: `cancelled_qty` di transaction_items, stok dikembalikan, status `partially_cancelled`
 

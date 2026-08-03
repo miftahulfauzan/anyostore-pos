@@ -453,15 +453,14 @@ router.delete('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (r
     const [product] = await db.execute('SELECT id, name, is_active FROM products WHERE id=? AND branch_id=?', [id, req.user.branch_id]);
     if (!product[0]) return res.status(404).json({ success: false, message: 'Produk tidak ditemukan' });
 
-    // Check if product has any history that must keep it alive (sales, PO, supplier mapping, opname, transfer, retur)
+    // Check if product has any history that must keep it alive (sales, PO, opname, transfer, retur)
     const [trx] = await db.execute(
       `SELECT (SELECT COUNT(*) FROM transaction_items WHERE product_id=?) +
               (SELECT COUNT(*) FROM purchase_order_items WHERE product_id=?) +
-              (SELECT COUNT(*) FROM supplier_products WHERE product_id=?) +
               (SELECT COUNT(*) FROM stock_opname_items WHERE product_id=?) +
               (SELECT COUNT(*) FROM stock_transfer_items WHERE product_id=?) +
               (SELECT COUNT(*) FROM return_items WHERE product_id=?) AS cnt`,
-      [id, id, id, id, id, id]
+      [id, id, id, id, id]
     );
     const hasHistory = Number(trx[0].cnt) > 0;
 

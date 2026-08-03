@@ -28,9 +28,8 @@ function seededShuffle(arr, seed) {
   let s = 2166136261; for (let i = 0; i < seed.length; i++) { s ^= seed.charCodeAt(i); s = Math.imul(s, 16777619); }
   const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; s >>>= 0; const j = s % (i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a;
 }
-function parsePhotos(paths, single) {
-  if (paths) return paths.split('||').filter(Boolean).map((p) => ({ path: p.trim() }));
-  if (single) return [{ path: single }]; return [];
+function parsePhotos(single) {
+  return single ? [{ path: single }] : [];
 }
 function photoStyle(transform, base) {
   const t = String(transform || '').split(',').map(Number);
@@ -38,7 +37,7 @@ function photoStyle(transform, base) {
 }
 
 function ProductCard({ product, onWa }) {
-  const photos = useMemo(() => parsePhotos(product.photo_paths, product.photo_path), [product.photo_paths, product.photo_path]);
+  const photos = useMemo(() => parsePhotos(product.photo_path), [product.photo_path]);
   const colors = (product.variant_colors || '').split('|').filter(Boolean).slice(0, 4);
   return (
     <article className="pcard">
@@ -96,7 +95,7 @@ export default function LandingPage() {
   useEffect(() => { fetch(`${api}/public/products?limit=60`).then((r) => r.json()).then((b) => setSlidesAll(b.data || [])).catch(() => {}); }, []);
   const pages = useMemo(() => { const tp = totalPages; let s = Math.max(1, page - 2); let e = Math.min(tp, s + 4); s = Math.max(1, e - 4); const o = []; for (let i = s; i <= e; i++) o.push(i); return o; }, [page, totalPages]);
   const slide = slides[slideIdx];
-  const slidePhotos = useMemo(() => parsePhotos(slide?.photo_paths, slide?.photo_path), [slide?.photo_paths, slide?.photo_path]);
+  const slidePhotos = useMemo(() => parsePhotos(slide?.photo_path), [slide?.photo_path]);
 
   return (
     <div style={{ background: T.bg, color: T.black, minHeight: '100vh', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
@@ -316,7 +315,6 @@ export default function LandingPage() {
         .page-btn { min-width: 42px; min-height: 42px; border-radius: 10px; border: 1.5px solid #cbd5e1; background: #fff; font-weight: 600; font-size: 14px; color: ${T.black}; cursor: pointer; transition: all .3s cubic-bezier(.4,0,.2,1); display: inline-flex; align-items: center; justify-content: center; }
         .page-btn:hover { border-color: ${T.blue}; color: ${T.blue}; background: rgba(255,255,255,.8); }
         .page-btn.active { background: ${T.blue}; color: ${T.white}; border-color: ${T.blue}; box-shadow: 0 2px 8px rgba(30,58,95,.25); }
-        @keyframes slideIn { from { opacity: 0; transform: scale(.985) translateY(8px); } to { opacity: 1; transform: none; } }
         .wa-modal-in { animation: modalIn .35s cubic-bezier(.4,0,.2,1); }
         @keyframes modalIn { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
         @media (max-width: 900px) { .pcard-grid { grid-template-columns: repeat(3, 1fr); } }
