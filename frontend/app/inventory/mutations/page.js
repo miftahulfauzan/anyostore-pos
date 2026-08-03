@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '../../components/AppShell';
+import StockVariantPicker from '../../components/StockVariantPicker';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const mediaUrl = (p) => (p ? api.replace('/api', '') + p : '');
@@ -26,6 +27,7 @@ export default function Mutations() {
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [picker, setPicker] = useState(null);
   const h = () => ({ 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
 
   // Gudang tipe utama selalu paling depan, sisanya abjad.
@@ -81,7 +83,7 @@ export default function Mutations() {
     return sorted;
   }, [products, query, sort]);
 
-  function addToCart(product, variant = null) {
+  function addToCart(product, variant = null, qty = 1) {
     if (!variant && product.variants && product.variants.length > 0) {
       setMessage(`Produk ${product.name} punya varian — pilih warnanya dulu.`);
       return;
@@ -89,8 +91,8 @@ export default function Mutations() {
     const key = `${product.id}:${variant?.id || 'umum'}`;
     setCart((cur) => {
       const found = cur.find((c) => c.key === key);
-      if (found) return cur.map((c) => (c.key === key ? { ...c, quantity: c.quantity + 1 } : c));
-      return [...cur, { key, product_id: product.id, variant_id: variant?.id || null, name: product.name, sku: product.sku, color: variant?.color || null, quantity: 1 }];
+      if (found) return cur.map((c) => (c.key === key ? { ...c, quantity: c.quantity + qty } : c));
+      return [...cur, { key, product_id: product.id, variant_id: variant?.id || null, name: product.name, sku: product.sku, color: variant?.color || null, quantity: qty }];
     });
   }
   function setQty(key, value) {
@@ -224,7 +226,7 @@ export default function Mutations() {
         </div>
         <div className="stock-picker-grid">
           {visibleProducts.map((p) => (
-            <article key={p.id} className="stock-picker-card" onClick={() => addToCart(p)} title={p.variants && p.variants.length > 0 ? 'Pilih warna untuk menambahkan' : 'Klik untuk tambah stok umum'}>
+            <article key={p.id} className="stock-picker-card" onClick={() => (p.variants && p.variants.length > 0 ? setPicker(p) : addToCart(p))} title={p.variants && p.variants.length > 0 ? 'Pilih varian & jumlah' : 'Klik untuk tambah stok umum'}>
               {p.photo_path ? <img src={mediaUrl(p.photo_path)} alt="" loading="lazy" /> : <div className="stock-picker-ph">Tanpa foto</div>}
               <div style={{ padding: 8, display: 'grid', gap: 4 }}>
                 <strong style={{ fontSize: 13, lineHeight: 1.3 }}>{p.name}</strong>
@@ -269,6 +271,7 @@ export default function Mutations() {
     </div>
     {!cartOpen && <button type="button" className="cart-fab" onClick={() => setCartOpen(true)}>Keranjang · {totalQty} item</button>}
     {cartOpen && <div className="cart-backdrop" onClick={() => setCartOpen(false)} />}
+    {picker && <StockVariantPicker product={picker} onClose={() => setPicker(null)} onAdd={(p, v, q) => { addToCart(p, v, q); setPicker(null); }} />}
     <style>{`
       .mutasi-layout { display: grid; grid-template-columns: 1fr 360px; gap: 16; align-items: start; }
       .mutasi-cart { position: sticky; top: 76; }
