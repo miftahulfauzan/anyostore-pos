@@ -209,7 +209,7 @@ export default function TransferPage() {
         .mutasi-layout { grid-template-columns: 1fr; }
         .cart-fab { display: flex; position: fixed; right: 14px; bottom: 14px; z-index: 50; align-items: center; gap: 8; min-height: 46px; padding: 0 18px; border-radius: 999px; border: none; background: #1e3a5f; color: #fff; font-weight: 700; font-size: 14px; box-shadow: 0 6px 20px rgba(30,58,95,.35); cursor: pointer; }
         .cart-backdrop { display: block; position: fixed; inset: 0; z-index: 55; background: rgba(15,23,42,.45); }
-        .cart-close { display: block; width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: #fff; font-size: 16px; cursor: pointer; }
+        .cart-close { display: block; width: 32px; height: 32px; border-radius: 8px; border: none; background: #1e3a5f; color: #fff; font-size: 16px; line-height: 1; cursor: pointer; }
         .mutasi-cart { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; max-height: 78vh; overflow: auto; border-radius: 14px 14px 0 0; transform: translateY(105%); transition: transform .25s ease; box-shadow: 0 -10px 30px rgba(15,23,42,.2); }
         .mutasi-cart.open { transform: translateY(0); }
         .stock-picker-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
