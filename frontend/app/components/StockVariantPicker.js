@@ -23,8 +23,8 @@ export default function StockVariantPicker({ product, onClose, onAdd }) {
           <strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Pilih varian (warna)</strong>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {(product.variants || []).map((v) => (
-              <button key={v.id} type="button" onClick={() => setVariantId(v.id)} style={{ padding: '6px 12px', borderRadius: 999, border: v.id === variantId ? '1.5px solid #1e3a5f' : '1px solid var(--border)', background: v.id === variantId ? '#eef2ff' : '#fff', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
-                {v.color} ({v.stock})
+              <button key={v.id} type="button" onClick={() => setVariantId(v.id)} style={{ padding: '7px 12px', borderRadius: 999, border: v.id === variantId ? '1.5px solid #1e3a5f' : '1px solid #d1d5db', background: v.id === variantId ? '#1e3a5f' : '#f8fafc', color: v.id === variantId ? '#ffffff' : '#334155', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                {v.color} <span style={{ opacity: .75, fontWeight: 600 }}>({v.stock})</span>
               </button>
             ))}
           </div>
