@@ -51,12 +51,12 @@ async function main() {
     try {
       await conn.beginTransaction();
       for (const dup of removeList) {
-        // 1. Merge stock into keep
+        // 1. Merge stock into keep (alias tabel untuk hindari ambigu)
         await conn.execute(
           `INSERT INTO warehouse_stocks (warehouse_id, product_id, variant_id, quantity, reserved_quantity)
-           SELECT ?, product_id, variant_id, quantity, reserved_quantity
-           FROM warehouse_stocks
-           WHERE warehouse_id = ?
+           SELECT ?, src.product_id, src.variant_id, src.quantity, src.reserved_quantity
+           FROM warehouse_stocks src
+           WHERE src.warehouse_id = ?
            ON DUPLICATE KEY UPDATE quantity = warehouse_stocks.quantity + VALUES(quantity),
                                   reserved_quantity = warehouse_stocks.reserved_quantity + VALUES(reserved_quantity)`,
           [keep.id, dup.id]
