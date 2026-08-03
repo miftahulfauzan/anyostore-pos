@@ -105,7 +105,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 - `client_transaction_id` UUID → idempotency (retry tidak dobel)
 - Invoice: `{invoice_prefix}-YYYYMMDD-B{branch}-0001` (prefix dari `store_settings.invoice_prefix`, default `INV`) via `invoice_sequences` + `FOR UPDATE`; PO pakai `order_prefix` (default `PO`)
 - Harga otomatis: tier pelanggan → wholesale price → override manual (`price_override` di audit)
-- Cancel/retur: `cancelled_qty` di transaction_items, stok dikembalikan, status `partially_cancelled`
+- Cancel/retur: `cancelled_qty` di transaction_items, stok dikembalikan, status `partially_cancelled`; refund tunai dicatat ke laci kas (`cash_drawer_movements` type `cash_out`, porsi proporsional dari metode bayar asli) kalau petugas punya laci terbuka
 
 ### Komisi
 - Rule `per_pcs_customer_tier`: reguler 3000/pcs, semi_grosir 3000/pcs, grosir_seri 1000/pcs

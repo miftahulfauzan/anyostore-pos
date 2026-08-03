@@ -76,7 +76,7 @@ router.put('/:id/approve', authorize('owner', 'manager', 'admin'), async (req, r
     const warehouseId = Number(req.body.warehouse_id);
     if (!Number.isInteger(warehouseId)) throw error(400, 'warehouse_id wajib diisi');
     await connection.beginTransaction();
-    const [returns] = await connection.execute('SELECT id, return_no FROM returns WHERE id = ? AND branch_id = ? AND status = \'pending\' FOR UPDATE', [req.params.id, req.user.branch_id]);
+    const [returns] = await connection.execute('SELECT id, return_no, transaction_id, refund_amount FROM returns WHERE id = ? AND branch_id = ? AND status = \'pending\' FOR UPDATE', [req.params.id, req.user.branch_id]);
     if (!returns[0]) throw error(404, 'Retur pending tidak ditemukan');
     const [warehouses] = await connection.execute('SELECT id FROM warehouses WHERE id = ? AND branch_id = ? AND is_active = TRUE FOR UPDATE', [warehouseId, req.user.branch_id]);
     if (!warehouses[0]) throw error(404, 'Gudang tidak ditemukan');
@@ -94,6 +94,25 @@ router.put('/:id/approve', authorize('owner', 'manager', 'admin'), async (req, r
         referenceId: returns[0].id,
       });
     }
+
+    // Pencatatan refund tunai ke laci kas saat retur disetujui (sama dengan
+    // cancel): hanya jika petugas punya laci terbuka, porsi cash proporsional
+    // dari metode bayar asli.
+    const refundTotal = Number(returns[0].refund_amount || 0);
+    if (refundTotal > 0) {
+      const [drawers] = await connection.execute('SELECT id FROM cash_drawers WHERE branch_id = ? AND user_id = ? AND status = \'open\' FOR UPDATE', [req.user.branch_id, req.user.id]);
+      if (drawers[0]) {
+        const [payments] = await connection.execute('SELECT payment_method, COALESCE(SUM(amount), 0) AS amount FROM transaction_payments WHERE transaction_id = ? GROUP BY payment_method', [returns[0].transaction_id]);
+        const cashPaid = Number(payments.find((payment) => payment.payment_method === 'cash')?.amount || 0);
+        const [txRows] = await connection.execute('SELECT grand_total FROM transactions WHERE id = ?', [returns[0].transaction_id]);
+        const txGrandTotal = Number(txRows[0]?.grand_total || 0);
+        const cashRefund = txGrandTotal > 0 ? money(refundTotal * cashPaid / txGrandTotal) : 0;
+        if (cashRefund > 0) {
+          await connection.execute('INSERT INTO cash_drawer_movements (cash_drawer_id, user_id, type, amount, reason) VALUES (?, ?, ?, ?, ?)', [drawers[0].id, req.user.id, 'cash_out', cashRefund, `Retur ${returns[0].return_no}`]);
+        }
+      }
+    }
+
     await connection.execute('UPDATE returns SET status = \'approved\', approved_by = ? WHERE id = ?', [req.user.id, returns[0].id]);
     await connection.execute('INSERT INTO activity_logs (user_id, action, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'return_approve', `Retur ${returns[0].return_no}`, req.ip, req.get('user-agent') || null]);
     await connection.commit();

@@ -423,6 +423,22 @@ router.put('/:id/cancel', authorize('owner', 'manager', 'admin'), async (req, re
       [newStatus, newCancelledAmount, cancelReason || null, transactions[0].id]
     );
 
+    // Pencatatan refund tunai ke laci kas: petugas yang memproses cancel harus
+    // punya laci terbuka. Porsi cash dihitung proporsional dari metode bayar
+    // asli (cash_paid / grand_total) supaya expected cash berkurang sesuai.
+    if (totalRefund > 0) {
+      const [drawers] = await connection.execute('SELECT id FROM cash_drawers WHERE branch_id = ? AND user_id = ? AND status = \'open\' FOR UPDATE', [transactions[0].branch_id, req.user.id]);
+      if (drawers[0]) {
+        const [payments] = await connection.execute('SELECT payment_method, COALESCE(SUM(amount), 0) AS amount FROM transaction_payments WHERE transaction_id = ? GROUP BY payment_method', [transactions[0].id]);
+        const cashPaid = Number(payments.find((payment) => payment.payment_method === 'cash')?.amount || 0);
+        const txGrandTotal = Number(transactions[0].grand_total || 0);
+        const cashRefund = txGrandTotal > 0 ? money(totalRefund * cashPaid / txGrandTotal) : 0;
+        if (cashRefund > 0) {
+          await connection.execute('INSERT INTO cash_drawer_movements (cash_drawer_id, user_id, type, amount, reason) VALUES (?, ?, ?, ?, ?)', [drawers[0].id, req.user.id, 'cash_out', cashRefund, `Refund ${transactions[0].invoice_no}`]);
+        }
+      }
+    }
+
     await connection.execute('INSERT INTO activity_logs (user_id, action, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'transaction_cancel', `Invoice ${transactions[0].invoice_no} - refund ${totalRefund}`, req.ip, req.get('user-agent') || null]);
     await connection.commit();
     res.json({ success: true, data: { id: transactions[0].id, status: newStatus, cancelled_amount: newCancelledAmount, refund: totalRefund } });
