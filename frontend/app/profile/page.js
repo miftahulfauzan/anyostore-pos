@@ -137,7 +137,7 @@ export default function MyAccount() {
           </form>
         </section>
 
-        {profile?.role !== 'owner' && (
+        {profile?.role && profile.role !== 'owner' && profile.role !== 'gudang' && (
           <section className="panel" style={{ gridColumn: '1 / -1' }}>
             <div className="section-heading">
               <div>
