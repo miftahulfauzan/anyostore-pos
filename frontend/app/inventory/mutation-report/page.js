@@ -100,8 +100,8 @@ export default function MutationReportPage() {
 
   return (
     <AppShell title="Laporan Riwayat Barang Masuk" eyebrow="PRODUK & INVENTORI" actions={<>
-      <button type="button" className="button-link" onClick={exportCsv} disabled={!rows.length}>Export Excel</button>
-      <button type="button" className="button-link" onClick={() => window.print()} disabled={!rows.length}>Export PDF</button>
+      <button type="button" className="button-link" onClick={exportCsv} disabled={!rows.length}>Unduh Excel</button>
+      <button type="button" className="button-link" onClick={() => window.print()} disabled={!rows.length}>Unduh PDF</button>
     </>}>
       <div style={{ display: 'grid', gap: '1rem', maxWidth: 1400, margin: '0 auto' }}>
         {/* Header khusus cetak */}
@@ -128,15 +128,15 @@ export default function MutationReportPage() {
             <label style={{ minWidth: 150 }}>Dari<input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
             <label style={{ minWidth: 150 }}>Sampai<input type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
             <label style={{ minWidth: 200, flex: 1 }}>Deskripsi / Filter<input placeholder="Cari deskripsi…" value={desc} onChange={(e) => setDesc(e.target.value)} /></label>
-            <button type="button" onClick={applyFilter} disabled={loading} style={{ minHeight: 40 }}>{loading ? 'Memuat…' : 'Apply Filter'}</button>
-            <button type="button" className="small secondary" onClick={resetFilter} style={{ minHeight: 40 }}>Reset Filter</button>
+            <button type="button" onClick={applyFilter} disabled={loading} style={{ minHeight: 40 }}>{loading ? 'Memuat…' : 'Terapkan Filter'}</button>
+            <button type="button" className="small secondary" onClick={resetFilter} style={{ minHeight: 40 }}>Reset</button>
           </div>
           {message && <p className="message" role="status">{message}</p>}
         </section>
 
         <section className="metrics-grid no-print" style={{ gridTemplateColumns: 'repeat(2, 1fr)', maxWidth: 480 }}>
-          <article className="metric-card"><div><span>Product Count</span><strong>{summary.product_count.toLocaleString('id-ID')}</strong></div></article>
-          <article className="metric-card"><div><span>Total Quantity</span><strong>{summary.total_qty.toLocaleString('id-ID')}</strong></div></article>
+          <article className="metric-card"><div><span>Jumlah Produk</span><strong>{summary.product_count.toLocaleString('id-ID')}</strong></div></article>
+          <article className="metric-card"><div><span>Total Qty</span><strong>{summary.total_qty.toLocaleString('id-ID')}</strong></div></article>
         </section>
 
         <section className="panel" style={{ overflowX: 'auto' }}>
@@ -173,8 +173,8 @@ export default function MutationReportPage() {
                   <td style={{ padding: '8px 10px' }}>{r.description || <span style={{ color: 'var(--muted-foreground)' }}>—</span>}</td>
                   <td style={{ padding: '8px 10px' }}>{r.admin}</td>
                   <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
-                    <button type="button" className="link-button" onClick={() => setDetail(detail?.id === r.id ? null : r)}>View Detail</button>
-                    <button type="button" className="link-button danger" onClick={() => removeBatch(r)}>Delete</button>
+                    <button type="button" className="link-button" onClick={() => setDetail(detail?.id === r.id ? null : r)}>Detail</button>
+                    <button type="button" className="link-button danger" onClick={() => removeBatch(r)}>Hapus</button>
                   </td>
                 </tr>
               ))}
