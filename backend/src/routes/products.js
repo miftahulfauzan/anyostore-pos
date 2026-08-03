@@ -16,9 +16,21 @@ const dataUploadOptions = {
 };
 
 const positiveNumber = (value) => Number.isFinite(Number(value)) && Number(value) >= 0;
-function readableBranchId(req) {
+// Tentukan cabang yang bisa dibaca: owner = bebas; Admin Gudang = hanya cabang
+// bertipe 'gudang' (dengan dukungan branch_id=all untuk semua cabang gudang);
+// lainnya = cabang sendiri.
+async function readableBranchId(req) {
   const requested = Number(req.query.branch_id);
-  return req.user.role === 'owner' && Number.isInteger(requested) ? requested : req.user.branch_id;
+  if (req.user.role === 'owner' && Number.isInteger(requested)) return requested;
+  if (req.user.role === 'gudang') {
+    if (req.query.branch_id === 'all') return 'all';
+    if (Number.isInteger(requested)) {
+      const [b] = await db.execute('SELECT id FROM branches WHERE id=? AND is_active=TRUE AND type=\'gudang\'', [requested]);
+      return b[0] ? requested : req.user.branch_id;
+    }
+    return req.user.branch_id;
+  }
+  return req.user.branch_id;
 }
 function normalizeWholesalePrices(input) {
   if (input == null) return [];
@@ -150,8 +162,15 @@ router.get('/', async (req, res, next) => {
     const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
     const limit = Math.min(500, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
     const offset = (page - 1) * limit;
-    const params = [readableBranchId(req)];
-    let where = 'WHERE p.branch_id = ? AND p.is_active = TRUE';
+    const branchId = await readableBranchId(req);
+    const params = [];
+    let where = 'WHERE p.is_active = TRUE';
+    if (branchId === 'all') {
+      where += ' AND p.branch_id IN (SELECT id FROM branches WHERE type = \'gudang\' AND is_active = TRUE)';
+    } else {
+      where += ' AND p.branch_id = ?';
+      params.push(branchId);
+    }
     if (req.query.search?.trim()) {
       where += ' AND (p.name LIKE ? OR p.sku LIKE ? OR p.barcode LIKE ?)';
       const term = `%${req.query.search.trim()}%`;
@@ -186,13 +205,16 @@ router.get('/', async (req, res, next) => {
 
 router.get('/:id', async (req, res, next) => {
   try {
+    const branchId = await readableBranchId(req);
     const [rows] = await db.execute(
       `SELECT p.id, p.name, p.description, p.category_id, p.sku, p.barcode, p.price, p.cost, p.stock, p.min_stock, p.gender,
               c.name AS category_name,
                (SELECT pp.path FROM product_photos pp WHERE pp.product_id = p.id AND pp.variant_id IS NULL AND pp.media_type = 'image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
                (SELECT pp.\`transform\` FROM product_photos pp WHERE pp.product_id = p.id AND pp.variant_id IS NULL AND pp.media_type = 'image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_transform
-        FROM products p JOIN categories c ON c.id = p.category_id WHERE p.id = ? AND p.branch_id = ?`,
-      [req.params.id, readableBranchId(req)]
+        FROM products p JOIN categories c ON c.id = p.category_id
+        WHERE p.id = ? AND p.is_active = TRUE
+          AND (p.branch_id = ? OR ? = 1)`,
+      [req.params.id, branchId === 'all' ? -1 : branchId, branchId === 'all' ? 1 : 0]
     );
     if (!rows[0]) return res.status(404).json({ success: false, message: 'Produk tidak ditemukan' });
     const [wholesalePrices] = await db.execute('SELECT id, min_qty, max_qty, price FROM wholesale_prices WHERE product_id = ? AND is_active = TRUE ORDER BY min_qty', [rows[0].id]);

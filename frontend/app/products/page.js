@@ -16,6 +16,7 @@ export default function ProductsPage() {
   const [branches, setBranches] = useState([]);
   const [branchId, setBranchId] = useState('');
   const [isOwner, setIsOwner] = useState(false);
+  const [isGudang, setIsGudang] = useState(false);
   const [barcodeProduct, setBarcodeProduct] = useState(null);
   const [barcodeCopies, setBarcodeCopies] = useState(1);
   const loadSeq = useRef(0);
@@ -43,18 +44,21 @@ export default function ProductsPage() {
     if (!t) return;
     fetch(`${apiUrl}/auth/me`, { headers: { Authorization: `Bearer ${t}` } })
       .then((r) => r.json())
-      .then((b) => { if (b?.data?.role === 'owner') setIsOwner(true); })
+      .then((b) => { if (b?.data?.role === 'owner') setIsOwner(true); if (b?.data?.role === 'gudang') setIsGudang(true); })
       .catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (!isOwner) return;
+    if (!isOwner && !isGudang) return;
     const t = localStorage.getItem('pos_access_token');
     fetch(`${apiUrl}/settings/branches`, { headers: { Authorization: `Bearer ${t}` } })
       .then((r) => r.json())
-      .then((b) => setBranches((b.data || []).filter((br) => br.is_active)))
+      .then((b) => {
+        const list = (b.data || []).filter((br) => br.is_active);
+        setBranches(isGudang ? list.filter((br) => br.type === 'gudang') : list);
+      })
       .catch(() => {});
-  }, [isOwner]);
+  }, [isOwner, isGudang]);
 
   useEffect(() => { load(''); }, [branchId]);
   useEffect(() => {
@@ -81,9 +85,9 @@ export default function ProductsPage() {
     <section className="panel catalog-panel">
       <div className="section-heading"><div><h2>Daftar Produk</h2><p>Cari nama, SKU, atau barcode. Kelola foto, video, varian, dan cetak barcode dari daftar ini.</p></div><div className="catalog-view-controls"><span className="item-count">{loading ? 'Memuat…' : `${products.length} produk`}</span><button type="button" className={view === 'grid' ? 'view-button selected' : 'view-button'} onClick={() => setView('grid')} aria-pressed={view === 'grid'}>Tampilan grid</button><button type="button" className={view === 'list' ? 'view-button selected' : 'view-button'} onClick={() => setView('list')} aria-pressed={view === 'list'}>Tampilan daftar</button></div></div>
       <label className="catalog-search">Cari produk<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nama, SKU, atau barcode" autoComplete="off" /></label>
-      {isOwner && (
-        <label style={{ display: 'block', marginBottom: 10 }}>Toko / Cabang<select value={branchId} onChange={(event) => setBranchId(event.target.value)}>
-          <option value="">Toko saya</option>
+      {(isOwner || isGudang) && (
+        <label style={{ display: 'block', marginBottom: 10 }}>{isGudang ? 'Gudang / Cabang' : 'Toko / Cabang'}<select value={branchId} onChange={(event) => setBranchId(event.target.value)}>
+          {isGudang ? <><option value="all">Semua Gudang</option><option value="">Gudang saya</option></> : <option value="">Toko saya</option>}
           {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
         </select></label>
       )}
