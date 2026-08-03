@@ -31,6 +31,7 @@ services:
       - ./backend/migrations/20260802_branch_type.sql:/docker-entrypoint-initdb.d/019-branch_type.sql:ro
       - ./backend/migrations/20260802_sales_channels.sql:/docker-entrypoint-initdb.d/020-sales_channels.sql:ro
       - ./backend/migrations/20260803_branch_type_gudang_names.sql:/docker-entrypoint-initdb.d/021-branch_type_gudang_names.sql:ro
+      - ./backend/migrations/20260803_warehouse_names_match_branch.sql:/docker-entrypoint-initdb.d/022-warehouse_names_match_branch.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p$${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
