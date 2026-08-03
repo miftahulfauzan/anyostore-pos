@@ -186,19 +186,25 @@ export default function MutationReportPage() {
       <style>{`
         .report-print-header { display: none; }
         @media print {
-          .report-print-header { display: block; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid #1e3a5f; }
-          .print-brand strong { display: block; font-size: 16px; letter-spacing: .12em; color: #1e3a5f; }
-          .print-brand span { display: block; font-size: 20px; font-weight: 700; margin-top: 2px; color: #111827; }
-          .print-meta { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 8px; font-size: 11px; color: #374151; }
+          @page { size: A4 landscape; margin: 10mm; }
+          html, body { width: auto !important; }
+          .report-print-header { display: block; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #1e3a5f; }
+          .print-brand strong { display: block; font-size: 14px; letter-spacing: .14em; color: #1e3a5f; }
+          .print-brand span { display: block; font-size: 18px; font-weight: 700; margin-top: 2px; color: #111827; }
+          .print-meta { display: flex; flex-wrap: wrap; gap: 3px 16px; margin-top: 6px; font-size: 10px; color: #374151; }
           .no-print { display: none !important; }
           body * { visibility: visible !important; }
           .app-shell, .app-main { display: block !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
-          .sidebar { display: none !important; }
-          .app-header { display: none !important; }
-          .panel { border: none !important; box-shadow: none !important; padding: 0 !important; }
-          table { width: 100% !important; border-collapse: collapse !important; font-size: 11px !important; }
-          th { background: #1e3a5f !important; color: #fff !important; padding: 6px 8px !important; text-align: left !important; font-size: 11px !important; }
-          td { padding: 6px 8px !important; border-bottom: 1px solid #e5e7eb !important; }
+          .app-shell, .app-main, .app-content, .app-shell > div { display: block !important; width: 100% !important; }
+          .app-content { padding: 0 !important; }
+          .app-content > div { display: block !important; width: 100% !important; max-width: none !important; }
+          .sidebar, .app-header { display: none !important; }
+          .panel { border: none !important; box-shadow: none !important; padding: 0 !important; overflow: visible !important; }
+          table { width: 100% !important; min-width: 900px !important; table-layout: auto !important; border-collapse: collapse !important; font-size: 10px !important; }
+          th { background: #1e3a5f !important; color: #fff !important; padding: 5px 7px !important; text-align: left !important; font-size: 10px !important; white-space: nowrap !important; }
+          td { padding: 5px 7px !important; border-bottom: 1px solid #e5e7eb !important; vertical-align: top !important; }
+          td:nth-child(2) { white-space: nowrap !important; font-family: monospace !important; }
+          td:nth-child(5) { white-space: nowrap !important; text-align: right !important; font-weight: 700 !important; }
           tr { break-inside: avoid; }
           .link-button { display: none !important; }
           .message { display: none !important; }
