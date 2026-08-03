@@ -62,7 +62,9 @@ export default function MutationReportPage() {
 
   useEffect(() => {
     if (!localStorage.getItem('pos_access_token')) return window.location.assign('/');
-    fetch(`${api}/inventory/incoming/targets`, { headers: headers() })
+    // ?all=1: untuk admin gudang, dropdown menampilkan semua cabang (bukan
+    // hanya tipe gudang) karena laporan mencakup input siapa pun.
+    fetch(`${api}/inventory/incoming/targets?all=1`, { headers: headers() })
       .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setStores(b.data || []); })
       .catch((e) => setMessage(e.message));
     load();
