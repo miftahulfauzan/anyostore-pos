@@ -67,6 +67,10 @@ export default function TransferPage() {
   }, [products, query, sort]);
 
   function addToCart(product, variant = null) {
+    if (!variant && product.variants && product.variants.length > 0) {
+      setMessage(`Produk ${product.name} punya varian — pilih warnanya dulu.`);
+      return;
+    }
     const key = `${product.id}:${variant?.id || 'umum'}`;
     setCart((cur) => {
       const found = cur.find((c) => c.key === key);
@@ -143,7 +147,7 @@ export default function TransferPage() {
         </div>
         <div className="stock-picker-grid">
           {visibleProducts.map((p) => (
-            <article key={p.id} className="stock-picker-card" onClick={() => addToCart(p)} title="Klik untuk transfer stok umum">
+            <article key={p.id} className="stock-picker-card" onClick={() => addToCart(p)} title={p.variants && p.variants.length > 0 ? 'Pilih warna untuk menambahkan' : 'Klik untuk transfer stok umum'}>
               {p.photo_path ? <img src={mediaUrl(p.photo_path)} alt="" loading="lazy" /> : <div className="stock-picker-ph">Tanpa foto</div>}
               <div style={{ padding: 8, display: 'grid', gap: 4 }}>
                 <strong style={{ fontSize: 13, lineHeight: 1.3 }}>{p.name}</strong>
