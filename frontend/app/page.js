@@ -157,8 +157,8 @@ export default function LandingPage() {
           )}
         </div>
         {slides.length > 1 && (
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 14 }}>
-            {slides.map((s, i) => <button key={s.id} onClick={() => setSlideIdx(i)} style={{ width: i === slideIdx ? 28 : 8, height: 8, borderRadius: 999, border: 'none', cursor: 'pointer', background: i === slideIdx ? T.black : '#d1d5db', transition: 'all .3s cubic-bezier(.4,0,.2,1)' }} />)}
+          <div className="hero-dots" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6, marginTop: 12 }}>
+            {slides.map((s, i) => <button key={s.id} onClick={() => setSlideIdx(i)} className={`hero-dot${i === slideIdx ? ' active' : ''}`} aria-label={`Slide ${i + 1}`} title={`Slide ${i + 1}`} />)}
           </div>
         )}
       </section>
@@ -290,6 +290,8 @@ export default function LandingPage() {
         .hero-cat { color: rgba(255,255,255,.82); }
         .hero-title { color: #ffffff; }
         .hero-price { color: #ffffff; }
+        .hero-dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 999px; border: none; padding: 0; cursor: pointer; background: #d1d5db; transition: all .3s cubic-bezier(.4,0,.2,1); }
+        .hero-dot.active { width: 24px; background: #1a1a1a; }
         @keyframes slideIn { from { opacity: 0; transform: scale(.985) translateY(10px); } to { opacity: 1; transform: none; } }
         .slide-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.15); backdrop-filter: blur(12px); color: #fff; cursor: pointer; display: grid; place-items: center; box-shadow: 0 4px 16px rgba(0,0,0,.2); z-index: 5; transition: all .35s cubic-bezier(.4,0,.2,1); -webkit-backdrop-filter: blur(12px); }
         .slide-arrow:hover { transform: translateY(-50%) scale(1.08); background: rgba(255,255,255,.3); box-shadow: 0 6px 24px rgba(0,0,0,.3); }
@@ -322,6 +324,9 @@ export default function LandingPage() {
           .pcard-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
           .hero-wrap { min-height: 340px; }
           .hero-text > div { padding: 22px 20px !important; max-width: 100% !important; gap: 10px !important; }
+          .hero-dots { gap: 4px; margin-top: 10px; }
+          .hero-dot { width: 6px; height: 6px; }
+          .hero-dot.active { width: 16px; }
         }
         @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
       `}</style>
