@@ -20,10 +20,19 @@ function branchId(req) {
 
 router.get('/branches', async (req, res, next) => {
   try {
-    const sql = req.user.role === 'owner'
-      ? 'SELECT b.id,b.name,b.address,b.phone,b.email,b.npwp,b.pricing_tier_enabled,b.is_active,b.type,(SELECT COUNT(*) FROM products WHERE branch_id=b.id) AS product_count,(SELECT COUNT(*) FROM users WHERE branch_id=b.id AND is_active=TRUE) AS user_count FROM branches b ORDER BY b.id'
-      : 'SELECT id,name,address,phone,email,npwp,pricing_tier_enabled,type FROM branches WHERE id=?';
-    const [rows] = await db.execute(sql, req.user.role === 'owner' ? [] : [req.user.branch_id]);
+    let rows;
+    if (req.user.role === 'owner') {
+      [rows] = await db.execute(
+        'SELECT b.id,b.name,b.address,b.phone,b.email,b.npwp,b.pricing_tier_enabled,b.is_active,b.type,(SELECT COUNT(*) FROM products WHERE branch_id=b.id) AS product_count,(SELECT COUNT(*) FROM users WHERE branch_id=b.id AND is_active=TRUE) AS user_count FROM branches b ORDER BY b.id'
+      );
+    } else if (req.user.role === 'gudang') {
+      // Admin Gudang perlu melihat semua cabang tipe gudang (untuk Daftar Produk, Stok, dll).
+      [rows] = await db.execute(
+        'SELECT id,name,address,phone,email,npwp,pricing_tier_enabled,type FROM branches WHERE is_active=TRUE AND type=\'gudang\' ORDER BY name'
+      );
+    } else {
+      [rows] = await db.execute('SELECT id,name,address,phone,email,npwp,pricing_tier_enabled,type FROM branches WHERE id=?', [req.user.branch_id]);
+    }
     res.json({ success: true, data: rows });
   } catch (error) { next(error); }
 });
