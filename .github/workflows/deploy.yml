@@ -1,8 +1,9 @@
 name: Deploy
 
 on:
-  push:
-    branches: [main]
+  # Deploy hanya berjalan manual (Actions -> Run workflow), tidak otomatis
+  # setiap push ke main.
+  workflow_dispatch:
 
 jobs:
   deploy:
