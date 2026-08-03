@@ -87,7 +87,7 @@ export default function ProdukDetail() {
         <div style={{ display: 'grid', gap: 16 }} className="m-fade-up">
           <div>
             <p style={{ margin: 0, color: C.muted, fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' }}>{product.category_name || 'Denim'}</p>
-            <h1 style={{ margin: '6px 0 0', fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 26, fontWeight: 400, lineHeight: 1.15 }}>{product.name}</h1>
+            <h1 style={{ margin: '6px 0 0', fontFamily: "'DM Sans', sans-serif", fontSize: 26, fontWeight: 700, lineHeight: 1.2, color: C.ink }}>{product.name}</h1>
             <p style={{ margin: '6px 0 0', color: C.muted, fontSize: 13 }}>{product.sku || ''}</p>
           </div>
 

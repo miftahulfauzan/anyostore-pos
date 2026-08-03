@@ -111,7 +111,7 @@ export default function LandingPage() {
           <a href="/" style={{ fontSize: 18, fontWeight: 800, color: T.black, textDecoration: 'none', letterSpacing: '-.02em' }}>ANYOSTORE</a>
           <nav style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
             <a href="#produk" style={{ fontSize: 13, fontWeight: 500, color: T.muted, textDecoration: 'none', padding: '8px 12px', borderRadius: 6, transition: 'color .2s' }} onMouseOver={(e) => e.target.style.color = T.black} onMouseOut={(e) => e.target.style.color = T.muted}>Produk</a>
-            <a href="#" onClick={(e) => { e.preventDefault(); pickWa(''); }} style={{ fontSize: 13, fontWeight: 600, color: '#fff', background: T.blue, padding: '9px 18px', borderRadius: 6, textDecoration: 'none', transition: 'all .2s', boxShadow: '0 2px 8px rgba(30,58,95,.25)' }} className="hero-btn">Hubungi Kami</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); pickWa(''); }} style={{ fontSize: 13, fontWeight: 600, color: '#fff', background: T.blue, padding: '9px 18px', borderRadius: 6, textDecoration: 'none', transition: 'all .2s', boxShadow: '0 2px 8px rgba(30,58,95,.25)' }} className="hero-btn">Hubungi Admin</a>
           </nav>
         </div>
       </header>
@@ -134,7 +134,7 @@ export default function LandingPage() {
                 {slidePhotos.length > 0 ? (
                   <div style={{ position: 'absolute', inset: 0 }}>
                     {slidePhotos.map((ph, i) => (
-                      <SafeImage key={i} src={`${api.replace('/api', '')}${ph.path}`} alt={slide.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: i === 0 ? 1 : 0, transition: 'opacity .5s', ...photoStyle(i === 0 ? slide.photo_transform : '') }} />
+                      <SafeImage key={i} eager={i === 0} src={`${api.replace('/api', '')}${ph.path}`} alt={slide.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: i === 0 ? 1 : 0, transition: 'opacity .5s', ...photoStyle(i === 0 ? slide.photo_transform : '') }} />
                     ))}
                   </div>
                 ) : (
@@ -212,7 +212,7 @@ export default function LandingPage() {
         <div style={{ borderRadius: 14, padding: '48px 32px', textAlign: 'center', background: T.black, color: T.white }}>
           <h2 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 700 }}>Siap order grosir?</h2>
           <p style={{ margin: '0 auto 20px', maxWidth: 440, color: '#9ca3af', fontSize: 15, lineHeight: 1.6 }}>Konsultasi harga, stok, dan warna langsung dengan admin via WhatsApp.</p>
-          <a href="#" onClick={(e) => { e.preventDefault(); pickWa(''); }} className="hero-btn btn-primary" style={{ background: T.blue, padding: '0 28px', fontSize: 15 }}>Chat Admin Sekarang</a>
+          <a href="#" onClick={(e) => { e.preventDefault(); pickWa(''); }} className="hero-btn btn-primary" style={{ background: T.blue, padding: '0 28px', fontSize: 15 }}>Hubungi Admin</a>
         </div>
       </section>
 
@@ -227,7 +227,7 @@ export default function LandingPage() {
             <strong style={{ fontSize: 13, fontWeight: 700, color: T.black, textTransform: 'uppercase', letterSpacing: '.06em', fontSize: 11 }}>Navigasi</strong>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
               <a href="#produk" style={{ fontSize: 13, color: T.muted, textDecoration: 'none' }}>Produk</a>
-              <a href="#" onClick={(e) => { e.preventDefault(); pickWa(''); }} style={{ fontSize: 13, color: T.muted, textDecoration: 'none' }}>Hubungi Kami</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); pickWa(''); }} style={{ fontSize: 13, color: T.muted, textDecoration: 'none' }}>Hubungi Admin</a>
               <a href="/login" style={{ fontSize: 13, color: T.muted, textDecoration: 'none' }}>Login Pegawai</a>
             </div>
           </div>
@@ -266,12 +266,13 @@ export default function LandingPage() {
       <FloatingWA phones={waPhones} message="Halo Anyostore, saya ingin order grosir." />
 
       <style>{`
-        .site-header { background: rgba(255,255,255,.6); backdrop-filter: blur(20px) saturate(180%); border-bottom: 1px solid rgba(255,255,255,.3); -webkit-backdrop-filter: blur(20px) saturate(180%); }
+        .site-header { background: rgba(255,255,255,.92); border-bottom: 1px solid rgba(229,231,235,.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
         .btn-primary { display: inline-flex; align-items: center; gap: 6; min-height: 44px; padding: 0 22px; border-radius: 12px; background: ${T.blue}; color: #fff; font-weight: 700; font-size: 14px; text-decoration: none; border: none; cursor: pointer; box-shadow: 0 4px 16px rgba(30,58,95,.3); transition: all .35s cubic-bezier(.4,0,.2,1); }
         .btn-primary:hover { background: #152d4a; box-shadow: 0 8px 24px rgba(30,58,95,.4); transform: translateY(-2px); }
         .btn-primary:active { transform: scale(.97); }
-        .btn-outline { display: inline-flex; align-items: center; gap: 6; min-height: 44px; padding: 0 22px; border-radius: 12px; background: rgba(255,255,255,.15); backdrop-filter: blur(12px); color: #fff; font-weight: 700; font-size: 14px; text-decoration: none; border: 1px solid rgba(255,255,255,.25); cursor: pointer; transition: all .35s cubic-bezier(.4,0,.2,1); -webkit-backdrop-filter: blur(12px); }
-        .btn-outline:hover { background: rgba(255,255,255,.25); border-color: rgba(255,255,255,.4); }
+        .btn-outline { display: inline-flex; align-items: center; gap: 6; min-height: 44px; padding: 0 22px; border-radius: 12px; background: #fff; color: ${T.blue}; font-weight: 700; font-size: 14px; text-decoration: none; border: 1.5px solid rgba(30,58,95,.35); cursor: pointer; transition: all .35s cubic-bezier(.4,0,.2,1); }
+        .btn-outline:hover { background: ${T.blue}; color: #fff; border-color: ${T.blue}; transform: translateY(-2px); }
+        .btn-outline:active { transform: scale(.97); }
         .hero-btn { transition: all .35s cubic-bezier(.4,0,.2,1); }
         .hero-btn:hover { transform: translateY(-2px); }
         .hero-btn:active { transform: scale(.97); }
@@ -282,8 +283,8 @@ export default function LandingPage() {
         .slide-arrow.left { left: 14px; }
         .slide-arrow.right { right: 14px; }
         .pcard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
-        .pcard { display: flex; flex-direction: column; border-radius: 16px; overflow: hidden; background: rgba(255,255,255,.55); backdrop-filter: blur(16px) saturate(150%); border: 1px solid rgba(255,255,255,.4); transition: all .35s cubic-bezier(.4,0,.2,1); box-shadow: 0 4px 24px rgba(0,0,0,.04); -webkit-backdrop-filter: blur(16px) saturate(150%); }
-        .pcard:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,.1); background: rgba(255,255,255,.7); }
+        .pcard { display: flex; flex-direction: column; border-radius: 14px; overflow: hidden; background: #fff; border: 1px solid #e5e7eb; transition: all .3s cubic-bezier(.4,0,.2,1); box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+        .pcard:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(15,23,42,.08); border-color: #d1d5db; }
         .pcard:active { transform: scale(.985); }
         .pcard-img { display: grid; place-items: center; aspect-ratio: 3/4; overflow: hidden; position: relative; background: #f3f4f6; }
         .pcard-body { padding: 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
@@ -294,17 +295,24 @@ export default function LandingPage() {
         .pcard-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 38px; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; transition: all .3s cubic-bezier(.4,0,.2,1); }
         .pcard-btn.primary { background: ${T.blue}; color: #fff; border: none; }
         .pcard-btn.primary:hover { background: #152d4a; transform: translateY(-1px); }
-        .pcard-btn.secondary { background: rgba(255,255,255,.4); backdrop-filter: blur(8px); color: ${T.blue}; border: 1px solid rgba(30,58,95,.2); -webkit-backdrop-filter: blur(8px); }
+        .pcard-btn.secondary { background: #fff; color: ${T.blue}; border: 1.5px solid rgba(30,58,95,.3); }
         .pcard-btn.secondary:hover { background: ${T.blue}; color: #fff; border-color: ${T.blue}; }
         .pcard-skeleton { height: 380px; border-radius: 16px; background: linear-gradient(135deg, rgba(243,244,246,.8), rgba(243,244,246,.4)); }
-        .page-btn { min-width: 42px; min-height: 42px; border-radius: 12px; border: 1.5px solid #cbd5e1; background: rgba(255,255,255,.55); backdrop-filter: blur(12px); font-weight: 600; font-size: 14px; color: ${T.black}; cursor: pointer; transition: all .3s cubic-bezier(.4,0,.2,1); display: inline-flex; align-items: center; justify-content: center; -webkit-backdrop-filter: blur(12px); }
+        .page-btn { min-width: 42px; min-height: 42px; border-radius: 10px; border: 1.5px solid #cbd5e1; background: #fff; font-weight: 600; font-size: 14px; color: ${T.black}; cursor: pointer; transition: all .3s cubic-bezier(.4,0,.2,1); display: inline-flex; align-items: center; justify-content: center; }
         .page-btn:hover { border-color: ${T.blue}; color: ${T.blue}; background: rgba(255,255,255,.8); }
         .page-btn.active { background: ${T.blue}; color: ${T.white}; border-color: ${T.blue}; box-shadow: 0 2px 8px rgba(30,58,95,.25); }
         @keyframes slideIn { from { opacity: 0; transform: scale(.985) translateY(8px); } to { opacity: 1; transform: none; } }
         .wa-modal-in { animation: modalIn .35s cubic-bezier(.4,0,.2,1); }
         @keyframes modalIn { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
         @media (max-width: 900px) { .pcard-grid { grid-template-columns: repeat(3, 1fr); } }
-        @media (max-width: 600px) { .pcard-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; } .hero-wrap { grid-template-columns: 1fr !important; height: auto !important; } }
+        @media (max-width: 600px) {
+          .pcard-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+          .hero-wrap { grid-template-columns: 1fr !important; height: auto !important; min-height: 0 !important; }
+          .hero-wrap > div { grid-template-columns: 1fr !important; height: auto !important; }
+          .hero-wrap > div > div:first-child { padding: 26px 22px !important; }
+          .hero-wrap > div > div:last-child { min-height: 240px; border-left: none !important; }
+          .hero-wrap > div > div:last-child img { position: absolute; }
+        }
         @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
       `}</style>
     </div>
