@@ -143,7 +143,17 @@ export default function ProdukDetail() {
 
       <FloatingWA phones={waPhones} message={`Saya tertarik dengan ${product.name}. Harga grosir, stok, warna ready?`} />
 
-      <style>{`@media(max-width:720px){main{grid-template-columns:1fr !important;}}`}</style>
+      <style>{`
+        @media(max-width:720px){
+          main{ grid-template-columns:1fr !important; padding: 16px 14px 28px; }
+          main > div:first-child{ max-width: 480px; margin: 0 auto; width: 100%; }
+          main > div:last-child{ max-width: 480px; margin: 0 auto; width: 100%; }
+        }
+        @media(max-width:420px){
+          main > div:last-child > div:last-child{ grid-template-columns:1fr !important; }
+          main > div:last-child h1{ font-size: 22px; }
+        }
+      `}</style>
     </div>
   );
 }

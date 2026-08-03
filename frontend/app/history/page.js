@@ -22,7 +22,15 @@ export default function HistoryPage() {
   const [filters, setFilters] = useState({ search: '', date_from: '', date_to: '', status: '' });
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('retur'); // retur | cancel | info
+  const [isMobile, setIsMobile] = useState(false);
   const loadSeq = useRef(0);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   const h = () => ({ Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
   const canCancel = ['owner', 'manager', 'admin'].includes(role);
@@ -107,7 +115,7 @@ export default function HistoryPage() {
 
   return (
     <AppShell title="Riwayat Transaksi" eyebrow="PENJUALAN" actions={<a className="button-link" href="/pos">Buka Kasir</a>}>
-      <div style={{ display: 'grid', gridTemplateColumns: selected ? '1.1fr .9fr' : '1fr', gap: '1rem', alignItems: 'start', maxWidth: 1400, margin: '0 auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: selected && !isMobile ? '1.1fr .9fr' : '1fr', gap: '1rem', alignItems: 'start', maxWidth: 1400, margin: '0 auto' }}>
         {/* LEFT LIST */}
         <div style={{ display: 'grid', gap: '1rem' }}>
           <section className="panel">
@@ -164,17 +172,18 @@ export default function HistoryPage() {
           </section>
         </div>
 
-        {/* RIGHT DETAIL SIDEBAR */}
+        {/* RIGHT DETAIL — desktop sidebar / mobile full-screen modal */}
         {selected && (
-          <div style={{ position: 'sticky', top: '1rem', display: 'grid', gap: '1rem' }}>
-            <section className="panel">
-              <div className="section-heading">
-                <div>
-                  <h2 style={{ fontSize: '1.1rem' }}>{selected.invoice_no}</h2>
-                  <p>{new Date(selected.created_at).toLocaleString('id-ID')} • {selected.payment_method} • {rp(selected.grand_total)}{selected.cancelled_amount ? ` • refund ${rp(selected.cancelled_amount)}` : ''}</p>
+          <div onClick={isMobile ? () => setSelected(null) : undefined} style={isMobile ? { position: 'fixed', inset: 0, background: 'rgba(15,23,42,.55)', zIndex: 100, overflow: 'auto', padding: 12, WebkitOverflowScrolling: 'touch' } : { position: 'sticky', top: '1rem', display: 'grid', gap: '1rem' }}>
+            <div onClick={(e) => e.stopPropagation()} style={isMobile ? { maxWidth: 720, margin: '0 auto', display: 'grid', gap: '1rem' } : { display: 'grid', gap: '1rem' }}>
+              <section className="panel">
+                <div className="section-heading">
+                  <div>
+                    <h2 style={{ fontSize: '1.1rem' }}>{selected.invoice_no}</h2>
+                    <p>{new Date(selected.created_at).toLocaleString('id-ID')} • {selected.payment_method} • {rp(selected.grand_total)}{selected.cancelled_amount ? ` • refund ${rp(selected.cancelled_amount)}` : ''}</p>
+                  </div>
+                  <button type="button" className="small secondary" onClick={() => setSelected(null)}>Tutup</button>
                 </div>
-                <button type="button" className="small secondary" onClick={() => setSelected(null)}>Tutup</button>
-              </div>
 
               <div style={{ display: 'flex', gap: '.4rem', marginTop: '.75rem' }}>
                 <button className={activeTab === 'info' ? 'small' : 'small secondary'} onClick={() => setActiveTab('info')}>Info</button>
@@ -253,6 +262,7 @@ export default function HistoryPage() {
                 )}
               </div>
             </section>
+          </div>
           </div>
         )}
       </div>
