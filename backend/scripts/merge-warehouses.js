@@ -75,6 +75,8 @@ async function main() {
         removed += 1;
         console.log(`[merge-warehouses]   removed #${dup.id} "${dup.name}" -> merged into #${keep.id}`);
       }
+      // Toko = gudang: gudang yang dipertahankan dinamai persis nama toko.
+      await conn.execute('UPDATE warehouses SET name = ?, type = \'utama\' WHERE id = ?', [branch.name.trim(), keep.id]);
       await conn.commit();
     } catch (e) {
       await conn.rollback();
