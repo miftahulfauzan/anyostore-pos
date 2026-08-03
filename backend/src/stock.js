@@ -34,7 +34,7 @@ async function adjustStock(connection, {
   }
   const mutationSql = createdAt
     ? `INSERT INTO stock_mutations (branch_id, warehouse_id, product_id, variant_id, user_id, type, reference_type, reference_id, batch_number, channel, qty, stock_before, stock_after, notes, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     : `INSERT INTO stock_mutations (branch_id, warehouse_id, product_id, variant_id, user_id, type, reference_type, reference_id, batch_number, channel, qty, stock_before, stock_after, notes)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
   const mutationParams = [branchId, warehouseId, productId, variantId, userId, type, referenceType, referenceId, batchNumber, channel, delta, before, after, notes];
