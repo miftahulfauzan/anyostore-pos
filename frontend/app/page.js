@@ -118,7 +118,7 @@ export default function LandingPage() {
 
       {/* 3. Hero */}
       <section style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 16px 24px' }}>
-        <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} className="hero-wrap" style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', height: 400 }}>
+        <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} className="hero-wrap" style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', aspectRatio: '4 / 3' }}>
           {slide ? (
             <div key={slide.id} className="slide-fade" style={{ height: '100%' }}>
               {/* Foto full-bleed: menutupi seluruh hero (desktop), di mobile
@@ -320,9 +320,9 @@ export default function LandingPage() {
         @media (max-width: 900px) { .pcard-grid { grid-template-columns: repeat(3, 1fr); } }
         @media (max-width: 600px) {
           .pcard-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-          .hero-wrap { height: auto !important; background: #ffffff !important; }
+          .hero-wrap { height: auto !important; aspect-ratio: auto !important; background: #ffffff !important; }
           .slide-fade { height: auto !important; }
-          .hero-full { position: relative !important; height: 260px; }
+          .hero-full { position: relative !important; aspect-ratio: 4 / 3; }
           .hero-scrim { display: none !important; }
           .hero-text { height: auto !important; align-items: flex-start !important; }
           .hero-text > div { padding: 26px 22px !important; max-width: 100% !important; }
