@@ -181,8 +181,8 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 ## Deploy & CI/CD
 
 ### Workflow
-1. Push ke `main` → `ci.yml` (test + build) jalan otomatis; `deploy.yml` **tidak** otomatis (hanya `workflow_dispatch`)
-2. Deploy manual dari tab Actions → Run workflow. `deploy.yml`: SSH ke VPS → `git pull` → `image prune -f` + `builder prune -f --filter "until=168h"` → `docker compose up -d --build` → `docker compose ps` → cek log backend: kalau ada `[migrate] FAILED`/`[migrate] fatal`, deploy **gagal** (backend tetap start karena entrypoint pakai `|| true`, tapi error tidak disembunyikan lagi)
+1. Push ke `main` → `ci.yml` (test + build) dan `deploy.yml` jalan otomatis (bisa juga dipicu manual via Actions → Run workflow)
+2. `deploy.yml`: SSH ke VPS → `git pull` → `image prune -f` + `builder prune -f --filter "until=168h"` → `docker compose up -d --build` → `docker compose ps` → cek log backend: kalau ada `[migrate] FAILED`/`[migrate] fatal`, deploy **gagal** (backend tetap start karena entrypoint pakai `|| true`, tapi error tidak disembunyikan lagi)
 3. Caddy handle HTTPS otomatis (Let's Encrypt)
 
 ### Docker compose production
