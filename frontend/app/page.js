@@ -118,19 +118,12 @@ export default function LandingPage() {
 
       {/* 3. Hero */}
       <section style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 16px 24px' }}>
-        <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} className="hero-wrap" style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', background: T.card, display: 'grid', gridTemplateColumns: '1fr 1fr', height: 400 }}>
+        <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} className="hero-wrap" style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', height: 400 }}>
           {slide ? (
-            <div key={slide.id} className="slide-fade" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', width: '100%', height: '100%' }}>
-              <div style={{ padding: '44px 40px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 16 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: T.blue }}>{slide.category_name || 'Denim'}</span>
-                <h1 style={{ margin: 0, fontFamily: "'DM Sans', sans-serif", fontSize: 'clamp(22px, 3vw, 34px)', fontWeight: 700, lineHeight: 1.15, color: T.black }}>{slide.name}</h1>
-                <strong style={{ fontSize: 28, fontWeight: 800, color: T.blue }}>Rp{Number(slide.price || 0).toLocaleString('id-ID')}</strong>
-                <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                  <a href={`/produk/${slide.id}`} className="hero-btn btn-primary">Lihat Produk</a>
-                  <a href="#" onClick={(e) => { e.preventDefault(); pickWa(`Saya tertarik dengan ${slide.name}`); }} className="hero-btn btn-outline"><I.chat style={{ width: 14, height: 14 }} /> Hubungi Admin</a>
-                </div>
-              </div>
-              <div style={{ position: 'relative', borderLeft: '1px solid rgba(255,255,255,.15)', background: 'linear-gradient(135deg, rgba(30,58,95,.06), rgba(30,58,95,.02))', overflow: 'hidden' }}>
+            <div key={slide.id} className="slide-fade" style={{ height: '100%' }}>
+              {/* Foto full-bleed: menutupi seluruh hero (desktop), di mobile
+                  turun menjadi baris penuh di bawah teks */}
+              <div className="hero-full">
                 {slidePhotos.length > 0 ? (
                   <div style={{ position: 'absolute', inset: 0 }}>
                     {slidePhotos.map((ph, i) => (
@@ -138,11 +131,24 @@ export default function LandingPage() {
                     ))}
                   </div>
                 ) : (
-                  <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: T.muted, fontSize: 13 }}>Foto produk</div>
+                  <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#94a3b8', fontSize: 13 }}>Foto produk</div>
                 )}
               </div>
+              {/* Scrim gelap biar teks terbaca di atas foto */}
+              <div className="hero-scrim" aria-hidden="true" />
+              <div className="hero-text" style={{ position: 'relative', zIndex: 2, height: '100%', display: 'flex', alignItems: 'center' }}>
+                <div style={{ padding: '44px 40px', display: 'grid', gap: 16, maxWidth: 520 }}>
+                  <span className="hero-cat" style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase' }}>{slide.category_name || 'Denim'}</span>
+                  <h1 className="hero-title" style={{ margin: 0, fontFamily: "'DM Sans', sans-serif", fontSize: 'clamp(22px, 3vw, 34px)', fontWeight: 700, lineHeight: 1.15 }}>{slide.name}</h1>
+                  <strong className="hero-price" style={{ fontSize: 28, fontWeight: 800 }}>Rp{Number(slide.price || 0).toLocaleString('id-ID')}</strong>
+                  <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                    <a href={`/produk/${slide.id}`} className="hero-btn btn-primary">Lihat Produk</a>
+                    <a href="#" onClick={(e) => { e.preventDefault(); pickWa(`Saya tertarik dengan ${slide.name}`); }} className="hero-btn btn-outline"><I.chat style={{ width: 14, height: 14 }} /> Hubungi Admin</a>
+                  </div>
+                </div>
+              </div>
             </div>
-          ) : <div style={{ gridColumn: '1/-1', padding: 48, textAlign: 'center', color: T.muted }}>Memuat…</div>}
+          ) : <div style={{ padding: 48, textAlign: 'center', color: '#e5e7eb' }}>Memuat…</div>}
           {slides.length > 1 && (
             <>
               <button aria-label="Prev" onClick={() => setSlideIdx((i) => (i - 1 + slides.length) % slides.length)} className="slide-arrow left"><I.chevL style={{ width: 18, height: 18 }} /></button>
@@ -276,7 +282,14 @@ export default function LandingPage() {
         .hero-btn { transition: all .35s cubic-bezier(.4,0,.2,1); }
         .hero-btn:hover { transform: translateY(-2px); }
         .hero-btn:active { transform: scale(.97); }
+        .hero-wrap { background: #1a1a1a; }
         .slide-fade { animation: slideIn .5s cubic-bezier(.4,0,.2,1); }
+        .hero-full { position: absolute; inset: 0; }
+        .hero-full img { position: absolute; inset: 0; width: 100%; height: 100%; }
+        .hero-scrim { position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, rgba(15,23,42,.82) 0%, rgba(15,23,42,.52) 42%, rgba(15,23,42,.12) 72%, rgba(15,23,42,0) 100%); pointer-events: none; }
+        .hero-cat { color: rgba(255,255,255,.82); }
+        .hero-title { color: #ffffff; }
+        .hero-price { color: #ffffff; }
         @keyframes slideIn { from { opacity: 0; transform: scale(.985) translateY(10px); } to { opacity: 1; transform: none; } }
         .slide-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.15); backdrop-filter: blur(12px); color: #fff; cursor: pointer; display: grid; place-items: center; box-shadow: 0 4px 16px rgba(0,0,0,.2); z-index: 5; transition: all .35s cubic-bezier(.4,0,.2,1); -webkit-backdrop-filter: blur(12px); }
         .slide-arrow:hover { transform: translateY(-50%) scale(1.08); background: rgba(255,255,255,.3); box-shadow: 0 6px 24px rgba(0,0,0,.3); }
@@ -307,11 +320,15 @@ export default function LandingPage() {
         @media (max-width: 900px) { .pcard-grid { grid-template-columns: repeat(3, 1fr); } }
         @media (max-width: 600px) {
           .pcard-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-          .hero-wrap { grid-template-columns: 1fr !important; height: auto !important; min-height: 0 !important; }
-          .hero-wrap > div { grid-template-columns: 1fr !important; height: auto !important; }
-          .hero-wrap > div > div:first-child { padding: 26px 22px !important; }
-          .hero-wrap > div > div:last-child { min-height: 240px; border-left: none !important; }
-          .hero-wrap > div > div:last-child img { position: absolute; }
+          .hero-wrap { height: auto !important; background: #ffffff !important; }
+          .slide-fade { height: auto !important; }
+          .hero-full { position: relative !important; height: 260px; }
+          .hero-scrim { display: none !important; }
+          .hero-text { height: auto !important; align-items: flex-start !important; }
+          .hero-text > div { padding: 26px 22px !important; max-width: 100% !important; }
+          .hero-cat { color: #71717a !important; }
+          .hero-title { color: #1a1a1a !important; }
+          .hero-price { color: #1e3a5f !important; }
         }
         @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
       `}</style>
