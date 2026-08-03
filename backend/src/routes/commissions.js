@@ -8,6 +8,7 @@ const allowedTargets = new Set(['all', 'role', 'user']);
 const allowedRoles = new Set(['owner', 'manager', 'admin', 'kasir', 'gudang']);
 const asMoney = (value) => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 const customerTiers = new Set(['reguler', 'semi_grosir', 'grosir_seri']);
+const { localDateString, localMonthStartString } = require('../local-date');
 
 router.get('/staff', authenticate, authorize('owner'), async (req, res, next) => {
   try {
@@ -37,8 +38,8 @@ router.get('/report', authenticate, authorize('owner'), async (req, res, next) =
     const branchId = Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
     const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || '');
     const today = new Date();
-    const first = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
-    const todayStr = today.toISOString().slice(0, 10);
+    const first = localMonthStartString(today);
+    const todayStr = localDateString(today);
     const start = isDate(req.query.start) ? req.query.start : first;
     const end = isDate(req.query.end) ? req.query.end : todayStr;
     if (start > end) return res.status(400).json({ success: false, message: 'Rentang tanggal tidak valid' });
@@ -285,8 +286,8 @@ router.get('/mine', authenticate, async (req, res, next) => {
     const role = req.user.role;
 
     const today = new Date();
-    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
-    const todayStr = today.toISOString().slice(0, 10);
+    const firstOfMonth = localMonthStartString(today);
+    const todayStr = localDateString(today);
     const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || '');
     const monthStart = isDate(req.query.start) ? req.query.start : firstOfMonth;
     const monthEnd = isDate(req.query.end) ? req.query.end : todayStr;

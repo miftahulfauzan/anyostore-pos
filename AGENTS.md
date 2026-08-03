@@ -23,6 +23,10 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 | `src/db.js` | mysql2/promise pool, connectionLimit 10 |
 | `src/auth.js` | JWT access 12h + refresh, `authenticate`, `authorize(roles...)` |
 | `src/media-storage.js` | Storage disk/DB (`MEDIA_STORAGE=database`), `persistUploadedFile`, `removeMedia`, `copyMediaFile`, `serveBlob` |
+| `src/pricing.js` | Satu-satunya logika tier harga (grosir seri/semi grosir/retail + harga wholesale) — dipakai checkout DAN `POST /api/transactions/preview`. JANGAN duplikasi di frontend |
+| `src/stock.js` | Satu-satunya jalur penulisan stok: `adjustStock()` mengubah `warehouse_stocks` + `products.stock` + `product_variants.stock` + `stock_mutations` sekaligus |
+| `src/money.js` | Satu definisi pembulatan uang (`Number.EPSILON`) — jangan definisikan `money` sendiri di route |
+| `src/local-date.js` | Tanggal lokal WIB (`localDateString`/`localMonthStartString`) — jangan pakai `toISOString().slice(0,10)` untuk "hari ini" |
 | `src/netlify.js` | Serverless adapter (TIDAK DIPAKAI, Netlify sudah dihapus) |
 | `scripts/migrate.js` | Jalankan migrasi SQL di `migrations/`, track `_migrations` table |
 | `scripts/fix-clone-paths.js` | One-off: copy file foto yang di-share antar cabang ke path baru (idempoten) |

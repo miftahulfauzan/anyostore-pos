@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { authenticate } = require('../auth');
+const { localDateString } = require('../local-date');
 
 const router = express.Router();
 router.use(authenticate);
@@ -15,11 +16,11 @@ router.get('/', async (req, res, next) => {
 
     const salesSql =
       'SELECT ' +
-      'COALESCE(SUM(CASE WHEN DATE(t.created_at) = CURDATE() THEN t.grand_total ELSE 0 END), 0) AS today_sales, ' +
+      'COALESCE(SUM(CASE WHEN DATE(t.created_at) = CURDATE() THEN t.grand_total - t.cancelled_amount ELSE 0 END), 0) AS today_sales, ' +
       'SUM(CASE WHEN DATE(t.created_at) = CURDATE() THEN 1 ELSE 0 END) AS today_transactions, ' +
-      'COALESCE(SUM(CASE WHEN DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) THEN t.grand_total ELSE 0 END), 0) AS seven_day_sales, ' +
-      'COALESCE(SUM(CASE WHEN YEAR(t.created_at) = YEAR(CURDATE()) AND MONTH(t.created_at) = MONTH(CURDATE()) THEN t.grand_total ELSE 0 END), 0) AS month_sales ' +
-      'FROM transactions t WHERE t.status = \'completed\'' + transactionScope;
+      'COALESCE(SUM(CASE WHEN DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) THEN t.grand_total - t.cancelled_amount ELSE 0 END), 0) AS seven_day_sales, ' +
+      'COALESCE(SUM(CASE WHEN YEAR(t.created_at) = YEAR(CURDATE()) AND MONTH(t.created_at) = MONTH(CURDATE()) THEN t.grand_total - t.cancelled_amount ELSE 0 END), 0) AS month_sales ' +
+      'FROM transactions t WHERE t.status IN (\'completed\', \'partially_cancelled\')' + transactionScope;
     const expensesSql =
       'SELECT ' +
       'COALESCE(SUM(CASE WHEN e.expense_date = CURDATE() THEN e.amount ELSE 0 END), 0) AS today_expenses, ' +
@@ -31,13 +32,14 @@ router.get('/', async (req, res, next) => {
       'FROM transactions t JOIN users u ON u.id = t.user_id JOIN branches b ON b.id = t.branch_id ' +
       'WHERE 1 = 1' + transactionScope + ' ORDER BY t.created_at DESC LIMIT 6';
     const trendSql =
-      'SELECT DATE(t.created_at) AS date, COALESCE(SUM(t.grand_total), 0) AS sales ' +
-      'FROM transactions t WHERE t.status = \'completed\' AND DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)' +
+      'SELECT DATE(t.created_at) AS date, COALESCE(SUM(t.grand_total - t.cancelled_amount), 0) AS sales ' +
+      'FROM transactions t WHERE t.status IN (\'completed\', \'partially_cancelled\') AND DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)' +
       transactionScope + ' GROUP BY DATE(t.created_at) ORDER BY date';
     const paymentSql =
-      'SELECT t.payment_method, COALESCE(SUM(t.grand_total), 0) AS amount ' +
-      'FROM transactions t WHERE t.status = \'completed\' AND DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)' +
-      transactionScope + ' GROUP BY t.payment_method ORDER BY amount DESC';
+      'SELECT tp.payment_method, COALESCE(SUM(tp.amount), 0) AS amount ' +
+      'FROM transaction_payments tp JOIN transactions t ON t.id = tp.transaction_id ' +
+      'WHERE t.status IN (\'completed\', \'partially_cancelled\') AND DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)' +
+      transactionScope + ' GROUP BY tp.payment_method ORDER BY amount DESC';
 
     const [salesRows, expenseRows, recent, salesTrend, payments] = await Promise.all([
       db.execute(salesSql, transactionParams),
@@ -48,14 +50,14 @@ router.get('/', async (req, res, next) => {
     ]);
 
     const salesByDate = new Map(salesTrend[0].map((row) => [
-      new Date(row.date).toISOString().slice(0, 10),
+      String(row.date).slice(0, 10),
       Number(row.sales)
     ]));
     const sevenDayTrend = Array.from({ length: 7 }, (_, index) => {
       const date = new Date();
       date.setHours(0, 0, 0, 0);
       date.setDate(date.getDate() - (6 - index));
-      const key = date.toISOString().slice(0, 10);
+      const key = localDateString(date);
       return {
         date: key,
         label: date.toLocaleDateString('id-ID', { weekday: 'short' }),
@@ -65,8 +67,8 @@ router.get('/', async (req, res, next) => {
 
     const stores = owner ? (await db.execute(
       'SELECT b.id, b.name, b.address, ' +
-      'COALESCE((SELECT SUM(t.grand_total) FROM transactions t WHERE t.branch_id = b.id AND t.status = \'completed\' AND DATE(t.created_at) = CURDATE()), 0) AS today_sales, ' +
-      'COALESCE((SELECT SUM(t.grand_total) FROM transactions t WHERE t.branch_id = b.id AND t.status = \'completed\' AND DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)), 0) AS seven_day_sales, ' +
+      'COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (\'completed\',\'partially_cancelled\') AND DATE(t.created_at) = CURDATE()), 0) AS today_sales, ' +
+      'COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (\'completed\',\'partially_cancelled\') AND DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)), 0) AS seven_day_sales, ' +
       'COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id AND e.status IN (\'pending\',\'approved\') AND YEAR(e.expense_date) = YEAR(CURDATE()) AND MONTH(e.expense_date) = MONTH(CURDATE())), 0) AS month_expenses, ' +
       '(SELECT COUNT(*) FROM products p WHERE p.branch_id = b.id AND p.is_active = TRUE) AS products ' +
       'FROM branches b WHERE b.is_active = TRUE ORDER BY b.id'

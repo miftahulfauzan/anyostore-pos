@@ -4,7 +4,7 @@ const { authenticate, authorize } = require('../auth');
 const router = express.Router();
 router.use(authenticate);
 const fail = (status, message) => Object.assign(new Error(message), { status });
-const money = value => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+const { money } = require('../money');
 async function findPromotion(connection, branchId, code, subtotal) {
   const [rows] = await connection.execute(`SELECT * FROM promotions WHERE branch_id=? AND UPPER(code)=UPPER(?) AND is_active=TRUE AND (starts_at IS NULL OR starts_at<=NOW()) AND (ends_at IS NULL OR ends_at>=NOW()) AND (usage_limit IS NULL OR usage_count<usage_limit) FOR UPDATE`, [branchId, String(code || '').trim()]);
   const promo = rows[0]; if (!promo) throw fail(400, 'Kode promo tidak berlaku');

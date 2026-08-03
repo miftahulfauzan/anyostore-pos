@@ -4,7 +4,7 @@ const { authenticate, authorize } = require('../auth');
 const router = express.Router();
 router.use(authenticate);
 const fail = (status, message) => Object.assign(new Error(message), { status });
-const amount = (value) => Math.round(Number(value) * 100) / 100;
+const amount = (value) => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 
 async function openDrawer(connection, user) {
   const [rows] = await connection.execute('SELECT * FROM cash_drawers WHERE branch_id = ? AND user_id = ? AND status = \'open\' FOR UPDATE', [user.branch_id, user.id]);

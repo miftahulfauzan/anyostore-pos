@@ -6,7 +6,8 @@ const { authenticate, authorize } = require('../auth');
 const router = express.Router();
 router.use(authenticate);
 const error = (status, message) => Object.assign(new Error(message), { status });
-const money = (value) => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+const { money } = require('../money');
+const { adjustStock } = require('../stock');
 
 router.get('/', async (req, res, next) => {
   try {
@@ -28,6 +29,13 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
     await connection.beginTransaction();
     const [transactions] = await connection.execute('SELECT id, customer_id FROM transactions WHERE id = ? AND branch_id = ? AND status = \'completed\' FOR UPDATE', [transactionId, req.user.branch_id]);
     if (!transactions[0]) throw error(404, 'Transaksi tidak ditemukan atau tidak dapat diretur');
+    // Refund memakai rasio yang sama dengan pembatalan (cancel): nilai item
+    // dikali paidRatio (grand_total/subtotal) supaya diskon tingkat transaksi
+    // dan promo terbagi proporsional.
+    const [txTotals] = await connection.execute('SELECT subtotal, grand_total FROM transactions WHERE id = ?', [transactionId]);
+    const txSubtotal = Number(txTotals[0]?.subtotal || 0);
+    const txGrandTotal = Number(txTotals[0]?.grand_total || 0);
+    const paidRatio = txSubtotal > 0 ? txGrandTotal / txSubtotal : 1;
     let refund = 0;
     const prepared = [];
     for (const input of items) {
@@ -41,7 +49,7 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
         [sold[0].id]
       );
       if (quantity + returned[0].quantity > sold[0].quantity) throw error(400, 'Jumlah retur melebihi item terjual');
-      const lineTotal = money((sold[0].subtotal / sold[0].quantity) * quantity);
+      const lineTotal = money((sold[0].subtotal / sold[0].quantity) * quantity * paidRatio);
       refund = money(refund + lineTotal);
       prepared.push({ sold: sold[0], quantity, lineTotal, reason: input.reason?.trim() || null });
     }
@@ -74,13 +82,17 @@ router.put('/:id/approve', authorize('owner', 'manager', 'admin'), async (req, r
     if (!warehouses[0]) throw error(404, 'Gudang tidak ditemukan');
     const [items] = await connection.execute('SELECT id, product_id, variant_id, quantity FROM return_items WHERE return_id = ?', [returns[0].id]);
     for (const item of items) {
-      const [balances] = await connection.execute('SELECT id, quantity FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id <=> ? FOR UPDATE', [warehouseId, item.product_id, item.variant_id]);
-      const before = balances[0]?.quantity || 0; const after = before + item.quantity;
-      if (balances[0]) await connection.execute('UPDATE warehouse_stocks SET quantity = ? WHERE id = ?', [after, balances[0].id]);
-      else await connection.execute('INSERT INTO warehouse_stocks (warehouse_id, product_id, variant_id, quantity) VALUES (?, ?, ?, ?)', [warehouseId, item.product_id, item.variant_id, after]);
-      await connection.execute('UPDATE products SET stock = stock + ? WHERE id = ?', [item.quantity, item.product_id]);
-      if (item.variant_id) await connection.execute('UPDATE product_variants SET stock = stock + ? WHERE id = ?', [item.quantity, item.variant_id]);
-      await connection.execute(`INSERT INTO stock_mutations (branch_id, warehouse_id, product_id, variant_id, user_id, type, reference_type, reference_id, qty, stock_before, stock_after) VALUES (?, ?, ?, ?, ?, 'sale_return', 'return', ?, ?, ?, ?)`, [req.user.branch_id, warehouseId, item.product_id, item.variant_id, req.user.id, returns[0].id, item.quantity, before, after]);
+      await adjustStock(connection, {
+        branchId: req.user.branch_id,
+        warehouseId,
+        productId: item.product_id,
+        variantId: item.variant_id,
+        delta: item.quantity,
+        userId: req.user.id,
+        type: 'sale_return',
+        referenceType: 'return',
+        referenceId: returns[0].id,
+      });
     }
     await connection.execute('UPDATE returns SET status = \'approved\', approved_by = ? WHERE id = ?', [req.user.id, returns[0].id]);
     await connection.execute('INSERT INTO activity_logs (user_id, action, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'return_approve', `Retur ${returns[0].return_no}`, req.ip, req.get('user-agent') || null]);

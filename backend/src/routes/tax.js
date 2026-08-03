@@ -5,13 +5,14 @@ const { authenticate, authorize } = require('../auth');
 const router = express.Router();
 router.use(authenticate, authorize('owner', 'manager', 'admin'));
 
-const money = (v) => Math.round(Number(v || 0) * 100) / 100;
+const { money } = require('../money');
+const { localDateString } = require('../local-date');
 
 // GET /api/tax/report?start=YYYY-MM-DD&end=YYYY-MM-DD&branch_id=N
 // PPN keluaran (sales), PPN masukan (purchases), net PPN, monthly breakdown
 router.get('/report', async (req, res, next) => {
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateString();
     const start = req.query.start || today.slice(0, 8) + '01';
     const end = req.query.end || today;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end) || start > end) {
@@ -98,7 +99,7 @@ router.get('/report', async (req, res, next) => {
 // Generate faktur pajak data from transactions
 router.get('/faktur-pajak', async (req, res, next) => {
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateString();
     const start = req.query.start || today.slice(0, 8) + '01';
     const end = req.query.end || today;
     const branchId = req.user.role === 'owner' ? (Number(req.query.branch_id) || req.user.branch_id) : req.user.branch_id;
@@ -164,7 +165,7 @@ router.get('/faktur-pajak', async (req, res, next) => {
 // PPh 23 report (withholding tax on services, 2%)
 router.get('/pph23', async (req, res, next) => {
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateString();
     const start = req.query.start || today.slice(0, 8) + '01';
     const end = req.query.end || today;
     const branchId = req.user.role === 'owner' ? (Number(req.query.branch_id) || req.user.branch_id) : req.user.branch_id;

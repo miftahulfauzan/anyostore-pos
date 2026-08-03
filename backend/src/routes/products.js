@@ -73,9 +73,10 @@ async function syncVariantColorsAcrossStores(productId, branchId) {
 
   const catalogueSku = source.sku.trim().replace(/^B\d*-/i, '');
   const [sourceVariants] = await db.execute(
-    `SELECT DISTINCT TRIM(color) AS color
+    `SELECT TRIM(color) AS color, MAX(price) AS price
      FROM product_variants
-     WHERE product_id = ? AND is_active = TRUE AND TRIM(COALESCE(color, '')) <> ''`,
+     WHERE product_id = ? AND is_active = TRUE AND TRIM(COALESCE(color, '')) <> ''
+     GROUP BY TRIM(color)`,
     [source.id]
   );
   if (!sourceVariants.length) return;
@@ -103,8 +104,8 @@ async function syncVariantColorsAcrossStores(productId, branchId) {
       const color = variant.color.trim();
       if (!existingColors.has(color.toUpperCase())) {
         await db.execute(
-          'INSERT INTO product_variants (product_id, size, color, stock) VALUES (?, NULL, ?, 0)',
-          [target.id, color]
+          'INSERT INTO product_variants (product_id, size, color, stock, price) VALUES (?, NULL, ?, 0, ?)',
+          [target.id, color, variant.price]
         );
         existingColors.add(color.toUpperCase());
       }

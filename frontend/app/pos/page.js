@@ -5,7 +5,6 @@ import { ArrowUpRight, LayoutDashboard, LogOut, ShoppingCart, Store as StoreIcon
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rupiah = (amount) => `Rp${Number(amount || 0).toLocaleString('id-ID')}`;
-const SEMI_GROSIR_DISCOUNT_PER_PCS = 10000;
 
 export default function PosPage() {
   const [products, setProducts] = useState([]);
@@ -20,6 +19,7 @@ export default function PosPage() {
   const [submitting, setSubmitting] = useState(false);
   const [promoCode, setPromoCode] = useState('');
   const [promo, setPromo] = useState(null);
+  const [preview, setPreview] = useState(null);
   const [variantProduct, setVariantProduct] = useState(null);
   const [printPrompt, setPrintPrompt] = useState(null);
   const [loadingStore, setLoadingStore] = useState(true);
@@ -73,6 +73,29 @@ export default function PosPage() {
       window.removeEventListener('keydown', closeOnEscape);
     };
   }, [mobileCartOpen]);
+
+  // Preview harga dari server: tier pelanggan, harga grosir, dan promo
+  // dihitung dengan logika yang sama persis dengan checkout, jadi harga yang
+  // tampil = harga yang akan tersimpan (tidak ada duplikasi aturan di klien).
+  useEffect(() => {
+    if (!cart.length || !storeId) { setPreview(null); return undefined; }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const items = cart.map((item) => ({ product_id: item.id, variant_id: item.variant_id || undefined, quantity: item.quantity, price_override: item.price_override || undefined }));
+        const response = await fetch(`${apiUrl}/transactions/preview`, {
+          method: 'POST',
+          headers: headers(),
+          body: JSON.stringify({ branch_id: Number(storeId), customer_id: customerId ? Number(customerId) : undefined, items, promo_code: promo?.code || undefined }),
+        });
+        const body = await response.json();
+        if (!cancelled) setPreview(response.ok ? body.data : null);
+      } catch {
+        if (!cancelled) setPreview(null);
+      }
+    }, 350);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [cart, storeId, customerId, promo]);
 
   const selectedStore = stores.find((store) => String(store.id) === String(storeId));
   const filteredProducts = useMemo(() => {
@@ -160,41 +183,17 @@ export default function PosPage() {
     }));
   }
   const tierLabel = { retail: 'Retail', semi_grosir: 'Semi Grosir', grosir_seri: 'Grosir Seri' };
-  function resolveWholesalePrice(item, ignoreMinQty = false) {
-    const tiers = item.wholesale_prices || [];
-    if (!tiers.length) return item.price;
-    const match = tiers
-      .filter((t) => (ignoreMinQty || item.quantity >= Number(t.min_qty)) && (t.max_qty == null || item.quantity <= Number(t.max_qty)))
-      .sort((a, b) => Number(b.min_qty) - Number(a.min_qty))[0];
-    if (match) return Number(match.price);
-    if (ignoreMinQty) {
-      const fallback = tiers.slice().sort((a, b) => Number(a.min_qty) - Number(b.min_qty))[0];
-      if (fallback) return Number(fallback.price);
-    }
-    return item.price;
-  }
   const tiersEnabled = selectedStore?.pricing_tier_enabled !== false;
-  const effectiveTier = useMemo(() => {
-    if (!tiersEnabled) return 'retail';
-    if (priceTier !== 'retail') return priceTier;
-    for (const item of cart) {
-      if (item.quantity >= 6 && resolveWholesalePrice(item) < item.price) return 'grosir_seri';
-    }
-    const totalQty = cart.reduce((sum, item) => sum + item.quantity, 0);
-    const distinctModels = new Set(cart.map((item) => item.id)).size;
-    if (totalQty > 3 && distinctModels > 1) return 'semi_grosir';
-    return 'retail';
-  }, [cart, priceTier, tiersEnabled]);
+  // Harga final dari preview server; fallback sementara: harga dasar produk
+  // (atau override manual) selama preview belum selesai dihitung.
   const cartPrice = (item) => {
-    if (item.price_override != null) return item.price_override;
-    if (!tiersEnabled) return item.price;
-    if (effectiveTier === 'grosir_seri') return resolveWholesalePrice(item, priceTier === 'grosir_seri');
-    if (effectiveTier === 'semi_grosir') return Math.max(0, item.price - SEMI_GROSIR_DISCOUNT_PER_PCS);
-    return item.price;
+    const line = (preview?.lines || []).find((l) => Number(l.product_id) === item.id && (l.variant_id || null) === (item.variant_id || null));
+    return line ? Number(line.price) : Number(item.price_override ?? item.price);
   };
   const cartSubtotal = (item) => cartPrice(item) * item.quantity;
-  const subtotal = useMemo(() => cart.reduce((sum, item) => sum + cartSubtotal(item), 0), [cart, effectiveTier, priceTier, tiersEnabled]);
-  const discount = Number(promo?.discount || 0);
+  const subtotal = Number(preview?.subtotal ?? cart.reduce((sum, item) => sum + cartSubtotal(item), 0));
+  const effectiveTier = preview?.price_tier || 'retail';
+  const discount = Number(preview?.discount ?? promo?.discount ?? 0);
   const total = Math.max(0, subtotal - discount);
   const amountPaid = paymentMethod === 'cash' ? Number(cash || 0) : total;
   const change = paymentMethod === 'cash' ? Math.max(0, amountPaid - total) : 0;
