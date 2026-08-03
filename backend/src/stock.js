@@ -14,6 +14,8 @@ async function adjustStock(connection, {
   referenceId,
   channel = null,
   notes = null,
+  batchNumber = null,
+  createdAt = null,
 }) {
   const [balances] = await connection.execute(
     'SELECT id, quantity FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id <=> ? FOR UPDATE',
@@ -30,11 +32,14 @@ async function adjustStock(connection, {
   if (variantId) {
     await connection.execute('UPDATE product_variants SET stock = stock + ? WHERE id = ?', [delta, variantId]);
   }
-  const [mutationResult] = await connection.execute(
-    `INSERT INTO stock_mutations (branch_id, warehouse_id, product_id, variant_id, user_id, type, reference_type, reference_id, channel, qty, stock_before, stock_after, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [branchId, warehouseId, productId, variantId, userId, type, referenceType, referenceId, channel, delta, before, after, notes]
-  );
+  const mutationSql = createdAt
+    ? `INSERT INTO stock_mutations (branch_id, warehouse_id, product_id, variant_id, user_id, type, reference_type, reference_id, batch_number, channel, qty, stock_before, stock_after, notes, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    : `INSERT INTO stock_mutations (branch_id, warehouse_id, product_id, variant_id, user_id, type, reference_type, reference_id, batch_number, channel, qty, stock_before, stock_after, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+  const mutationParams = [branchId, warehouseId, productId, variantId, userId, type, referenceType, referenceId, batchNumber, channel, delta, before, after, notes];
+  if (createdAt) mutationParams.push(createdAt);
+  const [mutationResult] = await connection.execute(mutationSql, mutationParams);
   return { before, after, mutationId: mutationResult.insertId };
 }
 

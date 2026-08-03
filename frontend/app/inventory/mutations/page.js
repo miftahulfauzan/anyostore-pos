@@ -3,25 +3,31 @@ import { useEffect, useMemo, useState } from 'react';
 import AppShell from '../../components/AppShell';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-const blank = () => ({ product_id: '', variant_id: '', quantity: '', cost: '' });
+const mediaUrl = (p) => (p ? api.replace('/api', '') + p : '');
+const localToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 
 export default function Mutations() {
   const [mode, setMode] = useState('in');
   const [stores, setStores] = useState([]);
+  const [allWarehouses, setAllWarehouses] = useState([]);
   const [products, setProducts] = useState([]);
   const [store, setStore] = useState('');
-  const [items, setItems] = useState([blank()]);
+  const [warehouse, setWarehouse] = useState('');
+  const [transactionDate, setTransactionDate] = useState(localToday());
+  const [batchNumber, setBatchNumber] = useState('');
   const [notes, setNotes] = useState('');
+  const [cart, setCart] = useState([]);
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState('name_asc');
   const [channels, setChannels] = useState([]);
   const [channel, setChannel] = useState('toko');
-  const [message, setMessage] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [query, setQuery] = useState('');
-  const [selected, setSelected] = useState(new Set());
-  const [showPicker, setShowPicker] = useState(false);
   const [showChannels, setShowChannels] = useState(false);
   const [newChannel, setNewChannel] = useState({ value: '', name: '' });
+  const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
   const h = () => ({ 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
+
+  const storeWarehouses = useMemo(() => allWarehouses.filter((w) => String(w.branch_id) === String(store)), [allWarehouses, store]);
 
   async function loadChannels() {
     const r = await fetch(api + '/inventory/channels', { headers: h() });
@@ -30,189 +36,232 @@ export default function Mutations() {
     setChannels(b.data || []);
     setChannel((c) => (b.data || []).some((x) => x.value === c) ? c : ((b.data || [])[0]?.value || 'toko'));
   }
-  async function loadProducts(id) {
-    const r = await fetch(api + '/inventory/incoming/products?branch_id=' + id, { headers: h() });
-    const b = await r.json();
-    if (!r.ok) throw new Error(b.message);
-    setProducts(b.data);
+  async function loadProducts(storeId, warehouseId) {
+    if (!storeId || !warehouseId) { setProducts([]); return; }
+    try {
+      const r = await fetch(`${api}/inventory/incoming/products?branch_id=${storeId}&warehouse_id=${warehouseId}`, { headers: h() });
+      const b = await r.json();
+      if (!r.ok) throw new Error(b.message);
+      setProducts(b.data || []);
+    } catch (e) { setMessage(e.message); }
   }
+
   useEffect(() => {
     if (!localStorage.getItem('pos_access_token')) return window.location.assign('/');
     loadChannels().catch((e) => setMessage(e.message));
-    fetch(api + '/inventory/incoming/targets', { headers: h() }).then(async (r) => {
-      const b = await r.json();
-      if (!r.ok) throw new Error(b.message);
-      setStores(b.data);
-      const id = String(b.data[0]?.id || '');
+    Promise.all([
+      fetch(api + '/inventory/incoming/targets', { headers: h() }).then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); return b.data || []; }),
+      fetch(api + '/inventory/warehouses/all', { headers: h() }).then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); return b.data || []; }),
+    ]).then(([brs, whs]) => {
+      setStores(brs);
+      setAllWarehouses(whs);
+      const id = String(brs[0]?.id || '');
       setStore(id);
-      if (id) loadProducts(id);
+      const list = whs.filter((w) => String(w.branch_id) === String(id));
+      const preferred = list.find((w) => w.type === 'utama') || list[0];
+      const wid = preferred ? String(preferred.id) : '';
+      setWarehouse(wid);
+      if (wid) loadProducts(id, wid);
+      else if (id) setMessage('Cabang ini belum punya gudang aktif.');
     }).catch((e) => setMessage(e.message));
   }, []);
 
-  const filtered = useMemo(() => {
+  const visibleProducts = useMemo(() => {
+    let list = products;
     const q = query.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter((p) => (p.name || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q));
-  }, [products, query]);
+    if (q) list = list.filter((p) => (p.name || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q));
+    const sorted = [...list];
+    if (sort === 'name_desc') sorted.sort((a, b) => String(b.name || '').localeCompare(String(a.name || '')));
+    else if (sort === 'sku') sorted.sort((a, b) => String(a.sku || '').localeCompare(String(b.sku || '')));
+    else sorted.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+    return sorted;
+  }, [products, query, sort]);
 
-  function toggle(id) {
-    const next = new Set(selected);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    setSelected(next);
+  function addToCart(product, variant = null) {
+    const key = `${product.id}:${variant?.id || 'umum'}`;
+    setCart((cur) => {
+      const found = cur.find((c) => c.key === key);
+      if (found) return cur.map((c) => (c.key === key ? { ...c, quantity: c.quantity + 1 } : c));
+      return [...cur, { key, product_id: product.id, variant_id: variant?.id || null, name: product.name, sku: product.sku, color: variant?.color || null, quantity: 1 }];
+    });
   }
-  function addSelected() {
-    const rows = [];
-    for (const id of selected) rows.push({ product_id: id, variant_id: '', quantity: '', cost: '' });
-    if (!rows.length) return;
-    setItems((prev) => [...prev.filter((r) => r.product_id), ...rows]);
-    setSelected(new Set());
-    setQuery('');
+  function setQty(key, value) {
+    const q = Number(value);
+    setCart((cur) => cur.flatMap((c) => (c.key === key ? (q > 0 ? [{ ...c, quantity: q }] : []) : [c])));
   }
-  function update(i, key, value) { setItems((rows) => rows.map((row, index) => index === i ? { ...row, [key]: value } : row)); }
-  function remove(i) { setItems((rows) => rows.filter((_, index) => index !== i)); }
+  const totalQty = cart.reduce((s, c) => s + Number(c.quantity || 0), 0);
 
-  async function submit(e) {
-    e.preventDefault();
+  async function submit() {
+    if (!store || !warehouse) return setMessage('Pilih toko dan gudang terlebih dahulu.');
+    const payload = cart.map((c) => ({ product_id: Number(c.product_id), variant_id: c.variant_id ? Number(c.variant_id) : undefined, quantity: Number(c.quantity) }));
+    if (!payload.length) return setMessage('Belum ada produk di keranjang.');
+    setSaving(true);
+    setMessage('');
     try {
-      setSaving(true);
-      const payload = items.map((i) => ({ product_id: Number(i.product_id), variant_id: i.variant_id ? Number(i.variant_id) : undefined, quantity: Number(i.quantity), cost: mode === 'in' && i.cost !== '' ? Number(i.cost) : undefined })).filter((i) => i.product_id && i.quantity > 0);
-      if (!payload.length) throw new Error('Tambahkan minimal satu produk dengan jumlah > 0');
-      const body = { branch_id: Number(store), items: payload, notes };
+      const body = { branch_id: Number(store), warehouse_id: Number(warehouse), transaction_date: transactionDate, batch_number: batchNumber.trim(), notes, items: payload };
       if (mode === 'out') body.channel = channel;
       const r = await fetch(api + '/inventory/' + (mode === 'in' ? 'incoming' : 'outgoing'), { method: 'POST', headers: h(), body: JSON.stringify(body) });
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
-      const channelLabel = mode === 'out' ? (channels.find((c) => c.value === channel)?.name || channel) : '';
-      setMessage(b.data.items + ' produk ' + (mode === 'in' ? 'masuk' : 'keluar') + ' berhasil dicatat' + (channelLabel ? ' (' + channelLabel + ')' : '') + '.');
-      setItems([blank()]);
-      setNotes('');
-      setShowPicker(false);
+      setMessage(b.data.items + ' produk ' + (mode === 'in' ? 'masuk' : 'keluar') + ' berhasil dicatat. Batch/Nota: ' + b.data.batch_number);
+      setCart([]);
+      loadProducts(store, warehouse);
     } catch (e) { setMessage(e.message); } finally { setSaving(false); }
   }
 
   return <AppShell title="Mutasi Stok" eyebrow="PRODUK & INVENTORI" actions={<a className="button-link" href="/inventory">Lihat Stok</a>}>
     <div className="tabs">
-      <button type="button" className={mode === 'in' ? 'active' : ''} onClick={() => { setMode('in'); setItems([blank()]); }}>Produk Masuk</button>
-      <button type="button" className={mode === 'out' ? 'active' : ''} onClick={() => { setMode('out'); setItems([blank()]); }}>Produk Keluar</button>
+      <button type="button" className={mode === 'in' ? 'active' : ''} onClick={() => { setMode('in'); setCart([]); }}>Produk Masuk</button>
+      <button type="button" className={mode === 'out' ? 'active' : ''} onClick={() => { setMode('out'); setCart([]); }}>Produk Keluar</button>
     </div>
+
     <section className="panel">
-      <p className="muted">{mode === 'in' ? 'Catat barang yang masuk ke gudang/toko (pembelian atau penerimaan).' : 'Catat barang keluar tanpa transaksi penjualan: penjualan Shopee/TikTok/WA/reseller, atau keluar ke tujuan lain.'}</p>
-      <form onSubmit={submit}>
-        <label>Toko / gudang
-          <select required value={store} onChange={(e) => { setStore(e.target.value); setItems([blank()]); setSelected(new Set()); setShowPicker(false); loadProducts(e.target.value).catch((x) => setMessage(x.message)); }}>
-            {stores.map((item) => <option key={item.id} value={item.id}>{item.name}{item.type === 'gudang' ? ' (Gudang)' : ''}</option>)}
-          </select>
-        </label>
+      <h2>Informasi Transaksi</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+        <label>Tanggal<input type="date" value={transactionDate} onChange={(e) => setTransactionDate(e.target.value)} required /></label>
+        <label>Batch / Nota<input value={batchNumber} onChange={(e) => setBatchNumber(e.target.value)} placeholder={`Otomatis: BATCH-${transactionDate.replaceAll('-', '')}-001`} /></label>
+        <label>Toko / Cabang<select value={store} required onChange={(e) => {
+          const id = e.target.value;
+          setStore(id);
+          setCart([]);
+          const list = allWarehouses.filter((w) => String(w.branch_id) === String(id));
+          const preferred = list.find((w) => w.type === 'utama') || list[0];
+          const wid = preferred ? String(preferred.id) : '';
+          setWarehouse(wid);
+          if (wid) loadProducts(id, wid); else setProducts([]);
+        }}>
+          {stores.map((s) => <option key={s.id} value={s.id}>{s.name}{s.type === 'gudang' ? ' (Gudang)' : ''}</option>)}
+        </select></label>
+        <label>Gudang<select value={warehouse} required onChange={(e) => { setWarehouse(e.target.value); loadProducts(store, e.target.value); }}>
+          {storeWarehouses.map((w) => <option key={w.id} value={w.id}>{w.name}{w.type ? ` (${w.type})` : ''}</option>)}
+        </select></label>
+        <label>Keterangan / Supplier<input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Contoh: Supplier denim, retur, produksi…" /></label>
         {mode === 'out' && (
-          <label>Keperluan / saluran
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <label>Keperluan / Saluran
+            <div style={{ display: 'flex', gap: 6 }}>
               <select style={{ flex: 1 }} value={channel} onChange={(e) => setChannel(e.target.value)}>
-                {channels.filter((c) => c.is_active !== false).map((c) => <option key={c.id} value={c.value}>{c.name}</option>)}
+                {channels.filter((c) => c.is_active !== false).map((c) => <option key={c.value} value={c.value}>{c.name}</option>)}
               </select>
-              <button type="button" className="button-link" onClick={() => setShowChannels((v) => !v)}>{showChannels ? 'Tutup' : 'Kelola saluran'}</button>
+              <button type="button" className="button-link" style={{ whiteSpace: 'nowrap' }} onClick={() => setShowChannels((v) => !v)}>{showChannels ? 'Tutup' : 'Kelola'}</button>
             </div>
-            {showChannels && (
-              <div style={{ display: 'grid', gap: 8, padding: 12, border: '1px solid #e2e8f0', borderRadius: 8, marginTop: 8 }}>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input placeholder="Nilai (misal: offline)" value={newChannel.value} onChange={(e) => setNewChannel({ ...newChannel, value: e.target.value })} style={{ flex: 1 }} />
-                  <input placeholder="Nama (misal: Penjualan Offline)" value={newChannel.name} onChange={(e) => setNewChannel({ ...newChannel, name: e.target.value })} style={{ flex: 1.4 }} />
-                  <button type="button" onClick={async () => {
-                    try {
-                      const r = await fetch(api + '/inventory/channels', { method: 'POST', headers: h(), body: JSON.stringify(newChannel) });
-                      const b = await r.json();
-                      if (!r.ok) throw new Error(b.message);
-                      setNewChannel({ value: '', name: '' });
-                      setMessage('Saluran "' + b.data.name + '" ditambahkan.');
-                      loadChannels();
-                    } catch (e) { setMessage(e.message); }
-                  }}>Tambah</button>
-                </div>
-                <div style={{ display: 'grid', gap: 6 }}>
-                  {channels.map((c) => (
-                    <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ flex: 1, fontSize: 13 }}>{c.name}<small style={{ display: 'block', color: 'var(--muted-foreground)' }}>{c.value}{c.is_active === false ? ' · nonaktif' : ''}</small></span>
-                      <button type="button" className="button-link" style={{ minHeight: 28, padding: '0 8px', fontSize: 12 }} onClick={() => {
-                        const next = window.prompt('Nama saluran:', c.name);
-                        if (!next?.trim() || next.trim() === c.name) return;
-                        fetch(api + '/inventory/channels/' + c.id, { method: 'PUT', headers: h(), body: JSON.stringify({ name: next.trim() }) })
-                          .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setMessage('Saluran diganti nama.'); loadChannels(); }).catch((e) => setMessage(e.message));
-                      }}>Edit</button>
-                      <button type="button" className="button-link" style={{ minHeight: 28, padding: '0 8px', fontSize: 12 }} onClick={() => {
-                        fetch(api + '/inventory/channels/' + c.id, { method: 'PUT', headers: h(), body: JSON.stringify({ is_active: c.is_active === false }) })
-                          .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setMessage(c.is_active === false ? 'Saluran diaktifkan.' : 'Saluran dinonaktifkan.'); loadChannels(); }).catch((e) => setMessage(e.message));
-                      }}>{c.is_active === false ? 'Aktifkan' : 'Nonaktifkan'}</button>
-                      <button type="button" className="button-link" style={{ minHeight: 28, padding: '0 8px', fontSize: 12, color: '#dc2626' }} onClick={() => {
-                        if (!window.confirm('Hapus saluran "' + c.name + '"?')) return;
-                        fetch(api + '/inventory/channels/' + c.id, { method: 'DELETE', headers: h() })
-                          .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setMessage('Saluran dihapus.'); loadChannels(); }).catch((e) => setMessage(e.message));
-                      }}>Hapus</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </label>
         )}
-
-        <div className="product-picker">
-          <div className="picker-bar">
-            <input type="text" placeholder="Ketik nama / SKU produk…" value={query} onChange={(e) => { setQuery(e.target.value); setShowPicker(true); }} />
-            <button type="button" className="button-link" onClick={() => setShowPicker((v) => !v)}>{showPicker ? 'Tutup' : 'Cari'}</button>
+      </div>
+      {mode === 'out' && showChannels && (
+        <div style={{ display: 'grid', gap: 8, marginTop: 10, padding: 12, border: '1px solid var(--border)', borderRadius: 8 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input placeholder="Nilai (misal: offline)" value={newChannel.value} onChange={(e) => setNewChannel({ ...newChannel, value: e.target.value })} style={{ flex: 1 }} />
+            <input placeholder="Nama (misal: Penjualan Offline)" value={newChannel.name} onChange={(e) => setNewChannel({ ...newChannel, name: e.target.value })} style={{ flex: 1.4 }} />
+            <button type="button" onClick={async () => {
+              try {
+                const r = await fetch(api + '/inventory/channels', { method: 'POST', headers: h(), body: JSON.stringify(newChannel) });
+                const b = await r.json();
+                if (!r.ok) throw new Error(b.message);
+                setNewChannel({ value: '', name: '' });
+                setMessage('Saluran "' + b.data.name + '" ditambahkan.');
+                loadChannels();
+              } catch (e) { setMessage(e.message); }
+            }}>Tambah</button>
           </div>
-          {showPicker && (
-            <div className="picker-list">
-              {filtered.length === 0 && <p className="muted">{query.trim() ? 'Tidak ada produk cocok.' : 'Ketik untuk mencari produk.'}</p>}
-              {filtered.map((product) => (
-                <div key={product.id} className="picker-card">
-                  <div className="picker-card-head">
-                    <span className="picker-sku">{product.sku || 'Tanpa SKU'}</span>
-                    <strong>{product.name}</strong>
-                  </div>
-                  <label className="picker-row">
-                    <input type="checkbox" checked={selected.has(String(product.id))} onChange={() => toggle(String(product.id))} />
-                    <span>Pilih produk ini</span>
-                  </label>
-                </div>
-              ))}
-              <div className="picker-footer">
-                <small>{selected.size} dipilih</small>
-                <button type="button" className="button-link" disabled={!selected.size} onClick={addSelected}>Tambahkan ke daftar</button>
-              </div>
+          {channels.map((c) => (
+            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ flex: 1, fontSize: 13 }}>{c.name}<small style={{ display: 'block', color: 'var(--muted-foreground)' }}>{c.value}{c.is_active === false ? ' · nonaktif' : ''}</small></span>
+              <button type="button" className="button-link" style={{ minHeight: 28, padding: '0 8px', fontSize: 12 }} onClick={async () => {
+                const next = window.prompt('Nama saluran:', c.name);
+                if (!next?.trim() || next.trim() === c.name) return;
+                try {
+                  const r = await fetch(api + '/inventory/channels/' + c.id, { method: 'PUT', headers: h(), body: JSON.stringify({ name: next.trim() }) });
+                  const b = await r.json();
+                  if (!r.ok) throw new Error(b.message);
+                  setMessage('Saluran diganti nama.');
+                  loadChannels();
+                } catch (e) { setMessage(e.message); }
+              }}>Edit</button>
+              <button type="button" className="button-link" style={{ minHeight: 28, padding: '0 8px', fontSize: 12 }} onClick={async () => {
+                try {
+                  const r = await fetch(api + '/inventory/channels/' + c.id, { method: 'PUT', headers: h(), body: JSON.stringify({ is_active: c.is_active === false }) });
+                  const b = await r.json();
+                  if (!r.ok) throw new Error(b.message);
+                  setMessage(c.is_active === false ? 'Saluran diaktifkan.' : 'Saluran dinonaktifkan.');
+                  loadChannels();
+                } catch (e) { setMessage(e.message); }
+              }}>{c.is_active === false ? 'Aktifkan' : 'Nonaktifkan'}</button>
+              <button type="button" className="button-link" style={{ minHeight: 28, padding: '0 8px', fontSize: 12, color: '#dc2626' }} onClick={async () => {
+                if (!window.confirm('Hapus saluran "' + c.name + '"?')) return;
+                try {
+                  const r = await fetch(api + '/inventory/channels/' + c.id, { method: 'DELETE', headers: h() });
+                  const b = await r.json();
+                  if (!r.ok) throw new Error(b.message);
+                  setMessage('Saluran dihapus.');
+                  loadChannels();
+                } catch (e) { setMessage(e.message); }
+              }}>Hapus</button>
             </div>
-          )}
+          ))}
         </div>
-
-        <div className="product-list">
-          {items.map((item, index) => {
-            const p = products.find((entry) => String(entry.id) === String(item.product_id));
-            return (
-              <article key={index}>
-                <label>Produk
-                  <select required value={item.product_id} onChange={(e) => { update(index, 'product_id', e.target.value); update(index, 'variant_id', ''); }}>
-                    <option value="">Pilih produk</option>
-                    {products.map((entry) => <option key={entry.id} value={entry.id}>{entry.sku || '—'} — {entry.name}</option>)}
-                  </select>
-                </label>
-                {p && p.variants && p.variants.length > 0 && (
-                  <label>Warna
-                    <select value={item.variant_id} onChange={(e) => update(index, 'variant_id', e.target.value)}>
-                      <option value="">Semua / tanpa warna</option>
-                      {p.variants.map((v) => <option key={v.id} value={v.id}>{v.color}</option>)}
-                    </select>
-                  </label>
-                )}
-                <label>Jumlah<input required min="1" type="number" value={item.quantity} onChange={(e) => update(index, 'quantity', e.target.value)} /></label>
-                {mode === 'in' && <label>Harga beli<input type="number" min="0" placeholder="opsional" value={item.cost} onChange={(e) => update(index, 'cost', e.target.value)} /></label>}
-                {items.length > 1 && <button type="button" onClick={() => remove(index)}>Hapus</button>}
-              </article>
-            );
-          })}
-        </div>
-        <button type="button" onClick={() => setItems((rows) => [...rows, blank()])}>+ Tambah baris manual</button>
-        <label>Catatan<textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
-        <button type="submit" disabled={saving || !items.some((i) => i.product_id && Number(i.quantity) > 0)}>{saving ? 'Menyimpan…' : 'Simpan ' + (mode === 'in' ? 'Produk Masuk' : 'Produk Keluar')}</button>
-        {message && <p className="message" role="status">{message}</p>}
-      </form>
+      )}
     </section>
+
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 16, alignItems: 'start' }}>
+      <section className="panel">
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+          <input placeholder="Cari nama / kode produk…" value={query} onChange={(e) => setQuery(e.target.value)} style={{ flex: 1, minWidth: 180, minHeight: 40 }} />
+          <select value={sort} onChange={(e) => setSort(e.target.value)} style={{ minHeight: 40 }}>
+            <option value="name_asc">Abjad A-Z</option>
+            <option value="name_desc">Abjad Z-A</option>
+            <option value="sku">Kode produk</option>
+          </select>
+        </div>
+        <div className="stock-picker-grid">
+          {visibleProducts.map((p) => (
+            <article key={p.id} className="stock-picker-card" onClick={() => addToCart(p)} title="Klik untuk tambah stok umum">
+              {p.photo_path ? <img src={mediaUrl(p.photo_path)} alt="" loading="lazy" /> : <div className="stock-picker-ph">Tanpa foto</div>}
+              <div style={{ padding: 8, display: 'grid', gap: 4 }}>
+                <strong style={{ fontSize: 13, lineHeight: 1.3 }}>{p.name}</strong>
+                <span style={{ fontSize: 11, color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{p.sku || 'Tanpa SKU'}</span>
+                <span className="stock-picker-badge">Stok: {Number(p.stock || 0)}</span>
+                {p.variants && p.variants.length > 0 && (
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }} onClick={(e) => e.stopPropagation()}>
+                    {p.variants.map((v) => (
+                      <button key={v.id} type="button" className="small secondary" title={`Stok ${v.color}: ${v.stock}`} onClick={() => addToCart(p, v)}>{v.color} ({v.stock})</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </article>
+          ))}
+          {!visibleProducts.length && <p className="muted" style={{ gridColumn: '1/-1' }}>Tidak ada produk{query ? ` cocok dengan "${query}"` : ''}.</p>}
+        </div>
+      </section>
+
+      <aside className="panel" style={{ position: 'sticky', top: 76 }}>
+        <h2>{mode === 'in' ? 'Keranjang Masuk' : 'Keranjang Keluar'}</h2>
+        {cart.length === 0 && <p className="muted">Belum ada produk di keranjang.</p>}
+        {cart.map((c) => (
+          <div key={c.key} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <strong style={{ fontSize: 13, display: 'block' }}>{c.name}</strong>
+              <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>{c.sku}{c.color ? ` · ${c.color}` : ' · Stok umum'}</span>
+            </div>
+            <input type="number" min="1" value={c.quantity} onChange={(e) => setQty(c.key, e.target.value)} style={{ width: 64, minHeight: 34 }} />
+            <button type="button" onClick={() => setQty(c.key, 0)} aria-label="Hapus" style={{ minWidth: 30, minHeight: 30 }}>×</button>
+          </div>
+        ))}
+        <div style={{ display: 'flex', justifyContent: 'space-between', margin: '12px 0', fontWeight: 700 }}>
+          <span>Total Qty</span><span>{totalQty}</span>
+        </div>
+        <button disabled={saving || !cart.length} onClick={submit} style={{ width: '100%' }}>{saving ? 'Menyimpan…' : `Simpan ${mode === 'in' ? 'Stock Masuk' : 'Stock Keluar'}`}</button>
+        {message && <p className="message" role="status" style={{ marginTop: 10 }}>{message}</p>}
+      </aside>
+    </div>
+    <style>{`
+      .stock-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+      .stock-picker-card { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: #fff; transition: all .2s; }
+      .stock-picker-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.08); border-color: #1e3a5f; }
+      .stock-picker-card img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; background: #f1f5f9; }
+      .stock-picker-ph { width: 100%; aspect-ratio: 3/4; display: grid; place-items: center; color: #94a3b8; font-size: 11px; background: #f1f5f9; }
+      .stock-picker-badge { padding: 2px 8px; border-radius: 999px; background: #eef2ff; color: #1e3a5f; font-size: 11px; font-weight: 700; }
+      @media (max-width: 900px) { .stock-picker-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); } }
+    `}</style>
   </AppShell>;
 }

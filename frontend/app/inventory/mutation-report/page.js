@@ -83,10 +83,11 @@ export default function MutationReportPage() {
   }
 
   function exportCsv() {
-    const header = ['Tanggal', 'Nomor', 'Gudang', 'Produk (kode+qty)', 'Total Qty', 'Deskripsi', 'Admin'];
+    const header = ['Tanggal', 'Nomor', 'Batch/Nota', 'Gudang', 'Produk (kode+qty)', 'Total Qty', 'Deskripsi', 'Admin'];
     const lines = rows.map((r) => [
       r.date,
       r.number,
+      r.batch || '',
       r.warehouse,
       r.products.map((p) => `${p.code} x${p.qty}`).join(', '),
       r.total_qty,
@@ -168,6 +169,7 @@ export default function MutationReportPage() {
               <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
                 <th style={{ padding: '8px 10px' }}>Tanggal</th>
                 <th style={{ padding: '8px 10px' }}>Nomor</th>
+                <th style={{ padding: '8px 10px' }}>Batch/Nota</th>
                 <th style={{ padding: '8px 10px' }}>Gudang</th>
                 <th style={{ padding: '8px 10px' }}>Produk</th>
                 <th style={{ padding: '8px 10px', textAlign: 'right' }}>Total Qty</th>
@@ -182,6 +184,7 @@ export default function MutationReportPage() {
                 <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td style={{ padding: '8px 10px' }}>{r.date}</td>
                   <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: 11 }}>{r.number}</td>
+                  <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: 11 }}>{r.batch || '—'}</td>
                   <td style={{ padding: '8px 10px' }}>{r.warehouse}</td>
                   <td style={{ padding: '8px 10px' }}>
                     <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 999, background: 'var(--muted)', fontSize: 11 }}>{r.product_count} produk</span>{' '}
