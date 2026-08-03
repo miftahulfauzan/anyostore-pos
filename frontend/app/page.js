@@ -322,8 +322,8 @@ export default function LandingPage() {
         @media (max-width: 900px) { .pcard-grid { grid-template-columns: repeat(3, 1fr); } }
         @media (max-width: 600px) {
           .pcard-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-          .hero-wrap { min-height: 340px; }
-          .hero-text > div { padding: 22px 20px !important; max-width: 100% !important; gap: 10px !important; }
+          .hero-wrap { min-height: 260px; }
+          .hero-text > div { padding: 20px 18px !important; max-width: 100% !important; gap: 8px !important; }
           .hero-dots { gap: 4px; margin-top: 10px; }
           .hero-dot { width: 6px; height: 6px; }
           .hero-dot.active { width: 16px; }
