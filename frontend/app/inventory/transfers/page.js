@@ -35,9 +35,11 @@ export default function TransferPage() {
     fetch(api + '/inventory/warehouses/all', { headers: h() }).then(async (r) => {
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
-      // Tampilkan hanya gudang utama per lokasi — buang gudang cadangan & reject,
-      // termasuk yang namanya mengandung "cadangan" (type mungkin masih 'utama').
-      const visible = (b.data || []).filter((w) => w.type !== 'cadangan' && w.type !== 'reject' && !/cadangan/i.test(w.name));
+      // Tampilkan satu gudang utama per cabang — buang cadangan & reject
+      // (termasuk yang namanya mengandung "cadangan").
+      const filtered = (b.data || []).filter((w) => w.type !== 'cadangan' && w.type !== 'reject' && !/cadangan/i.test(w.name));
+      const seen = new Set();
+      const visible = filtered.filter((w) => { if (seen.has(w.branch_id)) return false; seen.add(w.branch_id); return true; });
       setWarehouses(visible);
       setTargets(visible);
       const first = String(visible[0]?.id || '');
@@ -97,13 +99,13 @@ export default function TransferPage() {
       <form onSubmit={submit}>
         <label>Dari (lokasi asal)
           <select required value={from} onChange={(e) => { setFrom(e.target.value); setItems([blank()]); setSelected(new Set()); setShowPicker(false); loadProducts(e.target.value).catch((x) => setMessage(x.message)); }}>
-            {warehouses.map((w) => <option key={w.id} value={w.id}>{(w.branch_name || w.name)} — {w.name}</option>)}
+            {warehouses.map((w) => <option key={w.id} value={w.id}>{w.branch_name || w.name}</option>)}
           </select>
         </label>
         <label>Ke (lokasi tujuan)
           <select required value={to} onChange={(e) => setTo(e.target.value)}>
             <option value="">Pilih tujuan…</option>
-            {targets.filter((w) => String(w.id) !== String(from)).map((w) => <option key={w.id} value={w.id}>{(w.branch_name || w.name)} — {w.name}</option>)}
+            {targets.filter((w) => String(w.id) !== String(from)).map((w) => <option key={w.id} value={w.id}>{w.branch_name || w.name}</option>)}
           </select>
         </label>
 
