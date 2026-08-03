@@ -128,7 +128,7 @@ export default function TransferPage() {
       </div>
     </section>
 
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 16, alignItems: 'start' }}>
+    <div className="mutasi-layout">
       <section className="panel">
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
           <input placeholder="Cari nama / kode produk…" value={query} onChange={(e) => setQuery(e.target.value)} style={{ flex: 1, minWidth: 180, minHeight: 40 }} />
@@ -160,7 +160,7 @@ export default function TransferPage() {
         </div>
       </section>
 
-      <aside className="panel" style={{ position: 'sticky', top: 76 }}>
+      <aside className="panel mutasi-cart">
         <h2>Keranjang Transfer</h2>
         {cart.length === 0 && <p className="muted">Belum ada produk di keranjang.</p>}
         {cart.map((c) => (
@@ -181,13 +181,19 @@ export default function TransferPage() {
       </aside>
     </div>
     <style>{`
+      .mutasi-layout { display: grid; grid-template-columns: 1fr 360px; gap: 16; align-items: start; }
+      .mutasi-cart { position: sticky; top: 76; }
       .stock-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
       .stock-picker-card { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: #fff; transition: all .2s; }
       .stock-picker-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.08); border-color: #1e3a5f; }
       .stock-picker-card img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; background: #f1f5f9; }
       .stock-picker-ph { width: 100%; aspect-ratio: 3/4; display: grid; place-items: center; color: #94a3b8; font-size: 11px; background: #f1f5f9; }
       .stock-picker-badge { padding: 2px 8px; border-radius: 999px; background: #eef2ff; color: #1e3a5f; font-size: 11px; font-weight: 700; }
-      @media (max-width: 900px) { .stock-picker-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); } }
+      @media (max-width: 900px) {
+        .mutasi-layout { grid-template-columns: 1fr; }
+        .mutasi-cart { position: static; }
+        .stock-picker-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+      }
     `}</style>
   </AppShell>;
 }
