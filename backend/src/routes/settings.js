@@ -164,9 +164,8 @@ router.post('/branches', authorize('owner'), async (req, res, next) => {
     );
     const newBranchId = branchResult.insertId;
 
-    // Create 2 warehouses per spec
-    await connection.execute('INSERT INTO warehouses (branch_id, name, description) VALUES (?, ?, ?)', [newBranchId, 'Gudang Utama', 'Gudang utama']);
-    await connection.execute('INSERT INTO warehouses (branch_id, name, description) VALUES (?, ?, ?)', [newBranchId, 'Gudang Cadangan', 'Stok cadangan']);
+    // Toko = gudang: satu gudang utama yang dinamai sama dengan toko.
+    await connection.execute('INSERT INTO warehouses (branch_id, name, type, description) VALUES (?, ?, \'utama\', ?)', [newBranchId, name.trim(), 'Gudang utama toko']);
     const [warehouses] = await connection.execute('SELECT id FROM warehouses WHERE branch_id=? ORDER BY id LIMIT 1', [newBranchId]);
     const mainWarehouseId = warehouses[0]?.id;
 

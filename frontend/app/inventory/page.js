@@ -64,7 +64,7 @@ export default function InventoryPage() {
     </div>
     {tab === 'laporan' ? <StockReportSection /> : (
     <section className="panel inventory-panel">
-    <label>Gudang / Lokasi stok<select value={warehouse} onChange={(event) => { setWarehouse(event.target.value); load(event.target.value).catch((error) => setMessage(error.message)); }}>{warehouses.map((item) => <option key={item.id} value={item.id}>{item.branch_name ? `${item.branch_name} — ` : ''}{item.name}{item.type && TYPE_LABEL[item.type] ? ` (${TYPE_LABEL[item.type]})` : ''}</option>)}</select></label>
+    <label>Gudang / Lokasi stok<select value={warehouse} onChange={(event) => { setWarehouse(event.target.value); load(event.target.value).catch((error) => setMessage(error.message)); }}>{warehouses.map((item) => <option key={item.id} value={item.id}>{item.branch_name && item.branch_name === item.name ? item.name : `${item.branch_name ? `${item.branch_name} — ` : ''}${item.name}${item.type && TYPE_LABEL[item.type] ? ` (${TYPE_LABEL[item.type]})` : ''}`}</option>)}</select></label>
     {canManageWh && <button type="button" className="button-link" onClick={() => setShowWhManage((v) => !v)}>{showWhManage ? 'Tutup Kelola Gudang' : 'Kelola Gudang'}</button>}
     {showWhManage && (
       <div style={{ display: 'grid', gap: 10, padding: 14, border: '1px solid var(--border)', borderRadius: 8, marginBottom: 12 }}>

@@ -19,10 +19,11 @@ export default function TransferPage() {
   const h = () => ({ 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
 
   const targets = useMemo(() => warehouses.filter((w) => String(w.id) !== String(from)), [warehouses, from]);
-  // Label gudang: hindari nama kembar ("Gudang Utama — Gudang Utama"), tipe
-  // ditulis kapital supaya konsisten dengan halaman lain.
+  // Label gudang: kalau gudang bernama sama dengan tokonya (toko = gudang),
+  // tampilkan nama tokonya saja. Kalau beda, tampilkan "Toko — Gudang (Tipe)".
   const whLabel = (w) => {
     const type = w.type ? ` (${w.type.charAt(0).toUpperCase()}${w.type.slice(1)})` : '';
+    if (w.branch_name && w.branch_name === w.name) return w.name;
     if (w.branch_name && w.branch_name !== w.name) return `${w.branch_name} — ${w.name}${type}`;
     return `${w.name || w.branch_name}${type}`;
   };
