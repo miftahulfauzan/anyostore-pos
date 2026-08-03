@@ -320,15 +320,8 @@ export default function LandingPage() {
         @media (max-width: 900px) { .pcard-grid { grid-template-columns: repeat(3, 1fr); } }
         @media (max-width: 600px) {
           .pcard-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-          .hero-wrap { height: auto !important; aspect-ratio: auto !important; background: #ffffff !important; }
-          .slide-fade { height: auto !important; }
-          .hero-full { position: relative !important; aspect-ratio: 4 / 3; }
-          .hero-scrim { display: none !important; }
-          .hero-text { height: auto !important; align-items: flex-start !important; }
-          .hero-text > div { padding: 26px 22px !important; max-width: 100% !important; }
-          .hero-cat { color: #71717a !important; }
-          .hero-title { color: #1a1a1a !important; }
-          .hero-price { color: #1e3a5f !important; }
+          .hero-wrap { min-height: 340px; }
+          .hero-text > div { padding: 22px 20px !important; max-width: 100% !important; gap: 10px !important; }
         }
         @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
       `}</style>
