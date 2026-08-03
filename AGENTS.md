@@ -26,6 +26,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 | `src/netlify.js` | Serverless adapter (TIDAK DIPAKAI, Netlify sudah dihapus) |
 | `scripts/migrate.js` | Jalankan migrasi SQL di `migrations/`, track `_migrations` table |
 | `scripts/fix-clone-paths.js` | One-off: copy file foto yang di-share antar cabang ke path baru (idempoten) |
+| `scripts/merge-warehouses.js` | One-off: sisakan 1 gudang per cabang — gabungkan stok, pindahkan referensi, hapus duplikat (JALANKAN MANUAL, bukan otomatis) |
 
 ### Routes (`backend/src/routes/`)
 
