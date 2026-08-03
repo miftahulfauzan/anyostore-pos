@@ -394,7 +394,7 @@ router.get('/mutation-report', authorize('owner','manager','admin','gudang'), as
 });
 
 // DELETE /api/inventory/mutation-report/:type/:batchId — hapus batch + balikin stok
-router.delete('/mutation-report/:type/:batchId', authorize('owner','manager','admin'), async (req,res,next)=>{
+router.delete('/mutation-report/:type/:batchId', authorize('owner','manager','admin','gudang'), async (req,res,next)=>{
   const conn = await db.getConnection();
   try{
     const batchId = Number(req.params.batchId);
