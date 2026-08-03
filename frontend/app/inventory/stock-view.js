@@ -179,7 +179,8 @@ export default function StockReportSection() {
 
         {message && <p className="message" role="status">{message}</p>}
 
-        <div style={{ overflowX: 'auto' }}>
+        {/* Desktop & cetak: tabel matriks. Mobile: kartu (tanpa scroll samping). */}
+        <div className="stock-table-wrap" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
@@ -205,9 +206,40 @@ export default function StockReportSection() {
             </tbody>
           </table>
         </div>
+
+        <div className="stock-cards-mobile">
+          {loading && <p className="muted">Memuat…</p>}
+          {!loading && grouped.map((g) => (
+            <article key={g.key} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 12, background: '#fff' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                <div style={{ minWidth: 0 }}>
+                  <strong style={{ fontSize: 14, display: 'block' }}>{g.name}</strong>
+                  <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>{g.color || 'Tanpa warna'}</span>
+                </div>
+                <strong style={{ fontSize: 16, color: '#1e3a5f', whiteSpace: 'nowrap' }}>{money(g.total)}</strong>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                {whColumns.map((w) => {
+                  const qty = g.qtyByWarehouse[String(w.id)] || 0;
+                  return (
+                    <span key={w.id} style={{ padding: '3px 8px', borderRadius: 999, background: qty > 0 ? '#eef2ff' : '#f1f5f9', color: qty > 0 ? '#1e3a5f' : '#94a3b8', fontSize: 11, fontWeight: 600 }}>
+                      {w.name}: {money(qty)}
+                    </span>
+                  );
+                })}
+              </div>
+            </article>
+          ))}
+          {!loading && !grouped.length && <p className="muted">Belum ada stok tercatat.</p>}
+        </div>
       </div>
       <style>{`
         .report-print-header { display: none; }
+        .stock-cards-mobile { display: none; }
+        @media (max-width: 900px) {
+          .stock-table-wrap { display: none; }
+          .stock-cards-mobile { display: grid; gap: 10px; }
+        }
         @media print {
           @page { size: A4 portrait; margin: 12mm; }
           html, body { width: auto !important; }
@@ -216,6 +248,8 @@ export default function StockReportSection() {
           .print-brand span { display: block; font-size: 18px; font-weight: 700; margin-top: 2px; color: #111827; }
           .print-meta { display: flex; flex-wrap: wrap; gap: 3px 16px; margin-top: 6px; font-size: 10px; color: #374151; }
           .no-print { display: none !important; }
+          .stock-table-wrap { display: block !important; }
+          .stock-cards-mobile { display: none !important; }
           body * { visibility: visible !important; }
           .app-shell, .app-main { display: block !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
           .app-shell, .app-main, .app-content, .app-shell > div { display: block !important; width: 100% !important; }
