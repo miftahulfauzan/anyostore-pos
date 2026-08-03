@@ -9,52 +9,64 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy ke VPS via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            set -e
-            cd /home/ubuntu/anyostore-pos
-            BEFORE=$(git rev-parse HEAD)
-            git pull origin main
-            AFTER=$(git rev-parse HEAD)
-            echo "deploy from $BEFORE -> $AFTER"
-            if [ "$BEFORE" = "$AFTER" ]; then
-              echo "::error::Tidak ada commit baru yang ter-pull. Cek repo VPS (git status / konflik lokal)."
-              exit 1
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "$VPS_SSH_KEY" > "$HOME/.ssh/deploy_key"
+          chmod 600 "$HOME/.ssh/deploy_key"
+          ssh -i "$HOME/.ssh/deploy_key" \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new \
+            -o UserKnownHostsFile=/dev/null \
+            -o ServerAliveInterval=30 \
+            -o ConnectTimeout=15 \
+            -o LogLevel=ERROR \
+            "$VPS_USER@$VPS_HOST" 'bash -s' <<'REMOTE_EOF'
+          set -e
+          cd /home/ubuntu/anyostore-pos
+          BEFORE=$(git rev-parse HEAD)
+          git pull origin main
+          AFTER=$(git rev-parse HEAD)
+          echo "deploy from $BEFORE -> $AFTER"
+          if [ "$BEFORE" = "$AFTER" ]; then
+            echo "::error::Tidak ada commit baru yang ter-pull. Cek repo VPS (git status / konflik lokal)."
+            exit 1
+          fi
+          DISK_USAGE=$(df --output=pcent /home/ubuntu/anyostore-pos | tail -1 | tr -dc '0-9')
+          echo "Disk usage: ${DISK_USAGE}%"
+          if [ "${DISK_USAGE:-0}" -ge 92 ]; then
+            echo "::error::DISK HAMPIR PENUH (${DISK_USAGE}%) — bersihkan manual (docker system prune -af) sebelum deploy berikutnya!"
+            exit 1
+          fi
+          if [ "${DISK_USAGE:-0}" -ge 80 ]; then
+            echo "Disk >=80%, prune cache lama..."
+            sudo docker image prune -f
+            sudo docker builder prune -f --filter "until=168h"
+          fi
+          sudo docker compose -f docker-compose.production.yml --env-file .env.production up -d --build
+          sudo docker compose -f docker-compose.production.yml ps
+          # Deteksi kegagalan migrasi: entrypoint backend memakai `|| true`
+          # (backend tetap start supaya situs tidak down), jadi deploy wajib
+          # menandai kegagalan sendiri lewat log container. File migrasi yang
+          # gagal TIDAK dicatat selesai dan dicoba ulang di deploy berikutnya.
+          MIGRATE_FAILED=0
+          for i in $(seq 1 20); do
+            LOGS=$(sudo docker compose -f docker-compose.production.yml logs --no-color backend 2>/dev/null || true)
+            if printf '%s' "$LOGS" | grep -qE '\[migrate\] (FAILED|fatal)'; then
+              MIGRATE_FAILED=1
+              break
             fi
-            DISK_USAGE=$(df --output=pcent /home/ubuntu/anyostore-pos | tail -1 | tr -dc '0-9')
-            echo "Disk usage: ${DISK_USAGE}%"
-            if [ "${DISK_USAGE:-0}" -ge 92 ]; then
-              echo "::error::DISK HAMPIR PENUH (${DISK_USAGE}%) — bersihkan manual (docker system prune -af) sebelum deploy berikutnya!"
-              exit 1
-            fi
-            if [ "${DISK_USAGE:-0}" -ge 80 ]; then
-              echo "Disk >=80%, prune cache lama..."
-              sudo docker image prune -f
-              sudo docker builder prune -f --filter "until=168h"
-            fi
-            sudo docker compose -f docker-compose.production.yml --env-file .env.production up -d --build
-            sudo docker compose -f docker-compose.production.yml ps
-            # Deteksi kegagalan migrasi: entrypoint backend memakai `|| true`
-            # (backend tetap start supaya situs tidak down), jadi deploy wajib
-            # menandai kegagalan sendiri lewat log container. File migrasi yang
-            # gagal TIDAK dicatat selesai dan dicoba ulang di deploy berikutnya.
-            MIGRATE_FAILED=0
-            for i in $(seq 1 20); do
-              LOGS=$(sudo docker compose -f docker-compose.production.yml logs --no-color backend 2>/dev/null || true)
-              if printf '%s' "$LOGS" | grep -qE '\[migrate\] (FAILED|fatal)'; then
-                MIGRATE_FAILED=1
-                break
-              fi
-              STATUS=$(sudo docker compose -f docker-compose.production.yml ps backend --format json 2>/dev/null | grep -o '"Health":"[^"]*"' | head -1) || true
-              case "$STATUS" in *healthy*) break ;; esac
-              sleep 3
-            done
-            if [ "$MIGRATE_FAILED" = "1" ]; then
-              printf '%s' "$LOGS" | grep -E '\[migrate\] (FAILED|fatal)' | tail -20
-              echo "::error::Migrasi backend gagal — deploy dibatalkan. Periksa SQL migrasi baru (backend/migrations/) dan log container backend."
-              exit 1
-            fi
+            STATUS=$(sudo docker compose -f docker-compose.production.yml ps backend --format json 2>/dev/null | grep -o '"Health":"[^"]*"' | head -1) || true
+            case "$STATUS" in *healthy*) break ;; esac
+            sleep 3
+          done
+          if [ "$MIGRATE_FAILED" = "1" ]; then
+            printf '%s' "$LOGS" | grep -E '\[migrate\] (FAILED|fatal)' | tail -20
+            echo "::error::Migrasi backend gagal — deploy dibatalkan. Periksa SQL migrasi baru (backend/migrations/) dan log container backend."
+            exit 1
+          fi
+          REMOTE_EOF
