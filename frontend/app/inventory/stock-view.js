@@ -15,6 +15,7 @@ export default function StockReportSection() {
   const [branchId, setBranchId] = useState('');
   const [view, setView] = useState('produk');
   const [isOwner, setIsOwner] = useState(false);
+  const [isGudang, setIsGudang] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const loadSeq = useRef(0);
@@ -25,7 +26,7 @@ export default function StockReportSection() {
   useEffect(() => {
     fetch(`${api}/auth/me`, { headers: headers() })
       .then((r) => r.json())
-      .then((b) => { if (b?.data?.role === 'owner') setIsOwner(true); })
+      .then((b) => { if (b?.data?.role === 'owner') setIsOwner(true); if (b?.data?.role === 'gudang') setIsGudang(true); })
       .catch(() => {});
   }, []);
 
@@ -35,7 +36,8 @@ export default function StockReportSection() {
       fetch(`${api}/settings/branches`, { headers: headers() }).then((r) => r.json()).then((b) => b.data || []).catch(() => []),
     ]).then(([cats, brs]) => {
       setCategories(cats);
-      setBranches(brs);
+      const list = brs || [];
+      setBranches(list.filter((b) => b.is_active !== false));
     });
   }, []);
 
@@ -45,7 +47,7 @@ export default function StockReportSection() {
     const params = {};
     if (cat) params.category_id = cat;
     if (q) params.search = q;
-    if (isOwner) {
+    if (isOwner || isGudang) {
       if (branchId) params.branch_id = branchId;
       else params.branch_id = 'all';
     }
@@ -68,9 +70,9 @@ export default function StockReportSection() {
       })
       .catch((e) => { if (seq === loadSeq.current) setMessage(e.message); })
       .finally(() => { if (seq === loadSeq.current) setLoading(false); });
-  }, [cat, q, branchId, isOwner, view]);
+  }, [cat, q, branchId, isOwner, isGudang, view]);
 
-  const showAll = isOwner && !branchId;
+  const showAll = (isOwner || isGudang) && !branchId;
 
   return (
     <section className="form-page" style={{ maxWidth: 1100 }}>
@@ -108,10 +110,10 @@ export default function StockReportSection() {
             <option value="">Semua kategori</option>
             {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          {isOwner && (
+          {(isOwner || isGudang) && (
             <select value={branchId} onChange={(e) => setBranchId(e.target.value)} style={{ minWidth: 160, minHeight: 40 }}>
-              <option value="">Semua Toko</option>
-              {branches.filter((b) => b.is_active).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              <option value="">{isGudang ? 'Semua Gudang' : 'Semua Toko'}</option>
+              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
           )}
         </div>

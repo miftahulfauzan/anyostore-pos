@@ -87,7 +87,7 @@ export default function ProductsPage() {
       <label className="catalog-search">Cari produk<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nama, SKU, atau barcode" autoComplete="off" /></label>
       {(isOwner || isGudang) && (
         <label style={{ display: 'block', marginBottom: 10 }}>{isGudang ? 'Gudang / Cabang' : 'Toko / Cabang'}<select value={branchId} onChange={(event) => setBranchId(event.target.value)}>
-          {isGudang ? <><option value="all">Semua Gudang</option><option value="">Gudang saya</option></> : <option value="">Toko saya</option>}
+          {isGudang ? <><option value="all">Semua Gudang</option></> : <option value="">Toko saya</option>}
           {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
         </select></label>
       )}

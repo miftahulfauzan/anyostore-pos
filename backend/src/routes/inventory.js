@@ -178,8 +178,10 @@ router.get('/stock', async (req, res, next) => {
 // Owner: ?branch_id=N for one branch, ?branch_id=all for all branches (default = own branch)
 router.get('/stock-total', async (req, res, next) => {
   try {
-    const showAll = req.user.role === 'owner' && req.query.branch_id === 'all';
-    const branchId = showAll ? null : (req.user.role === 'owner' ? (Number(req.query.branch_id) || req.user.branch_id) : req.user.branch_id);
+    const isOwner = req.user.role === 'owner';
+    const isGudang = req.user.role === 'gudang';
+    const showAll = (isOwner || isGudang) && req.query.branch_id === 'all';
+    const branchId = showAll ? null : ((isOwner || isGudang) ? (Number(req.query.branch_id) || req.user.branch_id) : req.user.branch_id);
     const search = (req.query.search || '').trim();
     const categoryId = Number(req.query.category_id) || null;
 
@@ -226,8 +228,10 @@ router.get('/stock-total', async (req, res, next) => {
 // GET /api/inventory/stock-by-warehouse — stok per gudang lintas cabang (owner: ?branch_id=all atau tanpa filter)
 router.get('/stock-by-warehouse', async (req, res, next) => {
   try {
-    const showAll = req.user.role === 'owner' && (req.query.branch_id === 'all' || !req.query.branch_id);
-    const branchId = req.user.role === 'owner' && Number.isInteger(Number(req.query.branch_id)) ? Number(req.query.branch_id) : req.user.branch_id;
+    const isOwner = req.user.role === 'owner';
+    const isGudang = req.user.role === 'gudang';
+    const showAll = (isOwner || isGudang) && (req.query.branch_id === 'all' || !req.query.branch_id);
+    const branchId = (isOwner || isGudang) && Number.isInteger(Number(req.query.branch_id)) ? Number(req.query.branch_id) : req.user.branch_id;
     const search = (req.query.search || '').trim();
     const categoryId = Number(req.query.category_id) || null;
 
