@@ -1,11 +1,5 @@
-'use client';
-import AppShell from '../../components/AppShell';
-import StockReportSection from '../stock-view';
+import { redirect } from 'next/navigation';
 
-export default function StockReportPage() {
-  return (
-    <AppShell title="Laporan Stok" eyebrow="INVENTORY">
-      <StockReportSection />
-    </AppShell>
-  );
+export default function StockReportRedirect() {
+  redirect('/inventory');
 }
