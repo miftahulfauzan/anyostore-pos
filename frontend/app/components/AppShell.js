@@ -107,10 +107,15 @@ export default function AppShell({ title, eyebrow, actions, children }) {
     fetch(`${baseUrl}/settings`, { headers: authHeader })
       .then((response) => (response.ok ? response.json() : null))
       .then((body) => {
-        if (body?.data?.theme && !savedTheme) {
-          const settingsTheme = body.data.theme === 'dark' ? 'dark' : 'light';
-          setTheme(settingsTheme);
-          document.documentElement.classList.toggle('dark', settingsTheme === 'dark');
+        // Tema brand (green/blue/purple) dari Pengaturan toko -> data-theme.
+        const brandTheme = body?.data?.theme;
+        if (brandTheme && ['green', 'blue', 'purple'].includes(brandTheme)) {
+          document.documentElement.dataset.theme = brandTheme;
+        }
+        // Mode gelap/terang tetap dari localStorage (pos_theme).
+        if (body?.data?.theme === 'dark' && !savedTheme) {
+          setTheme('dark');
+          document.documentElement.classList.toggle('dark', true);
         }
       })
       .catch(() => {});

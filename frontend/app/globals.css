@@ -195,9 +195,6 @@ a, .photo-upload { color:var(--expressive-secondary); }
 .remove-tier { background:#fef2f2; color:var(--expressive-danger); }
 .edit-link { border-color:#bfdbfe; color:var(--expressive-secondary); }
 .catalog-search input, input, select, textarea { border-color:#cbd5e1; }
-html[data-theme="green"] .sidebar, html[data-theme="blue"] .sidebar, html[data-theme="purple"] .sidebar { background:#111827; }
-html[data-theme="green"] button, html[data-theme="blue"] button, html[data-theme="purple"] button { background:var(--expressive-primary); }
-html[data-theme="green"] .button-link, html[data-theme="blue"] .button-link, html[data-theme="purple"] .button-link { background:var(--expressive-secondary); }
 
 /* Inventory audit trail and printable product labels */
 .movement-filter, .barcode-picker { max-width: 1440px; margin: 0 auto 1rem; }
