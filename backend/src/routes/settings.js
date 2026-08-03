@@ -28,10 +28,10 @@ router.get('/branches', async (req, res, next) => {
     } else if (req.user.role === 'gudang') {
       // Admin Gudang perlu melihat semua cabang tipe gudang (untuk Daftar Produk, Stok, dll).
       [rows] = await db.execute(
-        'SELECT id,name,address,phone,email,npwp,pricing_tier_enabled,type FROM branches WHERE is_active=TRUE AND type=\'gudang\' ORDER BY name'
+        'SELECT id,name,address,phone,email,npwp,pricing_tier_enabled,is_active,type FROM branches WHERE is_active=TRUE AND type=\'gudang\' ORDER BY name'
       );
     } else {
-      [rows] = await db.execute('SELECT id,name,address,phone,email,npwp,pricing_tier_enabled,type FROM branches WHERE id=?', [req.user.branch_id]);
+      [rows] = await db.execute('SELECT id,name,address,phone,email,npwp,pricing_tier_enabled,is_active,type FROM branches WHERE id=?', [req.user.branch_id]);
     }
     res.json({ success: true, data: rows });
   } catch (error) { next(error); }
