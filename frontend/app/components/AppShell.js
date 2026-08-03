@@ -47,6 +47,7 @@ const navigation = [
       { href: '/products/new', label: 'Tambah Produk', icon: PlusCircle, roles: ['owner', 'manager', 'admin', 'gudang'] },
       { href: '/inventory', label: 'Stok Produk', icon: Boxes },
       { href: '/inventory/movements', label: 'Riwayat Stok', icon: History },
+      { href: '/inventory/mutation-report', label: 'Laporan Masuk/Keluar', icon: History, roles: ['owner', 'manager', 'admin', 'gudang'] },
       { href: '/inventory/mutations', label: 'Mutasi Stok', icon: ArrowUpFromLine, roles: ['owner', 'manager', 'admin', 'gudang'] },
       { href: '/inventory/transfers', label: 'Transfer Stok', icon: ArrowRightLeft, roles: ['owner', 'manager', 'admin', 'gudang'] },
       { href: '/inventory/opname', label: 'Stok Opname', icon: ClipboardCheck, roles: ['owner', 'manager', 'admin', 'gudang'] },
