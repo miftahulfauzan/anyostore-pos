@@ -73,13 +73,52 @@ export default function StockReportSection() {
   }, [cat, q, branchId, isOwner, isGudang, view]);
 
   const showAll = (isOwner || isGudang) && !branchId;
+  const statusLabel = (p) => {
+    const stock = Number(p.total_stock || 0);
+    const min = Number(p.min_stock || 0);
+    return stock === 0 ? 'Habis' : stock <= min ? 'Rendah' : 'Aman';
+  };
+
+  function exportCsv() {
+    const isGudang = view === 'gudang';
+    const rows = isGudang ? warehouseRows : products;
+    if (!rows.length) return;
+    const header = isGudang
+      ? (showAll ? ['Toko', 'Gudang', 'Produk', 'SKU', 'Warna', 'Stok', 'Reserved', 'Tersedia'] : ['Gudang', 'Produk', 'SKU', 'Warna', 'Stok', 'Reserved', 'Tersedia'])
+      : (showAll ? ['Toko', 'Produk', 'SKU', 'Kategori', 'Warna', 'Min', 'Stok', 'Reserved', 'Tersedia', 'Status'] : ['Produk', 'SKU', 'Kategori', 'Warna', 'Min', 'Stok', 'Reserved', 'Tersedia', 'Status']);
+    const lines = rows.map((r) => isGudang
+      ? [...(showAll ? [r.branch_name || ''] : []), r.warehouse_name || '', r.product_name || '', r.sku || '', r.variant_color || '', r.quantity ?? 0, r.reserved ?? 0, Math.max(0, Number(r.quantity || 0) - Number(r.reserved || 0))]
+      : [...(showAll ? [r.branch_name || ''] : []), r.name, r.sku || '', r.category_name || '', (r.colors || '').split('|').join(', '), r.min_stock ?? 0, r.total_stock ?? 0, r.reserved ?? 0, Math.max(0, Number(r.total_stock || 0) - Number(r.reserved || 0)), statusLabel(r)]);
+    const csv = [header, ...lines].map((row) => row.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `laporan-stok-${view}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
 
   return (
     <section className="form-page" style={{ maxWidth: 1100 }}>
       <div className="panel">
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <div className="report-print-header">
+          <div className="print-brand">
+            <strong>ANYOSTORE</strong>
+            <span>Laporan Stok {view === 'gudang' ? 'Per Gudang' : 'Per Produk'}</span>
+          </div>
+          <div className="print-meta">
+            <span>Dicetak: {new Date().toLocaleString('id-ID')}</span>
+            {summary && <span>Total Produk: {summary.total_products}</span>}
+            {summary && <span>Total Stok: {summary.total_stock}</span>}
+            <span>Mode: {showAll ? 'Semua Toko' : 'Satu Toko'}</span>
+          </div>
+        </div>
+        <div className="no-print" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
           <button type="button" onClick={() => setView('produk')} style={{ minHeight: 36, padding: '.4rem .7rem', borderRadius: 6, border: 'none', background: view === 'produk' ? '#1d5b43' : '#edf4ee', color: view === 'produk' ? '#fff' : '#174c35', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>Per Produk</button>
           <button type="button" onClick={() => setView('gudang')} style={{ minHeight: 36, padding: '.4rem .7rem', borderRadius: 6, border: 'none', background: view === 'gudang' ? '#1d5b43' : '#edf4ee', color: view === 'gudang' ? '#fff' : '#174c35', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>Per Gudang</button>
+          <span style={{ flex: 1 }} />
+          <button type="button" className="button-link" onClick={exportCsv} disabled={!(view === 'gudang' ? warehouseRows.length : products.length)}>Unduh Excel</button>
+          <button type="button" className="button-link" onClick={() => window.print()} disabled={!(view === 'gudang' ? warehouseRows.length : products.length)}>Unduh PDF</button>
         </div>
 
         {summary && (
@@ -104,7 +143,7 @@ export default function StockReportSection() {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="no-print" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
           <input placeholder="Cari nama/SKU…" value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: 1, minWidth: 180, minHeight: 40 }} />
           <select value={cat} onChange={(e) => setCat(e.target.value)} style={{ minWidth: 150, minHeight: 40 }}>
             <option value="">Semua kategori</option>
@@ -218,6 +257,30 @@ export default function StockReportSection() {
           </div>
         )}
       </div>
+      <style>{`
+        .report-print-header { display: none; }
+        @media print {
+          @page { size: A4 portrait; margin: 12mm; }
+          html, body { width: auto !important; }
+          .report-print-header { display: block; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #1e3a5f; }
+          .print-brand strong { display: block; font-size: 14px; letter-spacing: .14em; color: #1e3a5f; }
+          .print-brand span { display: block; font-size: 18px; font-weight: 700; margin-top: 2px; color: #111827; }
+          .print-meta { display: flex; flex-wrap: wrap; gap: 3px 16px; margin-top: 6px; font-size: 10px; color: #374151; }
+          .no-print { display: none !important; }
+          body * { visibility: visible !important; }
+          .app-shell, .app-main { display: block !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
+          .app-shell, .app-main, .app-content, .app-shell > div { display: block !important; width: 100% !important; }
+          .app-content { padding: 0 !important; }
+          .app-content > div { display: block !important; width: 100% !important; max-width: none !important; }
+          .sidebar, .app-header { display: none !important; }
+          .form-page { max-width: none !important; }
+          .panel { border: none !important; box-shadow: none !important; padding: 0 !important; overflow: visible !important; }
+          table { width: 100% !important; min-width: 800px !important; table-layout: auto !important; border-collapse: collapse !important; font-size: 10px !important; }
+          th { background: #1e3a5f !important; color: #fff !important; padding: 5px 7px !important; text-align: left !important; font-size: 10px !important; white-space: nowrap !important; }
+          td { padding: 5px 7px !important; border-bottom: 1px solid #e5e7eb !important; vertical-align: top !important; }
+          tr { break-inside: avoid; }
+        }
+      `}</style>
     </section>
   );
 }
