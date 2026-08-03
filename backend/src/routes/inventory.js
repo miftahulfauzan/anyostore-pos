@@ -372,8 +372,11 @@ router.get('/mutation-report', authorize('owner','manager','admin','gudang'), as
        JOIN warehouses w ON w.id = sm.warehouse_id
        JOIN users u ON u.id = sm.user_id
        ${where}
-       GROUP BY sm.reference_id
-       ORDER BY created_at DESC
+      GROUP BY sm.reference_id
+      -- Batch di tanggal yang sama punya created_at sama (00:00 tanggal
+      -- transaksi), jadi urutan kedua memakai reference_id (timestamp buat)
+      -- supaya batch terbaru selalu di atas.
+      ORDER BY created_at DESC, sm.reference_id DESC
        LIMIT ${limit} OFFSET ${offset}`,
       params
     );
