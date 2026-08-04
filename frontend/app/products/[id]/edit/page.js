@@ -36,6 +36,8 @@ function AdjModal({ photo, mediaUrl, onClose, onSave }) {
   const [error, setError] = useState('');
   const cropRef = useRef(null);
   const previewRef = useRef(null);
+  const cropCanvasRef = useRef(null);
+  const previewCanvasRef = useRef(null);
   const dragRef = useRef(null);
   const pinchRef = useRef(null);
   const [cropScale, setCropScale] = useState(1);
@@ -83,9 +85,6 @@ function AdjModal({ photo, mediaUrl, onClose, onSave }) {
   const maxPanY = Math.max(0, (dh - CROP_H) / 2);
   const panX = clamp(pan.x, -maxPanX, maxPanX);
   const panY = clamp(pan.y, -maxPanY, maxPanY);
-  const drawX = (CROP_W - dw) / 2 + panX;
-  const drawY = (CROP_H - dh) / 2 + panY;
-  const transformStyle = `rotate(${rotation}deg) scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`;
 
   function zoomBy(factor) {
     const nextZoom = clamp(zoom * factor, 1, 4);
@@ -218,6 +217,29 @@ function AdjModal({ photo, mediaUrl, onClose, onSave }) {
     return { sx, sy, sw, sh };
   }
 
+  function drawCropInto(canvas) {
+    if (!image || status !== 'ready') return;
+    const { sx, sy, sw, sh } = computeSourceRect();
+    if (sw <= 0 || sh <= 0) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.max(2, Math.round(canvas.clientWidth * dpr));
+    canvas.height = Math.max(2, Math.round(canvas.clientHeight * dpr));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(image, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+  }
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      if (cropCanvasRef.current) drawCropInto(cropCanvasRef.current);
+      if (previewCanvasRef.current) drawCropInto(previewCanvasRef.current);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [image, status, zoom, panX, panY, rotation, flipH, flipV, cropScale, previewScale]);
+
   async function handleSave() {
     if (!image || status !== 'ready') return;
     setSaving(true);
@@ -246,9 +268,6 @@ function AdjModal({ photo, mediaUrl, onClose, onSave }) {
     }
   }
 
-  const croppedImage = image ? (
-    <img src={mediaUrl(photo.path)} alt="" draggable={false} style={{ position: 'absolute', left: drawX, top: drawY, width: dw, height: dh, transform: transformStyle, transformOrigin: 'center', pointerEvents: 'none', display: 'block' }} />
-  ) : null;
   const toolBtn = { display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 36, padding: '0 12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#1e293b', fontSize: 12, fontWeight: 600, cursor: 'pointer' };
   const toolBtnActive = { ...toolBtn, background: ACCENT, borderColor: ACCENT, color: '#fff' };
 
@@ -277,28 +296,24 @@ function AdjModal({ photo, mediaUrl, onClose, onSave }) {
               onTouchEnd={onTouchEnd}
               style={{ position: 'relative', width: '100%', maxWidth: 440, margin: '0 auto', aspectRatio: '3/4', overflow: 'hidden', borderRadius: 12, background: '#0f172a', border: '1px solid #e2e8f0', cursor: 'grab', touchAction: 'none', userSelect: 'none' }}
             >
-              <div style={{ position: 'absolute', left: 0, top: 0, width: CROP_W, height: CROP_H, transform: `scale(${cropScale})`, transformOrigin: 'top left' }}>
-                {status === 'ready' && croppedImage}
-                {status === 'loading' && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#94a3b8', fontSize: 13 }}>Memuat foto…</div>}
-                {status === 'error' && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#fca5a5', fontSize: 13, padding: 20, textAlign: 'center' }}>Foto tidak dapat dimuat. Silakan pilih foto lain.</div>}
-                <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-                  <div style={{ position: 'absolute', left: '33.33%', top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,.32)' }} />
-                  <div style={{ position: 'absolute', left: '66.66%', top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,.32)' }} />
-                  <div style={{ position: 'absolute', top: '33.33%', left: 0, right: 0, height: 1, background: 'rgba(255,255,255,.32)' }} />
-                  <div style={{ position: 'absolute', top: '66.66%', left: 0, right: 0, height: 1, background: 'rgba(255,255,255,.32)' }} />
-                </div>
-                <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, right: 0, border: '2px solid rgba(255,255,255,.75)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.2)', pointerEvents: 'none' }} />
+              <canvas ref={cropCanvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
+              {status === 'loading' && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#94a3b8', fontSize: 13, background: '#0f172a' }}>Memuat foto…</div>}
+              {status === 'error' && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#fca5a5', fontSize: 13, padding: 20, textAlign: 'center', background: '#0f172a' }}>Foto tidak dapat dimuat. Silakan pilih foto lain.</div>}
+              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+                <div style={{ position: 'absolute', left: '33.33%', top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,.32)' }} />
+                <div style={{ position: 'absolute', left: '66.66%', top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,.32)' }} />
+                <div style={{ position: 'absolute', top: '33.33%', left: 0, right: 0, height: 1, background: 'rgba(255,255,255,.32)' }} />
+                <div style={{ position: 'absolute', top: '66.66%', left: 0, right: 0, height: 1, background: 'rgba(255,255,255,.32)' }} />
               </div>
+              <div style={{ position: 'absolute', inset: 0, border: '2px solid rgba(255,255,255,.75)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.2)', pointerEvents: 'none' }} />
             </div>
           </div>
 
           {/* Kanan: preview realtime */}
           <div style={{ flex: '1 1 220px', minWidth: 0, display: 'grid', gap: 8, alignContent: 'start' }}>
             <strong style={{ fontSize: 12, color: '#334155', textTransform: 'uppercase', letterSpacing: '.05em' }}>Preview · 1200×1600</strong>
-            <div ref={previewRef} style={{ position: 'relative', width: '100%', maxWidth: 260, margin: '0 auto', aspectRatio: '3/4', overflow: 'hidden', borderRadius: 10, background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 4px 16px rgba(15,23,42,.12)' }}>
-              <div style={{ position: 'absolute', left: 0, top: 0, width: CROP_W, height: CROP_H, transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
-                {status === 'ready' && croppedImage}
-              </div>
+            <div ref={previewRef} style={{ position: 'relative', width: '100%', maxWidth: 180, margin: '0 auto', aspectRatio: '3/4', overflow: 'hidden', borderRadius: 10, background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 4px 16px rgba(15,23,42,.12)' }}>
+              <canvas ref={previewCanvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
             </div>
             <p style={{ margin: 0, fontSize: 11, color: '#64748b', textAlign: 'center' }}>Hasil crop otomatis mengikuti preview. Tersimpan sebagai JPEG 1200×1600.</p>
           </div>
