@@ -3,6 +3,7 @@ name: anyostore-pos
 services:
   db:
     image: mysql:8.4
+    command: ["mysqld", "--default-time-zone=+07:00"]
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${DB_NAME:-pos_pakaian}
@@ -33,6 +34,7 @@ services:
       - ./backend/migrations/20260803_branch_type_gudang_names.sql:/docker-entrypoint-initdb.d/021-branch_type_gudang_names.sql:ro
       - ./backend/migrations/20260803_warehouse_names_match_branch.sql:/docker-entrypoint-initdb.d/022-warehouse_names_match_branch.sql:ro
       - ./backend/migrations/20260803_stock_mutation_reference_bigint.sql:/docker-entrypoint-initdb.d/023-stock_mutation_reference_bigint.sql:ro
+      - ./backend/migrations/20260804_performance_indexes.sql:/docker-entrypoint-initdb.d/024-performance_indexes.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p$${MYSQL_ROOT_PASSWORD}"]
       interval: 10s

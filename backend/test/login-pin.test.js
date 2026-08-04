@@ -23,6 +23,7 @@ const dbStub = {
       return [[], []];
     }
     if (sql.includes('INSERT INTO refresh_tokens')) return [{ insertId: 1 }, []];
+    if (sql.includes('DELETE FROM refresh_tokens')) return [{ affectedRows: 0 }, []];
     if (sql.includes('UPDATE users SET last_login')) return [{ affectedRows: 1 }, []];
     throw new Error('unexpected sql: ' + sql);
   },

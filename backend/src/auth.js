@@ -18,6 +18,7 @@ function issueTokens(user) {
 
 async function persistRefreshToken(userId, refreshToken) {
   const decoded = jwt.decode(refreshToken);
+  await db.execute('DELETE FROM refresh_tokens WHERE user_id = ? AND expires_at <= NOW()', [userId]);
   await db.execute(
     'INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES (?, ?, FROM_UNIXTIME(?))',
     [userId, refreshHash(refreshToken), decoded.exp]

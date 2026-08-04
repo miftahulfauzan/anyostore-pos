@@ -3,6 +3,11 @@
 -- Version: 1.1.0
 -- Date: 2026-07-08
 -- ============================================
+-- CATATAN: Skema yang berjalan di server = file dasar ini + seluruh file
+-- backend/migrations/*.sql (dijalankan otomatis oleh migrate.js / initdb).
+-- Untuk salinan skema terkini, regenerate dari server:
+--   mysqldump --no-data -u<user> -p <database>
+-- ============================================
 
 -- ============================================
 -- 1. branches (Cabang)
