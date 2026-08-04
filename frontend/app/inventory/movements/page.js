@@ -16,7 +16,7 @@ export default function StockMovementsPage() {
   const [preset, setPreset] = useState('');
   const [selected, setSelected] = useState(null);
   const loadSeq = useRef(0);
-  const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
+  const headers = () => ({});
 
   async function load(activeFilters = filters) {
     setLoading(true);
@@ -34,7 +34,7 @@ export default function StockMovementsPage() {
   }
 
   useEffect(() => {
-    if (!localStorage.getItem('pos_access_token')) return window.location.assign('/');
+    /* sesi via httpOnly cookie */
     load().catch(() => {});
     fetch(api + '/inventory/channels', { headers: headers() })
       .then((r) => r.json())

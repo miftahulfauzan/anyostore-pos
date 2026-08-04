@@ -25,11 +25,11 @@ export default function BulkPhotoUploadPage() {
   const [message, setMessage] = useState('');
   const [failures, setFailures] = useState([]);
   const folderInputRef = useRef(null);
-  const token = () => typeof window === 'undefined' ? '' : localStorage.getItem('pos_access_token');
-  const headers = () => ({ Authorization: `Bearer ${token()}` });
+  const token = () => '';
+  const headers = () => ({});
 
   useEffect(() => {
-    if (!token()) { window.location.assign('/'); return; }
+    /* sesi via httpOnly cookie */
     fetch(`${apiUrl}/products?limit=500`, { headers: headers() })
       .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setProducts(b.data || []); })
       .catch((e) => setMessage(e.message || 'Gagal memuat daftar produk'));

@@ -90,7 +90,7 @@ export async function uploadMediaData(url, file, accessToken) {
   }
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    headers: { 'Content-Type': 'application/json'},
     body: JSON.stringify({ filename, content_type: contentType, data_url: dataUrl }),
   });
   const body = await response.json().catch(() => ({}));

@@ -33,7 +33,15 @@ require.cache[dbPath] = { id: dbPath, filename: dbPath, loaded: true, exports: d
 const { loginWithPin } = require('../src/auth');
 
 function response() {
-  return { statusCode: 200, body: null, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } };
+  return {
+    statusCode: 200,
+    body: null,
+    cookies: [],
+    status(code) { this.statusCode = code; return this; },
+    json(body) { this.body = body; return this; },
+    cookie(name, value, options) { this.cookies.push({ name, value, options }); return this; },
+    clearCookie(name, options) { this.cookies.push({ name, clear: true, options }); return this; },
+  };
 }
 
 test('loginWithPin berhasil dengan PIN yang benar', async () => {
@@ -42,6 +50,8 @@ test('loginWithPin berhasil dengan PIN yang benar', async () => {
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.data.user.role, 'kasir');
   assert.ok(res.body.data.accessToken);
+  assert.ok(res.cookies.some((c) => c.name === 'pos_access'));
+  assert.ok(res.cookies.some((c) => c.name === 'pos_refresh'));
 });
 
 test('loginWithPin menolak PIN yang salah', async () => {

@@ -20,11 +20,11 @@ export default function NewProductPage() {
   const [videoPreview, setVideoPreview] = useState('');
   const [tiers, setTiers] = useState([]);
   const [variants, setVariants] = useState([]);
-  const token = () => typeof window === 'undefined' ? '' : localStorage.getItem('pos_access_token');
-  const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` });
+  const token = () => '';
+  const headers = () => ({ 'Content-Type': 'application/json'});
 
   useEffect(() => {
-    if (!token()) { window.location.assign('/'); return; }
+    /* sesi via httpOnly cookie */
     fetch(`${apiUrl}/products/categories`, { headers: headers() })
       .then(async (response) => {
         const body = await response.json();

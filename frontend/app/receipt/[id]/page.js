@@ -17,10 +17,8 @@ export default function Receipt({ params }) {
   const search = useSearchParams();
 
   useEffect(() => {
-    const token = localStorage.getItem('pos_access_token');
-    if (!token) { window.location.assign('/'); return; }
     Promise.resolve(params)
-      .then(({ id }) => fetch(`${api}/printer/invoice/${id}`, { headers: { Authorization: `Bearer ${token}` } }))
+      .then(({ id }) => fetch(`${api}/printer/invoice/${id}`, { headers: {} }))
       .then(async (response) => {
         const body = await response.json();
         if (!response.ok) throw new Error(body.message);

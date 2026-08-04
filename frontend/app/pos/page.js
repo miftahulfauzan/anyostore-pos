@@ -28,7 +28,7 @@ export default function PosPage() {
   const [customerId, setCustomerId] = useState('');
   const [priceTier, setPriceTier] = useState('retail');
   const [search, setSearch] = useState('');
-  const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('pos_access_token')}` });
+  const headers = () => ({ 'Content-Type': 'application/json'});
   const mediaUrl = (photoPath) => photoPath ? `${apiUrl.replace('/api', '')}${photoPath}` : '';
   const pendingTransactionId = useRef(null);
   const newClientTransactionId = () => (typeof crypto !== 'undefined' && crypto.randomUUID
@@ -36,7 +36,7 @@ export default function PosPage() {
     : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); }));
 
   useEffect(() => {
-    if (!localStorage.getItem('pos_access_token')) { window.location.assign('/'); return; }
+    /* sesi via httpOnly cookie */
     fetch(`${apiUrl}/settings/branches`, { headers: headers() })
       .then(async (response) => {
         const body = await response.json();

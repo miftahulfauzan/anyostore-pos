@@ -11,13 +11,11 @@ export default function ClosingPrintPage() {
   const [id, setId] = useState('');
 
   useEffect(() => {
-    const token = localStorage.getItem('pos_access_token');
-    if (!token) { window.location.assign('/'); return; }
     const match = window.location.pathname.match(/\/operations\/closing\/(\d+)/);
     const closingId = match ? match[1] : '';
     setId(closingId);
     if (!closingId) return;
-    fetch(`${api}/cash-drawer/closing/${closingId}`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${api}/cash-drawer/closing/${closingId}`, { headers: {} })
       .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setData(b.data); })
       .catch((e) => setMessage(e.message));
   }, []);

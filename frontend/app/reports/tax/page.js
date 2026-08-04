@@ -18,10 +18,8 @@ export default function TaxReportPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
-  const token = () => localStorage.getItem('pos_access_token');
-  const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` });
+  const headers = () => ({ 'Content-Type': 'application/json'});
 
-  useEffect(() => { if (!token()) { window.location.assign('/'); } }, []);
   useEffect(() => {
     if (start && end) return;
     const d = new Date();

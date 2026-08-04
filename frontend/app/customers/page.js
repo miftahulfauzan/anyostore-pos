@@ -10,7 +10,7 @@ export default function CustomersPage() {
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: '', phone: '', email: '', price_tier: 'reguler' });
-  const h = () => ({ 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
+  const h = () => ({ 'Content-Type': 'application/json'});
 
   async function load(q = '') {
     const r = await fetch(api + '/customers?search=' + encodeURIComponent(q), { headers: h() });
@@ -19,8 +19,7 @@ export default function CustomersPage() {
     setCustomers(b.data);
   }
   useEffect(() => {
-    if (!localStorage.getItem('pos_access_token')) window.location.assign('/');
-    else load().catch((e) => setMessage(e.message));
+    load().catch((e) => setMessage(e.message));
   }, []);
 
   function startEdit(c) {

@@ -20,17 +20,17 @@ export default function ProductsPage() {
   const [barcodeProduct, setBarcodeProduct] = useState(null);
   const [barcodeCopies, setBarcodeCopies] = useState(1);
   const loadSeq = useRef(0);
-  const token = () => typeof window === 'undefined' ? '' : localStorage.getItem('pos_access_token');
+  const token = () => '';
 
   async function load(keyword = search) {
-    if (!token()) { window.location.assign('/'); return; }
+    /* sesi via httpOnly cookie */
     setLoading(true);
     const seq = ++loadSeq.current;
     try {
       const params = new URLSearchParams({ limit: '500' });
       if (keyword.trim()) params.set('search', keyword.trim());
       if (branchId) params.set('branch_id', branchId);
-      const response = await fetch(`${apiUrl}/products?${params}`, { headers: { Authorization: `Bearer ${token()}` } });
+      const response = await fetch(`${apiUrl}/products?${params}`, { headers: {} });
       const body = await response.json();
       if (seq !== loadSeq.current) return;
       if (!response.ok) throw new Error(body.message || 'Gagal memuat produk');
@@ -40,9 +40,7 @@ export default function ProductsPage() {
   }
 
   useEffect(() => {
-    const t = localStorage.getItem('pos_access_token');
-    if (!t) return;
-    fetch(`${apiUrl}/auth/me`, { headers: { Authorization: `Bearer ${t}` } })
+    fetch(`${apiUrl}/auth/me`, { headers: {} })
       .then((r) => r.json())
       .then((b) => { if (b?.data?.role === 'owner') setIsOwner(true); if (b?.data?.role === 'gudang') setIsGudang(true); })
       .catch(() => {});
@@ -50,8 +48,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     if (!isOwner && !isGudang) return;
-    const t = localStorage.getItem('pos_access_token');
-    fetch(`${apiUrl}/settings/branches`, { headers: { Authorization: `Bearer ${t}` } })
+    fetch(`${apiUrl}/settings/branches`, { headers: {} })
       .then((r) => r.json())
       .then((b) => {
         const list = (b.data || []).filter((br) => br.is_active);
@@ -71,7 +68,7 @@ export default function ProductsPage() {
   async function deleteProduct(product) {
     if (!window.confirm(`Hapus "${product.name}"?`)) return;
     try {
-      const r = await fetch(`${apiUrl}/products/${product.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token()}` } });
+      const r = await fetch(`${apiUrl}/products/${product.id}`, { method: 'DELETE', headers: {} });
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
       setMessage(b.data.message);

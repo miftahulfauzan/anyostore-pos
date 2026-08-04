@@ -2,6 +2,7 @@ const cors = require('cors');
 const express = require('express');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
 const db = require('./db');
 const { corsOrigin } = require('./config');
 const { authenticate, loginWithPassword, loginWithPin, refresh, logout } = require('./auth');
@@ -37,6 +38,7 @@ const limiterOptions = { keyGenerator: (req) => req.ip || 'unknown', validate: {
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json({ limit: '6mb' }));
+app.use(cookieParser());
 app.use('/uploads', serveBlob, express.static(path.join(process.cwd(), 'uploads'), { maxAge: '7d' }));
 app.use('/api', rateLimit({ ...limiterOptions, windowMs: 60_000, max: 600, standardHeaders: true, legacyHeaders: false, handler: (req, res) => res.status(429).json({ success: false, message: 'Terlalu banyak permintaan, coba lagi dalam 1 menit' }) }));
 

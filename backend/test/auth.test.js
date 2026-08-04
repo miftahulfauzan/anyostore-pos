@@ -25,6 +25,15 @@ test('authenticate accepts a valid access token', () => {
   assert.equal(req.user.branch_id, 2);
 });
 
+test('authenticate menerima access token dari httpOnly cookie', () => {
+  const token = jwt.sign({ id: 7, role: 'kasir', branch_id: 2 }, process.env.JWT_SECRET);
+  const req = { headers: {}, cookies: { pos_access: token } };
+  const res = response(); let nextCalled = false;
+  authenticate(req, res, () => { nextCalled = true; });
+  assert.equal(nextCalled, true);
+  assert.equal(req.user.id, 7);
+});
+
 test('authenticate rejects a missing token', () => {
   const res = response();
   authenticate({ headers: {} }, res, () => assert.fail('next must not be called'));

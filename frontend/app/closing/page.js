@@ -20,13 +20,13 @@ export default function ClosingPage() {
   const [date, setDate] = useState(localToday());
   const [message, setMessage] = useState('');
   const [printed, setPrinted] = useState(false);
-  const token = () => localStorage.getItem('pos_access_token');
+  const token = () => '';
 
   useEffect(() => {
-    if (!token()) { window.location.assign('/'); return; }
+    /* sesi via httpOnly cookie */
     setData(null);
     setPrinted(false);
-    fetch(`${api}/reports/daily-closing?date=${date}`, { headers: { Authorization: 'Bearer ' + token() } })
+    fetch(`${api}/reports/daily-closing?date=${date}`, { headers: {} })
       .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setData(b.data); })
       .catch((e) => setMessage(e.message));
   }, [date]);

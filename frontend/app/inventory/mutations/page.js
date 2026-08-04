@@ -28,7 +28,7 @@ export default function Mutations() {
   const [saving, setSaving] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [picker, setPicker] = useState(null);
-  const h = () => ({ 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
+  const h = () => ({ 'Content-Type': 'application/json'});
 
   // Gudang tipe utama selalu paling depan, sisanya abjad.
   const storeWarehouses = useMemo(() => allWarehouses
@@ -53,7 +53,7 @@ export default function Mutations() {
   }
 
   useEffect(() => {
-    if (!localStorage.getItem('pos_access_token')) return window.location.assign('/');
+    /* sesi via httpOnly cookie */
     loadChannels().catch((e) => setMessage(e.message));
     Promise.all([
       fetch(api + '/inventory/incoming/targets', { headers: h() }).then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); return b.data || []; }),

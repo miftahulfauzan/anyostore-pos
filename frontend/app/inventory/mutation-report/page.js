@@ -36,11 +36,11 @@ export default function MutationReportPage() {
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState(null);
   const loadSeq = useRef(0);
-  const token = () => typeof window === 'undefined' ? '' : localStorage.getItem('pos_access_token');
-  const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` });
+  const token = () => '';
+  const headers = () => ({ 'Content-Type': 'application/json'});
 
   async function load(next = {}) {
-    if (!token()) { window.location.assign('/'); return; }
+    /* sesi via httpOnly cookie */
     setLoading(true);
     const seq = ++loadSeq.current;
     try {
@@ -63,7 +63,7 @@ export default function MutationReportPage() {
   }
 
   useEffect(() => {
-    if (!localStorage.getItem('pos_access_token')) return window.location.assign('/');
+    /* sesi via httpOnly cookie */
     // ?all=1: untuk admin gudang, dropdown menampilkan semua cabang (bukan
     // hanya tipe gudang) karena laporan mencakup input siapa pun.
     fetch(`${api}/inventory/incoming/targets?all=1`, { headers: headers() })

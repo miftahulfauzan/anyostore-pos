@@ -34,7 +34,7 @@ export default function HistoryPage() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  const h = () => ({ Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
+  const h = () => ({});
   const canCancel = ['owner', 'manager', 'admin'].includes(role);
 
   async function load(p = page, override = null) {
@@ -59,7 +59,7 @@ export default function HistoryPage() {
   }
 
   useEffect(() => {
-    if (!localStorage.getItem('pos_access_token')) return window.location.assign('/');
+    /* sesi via httpOnly cookie */
     fetch(api + '/auth/me', { headers: h() })
       .then((r) => (r.ok ? r.json() : null))
       .then((b) => { if (b?.data?.role) setRole(b.data.role); })

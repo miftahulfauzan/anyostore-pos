@@ -37,8 +37,8 @@ export default function CommissionsPage() {
   const [reportPeriod, setReportPeriod] = useState({ start: '', end: '' });
   const [reportPreset, setReportPreset] = useState('');
 
-  const token = () => typeof window === 'undefined' ? '' : localStorage.getItem('pos_access_token');
-  const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` });
+  const token = () => '';
+  const headers = () => ({ 'Content-Type': 'application/json'});
 
   async function load(branchId = selectedBranch) {
     try {
@@ -90,7 +90,7 @@ export default function CommissionsPage() {
     setReportPeriod((p) => ({ start: p.start || firstOfMonthStr(), end: p.end || todayStr() }));
   }, []);
   useEffect(() => {
-    if (!token()) { window.location.assign('/'); return; }
+    /* sesi via httpOnly cookie */
     loadBranches();
     fetch(`${apiUrl}/auth/me`, { headers: headers() })
       .then((res) => (res.ok ? res.json() : null))

@@ -90,18 +90,15 @@ export default function AppShell({ title, eyebrow, actions, children }) {
     setTheme(initialTheme);
     document.documentElement.classList.toggle('dark', initialTheme === 'dark');
 
-    const token = localStorage.getItem('pos_access_token');
-    if (!token) return;
-    const authHeader = { Authorization: `Bearer ${token}` };
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-    fetch(`${baseUrl}/auth/me`, { headers: authHeader })
+    fetch(`${baseUrl}/auth/me`)
       .then((response) => (response.ok ? response.json() : null))
       .then((body) => {
         if (body?.data?.role) setRole(body.data.role);
         if (body?.data?.name) setUserName(body.data.name);
       })
       .catch(() => {});
-    fetch(`${baseUrl}/settings`, { headers: authHeader })
+    fetch(`${baseUrl}/settings`)
       .then((response) => (response.ok ? response.json() : null))
       .then((body) => {
         // Tema brand (green/blue/purple) dari Pengaturan toko -> data-theme.
@@ -154,9 +151,14 @@ export default function AppShell({ title, eyebrow, actions, children }) {
   }, [mobileNavOpen]);
 
   function logout() {
-    localStorage.removeItem('pos_access_token');
-    localStorage.removeItem('pos_refresh_token');
-    window.location.assign('/');
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+    fetch(`${baseUrl}/auth/logout`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+      .catch(() => {})
+      .finally(() => {
+        localStorage.removeItem('pos_access_token');
+        localStorage.removeItem('pos_refresh_token');
+        window.location.assign('/');
+      });
   }
 
   function toggleCollapse() {

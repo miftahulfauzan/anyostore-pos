@@ -32,8 +32,8 @@ export default function SettingsPage() {
   const [creating, setCreating] = useState(false);
   const [createMessage, setCreateMessage] = useState('');
 
-  const token = () => localStorage.getItem('pos_access_token');
-  const jsonHeaders = () => ({ 'Content-Type': 'application/json', Authorization: 'Bearer ' + token() });
+  const token = () => '';
+  const jsonHeaders = () => ({ 'Content-Type': 'application/json'});
   const mediaUrl = (value) => value ? api.replace('/api', '') + value : '';
 
   async function load(id) {
@@ -55,7 +55,7 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
-    if (!token()) { window.location.assign('/'); return; }
+    /* sesi via httpOnly cookie */
     // detect owner
     fetch(api + '/auth/me', { headers: jsonHeaders() })
       .then((r) => r.json())

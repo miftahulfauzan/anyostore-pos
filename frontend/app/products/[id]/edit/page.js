@@ -357,8 +357,8 @@ export default function EditProductPage() {
   const [mediaUploading, setMediaUploading] = useState(false);
   const params = useParams();
   const productId = params?.id;
-  const token = () => typeof window === 'undefined' ? '' : localStorage.getItem('pos_access_token');
-  const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` });
+  const token = () => '';
+  const headers = () => ({ 'Content-Type': 'application/json'});
   const mediaUrl = (path) => path ? `${apiUrl.replace('/api', '')}${path}` : '';
   const thumbStyle = (m) => {
     const t = parseTransform(m.transform);
@@ -366,7 +366,7 @@ export default function EditProductPage() {
   };
 
   useEffect(() => {
-    if (!token()) { window.location.assign('/'); return; }
+    /* sesi via httpOnly cookie */
     Promise.all([fetch(`${apiUrl}/products/${productId}`, { headers: headers() }), fetch(`${apiUrl}/products/categories`, { headers: headers() })])
       .then(async ([itemResponse, categoriesResponse]) => {
         const itemBody = await itemResponse.json();
@@ -537,7 +537,7 @@ export default function EditProductPage() {
       if (photo) {
         const upload = new FormData();
         upload.append('photo', photo);
-        const uploadResponse = await fetch(`${apiUrl}/products/${productId}/photo`, { method: 'POST', headers: { Authorization: `Bearer ${token()}` }, body: upload });
+        const uploadResponse = await fetch(`${apiUrl}/products/${productId}/photo`, { method: 'POST', headers: {}, body: upload });
         const uploadBody = await uploadResponse.json();
         if (!uploadResponse.ok) throw new Error(`Data produk diperbarui, tetapi foto gagal: ${uploadBody.message || 'coba lagi'}`);
         setProduct({ ...product, photo_path: uploadBody.data.path });

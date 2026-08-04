@@ -24,8 +24,7 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    if (localStorage.getItem('pos_access_token')) window.location.replace('/pos');
-  }, []);
+    }, []);
 
   function homeFor(role) {
     return role === 'gudang' ? '/dashboard' : '/pos';
@@ -43,8 +42,6 @@ export default function LoginPage() {
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message || 'Login gagal');
-      localStorage.setItem('pos_access_token', body.data.accessToken);
-      localStorage.setItem('pos_refresh_token', body.data.refreshToken);
       window.location.assign(homeFor(body.data?.user?.role));
     } catch (error) {
       setMessage(error.message);

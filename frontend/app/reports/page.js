@@ -75,15 +75,7 @@ export default function ReportsPage() {
   const [isOwner, setIsOwner] = useState(false);
   const [branches, setBranches] = useState([]);
   const [branchId, setBranchId] = useState("");
-  const token = () =>
-    typeof window === "undefined"
-      ? ""
-      : localStorage.getItem("pos_access_token");
   async function load(nextPeriod = period) {
-    if (!token()) {
-      window.location.assign("/");
-      return;
-    }
     setLoading(true);
     setMessage("");
     try {
@@ -91,7 +83,7 @@ export default function ReportsPage() {
       if (isOwner && branchId) qs.set('branch_id', branchId);
       const response = await fetch(
         `${apiUrl}/reports/overview?${qs}`,
-        { headers: { Authorization: `Bearer ${token()}` } },
+        { headers: {} },
       );
       const body = await response.json();
       if (!response.ok)
@@ -106,9 +98,9 @@ export default function ReportsPage() {
   useEffect(() => {
     load();
     Promise.all([
-      fetch(apiUrl + "/settings", { headers: { Authorization: "Bearer " + token() } }).then((r) => r.ok ? r.json() : null),
-      fetch(apiUrl + "/auth/me", { headers: { Authorization: "Bearer " + token() } }).then((r) => r.ok ? r.json() : null),
-      fetch(apiUrl + "/settings/branches", { headers: { Authorization: "Bearer " + token() } }).then((r) => r.ok ? r.json() : null),
+      fetch(apiUrl + "/settings", { headers: {} }).then((r) => r.ok ? r.json() : null),
+      fetch(apiUrl + "/auth/me", { headers: {} }).then((r) => r.ok ? r.json() : null),
+      fetch(apiUrl + "/settings/branches", { headers: {} }).then((r) => r.ok ? r.json() : null),
     ]).then(([storeData, meData, branchesData]) => {
       setStore(storeData?.data || null);
       if (meData?.data?.role === 'owner') {

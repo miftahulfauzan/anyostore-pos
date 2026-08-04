@@ -19,8 +19,8 @@ export default function StockReportSection() {
   const [message, setMessage] = useState('');
   const loadSeq = useRef(0);
 
-  const token = () => localStorage.getItem('pos_access_token');
-  const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` });
+  const token = () => '';
+  const headers = () => ({ 'Content-Type': 'application/json'});
 
   useEffect(() => {
     fetch(`${api}/auth/me`, { headers: headers() })

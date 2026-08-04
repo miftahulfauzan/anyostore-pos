@@ -23,19 +23,17 @@ export default function MyAccount() {
   const [range, setRange] = useState({ start: '', end: '' });
   const [loadingComm, setLoadingComm] = useState(false);
 
-  const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('pos_access_token')}` });
+  const headers = () => ({ 'Content-Type': 'application/json'});
 
   async function safeJson(r) {
     try { return await r.json(); } catch { return { success: false, message: `HTTP ${r.status}` }; }
   }
 
   async function fetchCommission(start, end) {
-    const token = localStorage.getItem('pos_access_token');
-    if (!token) return;
     setLoadingComm(true);
     try {
       const qs = new URLSearchParams({ start, end }).toString();
-      const r = await fetch(`${api}/commissions/mine?${qs}`, { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch(`${api}/commissions/mine?${qs}`, { headers: {} });
       const b = await safeJson(r);
       if (!r.ok) {
         setCommission({ live: { period_start: start, period_end: end, total_sales: 0, total_transactions: 0, estimated: 0, rules: [] }, applicable_rules: [] });
@@ -51,9 +49,7 @@ export default function MyAccount() {
     setRange({ start: firstOfMonthStr(), end: todayStr() });
   }, []);
   useEffect(() => {
-    const token = localStorage.getItem('pos_access_token');
-    if (!token) { window.location.assign('/'); return; }
-    fetch(`${api}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${api}/auth/me`, { headers: {} })
       .then(async (r) => {
         const b = await safeJson(r);
         if (!r.ok) throw new Error(b.message || `Gagal ambil profil (${r.status})`);

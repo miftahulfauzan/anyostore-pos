@@ -19,7 +19,7 @@ export default function Finance() {
   const [newCategory, setNewCategory] = useState({ name: '', account_code: '5-1000', type: 'expense' });
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
-  const headers = () => ({ 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
+  const headers = () => ({ 'Content-Type': 'application/json'});
 
   async function load() {
     const [catRes, expRes, incRes] = await Promise.all([
@@ -34,8 +34,6 @@ export default function Finance() {
     setIncome(i.data);
   }
   useEffect(() => {
-    const token = localStorage.getItem('pos_access_token');
-    if (!token) { window.location.assign('/'); return; }
     load().catch((e) => setMessage(e.message));
     fetch(`${api}/finance/profit-loss`, { headers: headers() })
       .then(async (response) => {

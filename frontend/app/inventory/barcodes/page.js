@@ -13,7 +13,7 @@ export default function BarcodePage() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const loadSeq = useRef(0);
-  const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
+  const headers = () => ({});
 
   async function load(keyword = '') {
     setLoading(true);
@@ -30,7 +30,7 @@ export default function BarcodePage() {
   }
 
   useEffect(() => {
-    if (!localStorage.getItem('pos_access_token')) return window.location.assign('/');
+    /* sesi via httpOnly cookie */
     load().catch(() => {});
   }, []);
   useEffect(() => {

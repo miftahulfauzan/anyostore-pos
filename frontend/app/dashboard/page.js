@@ -11,27 +11,20 @@ export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [message, setMessage] = useState('');
   const [role, setRole] = useState(null);
-  const token = () => typeof window === 'undefined' ? '' : localStorage.getItem('pos_access_token');
+  const token = () => '';
 
   useEffect(() => {
-    if (!token()) { window.location.assign('/'); return; }
-    fetch(apiUrl + '/auth/me', { headers: { Authorization: 'Bearer ' + token() } })
+    /* sesi via httpOnly cookie */
+    fetch(apiUrl + '/auth/me', { headers: {} })
       .then((r) => r.json())
       .then((b) => { if (b?.data?.role) setRole(b.data.role); })
       .catch(() => {});
     async function loadDashboard() {
-      let response = await fetch(apiUrl + '/dashboard', { headers: { Authorization: 'Bearer ' + token() } });
-      if (response.status === 401 && localStorage.getItem('pos_refresh_token')) {
-        const refreshResponse = await fetch(apiUrl + '/auth/refresh', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refresh_token: localStorage.getItem('pos_refresh_token') })
-        });
-        const refreshBody = await refreshResponse.json();
+      let response = await fetch(apiUrl + '/dashboard', { headers: {} });
+      if (response.status === 401) {
+        const refreshResponse = await fetch(apiUrl + '/auth/refresh', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
         if (refreshResponse.ok) {
-          localStorage.setItem('pos_access_token', refreshBody.data.accessToken);
-          localStorage.setItem('pos_refresh_token', refreshBody.data.refreshToken);
-          response = await fetch(apiUrl + '/dashboard', { headers: { Authorization: 'Bearer ' + refreshBody.data.accessToken } });
+          response = await fetch(apiUrl + '/dashboard', { headers: {} });
         }
       }
       return response;

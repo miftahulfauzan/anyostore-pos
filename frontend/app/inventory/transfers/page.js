@@ -19,7 +19,7 @@ export default function TransferPage() {
   const [saving, setSaving] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [picker, setPicker] = useState(null);
-  const h = () => ({ 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
+  const h = () => ({ 'Content-Type': 'application/json'});
 
   const targets = useMemo(() => warehouses.filter((w) => String(w.id) !== String(from)), [warehouses, from]);
   // Label gudang: kalau gudang bernama sama dengan tokonya (toko = gudang),
@@ -43,7 +43,7 @@ export default function TransferPage() {
   }
 
   useEffect(() => {
-    if (!localStorage.getItem('pos_access_token')) return window.location.assign('/');
+    /* sesi via httpOnly cookie */
     fetch(api + '/inventory/warehouses/all', { headers: h() }).then(async (r) => {
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);

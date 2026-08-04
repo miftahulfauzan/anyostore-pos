@@ -6,6 +6,18 @@ const { jwtSecret, jwtRefreshSecret } = require('./config');
 
 const refreshHash = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
+const cookieBase = { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production' };
+const ACCESS_COOKIE_MAX_AGE = 12 * 60 * 60 * 1000;
+const REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+function setAuthCookies(res, tokens) {
+  res.cookie('pos_access', tokens.accessToken, { ...cookieBase, maxAge: ACCESS_COOKIE_MAX_AGE });
+  res.cookie('pos_refresh', tokens.refreshToken, { ...cookieBase, maxAge: REFRESH_COOKIE_MAX_AGE });
+}
+function clearAuthCookies(res) {
+  res.clearCookie('pos_access', cookieBase);
+  res.clearCookie('pos_refresh', cookieBase);
+}
+
 // Lockout per akun (di luar rate limit per IP) untuk PIN/password 6 digit.
 const loginAttempts = new Map();
 const MAX_LOGIN_ATTEMPTS = 10;
@@ -74,6 +86,7 @@ async function loginWithPassword(req, res, next) {
     const tokens = issueTokens(user);
     await persistRefreshToken(user.id, tokens.refreshToken);
     await db.execute('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
+    setAuthCookies(res, tokens);
     return res.json({ success: true, data: { user: { id: user.id, name: user.name, email: user.email, role: user.role, branch_id: user.branch_id }, ...tokens } });
   } catch (error) { return next(error); }
 }
@@ -98,13 +111,14 @@ async function loginWithPin(req, res, next) {
     const tokens = issueTokens(user);
     await persistRefreshToken(user.id, tokens.refreshToken);
     await db.execute('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
+    setAuthCookies(res, tokens);
     return res.json({ success: true, data: { user: { id: user.id, name: user.name, email: user.email, role: user.role, branch_id: user.branch_id }, ...tokens } });
   } catch (error) { return next(error); }
 }
 
 async function refresh(req, res, next) {
   try {
-    const { refresh_token: token } = req.body;
+    const token = req.cookies?.pos_refresh || req.body?.refresh_token;
     if (!token) return res.status(400).json({ success: false, message: 'Refresh token wajib diisi' });
     const payload = jwt.verify(token, jwtRefreshSecret);
     const [tokens] = await db.execute(
@@ -117,6 +131,7 @@ async function refresh(req, res, next) {
     await db.execute('UPDATE refresh_tokens SET revoked_at = NOW() WHERE id = ?', [tokens[0].id]);
     const nextTokens = issueTokens(users[0]);
     await persistRefreshToken(users[0].id, nextTokens.refreshToken);
+    setAuthCookies(res, nextTokens);
     return res.json({ success: true, data: nextTokens });
   } catch (error) { return next(error); }
 }
@@ -124,14 +139,16 @@ async function refresh(req, res, next) {
 async function logout(req, res, next) {
   try {
     const { refresh_token: token } = req.body;
-    if (token) await db.execute('UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = ?', [refreshHash(token)]);
+    const refreshToken = token || req.cookies?.pos_refresh;
+    if (refreshToken) await db.execute('UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = ?', [refreshHash(refreshToken)]);
+    clearAuthCookies(res);
     return res.json({ success: true, message: 'Logout berhasil' });
   } catch (error) { return next(error); }
 }
 
 function authenticate(req, res, next) {
   try {
-    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '') || req.cookies?.pos_access || null;
     if (!token) return res.status(401).json({ success: false, message: 'Token wajib diisi' });
     req.user = jwt.verify(token, jwtSecret);
     return next();

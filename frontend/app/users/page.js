@@ -17,7 +17,7 @@ export default function Users() {
   const [pwTarget, setPwTarget] = useState(null); // { id, name }
   const [newPassword, setNewPassword] = useState('');
 
-  const headers = () => ({ 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
+  const headers = () => ({ 'Content-Type': 'application/json'});
 
   async function load(branchId) {
     const suffix = branchId ? '?branch_id=' + branchId : '';
@@ -28,7 +28,7 @@ export default function Users() {
   }
 
   useEffect(() => {
-    if (!localStorage.getItem('pos_access_token')) return window.location.assign('/');
+    /* sesi via httpOnly cookie */
     Promise.all([
       fetch(api + '/users/branches', { headers: headers() }).then((r) => r.json()),
       fetch(api + '/users', { headers: headers() }).then((r) => r.json()),
