@@ -28,8 +28,9 @@ function seededShuffle(arr, seed) {
   let s = 2166136261; for (let i = 0; i < seed.length; i++) { s ^= seed.charCodeAt(i); s = Math.imul(s, 16777619); }
   const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; s >>>= 0; const j = s % (i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a;
 }
-function parsePhotos(single) {
-  return single ? [{ path: single }] : [];
+function parsePhotos(paths) {
+  if (!paths) return [];
+  return String(paths).split('||').filter(Boolean).map((p) => ({ path: p.trim() }));
 }
 function photoStyle(transform, base) {
   const t = String(transform || '').split(',').map(Number);
@@ -37,12 +38,29 @@ function photoStyle(transform, base) {
 }
 
 function ProductCard({ product, onWa }) {
-  const photos = useMemo(() => parsePhotos(product.photo_path), [product.photo_path]);
+  const photos = useMemo(() => {
+    const list = parsePhotos(product.photo_paths);
+    return list.length ? list : (product.photo_path ? [{ path: product.photo_path }] : []);
+  }, [product.photo_paths, product.photo_path]);
+  // Hover: ganti foto tiap 2 detik selama mouse di atas kartu.
+  const [photoIdx, setPhotoIdx] = useState(0);
+  const photoTimer = useRef(null);
+  function onEnter() {
+    if (photos.length <= 1) return;
+    photoTimer.current = setInterval(() => setPhotoIdx((i) => (i + 1) % photos.length), 2000);
+  }
+  function onLeave() {
+    if (photoTimer.current) clearInterval(photoTimer.current);
+    photoTimer.current = null;
+    setPhotoIdx(0);
+  }
+  useEffect(() => () => { if (photoTimer.current) clearInterval(photoTimer.current); }, []);
+  const photo = photos[photoIdx] || photos[0];
   const colors = (product.variant_colors || '').split('|').filter(Boolean).slice(0, 4);
   return (
     <article className="pcard">
-      <a href={`/produk/${product.id}`} className="pcard-img">
-        <SafeImage src={photos[0] ? `${api.replace('/api', '')}${photos[0].path}` : ''} alt={product.name} style={photoStyle(product.photo_transform, { width: '100%', height: '100%' })} />
+      <a href={`/produk/${product.id}`} className="pcard-img" onMouseEnter={onEnter} onMouseLeave={onLeave}>
+        <SafeImage key={photo?.path || 'none'} src={photo ? `${api.replace('/api', '')}${photo.path}` : ''} alt={product.name} style={photoStyle(product.photo_transform, { width: '100%', height: '100%' })} />
         {!photos.length && <span style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: T.muted, fontSize: 12, background: '#f3f4f6' }}>Tanpa foto</span>}
       </a>
       <div className="pcard-body">
@@ -95,6 +113,10 @@ export default function LandingPage() {
   useEffect(() => { fetch(`${api}/public/products?limit=60`).then((r) => r.json()).then((b) => setSlidesAll(b.data || [])).catch(() => {}); }, []);
   const pages = useMemo(() => { const tp = totalPages; let s = Math.max(1, page - 2); let e = Math.min(tp, s + 4); s = Math.max(1, e - 4); const o = []; for (let i = s; i <= e; i++) o.push(i); return o; }, [page, totalPages]);
   const slide = slides[slideIdx];
+  // Hero katalog mini: jendela 3 produk berjalan dari slideshow.
+  const group = slides.length
+    ? [0, 1, 2].map((offset) => slides[(slideIdx + offset) % slides.length])
+    : [];
   const slidePhotos = useMemo(() => parsePhotos(slide?.photo_path), [slide?.photo_path]);
 
   return (
@@ -119,9 +141,9 @@ export default function LandingPage() {
       <section style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 16px 24px' }}>
         <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} className="hero-wrap" style={{ position: 'relative', borderRadius: 14, overflow: 'hidden' }}>
           {slide ? (
-            <div key={slide.id} className="slide-fade" style={{ minHeight: 440, display: 'grid', gridTemplateColumns: '1.15fr .85fr', alignItems: 'center' }}>
+            <div key={slideIdx} className="slide-fade hero-b" style={{ minHeight: 500, display: 'grid', gridTemplateColumns: '0.85fr 1.5fr', alignItems: 'center' }}>
               {/* Teks kiri */}
-              <div className="hero-text" style={{ padding: '44px 40px', display: 'grid', gap: 16, maxWidth: 520 }}>
+              <div className="hero-text" style={{ padding: '40px 32px', display: 'grid', gap: 14, maxWidth: 430 }}>
                 <span className="hero-cat" style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase' }}>{slide.category_name || 'Denim'}</span>
                 <h1 className="hero-title" style={{ margin: 0, fontFamily: "'DM Sans', sans-serif", fontSize: 'clamp(22px, 3vw, 34px)', fontWeight: 700, lineHeight: 1.15 }}>{slide.name}</h1>
                 <strong className="hero-price" style={{ fontSize: 28, fontWeight: 800 }}>Rp{Number(slide.price || 0).toLocaleString('id-ID')}</strong>
@@ -130,18 +152,9 @@ export default function LandingPage() {
                   <a href="#" onClick={(e) => { e.preventDefault(); pickWa(`Saya tertarik dengan ${slide.name}`); }} className="hero-btn btn-outline"><I.chat style={{ width: 14, height: 14 }} /> Hubungi Admin</a>
                 </div>
               </div>
-              {/* Kartu foto portrait 3:4 utuh (tanpa crop) */}
-              <div className="hero-card-col" style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '28px 28px 36px' }}>
-                {slidePhotos.length > 0 ? (
-                  <div style={{ position: 'relative', width: 'min(300px, 72%)', aspectRatio: '3 / 4' }}>
-                    {slidePhotos[1] && (
-                      <SafeImage src={`${api.replace('/api', '')}${slidePhotos[1].path}`} alt="" style={{ position: 'absolute', inset: 0, transform: 'rotate(6deg) scale(.97)', borderRadius: 18, objectFit: 'cover', opacity: .55 }} />
-                    )}
-                    <SafeImage eager src={`${api.replace('/api', '')}${slidePhotos[0].path}`} alt={slide.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', borderRadius: 18, border: '6px solid #fff', boxShadow: '0 18px 40px rgba(15,23,42,.18)', objectFit: 'cover', ...photoStyle(slide.photo_transform) }} />
-                  </div>
-                ) : (
-                  <div style={{ width: 'min(300px, 72%)', aspectRatio: '3 / 4', borderRadius: 18, background: '#f1f5f9', display: 'grid', placeItems: 'center', color: T.muted, fontSize: 13 }}>Foto produk</div>
-                )}
+              {/* Katalog mini 3 produk (gaya sama dengan grid katalog) */}
+              <div className="hero-cards">
+                {group.map((p) => <ProductCard key={p.id} product={p} onWa={pickWa} />)}
               </div>
             </div>
           ) : <div style={{ padding: 48, textAlign: 'center', color: T.muted }}>Memuat…</div>}
@@ -283,6 +296,7 @@ export default function LandingPage() {
         .hero-cat { color: #1e3a5f; }
         .hero-title { color: #1a1a1a; }
         .hero-price { color: #1e3a5f; }
+        .hero-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 28px 28px 32px 0; min-width: 0; }
         .hero-dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 999px; border: none; padding: 0; cursor: pointer; background: #d1d5db; transition: all .3s cubic-bezier(.4,0,.2,1); }
         .hero-dot.active { width: 24px; background: #1a1a1a; }
         @keyframes slideIn { from { opacity: 0; transform: scale(.985) translateY(10px); } to { opacity: 1; transform: none; } }
@@ -316,8 +330,9 @@ export default function LandingPage() {
           .hero-wrap { min-height: 0 !important; }
           .slide-fade { grid-template-columns: 1fr !important; min-height: 0 !important; }
           .hero-text { padding: 26px 22px 6px !important; max-width: 100% !important; gap: 10px !important; }
-          .hero-card-col { padding: 6px 20px 30px !important; }
-          .hero-card-col > div { width: min(220px, 62%) !important; }
+          .hero-b { grid-template-columns: 1fr !important; min-height: 0 !important; }
+          .hero-cards { display: flex !important; overflow-x: auto !important; gap: 12px !important; padding: 4px 20px 26px !important; }
+          .hero-cards .pcard { flex: 0 0 140px; }
         }
         @media (max-width: 600px) {
           .pcard-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
