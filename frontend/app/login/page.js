@@ -70,7 +70,7 @@ export default function LoginPage() {
         )}
         <button disabled={loading}>{loading ? 'Memproses…' : 'Masuk ke POS'}</button>
         {message && <p className="message" role="status">{message}</p>}
-        <p className="muted" style={{ fontSize: '.85rem', textAlign: 'center' }}><a href="/">← Kembali ke Grosir</a></p>
+        <p className="muted" style={{ fontSize: '.85rem', textAlign: 'center', marginTop: 6, paddingBottom: 2 }}><a href="/">← Kembali ke Grosir</a></p>
       </form>
     </main>
   );

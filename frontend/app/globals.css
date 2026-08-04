@@ -698,6 +698,7 @@ a, .photo-upload { color:var(--expressive-secondary); }
   box-shadow: 3px 3px 0 #2563eb;
 }
 .login {
+  display: grid;
   width: min(100%, 420px);
   justify-self: center;
   gap: 18px;
@@ -709,7 +710,7 @@ a, .photo-upload { color:var(--expressive-secondary); }
 .login h2 { margin: 5px 0 7px; font-size: 22px; letter-spacing: -.04em; }
 .login label { color: #334155; font-size: 11px; }
 .login input { border-radius: 4px; }
-.login button { min-height: 42px; border-radius: 4px; }
+.login button { width: 100%; min-height: 42px; border-radius: 4px; }
 .finance-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
 @media (max-width: 900px) {
