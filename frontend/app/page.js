@@ -15,6 +15,9 @@ const I = {
   chevL: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="m15 18-6-6 6-6" /></svg>),
   chevR: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="m9 18 6-6-6-6" /></svg>),
   search: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>),
+  cart: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" /></svg>),
+  plus: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 5v14M5 12h14" /></svg>),
+  minus: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M5 12h14" /></svg>),
 };
 
 function waLink(phone, text) {
@@ -22,6 +25,7 @@ function waLink(phone, text) {
   const clean = String(phone).replace(/[^0-9+]/g, '').replace(/^0/, '62');
   return `https://wa.me/${clean}?text=${encodeURIComponent(text)}`;
 }
+const fmtRp = (n) => 'Rp' + Number(n || 0).toLocaleString('id-ID');
 const SORTS = [{ value: 'newest', label: 'Terbaru' }, { value: 'price_asc', label: 'Harga Termurah' }, { value: 'price_desc', label: 'Harga Termahal' }, { value: 'name', label: 'Nama A-Z' }];
 
 function seededShuffle(arr, seed) {
@@ -37,7 +41,7 @@ function photoStyle(transform, base) {
   return t.length === 3 && isFinite(t[0]) && (t[0] !== 1 || t[1] !== 0 || t[2] !== 0) ? { objectFit: 'cover', objectPosition: 'center', transform: `translate(${t[1] || 0}%, ${t[2] || 0}%) scale(${t[0]})`, ...base } : { objectFit: 'cover', objectPosition: 'center', ...base };
 }
 
-function ProductCard({ product, onWa }) {
+function ProductCard({ product, onWa, onAdd, inCart }) {
   const photos = useMemo(() => {
     const seen = new Set();
     const list = parsePhotos(product.photo_paths).filter((p) => {
@@ -79,6 +83,10 @@ function ProductCard({ product, onWa }) {
           </span>
         )}
       </a>
+      <button type="button" className={`pcard-add${inCart ? ' has' : ''}`} onClick={() => onAdd(product)} aria-label="Tambah ke keranjang" title="Tambah ke keranjang">
+        <I.cart style={{ width: 15, height: 15 }} />
+        {inCart > 0 && <span className="pcard-add-badge">{inCart}</span>}
+      </button>
       <div className="pcard-body">
         <a href={`/produk/${product.id}`} style={{ textDecoration: 'none', color: 'inherit' }}><strong>{product.name}</strong></a>
         <span className="pcard-price">Rp{Number(product.price || 0).toLocaleString('id-ID')}</span>
@@ -110,9 +118,68 @@ export default function LandingPage() {
   const [slidesAll, setSlidesAll] = useState([]);
   const [slideIdx, setSlideIdx] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [cart, setCart] = useState([]);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [picker, setPicker] = useState(null);
+  const [pickVariantId, setPickVariantId] = useState(null);
+  const [pickQty, setPickQty] = useState(1);
+  const [pickerLoading, setPickerLoading] = useState(false);
   const waPhone = settings?.whatsapp || settings?.store_phone || '';
   const waPhones = settings?.whatsapp_numbers?.length ? settings.whatsapp_numbers : waPhone ? [waPhone] : [];
   function pickWa(msg) { if (!waPhones.length) return; setWaMsg(msg); setWaPicker(true); }
+
+  useEffect(() => { try { const raw = localStorage.getItem('landing_cart'); if (raw) setCart(JSON.parse(raw)); } catch (e) {} }, []);
+  useEffect(() => { try { localStorage.setItem('landing_cart', JSON.stringify(cart)); } catch (e) {} }, [cart]);
+  function countInCart(productId) { return cart.filter((i) => i.productId === productId).reduce((s, i) => s + i.qty, 0); }
+  const cartPcs = cart.reduce((s, i) => s + i.qty, 0);
+  const cartTotal = cart.reduce((s, i) => s + i.qty * i.price, 0);
+
+  function openPicker(product) {
+    setPickQty(1);
+    setPickVariantId(null);
+    if (Number(product.variant_count) > 0) {
+      setPickerLoading(true);
+      setPicker({ product, variants: [] });
+      fetch(`${api}/public/products/${product.id}`)
+        .then((r) => r.json())
+        .then((b) => {
+          const variants = (b.data?.variants || []).filter((v) => v.is_active !== false);
+          setPicker((cur) => (cur && cur.product.id === product.id ? { product: cur.product, variants } : cur));
+          setPickVariantId((cur) => cur ?? (variants[0]?.id ?? null));
+        })
+        .catch(() => setPicker((cur) => (cur && cur.product.id === product.id ? { ...cur, variants: [] } : cur)))
+        .finally(() => setPickerLoading(false));
+    } else {
+      setPicker({ product, variants: [] });
+    }
+  }
+
+  function addFromPicker() {
+    if (!picker) return;
+    const selected = picker.variants.find((v) => v.id === pickVariantId) || null;
+    const key = `${picker.product.id}-${selected?.id || 0}`;
+    const variantLabel = selected ? [selected.color, selected.size].filter(Boolean).join(' · ') : '';
+    const price = Number(selected?.price ?? picker.product.price ?? 0);
+    const photo = selected?.photo_path || picker.product.photo_path || null;
+    const qty = Math.max(1, pickQty);
+    setCart((prev) => {
+      const existing = prev.find((i) => i.key === key);
+      if (existing) return prev.map((i) => (i.key === key ? { ...i, qty: i.qty + qty } : i));
+      return [...prev, { key, productId: picker.product.id, name: picker.product.name, sku: picker.product.sku, variantLabel, price, qty, photo }];
+    });
+    setPicker(null);
+    setCartOpen(true);
+  }
+
+  function setItemQty(key, qty) { setCart((prev) => prev.map((i) => (i.key === key ? { ...i, qty: Math.max(1, qty) } : i))); }
+  function removeItem(key) { setCart((prev) => prev.filter((i) => i.key !== key)); }
+  function clearCart() { setCart([]); }
+
+  function buildOrderMsg() {
+    const lines = cart.map((i, idx) => `${idx + 1}. ${i.name}${i.variantLabel ? ` (${i.variantLabel})` : ''} — ${i.qty} pcs × ${fmtRp(i.price)} = ${fmtRp(i.qty * i.price)}`);
+    return `Halo Anyostore, saya mau order grosir:\n\n${lines.join('\n')}\n\nTotal: ${cartPcs} pcs · ${fmtRp(cartTotal)}`;
+  }
+  function sendOrder() { setCartOpen(false); pickWa(buildOrderMsg()); }
 
   const [today, setToday] = useState('');
   useEffect(() => { setToday(`${new Date().getFullYear()}-${new Date().getMonth() + 1}-${new Date().getDate()}`); }, []);
@@ -168,7 +235,7 @@ export default function LandingPage() {
               </div>
               {/* Katalog mini 3 produk (gaya sama dengan grid katalog) */}
               <div className="hero-cards">
-                {group.map((p) => <ProductCard key={p.id} product={p} onWa={pickWa} />)}
+                {group.map((p) => <ProductCard key={p.id} product={p} onWa={pickWa} onAdd={openPicker} inCart={countInCart(p.id)} />)}
               </div>
             </div>
           ) : <div style={{ padding: 48, textAlign: 'center', color: T.muted }}>Memuat…</div>}
@@ -224,7 +291,7 @@ export default function LandingPage() {
         </div>
         <div className="pcard-grid">
           {loading && Array.from({ length: 8 }).map((_, i) => <div key={i} className="pcard-skeleton" />)}
-          {!loading && products.map((p) => <ProductCard key={p.id} product={p} onWa={pickWa} />)}
+          {!loading && products.map((p) => <ProductCard key={p.id} product={p} onWa={pickWa} onAdd={openPicker} inCart={countInCart(p.id)} />)}
         </div>
         {!loading && !products.length && <p style={{ textAlign: 'center', color: T.muted, marginTop: 32, fontSize: 15 }}>Tidak ada produk ditemukan.</p>}
         {!loading && totalPages > 1 && (
@@ -292,6 +359,96 @@ export default function LandingPage() {
         </div>
       )}
 
+      {cartPcs > 0 && (
+        <button type="button" onClick={() => setCartOpen(true)} className="cart-fab" aria-label="Buka keranjang">
+          <I.cart style={{ width: 20, height: 20 }} />
+          <span className="cart-fab-badge">{cartPcs}</span>
+        </button>
+      )}
+
+      {/* Keranjang */}
+      {cartOpen && (
+        <div onClick={() => setCartOpen(false)} role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'grid', placeItems: 'center', zIndex: 120, padding: 16, backdropFilter: 'blur(4px)' }}>
+          <div onClick={(e) => e.stopPropagation()} className="wa-modal-in" style={{ background: T.card, borderRadius: 14, maxWidth: 480, width: '100%', maxHeight: 'min(640px, 88vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 48px rgba(0,0,0,.18)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 20px 12px' }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.black }}>Keranjang <span style={{ color: T.muted, fontWeight: 500, fontSize: 13 }}>{cartPcs} pcs</span></h3>
+              <button onClick={() => setCartOpen(false)} aria-label="Tutup" style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, fontSize: 16, lineHeight: 1, cursor: 'pointer', color: T.muted, display: 'grid', placeItems: 'center' }}>×</button>
+            </div>
+            <div style={{ overflowY: 'auto', padding: '4px 20px', display: 'grid', gap: 4 }}>
+              {cart.map((it) => (
+                <div key={it.key} style={{ display: 'grid', gridTemplateColumns: '52px minmax(0,1fr) auto', gap: 12, alignItems: 'center', padding: '10px 0', borderBottom: `1px solid ${T.border}` }}>
+                  {it.photo
+                    ? <img src={`${api.replace('/api', '')}${it.photo}`} alt={it.name} style={{ width: 52, height: 64, objectFit: 'cover', borderRadius: 8 }} />
+                    : <div style={{ width: 52, height: 64, borderRadius: 8, background: '#f3f4f6' }} />}
+                  <div style={{ minWidth: 0 }}>
+                    <strong style={{ fontSize: 13, display: 'block', color: T.black }}>{it.name}</strong>
+                    {it.variantLabel && <span style={{ fontSize: 11, color: T.muted }}>{it.variantLabel}</span>}
+                    <div style={{ fontSize: 12, color: T.blue, fontWeight: 700, marginTop: 2 }}>{fmtRp(it.price)}/pcs</div>
+                  </div>
+                  <div style={{ display: 'grid', gap: 6, justifyItems: 'end' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <button className="qty-btn small" onClick={() => setItemQty(it.key, it.qty - 1)} aria-label="Kurangi jumlah"><I.minus style={{ width: 12, height: 12 }} /></button>
+                      <span style={{ minWidth: 24, textAlign: 'center', fontWeight: 700, fontSize: 13, color: T.black }}>{it.qty}</span>
+                      <button className="qty-btn small" onClick={() => setItemQty(it.key, it.qty + 1)} aria-label="Tambah jumlah"><I.plus style={{ width: 12, height: 12 }} /></button>
+                    </div>
+                    <button onClick={() => removeItem(it.key)} style={{ border: 0, background: 'none', color: '#dc2626', fontSize: 11, cursor: 'pointer', padding: 0 }}>Hapus</button>
+                  </div>
+                </div>
+              ))}
+              {!cart.length && <p style={{ textAlign: 'center', color: T.muted, padding: '24px 0', fontSize: 14 }}>Keranjang masih kosong.</p>}
+            </div>
+            <div style={{ borderTop: `1px solid ${T.border}`, padding: '14px 20px 18px', display: 'grid', gap: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 700, fontSize: 15, color: T.black }}>
+                <span>Total</span><span>{fmtRp(cartTotal)}</span>
+              </div>
+              <p style={{ margin: 0, fontSize: 11, color: T.muted }}>Min. pembelian 4 pcs per model.</p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={clearCart} disabled={!cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', minWidth: 110 }}>Kosongkan</button>
+                <button onClick={sendOrder} disabled={!cart.length} className="pcard-btn primary" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44 }}><I.chat style={{ width: 15, height: 15 }} /> Chat Pesanan via WhatsApp</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pilih varian + jumlah */}
+      {picker && (
+        <div onClick={() => setPicker(null)} role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'grid', placeItems: 'center', zIndex: 130, padding: 16, backdropFilter: 'blur(4px)' }}>
+          <div onClick={(e) => e.stopPropagation()} className="wa-modal-in" style={{ background: T.card, borderRadius: 14, padding: 24, maxWidth: 400, width: '100%', boxShadow: '0 24px 48px rgba(0,0,0,.18)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.black }}>{picker.product.name}</h3>
+              <button onClick={() => setPicker(null)} aria-label="Tutup" style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, fontSize: 16, lineHeight: 1, cursor: 'pointer', color: T.muted, display: 'grid', placeItems: 'center' }}>×</button>
+            </div>
+            {pickerLoading && <p style={{ color: T.muted, fontSize: 13 }}>Memuat varian…</p>}
+            {!pickerLoading && picker.variants.length > 0 && (
+              <>
+                <strong style={{ fontSize: 12, color: T.muted, textTransform: 'uppercase', letterSpacing: '.05em' }}>Pilih varian</strong>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 8, margin: '10px 0 18px' }}>
+                  {picker.variants.map((v) => {
+                    const active = v.id === pickVariantId;
+                    const label = [v.color, v.size].filter(Boolean).join(' · ') || 'Varian';
+                    return (
+                      <button key={v.id} type="button" onClick={() => setPickVariantId(v.id)} style={{ padding: '9px 10px', borderRadius: 8, border: `1.5px solid ${active ? T.blue : T.border}`, background: active ? T.blue : T.card, color: active ? '#fff' : T.black, fontWeight: 600, fontSize: 12, cursor: 'pointer', transition: 'all .2s' }}>
+                        {label}
+                        {Number(v.price) > 0 && Number(v.price) !== Number(picker.product.price) && <span style={{ display: 'block', fontSize: 11, opacity: .85 }}>{fmtRp(v.price)}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            <strong style={{ fontSize: 12, color: T.muted, textTransform: 'uppercase', letterSpacing: '.05em' }}>Jumlah</strong>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '10px 0 18px' }}>
+              <button className="qty-btn" onClick={() => setPickQty((q) => Math.max(1, q - 1))} aria-label="Kurangi jumlah"><I.minus style={{ width: 15, height: 15 }} /></button>
+              <span style={{ minWidth: 44, textAlign: 'center', fontWeight: 700, fontSize: 18, color: T.black }}>{pickQty}</span>
+              <button className="qty-btn" onClick={() => setPickQty((q) => q + 1)} aria-label="Tambah jumlah"><I.plus style={{ width: 15, height: 15 }} /></button>
+            </div>
+            <button onClick={addFromPicker} className="pcard-btn primary" style={{ width: '100%', minHeight: 46, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 14 }}><I.cart style={{ width: 16, height: 16 }} /> Tambah ke Keranjang</button>
+            <p style={{ margin: '12px 0 0', fontSize: 12, color: T.muted, textAlign: 'center' }}>Min. pembelian 4 pcs per model.</p>
+          </div>
+        </div>
+      )}
+
       <FloatingWA phones={waPhones} message="Halo Anyostore, saya ingin order grosir." />
 
       <style>{`
@@ -319,9 +476,19 @@ export default function LandingPage() {
         .slide-arrow.left { left: 14px; }
         .slide-arrow.right { right: 14px; }
         .pcard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
-        .pcard { display: flex; flex-direction: column; border-radius: 14px; overflow: hidden; background: #fff; border: 1px solid #e5e7eb; transition: all .3s cubic-bezier(.4,0,.2,1); box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+        .pcard { position: relative; display: flex; flex-direction: column; border-radius: 14px; overflow: hidden; background: #fff; border: 1px solid #e5e7eb; transition: all .3s cubic-bezier(.4,0,.2,1); box-shadow: 0 1px 3px rgba(0,0,0,.04); }
         .pcard:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(15,23,42,.08); border-color: #d1d5db; }
         .pcard:active { transform: scale(.985); }
+        .pcard-add { position: absolute; top: 10px; right: 10px; z-index: 4; width: 36px; height: 36px; border-radius: 999px; border: 1px solid rgba(0,0,0,.08); background: rgba(255,255,255,.92); color: #1a1a1a; display: grid; place-items: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.14); transition: all .2s; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+        .pcard-add:hover { background: ${T.blue}; color: #fff; transform: translateY(-1px); }
+        .pcard-add.has { background: ${T.blue}; color: #fff; }
+        .pcard-add-badge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; border-radius: 999px; background: #dc2626; color: #fff; font-size: 10px; font-weight: 800; display: grid; place-items: center; padding: 0 4px; }
+        .cart-fab { position: fixed; right: 16px; bottom: 82px; z-index: 95; width: 56px; height: 56px; border-radius: 999px; border: 0; background: ${T.blue}; color: #fff; display: grid; place-items: center; cursor: pointer; box-shadow: 0 12px 28px rgba(15,23,42,.25); transition: all .2s; }
+        .cart-fab:hover { transform: translateY(-2px); }
+        .cart-fab-badge { position: absolute; top: -2px; right: -2px; min-width: 20px; height: 20px; border-radius: 999px; background: #dc2626; color: #fff; font-size: 11px; font-weight: 800; display: grid; place-items: center; padding: 0 5px; border: 2px solid #fff; }
+        .qty-btn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; color: #1a1a1a; display: grid; place-items: center; cursor: pointer; transition: all .2s; }
+        .qty-btn:hover { border-color: ${T.blue}; color: ${T.blue}; }
+        .qty-btn.small { width: 26px; height: 26px; }
         .pcard-img { display: grid; place-items: center; aspect-ratio: 3/4; overflow: hidden; position: relative; background: #f3f4f6; }
         .pcard-img img { animation: photoIn .35s ease; }
         .pcard-dots { position: absolute; left: 0; right: 0; bottom: 8px; display: flex; justify-content: center; gap: 4px; z-index: 2; pointer-events: none; }
