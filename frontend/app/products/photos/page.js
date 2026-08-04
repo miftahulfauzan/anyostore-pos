@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, ImagePlus, Loader2, Upload, XCircle } from 'lucide-react';
 import AppShell from '../../components/AppShell';
 import { uploadMediaData } from '../../lib/media-upload';
@@ -24,6 +24,7 @@ export default function BulkPhotoUploadPage() {
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [message, setMessage] = useState('');
   const [failures, setFailures] = useState([]);
+  const folderInputRef = useRef(null);
   const token = () => typeof window === 'undefined' ? '' : localStorage.getItem('pos_access_token');
   const headers = () => ({ Authorization: `Bearer ${token()}` });
 
@@ -32,6 +33,14 @@ export default function BulkPhotoUploadPage() {
     fetch(`${apiUrl}/products?limit=500`, { headers: headers() })
       .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setProducts(b.data || []); })
       .catch((e) => setMessage(e.message || 'Gagal memuat daftar produk'));
+  }, []);
+
+  useEffect(() => {
+    const el = folderInputRef.current;
+    if (!el) return;
+    el.setAttribute('webkitdirectory', '');
+    el.setAttribute('directory', '');
+    try { el.webkitdirectory = true; } catch {}
   }, []);
 
   const skuMap = useMemo(() => {
@@ -130,10 +139,10 @@ export default function BulkPhotoUploadPage() {
             <strong style={{ fontSize: 14, color: '#1e293b' }}>{dragOver ? 'Lepaskan foto di sini' : 'Klik atau seret banyak foto ke sini'}</strong>
             <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>JPG, PNG, WebP — bisa puluhan file sekaligus</p>
             <input id="bulk-photo-input" type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display: 'none' }} onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
-            <input id="bulk-folder-input" type="file" accept="image/jpeg,image/png,image/webp" multiple webkitdirectory directory style={{ display: 'none' }} onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
+            <input ref={folderInputRef} id="bulk-folder-input" type="file" multiple style={{ display: 'none' }} onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 12 }}>
-            <button type="button" className="secondary small" onClick={() => document.getElementById('bulk-folder-input')?.click()}><ImagePlus size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} /> Pilih Folder</button>
+            <button type="button" className="secondary small" onClick={() => folderInputRef.current?.click()}><ImagePlus size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} /> Pilih Folder</button>
             <span style={{ fontSize: 11, color: '#64748b', alignSelf: 'center' }}>Pilih satu folder — semua foto di dalamnya ikut terdeteksi.</span>
           </div>
 
