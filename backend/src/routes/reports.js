@@ -25,6 +25,84 @@ router.get('/sales', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+// Penutupan Penjualan harian — data untuk dokumen cetak harian.
+// Bentuk respons mengikuti contoh "Penutupan Penjualan":
+// per metode pembayaran: sales, returns, cancellations, cash_in_out, total.
+router.get('/daily-closing', async (req, res, next) => {
+  try {
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : localDateString();
+    const branchId = req.user.role === 'owner' ? (Number(req.query.branch_id) || req.user.branch_id) : req.user.branch_id;
+    const [[branchRows], [userRows]] = await Promise.all([
+      db.execute('SELECT id, name, address, phone FROM branches WHERE id=?', [branchId]),
+      db.execute('SELECT name FROM users WHERE id=?', [req.user.id]),
+    ]);
+    const branch = branchRows[0];
+    if (!branch) return res.status(404).json({ success: false, message: 'Toko tidak ditemukan' });
+
+    const [salesData] = await db.execute(
+      `SELECT COUNT(*) AS receipt_count, COALESCE(SUM(grand_total - cancelled_amount), 0) AS total_sales
+       FROM transactions WHERE branch_id=? AND status IN ('completed','partially_cancelled') AND DATE(created_at)=?`,
+      [branchId, date]
+    );
+    const [returnsData] = await db.execute(
+      `SELECT COUNT(*) AS cnt, COALESCE(SUM(refund_amount), 0) AS refund FROM returns WHERE branch_id=? AND DATE(created_at)=?`,
+      [branchId, date]
+    );
+    const [payments] = await db.execute(
+      `SELECT tp.payment_method,
+              COALESCE(SUM(tp.amount), 0) AS sales,
+              COALESCE(SUM(t.cancelled_amount * tp.amount / NULLIF(t.grand_total, 0)), 0) AS cancellations
+       FROM transaction_payments tp JOIN transactions t ON t.id = tp.transaction_id
+       WHERE t.branch_id=? AND t.status IN ('completed','partially_cancelled') AND DATE(t.created_at)=?
+       GROUP BY tp.payment_method ORDER BY tp.payment_method`,
+      [branchId, date]
+    );
+    const [movements] = await db.execute(
+      `SELECT COALESCE(SUM(CASE WHEN cdm.type='cash_in' THEN cdm.amount ELSE -cdm.amount END), 0) AS net
+       FROM cash_drawer_movements cdm JOIN cash_drawers cd ON cd.id = cdm.cash_drawer_id
+       WHERE cd.branch_id=? AND DATE(cdm.created_at)=?`,
+      [branchId, date]
+    );
+
+    const methods = {};
+    let totalGross = 0;
+    for (const p of payments) {
+      methods[p.payment_method] = { sales: Number(p.sales), returns: 0, cancellations: Number(p.cancellations), cash_in_out: 0 };
+      totalGross += Number(p.sales);
+    }
+    const refundTotal = Number(returnsData[0].refund || 0);
+    if (refundTotal > 0 && totalGross > 0) {
+      for (const m of Object.keys(methods)) {
+        methods[m].returns = money(methods[m].sales / totalGross * refundTotal);
+      }
+    }
+    if (methods.cash) methods.cash.cash_in_out = Number(movements[0].net || 0);
+    for (const m of Object.keys(methods)) {
+      const v = methods[m];
+      v.total = money(v.sales - v.returns - v.cancellations + v.cash_in_out);
+    }
+    const expectedTotal = money(Object.values(methods).reduce((s, v) => s + v.total, 0));
+
+    res.json({
+      success: true,
+      data: {
+        document: 'Penutupan Penjualan',
+        store: branch.name,
+        store_address: branch.address || '',
+        printed_at: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }),
+        printed_by: userRows[0]?.name || req.user.id,
+        date,
+        receipt_count: Number(salesData[0].receipt_count),
+        return_count: Number(returnsData[0].cnt),
+        total_sales: money(salesData[0].total_sales),
+        subtotal: money(salesData[0].total_sales),
+        methods,
+        expected_total: expectedTotal,
+      },
+    });
+  } catch (error) { next(error); }
+});
+
 router.get('/overview', async (req, res, next) => {
   try {
     const { start, end } = dateRange(req.query);
