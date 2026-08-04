@@ -28,10 +28,6 @@ function waLink(phone, text) {
 const fmtRp = (n) => 'Rp' + Number(n || 0).toLocaleString('id-ID');
 const SORTS = [{ value: 'newest', label: 'Terbaru' }, { value: 'price_asc', label: 'Harga Termurah' }, { value: 'price_desc', label: 'Harga Termahal' }, { value: 'name', label: 'Nama A-Z' }];
 
-function seededShuffle(arr, seed) {
-  let s = 2166136261; for (let i = 0; i < seed.length; i++) { s ^= seed.charCodeAt(i); s = Math.imul(s, 16777619); }
-  const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; s >>>= 0; const j = s % (i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a;
-}
 function parsePhotos(paths) {
   if (!paths) return [];
   return String(paths).split('||').filter(Boolean).map((p) => ({ path: p.trim() }));
@@ -116,9 +112,6 @@ export default function LandingPage() {
   const [loading, setLoading] = useState(true);
   const [waPicker, setWaPicker] = useState(false);
   const [waMsg, setWaMsg] = useState('');
-  const [slidesAll, setSlidesAll] = useState([]);
-  const [slideIdx, setSlideIdx] = useState(0);
-  const [paused, setPaused] = useState(false);
   const [cart, setCart] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [picker, setPicker] = useState(null);
@@ -198,23 +191,10 @@ export default function LandingPage() {
 
   const [today, setToday] = useState('');
   useEffect(() => { setToday(`${new Date().getFullYear()}-${new Date().getMonth() + 1}-${new Date().getDate()}`); }, []);
-  const slides = useMemo(() => {
-    if (!slidesAll.length) return [];
-    const hp = slidesAll.filter((p) => p.photo_path);
-    return seededShuffle(hp.length >= 10 ? hp : [...hp, ...slidesAll], today).slice(0, 10);
-  }, [slidesAll, today]);
-  useEffect(() => { if (slideIdx >= slides.length && slides.length) setSlideIdx(0); }, [slides, slideIdx]);
-  useEffect(() => { if (slides.length <= 1 || paused) return; const t = setInterval(() => setSlideIdx((i) => (i + 1) % slides.length), 5000); return () => clearInterval(t); }, [slides.length, paused]);
   useEffect(() => { document.title = 'Anyostore Grosir PGMTA'; }, []);
   useEffect(() => { Promise.all([fetch(`${api}/public/settings`).then((r) => r.json()).then((b) => b.data).catch(() => null), fetch(`${api}/public/categories`).then((r) => r.json()).then((b) => b.data || []).catch(() => [])]).then(([s, c]) => { setSettings(s); setCategories(c); }); }, []);
   useEffect(() => { setLoading(true); const qs = new URLSearchParams({ limit: '24', page: String(page), ...(cat ? { category_id: cat } : {}), ...(q ? { search: q } : {}), ...(sort ? { sort } : {}) }).toString(); fetch(`${api}/public/products?${qs}`).then((r) => r.json()).then((b) => { setProducts(b.data || []); setTotalPages(b.totalPages || 1); setTotal(b.total || 0); }).catch(() => setProducts([])).finally(() => setLoading(false)); }, [cat, q, sort, page]);
-  useEffect(() => { fetch(`${api}/public/products?limit=60`).then((r) => r.json()).then((b) => setSlidesAll(b.data || [])).catch(() => {}); }, []);
   const pages = useMemo(() => { const tp = totalPages; let s = Math.max(1, page - 2); let e = Math.min(tp, s + 4); s = Math.max(1, e - 4); const o = []; for (let i = s; i <= e; i++) o.push(i); return o; }, [page, totalPages]);
-  const slide = slides[slideIdx];
-  // Hero katalog mini: jendela 3 produk berjalan dari slideshow.
-  const group = slides.length
-    ? [0, 1, 2].map((offset) => slides[(slideIdx + offset) % slides.length])
-    : [];
   return (
     <div style={{ background: T.bg, color: T.black, minHeight: '100vh', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       {/* 1. Top bar */}
@@ -232,41 +212,6 @@ export default function LandingPage() {
           </nav>
         </div>
       </header>
-
-      {/* 3. Hero */}
-      <section style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 16px 24px' }}>
-        <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} className="hero-wrap" style={{ position: 'relative', borderRadius: 14, overflow: 'hidden' }}>
-          {slide ? (
-            <div key={slideIdx} className="slide-fade hero-b" style={{ minHeight: 500, display: 'grid', gridTemplateColumns: '0.85fr 1.5fr', alignItems: 'center' }}>
-              {/* Teks kiri */}
-              <div className="hero-text" style={{ padding: '40px 32px', display: 'grid', gap: 14, maxWidth: 430 }}>
-                <span className="hero-cat" style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase' }}>{slide.category_name || 'Denim'}</span>
-                <h1 className="hero-title" style={{ margin: 0, fontFamily: "'DM Sans', sans-serif", fontSize: 'clamp(22px, 3vw, 34px)', fontWeight: 700, lineHeight: 1.15 }}>{slide.name}</h1>
-                <strong className="hero-price" style={{ fontSize: 28, fontWeight: 800 }}>Rp{Number(slide.price || 0).toLocaleString('id-ID')}</strong>
-                <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                  <a href={`/produk/${slide.id}`} className="hero-btn btn-primary">Lihat Produk</a>
-                  <a href="#" onClick={(e) => { e.preventDefault(); pickWa(`Saya tertarik dengan ${slide.name}`); }} className="hero-btn btn-outline"><I.chat style={{ width: 14, height: 14 }} /> Hubungi Admin</a>
-                </div>
-              </div>
-              {/* Katalog mini 3 produk (gaya sama dengan grid katalog) */}
-              <div className="hero-cards">
-                {group.map((p) => <ProductCard key={p.id} product={p} onWa={pickWa} onAdd={openPicker} inCart={countInCart(p.id)} />)}
-              </div>
-            </div>
-          ) : <div style={{ padding: 48, textAlign: 'center', color: T.muted }}>Memuat…</div>}
-          {slides.length > 1 && (
-            <>
-              <button aria-label="Prev" onClick={() => setSlideIdx((i) => (i - 1 + slides.length) % slides.length)} className="slide-arrow left"><I.chevL style={{ width: 18, height: 18 }} /></button>
-              <button aria-label="Next" onClick={() => setSlideIdx((i) => (i + 1) % slides.length)} className="slide-arrow right"><I.chevR style={{ width: 18, height: 18 }} /></button>
-            </>
-          )}
-        </div>
-        {slides.length > 1 && (
-          <div className="hero-dots" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6, marginTop: 12 }}>
-            {slides.map((s, i) => <button key={s.id} onClick={() => setSlideIdx(i)} className={`hero-dot${i === slideIdx ? ' active' : ''}`} aria-label={`Slide ${i + 1}`} title={`Slide ${i + 1}`} />)}
-          </div>
-        )}
-      </section>
 
       {/* 4. Feature strip */}
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 16px 8px', display: 'flex', justifyContent: 'center', gap: 28, flexWrap: 'wrap', color: T.muted, fontSize: 13 }}>
@@ -482,19 +427,6 @@ export default function LandingPage() {
         .hero-btn { transition: all .35s cubic-bezier(.4,0,.2,1); }
         .hero-btn:hover { transform: translateY(-2px); }
         .hero-btn:active { transform: scale(.97); }
-        .hero-wrap { background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 55%, #e0e7ff 100%); }
-        .slide-fade { animation: slideIn .5s cubic-bezier(.4,0,.2,1); }
-        .hero-cat { color: #1e3a5f; }
-        .hero-title { color: #1a1a1a; }
-        .hero-price { color: #1e3a5f; }
-        .hero-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 28px 28px 32px 0; min-width: 0; }
-        .hero-dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 999px; border: none; padding: 0; cursor: pointer; background: #d1d5db; transition: all .3s cubic-bezier(.4,0,.2,1); }
-        .hero-dot.active { width: 24px; background: #1a1a1a; }
-        @keyframes slideIn { from { opacity: 0; transform: scale(.985) translateY(10px); } to { opacity: 1; transform: none; } }
-        .slide-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.15); backdrop-filter: blur(12px); color: #fff; cursor: pointer; display: grid; place-items: center; box-shadow: 0 4px 16px rgba(0,0,0,.2); z-index: 5; transition: all .35s cubic-bezier(.4,0,.2,1); -webkit-backdrop-filter: blur(12px); }
-        .slide-arrow:hover { transform: translateY(-50%) scale(1.08); background: rgba(255,255,255,.3); box-shadow: 0 6px 24px rgba(0,0,0,.3); }
-        .slide-arrow.left { left: 14px; }
-        .slide-arrow.right { right: 14px; }
         .pcard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
         .pcard { position: relative; display: flex; flex-direction: column; border-radius: 14px; overflow: hidden; background: #fff; border: 1px solid #e5e7eb; transition: all .3s cubic-bezier(.4,0,.2,1); box-shadow: 0 1px 3px rgba(0,0,0,.04); }
         .pcard:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(15,23,42,.08); border-color: #d1d5db; }
@@ -535,18 +467,9 @@ export default function LandingPage() {
         @keyframes modalIn { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
         @media (max-width: 900px) {
           .pcard-grid { grid-template-columns: repeat(3, 1fr); }
-          .hero-wrap { min-height: 0 !important; }
-          .slide-fade { grid-template-columns: 1fr !important; min-height: 0 !important; }
-          .hero-text { padding: 26px 22px 6px !important; max-width: 100% !important; gap: 10px !important; }
-          .hero-b { grid-template-columns: 1fr !important; min-height: 0 !important; }
-          .hero-cards { display: flex !important; overflow-x: auto !important; gap: 12px !important; padding: 4px 20px 26px !important; }
-          .hero-cards .pcard { flex: 0 0 140px; }
         }
         @media (max-width: 600px) {
           .pcard-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-          .hero-dots { gap: 4px; margin-top: 10px; }
-          .hero-dot { width: 6px; height: 6px; }
-          .hero-dot.active { width: 16px; }
         }
         @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
       `}</style>
