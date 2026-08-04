@@ -227,6 +227,7 @@ export default function EditProductPage() {
   const [dragFrom, setDragFrom] = useState(null);
   const [dropTarget, setDropTarget] = useState(null);
   const [adjPhoto, setAdjPhoto] = useState(null);
+  const [dropFilesOver, setDropFilesOver] = useState(false);
 
   function openAdj(m) {
     if (m.media_type !== 'image') return;
@@ -247,6 +248,23 @@ export default function EditProductPage() {
   function onDragEnd() { setDragFrom(null); setDropTarget(null); }
   function onDragOver(index) { return (event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; if (dropTarget !== index) setDropTarget(index); }; }
   function onDrop(toIndex) { return (event) => { event.preventDefault(); if (dragFrom != null) moveImage(dragFrom, toIndex); setDragFrom(null); setDropTarget(null); }; }
+  function mediaDragOver(event) {
+    if (Array.from(event.dataTransfer?.types || []).includes('Files')) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'copy';
+      setDropFilesOver(true);
+    }
+  }
+  function mediaDragLeave(event) {
+    if (!event.currentTarget.contains(event.relatedTarget)) setDropFilesOver(false);
+  }
+  function mediaDrop(event) {
+    event.preventDefault();
+    setDropFilesOver(false);
+    if (mediaUploading) return;
+    const files = Array.from(event.dataTransfer?.files || []);
+    if (files.length) uploadMedia(files);
+  }
 
   async function submit(event) {
     event.preventDefault();
@@ -280,7 +298,7 @@ export default function EditProductPage() {
         {!form ? <section className="panel"><p>Memuat data produk…</p>{message && <p className="message">{message}</p>}</section> : (
           <form className="panel product-form" onSubmit={submit}>
             <div><h2>{product.name}</h2><p className="muted">Stok saat ini {product.stock}. Ubah stok melalui menu inventori agar mutasi tercatat.</p></div>
-            <section className="media-manager"><div className="section-heading"><div><h3>Media produk</h3><p>Isi hingga 10 foto dan 1 video. Kotak pertama akan menjadi foto utama katalog.</p></div><span className="media-counter">{productImages.length}/10 foto · {productVideo ? '1/1 video' : '0/1 video'}</span></div>            <div className="media-grid">{Array.from({ length: 10 }, (_, index) => { const item = productImages[index]; return item ? <figure key={item.id} draggable onDragStart={onDragStart(index)} onDragEnd={onDragEnd} onDragOver={onDragOver(index)} onDrop={onDrop(index)} className={`media-draggable${dragFrom === index ? ' is-dragging' : ''}${dropTarget === index && dragFrom !== index ? ' drop-target' : ''}`}>          <img src={mediaUrl(item.path)} alt={`Foto ${index + 1} ${product.name}`} style={{ width: '100%', height: '100%', ...thumbStyle(item) }} /><span className="media-drag-handle" aria-hidden="true"><GripVertical size={14} /></span><button type="button" className="media-delete" aria-label={`Hapus foto ${index + 1}`} onClick={() => deleteMedia(item.id)}><X aria-hidden="true" size={14} /></button><button type="button" onClick={() => openAdj(item)} style={{ position: 'absolute', left: 4, bottom: 4, padding: '2px 6px', borderRadius: 4, border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 9, cursor: 'pointer' }}>Atur</button><figcaption>{index === 0 ? 'Foto utama' : `Foto ${index + 1}`}</figcaption></figure> : <label className="media-slot" key={`slot-${index}`}><ImagePlus aria-hidden="true" size={18} /><span>Foto {index + 1}</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={mediaUploading} onChange={(event) => uploadMedia(event.target.files)} /></label>; })}<label className="media-slot video-slot">{productVideo ? <video controls preload="metadata" src={mediaUrl(productVideo.path)} /> : <><Video aria-hidden="true" size={18} /><span>Video produk</span></>}<input type="file" accept="video/mp4,video/webm" disabled={mediaUploading || Boolean(productVideo)} onChange={(event) => uploadMedia(event.target.files)} /></label></div>{mediaUploading && <p className="muted">Mengunggah media…</p>}</section>
+            <section className="media-manager"><div className="section-heading"><div><h3>Media produk</h3><p>Isi hingga 10 foto dan 1 video, atau seret & lepas foto dari Finder/Explorer. Kotak pertama akan menjadi foto utama katalog.</p></div><span className="media-counter">{productImages.length}/10 foto · {productVideo ? '1/1 video' : '0/1 video'}</span></div>            <div className={`media-grid${dropFilesOver ? ' drop-files-over' : ''}`} onDragOver={mediaDragOver} onDragLeave={mediaDragLeave} onDrop={mediaDrop}>{dropFilesOver && <div className="media-drop-hint">Lepaskan foto/video di sini</div>}{Array.from({ length: 10 }, (_, index) => { const item = productImages[index]; return item ? <figure key={item.id} draggable onDragStart={onDragStart(index)} onDragEnd={onDragEnd} onDragOver={onDragOver(index)} onDrop={onDrop(index)} className={`media-draggable${dragFrom === index ? ' is-dragging' : ''}${dropTarget === index && dragFrom !== index ? ' drop-target' : ''}`}>          <img src={mediaUrl(item.path)} alt={`Foto ${index + 1} ${product.name}`} style={{ width: '100%', height: '100%', ...thumbStyle(item) }} /><span className="media-drag-handle" aria-hidden="true"><GripVertical size={14} /></span><button type="button" className="media-delete" aria-label={`Hapus foto ${index + 1}`} onClick={() => deleteMedia(item.id)}><X aria-hidden="true" size={14} /></button><button type="button" onClick={() => openAdj(item)} style={{ position: 'absolute', left: 4, bottom: 4, padding: '2px 6px', borderRadius: 4, border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 9, cursor: 'pointer' }}>Atur</button><figcaption>{index === 0 ? 'Foto utama' : `Foto ${index + 1}`}</figcaption></figure> : <label className="media-slot" key={`slot-${index}`}><ImagePlus aria-hidden="true" size={18} /><span>Foto {index + 1}</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={mediaUploading} onChange={(event) => uploadMedia(event.target.files)} /></label>; })}<label className="media-slot video-slot">{productVideo ? <video controls preload="metadata" src={mediaUrl(productVideo.path)} /> : <><Video aria-hidden="true" size={18} /><span>Video produk</span></>}<input type="file" accept="video/mp4,video/webm" disabled={mediaUploading || Boolean(productVideo)} onChange={(event) => uploadMedia(event.target.files)} /></label></div>{mediaUploading && <p className="muted">Mengunggah media…</p>}</section>
             <label>Nama produk<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></label>
             <label>Kategori<select value={form.category_id} onChange={(event) => setForm({ ...form, category_id: event.target.value })} required><option value="">Pilih kategori</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
             <div className="two-fields"><label>SKU<input value={form.sku} onChange={(event) => setForm({ ...form, sku: event.target.value })} /></label><label>Barcode<input value={form.barcode} onChange={(event) => setForm({ ...form, barcode: event.target.value })} /></label></div>
