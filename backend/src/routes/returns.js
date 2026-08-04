@@ -24,8 +24,9 @@ router.get('/', async (req, res, next) => {
 router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, res, next) => {
   const connection = await db.getConnection();
   try {
-    const { transaction_id: transactionId, items, reason } = req.body;
+    const { transaction_id: transactionId, items, reason, refund_method: refundMethod } = req.body;
     if (!Number.isInteger(Number(transactionId)) || !Array.isArray(items) || !items.length) throw error(400, 'Data retur tidak valid');
+    if (refundMethod != null && !['cash', 'qris', 'transfer', 'debit'].includes(refundMethod)) throw error(400, 'Metode refund tidak valid');
     await connection.beginTransaction();
     const [transactions] = await connection.execute('SELECT id, customer_id FROM transactions WHERE id = ? AND branch_id = ? AND status = \'completed\' FOR UPDATE', [transactionId, req.user.branch_id]);
     if (!transactions[0]) throw error(404, 'Transaksi tidak ditemukan atau tidak dapat diretur');
@@ -55,8 +56,8 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
     }
     const returnNo = `RET-${Date.now()}-${crypto.randomBytes(2).toString('hex')}`;
     const [result] = await connection.execute(
-      'INSERT INTO returns (branch_id, transaction_id, return_no, customer_id, reason, refund_amount, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [req.user.branch_id, transactionId, returnNo, transactions[0].customer_id, reason?.trim() || null, refund, req.user.id]
+      'INSERT INTO returns (branch_id, transaction_id, return_no, customer_id, reason, refund_amount, refund_method, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [req.user.branch_id, transactionId, returnNo, transactions[0].customer_id, reason?.trim() || null, refund, refundMethod || null, req.user.id]
     );
     for (const item of prepared) {
       await connection.execute(
@@ -76,7 +77,7 @@ router.put('/:id/approve', authorize('owner', 'manager', 'admin'), async (req, r
     const warehouseId = Number(req.body.warehouse_id);
     if (!Number.isInteger(warehouseId)) throw error(400, 'warehouse_id wajib diisi');
     await connection.beginTransaction();
-    const [returns] = await connection.execute('SELECT id, return_no, transaction_id, refund_amount FROM returns WHERE id = ? AND branch_id = ? AND status = \'pending\' FOR UPDATE', [req.params.id, req.user.branch_id]);
+    const [returns] = await connection.execute('SELECT id, return_no, transaction_id, refund_amount, refund_method FROM returns WHERE id = ? AND branch_id = ? AND status = \'pending\' FOR UPDATE', [req.params.id, req.user.branch_id]);
     if (!returns[0]) throw error(404, 'Retur pending tidak ditemukan');
     const [warehouses] = await connection.execute('SELECT id FROM warehouses WHERE id = ? AND branch_id = ? AND is_active = TRUE FOR UPDATE', [warehouseId, req.user.branch_id]);
     if (!warehouses[0]) throw error(404, 'Gudang tidak ditemukan');
@@ -95,11 +96,12 @@ router.put('/:id/approve', authorize('owner', 'manager', 'admin'), async (req, r
       });
     }
 
-    // Pencatatan refund tunai ke laci kas saat retur disetujui (sama dengan
-    // cancel): hanya jika petugas punya laci terbuka, porsi cash proporsional
-    // dari metode bayar asli.
+    // Pencatatan refund tunai ke laci kas saat retur disetujui: hanya metode
+    // cash (atau legacy NULL = proporsional dari metode bayar asli). Refund
+    // QRIS/transfer/debit tidak menyentuh laci kas.
     const refundTotal = Number(returns[0].refund_amount || 0);
-    if (refundTotal > 0) {
+    const refundIsCash = returns[0].refund_method == null || returns[0].refund_method === 'cash';
+    if (refundTotal > 0 && refundIsCash) {
       const [drawers] = await connection.execute('SELECT id FROM cash_drawers WHERE branch_id = ? AND user_id = ? AND status = \'open\' FOR UPDATE', [req.user.branch_id, req.user.id]);
       if (drawers[0]) {
         const [payments] = await connection.execute('SELECT payment_method, COALESCE(SUM(amount), 0) AS amount FROM transaction_payments WHERE transaction_id = ? GROUP BY payment_method', [returns[0].transaction_id]);

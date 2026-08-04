@@ -45,7 +45,8 @@ router.get('/daily-closing', async (req, res, next) => {
       [branchId, date]
     );
     const [returnsData] = await db.execute(
-      `SELECT COUNT(*) AS cnt, COALESCE(SUM(refund_amount), 0) AS refund FROM returns WHERE branch_id=? AND DATE(created_at)=?`,
+      `SELECT refund_method, COUNT(*) AS cnt, COALESCE(SUM(refund_amount), 0) AS refund
+       FROM returns WHERE branch_id=? AND DATE(created_at)=? GROUP BY refund_method`,
       [branchId, date]
     );
     const [payments] = await db.execute(
@@ -70,10 +71,17 @@ router.get('/daily-closing', async (req, res, next) => {
       methods[p.payment_method] = { sales: Number(p.sales), returns: 0, cancellations: Number(p.cancellations), cash_in_out: 0 };
       totalGross += Number(p.sales);
     }
-    const refundTotal = Number(returnsData[0].refund || 0);
-    if (refundTotal > 0 && totalGross > 0) {
+    const returnCount = returnsData.reduce((sum, row) => sum + Number(row.cnt || 0), 0);
+    const knownRefunds = returnsData.filter((row) => row.refund_method);
+    const unknownRefunds = returnsData.filter((row) => !row.refund_method);
+    const unknownRefundTotal = unknownRefunds.reduce((sum, row) => sum + Number(row.refund || 0), 0);
+    for (const row of knownRefunds) {
+      const method = methods[row.refund_method];
+      if (method) method.returns = money(Number(method.returns || 0) + Number(row.refund || 0));
+    }
+    if (unknownRefundTotal > 0 && totalGross > 0) {
       for (const m of Object.keys(methods)) {
-        methods[m].returns = money(methods[m].sales / totalGross * refundTotal);
+        methods[m].returns = money(Number(methods[m].returns || 0) + (methods[m].sales / totalGross * unknownRefundTotal));
       }
     }
     if (methods.cash) methods.cash.cash_in_out = Number(movements[0].net || 0);
@@ -93,7 +101,7 @@ router.get('/daily-closing', async (req, res, next) => {
         printed_by: userRows[0]?.name || req.user.id,
         date,
         receipt_count: Number(salesData[0].receipt_count),
-        return_count: Number(returnsData[0].cnt),
+        return_count: returnCount,
         total_sales: money(salesData[0].total_sales),
         subtotal: money(salesData[0].total_sales),
         methods,

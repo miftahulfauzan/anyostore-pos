@@ -13,9 +13,9 @@ async function openDrawer(connection, user) {
 
 async function expectedCash(connection, drawer) {
   const [sales] = await connection.execute(
-    `SELECT COALESCE(SUM(tp.amount), 0) AS amount FROM transaction_payments tp
+    `SELECT COALESCE(SUM(tp.amount - (t.cancelled_amount * tp.amount / NULLIF(t.grand_total, 0))), 0) AS amount FROM transaction_payments tp
      JOIN transactions t ON t.id = tp.transaction_id
-     WHERE t.branch_id = ? AND t.status = 'completed' AND tp.payment_method = 'cash' AND t.created_at >= ?`,
+     WHERE t.branch_id = ? AND t.status IN ('completed','partially_cancelled') AND tp.payment_method = 'cash' AND t.created_at >= ?`,
     [drawer.branch_id, drawer.opened_at]
   );
   const [moves] = await connection.execute(
@@ -64,9 +64,9 @@ router.put('/close', authorize('owner', 'manager', 'admin', 'kasir'), async (req
     if (difference !== 0 && !req.body.notes?.trim()) throw fail(400, 'Alasan selisih kas wajib diisi');
     await connection.execute('UPDATE cash_drawers SET closed_at = NOW(), closing_amount = ?, expected_cash = ?, actual_cash = ?, difference = ?, notes = ?, status = \'closed\' WHERE id = ?', [actual, expected, actual, difference, req.body.notes?.trim() || null, drawer.id]);
     const [payments] = await connection.execute(
-      `SELECT tp.payment_method, COUNT(*) AS transactions, COALESCE(SUM(tp.amount), 0) AS amount
+      `SELECT tp.payment_method, COUNT(*) AS transactions, COALESCE(SUM(tp.amount - (t.cancelled_amount * tp.amount / NULLIF(t.grand_total, 0))), 0) AS amount
        FROM transaction_payments tp JOIN transactions t ON t.id = tp.transaction_id
-       WHERE t.branch_id = ? AND t.status = 'completed' AND tp.payment_method = 'cash' AND t.created_at >= ? AND t.created_at <= NOW()
+       WHERE t.branch_id = ? AND t.status IN ('completed','partially_cancelled') AND tp.payment_method = 'cash' AND t.created_at >= ? AND t.created_at <= NOW()
        GROUP BY tp.payment_method`,
       [drawer.branch_id, drawer.opened_at]
     );

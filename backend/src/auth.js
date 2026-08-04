@@ -87,7 +87,7 @@ async function loginWithPassword(req, res, next) {
     await persistRefreshToken(user.id, tokens.refreshToken);
     await db.execute('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
     setAuthCookies(res, tokens);
-    return res.json({ success: true, data: { user: { id: user.id, name: user.name, email: user.email, role: user.role, branch_id: user.branch_id }, ...tokens } });
+    return res.json({ success: true, data: { user: { id: user.id, name: user.name, email: user.email, role: user.role, branch_id: user.branch_id }, accessToken: tokens.accessToken } });
   } catch (error) { return next(error); }
 }
 
@@ -112,7 +112,7 @@ async function loginWithPin(req, res, next) {
     await persistRefreshToken(user.id, tokens.refreshToken);
     await db.execute('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
     setAuthCookies(res, tokens);
-    return res.json({ success: true, data: { user: { id: user.id, name: user.name, email: user.email, role: user.role, branch_id: user.branch_id }, ...tokens } });
+    return res.json({ success: true, data: { user: { id: user.id, name: user.name, email: user.email, role: user.role, branch_id: user.branch_id }, accessToken: tokens.accessToken } });
   } catch (error) { return next(error); }
 }
 
@@ -132,7 +132,7 @@ async function refresh(req, res, next) {
     const nextTokens = issueTokens(users[0]);
     await persistRefreshToken(users[0].id, nextTokens.refreshToken);
     setAuthCookies(res, nextTokens);
-    return res.json({ success: true, data: nextTokens });
+    return res.json({ success: true, data: { accessToken: nextTokens.accessToken } });
   } catch (error) { return next(error); }
 }
 

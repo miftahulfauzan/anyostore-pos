@@ -17,6 +17,7 @@ export default function HistoryPage() {
   const [selected, setSelected] = useState(null);
   const [quantities, setQuantities] = useState({});
   const [cancelQuantities, setCancelQuantities] = useState({});
+  const [refundMethod, setRefundMethod] = useState('');
   const [cancelReason, setCancelReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [role, setRole] = useState(null);
@@ -84,6 +85,7 @@ export default function HistoryPage() {
       const maxQty = (i) => i.quantity - (i.cancelled_qty || 0);
       setQuantities(Object.fromEntries(b.data.items.map((i) => [i.transaction_item_id, maxQty(i)])));
       setCancelQuantities(Object.fromEntries(b.data.items.map((i) => [i.transaction_item_id, 0])));
+      setRefundMethod('');
       setCancelReason('');
       setActiveTab('retur');
     } catch (e) { setMessage(e.message); }
@@ -94,7 +96,7 @@ export default function HistoryPage() {
     if (!items.length) return setMessage('Pilih minimal satu item untuk diretur.');
     try {
       setSaving(true);
-      const r = await fetch(api + '/returns', { method: 'POST', headers: { ...h(), 'Content-Type': 'application/json' }, body: JSON.stringify({ transaction_id: selected.id, items, reason: 'Retur dari riwayat transaksi' }) });
+      const r = await fetch(api + '/returns', { method: 'POST', headers: { ...h(), 'Content-Type': 'application/json' }, body: JSON.stringify({ transaction_id: selected.id, items, reason: 'Retur dari riwayat transaksi', refund_method: refundMethod || null }) });
       const b = await r.json();
       if (!r.ok) throw Error(b.message);
       setMessage('Retur ' + b.data.return_no + ' dibuat.');
@@ -244,6 +246,15 @@ export default function HistoryPage() {
                         </div>
                       );
                     })}
+                    <label>Metode refund
+                      <select value={refundMethod} onChange={(e) => setRefundMethod(e.target.value)}>
+                        <option value="">Sesuai metode pembayaran asli</option>
+                        <option value="cash">Kas</option>
+                        <option value="qris">QRIS</option>
+                        <option value="transfer">Transfer</option>
+                        <option value="debit">Debit</option>
+                      </select>
+                    </label>
                     <button disabled={saving} onClick={createReturn} style={{ minHeight: 44 }}>{saving ? '…' : 'Buat retur'}</button>
                   </div>
                 )}
