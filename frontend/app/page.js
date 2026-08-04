@@ -140,7 +140,7 @@ export default function LandingPage() {
     .filter((w) => w.qty < 4);
 
   function openPicker(product) {
-    setPickQty(1);
+    setPickQty(4);
     setPickVariantId(null);
     if (Number(product.variant_count) > 0) {
       setPickerLoading(true);
@@ -403,7 +403,7 @@ export default function LandingPage() {
                   <div style={{ display: 'grid', gap: 6, justifyItems: 'end' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <button className="qty-btn small" onClick={() => setItemQty(it.key, it.qty - 1)} aria-label="Kurangi jumlah"><I.minus style={{ width: 12, height: 12 }} /></button>
-                      <span style={{ minWidth: 24, textAlign: 'center', fontWeight: 700, fontSize: 13, color: T.black }}>{it.qty}</span>
+                      <input type="number" min="1" value={it.qty} onChange={(e) => setItemQty(it.key, Math.max(1, Number(e.target.value) || 1))} aria-label={`Jumlah ${it.name}`} className="qty-input" />
                       <button className="qty-btn small" onClick={() => setItemQty(it.key, it.qty + 1)} aria-label="Tambah jumlah"><I.plus style={{ width: 12, height: 12 }} /></button>
                     </div>
                     <button onClick={() => removeItem(it.key)} style={{ border: 0, background: 'none', color: '#dc2626', fontSize: 11, cursor: 'pointer', padding: 0 }}>Hapus</button>
@@ -460,7 +460,7 @@ export default function LandingPage() {
             <strong style={{ fontSize: 12, color: T.muted, textTransform: 'uppercase', letterSpacing: '.05em' }}>Jumlah</strong>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '10px 0 18px' }}>
               <button className="qty-btn" onClick={() => setPickQty((q) => Math.max(1, q - 1))} aria-label="Kurangi jumlah"><I.minus style={{ width: 15, height: 15 }} /></button>
-              <span style={{ minWidth: 44, textAlign: 'center', fontWeight: 700, fontSize: 18, color: T.black }}>{pickQty}</span>
+              <input type="number" min="1" value={pickQty} onChange={(e) => setPickQty(Math.max(1, Number(e.target.value) || 1))} aria-label="Jumlah" className="qty-input" style={{ width: 60, height: 36, fontSize: 16 }} />
               <button className="qty-btn" onClick={() => setPickQty((q) => q + 1)} aria-label="Tambah jumlah"><I.plus style={{ width: 15, height: 15 }} /></button>
             </div>
             <button onClick={addFromPicker} className="pcard-btn primary" style={{ width: '100%', minHeight: 46, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 14 }}><I.cart style={{ width: 16, height: 16 }} /> Tambah ke Keranjang</button>
@@ -506,9 +506,11 @@ export default function LandingPage() {
         .cart-fab { position: fixed; right: 16px; bottom: 82px; z-index: 95; width: 56px; height: 56px; border-radius: 999px; border: 0; background: ${T.blue}; color: #fff; display: grid; place-items: center; cursor: pointer; box-shadow: 0 12px 28px rgba(15,23,42,.25); transition: all .2s; }
         .cart-fab:hover { transform: translateY(-2px); }
         .cart-fab-badge { position: absolute; top: -2px; right: -2px; min-width: 20px; height: 20px; border-radius: 999px; background: #dc2626; color: #fff; font-size: 11px; font-weight: 800; display: grid; place-items: center; padding: 0 5px; border: 2px solid #fff; }
-        .qty-btn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; color: #1a1a1a; display: grid; place-items: center; cursor: pointer; transition: all .2s; }
-        .qty-btn:hover { border-color: ${T.blue}; color: ${T.blue}; }
-        .qty-btn.small { width: 26px; height: 26px; }
+        .qty-btn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid ${T.blue}; background: ${T.blue}; color: #fff; display: grid; place-items: center; cursor: pointer; transition: all .2s; box-shadow: 0 2px 6px rgba(30,58,95,.22); }
+        .qty-btn:hover { background: #152d4a; }
+        .qty-btn.small { width: 28px; height: 28px; }
+        .qty-input { width: 52px; height: 28px; text-align: center; border: 1px solid #94a3b8; border-radius: 8px; font-weight: 700; font-size: 13px; color: #1a1a1a; background: #fff; -moz-appearance: textfield; }
+        .qty-input::-webkit-outer-spin-button, .qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .pcard-img { display: grid; place-items: center; aspect-ratio: 3/4; overflow: hidden; position: relative; background: #f3f4f6; }
         .pcard-img img { animation: photoIn .35s ease; }
         .pcard-dots { position: absolute; left: 0; right: 0; bottom: 8px; display: flex; justify-content: center; gap: 4px; z-index: 2; pointer-events: none; }
