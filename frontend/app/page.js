@@ -467,8 +467,8 @@ export default function LandingPage() {
         .pcard-body strong { font-size: 14px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .pcard-price { color: ${T.blue}; font-weight: 700; font-size: 16px; }
         .pcard-color { padding: 2px 8px; border-radius: 4px; background: rgba(30,58,95,.08); font-size: 11px; color: #52525b; }
-        .pcard-actions { display: flex; gap: 12px; margin-top: auto; padding-top: 10px; }
-        .pcard-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 38px; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; transition: all .3s cubic-bezier(.4,0,.2,1); }
+        .pcard-actions { display: flex; gap: 10px; margin-top: auto; padding-top: 12px; }
+        .pcard-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 0 10px; border-radius: 8px; font-size: 13px; font-weight: 700; line-height: 1.1; text-align: center; text-decoration: none; cursor: pointer; box-sizing: border-box; transition: all .3s cubic-bezier(.4,0,.2,1); }
         .pcard-btn.primary { background: ${T.blue}; color: #fff; border: none; }
         .pcard-btn.primary:hover { background: #152d4a; transform: translateY(-1px); }
         .pcard-btn.secondary { background: #fff; color: ${T.blue}; border: 1.5px solid rgba(30,58,95,.3); }
