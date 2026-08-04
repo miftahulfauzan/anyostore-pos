@@ -107,12 +107,23 @@ export default function ClosingPage() {
           .closing-summary { grid-template-columns: repeat(2, 1fr); }
         }
         @media print {
-          @page { size: A4 portrait; margin: 12mm; }
+          @page { size: 80mm auto; margin: 0; }
+          html, body { width: 80mm; margin: 0; padding: 0; background: #fff !important; }
           .no-print { display: none !important; }
-          body { background: #fff !important; }
-          .closing-doc { border: 0; border-radius: 0; padding: 0; }
-          .closing-header { border-bottom: 2px solid #1e3a5f; }
-          .closing-summary { break-inside: avoid; }
+          .closing-doc { width: 80mm; margin: 0; padding: 4mm 3mm; border: 0; border-radius: 0; font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace; font-size: 10px; }
+          .closing-header { flex-direction: column; align-items: center; text-align: center; border-bottom: 1px dashed #666; padding-bottom: 3mm; }
+          .closing-brand { font-size: 10px; letter-spacing: .1em; color: #111827; }
+          .closing-header h1 { font-size: 13px; margin-top: 2px; }
+          .closing-meta { text-align: center; font-size: 8px; }
+          .closing-summary { grid-template-columns: 1fr 1fr; gap: 1mm; margin: 3mm 0; }
+          .closing-summary > div { border: 0; border-bottom: 1px dotted #bbb; border-radius: 0; padding: 1mm 0; text-align: left; }
+          .closing-summary span { font-size: 8px; color: #333; }
+          .closing-summary strong { font-size: 11px; color: #000; }
+          .closing-table { font-size: 8px; }
+          .closing-table th, .closing-table td { border: 0; border-bottom: 1px dotted #bbb; padding: 1mm 1.5mm; text-align: right; }
+          .closing-table th { background: transparent; color: #111827; text-align: left; border-bottom: 1px solid #666; }
+          .closing-table td:first-child { text-align: left; }
+          .closing-table tfoot th { background: transparent; color: #111827; border-top: 1px solid #666; }
           tr { break-inside: avoid; }
         }
       `}</style>
