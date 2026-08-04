@@ -94,12 +94,12 @@ export default function Users() {
   }
 
   async function removeUser(user) {
-    if (!window.confirm(`Hapus pengguna "${user.name}"? Pengguna akan dinonaktifkan karena sudah memiliki riwayat transaksi.`)) return;
+    if (!window.confirm(`Hapus pengguna "${user.name}"? Pengguna tanpa riwayat akan dihapus permanen; yang sudah punya riwayat transaksi akan dinonaktifkan.`)) return;
     try {
       const res = await fetch(`${api}/users/${user.id}`, { method: 'DELETE', headers: headers() });
       const body = await res.json();
       if (!res.ok) throw new Error(body.message);
-      setMessage('Pengguna dinonaktifkan (transaksi tersimpan).');
+      setMessage(body.data?.message || (body.data?.soft ? 'Pengguna dinonaktifkan (riwayat tersimpan).' : 'Pengguna dihapus permanen.'));
       load(branch);
     } catch (e) { setMessage(e.message); }
   }

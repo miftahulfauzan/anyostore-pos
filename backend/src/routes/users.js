@@ -124,10 +124,44 @@ router.put('/:id/toggle-active', authenticate, authorize('owner'), async (req, r
 router.delete('/:id', authenticate, authorize('owner'), async (req, res, next) => {
   try {
     if (Number(req.params.id) === req.user.id) return badRequest(res, 'Tidak dapat menghapus akun sendiri');
-    const [r] = await db.execute('UPDATE users SET is_active = FALSE WHERE id = ?', [req.params.id]);
-    if (!r.affectedRows) return res.status(404).json({ success: false, message: 'Pengguna tidak ditemukan' });
-    res.json({ success: true });
-  } catch (e) { next(e); }
+    const [rows] = await db.execute('SELECT id FROM users WHERE id = ?', [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ success: false, message: 'Pengguna tidak ditemukan' });
+    const id = Number(req.params.id);
+    // Hapus permanen HANYA kalau belum punya riwayat apa pun (transaksi,
+    // mutasi, log, komisi, kas, dll). Kalau punya riwayat, nonaktifkan supaya
+    // jejak audit (nama kasir di struk/laporan) tetap terjaga.
+    const [trx] = await db.execute(
+      `SELECT
+        (SELECT COUNT(*) FROM transactions WHERE user_id=?) +
+        (SELECT COUNT(*) FROM transaction_items WHERE overridden_by=?) +
+        (SELECT COUNT(*) FROM stock_mutations WHERE user_id=?) +
+        (SELECT COUNT(*) FROM activity_logs WHERE user_id=?) +
+        (SELECT COUNT(*) FROM commission_records WHERE user_id=?) +
+        (SELECT COUNT(*) FROM cash_drawers WHERE user_id=?) +
+        (SELECT COUNT(*) FROM cash_drawer_movements WHERE user_id=?) +
+        (SELECT COUNT(*) FROM pending_transactions WHERE user_id=?) +
+        (SELECT COUNT(*) FROM returns WHERE created_by=? OR approved_by=?) +
+        (SELECT COUNT(*) FROM expenses WHERE user_id=?) +
+        (SELECT COUNT(*) FROM refresh_tokens WHERE user_id=?) +
+        (SELECT COUNT(*) FROM purchase_orders WHERE created_by=?) +
+        (SELECT COUNT(*) FROM stock_opnames WHERE created_by=?) +
+        (SELECT COUNT(*) FROM stock_transfers WHERE created_by=? OR approved_by=?) +
+        (SELECT COUNT(*) FROM journal_entries WHERE created_by=?) AS cnt`,
+      [id, id, id, id, id, id, id, id, id, id, id, id, id, id, id, id]
+    );
+    if (Number(trx[0].cnt) > 0) {
+      await db.execute('UPDATE users SET is_active = FALSE WHERE id = ?', [id]);
+      return res.json({ success: true, data: { soft: true, message: 'Pengguna memiliki riwayat transaksi/aktivitas — dinonaktifkan agar data tetap terjaga.' } });
+    }
+    await db.execute('DELETE FROM users WHERE id = ?', [id]);
+    res.json({ success: true, data: { soft: false, message: 'Pengguna dihapus permanen.' } });
+  } catch (e) {
+    if (e?.code === 'ER_ROW_IS_REFERENCED_2') {
+      await db.execute('UPDATE users SET is_active = FALSE WHERE id = ?', [req.params.id]).catch(() => {});
+      return res.json({ success: true, data: { soft: true, message: 'Pengguna memiliki riwayat — dinonaktifkan agar data tetap terjaga.' } });
+    }
+    next(e);
+  }
 });
 
 module.exports = router;
