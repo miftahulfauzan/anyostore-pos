@@ -115,7 +115,7 @@ async function syncVariantColorsAcrossStores(productId, branchId) {
 
 router.get('/categories', async (req, res, next) => {
   try {
-    const [categories] = await db.execute('SELECT id, name, slug, sku_prefix FROM categories WHERE is_active = TRUE ORDER BY name');
+    const [categories] = await db.execute('SELECT id, name, slug, sku_prefix, sort_order FROM categories WHERE is_active = TRUE ORDER BY sort_order, name');
     res.json({ success: true, data: categories });
   } catch (error) { next(error); }
 });
@@ -128,6 +128,8 @@ router.post('/categories', authorize('owner', 'manager', 'admin', 'gudang'), asy
       'INSERT INTO categories (name, slug, sku_prefix, description) VALUES (?, ?, ?, ?)',
       [name.trim(), slug?.trim() || null, skuPrefix?.trim() || null, description?.trim() || null]
     );
+    // Kategori baru ditaruh paling akhir sesuai urutannya.
+    await db.execute('UPDATE categories SET sort_order = id WHERE id = ?', [result.insertId]);
     res.status(201).json({ success: true, data: { id: result.insertId } });
   } catch (error) { next(error); }
 });
@@ -155,6 +157,18 @@ router.delete('/categories/:id', authorize('owner'), async (req, res, next) => {
     if (Number(products[0].cnt) > 0) return res.status(400).json({ success: false, message: `Kategori masih digunakan oleh ${products[0].cnt} produk. Pindahkan produk ke kategori lain terlebih dahulu.` });
     await db.execute('UPDATE categories SET is_active = FALSE WHERE id = ?', [id]);
     res.json({ success: true, data: { message: 'Kategori berhasil dihapus' } });
+  } catch (error) { next(error); }
+});
+
+// Simpan urutan kategori (drag & drop): body { order: [id, id, ...] }.
+router.patch('/categories/reorder', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
+  try {
+    const order = Array.isArray(req.body.order) ? req.body.order.map((id) => Number(id)).filter(Number.isInteger) : [];
+    if (!order.length) return res.status(400).json({ success: false, message: 'Urutan kategori tidak valid' });
+    for (let index = 0; index < order.length; index += 1) {
+      await db.execute('UPDATE categories SET sort_order = ? WHERE id = ?', [index, order[index]]);
+    }
+    res.json({ success: true });
   } catch (error) { next(error); }
 });
 

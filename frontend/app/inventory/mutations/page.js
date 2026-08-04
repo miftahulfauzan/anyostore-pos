@@ -144,9 +144,6 @@ export default function Mutations() {
         }}>
           {stores.map((s) => <option key={s.id} value={s.id}>{s.name}{s.type === 'gudang' ? ' (Gudang)' : ''}</option>)}
         </select></label>
-        <label>Gudang<select value={warehouse} required onChange={(e) => { setWarehouse(e.target.value); loadProducts(store, e.target.value); }}>
-          {storeWarehouses.map((w) => <option key={w.id} value={w.id}>{w.branch_name && w.branch_name === w.name ? w.name : `${w.name}${w.type ? ` (${w.type.charAt(0).toUpperCase()}${w.type.slice(1)})` : ''}`}</option>)}
-        </select></label>
         <label>Keterangan / Supplier<input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Contoh: Supplier denim, retur, produksi…" /></label>
         {mode === 'out' && (
           <label>Keperluan / Saluran

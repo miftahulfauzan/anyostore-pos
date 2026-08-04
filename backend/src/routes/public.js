@@ -68,7 +68,7 @@ router.get('/settings', async (req, res, next) => {
 // GET /api/public/categories
 router.get('/categories', async (_req, res, next) => {
   try {
-    const [rows] = await db.execute('SELECT id, name, slug FROM categories WHERE is_active=TRUE ORDER BY name');
+    const [rows] = await db.execute('SELECT id, name, slug FROM categories WHERE is_active=TRUE ORDER BY sort_order, name');
     res.json({ success: true, data: rows });
   } catch (e) { next(e); }
 });

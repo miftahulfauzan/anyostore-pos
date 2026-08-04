@@ -117,37 +117,34 @@ export default function LandingPage() {
 
       {/* 3. Hero */}
       <section style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 16px 24px' }}>
-        <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} className="hero-wrap" style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', aspectRatio: '4 / 3' }}>
+        <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} className="hero-wrap" style={{ position: 'relative', borderRadius: 14, overflow: 'hidden' }}>
           {slide ? (
-            <div key={slide.id} className="slide-fade" style={{ height: '100%' }}>
-              {/* Foto full-bleed: menutupi seluruh hero (desktop), di mobile
-                  turun menjadi baris penuh di bawah teks */}
-              <div className="hero-full">
-                {slidePhotos.length > 0 ? (
-                  <div style={{ position: 'absolute', inset: 0 }}>
-                    {slidePhotos.map((ph, i) => (
-                      <SafeImage key={i} eager={i === 0} src={`${api.replace('/api', '')}${ph.path}`} alt={slide.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: i === 0 ? 1 : 0, transition: 'opacity .5s', ...photoStyle(i === 0 ? slide.photo_transform : '') }} />
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#94a3b8', fontSize: 13 }}>Foto produk</div>
-                )}
-              </div>
-              {/* Scrim gelap biar teks terbaca di atas foto */}
-              <div className="hero-scrim" aria-hidden="true" />
-              <div className="hero-text" style={{ position: 'relative', zIndex: 2, height: '100%', display: 'flex', alignItems: 'center' }}>
-                <div style={{ padding: '44px 40px', display: 'grid', gap: 16, maxWidth: 520 }}>
-                  <span className="hero-cat" style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase' }}>{slide.category_name || 'Denim'}</span>
-                  <h1 className="hero-title" style={{ margin: 0, fontFamily: "'DM Sans', sans-serif", fontSize: 'clamp(22px, 3vw, 34px)', fontWeight: 700, lineHeight: 1.15 }}>{slide.name}</h1>
-                  <strong className="hero-price" style={{ fontSize: 28, fontWeight: 800 }}>Rp{Number(slide.price || 0).toLocaleString('id-ID')}</strong>
-                  <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                    <a href={`/produk/${slide.id}`} className="hero-btn btn-primary">Lihat Produk</a>
-                    <a href="#" onClick={(e) => { e.preventDefault(); pickWa(`Saya tertarik dengan ${slide.name}`); }} className="hero-btn btn-outline"><I.chat style={{ width: 14, height: 14 }} /> Hubungi Admin</a>
-                  </div>
+            <div key={slide.id} className="slide-fade" style={{ minHeight: 440, display: 'grid', gridTemplateColumns: '1.15fr .85fr', alignItems: 'center' }}>
+              {/* Teks kiri */}
+              <div className="hero-text" style={{ padding: '44px 40px', display: 'grid', gap: 16, maxWidth: 520 }}>
+                <span className="hero-cat" style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase' }}>{slide.category_name || 'Denim'}</span>
+                <h1 className="hero-title" style={{ margin: 0, fontFamily: "'DM Sans', sans-serif", fontSize: 'clamp(22px, 3vw, 34px)', fontWeight: 700, lineHeight: 1.15 }}>{slide.name}</h1>
+                <strong className="hero-price" style={{ fontSize: 28, fontWeight: 800 }}>Rp{Number(slide.price || 0).toLocaleString('id-ID')}</strong>
+                <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                  <a href={`/produk/${slide.id}`} className="hero-btn btn-primary">Lihat Produk</a>
+                  <a href="#" onClick={(e) => { e.preventDefault(); pickWa(`Saya tertarik dengan ${slide.name}`); }} className="hero-btn btn-outline"><I.chat style={{ width: 14, height: 14 }} /> Hubungi Admin</a>
                 </div>
               </div>
+              {/* Kartu foto portrait 3:4 utuh (tanpa crop) */}
+              <div className="hero-card-col" style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '28px 28px 36px' }}>
+                {slidePhotos.length > 0 ? (
+                  <div style={{ position: 'relative', width: 'min(300px, 72%)', aspectRatio: '3 / 4' }}>
+                    {slidePhotos[1] && (
+                      <SafeImage src={`${api.replace('/api', '')}${slidePhotos[1].path}`} alt="" style={{ position: 'absolute', inset: 0, transform: 'rotate(6deg) scale(.97)', borderRadius: 18, objectFit: 'cover', opacity: .55 }} />
+                    )}
+                    <SafeImage eager src={`${api.replace('/api', '')}${slidePhotos[0].path}`} alt={slide.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', borderRadius: 18, border: '6px solid #fff', boxShadow: '0 18px 40px rgba(15,23,42,.18)', objectFit: 'cover', ...photoStyle(slide.photo_transform) }} />
+                  </div>
+                ) : (
+                  <div style={{ width: 'min(300px, 72%)', aspectRatio: '3 / 4', borderRadius: 18, background: '#f1f5f9', display: 'grid', placeItems: 'center', color: T.muted, fontSize: 13 }}>Foto produk</div>
+                )}
+              </div>
             </div>
-          ) : <div style={{ padding: 48, textAlign: 'center', color: '#e5e7eb' }}>Memuat…</div>}
+          ) : <div style={{ padding: 48, textAlign: 'center', color: T.muted }}>Memuat…</div>}
           {slides.length > 1 && (
             <>
               <button aria-label="Prev" onClick={() => setSlideIdx((i) => (i - 1 + slides.length) % slides.length)} className="slide-arrow left"><I.chevL style={{ width: 18, height: 18 }} /></button>
@@ -281,14 +278,11 @@ export default function LandingPage() {
         .hero-btn { transition: all .35s cubic-bezier(.4,0,.2,1); }
         .hero-btn:hover { transform: translateY(-2px); }
         .hero-btn:active { transform: scale(.97); }
-        .hero-wrap { background: #1a1a1a; }
+        .hero-wrap { background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 55%, #e0e7ff 100%); }
         .slide-fade { animation: slideIn .5s cubic-bezier(.4,0,.2,1); }
-        .hero-full { position: absolute; inset: 0; }
-        .hero-full img { position: absolute; inset: 0; width: 100%; height: 100%; }
-        .hero-scrim { position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, rgba(15,23,42,.82) 0%, rgba(15,23,42,.52) 42%, rgba(15,23,42,.12) 72%, rgba(15,23,42,0) 100%); pointer-events: none; }
-        .hero-cat { color: rgba(255,255,255,.82); }
-        .hero-title { color: #ffffff; }
-        .hero-price { color: #ffffff; }
+        .hero-cat { color: #1e3a5f; }
+        .hero-title { color: #1a1a1a; }
+        .hero-price { color: #1e3a5f; }
         .hero-dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 999px; border: none; padding: 0; cursor: pointer; background: #d1d5db; transition: all .3s cubic-bezier(.4,0,.2,1); }
         .hero-dot.active { width: 24px; background: #1a1a1a; }
         @keyframes slideIn { from { opacity: 0; transform: scale(.985) translateY(10px); } to { opacity: 1; transform: none; } }
@@ -317,11 +311,16 @@ export default function LandingPage() {
         .page-btn.active { background: ${T.blue}; color: ${T.white}; border-color: ${T.blue}; box-shadow: 0 2px 8px rgba(30,58,95,.25); }
         .wa-modal-in { animation: modalIn .35s cubic-bezier(.4,0,.2,1); }
         @keyframes modalIn { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
-        @media (max-width: 900px) { .pcard-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 900px) {
+          .pcard-grid { grid-template-columns: repeat(3, 1fr); }
+          .hero-wrap { min-height: 0 !important; }
+          .slide-fade { grid-template-columns: 1fr !important; min-height: 0 !important; }
+          .hero-text { padding: 26px 22px 6px !important; max-width: 100% !important; gap: 10px !important; }
+          .hero-card-col { padding: 6px 20px 30px !important; }
+          .hero-card-col > div { width: min(220px, 62%) !important; }
+        }
         @media (max-width: 600px) {
           .pcard-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-          .hero-wrap { min-height: 260px; }
-          .hero-text > div { padding: 20px 18px !important; max-width: 100% !important; gap: 8px !important; }
           .hero-dots { gap: 4px; margin-top: 10px; }
           .hero-dot { width: 6px; height: 6px; }
           .hero-dot.active { width: 16px; }
