@@ -37,14 +37,23 @@ export default function NewProductPage() {
   useEffect(() => {
     function onPaste(event) {
       const files = [];
+      const seen = new Set();
+      const key = (f) => `${f.name}|${f.size}|${f.type}|${f.lastModified}`;
       for (const item of Array.from(event.clipboardData?.items || [])) {
         if (item.type.startsWith('image/')) {
           const file = item.getAsFile();
-          if (file) files.push(file);
+          if (file && !seen.has(key(file))) {
+            seen.add(key(file));
+            files.push(file);
+          }
         }
       }
-      const fromFiles = Array.from(event.clipboardData?.files || []).filter((f) => f.type.startsWith('image/'));
-      for (const f of fromFiles) if (!files.includes(f)) files.push(f);
+      for (const f of Array.from(event.clipboardData?.files || [])) {
+        if (f.type.startsWith('image/') && !seen.has(key(f))) {
+          seen.add(key(f));
+          files.push(f);
+        }
+      }
       if (!files.length) return;
       event.preventDefault();
       chooseMany(files);
