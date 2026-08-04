@@ -69,10 +69,75 @@ export default function BulkPhotoUploadPage() {
     });
   }
 
-  function onDrop(e) {
+  function supportsDirectoryInput() {
+    if (typeof document === 'undefined') return false;
+    const input = document.createElement('input');
+    return 'webkitdirectory' in input;
+  }
+
+  async function pickFolder() {
+    if (typeof window !== 'undefined' && window.showDirectoryPicker) {
+      try {
+        const dir = await window.showDirectoryPicker({ mode: 'read' });
+        const files = [];
+        async function walk(handle) {
+          for await (const entry of handle.values()) {
+            if (entry.kind === 'file') {
+              const file = await entry.getFile();
+              if (file.type.startsWith('image/')) files.push(file);
+            } else if (entry.kind === 'directory') {
+              await walk(entry);
+            }
+          }
+        }
+        await walk(dir);
+        addFiles(files);
+        return;
+      } catch (err) {
+        if (err?.name === 'AbortError') return;
+        setMessage(err?.message || 'Gagal membaca folder.');
+        return;
+      }
+    }
+    if (supportsDirectoryInput() && folderInputRef.current) {
+      folderInputRef.current.click();
+      return;
+    }
+    setMessage('Browser ini tidak mendukung dialog pilih folder. Gunakan Chrome/Edge, atau seret folder langsung dari Finder ke area upload.');
+  }
+
+  async function collectEntry(entry, files, seen) {
+    if (!entry) return;
+    if (entry.isFile) {
+      const file = await new Promise((resolve) => entry.file(resolve));
+      const key = `${file.name}|${file.size}`;
+      if (file && file.type.startsWith('image/') && !seen.has(key)) {
+        seen.add(key);
+        files.push(file);
+      }
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      let batch;
+      do {
+        batch = await new Promise((resolve) => reader.readEntries(resolve));
+        for (const item of batch) await collectEntry(item, files, seen);
+      } while (batch.length > 0);
+    }
+  }
+
+  async function onDrop(e) {
     e.preventDefault();
     setDragOver(false);
-    addFiles(e.dataTransfer?.files);
+    const items = Array.from(e.dataTransfer?.items || []);
+    const entries = items.map((item) => (item.webkitGetAsEntry ? item.webkitGetAsEntry() : null)).filter(Boolean);
+    if (entries.some((entry) => entry.isDirectory)) {
+      const files = [];
+      const seen = new Set();
+      for (const entry of entries) await collectEntry(entry, files, seen);
+      addFiles(files);
+    } else {
+      addFiles(e.dataTransfer?.files);
+    }
   }
 
   async function uploadAll() {
@@ -142,8 +207,8 @@ export default function BulkPhotoUploadPage() {
             <input ref={folderInputRef} id="bulk-folder-input" type="file" multiple style={{ display: 'none' }} onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 12 }}>
-            <button type="button" className="secondary small" onClick={() => folderInputRef.current?.click()}><ImagePlus size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} /> Pilih Folder</button>
-            <span style={{ fontSize: 11, color: '#64748b', alignSelf: 'center' }}>Pilih satu folder — semua foto di dalamnya ikut terdeteksi.</span>
+            <button type="button" className="secondary small" onClick={pickFolder}><ImagePlus size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} /> Pilih Folder</button>
+            <span style={{ fontSize: 11, color: '#64748b', alignSelf: 'center' }}>Pilih folder, atau seret folder langsung dari Finder ke area di atas.</span>
           </div>
 
           {message && <p style={{ margin: '12px 0 0', fontSize: 13, color: failures.length ? '#dc2626' : '#16a34a', fontWeight: 600 }}>{message}</p>}
