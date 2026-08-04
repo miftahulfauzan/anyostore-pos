@@ -256,10 +256,17 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
       const itemDiscount = money(input.discount || 0);
       if (!Number.isInteger(quantity) || quantity <= 0 || itemDiscount < 0) throw httpError(400, 'Jumlah atau diskon item tidak valid');
       const product = productById.get(productId);
+      // Stok kurang/0 TETAP boleh dijual, tapi hanya jika klien mengirim
+      // allow_negative_stock=true (setelah konfirmasi "Lanjutkan" di POS).
+      const allowNegative = req.body.allow_negative_stock === true;
+      const [balances] = await connection.execute('SELECT id, quantity FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id <=> ? FOR UPDATE', [warehouseId, productId, variantId]);
+      const available = Number(balances[0]?.quantity || 0);
+      if (!allowNegative && available < quantity) throw httpError(400, `Stok ${product.name} tidak mencukupi (tersedia ${available})`);
       let variant = null;
       if (variantId) {
-        const [variants] = await connection.execute('SELECT id, color, price FROM product_variants WHERE id = ? AND product_id = ? AND is_active = TRUE FOR UPDATE', [variantId, productId]);
+        const [variants] = await connection.execute('SELECT id, color, stock, price FROM product_variants WHERE id = ? AND product_id = ? AND is_active = TRUE FOR UPDATE', [variantId, productId]);
         if (!variants[0]) throw httpError(400, 'Varian tidak ditemukan');
+        if (!allowNegative && Number(variants[0].stock) < quantity) throw httpError(400, `Stok varian ${product.name} tidak mencukupi`);
         variant = variants[0];
       }
       // Harga dasar dari produk/varian.

@@ -155,7 +155,7 @@ export default function PosPage() {
     setCart((current) => {
       const found = current.find((item) => item.cart_id === cartId);
       if (found) return current.map((item) => item.cart_id === cartId ? { ...item, quantity: item.quantity + 1 } : item);
-      return [...current, { ...product, cart_id: cartId, variant_id: variant?.id || null, variant_color: variant?.color || '', price, quantity: 1, wholesale_prices: wholesalePrices }];
+      return [...current, { ...product, cart_id: cartId, variant_id: variant?.id || null, variant_color: variant?.color || '', price, quantity: 1, wholesale_prices: wholesalePrices, stock_available: variant ? Number(variant.stock ?? 0) : Number(product.stock ?? 0) }];
     });
     setVariantProduct(null);
   }
@@ -200,7 +200,16 @@ export default function PosPage() {
     try {
       const items = cart.map((item) => ({ product_id: item.id, variant_id: item.variant_id || undefined, quantity: item.quantity, price_override: item.price_override || undefined }));
       if (!pendingTransactionId.current) pendingTransactionId.current = newClientTransactionId();
-      const bodyPayload = { branch_id: Number(storeId), warehouse_id: Number(warehouseId), items, payment_method: paymentMethod, amount_paid: amountPaid, promo_code: promo?.code || undefined, client_transaction_id: pendingTransactionId.current };
+      // Warning stok kurang/kosong: kasir memilih Lanjutkan atau Kembali.
+      const lowStock = cart.filter((item) => Number(item.stock_available ?? 0) < Number(item.quantity));
+      if (lowStock.length) {
+        const first = lowStock[0];
+        const label = `${first.name}${first.variant_color ? ` (${first.variant_color})` : ''}`;
+        const extra = lowStock.length > 1 ? ` (total ${lowStock.length} produk kurang)` : '';
+        const proceed = window.confirm(`Stok ${label} kurang — tersedia ${Number(first.stock_available ?? 0)}, diminta ${first.quantity}${extra}. Lanjutkan transaksi?`);
+        if (!proceed) return;
+      }
+      const bodyPayload = { branch_id: Number(storeId), warehouse_id: Number(warehouseId), items, payment_method: paymentMethod, amount_paid: amountPaid, promo_code: promo?.code || undefined, client_transaction_id: pendingTransactionId.current, allow_negative_stock: lowStock.length > 0 };
       if (customerId) bodyPayload.customer_id = Number(customerId);
       const response = await fetch(`${apiUrl}/transactions`, { method: 'POST', headers: headers(), body: JSON.stringify(bodyPayload) });
       const body = await response.json();
