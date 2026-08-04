@@ -114,7 +114,7 @@ export default function HistoryPage() {
   }
 
   return (
-    <AppShell title="Riwayat Transaksi" eyebrow="PENJUALAN" actions={<a className="button-link" href="/pos">Buka Kasir</a>}>
+    <AppShell title="Riwayat Transaksi" eyebrow="PENJUALAN" actions={<><a className="button-link" href="/closing">Cetak Penutupan</a><a className="button-link" href="/pos">Buka Kasir</a></>}>
       <div style={{ display: 'grid', gridTemplateColumns: selected && !isMobile ? '1.1fr .9fr' : '1fr', gap: '1rem', alignItems: 'start', maxWidth: 1400, margin: '0 auto' }}>
         {/* LEFT LIST */}
         <div style={{ display: 'grid', gap: '1rem' }}>
