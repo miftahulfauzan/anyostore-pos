@@ -81,7 +81,7 @@ export default function ProductsPage() {
 
   const chosenBarcodes = Array.from({ length: Math.min(99, Number(barcodeCopies) || 1) }, () => barcodeProduct);
 
-  return <AppShell title="Produk & Inventori" eyebrow="KATALOG PRODUK" actions={<a className="button-link" href="/products/new">Tambah Produk</a>}>
+  return <AppShell title="Produk & Inventori" eyebrow="KATALOG PRODUK" actions={<><a className="button-link" href="/products/photos">Upload Foto Massal</a><a className="button-link" href="/products/new">Tambah Produk</a></>}>
     <section className="panel catalog-panel">
       <div className="section-heading"><div><h2>Daftar Produk</h2><p>Cari nama, SKU, atau barcode. Kelola foto, video, varian, dan cetak barcode dari daftar ini.</p></div><div className="catalog-view-controls"><span className="item-count">{loading ? 'Memuat…' : `${products.length} produk`}</span><button type="button" className={view === 'grid' ? 'view-button selected' : 'view-button'} onClick={() => setView('grid')} aria-pressed={view === 'grid'}>Tampilan grid</button><button type="button" className={view === 'list' ? 'view-button selected' : 'view-button'} onClick={() => setView('list')} aria-pressed={view === 'list'}>Tampilan daftar</button></div></div>
       <label className="catalog-search">Cari produk<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nama, SKU, atau barcode" autoComplete="off" /></label>
