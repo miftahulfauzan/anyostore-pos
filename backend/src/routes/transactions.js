@@ -6,11 +6,10 @@ const { money } = require('../money');
 const { localDateString } = require('../local-date');
 const { applyPriceTier } = require('../pricing');
 const { adjustStock } = require('../stock');
+const { normalizePayments, persistPayments } = require('../payments');
 
 const router = express.Router();
 router.use(authenticate);
-
-const paymentMethods = new Set(['cash', 'qris', 'debit', 'transfer', 'credit']);
 
 function httpError(status, message) {
   return Object.assign(new Error(message), { status });
@@ -32,29 +31,6 @@ async function nextInvoice(connection, branchId) {
   );
   const number = String(sequence[0].last_number).padStart(4, '0');
   return `${prefix}-${businessDate.replaceAll('-', '')}-B${branchId}-${number}`;
-}
-
-function normalizePayments(body, grandTotal) {
-  if (Array.isArray(body.payments) && body.payments.length) {
-    const payments = body.payments.map((payment) => ({
-      payment_method: payment.payment_method,
-      amount: money(payment.amount),
-      reference: payment.reference?.trim() || null
-    }));
-    if (payments.some((payment) => !paymentMethods.has(payment.payment_method) || payment.amount <= 0)) {
-      throw httpError(400, 'Data split payment tidak valid');
-    }
-    if (money(payments.reduce((sum, payment) => sum + payment.amount, 0)) !== grandTotal) {
-      throw httpError(400, 'Total split payment harus sama dengan total transaksi');
-    }
-    return { method: payments.length > 1 ? 'split' : payments[0].payment_method, paid: grandTotal, change: 0, payments };
-  }
-  const method = body.payment_method;
-  const paid = money(body.amount_paid);
-  if (!paymentMethods.has(method) || !Number.isFinite(paid) || paid < 0) throw httpError(400, 'Metode atau nominal pembayaran tidak valid');
-  if (method === 'cash' && paid < grandTotal) throw httpError(400, 'Pembayaran tunai kurang');
-  if (method !== 'cash' && paid !== grandTotal) throw httpError(400, 'Pembayaran non-tunai harus sesuai total transaksi');
-  return { method, paid, change: method === 'cash' ? money(paid - grandTotal) : 0, payments: [{ payment_method: method, amount: grandTotal, reference: body.payment_reference?.trim() || null }] };
 }
 
 // Logika harga berjenjang ada di ../pricing.js (satu sumber kebenaran).
@@ -327,9 +303,7 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
         referenceId: transactionResult.insertId,
       });
     }
-    for (const item of payment.payments) {
-      await connection.execute('INSERT INTO transaction_payments (transaction_id, payment_method, amount, reference) VALUES (?, ?, ?, ?)', [transactionResult.insertId, item.payment_method, item.amount, item.reference]);
-    }
+    await persistPayments(connection, transactionResult.insertId, payment);
     await connection.execute('INSERT INTO activity_logs (user_id, action, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'transaction_create', `Invoice ${invoiceNo}`, req.ip, req.get('user-agent') || null]);
     await connection.commit();
     res.status(201).json({ success: true, data: { id: transactionResult.insertId, invoice_no: invoiceNo, grand_total: grandTotal, amount_paid: payment.paid, change: payment.change, price_tier: priceTier } });
