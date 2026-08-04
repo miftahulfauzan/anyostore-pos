@@ -25,7 +25,6 @@ export default function BulkPhotoUploadPage() {
   const [message, setMessage] = useState('');
   const [failures, setFailures] = useState([]);
   const folderInputRef = useRef(null);
-  const token = () => '';
   const headers = () => ({});
 
   useEffect(() => {
@@ -169,7 +168,7 @@ export default function BulkPhotoUploadPage() {
       const { item, file, product } = ordered[i];
       setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: 'mengupload' } : f));
       try {
-        await uploadMediaData(`${apiUrl}/products/${product.id}/media-data`, file, token());
+        await uploadMediaData(`${apiUrl}/products/${product.id}/media-data`, file);
         ok += 1;
         setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: 'berhasil' } : f));
       } catch (err) {

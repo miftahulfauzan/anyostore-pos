@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -22,9 +22,6 @@ export default function LoginPage() {
     fontWeight: 700,
     cursor: 'pointer',
   });
-
-  useEffect(() => {
-    }, []);
 
   function homeFor(role) {
     return role === 'gudang' ? '/dashboard' : '/pos';

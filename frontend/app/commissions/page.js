@@ -37,7 +37,6 @@ export default function CommissionsPage() {
   const [reportPeriod, setReportPeriod] = useState({ start: '', end: '' });
   const [reportPreset, setReportPreset] = useState('');
 
-  const token = () => '';
   const headers = () => ({ 'Content-Type': 'application/json'});
 
   async function load(branchId = selectedBranch) {

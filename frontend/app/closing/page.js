@@ -20,7 +20,6 @@ export default function ClosingPage() {
   const [date, setDate] = useState(localToday());
   const [message, setMessage] = useState('');
   const [printed, setPrinted] = useState(false);
-  const token = () => '';
 
   useEffect(() => {
     /* sesi via httpOnly cookie */

@@ -72,7 +72,7 @@ export function compressImage(file, { maxBytes = MAX_DATA_UPLOAD_SIZE, maxDimens
 }
 
 // Upload media. Gambar besar otomatis dikompres sebelum dikirim.
-export async function uploadMediaData(url, file, accessToken) {
+export async function uploadMediaData(url, file) {
   let dataUrl;
   let contentType = file.type;
   let filename = file.name;

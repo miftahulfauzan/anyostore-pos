@@ -357,7 +357,6 @@ export default function EditProductPage() {
   const [mediaUploading, setMediaUploading] = useState(false);
   const params = useParams();
   const productId = params?.id;
-  const token = () => '';
   const headers = () => ({ 'Content-Type': 'application/json'});
   const mediaUrl = (path) => path ? `${apiUrl.replace('/api', '')}${path}` : '';
   const thumbStyle = (m) => {
@@ -433,7 +432,7 @@ export default function EditProductPage() {
     if (invalid) { setMessage(invalid); return; }
     setMediaUploading(true); setMessage('');
     try {
-      for (const file of selected) await uploadMediaData(`${apiUrl}/products/${productId}/media-data`, file, token());
+      for (const file of selected) await uploadMediaData(`${apiUrl}/products/${productId}/media-data`, file);
       const refreshed = await fetch(`${apiUrl}/products/${productId}`, { headers: headers() }).then((result) => result.json());
       setMedia(refreshed.data?.media || []);
       setMessage('Media produk berhasil diunggah.');
@@ -444,7 +443,7 @@ export default function EditProductPage() {
     const invalid = validateDataUpload(file, ['image/jpeg', 'image/png', 'image/webp']);
     if (invalid) { setMessage(invalid); return; }
     try {
-      const body = await uploadMediaData(`${apiUrl}/products/${productId}/variants/${variantId}/photo-data`, file, token());
+      const body = await uploadMediaData(`${apiUrl}/products/${productId}/variants/${variantId}/photo-data`, file);
       setVariants((current) => current.map((variant) => variant.id === variantId ? { ...variant, photo_path: body.data.path } : variant));
       setMessage('Foto varian berhasil diperbarui.');
     } catch (error) { setMessage(error.message); }

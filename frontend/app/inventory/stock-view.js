@@ -19,7 +19,6 @@ export default function StockReportSection() {
   const [message, setMessage] = useState('');
   const loadSeq = useRef(0);
 
-  const token = () => '';
   const headers = () => ({ 'Content-Type': 'application/json'});
 
   useEffect(() => {

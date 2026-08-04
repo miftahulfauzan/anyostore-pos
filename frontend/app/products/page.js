@@ -20,7 +20,6 @@ export default function ProductsPage() {
   const [barcodeProduct, setBarcodeProduct] = useState(null);
   const [barcodeCopies, setBarcodeCopies] = useState(1);
   const loadSeq = useRef(0);
-  const token = () => '';
 
   async function load(keyword = search) {
     /* sesi via httpOnly cookie */

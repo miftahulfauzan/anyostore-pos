@@ -32,7 +32,6 @@ export default function SettingsPage() {
   const [creating, setCreating] = useState(false);
   const [createMessage, setCreateMessage] = useState('');
 
-  const token = () => '';
   const jsonHeaders = () => ({ 'Content-Type': 'application/json'});
   const mediaUrl = (value) => value ? api.replace('/api', '') + value : '';
 
@@ -86,7 +85,7 @@ export default function SettingsPage() {
     setUploadingLogo(true);
     setMessage('');
     try {
-      const body = await uploadMediaData(api + '/settings/logo-data?branch_id=' + branch, file, token());
+      const body = await uploadMediaData(api + '/settings/logo-data?branch_id=' + branch, file);
       setForm((current) => ({ ...current, store_logo: body.data.store_logo }));
       setMessage('Logo toko tersimpan dan siap digunakan pada struk serta laporan.');
     } catch (error) { setMessage(error.message); }
@@ -243,7 +242,7 @@ export default function SettingsPage() {
           </div>
         </section>
       )}
-      <CategoryManager api={api} token={token} headers={jsonHeaders} />
+      <CategoryManager api={api} headers={jsonHeaders} />
 
       <section className="panel">
         <h2>Toko aktif & identitas</h2>

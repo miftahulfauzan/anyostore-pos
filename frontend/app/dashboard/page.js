@@ -11,7 +11,6 @@ export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [message, setMessage] = useState('');
   const [role, setRole] = useState(null);
-  const token = () => '';
 
   useEffect(() => {
     /* sesi via httpOnly cookie */

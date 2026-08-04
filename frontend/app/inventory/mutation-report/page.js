@@ -36,7 +36,6 @@ export default function MutationReportPage() {
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState(null);
   const loadSeq = useRef(0);
-  const token = () => '';
   const headers = () => ({ 'Content-Type': 'application/json'});
 
   async function load(next = {}) {

@@ -20,7 +20,6 @@ export default function NewProductPage() {
   const [videoPreview, setVideoPreview] = useState('');
   const [tiers, setTiers] = useState([]);
   const [variants, setVariants] = useState([]);
-  const token = () => '';
   const headers = () => ({ 'Content-Type': 'application/json'});
 
   useEffect(() => {
@@ -156,7 +155,7 @@ export default function NewProductPage() {
       // Upload the first selected photo last because every newly uploaded photo
       // becomes primary on the server. The user's Foto 1 remains the cover.
       const selectedMedia = [...imageFiles.filter(Boolean).reverse(), ...(videoFile ? [videoFile] : [])];
-      for (const file of selectedMedia) await uploadMediaData(`${apiUrl}/products/${body.data.id}/media-data`, file, token());
+      for (const file of selectedMedia) await uploadMediaData(`${apiUrl}/products/${body.data.id}/media-data`, file);
       setForm(emptyForm);
       setImageFiles(Array(10).fill(null));
       setImagePreviews(Array(10).fill(''));

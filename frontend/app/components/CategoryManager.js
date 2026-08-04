@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-export default function CategoryManager({ api, token, headers }) {
+export default function CategoryManager({ api, headers }) {
   const [categories, setCategories] = useState([]);
   const [message, setMessage] = useState('');
   const [editing, setEditing] = useState(null);
