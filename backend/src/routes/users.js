@@ -147,7 +147,7 @@ router.delete('/:id', authenticate, authorize('owner'), async (req, res, next) =
         (SELECT COUNT(*) FROM stock_opnames WHERE created_by=?) +
         (SELECT COUNT(*) FROM stock_transfers WHERE created_by=? OR approved_by=?) +
         (SELECT COUNT(*) FROM journal_entries WHERE created_by=?) AS cnt`,
-      [id, id, id, id, id, id, id, id, id, id, id, id, id, id, id, id]
+      [id, id, id, id, id, id, id, id, id, id, id, id, id, id, id, id, id]
     );
     if (Number(trx[0].cnt) > 0) {
       await db.execute('UPDATE users SET is_active = FALSE WHERE id = ?', [id]);
