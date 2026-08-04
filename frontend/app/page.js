@@ -85,6 +85,7 @@ function ProductCard({ product, onWa, onAdd, inCart }) {
       </a>
       <button type="button" className={`pcard-add${inCart ? ' has' : ''}`} onClick={() => onAdd(product)} aria-label="Tambah ke keranjang" title="Tambah ke keranjang">
         <I.cart style={{ width: 15, height: 15 }} />
+        Tambah
         {inCart > 0 && <span className="pcard-add-badge">{inCart}</span>}
       </button>
       <div className="pcard-body">
@@ -133,6 +134,10 @@ export default function LandingPage() {
   function countInCart(productId) { return cart.filter((i) => i.productId === productId).reduce((s, i) => s + i.qty, 0); }
   const cartPcs = cart.reduce((s, i) => s + i.qty, 0);
   const cartTotal = cart.reduce((s, i) => s + i.qty * i.price, 0);
+  const modelTotals = cart.reduce((m, i) => { m[i.productId] = (m[i.productId] || 0) + i.qty; return m; }, {});
+  const cartWarnings = Object.entries(modelTotals)
+    .map(([pid, qty]) => ({ name: cart.find((i) => i.productId === Number(pid))?.name || 'Produk', qty }))
+    .filter((w) => w.qty < 4);
 
   function openPicker(product) {
     setPickQty(1);
@@ -176,8 +181,18 @@ export default function LandingPage() {
   function clearCart() { setCart([]); }
 
   function buildOrderMsg() {
-    const lines = cart.map((i, idx) => `${idx + 1}. ${i.name}${i.variantLabel ? ` (${i.variantLabel})` : ''} — ${i.qty} pcs × ${fmtRp(i.price)} = ${fmtRp(i.qty * i.price)}`);
-    return `Halo Anyostore, saya mau order grosir:\n\n${lines.join('\n')}\n\nTotal: ${cartPcs} pcs · ${fmtRp(cartTotal)}`;
+    const groups = {};
+    for (const it of cart) {
+      if (!groups[it.productId]) groups[it.productId] = { name: it.name, items: [], qty: 0, total: 0 };
+      groups[it.productId].items.push(it);
+      groups[it.productId].qty += it.qty;
+      groups[it.productId].total += it.qty * it.price;
+    }
+    const lines = Object.values(groups).map((g, gi) => {
+      const detail = g.items.map((it) => `    ${it.variantLabel ? `${it.variantLabel}: ` : ''}${it.qty} pcs × ${fmtRp(it.price)} = ${fmtRp(it.qty * it.price)}`).join('\n');
+      return `${gi + 1}. ${g.name} — ${g.qty} pcs · ${fmtRp(g.total)}\n${detail}`;
+    });
+    return `Halo Anyostore, saya mau order grosir:\n\n${lines.join('\n')}\n\nTotal: ${cartPcs} pcs · ${fmtRp(cartTotal)}\nMin. pembelian 4 pcs per model (varian boleh dicampur).`;
   }
   function sendOrder() { setCartOpen(false); pickWa(buildOrderMsg()); }
 
@@ -401,7 +416,12 @@ export default function LandingPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 700, fontSize: 15, color: T.black }}>
                 <span>Total</span><span>{fmtRp(cartTotal)}</span>
               </div>
-              <p style={{ margin: 0, fontSize: 11, color: T.muted }}>Min. pembelian 4 pcs per model.</p>
+              {cartWarnings.length > 0 && (
+                <div style={{ display: 'grid', gap: 3 }}>
+                  {cartWarnings.map((w) => <p key={w.name} style={{ margin: 0, fontSize: 11, color: '#b45309' }}>{w.name} masih {w.qty} pcs — min. 4 pcs per model.</p>)}
+                </div>
+              )}
+              <p style={{ margin: 0, fontSize: 11, color: T.muted }}>Min. pembelian 4 pcs per model — varian boleh dicampur.</p>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={clearCart} disabled={!cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', minWidth: 110 }}>Kosongkan</button>
                 <button onClick={sendOrder} disabled={!cart.length} className="pcard-btn primary" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44 }}><I.chat style={{ width: 15, height: 15 }} /> Chat Pesanan via WhatsApp</button>
@@ -444,7 +464,7 @@ export default function LandingPage() {
               <button className="qty-btn" onClick={() => setPickQty((q) => q + 1)} aria-label="Tambah jumlah"><I.plus style={{ width: 15, height: 15 }} /></button>
             </div>
             <button onClick={addFromPicker} className="pcard-btn primary" style={{ width: '100%', minHeight: 46, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 14 }}><I.cart style={{ width: 16, height: 16 }} /> Tambah ke Keranjang</button>
-            <p style={{ margin: '12px 0 0', fontSize: 12, color: T.muted, textAlign: 'center' }}>Min. pembelian 4 pcs per model.</p>
+            <p style={{ margin: '12px 0 0', fontSize: 12, color: T.muted, textAlign: 'center' }}>Min. 4 pcs per model — varian boleh dicampur.</p>
           </div>
         </div>
       )}
@@ -479,9 +499,9 @@ export default function LandingPage() {
         .pcard { position: relative; display: flex; flex-direction: column; border-radius: 14px; overflow: hidden; background: #fff; border: 1px solid #e5e7eb; transition: all .3s cubic-bezier(.4,0,.2,1); box-shadow: 0 1px 3px rgba(0,0,0,.04); }
         .pcard:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(15,23,42,.08); border-color: #d1d5db; }
         .pcard:active { transform: scale(.985); }
-        .pcard-add { position: absolute; top: 10px; right: 10px; z-index: 4; width: 36px; height: 36px; border-radius: 999px; border: 1px solid rgba(0,0,0,.08); background: rgba(255,255,255,.92); color: #1a1a1a; display: grid; place-items: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.14); transition: all .2s; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
-        .pcard-add:hover { background: ${T.blue}; color: #fff; transform: translateY(-1px); }
-        .pcard-add.has { background: ${T.blue}; color: #fff; }
+        .pcard-add { position: absolute; top: 10px; right: 10px; z-index: 4; display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.35); background: rgba(30,58,95,.94); color: #fff; font-weight: 700; font-size: 12px; cursor: pointer; box-shadow: 0 4px 14px rgba(15,23,42,.35); transition: all .2s; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+        .pcard-add:hover { background: #152d4a; transform: translateY(-1px); }
+        .pcard-add.has { background: #152d4a; }
         .pcard-add-badge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; border-radius: 999px; background: #dc2626; color: #fff; font-size: 10px; font-weight: 800; display: grid; place-items: center; padding: 0 4px; }
         .cart-fab { position: fixed; right: 16px; bottom: 82px; z-index: 95; width: 56px; height: 56px; border-radius: 999px; border: 0; background: ${T.blue}; color: #fff; display: grid; place-items: center; cursor: pointer; box-shadow: 0 12px 28px rgba(15,23,42,.25); transition: all .2s; }
         .cart-fab:hover { transform: translateY(-2px); }
