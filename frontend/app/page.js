@@ -47,7 +47,7 @@ function ProductCard({ product, onWa }) {
     });
     return list.length ? list : (product.photo_path ? [{ path: product.photo_path }] : []);
   }, [product.photo_paths, product.photo_path]);
-  // Hover: langsung ganti ke foto berikutnya, lalu lanjut tiap 2 detik selama mouse di kartu.
+  // Hover: langsung ganti ke foto berikutnya, lalu lanjut tiap 1 detik selama mouse di kartu.
   const [photoIdx, setPhotoIdx] = useState(0);
   const photoTimer = useRef(null);
   function stopCycle() {
@@ -57,7 +57,7 @@ function ProductCard({ product, onWa }) {
     if (photos.length <= 1) return;
     stopCycle();
     setPhotoIdx((i) => (i + 1) % photos.length);
-    photoTimer.current = setInterval(() => setPhotoIdx((i) => (i + 1) % photos.length), 2000);
+    photoTimer.current = setInterval(() => setPhotoIdx((i) => (i + 1) % photos.length), 1000);
   }
   function onLeave() {
     stopCycle();

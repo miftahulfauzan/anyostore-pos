@@ -9,7 +9,11 @@ const rp = (n) => {
   return (v < 0 ? '-Rp' : 'Rp') + Math.abs(v).toLocaleString('id-ID');
 };
 const longDate = (d) => new Date(`${d}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-const shortStamp = (s) => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+const shortStamp = (s) => {
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return String(s || '');
+  return d.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
 
 export default function ClosingPage() {
   const [data, setData] = useState(null);
@@ -101,10 +105,6 @@ export default function ClosingPage() {
               <div className="receipt-summary-row strong"><span>Total Diharapkan</span><b>{rp(data.expected_total)}</b></div>
             </section>
 
-            <footer className="receipt-footer">
-              <strong>Terima kasih</strong>
-              <small>Simpan dokumen ini sebagai bukti penutupan kas.</small>
-            </footer>
           </article>
         </main>
       )}

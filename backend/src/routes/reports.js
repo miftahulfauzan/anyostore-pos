@@ -89,7 +89,7 @@ router.get('/daily-closing', async (req, res, next) => {
         document: 'Penutupan Penjualan',
         store: branch.name,
         store_address: branch.address || '',
-        printed_at: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }),
+        printed_at: new Date().toISOString(),
         printed_by: userRows[0]?.name || req.user.id,
         date,
         receipt_count: Number(salesData[0].receipt_count),
