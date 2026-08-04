@@ -309,6 +309,36 @@ router.post('/:id/media-data', authorize('owner', 'manager', 'admin', 'gudang'),
   } catch (error) { next(error); }
 });
 
+// PATCH /api/products/:id/media/:mediaId/image-data — ganti file foto yang sudah ada
+// dengan hasil crop (JPEG 1200x1600 dari modal "Atur Foto"). Transform lama direset
+// karena crop sudah "dipanggang" ke dalam file.
+router.patch('/:id/media/:mediaId/image-data', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
+  try {
+    const file = decodeDataUpload(req.body, { ...dataUploadOptions, mimeTypes: ['image/jpeg', 'image/png', 'image/webp'] });
+    const [rows] = await db.execute(
+      `SELECT pp.id, pp.path FROM product_photos pp JOIN products p ON p.id = pp.product_id
+       WHERE pp.id = ? AND pp.product_id = ? AND pp.variant_id IS NULL AND pp.media_type = 'image' AND p.branch_id = ?`,
+      [req.params.mediaId, req.params.id, req.user.branch_id]
+    );
+    const media = rows[0];
+    if (!media) {
+      await discardUploadedFile(file);
+      return res.status(404).json({ success: false, message: 'Foto produk tidak ditemukan' });
+    }
+    const publicPath = await persistUploadedFile(file, 'products');
+    try {
+      await db.execute('UPDATE product_photos SET path = ?, filename = ?, `transform` = NULL WHERE id = ?', [publicPath, file.filename, media.id]);
+    } catch (error) {
+      await removeMedia(publicPath);
+      throw error;
+    }
+    // Hapus file lama hanya jika tidak dipakai media lain (clone cabang memakai path yang sama).
+    const [ref] = await db.execute('SELECT COUNT(*) AS cnt FROM product_photos WHERE path = ?', [media.path]);
+    if (Number(ref[0].cnt) === 0) await removeMedia(media.path);
+    res.json({ success: true, data: { id: media.id, path: publicPath } });
+  } catch (error) { next(error); }
+});
+
 router.delete('/:id/media/:mediaId', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
     const [rows] = await db.execute(

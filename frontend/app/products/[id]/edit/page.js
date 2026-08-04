@@ -2,112 +2,326 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { GripVertical, ImagePlus, Plus, Video, X } from 'lucide-react';
+import { FlipHorizontal2, FlipVertical2, GripVertical, ImagePlus, Plus, RotateCcw, RotateCw, Video, X, ZoomIn, ZoomOut } from 'lucide-react';
 import AppShell from '../../../components/AppShell';
-import { uploadMediaData, validateDataUpload } from '../../../lib/media-upload';
+import { fileToDataUrl, uploadMediaData, validateDataUpload } from '../../../lib/media-upload';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const emptyVariant = () => ({ color: '', size: '', sku: '', barcode: '', price: '' });
 const ACCENT = '#1e3a5f';
 
-// Transform disimpan sebagai "scale,xPct,yPct" — pan dalam persen terhadap box,
-// supaya hasil crop konsisten di semua ukuran box (modal, detail, landing, grid).
-// maxPanPct = (scale - 1) / 2 * 100, berlaku untuk sumbu X dan Y.
+// Transform lama disimpan sebagai "scale,xPct,yPct" untuk thumbnail WYSIWYG.
+// Modal "Ubah Foto Produk" sekarang mem-bake crop menjadi JPEG 1200x1600
+// dan mereset transform ke NULL, jadi thumbnail selalu sama dengan hasil crop.
 const parseTransform = (raw) => {
   const t = String(raw || '').split(',').map(Number);
   return { scale: t.length >= 3 && isFinite(t[0]) && t[0] > 0 ? t[0] : 1, x: isFinite(t[1]) ? t[1] : 0, y: isFinite(t[2]) ? t[2] : 0 };
 };
-const formatTransform = (p) => `${Math.round(p.scale * 100) / 100},${Math.round(p.x * 100) / 100},${Math.round(p.y * 100) / 100}`;
-const maxPanPct = (scale) => ((scale - 1) / 2) * 100;
+const CROP_W = 360;
+const CROP_H = 480;
+const OUT_W = 1200;
+const OUT_H = 1600;
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+const round2 = (v) => Math.round(v * 100) / 100;
 
-function AdjModal({ photo, mediaUrl, onClose, onSave, onUpdate }) {
-  const [dragging, setDragging] = useState(false);
-  const [last, setLast] = useState({ x: 0, y: 0 });
-  const viewportRef = useRef(null);
+function AdjModal({ photo, mediaUrl, onClose, onSave }) {
+  const [image, setImage] = useState(null);
+  const [status, setStatus] = useState('loading');
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [rotation, setRotation] = useState(0);
+  const [flipH, setFlipH] = useState(false);
+  const [flipV, setFlipV] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const cropRef = useRef(null);
+  const previewRef = useRef(null);
+  const dragRef = useRef(null);
+  const pinchRef = useRef(null);
+  const [cropScale, setCropScale] = useState(1);
+  const [previewScale, setPreviewScale] = useState(0.66);
 
-  function clampPan(p) {
-    const max = maxPanPct(p.scale);
-    return { ...p, x: Math.max(-max, Math.min(max, p.x)), y: Math.max(-max, Math.min(max, p.y)) };
+  useEffect(() => {
+    setStatus('loading');
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+    setRotation(0);
+    setFlipH(false);
+    setFlipV(false);
+    setError('');
+    const img = new Image();
+    img.onload = () => { setImage(img); setStatus('ready'); };
+    img.onerror = () => setStatus('error');
+    img.src = mediaUrl(photo.path);
+    return () => { img.onload = null; img.onerror = null; };
+  }, [photo.path, mediaUrl]);
+
+  useEffect(() => {
+    function measure() {
+      if (cropRef.current) setCropScale(cropRef.current.clientWidth / CROP_W);
+      if (previewRef.current) setPreviewScale(previewRef.current.clientWidth / CROP_W);
+    }
+    measure();
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(measure);
+      if (cropRef.current) ro.observe(cropRef.current);
+      if (previewRef.current) ro.observe(previewRef.current);
+      return () => ro.disconnect();
+    }
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
+
+  const rotDim = image && rotation % 180 !== 0
+    ? { w: image.naturalHeight, h: image.naturalWidth }
+    : { w: image?.naturalWidth || 1, h: image?.naturalHeight || 1 };
+  const cover = image ? Math.max(CROP_W / rotDim.w, CROP_H / rotDim.h) : 1;
+  const scale = cover * zoom;
+  const dw = rotDim.w * scale;
+  const dh = rotDim.h * scale;
+  const maxPanX = Math.max(0, (dw - CROP_W) / 2);
+  const maxPanY = Math.max(0, (dh - CROP_H) / 2);
+  const panX = clamp(pan.x, -maxPanX, maxPanX);
+  const panY = clamp(pan.y, -maxPanY, maxPanY);
+  const drawX = (CROP_W - dw) / 2 + panX;
+  const drawY = (CROP_H - dh) / 2 + panY;
+  const transformStyle = `rotate(${rotation}deg) scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`;
+
+  function zoomBy(factor) {
+    const nextZoom = clamp(zoom * factor, 1, 4);
+    const nextScale = cover * nextZoom;
+    const cu = -panX / scale;
+    const cv = -panY / scale;
+    const nextMaxX = Math.max(0, (rotDim.w * nextScale - CROP_W) / 2);
+    const nextMaxY = Math.max(0, (rotDim.h * nextScale - CROP_H) / 2);
+    setZoom(round2(nextZoom));
+    setPan({ x: clamp(-cu * nextScale, -nextMaxX, nextMaxX), y: clamp(-cv * nextScale, -nextMaxY, nextMaxY) });
   }
-  function zoomBy(delta) {
-    const next = Math.min(4, Math.max(1, Math.round((photo.scale + delta) * 100) / 100));
-    onUpdate(clampPan({ ...photo, scale: next }));
-  }
+
   function onWheel(e) {
     e.preventDefault();
-    zoomBy(e.deltaY > 0 ? -0.08 : 0.08);
+    const el = cropRef.current;
+    if (!el || !image) return;
+    const rect = el.getBoundingClientRect();
+    const k = rect.width / CROP_W;
+    const lx = (e.clientX - rect.left) / k;
+    const ly = (e.clientY - rect.top) / k;
+    const nextZoom = clamp(zoom * (e.deltaY > 0 ? 1 / 1.12 : 1.12), 1, 4);
+    const nextScale = cover * nextZoom;
+    const cu = (lx - CROP_W / 2 - panX) / scale;
+    const cv = (ly - CROP_H / 2 - panY) / scale;
+    const nextMaxX = Math.max(0, (rotDim.w * nextScale - CROP_W) / 2);
+    const nextMaxY = Math.max(0, (rotDim.h * nextScale - CROP_H) / 2);
+    setZoom(round2(nextZoom));
+    setPan({ x: clamp(lx - CROP_W / 2 - cu * nextScale, -nextMaxX, nextMaxX), y: clamp(ly - CROP_H / 2 - cv * nextScale, -nextMaxY, nextMaxY) });
   }
+  useEffect(() => {
+    const el = cropRef.current;
+    if (!el) return;
+    const handler = (e) => { e.preventDefault(); onWheel(e); };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  });
+
   function onPointerDown(e) {
+    if (e.pointerType === 'touch') return;
     e.preventDefault();
-    setDragging(true);
-    setLast({ x: e.clientX, y: e.clientY });
-    if (viewportRef.current) viewportRef.current.setPointerCapture(e.pointerId);
+    dragRef.current = { id: e.pointerId, clientX: e.clientX, clientY: e.clientY, panX, panY };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
   }
   function onPointerMove(e) {
-    if (!dragging) return;
-    const el = viewportRef.current;
+    const d = dragRef.current;
+    if (!d || e.pointerId !== d.id || !cropRef.current) return;
+    const rect = cropRef.current.getBoundingClientRect();
+    const k = rect.width / CROP_W;
+    setPan({ x: clamp(d.panX + (e.clientX - d.clientX) / k, -maxPanX, maxPanX), y: clamp(d.panY + (e.clientY - d.clientY) / k, -maxPanY, maxPanY) });
+  }
+  function onPointerEnd(e) {
+    if (dragRef.current?.id === e.pointerId) dragRef.current = null;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
+  }
+
+  function onTouchStart(e) {
+    if (e.touches.length === 2) {
+      const t = e.touches;
+      pinchRef.current = {
+        dist: Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY),
+        midX: (t[0].clientX + t[1].clientX) / 2,
+        midY: (t[0].clientY + t[1].clientY) / 2,
+        zoom, panX, panY,
+      };
+      dragRef.current = null;
+    } else if (e.touches.length === 1) {
+      const t = e.touches[0];
+      pinchRef.current = null;
+      dragRef.current = { id: `touch-${t.identifier}`, clientX: t.clientX, clientY: t.clientY, panX, panY };
+    }
+  }
+  function onTouchMove(e) {
+    const el = cropRef.current;
     if (!el) return;
-    const dx = e.clientX - last.x;
-    const dy = e.clientY - last.y;
-    setLast({ x: e.clientX, y: e.clientY });
-    onUpdate(clampPan({ ...photo, x: photo.x + (dx / el.clientWidth) * 100, y: photo.y + (dy / el.clientHeight) * 100 }));
+    const rect = el.getBoundingClientRect();
+    const k = rect.width / CROP_W;
+    if (e.touches.length === 2 && pinchRef.current) {
+      const t = e.touches;
+      const dist = Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+      if (dist > 0 && pinchRef.current.dist > 0) {
+        const s = pinchRef.current;
+        const nextZoom = clamp(s.zoom * (dist / s.dist), 1, 4);
+        const nextScale = cover * nextZoom;
+        const lx0 = (s.midX - rect.left) / k;
+        const ly0 = (s.midY - rect.top) / k;
+        const lx1 = ((t[0].clientX + t[1].clientX) / 2 - rect.left) / k;
+        const ly1 = ((t[0].clientY + t[1].clientY) / 2 - rect.top) / k;
+        const cu = (lx0 - CROP_W / 2 - s.panX) / (cover * s.zoom);
+        const cv = (ly0 - CROP_H / 2 - s.panY) / (cover * s.zoom);
+        const nextMaxX = Math.max(0, (rotDim.w * nextScale - CROP_W) / 2);
+        const nextMaxY = Math.max(0, (rotDim.h * nextScale - CROP_H) / 2);
+        const nx = clamp(lx1 - CROP_W / 2 - cu * nextScale, -nextMaxX, nextMaxX);
+        const ny = clamp(ly1 - CROP_H / 2 - cv * nextScale, -nextMaxY, nextMaxY);
+        setZoom(round2(nextZoom));
+        setPan({ x: nx, y: ny });
+        pinchRef.current = { ...s, dist, midX: (t[0].clientX + t[1].clientX) / 2, midY: (t[0].clientY + t[1].clientY) / 2, zoom: nextZoom, panX: nx, panY: ny };
+      }
+    } else if (e.touches.length === 1 && dragRef.current && String(dragRef.current.id).startsWith('touch')) {
+      const t = e.touches[0];
+      const d = dragRef.current;
+      setPan({ x: clamp(d.panX + (t.clientX - d.clientX) / k, -maxPanX, maxPanX), y: clamp(d.panY + (t.clientY - d.clientY) / k, -maxPanY, maxPanY) });
+    }
   }
-  function onPointerUp(e) {
-    setDragging(false);
-    if (viewportRef.current) viewportRef.current.releasePointerCapture(e.pointerId);
+  function onTouchEnd() { pinchRef.current = null; dragRef.current = null; }
+
+  function reset() { setZoom(1); setPan({ x: 0, y: 0 }); setRotation(0); setFlipH(false); setFlipV(false); setError(''); }
+
+  function computeSourceRect() {
+    const corners = [[0, 0], [CROP_W, 0], [0, CROP_H], [CROP_W, CROP_H]];
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const [vx, vy] of corners) {
+      let u = (vx - CROP_W / 2 - panX) / scale;
+      let v = (vy - CROP_H / 2 - panY) / scale;
+      if (flipH) u = -u;
+      if (flipV) v = -v;
+      let nx, ny;
+      if (rotation === 90) { nx = v; ny = -u; }
+      else if (rotation === 180) { nx = -u; ny = -v; }
+      else if (rotation === 270) { nx = -v; ny = u; }
+      else { nx = u; ny = v; }
+      const ox = nx + image.naturalWidth / 2;
+      const oy = ny + image.naturalHeight / 2;
+      minX = Math.min(minX, ox); minY = Math.min(minY, oy);
+      maxX = Math.max(maxX, ox); maxY = Math.max(maxY, oy);
+    }
+    const sx = clamp(minX, 0, image.naturalWidth);
+    const sy = clamp(minY, 0, image.naturalHeight);
+    const sw = clamp(maxX, 0, image.naturalWidth) - sx;
+    const sh = clamp(maxY, 0, image.naturalHeight) - sy;
+    return { sx, sy, sw, sh };
   }
-  const pct = (v) => `${Math.round(v * 10) / 10}%`;
+
+  async function handleSave() {
+    if (!image || status !== 'ready') return;
+    setSaving(true);
+    setError('');
+    try {
+      const { sx, sy, sw, sh } = computeSourceRect();
+      if (sw <= 0 || sh <= 0) throw new Error('Area crop tidak valid.');
+      const canvas = document.createElement('canvas');
+      canvas.width = OUT_W;
+      canvas.height = OUT_H;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Browser tidak mendukung pemrosesan gambar.');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, OUT_W, OUT_H);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(image, sx, sy, sw, sh, 0, 0, OUT_W, OUT_H);
+      const blob = await new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Gagal membuat gambar hasil crop'))), 'image/jpeg', 0.9));
+      const file = new File([blob], 'crop-1200x1600.jpg', { type: 'image/jpeg' });
+      await onSave(file);
+      onClose();
+    } catch (err) {
+      setError(err.message || 'Gagal menyimpan foto.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const croppedImage = image ? (
+    <img src={mediaUrl(photo.path)} alt="" draggable={false} style={{ position: 'absolute', left: drawX, top: drawY, width: dw, height: dh, transform: transformStyle, transformOrigin: 'center', pointerEvents: 'none', display: 'block' }} />
+  ) : null;
+  const toolBtn = { display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 36, padding: '0 12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#1e293b', fontSize: 12, fontWeight: 600, cursor: 'pointer' };
+  const toolBtnActive = { ...toolBtn, background: ACCENT, borderColor: ACCENT, color: '#fff' };
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, .62)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', zIndex: 100, padding: 20 }}>
-      <div onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Atur Foto" style={{ background: '#fff', borderRadius: 16, padding: 0, maxWidth: 460, width: '100%', overflow: 'hidden', boxShadow: '0 24px 60px rgba(15, 23, 42, .35)' }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, .62)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', zIndex: 120, padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Ubah Foto Produk" style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 920, maxHeight: '94vh', overflowY: 'auto', boxShadow: '0 24px 60px rgba(15, 23, 42, .35)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #eef1f5' }}>
           <div>
-            <strong style={{ fontSize: 15, color: '#0f172a' }}>Atur Foto</strong>
-            <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94a3b8' }}>Crop 3:4 — hasil sama dengan kartu produk</p>
+            <strong style={{ fontSize: 16, color: '#0f172a' }}>Ubah Foto Produk</strong>
+            <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94a3b8' }}>Geser untuk posisi · gulir / pinch untuk zoom · hasil 1200×1600 (3:4)</p>
           </div>
-          <button onClick={onClose} aria-label="Tutup" style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: '#f1f5f9', fontSize: 16, lineHeight: 1, cursor: 'pointer', color: '#475569', display: 'grid', placeItems: 'center' }}>×</button>
+          <button onClick={onClose} disabled={saving} aria-label="Tutup" style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#f1f5f9', fontSize: 16, lineHeight: 1, cursor: 'pointer', color: '#475569', display: 'grid', placeItems: 'center' }}>×</button>
         </div>
 
-        {/* Viewport: dark checkerboard + rule-of-thirds grid overlay */}
-        <div style={{ padding: '14px 20px' }}>
-          <div
-            ref={viewportRef}
-            onWheel={onWheel}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerLeave={onPointerUp}
-            style={{ position: 'relative', width: '100%', aspectRatio: '3/4', overflow: 'hidden', borderRadius: 10, background: 'repeating-conic-gradient(#e2e8f0 0% 25%, #f8fafc 0% 50%) 0 0 / 24px 24px', border: '1px solid #e2e8f0', cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none', userSelect: 'none' }}
-          >
-            <img src={mediaUrl(photo.path)} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', transform: `translate(${photo.x}%, ${photo.y}%) scale(${photo.scale})`, pointerEvents: 'none', display: 'block' }} />
-            {/* Rule-of-thirds overlay */}
-            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-              <div style={{ position: 'absolute', left: '33.33%', top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,.35)' }} />
-              <div style={{ position: 'absolute', left: '66.66%', top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,.35)' }} />
-              <div style={{ position: 'absolute', top: '33.33%', left: 0, right: 0, height: 1, background: 'rgba(255,255,255,.35)' }} />
-              <div style={{ position: 'absolute', top: '66.66%', left: 0, right: 0, height: 1, background: 'rgba(255,255,255,.35)' }} />
+        <div style={{ display: 'flex', gap: 18, padding: 20, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          {/* Kiri: area crop */}
+          <div style={{ flex: '1 1 320px', minWidth: 0 }}>
+            <div
+              ref={cropRef}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerEnd}
+              onPointerLeave={onPointerEnd}
+              onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
+              style={{ position: 'relative', width: '100%', maxWidth: 440, margin: '0 auto', aspectRatio: '3/4', overflow: 'hidden', borderRadius: 12, background: '#0f172a', border: '1px solid #e2e8f0', cursor: 'grab', touchAction: 'none', userSelect: 'none' }}
+            >
+              <div style={{ position: 'absolute', left: 0, top: 0, width: CROP_W, height: CROP_H, transform: `scale(${cropScale})`, transformOrigin: 'top left' }}>
+                {status === 'ready' && croppedImage}
+                {status === 'loading' && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#94a3b8', fontSize: 13 }}>Memuat foto…</div>}
+                {status === 'error' && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#fca5a5', fontSize: 13, padding: 20, textAlign: 'center' }}>Foto tidak dapat dimuat. Silakan pilih foto lain.</div>}
+                <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+                  <div style={{ position: 'absolute', left: '33.33%', top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,.32)' }} />
+                  <div style={{ position: 'absolute', left: '66.66%', top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,.32)' }} />
+                  <div style={{ position: 'absolute', top: '33.33%', left: 0, right: 0, height: 1, background: 'rgba(255,255,255,.32)' }} />
+                  <div style={{ position: 'absolute', top: '66.66%', left: 0, right: 0, height: 1, background: 'rgba(255,255,255,.32)' }} />
+                </div>
+                <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, right: 0, border: '2px solid rgba(255,255,255,.75)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.2)', pointerEvents: 'none' }} />
+              </div>
             </div>
-            {/* Full-image thumbnail for context */}
-            <div style={{ position: 'absolute', right: 8, bottom: 8, width: 64, height: 85, borderRadius: 6, overflow: 'hidden', border: '2px solid #fff', boxShadow: '0 2px 10px rgba(0,0,0,.35)', background: '#fff', pointerEvents: 'none' }}>
-              <img src={mediaUrl(photo.path)} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+          </div>
+
+          {/* Kanan: preview realtime */}
+          <div style={{ flex: '1 1 220px', minWidth: 0, display: 'grid', gap: 8, alignContent: 'start' }}>
+            <strong style={{ fontSize: 12, color: '#334155', textTransform: 'uppercase', letterSpacing: '.05em' }}>Preview · 1200×1600</strong>
+            <div ref={previewRef} style={{ position: 'relative', width: '100%', maxWidth: 260, margin: '0 auto', aspectRatio: '3/4', overflow: 'hidden', borderRadius: 10, background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 4px 16px rgba(15,23,42,.12)' }}>
+              <div style={{ position: 'absolute', left: 0, top: 0, width: CROP_W, height: CROP_H, transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
+                {status === 'ready' && croppedImage}
+              </div>
             </div>
+            <p style={{ margin: 0, fontSize: 11, color: '#64748b', textAlign: 'center' }}>Hasil crop otomatis mengikuti preview. Tersimpan sebagai JPEG 1200×1600.</p>
           </div>
         </div>
 
-        {/* Zoom controls */}
-        <div style={{ padding: '0 20px', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button onClick={() => zoomBy(-0.1)} aria-label="Perkecil" style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#475569', fontSize: 16, lineHeight: 1, cursor: 'pointer', flexShrink: 0 }}>−</button>
-          <input type="range" min="1" max="4" step="0.01" value={photo.scale} onChange={(e) => onUpdate(clampPan({ ...photo, scale: Number(e.target.value) }))} aria-label="Perbesar" style={{ flex: 1, accentColor: ACCENT }} />
-          <button onClick={() => zoomBy(0.1)} aria-label="Perbesar" style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#475569', fontSize: 16, lineHeight: 1, cursor: 'pointer', flexShrink: 0 }}>+</button>
-          <span style={{ fontSize: 12, color: '#475569', minWidth: 52, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{photo.scale.toFixed(2)}×</span>
-        </div>
-        <p style={{ margin: '8px 20px 0', fontSize: 11, color: '#94a3b8' }}>Geser untuk posisi · Gulir / slider untuk zoom · Pan maksimal ±{pct(maxPanPct(photo.scale))}</p>
-
-        <div style={{ display: 'flex', gap: 8, padding: 16, borderTop: '1px solid #eef1f5', marginTop: 14 }}>
-          <button onClick={() => onUpdate({ ...photo, scale: 1, x: 0, y: 0 })} style={{ minHeight: 42, padding: '0 16px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#1e293b', cursor: 'pointer', fontWeight: 600 }}>Reset</button>
-          <div style={{ flex: 1 }} />
-          <button onClick={onSave} style={{ flex: 1, minHeight: 42, borderRadius: 8, border: 'none', background: ACCENT, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Simpan</button>
+        {/* Toolbar + aksi */}
+        <div style={{ padding: '14px 20px 18px', borderTop: '1px solid #eef1f5', display: 'grid', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button onClick={() => zoomBy(1 / 1.2)} style={toolBtn}><ZoomOut size={15} /> Perkecil</button>
+            <span style={{ fontSize: 12, color: '#475569', minWidth: 46, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{zoom.toFixed(2)}×</span>
+            <button onClick={() => zoomBy(1.2)} style={toolBtn}><ZoomIn size={15} /> Perbesar</button>
+            <span style={{ width: 1, height: 24, background: '#e2e8f0' }} />
+            <button onClick={() => setRotation((r) => (r + 270) % 360)} style={toolBtn}><RotateCcw size={15} /> Putar Kiri</button>
+            <button onClick={() => setRotation((r) => (r + 90) % 360)} style={toolBtn}><RotateCw size={15} /> Putar Kanan</button>
+            <button onClick={() => setFlipH((v) => !v)} style={flipH ? toolBtnActive : toolBtn}><FlipHorizontal2 size={15} /> Horizontal</button>
+            <button onClick={() => setFlipV((v) => !v)} style={flipV ? toolBtnActive : toolBtn}><FlipVertical2 size={15} /> Vertikal</button>
+            <button onClick={reset} style={toolBtn}>Reset</button>
+          </div>
+          {error && <p style={{ margin: 0, color: '#b91c1c', fontSize: 12 }}>{error}</p>}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={onClose} disabled={saving} style={{ minHeight: 44, padding: '0 18px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#fff', color: '#1e293b', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Tutup</button>
+            <button onClick={handleSave} disabled={!image || saving || status !== 'ready'} style={{ flex: 1, minHeight: 44, borderRadius: 10, border: 'none', background: ACCENT, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: !image || status !== 'ready' ? .55 : 1 }}>{saving ? 'Menyimpan…' : 'Simpan Hasil Crop'}</button>
+          </div>
         </div>
       </div>
     </div>
@@ -251,18 +465,20 @@ export default function EditProductPage() {
 
   function openAdj(m) {
     if (m.media_type !== 'image') return;
-    setAdjPhoto({ mediaId: m.id, path: m.path, ...parseTransform(m.transform) });
+    setAdjPhoto({ mediaId: m.id, path: m.path });
   }
-  async function saveAdj() {
+  async function saveCropped(file) {
     if (!adjPhoto) return;
-    try {
-      const transform = formatTransform(adjPhoto);
-      const r = await fetch(`${apiUrl}/products/${productId}/media/${adjPhoto.mediaId}/transform`, { method: 'PATCH', headers: headers(), body: JSON.stringify({ transform }) });
-      if (!r.ok) throw new Error((await r.json()).message);
-      setMedia((current) => current.map((m) => m.id === adjPhoto.mediaId ? { ...m, transform } : m));
-      setAdjPhoto(null);
-      setMessage('Aturan foto tersimpan.');
-    } catch (e) { setMessage(e.message); }
+    const dataUrl = await fileToDataUrl(file);
+    const response = await fetch(`${apiUrl}/products/${productId}/media/${adjPhoto.mediaId}/image-data`, {
+      method: 'PATCH',
+      headers: headers(),
+      body: JSON.stringify({ filename: file.name || 'crop.jpg', content_type: file.type || 'image/jpeg', data_url: dataUrl }),
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.message || 'Gagal menyimpan foto.');
+    setMedia((current) => current.map((m) => m.id === adjPhoto.mediaId ? { ...m, path: body.data.path, transform: null } : m));
+    setMessage('Foto berhasil diperbarui.');
   }
   function onDragStart(index) { return (event) => { setDragFrom(index); event.dataTransfer.effectAllowed = 'move'; }; }
   function onDragEnd() { setDragFrom(null); setDropTarget(null); }
@@ -337,7 +553,7 @@ export default function EditProductPage() {
       </section>
 
       {adjPhoto && (
-        <AdjModal photo={adjPhoto} mediaUrl={mediaUrl} onClose={() => setAdjPhoto(null)} onSave={saveAdj} onUpdate={setAdjPhoto} />
+        <AdjModal photo={adjPhoto} mediaUrl={mediaUrl} onClose={() => setAdjPhoto(null)} onSave={saveCropped} />
       )}
 
     </AppShell>
