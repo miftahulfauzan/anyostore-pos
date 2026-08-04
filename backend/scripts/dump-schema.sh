@@ -8,7 +8,7 @@ cd "$(dirname "$0")/../.."
 mkdir -p docs
 if [ -f .env.production ] && [ -f docker-compose.production.yml ]; then
   sudo docker compose -f docker-compose.production.yml --env-file .env.production exec -T db \
-    sh -c 'mysqldump --no-data -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" --skip-comments --compact' \
+    sh -c 'mysqldump --no-data --no-tablespaces -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" --skip-comments --compact' \
     > docs/live-schema.sql
 else
   echo "File .env.production / docker-compose.production.yml tidak ditemukan. Jalankan dari VPS." >&2
