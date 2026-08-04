@@ -34,6 +34,25 @@ export default function NewProductPage() {
       .catch((error) => setMessage(error.message || 'Kategori tidak dapat dimuat'));
   }, []);
 
+  useEffect(() => {
+    function onPaste(event) {
+      const files = [];
+      for (const item of Array.from(event.clipboardData?.items || [])) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) files.push(file);
+        }
+      }
+      const fromFiles = Array.from(event.clipboardData?.files || []).filter((f) => f.type.startsWith('image/'));
+      for (const f of fromFiles) if (!files.includes(f)) files.push(f);
+      if (!files.length) return;
+      event.preventDefault();
+      chooseMany(files);
+    }
+    document.addEventListener('paste', onPaste);
+    return () => document.removeEventListener('paste', onPaste);
+  });
+
   function chooseImage(index, file) {
     if (!file) return;
     const error = validateDataUpload(file, ['image/jpeg', 'image/png', 'image/webp']);
@@ -146,7 +165,7 @@ export default function NewProductPage() {
       <section className="form-page">
         <form className="panel product-form" onSubmit={submit}>
           <div><h2>Informasi produk</h2><p className="muted">Isi data produk sekaligus dengan maksimal 10 foto dan 1 video.</p></div>
-          <section className="media-manager new-product-media"><div className="section-heading"><div><h3>Foto & video produk</h3><p>Klik setiap kotak untuk memilih media, atau seret & lepas foto dari Finder/Explorer. Foto pertama menjadi gambar utama.</p></div><span className="media-counter">{imageFiles.filter(Boolean).length}/10 foto · {videoFile ? 1 : 0}/1 video</span></div><div className={`media-grid${dropFilesOver ? ' drop-files-over' : ''}`} onDragOver={mediaDragOver} onDragLeave={mediaDragLeave} onDrop={mediaDrop}>{dropFilesOver && <div className="media-drop-hint">Lepaskan foto/video di sini</div>}{imageFiles.map((file, index) => imagePreviews[index] ? <figure key={index} className={`media-draggable${dragFrom === index ? ' is-dragging' : ''}${dropTarget === index && dragFrom !== index ? ' drop-target' : ''}`} draggable onDragStart={onDragStart(index)} onDragEnd={onDragEnd} onDragOver={onDragOver(index)} onDrop={onDrop(index)}><img src={imagePreviews[index]} alt={'Pratinjau foto produk ' + (index + 1)} /><span className="media-drag-handle" aria-hidden="true"><GripVertical size={14} /></span><button type="button" className="media-delete" aria-label={'Hapus foto ' + (index + 1)} onClick={() => removeImage(index)}><X aria-hidden="true" size={14} /></button><figcaption>{index === 0 ? 'Foto utama' : 'Foto ' + (index + 1)}</figcaption></figure> : <label className="media-slot" key={index}><strong>Foto {index + 1}</strong><span>JPG, PNG, WebP</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(event) => chooseMany(event.target.files)} /></label>)}<label className="media-slot video-slot">{videoPreview ? <video src={videoPreview} muted /> : <><strong>Video</strong><span>MP4 atau WebM</span></>}<input type="file" accept="video/mp4,video/webm" onChange={(event) => chooseVideo(event.target.files?.[0])} /></label></div></section>
+          <section className="media-manager new-product-media"><div className="section-heading"><div><h3>Foto & video produk</h3><p>Klik setiap kotak untuk memilih media, seret & lepas dari Finder/Explorer, atau tempel gambar (Ctrl/Cmd+V). Foto pertama menjadi gambar utama.</p></div><span className="media-counter">{imageFiles.filter(Boolean).length}/10 foto · {videoFile ? 1 : 0}/1 video</span></div><div className={`media-grid${dropFilesOver ? ' drop-files-over' : ''}`} onDragOver={mediaDragOver} onDragLeave={mediaDragLeave} onDrop={mediaDrop}>{dropFilesOver && <div className="media-drop-hint">Lepaskan foto/video di sini</div>}{imageFiles.map((file, index) => imagePreviews[index] ? <figure key={index} className={`media-draggable${dragFrom === index ? ' is-dragging' : ''}${dropTarget === index && dragFrom !== index ? ' drop-target' : ''}`} draggable onDragStart={onDragStart(index)} onDragEnd={onDragEnd} onDragOver={onDragOver(index)} onDrop={onDrop(index)}><img src={imagePreviews[index]} alt={'Pratinjau foto produk ' + (index + 1)} /><span className="media-drag-handle" aria-hidden="true"><GripVertical size={14} /></span><button type="button" className="media-delete" aria-label={'Hapus foto ' + (index + 1)} onClick={() => removeImage(index)}><X aria-hidden="true" size={14} /></button><figcaption>{index === 0 ? 'Foto utama' : 'Foto ' + (index + 1)}</figcaption></figure> : <label className="media-slot" key={index}><strong>Foto {index + 1}</strong><span>JPG, PNG, WebP</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(event) => chooseMany(event.target.files)} /></label>)}<label className="media-slot video-slot">{videoPreview ? <video src={videoPreview} muted /> : <><strong>Video</strong><span>MP4 atau WebM</span></>}<input type="file" accept="video/mp4,video/webm" onChange={(event) => chooseVideo(event.target.files?.[0])} /></label></div></section>
           <label>Nama produk<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required autoFocus /></label>
           <label>Kategori<select value={form.category_id} onChange={(event) => setForm({ ...form, category_id: event.target.value })} required><option value="">Pilih kategori</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
           <div className="two-fields"><label>SKU<input value={form.sku} onChange={(event) => setForm({ ...form, sku: event.target.value })} /></label><label>Barcode<input value={form.barcode} onChange={(event) => setForm({ ...form, barcode: event.target.value })} /></label></div>
