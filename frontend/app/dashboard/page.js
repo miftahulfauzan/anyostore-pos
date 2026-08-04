@@ -11,11 +11,6 @@ export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [message, setMessage] = useState('');
   const [role, setRole] = useState(null);
-  const [drawer, setDrawer] = useState(null);
-  const [opening, setOpening] = useState('');
-  const [actual, setActual] = useState('');
-  const [closing, setClosing] = useState(null);
-  const [cashMessage, setCashMessage] = useState('');
   const token = () => typeof window === 'undefined' ? '' : localStorage.getItem('pos_access_token');
 
   useEffect(() => {
@@ -58,53 +53,6 @@ export default function DashboardPage() {
       });
   }, []);
 
-  useEffect(() => {
-    if (!role || role === 'gudang') return;
-    fetch(apiUrl + '/cash-drawer/summary', { headers: { Authorization: 'Bearer ' + token() } })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((b) => setDrawer(b?.data || null))
-      .catch(() => setDrawer(null));
-  }, [role]);
-
-  async function loadDrawer() {
-    try {
-      const r = await fetch(apiUrl + '/cash-drawer/summary', { headers: { Authorization: 'Bearer ' + token() } });
-      if (r.ok) setDrawer((await r.json()).data);
-      else setDrawer(null);
-    } catch { setDrawer(null); }
-  }
-
-  async function openDrawer() {
-    try {
-      const r = await fetch(apiUrl + '/cash-drawer/open', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token() },
-        body: JSON.stringify({ opening_amount: Number(opening) }),
-      });
-      const b = await r.json();
-      if (!r.ok) throw new Error(b.message);
-      setCashMessage('Laci kas dibuka.');
-      setOpening('');
-      loadDrawer();
-    } catch (e) { setCashMessage(e.message); }
-  }
-
-  async function closeDrawer() {
-    try {
-      const r = await fetch(apiUrl + '/cash-drawer/close', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token() },
-        body: JSON.stringify({ actual_cash: Number(actual) }),
-      });
-      const b = await r.json();
-      if (!r.ok) throw new Error(b.message);
-      setClosing(b.data);
-      setCashMessage(`Laci ditutup. Selisih ${rupiah(b.data.difference)}.`);
-      setActual('');
-      loadDrawer();
-    } catch (e) { setCashMessage(e.message); }
-  }
-
   const isGudang = role === 'gudang';
   const summary = data?.owner_summary || data?.summary || {};
   const stock = data?.stock_summary;
@@ -140,24 +88,6 @@ export default function DashboardPage() {
       <section className="dashboard-grid dashboard-charts">
         <section className="panel"><div className="section-heading"><div><h2>Penjualan 7 hari terakhir</h2><p>Nilai transaksi selesai per hari, termasuk hari tanpa penjualan.</p></div></div><div className="bar-chart">{data.sales_trend.map((item) => <div className="bar-column" key={item.date}><strong>{rupiah(item.sales)}</strong><span className="bar" style={{ height: Math.max(8, Number(item.sales) / peakSales * 150) + 'px' }} /><small>{item.label}</small></div>)}</div></section>
         <section className="panel"><div className="section-heading"><div><h2>Metode pembayaran</h2><p>Komposisi pembayaran 30 hari terakhir.</p></div></div><div className="payment-bars">{data.payment_breakdown?.length ? data.payment_breakdown.map((item) => <div key={item.payment_method}><div><span>{item.payment_method.toUpperCase()}</span><strong>{rupiah(item.amount)}</strong></div><span className="payment-bar"><i style={{ width: Number(item.amount) / paymentTotal * 100 + '%' }} /></span></div>) : <p>Belum ada data pembayaran.</p>}</div></section>
-      </section>
-      <section className="panel">
-        <div className="section-heading"><div><h2>Laci Kas</h2><p>Buka/tutup laci kas dan cek perkiraan kas.</p></div></div>
-        {drawer ? (
-          <div style={{ display: 'grid', gap: 10, maxWidth: 420 }}>
-            <p className="muted">Modal: <strong>{rupiah(drawer.opening_amount)}</strong> · Kas seharusnya: <strong>{rupiah(drawer.expected_cash)}</strong></p>
-            <label>Kas aktual<input type="number" min="0" value={actual} onChange={(e) => setActual(e.target.value)} /></label>
-            <button onClick={closeDrawer}>Tutup Laci</button>
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gap: 10, maxWidth: 420 }}>
-            <p className="muted">Belum ada laci kas terbuka.</p>
-            <label>Modal awal<input type="number" min="0" value={opening} onChange={(e) => setOpening(e.target.value)} /></label>
-            <button onClick={openDrawer}>Buka Laci</button>
-          </div>
-        )}
-        {closing && <p style={{ marginTop: 10 }}><a className="button-link" href={`/operations/closing/${closing.id}`} target="_blank" rel="noreferrer">Cetak detail penutupan</a></p>}
-        {cashMessage && <p className="message" style={{ marginTop: 8 }}>{cashMessage}</p>}
       </section>
       {data.stores?.length > 1 && <section className="panel store-summary"><div className="section-heading"><div><h2>Ringkasan semua toko</h2><p>Perbandingan cabang untuk owner/admin utama.</p></div></div><div className="store-summary-grid">{data.stores.map((store) => <article key={store.id}><header><div><strong>{store.name}</strong><span>{store.address || 'Alamat belum diatur'}</span></div><b>{store.products} produk</b></header><dl><div><dt>Hari ini</dt><dd>{rupiah(store.today_sales)}</dd></div><div><dt>7 hari</dt><dd>{rupiah(store.seven_day_sales)}</dd></div><div><dt>Pengeluaran bulan ini</dt><dd>{rupiah(store.month_expenses)}</dd></div></dl></article>)}</div></section>}
       <section className="panel dashboard-recent"><div className="section-heading"><div><h2>Transaksi terbaru</h2><p>Aktivitas penjualan terakhir.</p></div><a href="/history">Lihat semua</a></div><div className="data-list">{data.recent_transactions.length ? data.recent_transactions.map((tx) => <article key={tx.id}><div><strong>{tx.invoice_no}</strong><span>{tx.cashier}{data.owner_summary ? ' · ' + tx.branch_name : ''} · {new Date(tx.created_at).toLocaleString('id-ID')}</span></div><div><strong>{rupiah(tx.grand_total)}</strong><span className="tag">{tx.payment_method}</span></div></article>) : <p>Belum ada transaksi.</p>}</div></section>
