@@ -29,12 +29,9 @@ const { serveBlob } = require('./media-storage');
 
 const app = express();
 app.set('trust proxy', 1);
-const serverlessClientKey = (req) => {
-  const forwarded = req.headers['x-nf-client-connection-ip'] || req.headers['x-forwarded-for'];
-  if (Array.isArray(forwarded)) return forwarded[0] || 'netlify-client';
-  return String(forwarded || req.socket?.remoteAddress || 'netlify-client').split(',')[0].trim() || 'netlify-client';
-};
-const limiterOptions = { keyGenerator: serverlessClientKey, validate: { ip: false } };
+// Key generator memakai req.ip (dari proxy tepercaya), bukan header yang bisa
+// dipalsukan klien (mis. x-nf-client-connection-ip).
+const limiterOptions = { keyGenerator: (req) => req.ip || 'unknown', validate: { ip: false } };
 // Product images are served by the API port and rendered by the frontend port.
 // Permit that cross-origin resource use while retaining Helmet's other headers.
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
@@ -93,6 +90,9 @@ app.use('/api/tax', taxRouter);
 app.use((req, res) => res.status(404).json({ success: false, message: 'Endpoint tidak ditemukan' }));
 app.use((error, _req, res, _next) => {
   console.error(error);
+  if (error.code === 'ER_DUP_ENTRY') {
+    return res.status(409).json({ success: false, message: 'Data sudah ada (SKU, barcode, email, atau kode mungkin duplikat)' });
+  }
   res.status(error.status || 500).json({ success: false, message: error.status ? error.message : 'Terjadi kesalahan internal' });
 });
 

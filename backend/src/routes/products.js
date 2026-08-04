@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { authenticate, authorize } = require('../auth');
-const { createMediaUpload, decodeDataUpload, discardUploadedFile, persistUploadedFile, removeMedia } = require('../media-storage');
+const { assertValidUpload, createMediaUpload, decodeDataUpload, discardUploadedFile, persistUploadedFile, removeMedia } = require('../media-storage');
 
 const router = express.Router();
 router.use(authenticate);
@@ -244,6 +244,7 @@ router.get('/:id', async (req, res, next) => {
 router.post('/:id/photo', authorize('owner', 'manager', 'admin', 'gudang'), upload.single('photo'), async (req, res, next) => {
   try {
     if (!req.file || !req.file.mimetype.startsWith('image/')) return res.status(400).json({ success: false, message: 'Pilih gambar JPG, PNG, atau WebP (maks. 30 MB)' });
+    await assertValidUpload(req.file);
     const [products] = await db.execute('SELECT id FROM products WHERE id = ? AND branch_id = ?', [req.params.id, req.user.branch_id]);
     if (!products[0]) {
       await discardUploadedFile(req.file);
@@ -268,6 +269,7 @@ router.post('/:id/media', authorize('owner', 'manager', 'admin', 'gudang'), uplo
   try {
     const files = req.files || [];
     if (!files.length) return res.status(400).json({ success: false, message: 'Pilih foto atau video untuk diunggah' });
+    for (const file of files) await assertValidUpload(file);
     const [products] = await db.execute('SELECT id FROM products WHERE id = ? AND branch_id = ?', [req.params.id, req.user.branch_id]);
     if (!products[0]) return res.status(404).json({ success: false, message: 'Produk tidak ditemukan' });
     const imageFiles = files.filter((file) => file.mimetype.startsWith('image/'));
@@ -385,6 +387,7 @@ router.patch('/:id/media/reorder', authorize('owner', 'manager', 'admin', 'gudan
 router.post('/:id/variants/:variantId/photo', authorize('owner', 'manager', 'admin', 'gudang'), upload.single('media'), async (req, res, next) => {
   try {
     if (!req.file || !req.file.mimetype.startsWith('image/')) return res.status(400).json({ success: false, message: 'Foto varian harus JPG, PNG, atau WebP' });
+    await assertValidUpload(req.file);
     const [variants] = await db.execute('SELECT pv.id FROM product_variants pv JOIN products p ON p.id = pv.product_id WHERE pv.id = ? AND pv.product_id = ? AND p.branch_id = ?', [req.params.variantId, req.params.id, req.user.branch_id]);
     if (!variants[0]) return res.status(404).json({ success: false, message: 'Varian produk tidak ditemukan' });
     const [previous] = await db.execute('SELECT path FROM product_photos WHERE variant_id = ?', [variants[0].id]);
@@ -503,8 +506,9 @@ router.delete('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (r
               (SELECT COUNT(*) FROM purchase_order_items WHERE product_id=?) +
               (SELECT COUNT(*) FROM stock_opname_items WHERE product_id=?) +
               (SELECT COUNT(*) FROM stock_transfer_items WHERE product_id=?) +
-              (SELECT COUNT(*) FROM return_items WHERE product_id=?) AS cnt`,
-      [id, id, id, id, id]
+              (SELECT COUNT(*) FROM return_items WHERE product_id=?) +
+              (SELECT COUNT(*) FROM supplier_products WHERE product_id=?) AS cnt`,
+      [id, id, id, id, id, id]
     );
     const hasHistory = Number(trx[0].cnt) > 0;
 
@@ -522,6 +526,7 @@ router.delete('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (r
       await db.execute('DELETE FROM product_photos WHERE product_id=?', [id]);
       await db.execute('DELETE FROM wholesale_prices WHERE product_id=?', [id]);
       await db.execute('DELETE FROM product_variants WHERE product_id=?', [id]);
+      await db.execute('DELETE FROM supplier_products WHERE product_id=?', [id]);
       await db.execute('DELETE FROM products WHERE id=?', [id]);
       res.json({ success: true, data: { message: 'Produk berhasil dihapus permanen', soft: false } });
     }

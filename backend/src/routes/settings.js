@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { authenticate, authorize } = require('../auth');
-const { createMediaUpload, decodeDataUpload, discardUploadedFile, persistUploadedFile, removeMedia, copyMediaFile } = require('../media-storage');
+const { assertValidUpload, createMediaUpload, decodeDataUpload, discardUploadedFile, persistUploadedFile, removeMedia, copyMediaFile } = require('../media-storage');
 
 const router = express.Router();
 router.use(authenticate);
@@ -85,29 +85,45 @@ router.delete('/branches/:id', authorize('owner'), async (req, res, next) => {
           for (const row of photos) { try { await removeMedia(row.path); } catch {} }
         }
 
-        // 3. Delete ALL tables that reference this branch (child tables first, then parent)
-        const tables = [
-          // product children (reference product_id / variant_id)
-          'stock_mutations', 'warehouse_stocks', 'product_photos', 'transaction_items',
-          'return_items', 'product_variants', 'wholesale_prices', 'products',
-          // branch-level tables (reference branch_id directly)
-          'commission_items', 'commission_records', 'commission_rules',
-          'purchase_order_items', 'purchase_orders',
-          'stock_transfer_items', 'stock_transfers',
-          'stock_opname_items', 'stock_opnames',
-          'cash_drawer_movements', 'cash_drawers',
-          'transactions', 'pending_transactions', 'invoice_sequences',
-          'journal_entry_items', 'journal_entries', 'periods',
-          'loyalty_points', 'employee_schedules', 'shift_templates', 'shifts',
-          'expense_budgets', 'expenses', 'activity_logs',
-          'customers', 'suppliers', 'store_settings', 'warehouses',
-        ];
-        for (const t of tables) {
-          await connection.execute(`DELETE FROM \`${t}\` WHERE branch_id=?`, [id]).catch(() => {});
+        // 3. Hapus child product berdasarkan product_id (beberapa tabel tidak punya branch_id)
+        if (productIds.length) {
+          const placeholders = productIds.map(() => '?').join(',');
+          const productChildTables = [
+            'stock_mutations', 'warehouse_stocks', 'product_photos', 'transaction_items',
+            'return_items', 'product_variants', 'wholesale_prices', 'supplier_products',
+            'stock_opname_items', 'stock_transfer_items', 'purchase_order_items',
+          ];
+          for (const t of productChildTables) {
+            await connection.execute(`DELETE FROM \`${t}\` WHERE product_id IN (${placeholders})`, productIds);
+          }
         }
 
-        // 4. Delete the branch itself
-        await connection.execute('DELETE FROM branches WHERE id=?', [id]);
+        // 4. Tabel child tanpa branch_id → hapus lewat parent milik cabang ini
+        await connection.execute('DELETE FROM commission_items WHERE record_id IN (SELECT id FROM commission_records WHERE branch_id=?)', [id]);
+        await connection.execute('DELETE FROM journal_entry_items WHERE journal_id IN (SELECT id FROM journal_entries WHERE branch_id=?)', [id]);
+        await connection.execute('DELETE FROM expense_schedules WHERE expense_id IN (SELECT id FROM expenses WHERE branch_id=?)', [id]);
+        await connection.execute('DELETE FROM cash_drawer_movements WHERE cash_drawer_id IN (SELECT id FROM cash_drawers WHERE branch_id=?)', [id]);
+        await connection.execute('DELETE FROM loyalty_points WHERE customer_id IN (SELECT id FROM customers WHERE branch_id=?)', [id]);
+        await connection.execute('DELETE FROM referrals WHERE referrer_id IN (SELECT id FROM customers WHERE branch_id=?) OR referred_id IN (SELECT id FROM customers WHERE branch_id=?)', [id, id]);
+        await connection.execute('DELETE FROM supplier_products WHERE supplier_id IN (SELECT id FROM suppliers WHERE branch_id=?)', [id]);
+        await connection.execute('DELETE FROM refresh_tokens WHERE user_id IN (SELECT id FROM users WHERE branch_id=?)', [id]);
+        await connection.execute('DELETE FROM activity_logs WHERE user_id IN (SELECT id FROM users WHERE branch_id=?)', [id]);
+
+        // 5. Tabel level cabang (punya branch_id) — child dulu, parent terakhir
+        const branchTables = [
+          'promotions', 'commission_rules',
+          'purchase_orders', 'stock_transfers', 'stock_opnames',
+          'cash_drawers', 'returns',
+          'transactions', 'pending_transactions', 'invoice_sequences',
+          'journal_entries', 'periods',
+          'employee_schedules', 'shift_templates', 'shifts',
+          'expense_budgets', 'expenses',
+          'customers', 'suppliers', 'store_settings', 'warehouses',
+          'users', 'products', 'branches',
+        ];
+        for (const t of branchTables) {
+          await connection.execute(`DELETE FROM \`${t}\` WHERE branch_id=?`, [id]);
+        }
 
         // Re-enable FK checks
         await connection.execute('SET FOREIGN_KEY_CHECKS=1');
@@ -257,6 +273,7 @@ router.post('/logo', authorize('owner','manager','admin'), logoUpload.single('lo
   try {
     const id = branchId(req);
     if (!req.file) return res.status(400).json({ success: false, message: 'Pilih logo JPG, PNG, atau WebP maksimal 5 MB' });
+    await assertValidUpload(req.file);
     const [branches] = await db.execute('SELECT id FROM branches WHERE id = ? AND is_active = TRUE', [id]);
     if (!branches[0]) {
       await discardUploadedFile(req.file);

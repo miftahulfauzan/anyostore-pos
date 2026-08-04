@@ -55,3 +55,15 @@ test('loginWithPin menolak user yang belum punya PIN', async () => {
   await loginWithPin({ body: { email: 'nopin@test.local', pin: '123456' } }, res, () => assert.fail('next tidak boleh dipanggil'));
   assert.equal(res.statusCode, 401);
 });
+
+test('loginWithPin mengunci akun setelah 10 percobaan gagal', async () => {
+  const req = { body: { email: 'lockout@test.local', pin: '000000' } };
+  for (let i = 0; i < 10; i++) {
+    const res = response();
+    await loginWithPin(req, res, () => assert.fail('next tidak boleh dipanggil'));
+    assert.equal(res.statusCode, 401);
+  }
+  const locked = response();
+  await loginWithPin(req, locked, () => assert.fail('next tidak boleh dipanggil'));
+  assert.equal(locked.statusCode, 429);
+});

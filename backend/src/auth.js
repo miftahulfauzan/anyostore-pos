@@ -6,6 +6,37 @@ const { jwtSecret, jwtRefreshSecret } = require('./config');
 
 const refreshHash = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
+// Lockout per akun (di luar rate limit per IP) untuk PIN/password 6 digit.
+const loginAttempts = new Map();
+const MAX_LOGIN_ATTEMPTS = 10;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const attemptKey = (email) => String(email || '').toLowerCase().trim();
+function recordLoginFailure(email) {
+  const key = attemptKey(email);
+  const now = Date.now();
+  const entry = loginAttempts.get(key) || { count: 0, first: now };
+  if (now - entry.first > LOGIN_WINDOW_MS) {
+    entry.count = 1;
+    entry.first = now;
+  } else {
+    entry.count += 1;
+  }
+  loginAttempts.set(key, entry);
+}
+function loginLocked(email) {
+  const key = attemptKey(email);
+  const entry = loginAttempts.get(key);
+  if (!entry) return false;
+  if (Date.now() - entry.first > LOGIN_WINDOW_MS) {
+    loginAttempts.delete(key);
+    return false;
+  }
+  return entry.count >= MAX_LOGIN_ATTEMPTS;
+}
+function clearLoginAttempts(email) {
+  loginAttempts.delete(attemptKey(email));
+}
+
 function issueTokens(user) {
   const accessToken = jwt.sign(
     { id: user.id, role: user.role, branch_id: user.branch_id },
@@ -29,14 +60,17 @@ async function loginWithPassword(req, res, next) {
   try {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ success: false, message: 'Email dan password wajib diisi' });
+    if (loginLocked(email)) return res.status(429).json({ success: false, message: 'Terlalu banyak percobaan login, coba lagi 15 menit' });
     const [rows] = await db.execute(
       'SELECT id, branch_id, name, email, password, role FROM users WHERE email = ? AND is_active = TRUE LIMIT 1',
       [email]
     );
     const user = rows[0];
     if (!user || !(await bcrypt.compare(password, user.password))) {
+      recordLoginFailure(email);
       return res.status(401).json({ success: false, message: 'Kredensial tidak valid' });
     }
+    clearLoginAttempts(email);
     const tokens = issueTokens(user);
     await persistRefreshToken(user.id, tokens.refreshToken);
     await db.execute('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
@@ -50,14 +84,17 @@ async function loginWithPin(req, res, next) {
   try {
     const { email, pin } = req.body;
     if (!email || !pin) return res.status(400).json({ success: false, message: 'Email dan PIN wajib diisi' });
+    if (loginLocked(email)) return res.status(429).json({ success: false, message: 'Terlalu banyak percobaan login, coba lagi 15 menit' });
     const [rows] = await db.execute(
       'SELECT id, branch_id, name, email, password, role, pin_hash FROM users WHERE email = ? AND is_active = TRUE LIMIT 1',
       [email]
     );
     const user = rows[0];
     if (!user?.pin_hash || !(await bcrypt.compare(String(pin), user.pin_hash))) {
+      recordLoginFailure(email);
       return res.status(401).json({ success: false, message: 'Email atau PIN tidak valid' });
     }
+    clearLoginAttempts(email);
     const tokens = issueTokens(user);
     await persistRefreshToken(user.id, tokens.refreshToken);
     await db.execute('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);

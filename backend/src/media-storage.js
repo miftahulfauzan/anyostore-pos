@@ -106,6 +106,31 @@ async function discardUploadedFile(file) {
   await fs.promises.unlink(file.path).catch(() => {});
 }
 
+async function readFileHeader(file, length) {
+  if (file.buffer) return file.buffer.subarray(0, length);
+  if (!file.path) return Buffer.alloc(0);
+  const handle = await fs.promises.open(file.path, 'r');
+  try {
+    const buffer = Buffer.alloc(length);
+    const { bytesRead } = await handle.read(buffer, 0, length, 0);
+    return buffer.subarray(0, bytesRead);
+  } finally {
+    await handle.close();
+  }
+}
+
+// Validasi magic bytes untuk upload multipart (upload.single/array).
+// Jalur data-url (decodeDataUpload) sudah memvalidasi; jalur ini menutup
+// celah file dengan mimetype palsu.
+async function assertValidUpload(file) {
+  if (!file) return;
+  const header = await readFileHeader(file, 512);
+  if (!matchesSignature(header, file.mimetype)) {
+    await discardUploadedFile(file);
+    throw Object.assign(new Error('Isi file tidak sesuai dengan format media'), { status: 400 });
+  }
+}
+
 // Copy an existing media file to a brand-new path so callers (e.g. branch
 // clone) get an independent copy instead of sharing the source file.
 async function copyMediaFile(srcPublicPath, folder) {
@@ -149,4 +174,4 @@ async function serveBlob(req, res, next) {
   }
 }
 
-module.exports = { createMediaUpload, decodeDataUpload, decodeMediaFromStorage, discardUploadedFile, encodeMediaForStorage, persistUploadedFile, removeMedia, serveBlob, copyMediaFile };
+module.exports = { assertValidUpload, createMediaUpload, decodeDataUpload, decodeMediaFromStorage, discardUploadedFile, encodeMediaForStorage, persistUploadedFile, removeMedia, serveBlob, copyMediaFile };
