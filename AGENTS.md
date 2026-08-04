@@ -208,6 +208,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 ```bash
 cd frontend && npm run build   # cek build (frontend)
 cd backend && npm test         # cek test (backend)
+cd backend && node scripts/reconcile-stock.js [--fix]  # audit/perbaiki selisih stok (jalankan di container backend)
 ```
 
 ## Bahasa
