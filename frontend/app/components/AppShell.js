@@ -57,7 +57,6 @@ const navigation = [
       { href: '/customers', label: 'Pelanggan', icon: Users, roles: ['owner', 'manager', 'admin'] },
       { href: '/promotions', label: 'Promo & Diskon', icon: Tags, roles: ['owner', 'manager', 'admin'] },
       { href: '/finance', label: 'Keuangan', icon: WalletCards, roles: ['owner', 'manager', 'admin'] },
-      { href: '/operations', label: 'Operasional', icon: ClipboardCheck, roles: ['owner', 'manager', 'admin'] },
       { href: '/reports', label: 'Laporan', icon: ChartNoAxesCombined, roles: ['owner', 'manager', 'admin'] },
       { href: '/reports/tax', label: 'Laporan Pajak', icon: Receipt, roles: ['owner'] },
     ],
