@@ -847,54 +847,43 @@ a, .photo-upload { color:var(--expressive-secondary); }
   .new-product-media .media-grid { grid-template-columns: repeat(2, minmax(96px, 1fr)); }
   .store-logo-upload { grid-template-columns: 1fr; }
 }
+/* Laporan: cetak A4 portrait yang rapi */
 @media print {
-  @page { size: 80mm auto; margin: 0; }
-  html, body { width: 80mm; margin: 0; padding: 0; font-size: 8px; line-height: 1.3; overflow-x: hidden; }
+  @page { size: A4 portrait; margin: 12mm; }
+  html, body { width: auto !important; background: #fff !important; font-size: 12px; line-height: 1.4; }
+  .sidebar, .app-header { display: none !important; }
+  .app-shell, .app-main { display: block !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
+  .app-shell, .app-main, .app-content, .app-shell > div { display: block !important; width: 100% !important; }
+  .app-content { padding: 0 !important; }
+  .app-content > div { max-width: none !important; }
   .report-filter,
   .app-header .header-actions,
   .app-header a,
-  .report-panel .section-heading,
-  .report-metrics .metric-card small,
-  .report-panel .message { display: none !important; }
-  .app-shell, .app-main { display: block !important; width: 80mm !important; max-width: 80mm !important; min-width: 0 !important; background: #fff !important; color: #000 !important; }
-  .app-main { padding: 2mm 2mm 0 !important; margin: 0 !important; }
-  .app-header { margin-bottom: 2mm; width: 76mm; }
-  .app-header h1 { font-size: 10px; text-align: center; margin: 0; }
-  .report-brand, .report-metrics, .report-panel, .report-grid, .report-grid .report-panel, .table-wrap, table, thead, tbody, tr, th, td { max-width: 76mm !important; box-sizing: border-box; }
-  .report-brand {
-    display: block; text-align: center; width: 76mm; margin: 0 0 2mm; padding: 0 0 2mm; border: 0; border-bottom: 1px dashed #999; border-radius: 0; background: #fff; page-break-after: avoid;
-  }
-  .report-brand > div { margin-bottom: 1mm; }
-  .report-brand img { width: 28px; height: 28px; margin: 0 auto 1mm; display: block; }
-  .report-brand strong { font-size: 10px; color: #000; }
-  .report-brand span, .report-brand small { font-size: 7px; color: #333; }
-  .report-brand .report-title { font-size: 9px; margin: 1mm 0 0; color: #000; letter-spacing: .05em; }
-  .report-metrics { grid-template-columns: 1fr; gap: 1mm; width: 76mm; margin-bottom: 2mm; }
-  .report-metrics .metric-card {
-    min-height: 0; width: 76mm; padding: 1mm 1.5mm; border: 0; border-bottom: 1px dotted #bbb; border-radius: 0; background: #fff; box-shadow: none; display: flex; justify-content: space-between; align-items: center;
-  }
-  .report-metrics .metric-card span { font-size: 7px; color: #555; }
-  .report-metrics .metric-card strong { font-size: 9px; color: #000; }
-  .report-panel, .report-grid .report-panel {
-    width: 76mm; margin: 0 0 2mm; padding: 1mm 0; border: 0; border-bottom: 1px dashed #999; border-radius: 0; background: #fff; box-shadow: none; break-inside: avoid;
-  }
-  .report-panel h2 { font-size: 8px; margin-bottom: 1mm; padding-bottom: 1mm; color: #000; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #eee; }
-  .report-grid { display: block; width: 76mm; }
-  .table-wrap { overflow: visible; width: 76mm; }
-  table { width: 76mm; table-layout: fixed; border-collapse: collapse; font-size: 7px; }
-  th, td { padding: 0.6mm 1mm; border-bottom: 1px dotted #bbb; text-align: left; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; }
-  th { background: transparent; font-weight: 700; color: #000; border-bottom: 1px solid #666; }
-  td { color: #222; }
-  tbody tr:last-child td { border-bottom: 1px solid #666; }
-  .tier-badge { border: 1px solid currentColor; font-size: 6px; padding: 0 1mm; }
-  .report-panel a { color: #000; text-decoration: none; }
-  .report-panel a::after { content: none; }
-  /* Thermal: sembunyikan kolom yang tidak penting */
-  .report-table-transactions th:nth-child(1), .report-table-transactions td:nth-child(1),
-  .report-table-transactions th:nth-child(3), .report-table-transactions td:nth-child(3),
-  .report-table-transactions th:nth-child(4), .report-table-transactions td:nth-child(4),
+  .report-panel .section-heading p,
+  .report-panel .message,
+  .button-link { display: none !important; }
+  .report-brand { display: flex; align-items: center; gap: 12px; max-width: none; margin: 0 0 12px; padding: 0 0 10px; border: 0; border-bottom: 2px solid #1e3a5f; border-radius: 0; background: #fff; }
+  .report-brand img { width: 52px; height: 52px; }
+  .report-brand strong { font-size: 15px; color: #111827; }
+  .report-brand span, .report-brand small { font-size: 11px; color: #374151; }
+  .report-brand .report-title { font-size: 16px; margin-left: auto; color: #1e3a5f; }
+  .report-metrics { grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 0 0 12px; max-width: none; }
+  .report-metrics .metric-card { padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: none; background: #fff; }
+  .report-metrics .metric-card span { font-size: 10px; color: #6b7280; }
+  .report-metrics .metric-card strong { font-size: 14px; color: #111827; }
+  .report-metrics .metric-card small { font-size: 9px; color: #6b7280; }
+  .report-panel, .report-grid .report-panel { max-width: none; margin: 0 0 14px; padding: 0; border: 0; border-radius: 0; box-shadow: none; break-inside: avoid; }
+  .report-panel h2 { font-size: 12px; margin: 0 0 6px; padding-bottom: 4px; color: #111827; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1.5px solid #1e3a5f; }
+  .report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 0 14px; max-width: none; }
+  .table-wrap { overflow: visible; }
+  table { width: 100%; border-collapse: collapse; font-size: 10px; }
+  th { background: #1e3a5f !important; color: #fff !important; padding: 5px 7px !important; text-align: left !important; font-size: 10px !important; white-space: nowrap !important; }
+  td { padding: 5px 7px !important; border-bottom: 1px solid #e5e7eb !important; vertical-align: top !important; }
+  tr { break-inside: avoid; }
+  .tier-badge { border: 1px solid currentColor; font-size: 9px; padding: 1px 6px; }
+  .report-panel a { color: #111827; text-decoration: none; }
+  /* Kolom aksi (Cetak resi) disembunyikan saat cetak */
   .report-table-transactions th:nth-child(6), .report-table-transactions td:nth-child(6) { display: none; }
-  .report-table-products th:nth-child(4), .report-table-products td:nth-child(4) { display: none; }
 }
 
 /* Global loading and result notifications */
