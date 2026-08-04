@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AppShell from '../../components/AppShell';
+import DateRangePresets from '../../components/DateRangePresets';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const money = (v) => Number(v || 0).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -9,6 +10,7 @@ const money = (v) => Number(v || 0).toLocaleString('id-ID', { minimumFractionDig
 export default function TaxReportPage() {
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
+  const [preset, setPreset] = useState('');
   const [tab, setTab] = useState('ppn');
   const [ppn, setPpn] = useState(null);
   const [faktur, setFaktur] = useState(null);
@@ -75,6 +77,16 @@ export default function TaxReportPage() {
       <section className="form-page" style={{ maxWidth: 1100 }}>
         <div className="panel">
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end', marginBottom: 16 }}>
+            <div style={{ width: '100%', marginBottom: 4 }}>
+              <DateRangePresets active={preset} onPick={(key, range) => {
+                setPreset(key);
+                if (range) {
+                  setStart(range.start);
+                  setEnd(range.end);
+                  setTimeout(refresh, 0);
+                }
+              }} />
+            </div>
             <label style={{ flex: 1, minWidth: 140 }}>
               Dari
               <input type="date" value={start} onChange={(e) => setStart(e.target.value)} />

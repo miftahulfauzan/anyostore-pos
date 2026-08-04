@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import AppShell from '../components/AppShell';
+import DateRangePresets from '../components/DateRangePresets';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rp = (n) => 'Rp' + Number(n || 0).toLocaleString('id-ID');
@@ -20,6 +21,7 @@ export default function HistoryPage() {
   const [saving, setSaving] = useState(false);
   const [role, setRole] = useState(null);
   const [filters, setFilters] = useState({ search: '', date_from: '', date_to: '', status: '' });
+  const [preset, setPreset] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('retur'); // retur | cancel | info
   const [isMobile, setIsMobile] = useState(false);
@@ -35,11 +37,12 @@ export default function HistoryPage() {
   const h = () => ({ Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
   const canCancel = ['owner', 'manager', 'admin'].includes(role);
 
-  async function load(p = page) {
+  async function load(p = page, override = null) {
     setLoading(true);
     const seq = ++loadSeq.current;
     try {
-      const qs = new URLSearchParams({ page: String(p), limit: '20', search: filters.search, date_from: filters.date_from, date_to: filters.date_to, status: filters.status }).toString();
+      const f = override || filters;
+      const qs = new URLSearchParams({ page: String(p), limit: '20', search: f.search, date_from: f.date_from, date_to: f.date_to, status: f.status }).toString();
       const r = await fetch(api + '/transactions?' + qs, { headers: h() });
       const b = await r.json();
       if (seq !== loadSeq.current) return;
@@ -131,6 +134,17 @@ export default function HistoryPage() {
               <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
                 <label style={{ minWidth: 140 }}>Dari<input type="date" value={filters.date_from} onChange={(e) => setFilters({ ...filters, date_from: e.target.value })} /></label>
                 <label style={{ minWidth: 140 }}>Sampai<input type="date" value={filters.date_to} onChange={(e) => setFilters({ ...filters, date_to: e.target.value })} /></label>
+                <div style={{ width: '100%' }}>
+                  <DateRangePresets active={preset} onPick={(key, range) => {
+                    setPreset(key);
+                    if (range) {
+                      const next = { ...filters, date_from: range.start, date_to: range.end };
+                      setFilters(next);
+                      setPage(1);
+                      load(1, next);
+                    }
+                  }} />
+                </div>
                 <label>Status
                   <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
                     <option value="">Semua</option>

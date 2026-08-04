@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import AppShell from '../../components/AppShell';
+import DateRangePresets from '../../components/DateRangePresets';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const typeLabels = { sale: 'Penjualan', purchase: 'Produk masuk', adjustment: 'Penyesuaian', transfer_in: 'Transfer masuk', transfer_out: 'Transfer keluar', sale_return: 'Retur penjualan', damage: 'Barang rusak', loss: 'Kehilangan', gift: 'Hadiah' };
@@ -12,6 +13,7 @@ export default function StockMovementsPage() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ date_from: '', date_to: '', type: '' });
+  const [preset, setPreset] = useState('');
   const [selected, setSelected] = useState(null);
   const loadSeq = useRef(0);
   const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('pos_access_token') });
@@ -50,6 +52,14 @@ export default function StockMovementsPage() {
     <section className="panel movement-filter">
       <div><h2>Jejak audit stok</h2><p className="muted">Setiap stok masuk, keluar, transaksi, retur, transfer, dan opname tercatat bersama petugas serta saldo sebelum/sesudah.</p></div>
       <form onSubmit={apply}>
+        <DateRangePresets active={preset} onPick={(key, range) => {
+          setPreset(key);
+          if (range) {
+            const next = { ...filters, date_from: range.start, date_to: range.end };
+            setFilters(next);
+            load(next);
+          }
+        }} />
         <label>Dari tanggal<input type="date" value={filters.date_from} onChange={(event) => setFilters({ ...filters, date_from: event.target.value })} /></label>
         <label>Sampai tanggal<input type="date" value={filters.date_to} onChange={(event) => setFilters({ ...filters, date_to: event.target.value })} /></label>
         <label>Jenis perubahan<select value={filters.type} onChange={(event) => setFilters({ ...filters, type: event.target.value })}><option value="">Semua aktivitas</option>{Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>

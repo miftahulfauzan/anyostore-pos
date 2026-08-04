@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AppShell from "../components/AppShell";
+import DateRangePresets from "../components/DateRangePresets";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -66,6 +67,7 @@ function ReportTable({
 
 export default function ReportsPage() {
   const [period, setPeriod] = useState({ start: '', end: '' });
+  const [preset, setPreset] = useState("");
   const [report, setReport] = useState(null);
   const [store, setStore] = useState(null);
   const [message, setMessage] = useState("");
@@ -162,6 +164,9 @@ export default function ReportsPage() {
           <p className="muted">
             Gunakan periode yang sama untuk semua laporan.
           </p>
+        </div>
+        <div style={{ gridColumn: "1 / -1" }}>
+          <DateRangePresets active={preset} onPick={(key, range) => { setPreset(key); if (range) setPeriod(range); }} />
         </div>
         {isOwner && branches.length > 0 && (
           <label>

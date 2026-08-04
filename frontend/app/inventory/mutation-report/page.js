@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '../../components/AppShell';
+import DateRangePresets from '../../components/DateRangePresets';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -23,6 +24,7 @@ function presetDate(days) {
 
 export default function MutationReportPage() {
   const [tab, setTab] = useState('in');
+  const [preset, setPreset] = useState('');
   const [start, setStart] = useState(presetDate(7));
   const [end, setEnd] = useState(localDate());
   const [stores, setStores] = useState([]);
@@ -142,7 +144,14 @@ export default function MutationReportPage() {
 
         <section className="panel no-print">
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'end' }}>
-            {PRESETS.map((p) => <button key={p.days} type="button" className="small secondary" onClick={() => applyPreset(p.days)}>{p.label}</button>)}
+            <DateRangePresets active={preset} onPick={(key, range) => {
+              setPreset(key);
+              if (range) {
+                setStart(range.start);
+                setEnd(range.end);
+                load({ start: range.start, end: range.end });
+              }
+            }} />
             <label style={{ minWidth: 180 }}>Toko / Gudang
               <select value={store} onChange={(e) => { const v = e.target.value; setStore(v); load({ store: v }); }}>
                 <option value="">Semua</option>

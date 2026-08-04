@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AppShell from '../components/AppShell';
+import DateRangePresets from '../components/DateRangePresets';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rupiah = (value) => `Rp${Number(value || 0).toLocaleString('id-ID')}`;
@@ -34,6 +35,7 @@ export default function CommissionsPage() {
   });
   const [period, setPeriod] = useState({ period_start: '', period_end: '' });
   const [reportPeriod, setReportPeriod] = useState({ start: '', end: '' });
+  const [reportPreset, setReportPreset] = useState('');
 
   const token = () => typeof window === 'undefined' ? '' : localStorage.getItem('pos_access_token');
   const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` });
@@ -62,9 +64,9 @@ export default function CommissionsPage() {
     }
   }
 
-  async function loadReport(branchId = selectedBranch) {
+  async function loadReport(branchId = selectedBranch, start = reportPeriod.start, end = reportPeriod.end) {
     try {
-      const qs = new URLSearchParams({ start: reportPeriod.start, end: reportPeriod.end, ...(branchId ? { branch_id: branchId } : {}) }).toString();
+      const qs = new URLSearchParams({ start, end, ...(branchId ? { branch_id: branchId } : {}) }).toString();
       const r = await fetch(`${apiUrl}/commissions/report?${qs}`, { headers: headers() });
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
@@ -194,6 +196,15 @@ export default function CommissionsPage() {
             <span className="tag">{report ? rupiah(report.total_commission) : ''}</span>
           </div>
           <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', alignItems: 'end', marginTop: '.75rem' }}>
+            <div style={{ width: '100%' }}>
+              <DateRangePresets active={reportPreset} onPick={(key, range) => {
+                setReportPreset(key);
+                if (range) {
+                  setReportPeriod(range);
+                  loadReport(selectedBranch, range.start, range.end);
+                }
+              }} />
+            </div>
             <label>Toko
               <select value={selectedBranch} onChange={(e) => { setSelectedBranch(e.target.value); load(e.target.value); loadReport(e.target.value); }}>
                 {branches.map((b) => <option key={b.id} value={b.id}>{b.name} (ID {b.id})</option>)}
