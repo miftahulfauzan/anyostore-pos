@@ -256,12 +256,10 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
       const itemDiscount = money(input.discount || 0);
       if (!Number.isInteger(quantity) || quantity <= 0 || itemDiscount < 0) throw httpError(400, 'Jumlah atau diskon item tidak valid');
       const product = productById.get(productId);
-      const [balances] = await connection.execute('SELECT id, quantity FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id <=> ? FOR UPDATE', [warehouseId, productId, variantId]);
-      if (!balances[0] || balances[0].quantity < quantity) throw httpError(400, `Stok ${product.name} tidak mencukupi`);
       let variant = null;
       if (variantId) {
-        const [variants] = await connection.execute('SELECT id, color, stock, price FROM product_variants WHERE id = ? AND product_id = ? AND is_active = TRUE FOR UPDATE', [variantId, productId]);
-        if (!variants[0] || variants[0].stock < quantity) throw httpError(400, `Varian ${product.name} tidak mencukupi`);
+        const [variants] = await connection.execute('SELECT id, color, price FROM product_variants WHERE id = ? AND product_id = ? AND is_active = TRUE FOR UPDATE', [variantId, productId]);
+        if (!variants[0]) throw httpError(400, 'Varian tidak ditemukan');
         variant = variants[0];
       }
       // Harga dasar dari produk/varian.
@@ -282,7 +280,7 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
       const lineSubtotal = money(price * quantity - itemDiscount);
       if (lineSubtotal < 0) throw httpError(400, 'Diskon item melebihi subtotal');
       subtotal = money(subtotal + lineSubtotal);
-      lines.push({ product, productId, variantId, variant, quantity, itemDiscount, lineSubtotal, price, balance: balances[0], basePrice, priceOverride, originalPrice, overriddenBy });
+      lines.push({ product, productId, variantId, variant, quantity, itemDiscount, lineSubtotal, price, basePrice, priceOverride, originalPrice, overriddenBy });
     }
     // Terapkan tier Semi Grosir / Grosir Seri (hanya untuk item yang tidak di-override manual).
     const tierLines = lines.filter((line) => !line.priceOverride);
