@@ -214,10 +214,19 @@ export default function LandingPage() {
       </header>
 
       {/* 4. Feature strip */}
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 16px 8px', display: 'flex', justifyContent: 'center', gap: 28, flexWrap: 'wrap', color: T.muted, fontSize: 13 }}>
-        <span><I.box style={{ width: 14, height: 14, verticalAlign: '-2px', marginRight: 6, color: T.blue }} />Min 4 pcs/model</span>
-        <span><I.truck style={{ width: 14, height: 14, verticalAlign: '-2px', marginRight: 6, color: T.blue }} />Pengiriman nasional</span>
-        <span><I.chat style={{ width: 14, height: 14, verticalAlign: '-2px', marginRight: 6, color: T.blue }} />Konsultasi via WhatsApp</span>
+      <div className="feature-strip">
+        <div className="feature-item">
+          <span className="feature-icon"><I.box style={{ width: 20, height: 20 }} /></span>
+          <span><strong>Min 4 pcs/model</strong><span className="feature-desc">Grosir langsung dari supplier</span></span>
+        </div>
+        <div className="feature-item">
+          <span className="feature-icon"><I.truck style={{ width: 20, height: 20 }} /></span>
+          <span><strong>Pengiriman nasional</strong><span className="feature-desc">Kirim ke seluruh Indonesia</span></span>
+        </div>
+        <div className="feature-item">
+          <span className="feature-icon"><I.chat style={{ width: 20, height: 20 }} /></span>
+          <span><strong>Konsultasi via WhatsApp</strong><span className="feature-desc">Admin siap membantu Anda</span></span>
+        </div>
       </div>
 
       {/* 5. Category chips */}
@@ -427,6 +436,11 @@ export default function LandingPage() {
         .hero-btn { transition: all .35s cubic-bezier(.4,0,.2,1); }
         .hero-btn:hover { transform: translateY(-2px); }
         .hero-btn:active { transform: scale(.97); }
+        .feature-strip { max-width: 1200px; margin: 0 auto; padding: 20px 16px 6px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .feature-item { display: flex; align-items: center; gap: 12px; background: ${T.card}; border: 1px solid ${T.border}; border-radius: 12px; padding: 14px 16px; }
+        .feature-icon { width: 40px; height: 40px; border-radius: 10px; background: rgba(30,58,95,.08); color: ${T.blue}; display: grid; place-items: center; flex-shrink: 0; }
+        .feature-item strong { display: block; font-size: 13px; font-weight: 700; color: ${T.black}; }
+        .feature-desc { display: block; font-size: 12px; color: ${T.muted}; margin-top: 2px; }
         .pcard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
         .pcard { position: relative; display: flex; flex-direction: column; border-radius: 14px; overflow: hidden; background: #fff; border: 1px solid #e5e7eb; transition: all .3s cubic-bezier(.4,0,.2,1); box-shadow: 0 1px 3px rgba(0,0,0,.04); }
         .pcard:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(15,23,42,.08); border-color: #d1d5db; }
@@ -470,6 +484,7 @@ export default function LandingPage() {
         }
         @media (max-width: 600px) {
           .pcard-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+          .feature-strip { grid-template-columns: 1fr; gap: 8px; padding: 16px 16px 4px; }
         }
         @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
       `}</style>
