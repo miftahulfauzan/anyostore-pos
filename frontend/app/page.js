@@ -39,29 +39,45 @@ function photoStyle(transform, base) {
 
 function ProductCard({ product, onWa }) {
   const photos = useMemo(() => {
-    const list = parsePhotos(product.photo_paths);
+    const seen = new Set();
+    const list = parsePhotos(product.photo_paths).filter((p) => {
+      if (seen.has(p.path)) return false;
+      seen.add(p.path);
+      return true;
+    });
     return list.length ? list : (product.photo_path ? [{ path: product.photo_path }] : []);
   }, [product.photo_paths, product.photo_path]);
-  // Hover: ganti foto tiap 2 detik selama mouse di atas kartu.
+  // Hover: langsung ganti ke foto berikutnya, lalu lanjut tiap 2 detik selama mouse di kartu.
   const [photoIdx, setPhotoIdx] = useState(0);
   const photoTimer = useRef(null);
+  function stopCycle() {
+    if (photoTimer.current) { clearInterval(photoTimer.current); photoTimer.current = null; }
+  }
   function onEnter() {
     if (photos.length <= 1) return;
+    stopCycle();
+    setPhotoIdx((i) => (i + 1) % photos.length);
     photoTimer.current = setInterval(() => setPhotoIdx((i) => (i + 1) % photos.length), 2000);
   }
   function onLeave() {
-    if (photoTimer.current) clearInterval(photoTimer.current);
-    photoTimer.current = null;
+    stopCycle();
     setPhotoIdx(0);
   }
-  useEffect(() => () => { if (photoTimer.current) clearInterval(photoTimer.current); }, []);
+  useEffect(() => stopCycle, []);
   const photo = photos[photoIdx] || photos[0];
   const colors = (product.variant_colors || '').split('|').filter(Boolean).slice(0, 4);
   return (
-    <article className="pcard">
-      <a href={`/produk/${product.id}`} className="pcard-img" onMouseEnter={onEnter} onMouseLeave={onLeave}>
+    <article className="pcard" onMouseEnter={onEnter} onMouseLeave={onLeave}>
+      <a href={`/produk/${product.id}`} className="pcard-img">
         <SafeImage key={photo?.path || 'none'} src={photo ? `${api.replace('/api', '')}${photo.path}` : ''} alt={product.name} style={photoStyle(product.photo_transform, { width: '100%', height: '100%' })} />
         {!photos.length && <span style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: T.muted, fontSize: 12, background: '#f3f4f6' }}>Tanpa foto</span>}
+        {photos.length > 1 && (
+          <span className="pcard-dots">
+            {photos.map((p, i) => (
+              <i key={p.path} className={`pcard-dot${i === photoIdx ? ' active' : ''}`} />
+            ))}
+          </span>
+        )}
       </a>
       <div className="pcard-body">
         <a href={`/produk/${product.id}`} style={{ textDecoration: 'none', color: 'inherit' }}><strong>{product.name}</strong></a>
@@ -117,8 +133,6 @@ export default function LandingPage() {
   const group = slides.length
     ? [0, 1, 2].map((offset) => slides[(slideIdx + offset) % slides.length])
     : [];
-  const slidePhotos = useMemo(() => parsePhotos(slide?.photo_path), [slide?.photo_path]);
-
   return (
     <div style={{ background: T.bg, color: T.black, minHeight: '100vh', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       {/* 1. Top bar */}
@@ -309,6 +323,11 @@ export default function LandingPage() {
         .pcard:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(15,23,42,.08); border-color: #d1d5db; }
         .pcard:active { transform: scale(.985); }
         .pcard-img { display: grid; place-items: center; aspect-ratio: 3/4; overflow: hidden; position: relative; background: #f3f4f6; }
+        .pcard-img img { animation: photoIn .35s ease; }
+        .pcard-dots { position: absolute; left: 0; right: 0; bottom: 8px; display: flex; justify-content: center; gap: 4px; z-index: 2; pointer-events: none; }
+        .pcard-dot { width: 5px; height: 5px; border-radius: 999px; background: rgba(255,255,255,.7); box-shadow: 0 0 0 1px rgba(0,0,0,.18); transition: all .25s cubic-bezier(.4,0,.2,1); }
+        .pcard-dot.active { width: 14px; background: #fff; }
+        @keyframes photoIn { from { opacity: .25; } to { opacity: 1; } }
         .pcard-body { padding: 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
         .pcard-body strong { font-size: 14px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .pcard-price { color: ${T.blue}; font-weight: 700; font-size: 16px; }
