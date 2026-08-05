@@ -34,8 +34,9 @@ services:
       - ./backend/migrations/20260803_branch_type_gudang_names.sql:/docker-entrypoint-initdb.d/021-branch_type_gudang_names.sql:ro
       - ./backend/migrations/20260803_warehouse_names_match_branch.sql:/docker-entrypoint-initdb.d/022-warehouse_names_match_branch.sql:ro
       - ./backend/migrations/20260803_stock_mutation_reference_bigint.sql:/docker-entrypoint-initdb.d/023-stock_mutation_reference_bigint.sql:ro
-      - ./backend/migrations/20260804_performance_indexes.sql:/docker-entrypoint-initdb.d/024-performance_indexes.sql:ro
-      - ./backend/migrations/20260804_refund_method.sql:/docker-entrypoint-initdb.d/025-refund_method.sql:ro
+      - ./backend/migrations/20260804_category_sort_order.sql:/docker-entrypoint-initdb.d/024-category_sort_order.sql:ro
+      - ./backend/migrations/20260804_performance_indexes.sql:/docker-entrypoint-initdb.d/025-performance_indexes.sql:ro
+      - ./backend/migrations/20260804_refund_method.sql:/docker-entrypoint-initdb.d/026-refund_method.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p$${MYSQL_ROOT_PASSWORD}"]
       interval: 10s

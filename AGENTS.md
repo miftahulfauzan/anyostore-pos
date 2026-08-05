@@ -38,12 +38,14 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 |--------|--------|-------------|
 | `public.js` | `/api/public` | Landing: settings (multi-WA), categories, products (paginasi/search/sort), products/:id (media+variants) |
 | `products.js` | `/api/products` | CRUD produk, media (max 10 img + 1 video), varian, wholesale prices, categories CRUD, transform foto |
+| `products.js` | `/api/products/:id/media/:mediaId/image-data` | Ganti file foto dengan hasil crop 1200×1600 (modal Ubah Foto Produk) |
 | `inventory.js` | `/api/inventory` | Warehouse, mutasi, stock-total (branch/all), barcode search, incoming/outgoing per batch (`batch_number` BATCH-YYYYMMDD-NNN, `warehouse_id`, `transaction_date`) |
 | `inventory-control.js` | `/api/inventory-control` | Transfer antar gudang/cabang, opname |
 | `transactions.js` | `/api/transactions` | Checkout (idempotency `client_transaction_id`), hold/resume, cancel |
 | `printer.js` | `/api/printer` | Struk thermal 58/80mm |
 | `customers.js` | `/api/customers` | CRUD pelanggan + price_tier |
 | `returns.js` | `/api/returns` | Retur (pending → approve, stok kembali) |
+| `returns.js` | `/api/returns` | Retur menyimpan `refund_method` (cash/qris/transfer/debit) untuk laporan & laci kas |
 | `cash-drawer.js` | `/api/cash-drawer` | Buka/tutup kas, cash in/out |
 | `suppliers.js` | `/api/suppliers` | Supplier per cabang |
 | `reports.js` | `/api/reports` | Sales + overview (owner bisa pilih branch via `?branch_id`) |
@@ -59,11 +61,12 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 ### Auth & Roles
 
 - JWT access 12 jam (payload: `id, role, branch_id`), refresh token 7 hari, hash SHA-256 di DB
+- Login/PIN/refresh menyetel **httpOnly cookie** (`pos_access`, `pos_refresh`, SameSite=Strict, Secure di produksi); `authenticate` membaca cookie (Bearer header tetap diterima). Refresh token TIDAK dikembalikan di body respons. Frontend tidak menyimpan JWT di localStorage.
 - Roles: `owner`, `manager`, `admin`, `kasir`, `gudang`
 - `authorize('owner')` dsb memfilter akses per route
 - Owner bisa akses semua cabang (banyak route pakai `req.user.role === 'owner' ? (Number(req.query.branch_id) || req.user.branch_id) : req.user.branch_id`)
 
-## Skema Database (47 tabel, `docs/12-migration.sql`)
+## Skema Database (`docs/12-migration.sql` + seluruh `backend/migrations/`, ±50 tabel live; snapshot terkini bisa di-regenerate via `scripts/dump-schema.sh`)
 
 ### Tabel inti
 

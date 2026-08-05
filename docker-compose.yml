@@ -19,6 +19,7 @@ services:
 
   backend:
     build: ./backend
+    entrypoint: ["sh", "-c", "node scripts/migrate.js || true; node src/index.js"]
     environment:
       NODE_ENV: development
       PORT: 3001
@@ -34,6 +35,8 @@ services:
       - "3001:3001"
     volumes:
       - ./uploads:/app/uploads
+      - ./backend/migrations:/app/migrations:ro
+      - ./backend/scripts:/app/scripts:ro
     depends_on:
       db:
         condition: service_healthy
