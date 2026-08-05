@@ -192,6 +192,17 @@ router.get('/', async (req, res, next) => {
       params.push(term, term, term);
     }
     if (req.query.category) { where += ' AND p.category_id = ?'; params.push(Number(req.query.category)); }
+    const sortMap = {
+      name: 'p.name ASC',
+      name_desc: 'p.name DESC',
+      newest: 'p.created_at DESC',
+      oldest: 'p.created_at ASC',
+      price_asc: 'p.price ASC',
+      price_desc: 'p.price DESC',
+      stock_asc: 'p.stock ASC',
+      stock_desc: 'p.stock DESC',
+    };
+    const orderBy = sortMap[req.query.sort] || sortMap.name;
     const includeWholesale = req.query.include_wholesale === '1';
     const wholesaleSelect = includeWholesale ? `,
               (SELECT JSON_ARRAYAGG(JSON_OBJECT('min_qty', wp.min_qty, 'max_qty', wp.max_qty, 'price', wp.price))
@@ -205,7 +216,7 @@ router.get('/', async (req, res, next) => {
               (SELECT COALESCE(SUM(pv.stock), 0) FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_active = TRUE) AS variant_stock_total,
               (SELECT GROUP_CONCAT(DISTINCT pv.color ORDER BY pv.color SEPARATOR '|') FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_active = TRUE AND pv.color IS NOT NULL AND pv.color <> '') AS variant_colors${wholesaleSelect}
        FROM products p JOIN categories c ON c.id = p.category_id
-       ${where} ORDER BY p.name LIMIT ${limit} OFFSET ${offset}`, params
+       ${where} ORDER BY ${orderBy}, p.id LIMIT ${limit} OFFSET ${offset}`, params
     );
     if (includeWholesale) {
       for (const row of rows) {
@@ -491,6 +502,60 @@ router.put('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (req,
 });
 
 // DELETE /api/products/:id — soft-delete (is_active=false) if has transactions, else hard-delete
+router.post('/bulk-delete', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
+  try {
+    const ids = [...new Set((Array.isArray(req.body.ids) ? req.body.ids : []).map(Number).filter(Number.isInteger))].slice(0, 200);
+    if (!ids.length) return res.status(400).json({ success: false, message: 'Pilih minimal 1 produk' });
+
+    let hard = 0;
+    let soft = 0;
+    const failed = [];
+
+    for (const id of ids) {
+      try {
+        const [product] = await db.execute('SELECT id, name, is_active FROM products WHERE id=? AND branch_id=?', [id, req.user.branch_id]);
+        if (!product[0]) { failed.push(id); continue; }
+
+        const [trx] = await db.execute(
+          `SELECT (SELECT COUNT(*) FROM transaction_items WHERE product_id=?) +
+                  (SELECT COUNT(*) FROM purchase_order_items WHERE product_id=?) +
+                  (SELECT COUNT(*) FROM stock_opname_items WHERE product_id=?) +
+                  (SELECT COUNT(*) FROM stock_transfer_items WHERE product_id=?) +
+                  (SELECT COUNT(*) FROM return_items WHERE product_id=?) +
+                  (SELECT COUNT(*) FROM supplier_products WHERE product_id=?) AS cnt`,
+          [id, id, id, id, id, id]
+        );
+        const hasHistory = Number(trx[0].cnt) > 0;
+
+        if (hasHistory) {
+          await db.execute('UPDATE products SET is_active=FALSE WHERE id=?', [id]);
+          await db.execute('UPDATE product_variants SET is_active=FALSE WHERE product_id=?', [id]);
+          soft += 1;
+        } else {
+          const [photos] = await db.execute('SELECT path FROM product_photos WHERE product_id=?', [id]);
+          for (const ph of photos) { try { await removeMedia(ph.path); } catch {} }
+          await db.execute('DELETE FROM stock_mutations WHERE product_id=?', [id]);
+          await db.execute('DELETE FROM warehouse_stocks WHERE product_id=?', [id]);
+          await db.execute('DELETE FROM product_photos WHERE product_id=?', [id]);
+          await db.execute('DELETE FROM wholesale_prices WHERE product_id=?', [id]);
+          await db.execute('DELETE FROM product_variants WHERE product_id=?', [id]);
+          await db.execute('DELETE FROM supplier_products WHERE product_id=?', [id]);
+          await db.execute('DELETE FROM products WHERE id=?', [id]);
+          hard += 1;
+        }
+      } catch (error) {
+        failed.push(id);
+      }
+    }
+
+    const parts = [];
+    if (hard) parts.push(`${hard} dihapus permanen`);
+    if (soft) parts.push(`${soft} dinonaktifkan (punya riwayat)`);
+    const message = parts.length ? `Selesai: ${parts.join(', ')}.` : 'Tidak ada produk yang terhapus.';
+    res.json({ success: true, data: { deleted: hard, deactivated: soft, failed, message } });
+  } catch (error) { next(error); }
+});
+
 router.delete('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
