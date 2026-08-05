@@ -114,14 +114,34 @@ export default function ProductsPage() {
 
   return <AppShell title="Produk & Inventori" eyebrow="KATALOG PRODUK" actions={<><a className="button-link" href="/products/photos">Upload Foto Massal</a><a className="button-link" href="/products/new">Tambah Produk</a></>}>
     <section className="panel catalog-panel">
-      <div className="section-heading"><div><h2>Daftar Produk</h2><p>Cari nama, SKU, atau barcode. Kelola foto, video, varian, dan cetak barcode dari daftar ini.</p></div><div className="catalog-view-controls"><span className="item-count">{loading ? 'Memuat…' : `${products.length} produk`}</span><select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Urutkan produk" style={{ minHeight: 36, padding: '.4rem .5rem', borderRadius: '.45rem', border: '1px solid var(--border)', background: '#fff', fontSize: '.78rem' }}><option value="name">Nama A-Z</option><option value="name_desc">Nama Z-A</option><option value="newest">Terbaru</option><option value="oldest">Terlama</option><option value="price_asc">Harga termurah</option><option value="price_desc">Harga termahal</option><option value="stock_asc">Stok terendah</option><option value="stock_desc">Stok tertinggi</option></select><button type="button" className={view === 'grid' ? 'view-button selected' : 'view-button'} onClick={() => setView('grid')} aria-pressed={view === 'grid'}>Tampilan grid</button><button type="button" className={view === 'list' ? 'view-button selected' : 'view-button'} onClick={() => setView('list')} aria-pressed={view === 'list'}>Tampilan daftar</button></div></div>
-      <label className="catalog-search">Cari produk<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nama, SKU, atau barcode" autoComplete="off" /></label>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '.6rem', flexWrap: 'wrap', padding: '.55rem .8rem', borderRadius: '.65rem', border: selected.size > 0 ? '1px solid rgba(30,58,95,.35)' : '1px solid var(--border)', background: selected.size > 0 ? 'rgba(30,58,95,.06)' : 'var(--card)', marginBottom: 12, transition: 'background .15s ease' }}>
+      <div className="section-heading" style={{ alignItems: 'center', marginBottom: 14 }}>
+        <div><h2>Daftar Produk</h2><p>Cari nama, SKU, atau barcode. Kelola foto, video, varian, dan cetak barcode dari daftar ini.</p></div>
+        <div className="catalog-view-controls">
+          <span className="item-count">{loading ? 'Memuat…' : `${products.length} produk`}</span>
+          <select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Urutkan produk" style={{ minHeight: 36, padding: '0 .6rem', borderRadius: 8, border: '1px solid var(--border)', background: '#fff', fontSize: '.82rem', fontWeight: 600 }}>
+            <option value="name">Nama A-Z</option><option value="name_desc">Nama Z-A</option><option value="newest">Terbaru</option><option value="oldest">Terlama</option><option value="price_asc">Harga termurah</option><option value="price_desc">Harga termahal</option><option value="stock_asc">Stok terendah</option><option value="stock_desc">Stok tertinggi</option>
+          </select>
+          <div className="view-segmented">
+            <button type="button" className={view === 'grid' ? 'view-button selected' : 'view-button'} onClick={() => setView('grid')} aria-pressed={view === 'grid'}>Grid</button>
+            <button type="button" className={view === 'list' ? 'view-button selected' : 'view-button'} onClick={() => setView('list')} aria-pressed={view === 'list'}>Daftar</button>
+          </div>
+        </div>
+      </div>
+      <div className="catalog-toolbar">
+        <label>Cari produk<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nama, SKU, atau barcode" autoComplete="off" /></label>
+        {(isOwner || isGudang) && (
+          <label style={{ minWidth: 220 }}>{isGudang ? 'Gudang / Cabang' : 'Toko / Cabang'}<select value={branchId} onChange={(event) => setBranchId(event.target.value)}>
+            {isGudang ? <><option value="all">Semua Gudang</option></> : <option value="">Toko saya</option>}
+            {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select></label>
+        )}
+      </div>
+      <div className={selected.size > 0 ? 'selection-toolbar active' : 'selection-toolbar'}>
         <label style={{ display: 'inline-flex', gap: '.5rem', alignItems: 'center', fontSize: '.85rem', fontWeight: 600, cursor: 'pointer', minHeight: 36 }}>
           <input type="checkbox" checked={products.length > 0 && selected.size === products.length} onChange={toggleSelectAll} style={{ width: 16, height: 16, accentColor: 'var(--primary)', cursor: 'pointer' }} />
           Pilih semua ({products.length})
         </label>
-        <span style={{ flex: 1 }} />
+        <span className="spacer" />
         {selected.size > 0 && (
           <>
           <span style={{ padding: '.32rem .65rem', borderRadius: 999, background: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '.8rem', whiteSpace: 'nowrap' }}>
@@ -132,12 +152,6 @@ export default function ProductsPage() {
           </>
         )}
       </div>
-      {(isOwner || isGudang) && (
-        <label style={{ display: 'block', marginBottom: 10 }}>{isGudang ? 'Gudang / Cabang' : 'Toko / Cabang'}<select value={branchId} onChange={(event) => setBranchId(event.target.value)}>
-          {isGudang ? <><option value="all">Semua Gudang</option></> : <option value="">Toko saya</option>}
-          {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-        </select></label>
-      )}
       {message && <p className="message" role="status">{message}</p>}
       {loading ? <p>Memuat produk…</p> : <div className={`product-list ${view === 'grid' ? 'grid-view' : ''}`}>{products.map((product) => <article key={product.id} className="product-row" style={selected.has(product.id) ? { outline: '2px solid var(--primary)', outlineOffset: 2, borderRadius: 10 } : undefined}>
         <div className="product-photo" style={{ position: 'relative' }}>{product.photo_path ? <img src={mediaUrl(product.photo_path)} alt={`Foto ${product.name}`} loading="lazy" style={product.photo_transform ? (()=>{const t=(product.photo_transform||'').split(',').map(Number); return {objectFit:'cover',objectPosition:'center',transform:`translate(${t[1]||0}%,${t[2]||0}%) scale(${t[0]})`,width:'100%',height:'100%'};})():{}} /> : <span>Tanpa foto</span>}
