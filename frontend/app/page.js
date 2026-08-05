@@ -128,13 +128,14 @@ export default function LandingPage() {
   function countInCart(productId) { return cart.filter((i) => i.productId === productId).reduce((s, i) => s + i.qty, 0); }
   const cartPcs = cart.reduce((s, i) => s + i.qty, 0);
   const cartTotal = cart.reduce((s, i) => s + i.qty * i.price, 0);
+  const pickMin = picker ? Math.max(1, 4 - countInCart(picker.product.id)) : 1;
   const modelTotals = cart.reduce((m, i) => { m[i.productId] = (m[i.productId] || 0) + i.qty; return m; }, {});
   const cartWarnings = Object.entries(modelTotals)
     .map(([pid, qty]) => ({ name: cart.find((i) => i.productId === Number(pid))?.name || 'Produk', qty }))
     .filter((w) => w.qty < 4);
 
   function openPicker(product) {
-    setPickQty(4);
+    setPickQty(Math.max(1, 4 - countInCart(product.id)));
     setPickVariantId(null);
     if (Number(product.variant_count) > 0) {
       setPickerLoading(true);
@@ -170,7 +171,15 @@ export default function LandingPage() {
     setCartOpen(true);
   }
 
-  function setItemQty(key, qty) { setCart((prev) => prev.map((i) => (i.key === key ? { ...i, qty: Math.max(1, qty) } : i))); }
+  function setItemQty(key, qty) {
+    setCart((prev) => prev.map((i) => {
+      if (i.key !== key) return i;
+      const modelTotal = prev.filter((x) => x.productId === i.productId).reduce((s, x) => s + x.qty, 0);
+      const others = modelTotal - i.qty;
+      const minQty = Math.max(1, 4 - others);
+      return { ...i, qty: Math.max(minQty, Number(qty) || minQty) };
+    }));
+  }
   function removeItem(key) { setCart((prev) => prev.filter((i) => i.key !== key)); }
   function clearCart() { setCart([]); }
 
@@ -414,8 +423,8 @@ export default function LandingPage() {
             )}
             <strong style={{ fontSize: 12, color: T.muted, textTransform: 'uppercase', letterSpacing: '.05em' }}>Jumlah</strong>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '10px 0 18px' }}>
-              <button className="qty-btn" onClick={() => setPickQty((q) => Math.max(1, q - 1))} aria-label="Kurangi jumlah"><I.minus style={{ width: 18, height: 18, color: '#fff' }} /></button>
-              <input type="number" min="1" value={pickQty} onChange={(e) => setPickQty(Math.max(1, Number(e.target.value) || 1))} aria-label="Jumlah" className="qty-input" style={{ width: 60, height: 36, fontSize: 16 }} />
+              <button className="qty-btn" onClick={() => setPickQty((q) => Math.max(pickMin, q - 1))} aria-label="Kurangi jumlah"><I.minus style={{ width: 18, height: 18, color: '#fff' }} /></button>
+              <input type="number" min={pickMin} value={pickQty} onChange={(e) => setPickQty(Math.max(pickMin, Number(e.target.value) || pickMin))} aria-label="Jumlah" className="qty-input" style={{ width: 60, height: 36, fontSize: 16 }} />
               <button className="qty-btn" onClick={() => setPickQty((q) => q + 1)} aria-label="Tambah jumlah"><I.plus style={{ width: 18, height: 18, color: '#fff' }} /></button>
             </div>
             <button onClick={addFromPicker} className="pcard-btn primary" style={{ width: '100%', minHeight: 46, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 14 }}><I.cart style={{ width: 16, height: 16 }} /> Tambah ke Keranjang</button>

@@ -238,7 +238,7 @@ export default function PosPage() {
 
   return (
     <div className="pos-standalone">
-      <header className="pos-standalone-header"><a className="pos-standalone-brand" href="/dashboard"><span>A</span><div><strong>Anyostore POS</strong><small>Kasir toko</small></div></a><nav><a href="/dashboard"><LayoutDashboard aria-hidden="true" size={15} /> Dasbor</a><a href="/history">Riwayat <ArrowUpRight aria-hidden="true" size={15} /></a><button type="button" onClick={logout}><LogOut aria-hidden="true" size={15} /> Keluar</button></nav></header>
+      <header className="pos-standalone-header"><a className="pos-standalone-brand" href="/dashboard"><span>A</span><div><strong>Anyostore POS</strong><small>Kasir toko</small></div></a><nav><a href="/dashboard"><LayoutDashboard aria-hidden="true" size={15} /> Dasbor</a><a href="/history">Riwayat <ArrowUpRight aria-hidden="true" size={15} /></a><a href="/" target="_blank" rel="noopener noreferrer">Landing Page</a><button type="button" onClick={logout}><LogOut aria-hidden="true" size={15} /> Keluar</button></nav></header>
       <div className="pos-workspace">
         <section className="pos-store-bar" aria-label="Toko aktif untuk transaksi">
           <div className="pos-store-context"><span><StoreIcon aria-hidden="true" size={18} /></span><div><strong>{selectedStore?.name || 'Memuat toko…'}</strong><small>{stores.length > 1 ? 'Owner dapat memilih toko transaksi' : 'POS mengikuti toko akun ini'}</small></div></div>

@@ -51,7 +51,7 @@ export default function DashboardPage() {
   const peakSales = Math.max(1, ...(data?.sales_trend || []).map((item) => Number(item.sales)));
   const paymentTotal = Math.max(1, ...(data?.payment_breakdown || []).map((item) => Number(item.amount)));
 
-  return <AppShell title="Dasbor" eyebrow={isGudang ? 'RINGKASAN GUDANG' : 'RINGKASAN TOKO'} actions={isGudang ? <a className="button-link" href="/inventory">Kelola Stok</a> : <><a className="button-link" href="/closing">Cetak Penutupan</a><a className="button-link" href="/pos">Buka Kasir <ArrowUpRight aria-hidden="true" size={15} /></a></>}>
+  return <AppShell title="Dasbor" eyebrow={isGudang ? 'RINGKASAN GUDANG' : 'RINGKASAN TOKO'} actions={isGudang ? <><a className="button-link" href="/inventory">Kelola Stok</a><a className="button-link" href="/" target="_blank" rel="noopener noreferrer">Landing Page</a></> : <><a className="button-link" href="/" target="_blank" rel="noopener noreferrer">Landing Page</a><a className="button-link" href="/closing">Cetak Penutupan</a><a className="button-link" href="/pos">Buka Kasir <ArrowUpRight aria-hidden="true" size={15} /></a></>}>
     {message && <p className="message" role="status">{message}</p>}
     {!data ? <section className="panel"><p>Memuat ringkasan toko…</p></section> : isGudang ? (
       <>
