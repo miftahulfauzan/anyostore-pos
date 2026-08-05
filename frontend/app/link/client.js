@@ -39,5 +39,16 @@ export default function LinkBioClient() {
     );
   }
 
-  return <LinkBioPage config={config} />;
+  return (
+    <LinkBioPage
+      config={config}
+      onLinkClick={(item) => {
+        fetch(api + '/link-page/click', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ branch_id: config.branch_id, item_id: item.id, label: item.label }),
+        }).catch(() => {});
+      }}
+    />
+  );
 }
