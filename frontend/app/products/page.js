@@ -116,17 +116,20 @@ export default function ProductsPage() {
     <section className="panel catalog-panel">
       <div className="section-heading"><div><h2>Daftar Produk</h2><p>Cari nama, SKU, atau barcode. Kelola foto, video, varian, dan cetak barcode dari daftar ini.</p></div><div className="catalog-view-controls"><span className="item-count">{loading ? 'Memuat…' : `${products.length} produk`}</span><select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Urutkan produk" style={{ minHeight: 36, padding: '.4rem .5rem', borderRadius: '.45rem', border: '1px solid var(--border)', background: '#fff', fontSize: '.78rem' }}><option value="name">Nama A-Z</option><option value="name_desc">Nama Z-A</option><option value="newest">Terbaru</option><option value="oldest">Terlama</option><option value="price_asc">Harga termurah</option><option value="price_desc">Harga termahal</option><option value="stock_asc">Stok terendah</option><option value="stock_desc">Stok tertinggi</option></select><button type="button" className={view === 'grid' ? 'view-button selected' : 'view-button'} onClick={() => setView('grid')} aria-pressed={view === 'grid'}>Tampilan grid</button><button type="button" className={view === 'list' ? 'view-button selected' : 'view-button'} onClick={() => setView('list')} aria-pressed={view === 'list'}>Tampilan daftar</button></div></div>
       <label className="catalog-search">Cari produk<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nama, SKU, atau barcode" autoComplete="off" /></label>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem', flexWrap: 'wrap', marginBottom: 10 }}>
-        <label style={{ display: 'inline-flex', gap: '.45rem', alignItems: 'center', fontSize: '.85rem', cursor: 'pointer' }}>
-          <input type="checkbox" checked={products.length > 0 && selected.size === products.length} onChange={toggleSelectAll} style={{ accentColor: 'var(--primary)' }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '.6rem', flexWrap: 'wrap', padding: '.55rem .8rem', borderRadius: '.65rem', border: selected.size > 0 ? '1px solid rgba(30,58,95,.35)' : '1px solid var(--border)', background: selected.size > 0 ? 'rgba(30,58,95,.06)' : 'var(--card)', marginBottom: 12, transition: 'background .15s ease' }}>
+        <label style={{ display: 'inline-flex', gap: '.5rem', alignItems: 'center', fontSize: '.85rem', fontWeight: 600, cursor: 'pointer', minHeight: 36 }}>
+          <input type="checkbox" checked={products.length > 0 && selected.size === products.length} onChange={toggleSelectAll} style={{ width: 16, height: 16, accentColor: 'var(--primary)', cursor: 'pointer' }} />
           Pilih semua ({products.length})
         </label>
+        <span style={{ flex: 1 }} />
         {selected.size > 0 && (
-          <span style={{ display: 'inline-flex', gap: '.5rem', alignItems: 'center', padding: '.35rem .65rem', borderRadius: 999, background: 'rgba(30,58,95,.08)', color: 'var(--primary)', fontWeight: 700, fontSize: '.82rem' }}>
+          <>
+          <span style={{ padding: '.32rem .65rem', borderRadius: 999, background: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '.8rem', whiteSpace: 'nowrap' }}>
             {selected.size} dipilih
-            <button type="button" className="small secondary" onClick={() => setSelected(new Set())}>Batalkan</button>
-            <button type="button" className="small" onClick={deleteSelected} style={{ background: '#dc2626', color: '#fff' }}>Hapus terpilih</button>
           </span>
+          <button type="button" className="small secondary" onClick={() => setSelected(new Set())} style={{ minHeight: 34 }}>Batalkan</button>
+          <button type="button" className="small" onClick={deleteSelected} style={{ minHeight: 34, background: '#dc2626', borderColor: '#dc2626', color: '#fff' }}>Hapus terpilih</button>
+          </>
         )}
       </div>
       {(isOwner || isGudang) && (
