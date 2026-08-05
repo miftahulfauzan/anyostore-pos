@@ -30,7 +30,7 @@ jobs:
           set -e
           cd /home/ubuntu/anyostore-pos
           BEFORE=$(git rev-parse HEAD)
-          git pull origin main
+          git pull --rebase origin main
           AFTER=$(git rev-parse HEAD)
           echo "deploy from $BEFORE -> $AFTER"
           if [ "$BEFORE" = "$AFTER" ]; then
