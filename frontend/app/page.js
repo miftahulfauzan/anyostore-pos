@@ -129,6 +129,8 @@ export default function LandingPage() {
   const cartPcs = cart.reduce((s, i) => s + i.qty, 0);
   const cartTotal = cart.reduce((s, i) => s + i.qty * i.price, 0);
   const pickMin = picker ? Math.max(1, 4 - countInCart(picker.product.id)) : 1;
+  const pickerSelected = picker ? picker.variants.find((v) => v.id === pickVariantId) || null : null;
+  const pickerPhoto = pickerSelected?.photo_path || picker?.product?.photo_path || null;
   const modelTotals = cart.reduce((m, i) => { m[i.productId] = (m[i.productId] || 0) + i.qty; return m; }, {});
   const cartWarnings = Object.entries(modelTotals)
     .map(([pid, qty]) => ({ name: cart.find((i) => i.productId === Number(pid))?.name || 'Produk', qty }))
@@ -403,6 +405,9 @@ export default function LandingPage() {
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.black }}>{picker.product.name}</h3>
               <button onClick={() => setPicker(null)} aria-label="Tutup" style={{ width: 34, height: 34, padding: 0, borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, cursor: 'pointer', color: T.muted, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}><I.close style={{ width: 16, height: 16, display: 'block' }} /></button>
             </div>
+            {pickerPhoto
+              ? <img src={`${api.replace('/api', '')}${pickerPhoto}`} alt={picker.product.name} style={{ width: '100%', height: 200, objectFit: 'cover', borderRadius: 10, display: 'block', marginBottom: 16, background: '#f3f4f6' }} />
+              : <div style={{ width: '100%', height: 200, borderRadius: 10, background: '#f3f4f6', display: 'grid', placeItems: 'center', color: T.muted, fontSize: 13, marginBottom: 16 }}>Tanpa foto</div>}
             {pickerLoading && <p style={{ color: T.muted, fontSize: 13 }}>Memuat varian…</p>}
             {!pickerLoading && picker.variants.length > 0 && (
               <>
