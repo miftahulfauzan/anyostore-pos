@@ -6,7 +6,7 @@ const { decodeDataUpload, persistUploadedFile, removeMedia } = require('../media
 const router = express.Router();
 
 const CONFIG_KEY = 'link_page';
-const THEMES = new Set(['denim', 'dark', 'light']);
+const THEMES = new Set(['denim', 'dark', 'light', 'sage']);
 const LAYOUTS = new Set(['list', 'grid', 'carousel', 'showcase']);
 const BACKGROUND_TYPES = new Set(['theme', 'image', 'gradient']);
 const ITEM_TYPES = new Set(['link', 'text', 'divider']);
@@ -134,6 +134,7 @@ function publicItem(item) {
     url: String(item.url || '').slice(0, 1000),
     icon: ICONS.has(item.icon) ? item.icon : 'link',
     logo: String(item.logo || '').startsWith('/uploads/') ? String(item.logo).slice(0, 500) : '',
+    layout: LAYOUTS.has(item.layout) ? item.layout : '',
     active: true,
   };
 }
@@ -222,6 +223,7 @@ function validateConfig(body) {
           if (url.length > 1000) errors.push(`URL item ke-${i + 1} terlalu panjang`);
         }
         if (l.icon != null && !ICONS.has(l.icon)) errors.push(`Ikon item ke-${i + 1} tidak valid`);
+        if (l.layout != null && l.layout !== '' && !LAYOUTS.has(l.layout)) errors.push(`Layout item ke-${i + 1} tidak valid`);
         if (l.logo != null && l.logo !== '' && !String(l.logo).startsWith('/uploads/')) errors.push(`Logo item ke-${i + 1} tidak valid`);
       }
     }
@@ -343,6 +345,7 @@ router.put('/', authenticate, authorize('owner'), async (req, res, next) => {
               url: type === 'link' ? String(l.url || '').trim().slice(0, 1000) : '',
               icon: ICONS.has(l.icon) ? l.icon : 'link',
               logo: String(l.logo || '').startsWith('/uploads/') ? String(l.logo).slice(0, 500) : '',
+              layout: LAYOUTS.has(l.layout) ? l.layout : '',
               active: l.active !== false,
             };
           })

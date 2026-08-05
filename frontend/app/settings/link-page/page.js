@@ -45,6 +45,7 @@ const themeOptions = [
   { id: 'denim', label: 'Denim', hint: 'Terang kebiruan, konsisten dengan landing', colors: ['#1e3a5f', '#e9eef5'] },
   { id: 'dark', label: 'Hitam elegan', hint: 'Gelap, kontras tinggi', colors: ['#161b23', '#2b3340'] },
   { id: 'light', label: 'Terang minimalis', hint: 'Putih bersih', colors: ['#ffffff', '#ececec'] },
+  { id: 'sage', label: 'Sage hijau', hint: 'Kalem & natural', colors: ['#3f6212', '#eaf2e3'] },
 ];
 
 const layoutOptions = [
@@ -58,6 +59,14 @@ const typeOptions = [
   ['link', 'Tautan'],
   ['text', 'Teks judul'],
   ['divider', 'Pembatas'],
+];
+
+const cardLayoutOptions = [
+  ['', 'Ikuti halaman'],
+  ['list', 'List'],
+  ['grid', 'Grid'],
+  ['carousel', 'Carousel'],
+  ['showcase', 'Showcase'],
 ];
 
 const backgroundOptions = [
@@ -174,7 +183,7 @@ export default function LinkPageSettings() {
   function addItem(type) {
     setForm((current) => ({
       ...current,
-      links: [...current.links, { id: 'l' + Date.now().toString(36), type, label: '', url: '', icon: 'link', logo: '', active: true }],
+      links: [...current.links, { id: 'l' + Date.now().toString(36), type, label: '', url: '', icon: 'link', logo: '', layout: '', active: true }],
     }));
   }
 
@@ -188,6 +197,7 @@ export default function LinkPageSettings() {
         url: '/#produk',
         icon: 'catalog',
         logo: '',
+        layout: '',
         active: true,
       }],
     }));
@@ -464,35 +474,39 @@ export default function LinkPageSettings() {
               )}
             </div>
 
-            <div className="two-fields">
-              <div>
-                <strong style={{ fontSize: '.9rem' }}>Tema</strong>
-                <div style={{ display: 'grid', gap: '.5rem', marginTop: '.5rem' }}>
-                  {themeOptions.map((t) => (
-                    <label key={t.id} style={{ display: 'flex', gap: '.6rem', alignItems: 'center', padding: '.6rem .75rem', borderRadius: '.6rem', border: form.theme === t.id ? '2px solid var(--accent)' : '1px solid var(--border)', background: form.theme === t.id ? 'rgba(30,58,95,.06)' : '#fff', cursor: 'pointer' }}>
-                      <input type="radio" name="theme" checked={form.theme === t.id} onChange={() => setForm({ ...form, theme: t.id })} style={{ accentColor: 'var(--accent)' }} />
-                      <span style={{ display: 'flex', gap: 4 }}>
-                        <span style={{ width: 16, height: 16, borderRadius: 5, background: t.colors[0], border: '1px solid rgba(0,0,0,.12)' }} />
-                        <span style={{ width: 16, height: 16, borderRadius: 5, background: t.colors[1], border: '1px solid rgba(0,0,0,.12)' }} />
-                      </span>
-                      <span style={{ fontWeight: 700, fontSize: '.85rem' }}>{t.label}</span>
-                      <span className="muted" style={{ fontSize: '.76rem' }}>{t.hint}</span>
-                    </label>
-                  ))}
-                </div>
+            <div>
+              <strong style={{ fontSize: '.9rem' }}>Tema</strong>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '.55rem', marginTop: '.5rem' }}>
+                {themeOptions.map((t) => (
+                  <label key={t.id} style={{ display: 'flex', gap: '.55rem', alignItems: 'center', padding: '.65rem .7rem', borderRadius: '.65rem', border: form.theme === t.id ? '2px solid var(--accent)' : '1px solid var(--border)', background: form.theme === t.id ? 'rgba(30,58,95,.06)' : '#fff', cursor: 'pointer' }}>
+                    <input type="radio" name="theme" checked={form.theme === t.id} onChange={() => setForm({ ...form, theme: t.id })} style={{ accentColor: 'var(--accent)' }} />
+                    <span style={{ display: 'flex', gap: 4 }}>
+                      <span style={{ width: 18, height: 18, borderRadius: 6, background: t.colors[0], border: '1px solid rgba(0,0,0,.12)' }} />
+                      <span style={{ width: 18, height: 18, borderRadius: 6, background: t.colors[1], border: '1px solid rgba(0,0,0,.12)' }} />
+                    </span>
+                    <span style={{ minWidth: 0 }}>
+                      <span style={{ display: 'block', fontWeight: 700, fontSize: '.85rem' }}>{t.label}</span>
+                      <span className="muted" style={{ display: 'block', fontSize: '.72rem', lineHeight: 1.3 }}>{t.hint}</span>
+                    </span>
+                  </label>
+                ))}
               </div>
-              <div>
-                <strong style={{ fontSize: '.9rem' }}>Layout</strong>
-                <div style={{ display: 'grid', gap: '.5rem', marginTop: '.5rem' }}>
-                  {layoutOptions.map((l) => (
-                    <label key={l.id} style={{ display: 'flex', gap: '.6rem', alignItems: 'center', padding: '.6rem .75rem', borderRadius: '.6rem', border: form.layout === l.id ? '2px solid var(--accent)' : '1px solid var(--border)', background: form.layout === l.id ? 'rgba(30,58,95,.06)' : '#fff', cursor: 'pointer' }}>
-                      <input type="radio" name="layout" checked={form.layout === l.id} onChange={() => setForm({ ...form, layout: l.id })} style={{ accentColor: 'var(--accent)' }} />
-                      <l.Icon style={{ width: 16, height: 16, color: 'var(--muted-foreground)' }} aria-hidden="true" />
-                      <span style={{ fontWeight: 700, fontSize: '.85rem' }}>{l.label}</span>
-                      <span className="muted" style={{ fontSize: '.76rem' }}>{l.hint}</span>
-                    </label>
-                  ))}
-                </div>
+            </div>
+
+            <div>
+              <strong style={{ fontSize: '.9rem' }}>Layout halaman (default)</strong>
+              <p className="muted" style={{ fontSize: '.78rem', margin: '.2rem 0 .5rem' }}>Pilih default untuk semua link. Link yang diatur khusus di bawah akan menimpa default ini.</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '.55rem' }}>
+                {layoutOptions.map((l) => (
+                  <label key={l.id} style={{ display: 'flex', gap: '.55rem', alignItems: 'center', padding: '.65rem .7rem', borderRadius: '.65rem', border: form.layout === l.id ? '2px solid var(--accent)' : '1px solid var(--border)', background: form.layout === l.id ? 'rgba(30,58,95,.06)' : '#fff', cursor: 'pointer' }}>
+                    <input type="radio" name="layout" checked={form.layout === l.id} onChange={() => setForm({ ...form, layout: l.id })} style={{ accentColor: 'var(--accent)' }} />
+                    <l.Icon style={{ width: 17, height: 17, color: 'var(--muted-foreground)', flexShrink: 0 }} aria-hidden="true" />
+                    <span style={{ minWidth: 0 }}>
+                      <span style={{ display: 'block', fontWeight: 700, fontSize: '.85rem' }}>{l.label}</span>
+                      <span className="muted" style={{ display: 'block', fontSize: '.72rem', lineHeight: 1.3 }}>{l.hint}</span>
+                    </span>
+                  </label>
+                ))}
               </div>
             </div>
 
@@ -570,6 +584,9 @@ export default function LinkPageSettings() {
                         <>
                           <select value={link.icon} onChange={(e) => updateLink(i, { icon: e.target.value })} style={{ width: 120, padding: '.45rem .5rem', borderRadius: '.45rem', border: '1px solid var(--border)', background: '#fff' }} aria-label="Ikon">
                             {iconOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                          </select>
+                          <select value={link.layout || ''} onChange={(e) => updateLink(i, { layout: e.target.value })} style={{ width: 135, padding: '.45rem .5rem', borderRadius: '.45rem', border: '1px solid var(--border)', background: '#fff' }} aria-label="Layout kartu">
+                            {cardLayoutOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                           </select>
                           <label className="media-upload" style={{ margin: 0 }}>
                             {uploadingLogoIndex === i ? 'Mengunggah…' : <><ImagePlus style={{ width: 13, height: 13 }} /> Logo</>}

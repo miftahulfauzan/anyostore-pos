@@ -58,6 +58,15 @@ const themes = {
     section: '#18181b',
     divider: '#e4e4e7',
   },
+  sage: {
+    page: { background: 'linear-gradient(160deg, #f6f9f3 0%, #eaf2e3 55%, #ddebd2 100%)', color: '#1c2418' },
+    card: { background: 'rgba(255,255,255,.93)', border: '1px solid #dde8d4', boxShadow: '0 8px 24px rgba(63,98,18,.08)' },
+    muted: '#5d6b55',
+    chip: { background: 'rgba(255,255,255,.82)', border: '1px solid #dde8d4', color: '#41523a' },
+    footer: '#7a8a72',
+    section: '#3f6212',
+    divider: '#d9e5cf',
+  },
 };
 
 const iconMap = {
@@ -237,11 +246,16 @@ export default function LinkBioPage({ config, onLinkClick }) {
   const carouselRef = useRef(null);
   const bgType = config?.background_type || 'theme';
   const overlay = config?.theme === 'dark' ? 'rgba(16,19,24,.87)' : config?.theme === 'light' ? 'rgba(255,255,255,.9)' : 'rgba(246,248,251,.9)';
+  const overlaySage = 'rgba(246,249,243,.9)';
+  const pageOverlay = config?.theme === 'sage' ? overlaySage : overlay;
   const pageBackground = bgType === 'image' && config?.background
-    ? { backgroundImage: `linear-gradient(${overlay}, ${overlay}), url(${config.background})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }
+    ? { backgroundImage: `linear-gradient(${pageOverlay}, ${pageOverlay}), url(${config.background})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }
     : bgType === 'gradient' && config?.background
       ? { background: config.background }
       : theme.page;
+  const layoutOptions = ['list', 'grid', 'carousel', 'showcase'];
+  const hasOverride = items.some((i) => layoutOptions.includes(i.layout));
+  const containerLayout = hasOverride ? 'grid' : layout;
   const info = [
     { key: 'address', value: config?.address, Icon: MapPin },
     { key: 'hours', value: config?.hours, Icon: Clock },
@@ -250,13 +264,15 @@ export default function LinkBioPage({ config, onLinkClick }) {
 
   const scrollCarousel = (dir) => carouselRef.current?.scrollBy({ left: dir * 280, behavior: 'smooth' });
 
-  const containerStyle = {
-    width: '100%', marginTop: 28,
-    display: layout === 'grid' ? 'grid' : layout === 'carousel' ? 'flex' : 'flex',
-    flexDirection: layout === 'list' || layout === 'showcase' ? 'column' : 'row',
-    gridTemplateColumns: layout === 'grid' ? 'repeat(2, minmax(0, 1fr))' : undefined,
-    gap: layout === 'grid' ? 10 : 12,
-  };
+  const containerStyle = hasOverride
+    ? { width: '100%', marginTop: 28, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }
+    : {
+        width: '100%', marginTop: 28,
+        display: layout === 'grid' ? 'grid' : 'flex',
+        flexDirection: layout === 'list' || layout === 'showcase' ? 'column' : 'row',
+        gridTemplateColumns: layout === 'grid' ? 'repeat(2, minmax(0, 1fr))' : undefined,
+        gap: layout === 'grid' ? 10 : 12,
+      };
 
   if (layout === 'carousel') {
     containerStyle.overflowX = 'auto';
@@ -350,19 +366,23 @@ export default function LinkBioPage({ config, onLinkClick }) {
         <nav ref={layout === 'carousel' ? carouselRef : undefined} style={containerStyle} aria-label="Tautan">
           {items.map((item) => {
             const type = ['text', 'divider', 'link'].includes(item.type) ? item.type : 'link';
+            const itemLayout = layoutOptions.includes(item.layout) ? item.layout : (hasOverride ? 'list' : layout);
             if (type === 'text') {
-              const text = <TextItem item={item} theme={theme} layout={layout} />;
+              const text = <TextItem item={item} theme={theme} layout={containerLayout} />;
               return layout === 'carousel' ? <div key={item.id} style={{ flex: '0 0 100%', scrollSnapAlign: 'start' }}>{text}</div> : text;
             }
             if (type === 'divider') {
-              const divider = <DividerItem item={item} theme={theme} layout={layout} />;
+              const divider = <DividerItem item={item} theme={theme} layout={containerLayout} />;
               return layout === 'carousel' ? <div key={item.id} style={{ flex: '0 0 100%', scrollSnapAlign: 'start' }}>{divider}</div> : divider;
             }
-            const card = <LinkCard item={item} theme={theme} layout={layout} onLinkClick={onLinkClick} />;
+            const card = <LinkCard item={item} theme={theme} layout={itemLayout} onLinkClick={onLinkClick} />;
             if (layout === 'carousel') {
               return <div key={item.id} style={{ flex: '0 0 78%', maxWidth: 340, scrollSnapAlign: 'center' }}>{card}</div>;
             }
-            return card;
+            if (hasOverride && itemLayout !== 'grid') {
+              return <div key={item.id} style={{ gridColumn: '1 / -1' }}>{card}</div>;
+            }
+            return <div key={item.id} style={hasOverride ? { minWidth: 0 } : undefined}>{card}</div>;
           })}
         </nav>
 
