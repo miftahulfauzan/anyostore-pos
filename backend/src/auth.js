@@ -118,7 +118,7 @@ async function loginWithPin(req, res, next) {
 
 async function refresh(req, res, next) {
   try {
-    const token = req.cookies?.pos_refresh || req.body?.refresh_token;
+    const token = req.cookies?.pos_refresh;
     if (!token) return res.status(400).json({ success: false, message: 'Refresh token wajib diisi' });
     const payload = jwt.verify(token, jwtRefreshSecret);
     const [tokens] = await db.execute(

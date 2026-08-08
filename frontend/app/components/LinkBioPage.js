@@ -30,10 +30,14 @@ function InstagramIcon({ style }) {
   );
 }
 
+// Aturan bentuk konsisten: kartu 16px, wadah ikon 12px, chip/sosial/avatar pill.
+const RADIUS = { card: 16, icon: 12 };
+
 const themes = {
   denim: {
     page: { background: 'linear-gradient(160deg, #f6f8fb 0%, #e9eef5 55%, #dce5ef 100%)', color: '#1a1a1a' },
     card: { background: 'rgba(255,255,255,.92)', border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(30,58,95,.08)' },
+    cardHover: '0 14px 30px rgba(30,58,95,.16)',
     muted: '#5b6472',
     chip: { background: 'rgba(255,255,255,.8)', border: '1px solid #e2e8f0', color: '#39424f' },
     footer: '#7b8594',
@@ -43,6 +47,7 @@ const themes = {
   dark: {
     page: { background: 'linear-gradient(160deg, #101318 0%, #161b23 55%, #1c2230 100%)', color: '#f4f6f8' },
     card: { background: 'rgba(28,34,45,.92)', border: '1px solid #2b3340', boxShadow: '0 10px 28px rgba(0,0,0,.35)' },
+    cardHover: '0 16px 34px rgba(0,0,0,.52)',
     muted: '#a7b0bd',
     chip: { background: 'rgba(38,46,60,.85)', border: '1px solid #313b4c', color: '#d7dde6' },
     footer: '#8b95a3',
@@ -52,6 +57,7 @@ const themes = {
   light: {
     page: { background: '#ffffff', color: '#18181b' },
     card: { background: '#fafafa', border: '1px solid #ececec', boxShadow: '0 4px 16px rgba(0,0,0,.05)' },
+    cardHover: '0 12px 26px rgba(24,24,27,.14)',
     muted: '#71717a',
     chip: { background: '#fafafa', border: '1px solid #ececec', color: '#52525b' },
     footer: '#a1a1aa',
@@ -61,6 +67,7 @@ const themes = {
   sage: {
     page: { background: 'linear-gradient(160deg, #f6f9f3 0%, #eaf2e3 55%, #ddebd2 100%)', color: '#1c2418' },
     card: { background: 'rgba(255,255,255,.93)', border: '1px solid #dde8d4', boxShadow: '0 8px 24px rgba(63,98,18,.08)' },
+    cardHover: '0 14px 30px rgba(63,98,18,.16)',
     muted: '#5d6b55',
     chip: { background: 'rgba(255,255,255,.82)', border: '1px solid #dde8d4', color: '#41523a' },
     footer: '#7a8a72',
@@ -99,6 +106,20 @@ const socialLabels = {
   link: 'Tautan',
 };
 
+const pageStyles = `
+  .lb-card, .lb-arrow, .lb-social { transition: transform .15s ease, box-shadow .15s ease; }
+  .lb-card { cursor: pointer; box-shadow: var(--lb-card-shadow); }
+  .lb-card:hover { transform: translateY(-2px); box-shadow: var(--lb-card-hover); }
+  .lb-arrow:hover, .lb-social:hover { transform: translateY(-2px); }
+  .lb-card:focus-visible, .lb-arrow:focus-visible, .lb-social:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+  .lb-carousel { -ms-overflow-style: none; scrollbar-width: none; }
+  .lb-carousel::-webkit-scrollbar { display: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .lb-card, .lb-arrow, .lb-social { transition: none; }
+    .lb-card:hover, .lb-arrow:hover, .lb-social:hover { transform: none; }
+  }
+`;
+
 function initialOf(title) {
   return String(title || 'A').trim().charAt(0).toUpperCase();
 }
@@ -112,12 +133,12 @@ function CardIcon({ item, size = 38, iconSize = 19, theme }) {
         alt=""
         width={size}
         height={size}
-        style={{ width: size, height: size, borderRadius: 12, objectFit: 'cover', background: '#fff', border: '1px solid rgba(0,0,0,.08)', flexShrink: 0 }}
+        style={{ width: size, height: size, borderRadius: RADIUS.icon, objectFit: 'cover', background: '#fff', border: '1px solid rgba(0,0,0,.08)', flexShrink: 0 }}
       />
     );
   }
   return (
-    <span style={{ width: size, height: size, borderRadius: 12, background: `${color}1a`, color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+    <span style={{ width: size, height: size, borderRadius: RADIUS.icon, background: `${color}1a`, color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
       <Icon style={{ width: iconSize, height: iconSize }} aria-hidden="true" />
     </span>
   );
@@ -129,7 +150,7 @@ function TextItem({ item, theme, layout }) {
     <h2
       key={item.id}
       style={{
-        margin: layout === 'list' || layout === 'showcase' ? '8px 0 2px' : '10px 4px 2px',
+        margin: layout === 'grid' ? '18px 4px 8px' : '20px 0 8px',
         fontSize: 13,
         fontWeight: 800,
         letterSpacing: '.08em',
@@ -150,7 +171,7 @@ function DividerItem({ item, theme, layout }) {
     <hr
       key={item.id}
       style={{
-        width: '100%', margin: '4px 0', border: 'none', borderTop: `1px solid ${theme.divider}`,
+        width: '100%', margin: '10px 0', border: 'none', borderTop: `1px solid ${theme.divider}`,
         ...full,
       }}
     />
@@ -159,6 +180,7 @@ function DividerItem({ item, theme, layout }) {
 
 function LinkCard({ item, theme, layout, onLinkClick }) {
   const { color } = iconMap[item.icon] || iconMap.link;
+  const { boxShadow: cardShadow, ...cardBase } = theme.card;
   const handleClick = () => onLinkClick?.(item);
   const external = /^https?:\/\//i.test(item.url);
 
@@ -170,13 +192,13 @@ function LinkCard({ item, theme, layout, onLinkClick }) {
         target={external ? '_blank' : undefined}
         rel={external ? 'noopener noreferrer' : undefined}
         onClick={handleClick}
+        className="lb-card"
         style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '14px 10px',
-          borderRadius: 16, textDecoration: 'none', color: 'inherit', textAlign: 'center',
-          transition: 'transform .15s ease, box-shadow .15s ease', ...theme.card,
+          '--lb-card-hover': theme.cardHover,
+          '--lb-card-shadow': cardShadow,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '16px 10px',
+          borderRadius: RADIUS.card, textDecoration: 'none', color: 'inherit', textAlign: 'center', ...cardBase,
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 26px rgba(0,0,0,.13)'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = theme.card.boxShadow; }}
       >
         <CardIcon item={item} size={42} iconSize={21} theme={theme} />
         <span style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.35 }}>{item.label}</span>
@@ -192,12 +214,12 @@ function LinkCard({ item, theme, layout, onLinkClick }) {
         target={external ? '_blank' : undefined}
         rel={external ? 'noopener noreferrer' : undefined}
         onClick={handleClick}
+        className="lb-card"
         style={{
-          display: 'block', borderRadius: 18, overflow: 'hidden', textDecoration: 'none', color: 'inherit',
-          transition: 'transform .15s ease, box-shadow .15s ease', ...theme.card,
+          '--lb-card-hover': theme.cardHover,
+          '--lb-card-shadow': cardShadow,
+          display: 'block', borderRadius: RADIUS.card, overflow: 'hidden', textDecoration: 'none', color: 'inherit', ...cardBase,
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 14px 32px rgba(0,0,0,.16)'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = theme.card.boxShadow; }}
       >
         {item.logo ? (
           <img src={item.logo} alt="" style={{ width: '100%', height: 170, objectFit: 'cover', display: 'block', background: '#fff' }} />
@@ -206,7 +228,7 @@ function LinkCard({ item, theme, layout, onLinkClick }) {
             <CardIcon item={item} size={56} iconSize={28} theme={theme} />
           </div>
         )}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '14px 16px' }}>
           <span style={{ fontSize: 15, fontWeight: 700 }}>{item.label}</span>
           <ArrowUpRight style={{ width: 18, height: 18, color: theme.muted, flexShrink: 0 }} aria-hidden="true" />
         </div>
@@ -222,13 +244,13 @@ function LinkCard({ item, theme, layout, onLinkClick }) {
       target={external ? '_blank' : undefined}
       rel={external ? 'noopener noreferrer' : undefined}
       onClick={handleClick}
+      className="lb-card"
       style={{
-        display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 58, padding: '10px 16px',
-        borderRadius: 16, textDecoration: 'none', color: 'inherit', transition: 'transform .15s ease, box-shadow .15s ease',
-        ...theme.card,
+        '--lb-card-hover': theme.cardHover,
+          '--lb-card-shadow': cardShadow,
+        display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 58, padding: '12px 16px',
+        borderRadius: RADIUS.card, textDecoration: 'none', color: 'inherit', ...cardBase,
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 14px 32px rgba(0,0,0,.14)'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = theme.card.boxShadow; }}
     >
       <CardIcon item={item} theme={theme} />
       <span style={{ flex: 1, fontSize: 15, fontWeight: 700, textAlign: 'left' }}>{item.label}</span>
@@ -265,25 +287,25 @@ export default function LinkBioPage({ config, onLinkClick }) {
   const scrollCarousel = (dir) => carouselRef.current?.scrollBy({ left: dir * 280, behavior: 'smooth' });
 
   const containerStyle = hasOverride
-    ? { width: '100%', marginTop: 28, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }
+    ? { width: '100%', marginTop: 30, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }
     : {
-        width: '100%', marginTop: 28,
+        width: '100%', marginTop: 30,
         display: layout === 'grid' ? 'grid' : 'flex',
         flexDirection: layout === 'list' || layout === 'showcase' ? 'column' : 'row',
         gridTemplateColumns: layout === 'grid' ? 'repeat(2, minmax(0, 1fr))' : undefined,
-        gap: layout === 'grid' ? 10 : 12,
+        gap: 12,
       };
 
   if (layout === 'carousel') {
     containerStyle.overflowX = 'auto';
     containerStyle.scrollSnapType = 'x mandatory';
     containerStyle.padding = '4px 4px 12px';
-    containerStyle.scrollbarWidth = 'none';
   }
 
   return (
     <div style={{ minHeight: '100vh', color: theme.page.color, fontFamily: "'DM Sans', 'Plus Jakarta Sans', system-ui, sans-serif", ...pageBackground }}>
-      <div style={{ maxWidth: 480, margin: '0 auto', padding: '56px 20px 40px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <style>{pageStyles}</style>
+      <div style={{ maxWidth: 480, margin: '0 auto', padding: '52px 20px 44px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         {config?.avatar ? (
           <img
             src={config.avatar}
@@ -298,17 +320,17 @@ export default function LinkBioPage({ config, onLinkClick }) {
           </div>
         )}
 
-        <h1 style={{ margin: '18px 0 0', fontSize: 24, fontWeight: 700, textAlign: 'center', letterSpacing: '-.01em' }}>
+        <h1 style={{ margin: '16px 0 0', fontSize: 24, fontWeight: 700, textAlign: 'center', letterSpacing: '-.01em' }}>
           {config?.title || 'Anyostore'}
         </h1>
         {config?.subtitle && (
-          <p style={{ margin: '8px 0 0', fontSize: 14.5, lineHeight: 1.55, color: theme.muted, textAlign: 'center', maxWidth: 360 }}>
+          <p style={{ margin: '7px 0 0', fontSize: 14.5, lineHeight: 1.55, color: theme.muted, textAlign: 'center', maxWidth: 360 }}>
             {config.subtitle}
           </p>
         )}
 
         {social.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginTop: 16 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginTop: 20 }}>
             {social.map((s) => {
               const { Icon, color } = iconMap[s.icon] || iconMap.link;
               const external = /^https?:\/\//i.test(s.url);
@@ -318,11 +340,10 @@ export default function LinkBioPage({ config, onLinkClick }) {
                   href={s.url}
                   target={external ? '_blank' : undefined}
                   rel={external ? 'noopener noreferrer' : undefined}
+                  className="lb-social"
                   aria-label={socialLabels[s.icon] || 'Tautan'}
                   title={socialLabels[s.icon] || 'Tautan'}
-                  style={{ width: 42, height: 42, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color, textDecoration: 'none', transition: 'transform .15s ease', ...theme.chip }}
-                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
+                  style={{ width: 42, height: 42, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color, textDecoration: 'none', ...theme.chip }}
                 >
                   <Icon style={{ width: 19, height: 19 }} aria-hidden="true" />
                 </a>
@@ -346,24 +367,26 @@ export default function LinkBioPage({ config, onLinkClick }) {
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, width: '100%', marginTop: 18 }}>
             <button
               type="button"
+              className="lb-arrow"
               aria-label="Geser kiri"
               onClick={() => scrollCarousel(-1)}
-              style={{ width: 36, height: 36, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(0,0,0,.12)', background: 'rgba(255,255,255,.7)', color: theme.muted, cursor: 'pointer' }}
+              style={{ width: 36, height: 36, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${theme.chip.border}`, background: theme.chip.background, color: theme.muted, cursor: 'pointer' }}
             >
               <ChevronLeft style={{ width: 18, height: 18 }} />
             </button>
             <button
               type="button"
+              className="lb-arrow"
               aria-label="Geser kanan"
               onClick={() => scrollCarousel(1)}
-              style={{ width: 36, height: 36, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(0,0,0,.12)', background: 'rgba(255,255,255,.7)', color: theme.muted, cursor: 'pointer' }}
+              style={{ width: 36, height: 36, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${theme.chip.border}`, background: theme.chip.background, color: theme.muted, cursor: 'pointer' }}
             >
               <ChevronRight style={{ width: 18, height: 18 }} />
             </button>
           </div>
         )}
 
-        <nav ref={layout === 'carousel' ? carouselRef : undefined} style={containerStyle} aria-label="Tautan">
+        <nav ref={layout === 'carousel' ? carouselRef : undefined} className={layout === 'carousel' ? 'lb-carousel' : undefined} style={containerStyle} aria-label="Tautan">
           {items.map((item) => {
             const type = ['text', 'divider', 'link'].includes(item.type) ? item.type : 'link';
             const itemLayout = layoutOptions.includes(item.layout) ? item.layout : (hasOverride ? 'list' : layout);
@@ -386,7 +409,7 @@ export default function LinkBioPage({ config, onLinkClick }) {
           })}
         </nav>
 
-        <p style={{ margin: '34px 0 0', fontSize: 12, color: theme.footer, textAlign: 'center' }}>
+        <p style={{ margin: '36px 0 0', fontSize: 12, color: theme.footer, textAlign: 'center' }}>
           {config?.title || 'Anyostore'} · Katalog grosir denim wanita
         </p>
       </div>

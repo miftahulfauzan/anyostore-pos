@@ -1,4 +1,5 @@
 'use client';
+import { localDateString, localMonthStartString } from '../lib/local-date';
 
 import { useEffect, useState } from 'react';
 import AppShell from '../components/AppShell';
@@ -6,8 +7,8 @@ import DateRangePresets from '../components/DateRangePresets';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rupiah = (value) => `Rp${Number(value || 0).toLocaleString('id-ID')}`;
-const todayStr = () => new Date().toISOString().slice(0, 10);
-const firstOfMonthStr = () => `${todayStr().slice(0, 8)}01`;
+const todayStr = () => localDateString();
+const firstOfMonthStr = () => localMonthStartString();
 
 export default function CommissionsPage() {
   const [rules, setRules] = useState([]);

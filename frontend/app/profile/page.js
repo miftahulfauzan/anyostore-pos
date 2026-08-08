@@ -1,4 +1,5 @@
 'use client';
+import { localDateString, localMonthStartString } from '../lib/local-date';
 
 import { useEffect, useState } from 'react';
 import AppShell from '../components/AppShell';
@@ -6,8 +7,8 @@ import AppShell from '../components/AppShell';
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rp = (n) => `Rp${Number(n || 0).toLocaleString('id-ID')}`;
 
-const firstOfMonthStr = () => { const now = new Date(); return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10); };
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const firstOfMonthStr = () => localMonthStartString();
+const todayStr = () => localDateString();
 
 export default function MyAccount() {
   const [profile, setProfile] = useState(null);

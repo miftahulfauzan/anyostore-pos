@@ -2,8 +2,19 @@ const express = require('express');
 const db = require('../db');
 const { authenticate, authorize } = require('../auth');
 const { decodeDataUpload, persistUploadedFile, removeMedia } = require('../media-storage');
+const rateLimit = require('express-rate-limit');
 
 const router = express.Router();
+
+const publicLimiter = rateLimit({
+  windowMs: 15 * 60_000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip || 'unknown',
+  validate: { ip: false },
+  handler: (req, res) => res.status(429).json({ success: false, message: 'Terlalu banyak permintaan, coba lagi nanti' }),
+});
 
 const CONFIG_KEY = 'link_page';
 const THEMES = new Set(['denim', 'dark', 'light', 'sage']);
@@ -232,7 +243,7 @@ function validateConfig(body) {
 }
 
 // GET /api/link-page — publik (tanpa login), sekaligus mencatat view harian
-router.get('/', async (req, res, next) => {
+router.get('/', publicLimiter, async (req, res, next) => {
   try {
     const branchId = await resolveBranchId(req.query.branch_id);
     if (!branchId) return res.json({ success: true, data: { branch_id: null, title: 'Anyostore', links: [] } });
@@ -249,7 +260,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // POST /api/link-page/click — publik, catat klik per item
-router.post('/click', async (req, res, next) => {
+router.post('/click', publicLimiter, async (req, res, next) => {
   try {
     const branchId = Number(req.body.branch_id || req.query.branch_id) || await resolveBranchId(null);
     const itemId = String(req.body.item_id || '').slice(0, 64);

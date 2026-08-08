@@ -1,4 +1,5 @@
 'use client';
+import { localDateString } from '../../lib/local-date';
 
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -319,7 +320,7 @@ export default function LinkPageSettings() {
 
   function exportStatsCsv() {
     if (!stats) return;
-    const date = new Date().toISOString().slice(0, 10);
+    const date = localDateString();
     const rows = [
       ['LAPORAN STATISTIK HALAMAN LINK'],
       ['Dicetak', new Date().toLocaleString('id-ID')],

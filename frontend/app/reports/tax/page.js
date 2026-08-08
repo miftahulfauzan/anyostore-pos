@@ -1,4 +1,5 @@
 'use client';
+import { localDateString } from '../../lib/local-date';
 
 import { useEffect, useState } from 'react';
 import AppShell from '../../components/AppShell';
@@ -24,7 +25,7 @@ export default function TaxReportPage() {
     if (start && end) return;
     const d = new Date();
     setStart(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`);
-    setEnd(d.toISOString().slice(0, 10));
+    setEnd(localDateString(d));
   }, [start, end]);
 
   async function fetchPpn() {

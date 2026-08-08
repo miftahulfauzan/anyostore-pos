@@ -5,8 +5,8 @@ import AppShell from "../components/AppShell";
 import DateRangePresets from "../components/DateRangePresets";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
-const todayStr = () => new Date().toISOString().slice(0, 10);
-const firstOfMonthStr = () => `${todayStr().slice(0, 8)}01`;
+const todayStr = () => localDateString();
+const firstOfMonthStr = () => localMonthStartString();
 const rp = (value) => `Rp${Number(value || 0).toLocaleString("id-ID")}`;
 
 function ReportTable({
@@ -98,9 +98,9 @@ export default function ReportsPage() {
   useEffect(() => {
     load();
     Promise.all([
-      fetch(apiUrl + "/settings", { headers: {} }).then((r) => r.ok ? r.json() : null),
-      fetch(apiUrl + "/auth/me", { headers: {} }).then((r) => r.ok ? r.json() : null),
-      fetch(apiUrl + "/settings/branches", { headers: {} }).then((r) => r.ok ? r.json() : null),
+      fetch(apiUrl + "/settings", { headers: {} }).then((r) => r.ok ? r.json() : null).catch(() => null),
+      fetch(apiUrl + "/auth/me", { headers: {} }).then((r) => r.ok ? r.json() : null).catch(() => null),
+      fetch(apiUrl + "/settings/branches", { headers: {} }).then((r) => r.ok ? r.json() : null).catch(() => null),
     ]).then(([storeData, meData, branchesData]) => {
       setStore(storeData?.data || null);
       if (meData?.data?.role === 'owner') {

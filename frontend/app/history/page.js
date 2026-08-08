@@ -1,12 +1,13 @@
 'use client';
+import { localDateString, localMonthStartString } from '../lib/local-date';
 import { useEffect, useRef, useState } from 'react';
 import AppShell from '../components/AppShell';
 import DateRangePresets from '../components/DateRangePresets';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rp = (n) => 'Rp' + Number(n || 0).toLocaleString('id-ID');
-const todayStr = () => new Date().toISOString().slice(0, 10);
-const firstOfMonthStr = () => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), 1).toISOString().slice(0, 10); };
+const todayStr = () => localDateString();
+const firstOfMonthStr = () => localMonthStartString();
 
 export default function HistoryPage() {
   const [transactions, setTransactions] = useState([]);

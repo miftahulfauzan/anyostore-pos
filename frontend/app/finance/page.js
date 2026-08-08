@@ -1,4 +1,5 @@
 'use client';
+import { localDateString } from '../lib/local-date';
 import { useEffect, useState } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import AppShell from '../components/AppShell';
@@ -44,7 +45,7 @@ export default function Finance() {
       .catch((error) => setMessage(error.message));
   }, []);
   useEffect(() => {
-    setForm({ ...blank(active), expense_date: new Date().toISOString().slice(0, 10) });
+    setForm({ ...blank(active), expense_date: localDateString() });
     setNewCategory({ name: '', account_code: active === 'income' ? '4-2000' : '5-1000', type: active });
   }, [active]);
 

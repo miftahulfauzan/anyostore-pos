@@ -1,4 +1,5 @@
 'use client';
+import { localDateString } from '../lib/local-date';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -113,7 +114,7 @@ export default function StockReportSection() {
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `laporan-stok-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `laporan-stok-${localDateString()}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
   }
