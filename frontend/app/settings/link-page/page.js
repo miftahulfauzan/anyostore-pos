@@ -4,6 +4,7 @@ import { localDateString } from '../../lib/local-date';
 import { useEffect, useMemo, useState } from 'react';
 import {
   BarChart3,
+  Check,
   BookOpen,
   Copy,
   ExternalLink,
@@ -26,6 +27,19 @@ import LinkBioPage from '../../components/LinkBioPage';
 import { uploadMediaData, validateDataUpload } from '../../lib/media-upload';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+
+const linkOptionStyle = (selected) => ({
+  position: 'relative',
+  display: 'flex', gap: '.6rem', alignItems: 'center',
+  padding: '.7rem .75rem .7rem 1.6rem',
+  borderRadius: '.65rem',
+  border: `1px solid ${selected ? 'var(--accent)' : 'var(--border)'}`,
+  background: selected ? 'rgba(30,58,95,.06)' : '#fff',
+  cursor: 'pointer',
+  transition: 'border-color .15s ease, background .15s ease',
+});
+
+const hiddenRadioStyle = { position: 'absolute', opacity: 0, width: 1, height: 1, pointerEvents: 'none', margin: 0 };
 
 const iconOptions = [
   ['whatsapp', 'WhatsApp'],
@@ -454,9 +468,10 @@ export default function LinkPageSettings() {
               <strong style={{ fontSize: '.9rem' }}>Background halaman</strong>
               <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', marginTop: '.5rem' }}>
                 {backgroundOptions.map(([value, label]) => (
-                  <label key={value} style={{ display: 'inline-flex', gap: '.4rem', alignItems: 'center', padding: '.55rem .75rem', borderRadius: '.6rem', border: form.background_type === value ? '2px solid var(--accent)' : '1px solid var(--border)', background: form.background_type === value ? 'rgba(30,58,95,.06)' : '#fff', cursor: 'pointer', fontSize: '.85rem', fontWeight: 600 }}>
-                    <input type="radio" name="bgType" checked={form.background_type === value} onChange={() => setForm({ ...form, background_type: value })} style={{ accentColor: 'var(--accent)' }} />
-                    {label}
+                  <label key={value} className="link-option" style={linkOptionStyle(form.background_type === value)}>
+                    <input type="radio" name="bgType" checked={form.background_type === value} onChange={() => setForm({ ...form, background_type: value })} style={hiddenRadioStyle} />
+                    {form.background_type === value && <Check style={{ position: 'absolute', top: 8, right: 8, width: 14, height: 14, color: 'var(--accent)' }} aria-hidden="true" />}
+                    <span style={{ fontSize: '.85rem', fontWeight: 600 }}>{label}</span>
                   </label>
                 ))}
               </div>
@@ -479,9 +494,10 @@ export default function LinkPageSettings() {
               <strong style={{ fontSize: '.9rem' }}>Tema</strong>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '.55rem', marginTop: '.5rem' }}>
                 {themeOptions.map((t) => (
-                  <label key={t.id} style={{ display: 'flex', gap: '.55rem', alignItems: 'center', padding: '.65rem .7rem', borderRadius: '.65rem', border: form.theme === t.id ? '2px solid var(--accent)' : '1px solid var(--border)', background: form.theme === t.id ? 'rgba(30,58,95,.06)' : '#fff', cursor: 'pointer' }}>
-                    <input type="radio" name="theme" checked={form.theme === t.id} onChange={() => setForm({ ...form, theme: t.id })} style={{ accentColor: 'var(--accent)' }} />
-                    <span style={{ display: 'flex', gap: 4 }}>
+                  <label key={t.id} className="link-option" style={linkOptionStyle(form.theme === t.id)}>
+                    <input type="radio" name="theme" checked={form.theme === t.id} onChange={() => setForm({ ...form, theme: t.id })} style={hiddenRadioStyle} />
+                    {form.theme === t.id && <Check style={{ position: 'absolute', top: 8, right: 8, width: 14, height: 14, color: 'var(--accent)' }} aria-hidden="true" />}
+                    <span style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                       <span style={{ width: 18, height: 18, borderRadius: 6, background: t.colors[0], border: '1px solid rgba(0,0,0,.12)' }} />
                       <span style={{ width: 18, height: 18, borderRadius: 6, background: t.colors[1], border: '1px solid rgba(0,0,0,.12)' }} />
                     </span>
@@ -499,8 +515,9 @@ export default function LinkPageSettings() {
               <p className="muted" style={{ fontSize: '.78rem', margin: '.2rem 0 .5rem' }}>Pilih default untuk semua link. Link yang diatur khusus di bawah akan menimpa default ini.</p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '.55rem' }}>
                 {layoutOptions.map((l) => (
-                  <label key={l.id} style={{ display: 'flex', gap: '.55rem', alignItems: 'center', padding: '.65rem .7rem', borderRadius: '.65rem', border: form.layout === l.id ? '2px solid var(--accent)' : '1px solid var(--border)', background: form.layout === l.id ? 'rgba(30,58,95,.06)' : '#fff', cursor: 'pointer' }}>
-                    <input type="radio" name="layout" checked={form.layout === l.id} onChange={() => setForm({ ...form, layout: l.id })} style={{ accentColor: 'var(--accent)' }} />
+                  <label key={l.id} className="link-option" style={linkOptionStyle(form.layout === l.id)}>
+                    <input type="radio" name="layout" checked={form.layout === l.id} onChange={() => setForm({ ...form, layout: l.id })} style={hiddenRadioStyle} />
+                    {form.layout === l.id && <Check style={{ position: 'absolute', top: 8, right: 8, width: 14, height: 14, color: 'var(--accent)' }} aria-hidden="true" />}
                     <l.Icon style={{ width: 17, height: 17, color: 'var(--muted-foreground)', flexShrink: 0 }} aria-hidden="true" />
                     <span style={{ minWidth: 0 }}>
                       <span style={{ display: 'block', fontWeight: 700, fontSize: '.85rem' }}>{l.label}</span>
