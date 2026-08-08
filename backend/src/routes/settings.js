@@ -5,7 +5,7 @@ const { assertValidUpload, createMediaUpload, decodeDataUpload, discardUploadedF
 
 const router = express.Router();
 router.use(authenticate);
-const allowed = new Set(['store_name','store_address','store_phone','store_email','store_tax_id','receipt_header','receipt_footer','receipt_note','printer_size','auto_print','theme','tax_rate','prices_include_tax','loyalty_enabled','loyalty_points_rate','loyalty_points_value','show_logo','show_qr','show_cashier','show_barcode','low_stock_alert','low_stock_email','order_prefix','invoice_prefix','whatsapp_number','whatsapp_number_2','whatsapp_number_3','whatsapp_numbers']);
+const allowed = new Set(['store_name','store_address','store_phone','store_email','store_tax_id','receipt_header','receipt_footer','receipt_note','printer_size','auto_print','theme','tax_rate','prices_include_tax','loyalty_enabled','loyalty_points_rate','loyalty_points_value','show_logo','show_qr','show_cashier','show_barcode','low_stock_alert','low_stock_email','order_prefix','invoice_prefix','whatsapp_number','whatsapp_number_2','whatsapp_number_3','whatsapp_numbers','landing_page_size']);
 const profileKeys = new Set(['store_name', 'store_address', 'store_phone', 'store_email', 'store_tax_id']);
 const logoUpload = createMediaUpload('logos', {
   fileSize: 5 * 1024 * 1024,
@@ -350,6 +350,7 @@ router.put('/', authorize('owner','manager','admin'), async (req, res, next) => 
       );
     }
     for (const [key, value] of entries.filter(([key]) => !profileKeys.has(key))) {
+      if (key === 'landing_page_size' && ![12, 24, 48].includes(Number(value))) throw Object.assign(new Error('Produk per halaman landing harus 12, 24, atau 48'), { status: 400 });
       await connection.execute('INSERT INTO store_settings (branch_id,`key`,`value`) VALUES (?,?,?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)', [id, key, String(value)]);
     }
     await connection.commit();

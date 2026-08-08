@@ -12,7 +12,7 @@ const defaults = {
   theme: 'green', tax_rate: '0', prices_include_tax: 'false',
   loyalty_enabled: 'false', loyalty_points_rate: '1', loyalty_points_value: '0',
   show_logo: 'true', show_qr: 'false', show_cashier: 'true', show_barcode: 'true',
-  low_stock_alert: 'true', low_stock_email: '', order_prefix: '', invoice_prefix: 'INV'
+  low_stock_alert: 'true', low_stock_email: '', order_prefix: '', invoice_prefix: 'INV', landing_page_size: '24'
 };
 
 function sanitizeBranchName(v) { return String(v || '').trim(); }
@@ -305,6 +305,11 @@ export default function SettingsPage() {
         </div>
         {select('low_stock_alert', 'Alert stok rendah', [['true', 'Ya'], ['false', 'Tidak']])}
         {input('low_stock_email', 'Email alert', 'email')}
+      </section>
+
+      <section className="panel">
+        <h2>Landing page (grosir)</h2>
+        {select('landing_page_size', 'Produk per halaman', [['12', '12 produk'], ['24', '24 produk'], ['48', '48 produk']])}
       </section>
 
       <section className="panel">

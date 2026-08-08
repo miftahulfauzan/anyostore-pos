@@ -60,6 +60,7 @@ router.get('/settings', async (req, res, next) => {
         whatsapp: waList[0] || '',
         whatsapp_numbers: waList,
         receipt_header: settings.receipt_header || '',
+        landing_page_size: [12, 24, 48].includes(Number(settings.landing_page_size)) ? Number(settings.landing_page_size) : 24,
       },
     });
   } catch (e) { next(e); }
