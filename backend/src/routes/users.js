@@ -4,7 +4,7 @@ const db = require('../db');
 const { authenticate, authorize } = require('../auth');
 
 const router = express.Router();
-const ROLES = ['owner', 'manager', 'admin', 'kasir', 'gudang'];
+const ROLES = ['owner', 'manager', 'admin', 'kasir', 'gudang', 'host'];
 
 function badRequest(res, message) {
   return res.status(400).json({ success: false, message });

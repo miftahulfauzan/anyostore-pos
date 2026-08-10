@@ -4,6 +4,7 @@ export const ROLE_LABELS = {
   admin: 'Admin',
   kasir: 'Kasir',
   gudang: 'Admin Gudang',
+  host: 'Host',
 };
 
 export function roleLabel(role) {

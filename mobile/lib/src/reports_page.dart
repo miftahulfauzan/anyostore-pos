@@ -1,0 +1,314 @@
+import 'package:flutter/material.dart';
+
+import 'api_client.dart';
+import 'format.dart';
+
+class ReportsPage extends StatefulWidget {
+  const ReportsPage({super.key, required this.api});
+  final ApiClient api;
+
+  @override
+  State<ReportsPage> createState() => _ReportsPageState();
+}
+
+class _ReportsPageState extends State<ReportsPage> {
+  String _section = 'ringkasan';
+  String _preset = 'today';
+  Map<String, dynamic>? _data;
+  bool _loading = true;
+  String? _error;
+
+  (String, String) get _range {
+    final now = DateTime.now().toUtc().add(const Duration(hours: 7));
+    String d(DateTime x) =>
+        '${x.year.toString().padLeft(4, '0')}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
+    switch (_preset) {
+      case '7d':
+        return (d(now.subtract(const Duration(days: 6))), d(now));
+      case '30d':
+        return (d(now.subtract(const Duration(days: 29))), d(now));
+      case 'bulan':
+        return (
+          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-01',
+          d(now)
+        );
+      default:
+        return (d(now), d(now));
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final (start, end) = _range;
+      Map<String, dynamic> data;
+      switch (_section) {
+        case 'penjualan':
+          data = await widget.api.reportSales(start: start, end: end);
+          break;
+        case 'penutupan':
+          data = await widget.api.reportDailyClosing(date: start);
+          break;
+        case 'ppn':
+          data = await widget.api.taxReport(start: start, end: end);
+          break;
+        default:
+          data = await widget.api.reportOverview(start: start, end: end);
+      }
+      if (!mounted) return;
+      setState(() => _data = data);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+          child: SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(value: 'ringkasan', label: Text('Ringkasan')),
+              ButtonSegment(value: 'penjualan', label: Text('Penjualan')),
+              ButtonSegment(value: 'penutupan', label: Text('Penutupan')),
+              ButtonSegment(value: 'ppn', label: Text('PPN')),
+            ],
+            selected: {_section},
+            onSelectionChanged: (s) {
+              setState(() => _section = s.first);
+              _load();
+            },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: Row(
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: _preset,
+                decoration: const InputDecoration(
+                    isDense: true,
+                    labelText: 'Rentang',
+                    border: OutlineInputBorder()),
+                items: const [
+                  DropdownMenuItem(value: 'today', child: Text('Hari ini')),
+                  DropdownMenuItem(value: '7d', child: Text('7 hari')),
+                  DropdownMenuItem(value: '30d', child: Text('30 hari')),
+                  DropdownMenuItem(value: 'bulan', child: Text('Bulan ini')),
+                ],
+                onChanged: (v) {
+                  setState(() => _preset = v ?? 'today');
+                  _load();
+                },
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '${_range.$1} s.d. ${_range.$2}',
+                  style:
+                      TextStyle(color: Theme.of(context).colorScheme.outline),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(child: _buildBody()),
+      ],
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_error!),
+              const SizedBox(height: 12),
+              FilledButton(onPressed: _load, child: const Text('Coba lagi')),
+            ],
+          ),
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(12),
+        children: switch (_section) {
+          'penjualan' => _sales(),
+          'penutupan' => _closing(),
+          'ppn' => _ppn(),
+          _ => _overview(),
+        },
+      ),
+    );
+  }
+
+  List<Widget> _overview() {
+    final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
+    final methods = ((_data?['payment_methods'] as List?) ?? [])
+        .cast<Map<String, dynamic>>();
+    final products =
+        ((_data?['products'] as List?) ?? []).cast<Map<String, dynamic>>();
+    final lowStock =
+        ((_data?['low_stock'] as List?) ?? []).cast<Map<String, dynamic>>();
+    return [
+      _Card('Ringkasan', [
+        _Row('Transaksi', '${summary['transactions'] ?? 0}'),
+        _Row('Pendapatan', fmtRp(asNum(summary['revenue']))),
+        _Row('HPP', fmtRp(asNum(summary['cost_of_goods']))),
+        _Row('Laba kotor', fmtRp(asNum(summary['gross_profit']))),
+        _Row('Pengeluaran', fmtRp(asNum(summary['expenses']))),
+        _Row('Laba bersih', fmtRp(asNum(summary['net_profit']))),
+      ]),
+      if (methods.isNotEmpty)
+        _Card('Metode pembayaran', [
+          for (final m in methods)
+            _Row((m['payment_method'] ?? '').toString().toUpperCase(),
+                fmtRp(asNum(m['amount']))),
+        ]),
+      _Card('Stok rendah (${lowStock.length})', [
+        for (final s in lowStock.take(10))
+          _Row('${s['name']}', '${s['stock']} / min ${s['min_stock']}'),
+      ]),
+      _Card('Produk terlaris', [
+        for (final p in products.take(10))
+          _Row('${p['name']}',
+              '${p['quantity_sold']} pcs · ${fmtRp(asNum(p['revenue']))}'),
+      ]),
+    ];
+  }
+
+  List<Widget> _sales() {
+    final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
+    final payments =
+        ((_data?['payments'] as List?) ?? []).cast<Map<String, dynamic>>();
+    return [
+      _Card('Penjualan', [
+        _Row('Transaksi', '${summary['transactions'] ?? 0}'),
+        _Row('Penjualan bersih', fmtRp(asNum(summary['gross_sales']))),
+        _Row('Diskon', fmtRp(asNum(summary['discounts']))),
+      ]),
+      if (payments.isNotEmpty)
+        _Card('Per metode', [
+          for (final p in payments)
+            _Row((p['payment_method'] ?? '').toString().toUpperCase(),
+                fmtRp(asNum(p['amount']))),
+        ]),
+    ];
+  }
+
+  List<Widget> _closing() {
+    final methods = (_data?['methods'] as Map<String, dynamic>?) ?? {};
+    return [
+      _Card('Penutupan ${_data?['date'] ?? ''}', [
+        _Row('Total struk', '${_data?['receipt_count'] ?? 0}'),
+        _Row('Total penjualan', fmtRp(asNum(_data?['total_sales']))),
+        _Row('Retur', '${_data?['return_count'] ?? 0}'),
+        _Row('Total kasir', fmtRp(asNum(_data?['expected_total']))),
+      ]),
+      for (final entry in methods.entries)
+        _methodCard(entry.key, entry.value as Map<String, dynamic>),
+    ];
+  }
+
+  Widget _methodCard(String key, Map<String, dynamic> m) =>
+      _Card(key.toUpperCase(), [
+        _Row('Penjualan', fmtRp(asNum(m['sales']))),
+        _Row('Retur', fmtRp(asNum(m['returns']))),
+        _Row('Pembatalan', fmtRp(asNum(m['cancellations']))),
+        _Row('Kas masuk/keluar', fmtRp(asNum(m['cash_in_out']))),
+        _Row('Total', fmtRp(asNum(m['total']))),
+      ]);
+
+  List<Widget> _ppn() {
+    final keluaran = (_data?['ppn_keluaran'] as Map<String, dynamic>?) ?? {};
+    final masukan = (_data?['ppn_masukan'] as Map<String, dynamic>?) ?? {};
+    final monthly =
+        ((_data?['monthly'] as List?) ?? []).cast<Map<String, dynamic>>();
+    return [
+      _Card('PPN (rate ${_data?['tax_rate'] ?? 0}%)', [
+        _Row('PPN Keluaran', fmtRp(asNum(keluaran['ppn_amount']))),
+        _Row('PPN Masukan', fmtRp(asNum(masukan['ppn_amount']))),
+        _Row('PPN Bersih', fmtRp(asNum(_data?['net_ppn']))),
+      ]),
+      _Card('PPN Keluaran', [
+        _Row('Transaksi', '${keluaran['transactions'] ?? 0}'),
+        _Row('Omset', fmtRp(asNum(keluaran['gross_sales']))),
+        _Row('Dasar pengenaan', fmtRp(asNum(keluaran['ppn_base']))),
+      ]),
+      _Card('PPN Masukan', [
+        _Row('PO diterima', '${masukan['orders'] ?? 0}'),
+        _Row('Total beli', fmtRp(asNum(masukan['total_purchase']))),
+        _Row('Dasar pengenaan', fmtRp(asNum(masukan['ppn_base']))),
+      ]),
+      if (monthly.isNotEmpty)
+        _Card('Rincian bulanan', [
+          for (final m in monthly)
+            _Row('${m['month']}',
+                '${fmtRp(asNum(m['ppn_keluaran']))} (${m['transactions']} trx)'),
+        ]),
+    ];
+  }
+}
+
+class _Card extends StatelessWidget {
+  const _Card(this.title, this.rows);
+  final String title;
+  final List<Widget> rows;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(title,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800, fontSize: 15)),
+              const SizedBox(height: 8),
+              ...rows,
+            ],
+          ),
+        ),
+      );
+}
+
+class _Row extends StatelessWidget {
+  const _Row(this.label, this.value);
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Flexible(
+                child: Text(label,
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.outline))),
+            Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
+          ],
+        ),
+      );
+}

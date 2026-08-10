@@ -1,26 +1,94 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'api_client.dart';
 
 class AuthStore extends ChangeNotifier {
   AuthStore(this._api);
   final ApiClient _api;
-  bool isAuthenticated = false;
-  String? userName;
 
-  Future<void> login(String email, String password) async {
-    final result =
-        await _api.post('/auth/login', {'email': email, 'password': password});
-    final data = result['data'] as Map<String, dynamic>;
-    _api.setToken(data['accessToken'] as String);
-    userName = (data['user'] as Map<String, dynamic>)['name'] as String?;
-    isAuthenticated = true;
-    notifyListeners();
+  ApiClient get api => _api;
+
+  bool isAuthenticated = false;
+  bool restoring = true;
+  String? userName;
+  String? email;
+  String? role;
+  int? branchId;
+  String? token;
+
+  static const _tokenKey = 'pos_access_token';
+  static const _userKey = 'pos_user';
+
+  Future<void> restore() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedToken = prefs.getString(_tokenKey);
+      final savedUser = prefs.getString(_userKey);
+      if (savedToken != null && savedUser != null) {
+        _api.setToken(savedToken);
+        token = savedToken;
+        final user = jsonDecode(savedUser) as Map<String, dynamic>;
+        _applyUser(user);
+        isAuthenticated = true;
+      }
+    } catch (_) {
+      // Token rusak: biarkan login ulang.
+    } finally {
+      restoring = false;
+      notifyListeners();
+    }
   }
 
-  void logout() {
+  void _applyUser(Map<String, dynamic> user) {
+    userName = user['name']?.toString();
+    email = user['email']?.toString();
+    role = user['role']?.toString();
+    branchId = int.tryParse('${user['branch_id']}');
+  }
+
+  Future<String?> loginPassword(String emailInput, String password) =>
+      _login(() => _api.loginPassword(emailInput.trim(), password));
+
+  Future<String?> loginPin(String emailInput, String pin) =>
+      _login(() => _api.loginPin(emailInput.trim(), pin));
+
+  Future<String?> _login(
+      Future<Map<String, dynamic>> Function() request) async {
+    try {
+      final result = await request();
+      final data = result['data'] as Map<String, dynamic>;
+      final accessToken = data['accessToken']?.toString();
+      final user = data['user'] as Map<String, dynamic>? ?? {};
+      if (accessToken == null) return 'Login gagal: token tidak diterima';
+      _api.setToken(accessToken);
+      token = accessToken;
+      _applyUser(user);
+      isAuthenticated = true;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_tokenKey, accessToken);
+      await prefs.setString(_userKey, jsonEncode(user));
+      notifyListeners();
+      return null;
+    } on ApiException catch (e) {
+      return e.message;
+    } catch (_) {
+      return 'Tidak dapat terhubung ke server';
+    }
+  }
+
+  Future<void> logout() async {
     _api.setToken(null);
+    token = null;
     isAuthenticated = false;
     userName = null;
+    role = null;
+    branchId = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tokenKey);
+    await prefs.remove(_userKey);
     notifyListeners();
   }
 }
