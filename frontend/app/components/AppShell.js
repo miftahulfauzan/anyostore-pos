@@ -87,10 +87,9 @@ export default function AppShell({ title, eyebrow, actions, children }) {
 
   // Ambil role user dan tema (localStorage dulu, fallback ke settings backend).
   useEffect(() => {
-    const savedTheme = localStorage.getItem('pos_theme');
-    const initialTheme = savedTheme === 'dark' ? 'dark' : 'light';
-    setTheme(initialTheme);
-    document.documentElement.classList.toggle('dark', initialTheme === 'dark');
+    // Selalu mulai terang; mode gelap hanya aktif setelah user menekan tombol tema.
+    setTheme('light');
+    document.documentElement.classList.toggle('dark', false);
 
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
     fetch(`${baseUrl}/auth/me`)
@@ -108,11 +107,8 @@ export default function AppShell({ title, eyebrow, actions, children }) {
         if (brandTheme && ['green', 'blue', 'purple'].includes(brandTheme)) {
           document.documentElement.dataset.theme = brandTheme;
         }
-        // Mode gelap/terang tetap dari localStorage (pos_theme).
-        if (body?.data?.theme === 'dark' && !savedTheme) {
-          setTheme('dark');
-          document.documentElement.classList.toggle('dark', true);
-        }
+        // Mode gelap/terang tidak lagi otomatis dari penyimpanan lama;
+        // dashboard selalu terang saat dibuka.
       })
       .catch(() => {});
   }, []);
