@@ -1476,3 +1476,43 @@ svg { max-width: 100%; }
 @media (prefers-reduced-motion: reduce) {
   .link-option { transition: none; }
 }
+
+/* ===== Sidebar terang (default) — latar gelap menu dihilangkan di mode terang ===== */
+.sidebar,
+html[data-theme="green"] .sidebar,
+html[data-theme="blue"] .sidebar,
+html[data-theme="purple"] .sidebar {
+  background: #ffffff !important;
+  color: #172033 !important;
+  border: 1px solid #e7edf5 !important;
+  box-shadow: 0 8px 28px rgba(15,23,42,.08) !important;
+}
+.sidebar .brand { color: #172033 !important; }
+.sidebar .brand small { color: #94a3b8 !important; }
+.sidebar .brand-mark { border-color: #c7d8ec !important; background: rgba(30,58,95,.08) !important; color: #1e3a5f !important; }
+.sidebar .collapse-toggle { border: 1px solid #dbe3ee !important; background: #f6f8fc !important; color: #64748b !important; }
+.sidebar .collapse-toggle:hover { background: #eef2f9 !important; color: #172033 !important; border-color: #cbd5e1 !important; }
+.sidebar .nav-group-toggle { color: #64748b !important; }
+.sidebar .nav-group-toggle:hover { background: rgba(30,58,95,.06) !important; color: #172033 !important; }
+.sidebar .side-nav a { color: #475569 !important; }
+.sidebar .side-nav a:hover { background: rgba(30,58,95,.07) !important; color: #1e3a5f !important; }
+.sidebar .side-nav a.active { background: linear-gradient(135deg, rgba(30,58,95,.10), rgba(37,99,235,.06)) !important; box-shadow: inset 3px 0 #1e3a5f !important; color: #1e3a5f !important; }
+.sidebar .logout { border-color: #dbe3ee !important; color: #475569 !important; }
+.sidebar .sidebar-footer { color: #64748b !important; }
+.dark .sidebar,
+.dark html[data-theme="green"] .sidebar,
+.dark html[data-theme="blue"] .sidebar,
+.dark html[data-theme="purple"] .sidebar {
+  background: #0f172a !important;
+  color: #e0f2fe !important;
+  border: 1px solid rgba(255,255,255,.06) !important;
+  box-shadow: 0 8px 32px rgba(15,23,42,.16) !important;
+}
+.dark .sidebar .brand { color: #fff !important; }
+.dark .sidebar .brand small { color: #94a3b8 !important; }
+.dark .sidebar .side-nav a { color: #cbd5e1 !important; }
+.dark .sidebar .side-nav a:hover { color: #e0f2fe !important; background: rgba(96,165,250,.1) !important; }
+.dark .sidebar .side-nav a.active { color: #f8fafc !important; }
+.dark .sidebar .nav-group-toggle { color: #64748b !important; }
+.dark .sidebar .nav-group-toggle:hover { color: #e0f2fe !important; }
+.dark .sidebar .logout { border-color: #334155 !important; color: #cbd5e1 !important; }

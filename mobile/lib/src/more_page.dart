@@ -35,9 +35,9 @@ class MorePage extends StatelessWidget {
         ),
         _Tile(
           icon: Icons.people,
-          title: 'Pelanggan',
+          title: 'Transaksi',
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => _scaffold('Pelanggan', CustomersPage(api: api)))),
+              builder: (_) => _scaffold('Transaksi', CustomersPage(api: api)))),
         ),
         _Tile(
           icon: Icons.payments,
