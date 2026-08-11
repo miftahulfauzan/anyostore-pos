@@ -54,6 +54,7 @@ class _PosPageState extends State<PosPage> {
   Timer? _previewTimer;
 
   List<Map<String, dynamic>> _products = [];
+  List<Map<String, dynamic>> _visible = [];
   List<Map<String, dynamic>> _warehouses = [];
   List<Map<String, dynamic>> _customers = [];
   String _warehouseId = '';
@@ -107,6 +108,7 @@ class _PosPageState extends State<PosPage> {
       if (!mounted) return;
       setState(() {
         _products = results[0].cast<Map<String, dynamic>>();
+        _visible = List.of(_products);
         _warehouses = results[1].cast<Map<String, dynamic>>();
         _customers = results[2].cast<Map<String, dynamic>>();
         if (_warehouseId.isEmpty && _warehouses.isNotEmpty) {
@@ -120,15 +122,18 @@ class _PosPageState extends State<PosPage> {
     }
   }
 
-  List<Map<String, dynamic>> get _filtered {
+  void _applyFilter() {
     final q = _search.text.trim().toLowerCase();
-    if (q.isEmpty) return _products;
-    return _products.where((p) {
-      final name = (p['name'] ?? '').toString().toLowerCase();
-      final sku = (p['sku'] ?? '').toString().toLowerCase();
-      final barcode = (p['barcode'] ?? '').toString().toLowerCase();
-      return name.contains(q) || sku.contains(q) || barcode.contains(q);
-    }).toList();
+    setState(() {
+      _visible = q.isEmpty
+          ? List.of(_products)
+          : _products.where((p) {
+              final name = (p['name'] ?? '').toString().toLowerCase();
+              final sku = (p['sku'] ?? '').toString().toLowerCase();
+              final barcode = (p['barcode'] ?? '').toString().toLowerCase();
+              return name.contains(q) || sku.contains(q) || barcode.contains(q);
+            }).toList();
+    });
   }
 
   Future<void> _addProduct(Map<String, dynamic> product) async {
@@ -525,7 +530,7 @@ class _PosPageState extends State<PosPage> {
                 flex: 2,
                 child: TextField(
                   controller: _search,
-                  onChanged: (_) => setState(() {}),
+                  onChanged: (_) => _applyFilter(),
                   decoration: const InputDecoration(
                       prefixIcon: Icon(Icons.search),
                       isDense: true,
@@ -537,7 +542,7 @@ class _PosPageState extends State<PosPage> {
           ),
         ),
         Expanded(
-          child: _filtered.isEmpty
+          child: _visible.isEmpty
               ? const Center(child: Text('Produk tidak ditemukan'))
               : GridView.builder(
                   padding: const EdgeInsets.all(12),
@@ -547,11 +552,11 @@ class _PosPageState extends State<PosPage> {
                     crossAxisSpacing: 10,
                     childAspectRatio: 0.72,
                   ),
-                  itemCount: _filtered.length,
+                  itemCount: _visible.length,
                   itemBuilder: (_, i) => _ProductCard(
-                    product: _filtered[i],
+                    product: _visible[i],
                     mediaUrl: _mediaUrl,
-                    onTap: () => _addProduct(_filtered[i]),
+                    onTap: () => _addProduct(_visible[i]),
                   ),
                 ),
         ),
