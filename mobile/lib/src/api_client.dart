@@ -265,6 +265,14 @@ class ApiClient {
   Future<Map<String, dynamic>> generateCommissions(Map<String, dynamic> body) =>
       post('/commissions/generate', body);
 
+  Future<Map<String, dynamic>> commissionMine({
+    required String start,
+    required String end,
+  }) async {
+    final res = await get('/commissions/mine', {'start': start, 'end': end});
+    return (res['data'] as Map<String, dynamic>?) ?? {};
+  }
+
   Future<Map<String, dynamic>> commissionReport({
     required String start,
     required String end,

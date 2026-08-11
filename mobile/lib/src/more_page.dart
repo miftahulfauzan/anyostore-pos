@@ -11,9 +11,11 @@ import 'settings_page.dart';
 import 'users_page.dart';
 
 class MorePage extends StatelessWidget {
-  const MorePage({super.key, required this.api, required this.branchId});
+  const MorePage(
+      {super.key, required this.api, required this.branchId, this.role});
   final ApiClient api;
   final int branchId;
+  final String? role;
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +56,8 @@ class MorePage extends StatelessWidget {
           icon: Icons.payments_outlined,
           title: 'Komisi',
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => CommissionsPage(api: api, branchId: branchId))),
+              builder: (_) =>
+                  CommissionsPage(api: api, branchId: branchId, role: role))),
         ),
         _Tile(
           icon: Icons.local_offer,

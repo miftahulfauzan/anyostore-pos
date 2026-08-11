@@ -4,23 +4,30 @@ import 'api_client.dart';
 import 'format.dart';
 
 class CommissionsPage extends StatefulWidget {
-  const CommissionsPage({super.key, required this.api, required this.branchId});
+  const CommissionsPage(
+      {super.key, required this.api, required this.branchId, this.role});
   final ApiClient api;
   final int branchId;
+  final String? role;
 
   @override
   State<CommissionsPage> createState() => _CommissionsPageState();
 }
 
 class _CommissionsPageState extends State<CommissionsPage> {
-  String _tab = 'rules';
+  String _tab = 'saya';
   List<Map<String, dynamic>> _rules = [];
   List<Map<String, dynamic>> _records = [];
   Map<String, dynamic>? _report;
+  Map<String, dynamic>? _mine;
   bool _loading = true;
   String? _error;
   bool _generating = false;
   String _preset = 'bulan';
+
+  bool get _isOwner => widget.role == 'owner';
+  List<String> get _tabs =>
+      _isOwner ? ['saya', 'rules', 'records', 'report'] : ['saya'];
 
   (String, String) get _range {
     final now = DateTime.now().toUtc().add(const Duration(hours: 7));
@@ -38,6 +45,7 @@ class _CommissionsPageState extends State<CommissionsPage> {
   @override
   void initState() {
     super.initState();
+    if (!_isOwner) _tab = 'saya';
     _load();
   }
 
@@ -47,8 +55,12 @@ class _CommissionsPageState extends State<CommissionsPage> {
       _error = null;
     });
     try {
-      if (_tab == 'report') {
-        final (start, end) = _range;
+      final (start, end) = _range;
+      if (_tab == 'saya') {
+        final data = await widget.api.commissionMine(start: start, end: end);
+        if (!mounted) return;
+        setState(() => _mine = data);
+      } else if (_tab == 'report') {
         final data = await widget.api.commissionReport(start: start, end: end);
         if (!mounted) return;
         setState(() => _report = data);
@@ -96,7 +108,6 @@ class _CommissionsPageState extends State<CommissionsPage> {
                   value: global,
                   onChanged: (v) => setDialogState(() => global = v),
                 ),
-                const SizedBox(height: 8),
                 TextField(
                     controller: reguler,
                     keyboardType: TextInputType.number,
@@ -211,10 +222,16 @@ class _CommissionsPageState extends State<CommissionsPage> {
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
           child: SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'rules', label: Text('Aturan')),
-              ButtonSegment(value: 'records', label: Text('Catatan')),
-              ButtonSegment(value: 'report', label: Text('Laporan')),
+            segments: [
+              for (final t in _tabs)
+                ButtonSegment(
+                    value: t,
+                    label: Text(switch (t) {
+                      'saya' => 'Saya',
+                      'rules' => 'Aturan',
+                      'records' => 'Catatan',
+                      _ => 'Laporan',
+                    })),
             ],
             selected: {_tab},
             onSelectionChanged: (s) {
@@ -223,7 +240,7 @@ class _CommissionsPageState extends State<CommissionsPage> {
             },
           ),
         ),
-        if (_tab == 'report')
+        if (_tab == 'saya' || _tab == 'report')
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
             child: Row(
@@ -243,19 +260,21 @@ class _CommissionsPageState extends State<CommissionsPage> {
                     _load();
                   },
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: _generating ? null : _generate,
-                    icon: _generating
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.play_arrow),
-                    label: const Text('Generate'),
+                if (_tab == 'report') ...[
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: _generating ? null : _generate,
+                      icon: _generating
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.play_arrow),
+                      label: const Text('Generate'),
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -268,6 +287,27 @@ class _CommissionsPageState extends State<CommissionsPage> {
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null) return Center(child: Text(_error!));
     switch (_tab) {
+      case 'saya':
+        final mine = _mine ?? {};
+        return ListView(
+          padding: const EdgeInsets.all(12),
+          children: [
+            _Card('Komisi Saya', [
+              _Row('Estimasi komisi', fmtRp(asNum(mine['estimated']))),
+              _Row('Penjualan', fmtRp(asNum(mine['total_sales']))),
+              _Row('Transaksi', '${mine['total_transactions'] ?? 0}'),
+            ]),
+            _Card('Jumlah pcs (per tier)', [
+              _Row('Reguler', '${mine['qty_reguler'] ?? 0} pcs'),
+              _Row('Semi Grosir', '${mine['qty_semi_grosir'] ?? 0} pcs'),
+              _Row('Grosir Seri', '${mine['qty_grosir_seri'] ?? 0} pcs'),
+            ]),
+            _Card('Periode', [
+              _Row('Dari', '${mine['period_start'] ?? ''}'),
+              _Row('Sampai', '${mine['period_end'] ?? ''}'),
+            ]),
+          ],
+        );
       case 'records':
         if (_records.isEmpty) {
           return const Center(child: Text('Belum ada catatan komisi'));
@@ -351,4 +391,48 @@ class _CommissionsPageState extends State<CommissionsPage> {
         );
     }
   }
+}
+
+class _Card extends StatelessWidget {
+  const _Card(this.title, this.rows);
+  final String title;
+  final List<Widget> rows;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(title,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800, fontSize: 15)),
+              const SizedBox(height: 8),
+              ...rows,
+            ],
+          ),
+        ),
+      );
+}
+
+class _Row extends StatelessWidget {
+  const _Row(this.label, this.value);
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Flexible(
+                child: Text(label,
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.outline))),
+            Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
+          ],
+        ),
+      );
 }

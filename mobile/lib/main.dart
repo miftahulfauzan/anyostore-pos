@@ -26,10 +26,13 @@ class PosMobileApp extends StatelessWidget {
         title: 'Anyostore POS',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          colorSchemeSeed: const Color(0xff1e3a5f),
           useMaterial3: true,
+          brightness: Brightness.light,
+          colorSchemeSeed: const Color(0xff1e3a5f),
+          scaffoldBackgroundColor: const Color(0xfff6f8fb),
           fontFamily: 'sans-serif',
         ),
+        themeMode: ThemeMode.light,
         home: Consumer<AuthStore>(
           builder: (_, auth, __) =>
               auth.isAuthenticated ? const PosPage() : const LoginPage(),

@@ -446,7 +446,7 @@ class _PosPageState extends State<PosPage> {
       HistoryTab(api: _client, role: auth.role),
       InventoryPage(api: _client, branchId: _branchId),
       ReportsPage(api: _client),
-      MorePage(api: _client, branchId: _branchId),
+      MorePage(api: _client, branchId: _branchId, role: auth.role),
     ];
     return Scaffold(
       appBar: AppBar(
