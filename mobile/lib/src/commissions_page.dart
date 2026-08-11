@@ -245,20 +245,23 @@ class _CommissionsPageState extends State<CommissionsPage> {
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
             child: Row(
               children: [
-                DropdownButtonFormField<String>(
-                  initialValue: _preset,
-                  decoration: const InputDecoration(
-                      isDense: true,
-                      labelText: 'Periode',
-                      border: OutlineInputBorder()),
-                  items: const [
-                    DropdownMenuItem(value: 'bulan', child: Text('Bulan ini')),
-                    DropdownMenuItem(value: '7d', child: Text('7 hari')),
-                  ],
-                  onChanged: (v) {
-                    setState(() => _preset = v ?? 'bulan');
-                    _load();
-                  },
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _preset,
+                    decoration: const InputDecoration(
+                        isDense: true,
+                        labelText: 'Periode',
+                        border: OutlineInputBorder()),
+                    items: const [
+                      DropdownMenuItem(
+                          value: 'bulan', child: Text('Bulan ini')),
+                      DropdownMenuItem(value: '7d', child: Text('7 hari')),
+                    ],
+                    onChanged: (v) {
+                      setState(() => _preset = v ?? 'bulan');
+                      _load();
+                    },
+                  ),
                 ),
                 if (_tab == 'report') ...[
                   const SizedBox(width: 10),

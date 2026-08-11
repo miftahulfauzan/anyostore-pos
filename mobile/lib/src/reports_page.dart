@@ -97,22 +97,24 @@ class _ReportsPageState extends State<ReportsPage> {
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
           child: Row(
             children: [
-              DropdownButtonFormField<String>(
-                initialValue: _preset,
-                decoration: const InputDecoration(
-                    isDense: true,
-                    labelText: 'Rentang',
-                    border: OutlineInputBorder()),
-                items: const [
-                  DropdownMenuItem(value: 'today', child: Text('Hari ini')),
-                  DropdownMenuItem(value: '7d', child: Text('7 hari')),
-                  DropdownMenuItem(value: '30d', child: Text('30 hari')),
-                  DropdownMenuItem(value: 'bulan', child: Text('Bulan ini')),
-                ],
-                onChanged: (v) {
-                  setState(() => _preset = v ?? 'today');
-                  _load();
-                },
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  initialValue: _preset,
+                  decoration: const InputDecoration(
+                      isDense: true,
+                      labelText: 'Rentang',
+                      border: OutlineInputBorder()),
+                  items: const [
+                    DropdownMenuItem(value: 'today', child: Text('Hari ini')),
+                    DropdownMenuItem(value: '7d', child: Text('7 hari')),
+                    DropdownMenuItem(value: '30d', child: Text('30 hari')),
+                    DropdownMenuItem(value: 'bulan', child: Text('Bulan ini')),
+                  ],
+                  onChanged: (v) {
+                    setState(() => _preset = v ?? 'today');
+                    _load();
+                  },
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(

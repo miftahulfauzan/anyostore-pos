@@ -449,45 +449,51 @@ class _HistoryTabState extends State<HistoryTab> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                DropdownButtonFormField<String>(
-                  initialValue: _preset,
-                  decoration: const InputDecoration(
-                      isDense: true,
-                      labelText: 'Rentang',
-                      border: OutlineInputBorder()),
-                  items: const [
-                    DropdownMenuItem(value: 'today', child: Text('Hari ini')),
-                    DropdownMenuItem(value: '7d', child: Text('7 hari')),
-                    DropdownMenuItem(value: '30d', child: Text('30 hari')),
-                    DropdownMenuItem(value: 'all', child: Text('Semua')),
-                  ],
-                  onChanged: (v) {
-                    setState(() => _preset = v ?? 'today');
-                    _load();
-                  },
+                SizedBox(
+                  width: 170,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _preset,
+                    decoration: const InputDecoration(
+                        isDense: true,
+                        labelText: 'Rentang',
+                        border: OutlineInputBorder()),
+                    items: const [
+                      DropdownMenuItem(value: 'today', child: Text('Hari ini')),
+                      DropdownMenuItem(value: '7d', child: Text('7 hari')),
+                      DropdownMenuItem(value: '30d', child: Text('30 hari')),
+                      DropdownMenuItem(value: 'all', child: Text('Semua')),
+                    ],
+                    onChanged: (v) {
+                      setState(() => _preset = v ?? 'today');
+                      _load();
+                    },
+                  ),
                 ),
-                DropdownButtonFormField<String>(
-                  initialValue: _status,
-                  decoration: const InputDecoration(
-                      isDense: true,
-                      labelText: 'Status',
-                      border: OutlineInputBorder()),
-                  items: const [
-                    DropdownMenuItem(value: '', child: Text('Semua status')),
-                    DropdownMenuItem(
-                        value: 'completed', child: Text('Completed')),
-                    DropdownMenuItem(
-                        value: 'partially_cancelled',
-                        child: Text('Sebagian dibatalkan')),
-                    DropdownMenuItem(
-                        value: 'cancelled', child: Text('Dibatalkan')),
-                    DropdownMenuItem(
-                        value: 'refunded', child: Text('Refunded')),
-                  ],
-                  onChanged: (v) {
-                    setState(() => _status = v ?? '');
-                    _load();
-                  },
+                SizedBox(
+                  width: 170,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _status,
+                    decoration: const InputDecoration(
+                        isDense: true,
+                        labelText: 'Status',
+                        border: OutlineInputBorder()),
+                    items: const [
+                      DropdownMenuItem(value: '', child: Text('Semua status')),
+                      DropdownMenuItem(
+                          value: 'completed', child: Text('Completed')),
+                      DropdownMenuItem(
+                          value: 'partially_cancelled',
+                          child: Text('Sebagian dibatalkan')),
+                      DropdownMenuItem(
+                          value: 'cancelled', child: Text('Dibatalkan')),
+                      DropdownMenuItem(
+                          value: 'refunded', child: Text('Refunded')),
+                    ],
+                    onChanged: (v) {
+                      setState(() => _status = v ?? '');
+                      _load();
+                    },
+                  ),
                 ),
                 SizedBox(
                   width: 200,
