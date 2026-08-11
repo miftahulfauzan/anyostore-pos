@@ -331,6 +331,9 @@ class _PosPageState extends State<PosPage> {
       builder: (_) => PaymentSheet(grandTotal: grandTotal),
     );
     if (payment == null || !mounted) return;
+    // Tutup sheet keranjang dulu supaya pesan sukses/error tampil di halaman utama.
+    Navigator.of(context).pop();
+    if (!mounted) return;
     final warehouseId = int.tryParse(_warehouseId);
     if (warehouseId == null) {
       ScaffoldMessenger.of(context)
