@@ -20,10 +20,9 @@ packages:
   bluetooth_print_plus:
     dependency: "direct main"
     description:
-      name: bluetooth_print_plus
-      sha256: "9d059064e8d7d8af9dbd1bf9b4c964428cb567d2f372a85177d9ba0f4e743d71"
-      url: "https://pub.dev"
-    source: hosted
+      path: "plugins/bluetooth_print_plus"
+      relative: true
+    source: path
     version: "2.4.6"
   boolean_selector:
     dependency: transitive

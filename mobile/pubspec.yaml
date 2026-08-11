@@ -16,6 +16,10 @@ dependencies:
   connectivity_plus: ^6.0.5
   bluetooth_print_plus: ^2.0.0
 
+dependency_overrides:
+  bluetooth_print_plus:
+    path: plugins/bluetooth_print_plus
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
