@@ -312,7 +312,18 @@ class _PosPageState extends State<PosPage> {
 
   Future<void> _checkout() async {
     final branch = _branchId;
-    if (branch == 0 || _warehouseId.isEmpty || _cart.isEmpty) return;
+    if (_cart.isEmpty) return;
+    if (branch == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content:
+              Text('Sesi toko tidak ditemukan. Keluar lalu login ulang.')));
+      return;
+    }
+    if (_warehouseId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Gudang belum dipilih. Muat ulang data toko.')));
+      return;
+    }
     final grandTotal = asNum(_preview?['grand_total'] ?? _cartTotal);
     final payment = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,

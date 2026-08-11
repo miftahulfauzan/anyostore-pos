@@ -24,7 +24,7 @@ class _PaymentSheetState extends State<PaymentSheet> {
     super.initState();
     // Tunai boleh lebih (kembalian); non-tunai harus pas, tampilkan 2 desimal.
     _amountCtrl =
-        TextEditingController(text: widget.grandTotal.toStringAsFixed(2));
+        TextEditingController(text: widget.grandTotal.ceil().toString());
   }
 
   @override
@@ -34,8 +34,12 @@ class _PaymentSheetState extends State<PaymentSheet> {
     super.dispose();
   }
 
-  double _parse(String raw) =>
-      double.tryParse(raw.replaceAll('.', '').replaceAll(',', '.')) ?? 0;
+  double _parse(String raw) {
+    final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    final asInt = int.tryParse(digits);
+    if (asInt != null) return asInt.toDouble();
+    return double.tryParse(raw.replaceAll(',', '.')) ?? 0;
+  }
 
   double get _paid => _parse(_amountCtrl.text);
 
@@ -108,137 +112,147 @@ class _PaymentSheetState extends State<PaymentSheet> {
         : 0.0;
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Text('Pembayaran',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w800)),
-                const Spacer(),
-                Text('Total ${fmtRp(widget.grandTotal)}',
-                    style: const TextStyle(fontWeight: FontWeight.w800)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment(value: false, label: Text('Tunai / 1 metode')),
-                ButtonSegment(value: true, label: Text('Split')),
-              ],
-              selected: {_split},
-              onSelectionChanged: (s) => setState(() => _split = s.first),
-            ),
-            const SizedBox(height: 12),
-            if (!_split) ...[
-              DropdownButtonFormField<String>(
-                initialValue: _method,
-                decoration: const InputDecoration(
-                    labelText: 'Metode', border: OutlineInputBorder()),
-                items: [
-                  for (final m in methods)
-                    DropdownMenuItem(value: m, child: Text(m.toUpperCase())),
+        padding:
+            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Text('Pembayaran',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w800)),
+                  const Spacer(),
+                  Text('Total ${fmtRp(widget.grandTotal)}',
+                      style: const TextStyle(fontWeight: FontWeight.w800)),
                 ],
-                onChanged: (v) => setState(() => _method = v ?? 'cash'),
               ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: _amountCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                    labelText: 'Nominal dibayar',
-                    border: OutlineInputBorder(),
-                    prefixText: 'Rp '),
+              const SizedBox(height: 12),
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(value: false, label: Text('Tunai / 1 metode')),
+                  ButtonSegment(value: true, label: Text('Split')),
+                ],
+                selected: {_split},
+                onSelectionChanged: (s) => setState(() => _split = s.first),
               ),
-              if (_method != 'cash') ...[
+              const SizedBox(height: 12),
+              if (!_split) ...[
+                DropdownButtonFormField<String>(
+                  initialValue: _method,
+                  decoration: const InputDecoration(
+                      labelText: 'Metode', border: OutlineInputBorder()),
+                  items: [
+                    for (final m in methods)
+                      DropdownMenuItem(value: m, child: Text(m.toUpperCase())),
+                  ],
+                  onChanged: (v) => setState(() => _method = v ?? 'cash'),
+                ),
                 const SizedBox(height: 10),
                 TextField(
-                  controller: _referenceCtrl,
+                  controller: _amountCtrl,
+                  keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
-                      labelText: 'Referensi (opsional)',
-                      border: OutlineInputBorder()),
+                      labelText: 'Nominal dibayar',
+                      border: OutlineInputBorder(),
+                      prefixText: 'Rp '),
                 ),
-              ],
-              if (_method == 'cash') ...[
-                const SizedBox(height: 8),
-                Text('Kembalian: ${fmtRp(change)}',
-                    style: const TextStyle(fontWeight: FontWeight.w700)),
-              ],
-            ] else ...[
-              for (var i = 0; i < _rows.length; i++)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: DropdownButtonFormField<String>(
-                                initialValue: _rows[i]['method'] as String,
-                                decoration: const InputDecoration(
-                                    isDense: true,
-                                    border: OutlineInputBorder()),
-                                items: [
-                                  for (final m in methods)
-                                    DropdownMenuItem(
-                                        value: m, child: Text(m.toUpperCase())),
-                                ],
-                                onChanged: (v) => setState(
-                                    () => _rows[i]['method'] = v ?? 'cash'),
+                if (_method != 'cash') ...[
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _referenceCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Referensi (opsional)',
+                        border: OutlineInputBorder()),
+                  ),
+                ],
+                if (_method == 'cash') ...[
+                  const SizedBox(height: 8),
+                  Text('Kembalian: ${fmtRp(change)}',
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                ],
+              ] else ...[
+                for (var i = 0; i < _rows.length; i++)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  initialValue: _rows[i]['method'] as String,
+                                  decoration: const InputDecoration(
+                                      isDense: true,
+                                      border: OutlineInputBorder()),
+                                  items: [
+                                    for (final m in methods)
+                                      DropdownMenuItem(
+                                          value: m,
+                                          child: Text(m.toUpperCase())),
+                                  ],
+                                  onChanged: (v) => setState(
+                                      () => _rows[i]['method'] = v ?? 'cash'),
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            IconButton(
-                                onPressed: () => _removeRow(i),
-                                icon: const Icon(Icons.delete_outline)),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller:
-                              _rows[i]['amountCtrl'] as TextEditingController,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                              labelText: 'Nominal',
-                              isDense: true,
-                              border: OutlineInputBorder(),
-                              prefixText: 'Rp '),
-                          onChanged: (_) => setState(() {}),
-                        ),
-                      ],
+                              const SizedBox(width: 8),
+                              IconButton(
+                                  onPressed: () => _removeRow(i),
+                                  icon: const Icon(Icons.delete_outline)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller:
+                                _rows[i]['amountCtrl'] as TextEditingController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                                labelText: 'Nominal',
+                                isDense: true,
+                                border: OutlineInputBorder(),
+                                prefixText: 'Rp '),
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                      onPressed: _addRow,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Tambah metode')),
                 ),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                    onPressed: _addRow,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Tambah metode')),
+              ],
+              if (_error != null) ...[
+                const SizedBox(height: 8),
+                Text(_error!,
+                    style:
+                        TextStyle(color: Theme.of(context).colorScheme.error)),
+              ],
+              const SizedBox(height: 12),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50)),
+                onPressed: () {
+                  try {
+                    final payload = _buildPayload();
+                    if (payload != null) Navigator.pop(context, payload);
+                  } catch (e) {
+                    setState(() => _error = 'Terjadi kesalahan: $e');
+                  }
+                },
+                child: const Text('Proses Pembayaran'),
               ),
             ],
-            if (_error != null) ...[
-              const SizedBox(height: 8),
-              Text(_error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
-            ],
-            const SizedBox(height: 12),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50)),
-              onPressed: () {
-                final payload = _buildPayload();
-                if (payload != null) Navigator.pop(context, payload);
-              },
-              child: const Text('Proses Pembayaran'),
-            ),
-          ],
+          ),
         ),
       ),
     );
