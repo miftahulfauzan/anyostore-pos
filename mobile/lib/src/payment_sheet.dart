@@ -14,27 +14,46 @@ class _PaymentSheetState extends State<PaymentSheet> {
   static const methods = ['cash', 'qris', 'transfer', 'debit'];
   bool _split = false;
   String _method = 'cash';
-  String _amount = '';
-  String _reference = '';
+  late final TextEditingController _amountCtrl;
+  final _referenceCtrl = TextEditingController();
   final List<Map<String, dynamic>> _rows = [];
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _amount = widget.grandTotal.toStringAsFixed(0);
+    // Tunai boleh lebih (kembalian); non-tunai harus pas, tampilkan 2 desimal.
+    _amountCtrl =
+        TextEditingController(text: widget.grandTotal.toStringAsFixed(2));
   }
 
-  double get _paid => double.tryParse(_amount.replaceAll('.', '')) ?? 0;
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    _referenceCtrl.dispose();
+    super.dispose();
+  }
+
+  double _parse(String raw) =>
+      double.tryParse(raw.replaceAll('.', '').replaceAll(',', '.')) ?? 0;
+
+  double get _paid => _parse(_amountCtrl.text);
 
   void _addRow() {
     setState(() {
-      _rows.add({'method': 'cash', 'amount': '', 'reference': ''});
+      _rows.add({
+        'method': 'cash',
+        'amountCtrl': TextEditingController(),
+        'reference': ''
+      });
       _error = null;
     });
   }
 
-  void _removeRow(int i) => setState(() => _rows.removeAt(i));
+  void _removeRow(int i) {
+    (_rows[i]['amountCtrl'] as TextEditingController?)?.dispose();
+    setState(() => _rows.removeAt(i));
+  }
 
   Map<String, dynamic>? _buildPayload() {
     if (_split) {
@@ -42,7 +61,7 @@ class _PaymentSheetState extends State<PaymentSheet> {
       var sum = 0.0;
       for (final row in _rows) {
         final amount =
-            double.tryParse((row['amount'] as String).replaceAll('.', '')) ?? 0;
+            _parse((row['amountCtrl'] as TextEditingController).text);
         if (amount <= 0) {
           setState(() => _error = 'Nominal pembayaran tidak valid');
           return null;
@@ -66,7 +85,7 @@ class _PaymentSheetState extends State<PaymentSheet> {
       }
       return {'payments': payments};
     }
-    if (_paid < widget.grandTotal) {
+    if (_paid < widget.grandTotal - 0.005) {
       setState(() => _error = 'Nominal pembayaran kurang dari total');
       return null;
     }
@@ -77,7 +96,8 @@ class _PaymentSheetState extends State<PaymentSheet> {
     return {
       'payment_method': _method,
       'amount_paid': _paid,
-      if (_reference.trim().isNotEmpty) 'payment_reference': _reference.trim(),
+      if (_referenceCtrl.text.trim().isNotEmpty)
+        'payment_reference': _referenceCtrl.text.trim(),
     };
   }
 
@@ -128,21 +148,20 @@ class _PaymentSheetState extends State<PaymentSheet> {
               ),
               const SizedBox(height: 10),
               TextField(
+                controller: _amountCtrl,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                     labelText: 'Nominal dibayar',
                     border: OutlineInputBorder(),
                     prefixText: 'Rp '),
-                controller: TextEditingController(text: _amount),
-                onChanged: (v) => setState(() => _amount = v),
               ),
               if (_method != 'cash') ...[
                 const SizedBox(height: 10),
                 TextField(
+                  controller: _referenceCtrl,
                   decoration: const InputDecoration(
                       labelText: 'Referensi (opsional)',
                       border: OutlineInputBorder()),
-                  onChanged: (v) => setState(() => _reference = v),
                 ),
               ],
               if (_method == 'cash') ...[
@@ -182,14 +201,15 @@ class _PaymentSheetState extends State<PaymentSheet> {
                         ),
                         const SizedBox(height: 8),
                         TextField(
+                          controller:
+                              _rows[i]['amountCtrl'] as TextEditingController,
                           keyboardType: TextInputType.number,
                           decoration: const InputDecoration(
                               labelText: 'Nominal',
                               isDense: true,
                               border: OutlineInputBorder(),
                               prefixText: 'Rp '),
-                          onChanged: (v) =>
-                              setState(() => _rows[i]['amount'] = v),
+                          onChanged: (_) => setState(() {}),
                         ),
                       ],
                     ),

@@ -320,6 +320,12 @@ class _PosPageState extends State<PosPage> {
       builder: (_) => PaymentSheet(grandTotal: grandTotal),
     );
     if (payment == null || !mounted) return;
+    final warehouseId = int.tryParse(_warehouseId);
+    if (warehouseId == null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Gudang belum dipilih')));
+      return;
+    }
     setState(() => _saving = true);
     try {
       final items = _cart
@@ -332,7 +338,7 @@ class _PosPageState extends State<PosPage> {
           .toList();
       final result = await _client.createTransaction({
         'branch_id': branch,
-        'warehouse_id': int.parse(_warehouseId),
+        'warehouse_id': warehouseId,
         'items': items,
         'client_transaction_id': uuidV4(),
         'allow_negative_stock': false,
@@ -374,6 +380,11 @@ class _PosPageState extends State<PosPage> {
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Gagal memproses pembayaran: $e')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);

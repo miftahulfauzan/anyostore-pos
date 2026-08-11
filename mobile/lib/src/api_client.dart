@@ -19,6 +19,9 @@ class ApiClient {
   final String baseUrl;
   String? _token;
 
+  /// Dipanggil saat API mengembalikan 401 untuk mencoba refresh token.
+  Future<bool> Function()? refreshHandler;
+
   void setToken(String? token) => _token = token;
   String? get token => _token;
 
@@ -31,27 +34,31 @@ class ApiClient {
   Uri _uri(String path, [Map<String, String>? query]) =>
       Uri.parse('$baseUrl$path').replace(queryParameters: query);
 
-  Future<Map<String, dynamic>> post(
-          String path, Map<String, dynamic> body) async =>
-      _decode(await http
-          .post(_uri(path), headers: _headers, body: jsonEncode(body))
-          .timeout(const Duration(seconds: 30)));
+  Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body) =>
+      _request(() =>
+          http.post(_uri(path), headers: _headers, body: jsonEncode(body)));
 
-  Future<Map<String, dynamic>> put(
-          String path, Map<String, dynamic> body) async =>
-      _decode(await http
-          .put(_uri(path), headers: _headers, body: jsonEncode(body))
-          .timeout(const Duration(seconds: 30)));
+  Future<Map<String, dynamic>> put(String path, Map<String, dynamic> body) =>
+      _request(() =>
+          http.put(_uri(path), headers: _headers, body: jsonEncode(body)));
 
-  Future<Map<String, dynamic>> delete(String path) async => _decode(await http
-      .delete(_uri(path), headers: _headers)
-      .timeout(const Duration(seconds: 30)));
+  Future<Map<String, dynamic>> delete(String path) =>
+      _request(() => http.delete(_uri(path), headers: _headers));
 
-  Future<Map<String, dynamic>> get(String path,
-          [Map<String, String>? query]) async =>
-      _decode(await http
-          .get(_uri(path, query), headers: _headers)
-          .timeout(const Duration(seconds: 30)));
+  Future<Map<String, dynamic>> get(String path, [Map<String, String>? query]) =>
+      _request(() => http.get(_uri(path, query), headers: _headers));
+
+  Future<Map<String, dynamic>> _request(
+    Future<http.Response> Function() run, {
+    bool retried = false,
+  }) async {
+    final res = await run().timeout(const Duration(seconds: 30));
+    if (res.statusCode == 401 && !retried && refreshHandler != null) {
+      final ok = await refreshHandler!();
+      if (ok) return _request(run, retried: true);
+    }
+    return _decode(res);
+  }
 
   Map<String, dynamic> _decode(http.Response res) {
     Map<String, dynamic> data;
@@ -71,10 +78,10 @@ class ApiClient {
 
   // ===== Auth =====
   Future<Map<String, dynamic>> loginPassword(String email, String password) =>
-      post('/auth/login', {'email': email, 'password': password});
+      post('/auth/login?mobile=1', {'email': email, 'password': password});
 
   Future<Map<String, dynamic>> loginPin(String email, String pin) =>
-      post('/auth/login-pin', {'email': email, 'pin': pin});
+      post('/auth/login-pin?mobile=1', {'email': email, 'pin': pin});
 
   Future<Map<String, dynamic>> me() => get('/auth/me');
 
@@ -195,8 +202,13 @@ class ApiClient {
           double actualCash, String notes) =>
       put('/cash-drawer/close', {'actual_cash': actualCash, 'notes': notes});
 
-  // ===== Pegawai & pengaturan =====
+  // ===== Dashboard =====
+  Future<Map<String, dynamic>> dashboard() async {
+    final res = await get('/dashboard');
+    return (res['data'] as Map<String, dynamic>?) ?? {};
+  }
 
+  // ===== Pegawai & pengaturan =====
   Future<List<dynamic>> users({int? branchId}) async {
     final res =
         await get('/users', {if (branchId != null) 'branch_id': '$branchId'});
@@ -238,7 +250,6 @@ class ApiClient {
       put('/settings', body);
 
   // ===== Komisi =====
-
   Future<Map<String, dynamic>> commissions() async {
     final res = await get('/commissions');
     return (res['data'] as Map<String, dynamic>?) ?? {};
@@ -263,7 +274,6 @@ class ApiClient {
   }
 
   // ===== Promo =====
-
   Future<List<dynamic>> promotions() async {
     final res = await get('/promotions');
     return (res['data'] as List?) ?? [];
@@ -276,7 +286,6 @@ class ApiClient {
       put('/promotions/$id/toggle-active', {});
 
   // ===== Keuangan =====
-
   Future<List<dynamic>> expenseCategories() async {
     final res = await get('/finance/expense-categories');
     return (res['data'] as List?) ?? [];
@@ -302,7 +311,6 @@ class ApiClient {
   }
 
   // ===== Inventory =====
-
   Future<Map<String, dynamic>> stockTotal({
     required int branchId,
     String search = '',
@@ -366,7 +374,6 @@ class ApiClient {
   }
 
   // ===== Laporan & Pajak =====
-
   Future<Map<String, dynamic>> reportSales({
     required String start,
     required String end,
@@ -394,12 +401,6 @@ class ApiClient {
     required String end,
   }) async {
     final res = await get('/tax/report', {'start': start, 'end': end});
-    return (res['data'] as Map<String, dynamic>?) ?? {};
-  }
-
-  // ===== Dashboard =====
-  Future<Map<String, dynamic>> dashboard() async {
-    final res = await get('/dashboard');
     return (res['data'] as Map<String, dynamic>?) ?? {};
   }
 }

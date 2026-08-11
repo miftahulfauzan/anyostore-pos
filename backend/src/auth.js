@@ -87,7 +87,9 @@ async function loginWithPassword(req, res, next) {
     await persistRefreshToken(user.id, tokens.refreshToken);
     await db.execute('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
     setAuthCookies(res, tokens);
-    return res.json({ success: true, data: { user: { id: user.id, name: user.name, email: user.email, role: user.role, branch_id: user.branch_id }, accessToken: tokens.accessToken } });
+    const data = { user: { id: user.id, name: user.name, email: user.email, role: user.role, branch_id: user.branch_id }, accessToken: tokens.accessToken };
+    if (req.query.mobile === '1') data.refreshToken = tokens.refreshToken;
+    return res.json({ success: true, data });
   } catch (error) { return next(error); }
 }
 
@@ -112,7 +114,9 @@ async function loginWithPin(req, res, next) {
     await persistRefreshToken(user.id, tokens.refreshToken);
     await db.execute('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
     setAuthCookies(res, tokens);
-    return res.json({ success: true, data: { user: { id: user.id, name: user.name, email: user.email, role: user.role, branch_id: user.branch_id }, accessToken: tokens.accessToken } });
+    const data = { user: { id: user.id, name: user.name, email: user.email, role: user.role, branch_id: user.branch_id }, accessToken: tokens.accessToken };
+    if (req.query.mobile === '1') data.refreshToken = tokens.refreshToken;
+    return res.json({ success: true, data });
   } catch (error) { return next(error); }
 }
 
@@ -164,4 +168,23 @@ function authorize(...roles) {
   };
 }
 
-module.exports = { loginWithPassword, loginWithPin, refresh, logout, authenticate, authorize };
+async function mobileRefresh(req, res, next) {
+  try {
+    const token = req.body?.refresh_token;
+    if (!token) return res.status(400).json({ success: false, message: 'Refresh token wajib diisi' });
+    const payload = jwt.verify(token, jwtRefreshSecret);
+    const [tokens] = await db.execute(
+      'SELECT id FROM refresh_tokens WHERE token_hash = ? AND revoked_at IS NULL AND expires_at > NOW() LIMIT 1',
+      [refreshHash(token)]
+    );
+    if (!tokens[0]) return res.status(401).json({ success: false, message: 'Refresh token tidak valid' });
+    const [users] = await db.execute('SELECT id, branch_id, role FROM users WHERE id = ? AND is_active = TRUE LIMIT 1', [payload.id]);
+    if (!users[0]) return res.status(401).json({ success: false, message: 'User tidak aktif' });
+    await db.execute('UPDATE refresh_tokens SET revoked_at = NOW() WHERE id = ?', [tokens[0].id]);
+    const nextTokens = issueTokens(users[0]);
+    await persistRefreshToken(users[0].id, nextTokens.refreshToken);
+    return res.json({ success: true, data: { accessToken: nextTokens.accessToken, refreshToken: nextTokens.refreshToken } });
+  } catch (error) { return next(error); }
+}
+
+module.exports = { loginWithPassword, loginWithPin, refresh, mobileRefresh, logout, authenticate, authorize };

@@ -6,7 +6,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api_client.dart';
 
 class AuthStore extends ChangeNotifier {
-  AuthStore(this._api);
+  AuthStore(this._api) {
+    _api.refreshHandler = _refresh;
+  }
+
   final ApiClient _api;
 
   ApiClient get api => _api;
@@ -18,8 +21,10 @@ class AuthStore extends ChangeNotifier {
   String? role;
   int? branchId;
   String? token;
+  String? refreshToken;
 
   static const _tokenKey = 'pos_access_token';
+  static const _refreshKey = 'pos_refresh_token';
   static const _userKey = 'pos_user';
 
   Future<void> restore() async {
@@ -27,6 +32,7 @@ class AuthStore extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final savedToken = prefs.getString(_tokenKey);
       final savedUser = prefs.getString(_userKey);
+      refreshToken = prefs.getString(_refreshKey);
       if (savedToken != null && savedUser != null) {
         _api.setToken(savedToken);
         token = savedToken;
@@ -65,10 +71,14 @@ class AuthStore extends ChangeNotifier {
       if (accessToken == null) return 'Login gagal: token tidak diterima';
       _api.setToken(accessToken);
       token = accessToken;
+      refreshToken = data['refreshToken']?.toString();
       _applyUser(user);
       isAuthenticated = true;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_tokenKey, accessToken);
+      if (refreshToken != null) {
+        await prefs.setString(_refreshKey, refreshToken!);
+      }
       await prefs.setString(_userKey, jsonEncode(user));
       notifyListeners();
       return null;
@@ -79,15 +89,40 @@ class AuthStore extends ChangeNotifier {
     }
   }
 
+  Future<bool> _refresh() async {
+    final rt = refreshToken;
+    if (rt == null) return false;
+    try {
+      final result =
+          await _api.post('/auth/mobile-refresh', {'refresh_token': rt});
+      final data = result['data'] as Map<String, dynamic>? ?? {};
+      final access = data['accessToken']?.toString();
+      final newRt = data['refreshToken']?.toString();
+      if (access == null) return false;
+      _api.setToken(access);
+      token = access;
+      if (newRt != null) refreshToken = newRt;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_tokenKey, access);
+      if (newRt != null) await prefs.setString(_refreshKey, newRt);
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> logout() async {
     _api.setToken(null);
     token = null;
+    refreshToken = null;
     isAuthenticated = false;
     userName = null;
     role = null;
     branchId = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
+    await prefs.remove(_refreshKey);
     await prefs.remove(_userKey);
     notifyListeners();
   }
