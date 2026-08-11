@@ -17,6 +17,11 @@ class MorePage extends StatelessWidget {
   final int branchId;
   final String? role;
 
+  Widget _scaffold(String title, Widget child) => Scaffold(
+        appBar: AppBar(title: Text(title)),
+        body: child,
+      );
+
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -25,51 +30,52 @@ class MorePage extends StatelessWidget {
         _Tile(
           icon: Icons.dashboard,
           title: 'Dashboard',
-          onTap: () => Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => DashboardPage(api: api))),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => _scaffold('Dashboard', DashboardPage(api: api)))),
         ),
         _Tile(
           icon: Icons.people,
           title: 'Pelanggan',
-          onTap: () => Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => CustomersPage(api: api))),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => _scaffold('Pelanggan', CustomersPage(api: api)))),
         ),
         _Tile(
           icon: Icons.payments,
           title: 'Laci Kas',
-          onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => CashDrawerPage(api: api))),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => _scaffold('Laci Kas', CashDrawerPage(api: api)))),
         ),
         _Tile(
           icon: Icons.settings,
           title: 'Pengaturan',
-          onTap: () => Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => SettingsPage(api: api))),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => _scaffold('Pengaturan', SettingsPage(api: api)))),
         ),
         _Tile(
           icon: Icons.badge,
           title: 'Pegawai',
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => UsersPage(api: api, branchId: branchId))),
+              builder: (_) => _scaffold(
+                  'Pegawai', UsersPage(api: api, branchId: branchId)))),
         ),
         _Tile(
           icon: Icons.payments_outlined,
           title: 'Komisi',
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) =>
-                  CommissionsPage(api: api, branchId: branchId, role: role))),
+              builder: (_) => _scaffold('Komisi',
+                  CommissionsPage(api: api, branchId: branchId, role: role)))),
         ),
         _Tile(
           icon: Icons.local_offer,
           title: 'Promo',
-          onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => PromotionsPage(api: api))),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => _scaffold('Promo', PromotionsPage(api: api)))),
         ),
         _Tile(
           icon: Icons.account_balance_wallet,
           title: 'Keuangan',
-          onTap: () => Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => FinancePage(api: api))),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => _scaffold('Keuangan', FinancePage(api: api)))),
         ),
       ],
     );
