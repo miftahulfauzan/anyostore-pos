@@ -184,12 +184,14 @@ class _HistoryTabState extends State<HistoryTab> {
     final controllers = <int, TextEditingController>{};
     final reasons = <int, TextEditingController>{};
     for (final item in items) {
+      final itemId =
+          int.tryParse('${item['transaction_item_id'] ?? item['id']}');
+      if (itemId == null) continue;
       final remaining =
           (asNum(item['quantity']) - asNum(item['cancelled_qty'])).toInt();
       if (remaining > 0) {
-        controllers[item['id'] as int] =
-            TextEditingController(text: '$remaining');
-        reasons[item['id'] as int] = TextEditingController();
+        controllers[itemId] = TextEditingController(text: '$remaining');
+        reasons[itemId] = TextEditingController();
       }
     }
     if (controllers.isEmpty) {
@@ -213,7 +215,8 @@ class _HistoryTabState extends State<HistoryTab> {
                       border: OutlineInputBorder())),
               const SizedBox(height: 8),
               for (final item in items)
-                if (controllers.containsKey(item['id']))
+                if (controllers.containsKey(int.tryParse(
+                    '${item['transaction_item_id'] ?? item['id']}')))
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Row(
@@ -224,7 +227,8 @@ class _HistoryTabState extends State<HistoryTab> {
                         SizedBox(
                           width: 80,
                           child: TextField(
-                              controller: controllers[item['id']],
+                              controller: controllers[int.tryParse(
+                                  '${item['transaction_item_id'] ?? item['id']}')],
                               keyboardType: TextInputType.number,
                               decoration: const InputDecoration(
                                   isDense: true, labelText: 'Qty')),
@@ -248,7 +252,7 @@ class _HistoryTabState extends State<HistoryTab> {
     if (ok != true || !mounted) return;
     final cancelItems = <Map<String, dynamic>>[];
     for (final item in items) {
-      final id = item['id'] as int?;
+      final id = int.tryParse('${item['transaction_item_id'] ?? item['id']}');
       if (id == null || !controllers.containsKey(id)) continue;
       final qty = int.tryParse(controllers[id]!.text) ?? 0;
       if (qty > 0) {
@@ -280,11 +284,14 @@ class _HistoryTabState extends State<HistoryTab> {
     final controllers = <int, TextEditingController>{};
     final reasons = <int, TextEditingController>{};
     for (final item in items) {
+      final itemId =
+          int.tryParse('${item['transaction_item_id'] ?? item['id']}');
+      if (itemId == null) continue;
       final remaining =
           (asNum(item['quantity']) - asNum(item['cancelled_qty'])).toInt();
       if (remaining > 0) {
-        controllers[item['id'] as int] = TextEditingController();
-        reasons[item['id'] as int] = TextEditingController();
+        controllers[itemId] = TextEditingController();
+        reasons[itemId] = TextEditingController();
       }
     }
     if (controllers.isEmpty) return;
@@ -314,7 +321,8 @@ class _HistoryTabState extends State<HistoryTab> {
                 ),
                 const SizedBox(height: 8),
                 for (final item in items)
-                  if (controllers.containsKey(item['id']))
+                  if (controllers.containsKey(int.tryParse(
+                      '${item['transaction_item_id'] ?? item['id']}')))
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Row(
@@ -326,7 +334,8 @@ class _HistoryTabState extends State<HistoryTab> {
                           SizedBox(
                             width: 80,
                             child: TextField(
-                                controller: controllers[item['id']],
+                                controller: controllers[int.tryParse(
+                                    '${item['transaction_item_id'] ?? item['id']}')],
                                 keyboardType: TextInputType.number,
                                 decoration: InputDecoration(
                                     isDense: true,
@@ -354,7 +363,7 @@ class _HistoryTabState extends State<HistoryTab> {
     if (ok != true || !mounted) return;
     final returnItems = <Map<String, dynamic>>[];
     for (final item in items) {
-      final iid = item['id'] as int?;
+      final iid = int.tryParse('${item['transaction_item_id'] ?? item['id']}');
       if (iid == null || !controllers.containsKey(iid)) continue;
       final qty = int.tryParse(controllers[iid]!.text) ?? 0;
       if (qty > 0) {
@@ -450,7 +459,7 @@ class _HistoryTabState extends State<HistoryTab> {
               runSpacing: 8,
               children: [
                 SizedBox(
-                  width: 170,
+                  width: 240,
                   child: DropdownButtonFormField<String>(
                     initialValue: _preset,
                     decoration: const InputDecoration(
@@ -470,7 +479,7 @@ class _HistoryTabState extends State<HistoryTab> {
                   ),
                 ),
                 SizedBox(
-                  width: 170,
+                  width: 240,
                   child: DropdownButtonFormField<String>(
                     initialValue: _status,
                     decoration: const InputDecoration(
@@ -496,7 +505,7 @@ class _HistoryTabState extends State<HistoryTab> {
                   ),
                 ),
                 SizedBox(
-                  width: 200,
+                  width: 240,
                   child: TextField(
                     controller: _search,
                     decoration: const InputDecoration(
