@@ -25,11 +25,13 @@ class CartItem {
     this.variantLabel,
     this.photo,
     this.priceOverride,
+    this.stockAvailable,
   });
 
   final int productId;
   final int? variantId;
   final String name;
+  final int? stockAvailable;
   final String? variantLabel;
   String? photo;
   double price;
@@ -163,6 +165,8 @@ class _PosPageState extends State<PosPage> {
                   .join(' / '),
           photo: selectedVariant?['photo_path']?.toString(),
           qty: qty,
+          stockAvailable:
+              int.tryParse('${selectedVariant?['stock'] ?? 0}') ?? 0,
         );
       } on ApiException catch (e) {
         if (mounted) {
@@ -180,6 +184,7 @@ class _PosPageState extends State<PosPage> {
         variantLabel: null,
         photo: product['photo_path']?.toString(),
         qty: 1,
+        stockAvailable: int.tryParse('${product['stock'] ?? 0}') ?? 0,
       );
     }
     setState(() {});
@@ -194,6 +199,7 @@ class _PosPageState extends State<PosPage> {
     required String? variantLabel,
     required String? photo,
     required int qty,
+    int? stockAvailable,
   }) {
     final existing = _cart
         .where((c) => c.productId == productId && c.variantId == variantId);
@@ -208,6 +214,7 @@ class _PosPageState extends State<PosPage> {
         variantLabel: variantLabel,
         photo: photo,
         qty: qty,
+        stockAvailable: stockAvailable,
       ));
     }
   }
@@ -331,9 +338,35 @@ class _PosPageState extends State<PosPage> {
       builder: (_) => PaymentSheet(grandTotal: grandTotal),
     );
     if (payment == null || !mounted) return;
+    final lowStock = _cart
+        .where((c) => c.stockAvailable != null && c.stockAvailable! < c.qty)
+        .toList();
+    if (lowStock.isNotEmpty) {
+      final first = lowStock.first;
+      final label = first.name +
+          (first.variantLabel != null ? ' (${first.variantLabel})' : '');
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Stok kurang'),
+          content: Text(
+              'Stok $label kurang - tersedia ${first.stockAvailable}, diminta ${first.qty}. Lanjutkan transaksi?'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Kembali')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Lanjutkan')),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+    }
     // Tutup sheet keranjang dulu supaya pesan sukses/error tampil di halaman utama.
     Navigator.of(context).pop();
     if (!mounted) return;
+    final allowNegativeStock = lowStock.isNotEmpty;
     final warehouseId = int.tryParse(_warehouseId);
     if (warehouseId == null) {
       ScaffoldMessenger.of(context)
@@ -355,7 +388,7 @@ class _PosPageState extends State<PosPage> {
         'warehouse_id': warehouseId,
         'items': items,
         'client_transaction_id': uuidV4(),
-        'allow_negative_stock': false,
+        'allow_negative_stock': allowNegativeStock,
         ...payment,
         if (_customerId != null) 'customer_id': _customerId,
         if (_promoCode.trim().isNotEmpty) 'promo_code': _promoCode.trim(),
