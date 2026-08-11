@@ -474,7 +474,7 @@ class _PosPageState extends State<PosPage> {
               icon: Icon(Icons.point_of_sale), label: 'Kasir'),
           NavigationDestination(
               icon: Icon(Icons.receipt_long), label: 'Riwayat'),
-          NavigationDestination(icon: Icon(Icons.people), label: 'Pelanggan'),
+          NavigationDestination(icon: Icon(Icons.storefront), label: 'Transaksi'),
           NavigationDestination(icon: Icon(Icons.payments), label: 'Laci Kas'),
           NavigationDestination(
               icon: Icon(Icons.dashboard), label: 'Dashboard'),

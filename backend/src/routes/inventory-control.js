@@ -304,7 +304,7 @@ router.post(
         let destVariantId = null;
         if (variantId) {
           const [vv] = await c.execute(
-            "SELECT id,color FROM product_variants WHERE id=? AND product_id=? AND is_active=TRUE FOR UPDATE",
+            "SELECT id,color,price FROM product_variants WHERE id=? AND product_id=? AND is_active=TRUE FOR UPDATE",
             [variantId, productId],
           );
           if (!vv[0]) throw fail(404, "Varian warna asal tidak ditemukan");
@@ -321,7 +321,7 @@ router.post(
                 vv[0].color,
                 null,
                 null,
-                vv[0].price != null ? v[0].price : null,
+                vv[0].price != null ? vv[0].price : null,
               ],
             );
             dv = [{ id: ins.insertId }];

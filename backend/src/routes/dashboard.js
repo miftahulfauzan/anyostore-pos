@@ -16,31 +16,31 @@ router.get('/', async (req, res, next) => {
 
     const salesSql =
       'SELECT ' +
-      'COALESCE(SUM(CASE WHEN DATE(t.created_at + INTERVAL 7 HOUR) = DATE(UTC_TIMESTAMP() + INTERVAL 7 HOUR) THEN t.grand_total - t.cancelled_amount ELSE 0 END), 0) AS today_sales, ' +
-      'SUM(CASE WHEN DATE(t.created_at + INTERVAL 7 HOUR) = DATE(UTC_TIMESTAMP() + INTERVAL 7 HOUR) THEN 1 ELSE 0 END) AS today_transactions, ' +
-      'COALESCE(SUM(CASE WHEN DATE(t.created_at + INTERVAL 7 HOUR) >= DATE_SUB(DATE(UTC_TIMESTAMP() + INTERVAL 7 HOUR), INTERVAL 6 DAY) THEN t.grand_total - t.cancelled_amount ELSE 0 END), 0) AS seven_day_sales, ' +
-      'COALESCE(SUM(CASE WHEN YEAR(t.created_at + INTERVAL 7 HOUR) = YEAR(UTC_TIMESTAMP() + INTERVAL 7 HOUR) AND MONTH(t.created_at + INTERVAL 7 HOUR) = MONTH(UTC_TIMESTAMP() + INTERVAL 7 HOUR) THEN t.grand_total - t.cancelled_amount ELSE 0 END), 0) AS month_sales ' +
+      'COALESCE(SUM(CASE WHEN DATE(t.created_at) = CURDATE() THEN t.grand_total - t.cancelled_amount ELSE 0 END), 0) AS today_sales, ' +
+      'SUM(CASE WHEN DATE(t.created_at) = CURDATE() THEN 1 ELSE 0 END) AS today_transactions, ' +
+      'COALESCE(SUM(CASE WHEN DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) THEN t.grand_total - t.cancelled_amount ELSE 0 END), 0) AS seven_day_sales, ' +
+      'COALESCE(SUM(CASE WHEN YEAR(t.created_at) = YEAR(CURDATE()) AND MONTH(t.created_at) = MONTH(CURDATE()) THEN t.grand_total - t.cancelled_amount ELSE 0 END), 0) AS month_sales ' +
       'FROM transactions t WHERE t.status IN (\'completed\', \'partially_cancelled\')' + transactionScope;
     const expensesSql =
       'SELECT ' +
-      'COALESCE(SUM(CASE WHEN e.expense_date = DATE(UTC_TIMESTAMP() + INTERVAL 7 HOUR) THEN e.amount ELSE 0 END), 0) AS today_expenses, ' +
-      'COALESCE(SUM(CASE WHEN e.expense_date >= DATE_SUB(DATE(UTC_TIMESTAMP() + INTERVAL 7 HOUR), INTERVAL 6 DAY) THEN e.amount ELSE 0 END), 0) AS seven_day_expenses, ' +
-      'COALESCE(SUM(CASE WHEN YEAR(e.expense_date) = YEAR(UTC_TIMESTAMP() + INTERVAL 7 HOUR) AND MONTH(e.expense_date) = MONTH(UTC_TIMESTAMP() + INTERVAL 7 HOUR) THEN e.amount ELSE 0 END), 0) AS month_expenses ' +
+      'COALESCE(SUM(CASE WHEN e.expense_date = CURDATE() THEN e.amount ELSE 0 END), 0) AS today_expenses, ' +
+      'COALESCE(SUM(CASE WHEN e.expense_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) THEN e.amount ELSE 0 END), 0) AS seven_day_expenses, ' +
+      'COALESCE(SUM(CASE WHEN YEAR(e.expense_date) = YEAR(CURDATE()) AND MONTH(e.expense_date) = MONTH(CURDATE()) THEN e.amount ELSE 0 END), 0) AS month_expenses ' +
       'FROM expenses e WHERE e.status IN (\'pending\', \'approved\')' + expenseScope;
     const recentSql =
       'SELECT t.id, t.invoice_no, t.grand_total, t.payment_method, t.created_at, u.name AS cashier, b.name AS branch_name ' +
       'FROM transactions t JOIN users u ON u.id = t.user_id JOIN branches b ON b.id = t.branch_id ' +
       'WHERE 1 = 1' + transactionScope + ' ORDER BY t.created_at DESC LIMIT 6';
     const trendSql =
-      'SELECT DATE(t.created_at + INTERVAL 7 HOUR) AS date, COALESCE(SUM(t.grand_total - t.cancelled_amount), 0) AS sales ' +
-      'FROM transactions t WHERE t.status IN (\'completed\', \'partially_cancelled\') AND DATE(t.created_at + INTERVAL 7 HOUR) >= DATE_SUB(DATE(UTC_TIMESTAMP() + INTERVAL 7 HOUR), INTERVAL 6 DAY)' +
-      transactionScope + ' GROUP BY DATE(t.created_at + INTERVAL 7 HOUR) ORDER BY date';
+      'SELECT DATE_FORMAT(t.created_at, \'%Y-%m-%d\') AS date, COALESCE(SUM(t.grand_total - t.cancelled_amount), 0) AS sales ' +
+      'FROM transactions t WHERE t.status IN (\'completed\', \'partially_cancelled\') AND DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)' +
+      transactionScope + ' GROUP BY DATE(t.created_at) ORDER BY date';
     const paymentSql =
       // Refund (cancelled_amount) dikurangi proporsional per metode pembayaran,
       // supaya breakdown = ringkasan penjualan.
       'SELECT tp.payment_method, COALESCE(SUM(tp.amount - (t.cancelled_amount * tp.amount / NULLIF(t.grand_total, 0))), 0) AS amount ' +
       'FROM transaction_payments tp JOIN transactions t ON t.id = tp.transaction_id ' +
-      'WHERE t.status IN (\'completed\', \'partially_cancelled\') AND DATE(t.created_at + INTERVAL 7 HOUR) >= DATE_SUB(DATE(UTC_TIMESTAMP() + INTERVAL 7 HOUR), INTERVAL 30 DAY)' +
+      'WHERE t.status IN (\'completed\', \'partially_cancelled\') AND DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)' +
       transactionScope + ' GROUP BY tp.payment_method ORDER BY amount DESC';
 
     const [salesRows, expenseRows, recent, salesTrend, payments] = await Promise.all([
@@ -52,7 +52,9 @@ router.get('/', async (req, res, next) => {
     ]);
 
     const salesByDate = new Map(salesTrend[0].map((row) => [
-      String(row.date).slice(0, 10),
+      row.date instanceof Date
+        ? [row.date.getFullYear(), String(row.date.getMonth() + 1).padStart(2, '0'), String(row.date.getDate()).padStart(2, '0')].join('-')
+        : String(row.date).slice(0, 10),
       Number(row.sales)
     ]));
     const sevenDayTrend = Array.from({ length: 7 }, (_, index) => {
@@ -69,9 +71,9 @@ router.get('/', async (req, res, next) => {
 
     const stores = owner ? (await db.execute(
       'SELECT b.id, b.name, b.address, ' +
-      'COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (\'completed\',\'partially_cancelled\') AND DATE(t.created_at + INTERVAL 7 HOUR) = DATE(UTC_TIMESTAMP() + INTERVAL 7 HOUR)), 0) AS today_sales, ' +
-      'COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (\'completed\',\'partially_cancelled\') AND DATE(t.created_at + INTERVAL 7 HOUR) >= DATE_SUB(DATE(UTC_TIMESTAMP() + INTERVAL 7 HOUR), INTERVAL 6 DAY)), 0) AS seven_day_sales, ' +
-      'COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id AND e.status IN (\'pending\',\'approved\') AND YEAR(e.expense_date) = YEAR(UTC_TIMESTAMP() + INTERVAL 7 HOUR) AND MONTH(e.expense_date) = MONTH(UTC_TIMESTAMP() + INTERVAL 7 HOUR)), 0) AS month_expenses, ' +
+      'COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (\'completed\',\'partially_cancelled\') AND DATE(t.created_at) = CURDATE()), 0) AS today_sales, ' +
+      'COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (\'completed\',\'partially_cancelled\') AND DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)), 0) AS seven_day_sales, ' +
+      'COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id AND e.status IN (\'pending\',\'approved\') AND YEAR(e.expense_date) = YEAR(CURDATE()) AND MONTH(e.expense_date) = MONTH(CURDATE())), 0) AS month_expenses, ' +
       '(SELECT COUNT(*) FROM products p WHERE p.branch_id = b.id AND p.is_active = TRUE) AS products ' +
       'FROM branches b WHERE b.is_active = TRUE ORDER BY b.id'
     ))[0] : [];

@@ -56,7 +56,7 @@ class MorePage extends StatelessWidget {
           title: 'Pegawai',
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => _scaffold(
-                  'Pegawai', UsersPage(api: api, branchId: branchId)))),
+                  'Pegawai', UsersPage(api: api, branchId: branchId, role: role)))),
         ),
         _Tile(
           icon: Icons.payments_outlined,

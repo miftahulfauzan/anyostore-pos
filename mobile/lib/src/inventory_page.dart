@@ -844,8 +844,10 @@ class _TransferSectionState extends State<_TransferSection> {
                     ButtonSegment(value: true, label: Text('Antar cabang')),
                   ],
                   selected: {_interStore},
-                  onSelectionChanged: (sel) =>
-                      setState(() => _interStore = sel.first),
+                  onSelectionChanged: (sel) => setState(() {
+                    _interStore = sel.first;
+                    _to = '';
+                  }),
                 ),
                 const SizedBox(height: 8),
               ],
