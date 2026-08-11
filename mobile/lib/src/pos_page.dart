@@ -525,6 +525,7 @@ class _PosPageState extends State<PosPage> {
                 flex: 2,
                 child: TextField(
                   controller: _search,
+                  onChanged: (_) => setState(() {}),
                   decoration: const InputDecoration(
                       prefixIcon: Icon(Icons.search),
                       isDense: true,

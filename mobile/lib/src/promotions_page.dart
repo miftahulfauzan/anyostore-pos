@@ -207,9 +207,12 @@ class _PromotionsPageState extends State<PromotionsPage> {
                             return Card(
                               child: ListTile(
                                 leading: CircleAvatar(
-                                  child: Text(
-                                      row['code']?.toString().substring(0, 1) ??
-                                          'P'),
+                                  child: Text(() {
+                                    final code = row['code']?.toString() ?? '';
+                                    return code.isEmpty
+                                        ? 'P'
+                                        : code.substring(0, 1);
+                                  }()),
                                 ),
                                 title: Text(row['name']?.toString() ?? '',
                                     style: const TextStyle(

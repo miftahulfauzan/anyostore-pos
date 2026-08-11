@@ -308,12 +308,16 @@ class _MutasiSectionState extends State<_MutasiSection> {
                             return Card(
                               child: ListTile(
                                 leading: CircleAvatar(
-                                  child: Text((r['type'] ?? '?')
-                                      .toString()
-                                      .split('_')
-                                      .first
-                                      .toUpperCase()
-                                      .substring(0, 1)),
+                                  child: Text(() {
+                                    final t = (r['type'] ?? '').toString();
+                                    return t.isEmpty
+                                        ? '?'
+                                        : t
+                                            .split('_')
+                                            .first
+                                            .toUpperCase()
+                                            .substring(0, 1);
+                                  }()),
                                 ),
                                 title:
                                     Text(r['product_name']?.toString() ?? ''),

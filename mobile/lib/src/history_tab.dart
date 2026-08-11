@@ -622,7 +622,8 @@ class _HistoryTabState extends State<HistoryTab> {
               title: Text(row['invoice_no']?.toString() ?? '-',
                   style: const TextStyle(fontWeight: FontWeight.w700)),
               subtitle: Text(
-                  '${row['created_at'] ?? ''} · ${(row['payment_method'] ?? '').toString().toUpperCase()}'),
+                  '${row['created_at'] ?? ''} · ${(row['payment_method'] ?? '').toString().toUpperCase()}'
+                  '${row['cashier'] != null && (row['cashier'] as String).isNotEmpty ? ' · Kasir: ${row['cashier']}' : ''}'),
               trailing: Text(fmtRp(asNum(row['grand_total'])),
                   style: const TextStyle(fontWeight: FontWeight.w800)),
               onTap: () => _openDetail(row),
