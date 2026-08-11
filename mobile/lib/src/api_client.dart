@@ -322,9 +322,10 @@ class ApiClient {
   Future<Map<String, dynamic>> stockTotal({
     required int branchId,
     String search = '',
+    bool allBranches = false,
   }) async {
     final res = await get('/inventory/stock-total', {
-      'branch_id': '$branchId',
+      'branch_id': allBranches ? 'all' : '$branchId',
       if (search.isNotEmpty) 'search': search,
     });
     return (res['data'] as Map<String, dynamic>?) ?? {};
@@ -371,6 +372,15 @@ class ApiClient {
 
   Future<Map<String, dynamic>> createTransfer(Map<String, dynamic> body) =>
       post('/inventory-control/transfers', body);
+
+  Future<List<dynamic>> storeTargets() async {
+    final res = await get('/inventory-control/store-targets');
+    return (res['data'] as List?) ?? [];
+  }
+
+  Future<Map<String, dynamic>> createInterStoreTransfer(
+          Map<String, dynamic> body) =>
+      post('/inventory-control/transfers/inter-store', body);
 
   Future<Map<String, dynamic>> createOpname(Map<String, dynamic> body) =>
       post('/inventory-control/opnames', body);

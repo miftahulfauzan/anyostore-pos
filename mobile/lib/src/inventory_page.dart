@@ -5,9 +5,13 @@ import 'format.dart';
 import 'printer_service.dart';
 
 class InventoryPage extends StatefulWidget {
-  const InventoryPage({super.key, required this.api, required this.branchId});
+  const InventoryPage(
+      {super.key, required this.api, required this.branchId, this.role});
   final ApiClient api;
   final int branchId;
+  final String? role;
+
+  bool get isOwner => role == 'owner';
 
   @override
   State<InventoryPage> createState() => _InventoryPageState();
@@ -36,11 +40,16 @@ class _InventoryPageState extends State<InventoryPage> {
         ),
         Expanded(
           child: switch (_section) {
-            'stok' => _StockSection(api: widget.api, branchId: widget.branchId),
+            'stok' => _StockSection(
+                api: widget.api,
+                branchId: widget.branchId,
+                isOwner: widget.isOwner),
             'mutasi' =>
               _MutasiSection(api: widget.api, branchId: widget.branchId),
-            'transfer' =>
-              _TransferSection(api: widget.api, branchId: widget.branchId),
+            'transfer' => _TransferSection(
+                api: widget.api,
+                branchId: widget.branchId,
+                isOwner: widget.isOwner),
             'opname' =>
               _OpnameSection(api: widget.api, branchId: widget.branchId),
             _ => _BarcodeSection(api: widget.api),
@@ -52,9 +61,11 @@ class _InventoryPageState extends State<InventoryPage> {
 }
 
 class _StockSection extends StatefulWidget {
-  const _StockSection({required this.api, required this.branchId});
+  const _StockSection(
+      {required this.api, required this.branchId, this.isOwner = false});
   final ApiClient api;
   final int branchId;
+  final bool isOwner;
 
   @override
   State<_StockSection> createState() => _StockSectionState();
@@ -62,6 +73,7 @@ class _StockSection extends StatefulWidget {
 
 class _StockSectionState extends State<_StockSection> {
   final _search = TextEditingController();
+  bool _allBranches = false;
   List<Map<String, dynamic>> _rows = [];
   Map<String, dynamic> _summary = {};
   bool _loading = true;
@@ -79,8 +91,10 @@ class _StockSectionState extends State<_StockSection> {
       _error = null;
     });
     try {
-      final data = await widget.api
-          .stockTotal(branchId: widget.branchId, search: _search.text.trim());
+      final data = await widget.api.stockTotal(
+          branchId: widget.branchId,
+          search: _search.text.trim(),
+          allBranches: _allBranches);
       if (!mounted) return;
       setState(() {
         _summary = (data['summary'] as Map<String, dynamic>?) ?? {};
@@ -98,6 +112,21 @@ class _StockSectionState extends State<_StockSection> {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        if (widget.isOwner)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+            child: SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(value: false, label: Text('Toko ini')),
+                ButtonSegment(value: true, label: Text('Semua toko')),
+              ],
+              selected: {_allBranches},
+              onSelectionChanged: (sel) {
+                setState(() => _allBranches = sel.first);
+                _load();
+              },
+            ),
+          ),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
           child: TextField(
@@ -145,7 +174,7 @@ class _StockSectionState extends State<_StockSection> {
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w700)),
                                 subtitle: Text(
-                                    '${r['sku'] ?? ''} · ${r['colors'] ?? ''}'),
+                                    '${r['sku'] ?? ''} · ${r['colors'] ?? ''}${r['branch_name'] != null ? ' · ${r['branch_name']}' : ''}'),
                                 trailing: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -704,9 +733,11 @@ class _CatalogPickerState extends State<_CatalogPicker> {
 }
 
 class _TransferSection extends StatefulWidget {
-  const _TransferSection({required this.api, required this.branchId});
+  const _TransferSection(
+      {required this.api, required this.branchId, this.isOwner = false});
   final ApiClient api;
   final int branchId;
+  final bool isOwner;
 
   @override
   State<_TransferSection> createState() => _TransferSectionState();
@@ -714,8 +745,10 @@ class _TransferSection extends StatefulWidget {
 
 class _TransferSectionState extends State<_TransferSection> {
   List<Map<String, dynamic>> _warehouses = [];
+  List<Map<String, dynamic>> _targets = [];
   String _from = '';
   String _to = '';
+  bool _interStore = false;
   String _notes = '';
   final List<Map<String, dynamic>> _items = [];
   bool _loading = true;
@@ -739,6 +772,11 @@ class _TransferSectionState extends State<_TransferSection> {
           if (_warehouses.length > 1) _to = '${_warehouses[1]['id']}';
         }
       });
+      if (widget.isOwner) {
+        final targets = await widget.api.storeTargets();
+        if (!mounted) return;
+        setState(() => _targets = targets.cast<Map<String, dynamic>>());
+      }
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {
@@ -770,12 +808,17 @@ class _TransferSectionState extends State<_TransferSection> {
       _error = null;
     });
     try {
-      await widget.api.createTransfer({
+      final body = {
         'from_warehouse_id': int.parse(_from),
         'to_warehouse_id': int.parse(_to),
         if (_notes.trim().isNotEmpty) 'notes': _notes.trim(),
         'items': _items,
-      });
+      };
+      if (_interStore) {
+        await widget.api.createInterStoreTransfer(body);
+      } else {
+        await widget.api.createTransfer(body);
+      }
       if (!mounted) return;
       setState(() => _items.clear());
       ScaffoldMessenger.of(context)
@@ -794,6 +837,18 @@ class _TransferSectionState extends State<_TransferSection> {
         : ListView(
             padding: const EdgeInsets.all(12),
             children: [
+              if (widget.isOwner) ...[
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(value: false, label: Text('Dalam cabang')),
+                    ButtonSegment(value: true, label: Text('Antar cabang')),
+                  ],
+                  selected: {_interStore},
+                  onSelectionChanged: (sel) =>
+                      setState(() => _interStore = sel.first),
+                ),
+                const SizedBox(height: 8),
+              ],
               DropdownButtonFormField<String>(
                 initialValue: _from.isEmpty ? null : _from,
                 decoration: const InputDecoration(
@@ -809,14 +864,24 @@ class _TransferSectionState extends State<_TransferSection> {
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 initialValue: _to.isEmpty ? null : _to,
-                decoration: const InputDecoration(
-                    labelText: 'Ke gudang', border: OutlineInputBorder()),
-                items: [
-                  for (final w in _warehouses)
-                    DropdownMenuItem(
-                        value: '${w['id']}',
-                        child: Text(w['name']?.toString() ?? '')),
-                ],
+                decoration: InputDecoration(
+                    labelText:
+                        _interStore ? 'Ke toko/gudang tujuan' : 'Ke gudang',
+                    border: const OutlineInputBorder()),
+                items: _interStore
+                    ? [
+                        for (final t in _targets)
+                          DropdownMenuItem<String>(
+                              value: '${t['warehouse_id']}',
+                              child: Text(
+                                  '${t['name']} · ${t['warehouse_name']}')),
+                      ]
+                    : [
+                        for (final w in _warehouses)
+                          DropdownMenuItem<String>(
+                              value: '${w['id']}',
+                              child: Text(w['name']?.toString() ?? '')),
+                      ],
                 onChanged: (v) => setState(() => _to = v ?? ''),
               ),
               const SizedBox(height: 8),

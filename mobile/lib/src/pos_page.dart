@@ -449,7 +449,7 @@ class _PosPageState extends State<PosPage> {
     final pages = <Widget>[
       _buildKasir(),
       HistoryTab(api: _client, role: auth.role),
-      InventoryPage(api: _client, branchId: _branchId),
+      InventoryPage(api: _client, branchId: _branchId, role: auth.role),
       ReportsPage(api: _client),
       MorePage(api: _client, branchId: _branchId, role: auth.role),
     ];

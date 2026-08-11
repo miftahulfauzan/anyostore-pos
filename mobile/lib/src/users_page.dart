@@ -3,9 +3,13 @@ import 'package:flutter/material.dart';
 import 'api_client.dart';
 
 class UsersPage extends StatefulWidget {
-  const UsersPage({super.key, required this.api, required this.branchId});
+  const UsersPage(
+      {super.key, required this.api, required this.branchId, this.role});
   final ApiClient api;
   final int branchId;
+  final String? role;
+
+  bool get isOwner => role == 'owner';
 
   @override
   State<UsersPage> createState() => _UsersPageState();
@@ -21,6 +25,7 @@ class _UsersPageState extends State<UsersPage> {
     'host',
   ];
   List<Map<String, dynamic>> _rows = [];
+  List<Map<String, dynamic>> _branches = [];
   bool _loading = true;
   String? _error;
 
@@ -36,9 +41,18 @@ class _UsersPageState extends State<UsersPage> {
       _error = null;
     });
     try {
-      final rows = await widget.api.users(branchId: widget.branchId);
+      final results = await Future.wait([
+        widget.api.users(branchId: widget.branchId),
+        if (widget.isOwner) widget.api.branches(),
+      ]);
+      final rows = results[0];
       if (!mounted) return;
-      setState(() => _rows = rows.cast<Map<String, dynamic>>());
+      setState(() {
+        _rows = rows.cast<Map<String, dynamic>>();
+        if (widget.isOwner) {
+          _branches = results[1].cast<Map<String, dynamic>>();
+        }
+      });
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {
@@ -54,6 +68,9 @@ class _UsersPageState extends State<UsersPage> {
     final password = TextEditingController();
     final pin = TextEditingController();
     var role = existing?['role']?.toString() ?? 'kasir';
+    var branchId = existing?['branch_id'] != null
+        ? int.tryParse('${existing?['branch_id']}')
+        : widget.branchId;
 
     final saved = await showDialog<bool>(
       context: context,
@@ -93,6 +110,21 @@ class _UsersPageState extends State<UsersPage> {
                   ],
                   onChanged: (v) => setDialogState(() => role = v ?? 'kasir'),
                 ),
+                if (widget.isOwner) ...[
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<int?>(
+                    initialValue: branchId,
+                    decoration: const InputDecoration(
+                        labelText: 'Toko', border: OutlineInputBorder()),
+                    items: [
+                      for (final b in _branches)
+                        DropdownMenuItem<int?>(
+                            value: int.tryParse('${b['id']}'),
+                            child: Text(b['name']?.toString() ?? '')),
+                    ],
+                    onChanged: (v) => setDialogState(() => branchId = v),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 TextField(
                     controller: pin,
@@ -126,6 +158,7 @@ class _UsersPageState extends State<UsersPage> {
       'name': name.text.trim(),
       'email': email.text.trim(),
       'role': role,
+      if (widget.isOwner && branchId != null) 'branch_id': branchId,
       if (pin.text.trim().isNotEmpty) 'pin': pin.text.trim(),
     };
     if (existing == null) {
