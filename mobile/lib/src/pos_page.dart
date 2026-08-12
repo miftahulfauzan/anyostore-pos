@@ -64,6 +64,8 @@ class _PosPageState extends State<PosPage> {
   List<Map<String, dynamic>> _visible = [];
   List<Map<String, dynamic>> _warehouses = [];
   List<Map<String, dynamic>> _customers = [];
+  List<Map<String, dynamic>> _branches = [];
+  int? _posBranchId;
   String _warehouseId = '';
   int? _customerId;
   String _promoCode = '';
@@ -116,19 +118,29 @@ class _PosPageState extends State<PosPage> {
   int get _branchId => context.read<AuthStore>().branchId ?? 0;
 
   Future<void> _loadData() async {
-    final branch = _branchId;
+    final branch = _posBranchId ?? _branchId;
     if (branch == 0) return;
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
+      final isOwner = context.read<AuthStore>().role == 'owner';
       final results = await Future.wait([
         _client.products(branchId: branch),
         _client.warehouses(branch),
         _client.customers(),
         _client.storeSettings(),
+        if (isOwner) _client.branches(),
       ]);
+      if (!mounted) return;
+      if (isOwner) {
+        final branches = (results[4] as List).cast<Map<String, dynamic>>();
+        setState(() {
+          _branches = branches;
+          _posBranchId ??= _branchId;
+        });
+      }
       if (!mounted) return;
       setState(() {
         _products = (results[0] as List).cast<Map<String, dynamic>>();
@@ -169,7 +181,7 @@ class _PosPageState extends State<PosPage> {
     if (variantCount > 0) {
       try {
         final detail = await _client.product(int.parse('${product['id']}'),
-            branchId: _branchId);
+            branchId: _posBranchId ?? _branchId);
         if (!mounted) return;
         final variants =
             ((detail['variants'] as List?) ?? []).cast<Map<String, dynamic>>();
@@ -270,7 +282,7 @@ class _PosPageState extends State<PosPage> {
               })
           .toList();
       final preview = await _client.previewTransaction({
-        'branch_id': _branchId,
+        'branch_id': _posBranchId ?? _branchId,
         'customer_id': _customerId,
         'items': items,
         if (_promoCode.trim().isNotEmpty) 'promo_code': _promoCode.trim(),
@@ -349,7 +361,7 @@ class _PosPageState extends State<PosPage> {
   }
 
   Future<void> _checkout() async {
-    final branch = _branchId;
+    final branch = _posBranchId ?? _branchId;
     if (_cart.isEmpty) return;
     if (branch == 0) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -575,6 +587,35 @@ class _PosPageState extends State<PosPage> {
     }
     return Column(
       children: [
+        if (context.read<AuthStore>().role == 'owner' && _branches.length > 1)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+            child: DropdownButtonFormField<int?>(
+              initialValue: _posBranchId,
+              decoration: const InputDecoration(
+                  isDense: true,
+                  labelText: 'Toko / Gudang',
+                  prefixIcon: Icon(Icons.store, size: 18),
+                  border: OutlineInputBorder()),
+              items: [
+                for (final b in _branches)
+                  DropdownMenuItem<int?>(
+                      value: int.tryParse('${b['id']}'),
+                      child: Text(b['name']?.toString() ?? '')),
+              ],
+              onChanged: (v) {
+                setState(() {
+                  _posBranchId = v;
+                  _warehouseId = '';
+                  _cart.clear();
+                  _preview = null;
+                  _customerId = null;
+                  _promoCode = '';
+                });
+                _loadData();
+              },
+            ),
+          ),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
           child: Row(
