@@ -4,7 +4,7 @@ Konteks proyek ini otomatis dibaca semua AI agent di awal sesi. Baca sebelum men
 
 ## Ringkasan
 
-Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https://anyostore.my.id` (Tencent Cloud Lighthouse, Ubuntu, Docker, Caddy auto-HTTPS). Repo: `https://github.com/miftahulfauzan/anyostore-pos`.
+Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https://anyostore.my.id` (Tencent Cloud Lighthouse, Ubuntu, Docker, Caddy auto-HTTPS). Repo: `https://github.com/miftahulfauzan/anyostore-pos`. Lokasi lokal: `/Users/anyo/Documents/POS_ANYOSTORE` (dipindah keluar OneDrive agar git tidak terganggu sinkronisasi cloud; JANGAN kembali bekerja di folder OneDrive).
 
 - **Backend**: Express (Node 20), MySQL 8.4, `backend/src/`
 - **Frontend**: Next.js 16 App Router (`output: 'standalone'`), React 18, `frontend/app/`
@@ -199,12 +199,52 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 - **Next.js 16**: `params` di client component pakai `useParams()` dari `next/navigation`, BUKAN `use(params)` atau `params?.id` (bisa undefined → fetch `/api/products/undefined`).
 - **Hydration error #418**: jangan pakai `new Date()` di render awal client component (server UTC vs browser WIB beda). Lazy-init state kosong, isi via `useEffect`.
 - **CSS globals.css** punya banyak aturan duplikat (`.app-shell`, `.sidebar`, `.app-main`) yang saling override. Saat ubah layout, cek duplikat (terutama yang di `@media`).
-- **OneDrive** mengubah mode file (100755↔100644) → git tampil "modified" padahal konten sama. Jangan commit mode-change kosong. `git config core.filemode false` bisa membantu.
+- **OneDrive** (folder lama) sudah DITINGGALKAN karena membuat .git korup/stall (push timeout, mmap failed). Semua kerja sekarang di /Users/anyo/Documents/POS_ANYOSTORE. Kalau ada salinan OneDrive lama, jangan dipakai. .env dev: MYSQL_ROOT_PASSWORD=pos_dev_mysql_2026, JWT_SECRET=pos_dev_access_secret_change_before_production, JWT_REFRESH_SECRET=pos_dev_refresh_secret_change_before_production. .env.production hanya ada di VPS/GitHub Secrets, tidak di repo.
 - **Sidebar AppShell**: `position: fixed`, collapsible (state `pos_sidebar_collapsed` di localStorage), margin konten via class `.app-main.sidebar-collapsed`.
 - **Deploy failure umum**: CI `npm test` gagal kalau env DB tidak diset di test file (sudah diset di `backend/test/*.test.js`). Build frontend gagal = syntax error, cek `npm run build` lokal.
 - **Media**: `MEDIA_STORAGE=database` atau disk (default). `copyMediaFile` untuk clone cabang (copy file ke path baru). Guard delete: cek ref-count sebelum `removeMedia` (clone share path).
 - **Commission**: rule `per_pcs_customer_tier` (reguler 3000, semi 3000, grosir 1000 per pcs). Owner bisa hapus rule cabang manapun.
 - **Rate limit**: 600 req/menit per IP global, 20/15 menit untuk login.
+
+## Mobile UI/Desain & Fitur Terbaru (Agustus 2026)
+
+Aplikasi Android (Flutter, folder mobile/) sudah melalui banyak perubahan. Dokumentasi ini agar AI berikutnya langsung paham tanpa menebak.
+
+### Design system (file kunci: mobile/lib/src/task_ui.dart)
+- Warna: latar krem #F5F1EA, biru denim #1E3A5F (aksen utama), #2E5D8F / #5A8BBF / #7FA8CF (variasi denim), abu #8A857C, border #E7E0D6. JANGAN pakai oranye/hijau tua/ink #1c1c1c sebagai aksen.
+- Liquid glass: komponen GlassCard (frosted: blur + gradien putih transparan + border tipis). Kartu utama di semua halaman memakai GlassCard, bukan Card polos.
+- PillTabs - tab pil: 2 menu -> satu baris dibagi 2, 3 menu -> dibagi 3, 4+ -> bisa di-slide samping (otomatis: tabs.length <= 3 pakai Row Expanded).
+- GlassNavBar - bottom nav kaca: 4 ikon (Riwayat, Stok, Laporan, Lainnya) + FAB tengah ikon keranjang (tab Kasir). Mapping slot: 0->tab1, 1->tab2, 2->tab0, 3->tab3, 4->tab4. PosPage.requestTab dipakai halaman lain untuk pindah tab (mis. Dashboard -> Kasir).
+- SoftBlobs - blob dekoratif denim di latar halaman.
+- BrandLogo - logo toko dari store_settings.store_logo (cache SharedPreferences kunci pos_store_logo), fallback ikon keranjang.
+- UI responsif: main.dart membungkus app dengan skala berbasis design 390x844 (Transform.scale, clamp 0.8-1.35) supaya di HP kecil UI mengecil.
+
+### Halaman & fitur mobile
+- Splash (splash_page.dart): tampil sebentar lalu otomatis ke Login (tanpa tombol/tagline).
+- Login: field Email / Username (backend terima username ATAU email), Password/PIN, tombol Login.
+- POS/Kasir (pos_page.dart):
+  - Grid produk 3 kolom; kartu: nama kiri + harga kanan satu baris, font kecil, varian/stok di bawah.
+  - Header accordion _PosHeaderRow: Toko/Gudang di kiri & Cari di kanan satu baris; klik salah satu -> memanjang menutup yang lain; dropdown Gudang muncul saat Toko/Gudang terekspansi.
+  - Owner bisa pilih Toko/Gudang tujuan input (_posBranchId); ganti cabang -> keranjang dikosongkan & data di-reload.
+  - Qty keranjang bisa diketik keyboard (_QtyInput) + tombol -/+; nama+harga satu baris.
+  - Pemilih varian (variant_picker.dart): qty juga bisa diketik (_QtyField).
+  - Transaksi offline: saat gagal jaringan (SocketException/Timeout/ClientException) -> simpan ke OfflineStore (sqflite anyostore_offline.db), nomor sementara OFF-<branch>-<ts>, harga ikut HP, stok negatif diizinkan, auto-sync via syncOfflineTransactions() saat app dibuka + halaman Antrean Offline (menu Lainnya). Backend menerima offline:true + offline_invoice_no di POST /api/transactions (skip tier/promo, total ikut klien); nomor resmi dibuat server saat sync, nomor sementara tersimpan di kolom transactions.offline_invoice_no dan tetap bisa dicari di Riwayat.
+- Riwayat: kartu glass, status chip, filter Rentang/Status/Cari satu gaya dengan Laporan.
+- Dashboard (dashboard_page.dart): mengikuti wireframe POS Dashboard Overview - pill rentang Hari ini/7 Hari/Bulan Ini, 4 kartu stat (Penjualan, Pengeluaran, Laba Bersih, Margin), grafik batang Penjualan 7 Hari (ketuk batang -> tooltip nilai), Transaksi Terakhir, tombol Mulai Kasir.
+- Laporan: Ringkasan/Penjualan/Penutupan/PPN; Cetak Penutupan (struk thermal via printer tersimpan); kartu diberi jarak antar-kartu.
+- Keuangan: kartu LABA RUGI HARI INI (blok gelap denim, angka besar di tengah, Pendapatan/Pengeluaran/Pemasukan sejajar).
+- Pengaturan: kartu Ganti Logo Aplikasi (key store_logo) & Logo Toko/Kepala Invoice (key invoice_logo) via POST /api/settings/logo-data (body: content_type, filename, data_url, key); Printer Thermal - pilih printer sekali -> tersimpan (SharedPreferences pos_saved_printer_*) -> semua cetak (struk, barcode, penutupan) langsung pakai tanpa scan ulang (printNow/printReceiptNow di printer_setup.dart), ada Uji Cetak & Hapus.
+- Komisi: tab Saya/Aturan/Catatan/Laporan; migrasi menambah aturan default global "Komisi per pcs (default)" (Reguler 3000, Semi 3000, Grosir Seri 1000 per pcs, branch_id NULL) kalau belum ada; perhitungan live dari transaksi per pegawai.
+- Menu Lainnya: grup menu (UTAMA/AKUN & TOKO/PRODUK & INVENTORI/TRANSAKSI & KEUANGAN), tile Jenis Pelanggan (buka CustomersPage), Antrean Offline dengan badge jumlah.
+
+### Backend tambahan
+- transactions.js: mode offline (harga/total ikut HP, allow_negative_stock, offline_invoice_no), search riwayat mencakup offline_invoice_no.
+- settings.js: /logo-data menerima key (store_logo | invoice_logo).
+- users.js + auth.js: login pakai email ATAU username; CRUD pegawai punya field username (unik, 3-50, lowercase).
+- Migrasi baru: 20260812_user_username.sql, 20260812_offline_transaction_sync.sql, 20260812_default_commission_rules.sql.
+
+### Web
+- Web sengaja tetap desain lama (hanya login web yang pernah diubah lalu di-revert; fokus pengembangan di Android). Backend yang sama membuat web otomatis mendukung login username/email dan fitur backend lainnya.
 
 ## Perintah
 
