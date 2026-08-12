@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'api_client.dart';
 import 'format.dart';
+import 'task_ui.dart';
 
 class ReportsPage extends StatefulWidget {
   const ReportsPage({super.key, required this.api});
@@ -75,20 +76,25 @@ class _ReportsPageState extends State<ReportsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return ColoredBox(
+      color: const Color(0xffF5F1EA),
+      child: Stack(
+        children: [
+          const Positioned.fill(child: SoftBlobs()),
+          Column(
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-          child: SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'ringkasan', label: Text('Ringkasan')),
-              ButtonSegment(value: 'penjualan', label: Text('Penjualan')),
-              ButtonSegment(value: 'penutupan', label: Text('Penutupan')),
-              ButtonSegment(value: 'ppn', label: Text('PPN')),
+          child: PillTabs(
+            tabs: const [
+              (value: 'ringkasan', icon: Icons.dashboard_outlined, label: 'Ringkasan'),
+              (value: 'penjualan', icon: Icons.trending_up, label: 'Penjualan'),
+              (value: 'penutupan', icon: Icons.event_available, label: 'Penutupan'),
+              (value: 'ppn', icon: Icons.receipt, label: 'PPN'),
             ],
-            selected: {_section},
-            onSelectionChanged: (s) {
-              setState(() => _section = s.first);
+            selected: _section,
+            onChanged: (v) {
+              setState(() => _section = v);
               _load();
             },
           ),
@@ -127,8 +133,11 @@ class _ReportsPageState extends State<ReportsPage> {
             ],
           ),
         ),
-        Expanded(child: _buildBody()),
-      ],
+          Expanded(child: _buildBody()),
+        ],
+      ),
+        ],
+      ),
     );
   }
 

@@ -14,6 +14,7 @@ import 'history_tab.dart';
 import 'payment_sheet.dart';
 import 'printer_setup.dart';
 import 'variant_picker.dart';
+import 'task_ui.dart';
 
 class CartItem {
   CartItem({
@@ -474,18 +475,25 @@ class _PosPageState extends State<PosPage> {
         ],
       ),
       body: IndexedStack(index: _tab, children: pages),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab,
-        onDestinationSelected: (i) => setState(() => _tab = i),
-        destinations: const [
-          NavigationDestination(
-              icon: Icon(Icons.point_of_sale), label: 'Kasir'),
-          NavigationDestination(
-              icon: Icon(Icons.receipt_long), label: 'Riwayat'),
-          NavigationDestination(icon: Icon(Icons.storefront), label: 'Transaksi'),
-          NavigationDestination(icon: Icon(Icons.payments), label: 'Laci Kas'),
-          NavigationDestination(
-              icon: Icon(Icons.dashboard), label: 'Dashboard'),
+      bottomNavigationBar: GlassNavBar(
+        current: switch (_tab) {
+          0 => 2,
+          1 => 0,
+          2 => 1,
+          _ => _tab,
+        },
+        onSelect: (i) => setState(() => _tab = switch (i) {
+          0 => 1,
+          1 => 2,
+          2 => 0,
+          _ => i,
+        }),
+        items: const [
+          (icon: Icons.receipt_long_outlined, activeIcon: Icons.receipt_long, label: 'Riwayat'),
+          (icon: Icons.inventory_2_outlined, activeIcon: Icons.inventory_2, label: 'Stok'),
+          (icon: Icons.add, activeIcon: Icons.add, label: 'Kasir'),
+          (icon: Icons.bar_chart_outlined, activeIcon: Icons.bar_chart, label: 'Laporan'),
+          (icon: Icons.more_horiz, activeIcon: Icons.more_horiz, label: 'Lainnya'),
         ],
       ),
     );

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'api_client.dart';
 import 'format.dart';
 import 'printer_service.dart';
+import 'task_ui.dart';
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage(
@@ -22,20 +23,25 @@ class _InventoryPageState extends State<InventoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return ColoredBox(
+      color: const Color(0xffF5F1EA),
+      child: Stack(
+        children: [
+          const Positioned.fill(child: SoftBlobs()),
+          Column(
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-          child: SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'stok', label: Text('Stok')),
-              ButtonSegment(value: 'mutasi', label: Text('Mutasi')),
-              ButtonSegment(value: 'transfer', label: Text('Transfer')),
-              ButtonSegment(value: 'opname', label: Text('Opname')),
-              ButtonSegment(value: 'barcode', label: Text('Barcode')),
+          child: PillTabs(
+            tabs: const [
+              (value: 'stok', icon: Icons.inventory_2, label: 'Stok'),
+              (value: 'mutasi', icon: Icons.swap_vert, label: 'Mutasi'),
+              (value: 'transfer', icon: Icons.swap_horiz, label: 'Transfer'),
+              (value: 'opname', icon: Icons.fact_check, label: 'Opname'),
+              (value: 'barcode', icon: Icons.qr_code_scanner, label: 'Barcode'),
             ],
-            selected: {_section},
-            onSelectionChanged: (s) => setState(() => _section = s.first),
+            selected: _section,
+            onChanged: (v) => setState(() => _section = v),
           ),
         ),
         Expanded(
@@ -56,6 +62,9 @@ class _InventoryPageState extends State<InventoryPage> {
           },
         ),
       ],
+      ),
+        ],
+      ),
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'api_client.dart';
 import 'format.dart';
 import 'printer_setup.dart';
+import 'task_ui.dart';
 
 class HistoryTab extends StatefulWidget {
   const HistoryTab({super.key, required this.api, required this.role});
@@ -455,22 +456,25 @@ class _HistoryTabState extends State<HistoryTab> {
   Widget build(BuildContext context) {
     return ColoredBox(
       color: const Color(0xffF5F1EA),
-      child: Column(
+      child: Stack(
+        children: [
+          const Positioned.fill(child: SoftBlobs()),
+          Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-            child: SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'transaksi', label: Text('Transaksi')),
-              ButtonSegment(value: 'retur', label: Text('Retur')),
-            ],
-            selected: {_section},
-            onSelectionChanged: (s) {
-              setState(() => _section = s.first);
-              _load();
-            },
+            padding: const EdgeInsets.only(top: 12),
+            child: PillTabs(
+              tabs: const [
+                (value: 'transaksi', icon: Icons.receipt_long, label: 'Transaksi'),
+                (value: 'retur', icon: Icons.assignment_return, label: 'Retur'),
+              ],
+              selected: _section,
+              onChanged: (v) {
+                setState(() => _section = v);
+                _load();
+              },
+            ),
           ),
-        ),
         if (_section == 'transaksi')
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
@@ -532,7 +536,9 @@ class _HistoryTabState extends State<HistoryTab> {
               ],
             ),
           ),
-          Expanded(child: _buildBody()),
+            Expanded(child: _buildBody()),
+          ],
+        ),
         ],
       ),
     );
