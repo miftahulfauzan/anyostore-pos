@@ -98,7 +98,7 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
           const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       enabledBorder: border,
       focusedBorder: border.copyWith(
-          borderSide: const BorderSide(color: Color(0xff213F33), width: 1.4)),
+          borderSide: const BorderSide(color: Color(0xff1E3A5F), width: 1.4)),
     );
   }
 
@@ -153,7 +153,7 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
                     : () => _run(() => widget.api.cashDrawerInOut(
                         _moveType, _num(_moveAmount), _moveReason.text.trim())),
                 style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xff213F33),
+                    backgroundColor: const Color(0xff1E3A5F),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(28))),
@@ -180,7 +180,7 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
                     : () => _run(() => widget.api.cashDrawerClose(
                         _num(_closeAmount), _closeNotes.text.trim())),
                 style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xff213F33),
+                    backgroundColor: const Color(0xff1E3A5F),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(28))),
@@ -205,7 +205,7 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
                     : () => _run(
                         () => widget.api.cashDrawerOpen(_num(_openAmount))),
                 style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xff213F33),
+                    backgroundColor: const Color(0xff1E3A5F),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(28))),
@@ -245,7 +245,7 @@ class _Card extends StatelessWidget {
                 style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xff213F33))),
+                    color: Color(0xff1E3A5F))),
             const SizedBox(height: 12),
             ...children,
           ],
@@ -270,7 +270,7 @@ class _Row extends StatelessWidget {
                 style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xff213F33))),
+                    color: Color(0xff1E3A5F))),
           ],
         ),
       );

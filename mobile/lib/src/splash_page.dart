@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'login_page.dart';
 
-const _kInk = Color(0xff1c1c1c);
+const _kInk = Color(0xff1E3A5F);
 const _kMuted = Color(0xff5f5f5d);
 const _kBorder = Color(0xffeceae4);
 

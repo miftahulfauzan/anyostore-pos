@@ -19,7 +19,7 @@ Future<void> main() async {
 }
 
 ThemeData _buildTheme() {
-  const seed = Color(0xff213F33);
+  const seed = Color(0xff1E3A5F);
   final scheme = ColorScheme.fromSeed(
     seedColor: seed,
     brightness: Brightness.light,
@@ -37,7 +37,7 @@ ThemeData _buildTheme() {
       scrolledUnderElevation: 0,
       centerTitle: false,
       titleTextStyle: TextStyle(
-          fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xff213F33)),
+          fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xff1E3A5F)),
     ),
     cardTheme: CardThemeData(
       elevation: 0,
@@ -105,7 +105,7 @@ ThemeData _buildTheme() {
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: const Color(0xff213F33),
+      backgroundColor: const Color(0xff1E3A5F),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
   );

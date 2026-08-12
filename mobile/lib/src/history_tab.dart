@@ -448,7 +448,7 @@ class _HistoryTabState extends State<HistoryTab> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       enabledBorder: border,
       focusedBorder: border.copyWith(
-          borderSide: const BorderSide(color: Color(0xff213F33), width: 1.4)),
+          borderSide: const BorderSide(color: Color(0xff1E3A5F), width: 1.4)),
     );
   }
 
@@ -478,60 +478,65 @@ class _HistoryTabState extends State<HistoryTab> {
         if (_section == 'transaksi')
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
+            child: Column(
               children: [
-                SizedBox(
-                  width: 240,
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _preset,
-                    decoration: _dec('Rentang'),
-                    items: const [
-                      DropdownMenuItem(value: 'today', child: Text('Hari ini')),
-                      DropdownMenuItem(value: '7d', child: Text('7 hari')),
-                      DropdownMenuItem(value: '30d', child: Text('30 hari')),
-                      DropdownMenuItem(value: 'all', child: Text('Semua')),
-                    ],
-                    onChanged: (v) {
-                      setState(() => _preset = v ?? 'today');
-                      _load();
-                    },
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _preset,
+                        decoration: _dec('Rentang'),
+                        items: const [
+                          DropdownMenuItem(
+                              value: 'today', child: Text('Hari ini')),
+                          DropdownMenuItem(
+                              value: '7d', child: Text('7 hari')),
+                          DropdownMenuItem(
+                              value: '30d', child: Text('30 hari')),
+                          DropdownMenuItem(
+                              value: 'all', child: Text('Semua')),
+                        ],
+                        onChanged: (v) {
+                          setState(() => _preset = v ?? 'today');
+                          _load();
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _status,
+                        decoration: _dec('Status'),
+                        items: const [
+                          DropdownMenuItem(
+                              value: '', child: Text('Semua status')),
+                          DropdownMenuItem(
+                              value: 'completed', child: Text('Completed')),
+                          DropdownMenuItem(
+                              value: 'partially_cancelled',
+                              child: Text('Sebagian dibatalkan')),
+                          DropdownMenuItem(
+                              value: 'cancelled',
+                              child: Text('Dibatalkan')),
+                          DropdownMenuItem(
+                              value: 'refunded', child: Text('Refunded')),
+                        ],
+                        onChanged: (v) {
+                          setState(() => _status = v ?? '');
+                          _load();
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(
-                  width: 240,
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _status,
-                    decoration: _dec('Status'),
-                    items: const [
-                      DropdownMenuItem(value: '', child: Text('Semua status')),
-                      DropdownMenuItem(
-                          value: 'completed', child: Text('Completed')),
-                      DropdownMenuItem(
-                          value: 'partially_cancelled',
-                          child: Text('Sebagian dibatalkan')),
-                      DropdownMenuItem(
-                          value: 'cancelled', child: Text('Dibatalkan')),
-                      DropdownMenuItem(
-                          value: 'refunded', child: Text('Refunded')),
-                    ],
-                    onChanged: (v) {
-                      setState(() => _status = v ?? '');
-                      _load();
-                    },
-                  ),
-                ),
-                SizedBox(
-                  width: 240,
-                  child: TextField(
-                    controller: _search,
-                    decoration: _dec('Cari invoice / nama', hint: true),
-                    onSubmitted: (_) {
-                      _page = 1;
-                      _load();
-                    },
-                  ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _search,
+                  decoration: _dec('Cari invoice / nama', hint: true),
+                  onSubmitted: (_) {
+                    _page = 1;
+                    _load();
+                  },
                 ),
               ],
             ),
@@ -574,8 +579,8 @@ class _HistoryTabState extends State<HistoryTab> {
           final status = row['status']?.toString() ?? '';
           return _TxCard(
             icon: Icons.assignment_return,
-            iconBg: const Color(0xffF7E8DD),
-            iconFg: const Color(0xffD47E4D),
+            iconBg: const Color(0xffE3EAF2),
+            iconFg: const Color(0xff2E5D8F),
             title: row['return_no']?.toString() ?? '-',
             subtitle: '${row['invoice_no'] ?? ''} · ${row['created_at'] ?? ''}',
             trailing: fmtRp(asNum(row['refund_amount'])),
@@ -584,7 +589,7 @@ class _HistoryTabState extends State<HistoryTab> {
                 ? TextButton(
                     onPressed: () => _approveReturn(row),
                     style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xff213F33)),
+                        foregroundColor: const Color(0xff1E3A5F)),
                     child: const Text('Setujui'),
                   )
                 : null,
@@ -632,8 +637,8 @@ class _HistoryTabState extends State<HistoryTab> {
           final status = (row['status'] ?? '').toString();
           return _TxCard(
             icon: Icons.receipt,
-            iconBg: const Color(0xffE4EDE8),
-            iconFg: const Color(0xff213F33),
+            iconBg: const Color(0xffE3EAF2),
+            iconFg: const Color(0xff1E3A5F),
             title: row['invoice_no']?.toString() ?? '-',
             subtitle:
                 '${row['created_at'] ?? ''} · ${(row['payment_method'] ?? '').toString().toUpperCase()}'
@@ -701,7 +706,7 @@ class _TxCard extends StatelessWidget {
                         style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xff213F33))),
+                            color: Color(0xff1E3A5F))),
                     const SizedBox(height: 3),
                     Text(subtitle,
                         maxLines: 2,
@@ -719,7 +724,7 @@ class _TxCard extends StatelessWidget {
                       style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xff213F33))),
+                          color: Color(0xff1E3A5F))),
                   if (status != null && status!.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     _StatusChip(status!),
@@ -742,11 +747,11 @@ class _StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, bg, fg) = switch (status) {
-      'completed' => ('Selesai', const Color(0xffE4EDE8), const Color(0xff213F33)),
-      'pending' => ('Menunggu', const Color(0xffF7E8DD), const Color(0xffD47E4D)),
-      'partially_cancelled' => ('Sebagian dibatalkan', const Color(0xffF0EBE2), const Color(0xff8A857C)),
+      'completed' => ('Selesai', const Color(0xffE3EAF2), const Color(0xff1E3A5F)),
+      'pending' => ('Menunggu', const Color(0xffE3EAF2), const Color(0xff2E5D8F)),
+      'partially_cancelled' => ('Sebagian dibatalkan', const Color(0xffE6ECF3), const Color(0xff8A857C)),
       'cancelled' => ('Dibatalkan', const Color(0xffF3DDD8), const Color(0xffB0563A)),
-      _ => (status, const Color(0xffF0EBE2), const Color(0xff8A857C)),
+      _ => (status, const Color(0xffE6ECF3), const Color(0xff8A857C)),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

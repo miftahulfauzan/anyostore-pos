@@ -7,9 +7,9 @@ import 'format.dart';
 import 'pos_page.dart';
 
 const _kBg = Color(0xffF5F1EA);
-const _kDark = Color(0xff213F33);
-const _kOrange = Color(0xffD47E4D);
-const _kTeal = Color(0xff86B9AB);
+const _kDark = Color(0xff1E3A5F);
+const _kOrange = Color(0xff2E5D8F);
+const _kTeal = Color(0xff7FA8CF);
 const _kGray = Color(0xff8A857C);
 
 class DashboardPage extends StatefulWidget {
@@ -170,13 +170,13 @@ class _DashboardPageState extends State<DashboardPage> {
                       '${summary['today_transactions'] ?? 0}',
                       Icons.receipt_long,
                       _kDark,
-                      const Color(0xffE4EDE8)),
+                      const Color(0xffE3EAF2)),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: _overviewCard('Pengeluaran', expenses,
                       Icons.account_balance_wallet, _kOrange,
-                      const Color(0xffF7E8DD)),
+                      const Color(0xffE3EAF2)),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -214,7 +214,7 @@ class _DashboardPageState extends State<DashboardPage> {
                               width: 34,
                               height: 34,
                               decoration: BoxDecoration(
-                                color: const Color(0xffF0EBE2),
+                                color: const Color(0xffE6ECF3),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Icon(Icons.receipt,

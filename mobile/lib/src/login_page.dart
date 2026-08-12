@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'auth_store.dart';
 
 const _kBg = Color(0xfff7f4ed);
-const _kInk = Color(0xff1c1c1c);
+const _kInk = Color(0xff1E3A5F);
 const _kMuted = Color(0xff5f5f5d);
 const _kBorder = Color(0xffeceae4);
 const _kField = Color(0xfff8fafc);
@@ -103,7 +103,7 @@ class _LoginPageState extends State<LoginPage> {
                     width: 48,
                     height: 48,
                     decoration: const BoxDecoration(
-                      color: Color(0x0d1c1c1c),
+                      color: Color(0x141E3A5F),
                       borderRadius: BorderRadius.all(Radius.circular(12)),
                       border: Border(
                         top: BorderSide(color: _kBorder),
@@ -151,7 +151,7 @@ class _LoginPageState extends State<LoginPage> {
                         border: Border.all(color: _kBorder),
                         boxShadow: const [
                           BoxShadow(
-                              color: Color(0x0d1c1c1c),
+                              color: Color(0x141E3A5F),
                               blurRadius: 24,
                               offset: Offset(0, 10))
                         ],

@@ -3,10 +3,10 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 
 const kTaskBg = Color(0xffF5F1EA);
-const kTaskDark = Color(0xff213F33);
-const kTaskOrange = Color(0xffD47E4D);
-const kTaskOrangeLight = Color(0xffF4A261);
-const kTaskPurple = Color(0xff9D4EDD);
+const kTaskDark = Color(0xff1E3A5F);
+const kTaskOrange = Color(0xff2E5D8F);
+const kTaskOrangeLight = Color(0xff5A8BBF);
+const kTaskPurple = Color(0xff3B6EA5);
 const kTaskGray = Color(0xff8A857C);
 const kTaskBorder = Color(0xffE7E0D6);
 
@@ -188,12 +188,16 @@ class GlassNavBar extends StatelessWidget {
                   ],
                   border: Border.all(color: Colors.white, width: 4),
                 ),
-                child: const Text('POS',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.4)),
+                child: const Center(
+                  child: FittedBox(
+                    child: Text('POS',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.4)),
+                  ),
+                ),
               ),
             ),
           ),

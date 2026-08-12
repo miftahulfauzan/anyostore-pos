@@ -12,7 +12,7 @@ import 'promotions_page.dart';
 import 'settings_page.dart';
 import 'users_page.dart';
 
-const _kInk = Color(0xff1c1c1c);
+const _kInk = Color(0xff1E3A5F);
 const _kMuted = Color(0xff5f5f5d);
 const _kBorder = Color(0xffeceae4);
 
@@ -58,7 +58,7 @@ class MorePage extends StatelessWidget {
                 height: 56,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: const Color(0x0d1c1c1c),
+                  color: const Color(0x141E3A5F),
                   shape: BoxShape.circle,
                   border: Border.all(color: _kInk, width: 1.5),
                 ),
@@ -99,29 +99,29 @@ class MorePage extends StatelessWidget {
           ),
           child: Column(
             children: [
-              _row(Icons.dashboard, 'Dashboard', const Color(0x0d1c1c1c),
+              _row(Icons.dashboard, 'Dashboard', const Color(0x141E3A5F),
                   _kInk, () => _open(context, 'Dashboard', DashboardPage(api: api))),
               _divider(),
               _row(Icons.people, 'Transaksi', const Color(0xfff0ebe1),
-                  const Color(0xff5c4d3c), () => _open(context, 'Transaksi', CustomersPage(api: api))),
+                  const Color(0xff2E5D8F), () => _open(context, 'Transaksi', CustomersPage(api: api))),
               _divider(),
               _row(Icons.payments, 'Laci Kas', const Color(0xffe8f0e9),
-                  const Color(0xff2d5238), () => _open(context, 'Laci Kas', CashDrawerPage(api: api))),
+                  const Color(0xff1E3A5F), () => _open(context, 'Laci Kas', CashDrawerPage(api: api))),
               _divider(),
-              _row(Icons.settings, 'Pengaturan', const Color(0x0d1c1c1c),
+              _row(Icons.settings, 'Pengaturan', const Color(0x141E3A5F),
                   _kInk, () => _open(context, 'Pengaturan', SettingsPage(api: api))),
               _divider(),
               _row(Icons.badge, 'Pegawai', const Color(0xffe8f0e9),
-                  const Color(0xff2d5238), () => _open(context, 'Pegawai', UsersPage(api: api, branchId: branchId, role: role))),
+                  const Color(0xff1E3A5F), () => _open(context, 'Pegawai', UsersPage(api: api, branchId: branchId, role: role))),
               _divider(),
               _row(Icons.payments_outlined, 'Komisi', const Color(0xfff0ebe1),
-                  const Color(0xff5c4d3c), () => _open(context, 'Komisi', CommissionsPage(api: api, branchId: branchId, role: role))),
+                  const Color(0xff2E5D8F), () => _open(context, 'Komisi', CommissionsPage(api: api, branchId: branchId, role: role))),
               _divider(),
-              _row(Icons.local_offer, 'Promo', const Color(0x0d1c1c1c),
+              _row(Icons.local_offer, 'Promo', const Color(0x141E3A5F),
                   _kInk, () => _open(context, 'Promo', PromotionsPage(api: api))),
               _divider(),
               _row(Icons.account_balance_wallet, 'Keuangan',
-                  const Color(0xffe8f0e9), const Color(0xff2d5238),
+                  const Color(0xffe8f0e9), const Color(0xff1E3A5F),
                   () => _open(context, 'Keuangan', FinancePage(api: api))),
             ],
           ),

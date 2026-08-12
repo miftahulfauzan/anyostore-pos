@@ -75,7 +75,7 @@ class _CustomersPageState extends State<CustomersPage> {
                       style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xff1c1c1c))),
+                          color: Color(0xff1E3A5F))),
                   const SizedBox(height: 4),
                   const Text('Lengkapi data pelanggan di bawah ini.',
                       style: TextStyle(fontSize: 12, color: Color(0xff5f5f5d))),
@@ -131,7 +131,7 @@ class _CustomersPageState extends State<CustomersPage> {
                           onPressed: () => Navigator.pop(ctx, true),
                           style: FilledButton.styleFrom(
                             minimumSize: const Size(0, 46),
-                            backgroundColor: const Color(0xff213F33),
+                            backgroundColor: const Color(0xff1E3A5F),
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
@@ -228,7 +228,7 @@ class _CustomersPageState extends State<CustomersPage> {
           const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       enabledBorder: border,
       focusedBorder: border.copyWith(
-          borderSide: const BorderSide(color: Color(0xff1c1c1c), width: 1.4)),
+          borderSide: const BorderSide(color: Color(0xff1E3A5F), width: 1.4)),
     );
   }
 

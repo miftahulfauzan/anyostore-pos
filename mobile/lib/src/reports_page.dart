@@ -120,7 +120,7 @@ class _ReportsPageState extends State<ReportsPage> {
                       focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: const BorderSide(
-                              color: Color(0xff213F33), width: 1.4))),
+                              color: Color(0xff1E3A5F), width: 1.4))),
                   items: const [
                     DropdownMenuItem(value: 'today', child: Text('Hari ini')),
                     DropdownMenuItem(value: '7d', child: Text('7 hari')),
@@ -311,7 +311,7 @@ class _Card extends StatelessWidget {
                 style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xff1c1c1c))),
+                    color: Color(0xff1E3A5F))),
             const SizedBox(height: 12),
             ...rows,
           ],
@@ -337,7 +337,7 @@ class _Row extends StatelessWidget {
                 style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xff1c1c1c))),
+                    color: Color(0xff1E3A5F))),
           ],
         ),
       );
