@@ -440,12 +440,11 @@ class _HistoryTabState extends State<HistoryTab> {
       borderSide: const BorderSide(color: Color(0xffE7E0D6)),
     );
     return InputDecoration(
-      isDense: true,
       labelText: hint ? null : label,
       hintText: hint ? label : null,
       filled: true,
       fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       enabledBorder: border,
       focusedBorder: border.copyWith(
           borderSide: const BorderSide(color: Color(0xff1E3A5F), width: 1.4)),

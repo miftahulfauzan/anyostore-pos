@@ -107,12 +107,11 @@ class _ReportsPageState extends State<ReportsPage> {
                 child: DropdownButtonFormField<String>(
                   initialValue: _preset,
                   decoration: InputDecoration(
-                      isDense: true,
                       labelText: 'Rentang',
                       filled: true,
                       fillColor: Colors.white,
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
+                          horizontal: 14, vertical: 14),
                       enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide:
