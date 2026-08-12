@@ -433,13 +433,33 @@ class _HistoryTabState extends State<HistoryTab> {
     }
   }
 
+  InputDecoration _dec(String label, {bool hint = false}) {
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(color: Color(0xffE7E0D6)),
+    );
+    return InputDecoration(
+      isDense: true,
+      labelText: hint ? null : label,
+      hintText: hint ? label : null,
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      enabledBorder: border,
+      focusedBorder: border.copyWith(
+          borderSide: const BorderSide(color: Color(0xff213F33), width: 1.4)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-          child: SegmentedButton<String>(
+    return ColoredBox(
+      color: const Color(0xffF5F1EA),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            child: SegmentedButton<String>(
             segments: const [
               ButtonSegment(value: 'transaksi', label: Text('Transaksi')),
               ButtonSegment(value: 'retur', label: Text('Retur')),
@@ -462,10 +482,7 @@ class _HistoryTabState extends State<HistoryTab> {
                   width: 240,
                   child: DropdownButtonFormField<String>(
                     initialValue: _preset,
-                    decoration: const InputDecoration(
-                        isDense: true,
-                        labelText: 'Rentang',
-                        border: OutlineInputBorder()),
+                    decoration: _dec('Rentang'),
                     items: const [
                       DropdownMenuItem(value: 'today', child: Text('Hari ini')),
                       DropdownMenuItem(value: '7d', child: Text('7 hari')),
@@ -482,10 +499,7 @@ class _HistoryTabState extends State<HistoryTab> {
                   width: 240,
                   child: DropdownButtonFormField<String>(
                     initialValue: _status,
-                    decoration: const InputDecoration(
-                        isDense: true,
-                        labelText: 'Status',
-                        border: OutlineInputBorder()),
+                    decoration: _dec('Status'),
                     items: const [
                       DropdownMenuItem(value: '', child: Text('Semua status')),
                       DropdownMenuItem(
@@ -508,10 +522,7 @@ class _HistoryTabState extends State<HistoryTab> {
                   width: 240,
                   child: TextField(
                     controller: _search,
-                    decoration: const InputDecoration(
-                        isDense: true,
-                        hintText: 'Cari invoice / nama',
-                        border: OutlineInputBorder()),
+                    decoration: _dec('Cari invoice / nama', hint: true),
                     onSubmitted: (_) {
                       _page = 1;
                       _load();
@@ -521,8 +532,9 @@ class _HistoryTabState extends State<HistoryTab> {
               ],
             ),
           ),
-        Expanded(child: _buildBody()),
-      ],
+          Expanded(child: _buildBody()),
+        ],
+      ),
     );
   }
 
@@ -554,27 +566,22 @@ class _HistoryTabState extends State<HistoryTab> {
         itemBuilder: (_, i) {
           final row = _returns[i];
           final status = row['status']?.toString() ?? '';
-          return Card(
-            child: ListTile(
-              leading: const CircleAvatar(child: Icon(Icons.assignment_return)),
-              title: Text(row['return_no']?.toString() ?? '-',
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: Text(
-                  '${row['invoice_no'] ?? ''} · ${row['created_at'] ?? ''}\nStatus: $status'),
-              trailing: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(fmtRp(asNum(row['refund_amount'])),
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
-                  if (_canApprove && status == 'pending')
-                    TextButton(
-                      onPressed: () => _approveReturn(row),
-                      child: const Text('Setujui'),
-                    ),
-                ],
-              ),
-            ),
+          return _TxCard(
+            icon: Icons.assignment_return,
+            iconBg: const Color(0xffF7E8DD),
+            iconFg: const Color(0xffD47E4D),
+            title: row['return_no']?.toString() ?? '-',
+            subtitle: '${row['invoice_no'] ?? ''} · ${row['created_at'] ?? ''}',
+            trailing: fmtRp(asNum(row['refund_amount'])),
+            status: status,
+            extra: _canApprove && status == 'pending'
+                ? TextButton(
+                    onPressed: () => _approveReturn(row),
+                    style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xff213F33)),
+                    child: const Text('Setujui'),
+                  )
+                : null,
           );
         },
       );
@@ -616,21 +623,133 @@ class _HistoryTabState extends State<HistoryTab> {
             );
           }
           final row = _rows[i];
-          return Card(
-            child: ListTile(
-              leading: const CircleAvatar(child: Icon(Icons.receipt)),
-              title: Text(row['invoice_no']?.toString() ?? '-',
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: Text(
-                  '${row['created_at'] ?? ''} · ${(row['payment_method'] ?? '').toString().toUpperCase()}'
-                  '${row['cashier'] != null && (row['cashier'] as String).isNotEmpty ? ' · Kasir: ${row['cashier']}' : ''}'),
-              trailing: Text(fmtRp(asNum(row['grand_total'])),
-                  style: const TextStyle(fontWeight: FontWeight.w800)),
-              onTap: () => _openDetail(row),
-            ),
+          final status = (row['status'] ?? '').toString();
+          return _TxCard(
+            icon: Icons.receipt,
+            iconBg: const Color(0xffE4EDE8),
+            iconFg: const Color(0xff213F33),
+            title: row['invoice_no']?.toString() ?? '-',
+            subtitle:
+                '${row['created_at'] ?? ''} · ${(row['payment_method'] ?? '').toString().toUpperCase()}'
+                '${row['cashier'] != null && (row['cashier'] as String).isNotEmpty ? ' · Kasir: ${row['cashier']}' : ''}',
+            trailing: fmtRp(asNum(row['grand_total'])),
+            status: status,
+            onTap: () => _openDetail(row),
           );
         },
       ),
+    );
+  }
+}
+
+class _TxCard extends StatelessWidget {
+  const _TxCard(
+      {required this.icon,
+      required this.iconBg,
+      required this.iconFg,
+      required this.title,
+      required this.subtitle,
+      required this.trailing,
+      this.status,
+      this.extra,
+      this.onTap});
+  final IconData icon;
+  final Color iconBg;
+  final Color iconFg;
+  final String title;
+  final String subtitle;
+  final String trailing;
+  final String? status;
+  final Widget? extra;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(icon, size: 20, color: iconFg),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xff213F33))),
+                    const SizedBox(height: 3),
+                    Text(subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 10, color: Color(0xff8A857C))),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(trailing,
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xff213F33))),
+                  if (status != null && status!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    _StatusChip(status!),
+                  ],
+                  if (extra != null) extra!,
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip(this.status);
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, bg, fg) = switch (status) {
+      'completed' => ('Selesai', const Color(0xffE4EDE8), const Color(0xff213F33)),
+      'pending' => ('Menunggu', const Color(0xffF7E8DD), const Color(0xffD47E4D)),
+      'partially_cancelled' => ('Sebagian dibatalkan', const Color(0xffF0EBE2), const Color(0xff8A857C)),
+      'cancelled' => ('Dibatalkan', const Color(0xffF3DDD8), const Color(0xffB0563A)),
+      _ => (status, const Color(0xffF0EBE2), const Color(0xff8A857C)),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(label,
+          style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: fg)),
     );
   }
 }

@@ -40,6 +40,8 @@ class CartItem {
 }
 
 class PosPage extends StatefulWidget {
+  /// Tab yang diminta halaman lain (misal Dashboard -> Kasir).
+  static final ValueNotifier<int> requestTab = ValueNotifier<int>(0);
   const PosPage({super.key});
 
   @override
@@ -76,14 +78,20 @@ class _PosPageState extends State<PosPage> {
   void initState() {
     super.initState();
     _api = context.read<AuthStore>().api;
+    PosPage.requestTab.addListener(_onExternalTab);
     _loadData();
   }
 
   @override
   void dispose() {
     _previewTimer?.cancel();
+    PosPage.requestTab.removeListener(_onExternalTab);
     _search.dispose();
     super.dispose();
+  }
+
+  void _onExternalTab() {
+    if (mounted) setState(() => _tab = PosPage.requestTab.value);
   }
 
   String _mediaUrl(String? path) => path == null || path.isEmpty

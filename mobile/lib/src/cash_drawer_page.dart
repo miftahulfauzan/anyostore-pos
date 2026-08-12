@@ -87,7 +87,7 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
   InputDecoration _dec(String label, {String? prefix}) {
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: Color(0xffe2e8f0)),
+      borderSide: const BorderSide(color: Color(0xffE7E0D6)),
     );
     return InputDecoration(
       labelText: label,
@@ -98,7 +98,7 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
           const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       enabledBorder: border,
       focusedBorder: border.copyWith(
-          borderSide: const BorderSide(color: Color(0xff1c1c1c), width: 1.4)),
+          borderSide: const BorderSide(color: Color(0xff213F33), width: 1.4)),
     );
   }
 
@@ -107,9 +107,11 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
     if (_loading) return const Center(child: CircularProgressIndicator());
     final open = _drawer?['status'] == 'open';
 
-    return ListView(
-      padding: const EdgeInsets.all(12),
-      children: [
+    return ColoredBox(
+      color: const Color(0xffF5F1EA),
+      child: ListView(
+        padding: const EdgeInsets.all(12),
+        children: [
         if (open && _drawer != null) ...[
           _Card(
             title: 'Laci Kas Terbuka',
@@ -151,10 +153,10 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
                     : () => _run(() => widget.api.cashDrawerInOut(
                         _moveType, _num(_moveAmount), _moveReason.text.trim())),
                 style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xff0ea5e9),
+                    backgroundColor: const Color(0xff213F33),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12))),
+                        borderRadius: BorderRadius.circular(28))),
                 child: const Text('Simpan Kas Masuk'),
               ),
             ],
@@ -178,10 +180,10 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
                     : () => _run(() => widget.api.cashDrawerClose(
                         _num(_closeAmount), _closeNotes.text.trim())),
                 style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xff0ea5e9),
+                    backgroundColor: const Color(0xff213F33),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12))),
+                        borderRadius: BorderRadius.circular(28))),
                 child: const Text('Tutup Laci Kas'),
               ),
             ],
@@ -203,10 +205,10 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
                     : () => _run(
                         () => widget.api.cashDrawerOpen(_num(_openAmount))),
                 style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xff0ea5e9),
+                    backgroundColor: const Color(0xff213F33),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12))),
+                        borderRadius: BorderRadius.circular(28))),
                 child: const Text('Buka Laci'),
               ),
             ],
@@ -217,7 +219,8 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
           Text(_error!,
               style: TextStyle(color: Theme.of(context).colorScheme.error)),
         ],
-      ],
+        ],
+      ),
     );
   }
 }
@@ -242,7 +245,7 @@ class _Card extends StatelessWidget {
                 style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xff1c1c1c))),
+                    color: Color(0xff213F33))),
             const SizedBox(height: 12),
             ...children,
           ],
@@ -262,12 +265,12 @@ class _Row extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(label,
-                style: const TextStyle(fontSize: 12, color: Color(0xff5f5f5d))),
+                style: const TextStyle(fontSize: 12, color: Color(0xff8A857C))),
             Text(value,
                 style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xff1c1c1c))),
+                    color: Color(0xff213F33))),
           ],
         ),
       );

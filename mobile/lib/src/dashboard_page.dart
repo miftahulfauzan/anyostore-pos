@@ -1,13 +1,16 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import 'api_client.dart';
-import 'auth_store.dart';
 import 'format.dart';
+import 'pos_page.dart';
 
-const _kInk = Color(0xff1c1c1c);
-const _kMuted = Color(0xff5f5f5d);
-const _kBorder = Color(0xffeceae4);
+const _kBg = Color(0xffF5F1EA);
+const _kDark = Color(0xff213F33);
+const _kOrange = Color(0xffD47E4D);
+const _kTeal = Color(0xff86B9AB);
+const _kGray = Color(0xff8A857C);
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key, required this.api});
@@ -44,6 +47,11 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
+  void _openKasir() {
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    PosPage.requestTab.value = 0;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
@@ -62,233 +70,366 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
       );
     }
-    final auth = context.watch<AuthStore>();
     final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
     final recent = ((_data?['recent_transactions'] as List?) ?? [])
         .cast<Map<String, dynamic>>();
-    final trend =
-        ((_data?['sales_trend'] as List?) ?? []).cast<Map<String, dynamic>>();
-    final payments = ((_data?['payment_breakdown'] as List?) ?? [])
-        .cast<Map<String, dynamic>>();
-    final maxTrend = trend.fold<double>(
-        0, (m, t) => asNum(t['sales']) > m ? asNum(t['sales']) : m);
-    final name = auth.userName ?? 'Admin';
+    final today = fmtRp(asNum(summary['today_sales']));
+    final week = fmtRp(asNum(summary['seven_day_sales']));
+    final month = fmtRp(asNum(summary['month_sales']));
+    final expenses = fmtRp(asNum(summary['today_expenses']));
 
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView(
-        padding: const EdgeInsets.all(12),
-        children: [
-          Text('Halo, $name',
-              style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: _kInk)),
-          const SizedBox(height: 2),
-          const Text('Ini ringkasan bisnis Anda hari ini',
-              style: TextStyle(fontSize: 12, color: _kMuted)),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: _stat('Penjualan Hari Ini',
-                    fmtRp(asNum(summary['today_sales'])),
-                    Icons.trending_up, const Color(0x0d1c1c1c), _kInk),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _stat('Penjualan 7 Hari',
-                    fmtRp(asNum(summary['seven_day_sales'])),
-                    Icons.calendar_month, const Color(0xffe8f0e9),
-                    const Color(0xff2d5238)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _stat('Bulan Ini',
-                    fmtRp(asNum(summary['month_sales'])), Icons.pie_chart,
-                    const Color(0xfff0ebe1), const Color(0xff5c4d3c)),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _stat('Transaksi Hari Ini',
-                    '${summary['today_transactions'] ?? 0}', Icons.receipt,
-                    const Color(0x0d1c1c1c), _kInk),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          _card('Pengeluaran', [
-            _row('Hari ini', fmtRp(asNum(summary['today_expenses']))),
-            _row('7 hari', fmtRp(asNum(summary['seven_day_expenses']))),
-            _row('Bulan ini', fmtRp(asNum(summary['month_expenses']))),
-          ]),
-          if (trend.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _card('Penjualan 7 Hari', [
-              for (final t in trend)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
+    return ColoredBox(
+      color: _kBg,
+      child: RefreshIndicator(
+        onRefresh: _load,
+        color: _kDark,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _circleButton(
+                    Icons.storefront, () => _openKasir()),
+                const Column(
+                  children: [
+                    Text('Anyostore App',
+                        style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w800,
+                            color: _kDark,
+                            letterSpacing: -0.4)),
+                    SizedBox(height: 3),
+                    Text('Ringkasan bisnis Anda',
+                        style: TextStyle(fontSize: 13, color: _kGray)),
+                  ],
+                ),
+                _circleButton(Icons.refresh, _load),
+              ],
+            ),
+            const SizedBox(height: 18),
+            // Gauge penjualan hari ini
+            SizedBox(
+              width: 260,
+              height: 260,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  const CustomPaint(
+                    size: Size(260, 260),
+                    painter: _GaugePainter(),
+                  ),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      SizedBox(
-                          width: 40,
-                          child: Text(t['label']?.toString() ?? '',
-                              style: const TextStyle(
-                                  fontSize: 11, color: _kMuted))),
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(99),
-                          child: LinearProgressIndicator(
-                            value: maxTrend > 0
-                                ? (asNum(t['sales']) / maxTrend).clamp(0.0, 1.0)
-                                : 0,
-                            minHeight: 8,
-                            backgroundColor: const Color(0xfff0ece4),
-                            valueColor: const AlwaysStoppedAnimation(_kInk),
-                          ),
-                        ),
+                      const Text('PENJUALAN HARI INI',
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.6,
+                              color: _kGray)),
+                      const SizedBox(height: 4),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(today,
+                            style: const TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.w800,
+                                color: _kDark,
+                                letterSpacing: -0.5)),
                       ),
-                      const SizedBox(width: 10),
-                      Text(fmtRp(asNum(t['sales'])),
-                          style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: _kInk)),
                     ],
                   ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            // Mini stats
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _miniStat('7 Hari', week),
+                  _miniStat('Bulan Ini', month, alignRight: true),
+                ],
+              ),
+            ),
+            const SizedBox(height: 22),
+            const Text('Ringkasan Hari Ini',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: _kDark)),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _overviewCard(
+                      'Transaksi',
+                      '${summary['today_transactions'] ?? 0}',
+                      Icons.receipt_long,
+                      _kDark,
+                      const Color(0xffE4EDE8)),
                 ),
-            ]),
-          ],
-          if (payments.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _card('Metode Pembayaran (30 hari)', [
-              for (final p in payments)
-                _row(p['payment_method']?.toString() ?? '',
-                    fmtRp(asNum(p['amount']))),
-            ]),
-          ],
-          if (recent.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _card('Transaksi Terakhir', [
-              for (final t in recent)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 5),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _overviewCard('Pengeluaran', expenses,
+                      Icons.account_balance_wallet, _kOrange,
+                      const Color(0xffF7E8DD)),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _overviewCard('Penjualan 7 Hari', week,
+                      Icons.trending_up, _kTeal, const Color(0xffE9F1EF)),
+                ),
+              ],
+            ),
+            if (recent.isNotEmpty) ...[
+              const SizedBox(height: 22),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: const [
+                    BoxShadow(color: Color(0x0d000000), blurRadius: 6),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Transaksi Terakhir',
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: _kDark)),
+                    const SizedBox(height: 8),
+                    for (final t in recent)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 5),
+                        child: Row(
                           children: [
-                            Text(t['invoice_no']?.toString() ?? '',
+                            Container(
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                color: const Color(0xffF0EBE2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(Icons.receipt,
+                                  size: 16, color: _kDark),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                      t['invoice_no']?.toString() ?? '',
+                                      style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: _kDark)),
+                                  Text(
+                                      t['cashier']?.toString() ?? '',
+                                      style: const TextStyle(
+                                          fontSize: 10, color: _kGray)),
+                                ],
+                              ),
+                            ),
+                            Text(fmtRp(asNum(t['grand_total'])),
                                 style: const TextStyle(
                                     fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: _kInk)),
-                            Text(
-                                '${t['cashier']?.toString() ?? ''}${t['branch_name'] != null ? ' · ${t['branch_name']}' : ''}',
-                                style: const TextStyle(
-                                    fontSize: 10, color: _kMuted)),
+                                    fontWeight: FontWeight.w800,
+                                    color: _kDark)),
                           ],
                         ),
                       ),
-                      Text(fmtRp(asNum(t['grand_total'])),
-                          style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: _kInk)),
-                    ],
-                  ),
+                  ],
                 ),
-            ]),
+              ),
+            ],
+            const SizedBox(height: 24),
+            // CTA Mulai Kasir
+            SizedBox(
+              height: 58,
+              child: FilledButton(
+                onPressed: _openKasir,
+                style: FilledButton.styleFrom(
+                  backgroundColor: _kDark,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(29)),
+                  padding: const EdgeInsets.only(left: 30, right: 6),
+                ),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text('Mulai Kasir',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.arrow_forward,
+                          size: 20, color: _kDark),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
-        ],
+        ),
       ),
     );
   }
 
-  Widget _stat(String label, String value, IconData icon, Color chipBg,
-      Color chipFg) {
+  Widget _circleButton(IconData icon, VoidCallback onTap) {
+    return Material(
+      color: Colors.white,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Icon(icon, size: 19, color: _kDark),
+        ),
+      ),
+    );
+  }
+
+  Widget _miniStat(String label, String value, {bool alignRight = false}) {
+    final text = Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Flexible(
+          child: Text(value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  color: _kDark)),
+        ),
+      ],
+    );
+    return Column(
+      crossAxisAlignment:
+          alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        text,
+        const SizedBox(height: 3),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: _kGray)),
+      ],
+    );
+  }
+
+  Widget _overviewCard(
+      String label, String value, IconData icon, Color chipFg, Color chipBg) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      height: 118,
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _kBorder),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(color: Color(0x0d000000), blurRadius: 6),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(label,
-                  style: const TextStyle(fontSize: 11, color: _kMuted)),
+                  style:
+                      const TextStyle(fontSize: 10, color: _kGray)),
               Container(
-                width: 28,
-                height: 28,
+                width: 26,
+                height: 26,
                 decoration: BoxDecoration(
                   color: chipBg,
                   borderRadius: BorderRadius.circular(9),
                 ),
-                child: Icon(icon, size: 15, color: chipFg),
+                child: Icon(icon, size: 14, color: chipFg),
               ),
             ],
           ),
-          const SizedBox(height: 8),
           Text(value,
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                  fontSize: 17,
+                  fontSize: 14,
                   fontWeight: FontWeight.w800,
-                  color: _kInk)),
+                  color: _kDark)),
         ],
       ),
     );
+  }
+}
+
+class _GaugePainter extends CustomPainter {
+  const _GaugePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const segments = 48;
+    const inner = 74.0;
+    const short = 15.0;
+    const long = 40.0;
+    const stroke = 7.0;
+    final center = Offset(size.width / 2, size.height / 2);
+    for (var i = 0; i < segments; i++) {
+      final deg = (i / segments) * 360;
+      late final Color color;
+      late final double length;
+      if (deg >= 330 || deg <= 150) {
+        color = _kOrange;
+        length = long;
+      } else if (deg > 150 && deg <= 225) {
+        color = _kDark;
+        length = short;
+      } else {
+        color = _kTeal;
+        length = short;
+      }
+      final rad = (deg - 90) * math.pi / 180;
+      final start = Offset(
+          center.dx + inner * math.cos(rad),
+          center.dy + inner * math.sin(rad));
+      final end = Offset(
+          center.dx + (inner + length) * math.cos(rad),
+          center.dy + (inner + length) * math.sin(rad));
+      canvas.drawLine(
+        start,
+        end,
+        Paint()
+          ..color = color
+          ..strokeWidth = stroke
+          ..strokeCap = StrokeCap.round,
+      );
+    }
   }
 
-  Widget _card(String title, List<Widget> children) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _kBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title,
-              style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: _kInk)),
-          const SizedBox(height: 10),
-          ...children,
-        ],
-      ),
-    );
-  }
-
-  Widget _row(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label,
-              style: const TextStyle(fontSize: 12, color: _kMuted)),
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: _kInk)),
-        ],
-      ),
-    );
-  }
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
