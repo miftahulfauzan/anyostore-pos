@@ -32,7 +32,7 @@ router.get('/', async (req, res, next) => {
       'FROM transactions t JOIN users u ON u.id = t.user_id JOIN branches b ON b.id = t.branch_id ' +
       'WHERE 1 = 1' + transactionScope + ' ORDER BY t.created_at DESC LIMIT 6';
     const trendSql =
-      'SELECT DATE_FORMAT(t.created_at, \'%Y-%m-%d\') AS date, COALESCE(SUM(t.grand_total - t.cancelled_amount), 0) AS sales ' +
+      'SELECT DATE(t.created_at) AS date, COALESCE(SUM(t.grand_total - t.cancelled_amount), 0) AS sales ' +
       'FROM transactions t WHERE t.status IN (\'completed\', \'partially_cancelled\') AND DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)' +
       transactionScope + ' GROUP BY DATE(t.created_at) ORDER BY date';
     const paymentSql =
