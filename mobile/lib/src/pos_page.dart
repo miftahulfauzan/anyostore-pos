@@ -687,10 +687,10 @@ class _PosPageState extends State<PosPage> {
                     padding: const EdgeInsets.all(12),
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
+                      crossAxisCount: 3,
                       mainAxisSpacing: 10,
                       crossAxisSpacing: 10,
-                      childAspectRatio: 0.72,
+                      childAspectRatio: 0.62,
                     ),
                     itemCount: _visible.length,
                     itemBuilder: (_, i) => _ProductCard(
