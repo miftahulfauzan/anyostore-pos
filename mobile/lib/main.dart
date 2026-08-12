@@ -121,7 +121,7 @@ class PosMobileApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'Anyostore POS',
+        title: 'Anyostore App',
         debugShowCheckedModeBanner: false,
         theme: _buildTheme(),
         themeMode: ThemeMode.light,

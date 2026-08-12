@@ -119,7 +119,7 @@ class _LoginPageState extends State<LoginPage> {
                   const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Anyostore POS',
+                      Text('Anyostore App',
                           style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w700,

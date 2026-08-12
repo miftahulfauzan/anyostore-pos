@@ -455,7 +455,7 @@ class _PosPageState extends State<PosPage> {
     ];
     return Scaffold(
       appBar: AppBar(
-        title: Text('Anyostore POS'
+        title: Text('Anyostore App'
             '${auth.userName != null ? ' · ${auth.userName}' : ''}'),
         actions: [
           IconButton(

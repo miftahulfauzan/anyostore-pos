@@ -47,7 +47,7 @@ export default function LoginPage() {
         <div className="login-brand-inner">
           <div className="login-logo-tile"><ShoppingBag size={26} strokeWidth={2.2} aria-hidden="true" /></div>
           <div>
-            <h1>Anyostore POS</h1>
+            <h1>Anyostore App</h1>
             <p>Powering Your Business</p>
           </div>
         </div>
