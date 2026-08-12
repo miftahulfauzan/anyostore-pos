@@ -58,6 +58,9 @@ class _PosPageState extends State<PosPage> {
   late final ApiClient _api;
   int _tab = 0;
   final _search = TextEditingController();
+  final _gridScroll = ScrollController();
+  double _lastGridOffset = 0;
+  bool _headerVisible = true;
   final List<CartItem> _cart = [];
   Timer? _previewTimer;
 
@@ -89,8 +92,22 @@ class _PosPageState extends State<PosPage> {
     super.initState();
     _api = context.read<AuthStore>().api;
     PosPage.requestTab.addListener(_onExternalTab);
+    _gridScroll.addListener(_onGridScroll);
     _loadData();
     _syncPending();
+  }
+
+  void _onGridScroll() {
+    final off = _gridScroll.offset;
+    final delta = off - _lastGridOffset;
+    _lastGridOffset = off;
+    if (delta > 6 && off > 90 && _headerVisible) {
+      setState(() => _headerVisible = false);
+    } else if (off < 12 && !_headerVisible) {
+      setState(() => _headerVisible = true);
+    } else if (delta < -6 && !_headerVisible) {
+      setState(() => _headerVisible = true);
+    }
   }
 
   Future<void> _syncPending() async {
@@ -105,6 +122,7 @@ class _PosPageState extends State<PosPage> {
   void dispose() {
     _previewTimer?.cancel();
     PosPage.requestTab.removeListener(_onExternalTab);
+    _gridScroll.dispose();
     _search.dispose();
     super.dispose();
   }
@@ -335,6 +353,10 @@ class _PosPageState extends State<PosPage> {
         },
         onQtyChanged: (item, delta) {
           setState(() => item.qty = math.max(1, item.qty + delta));
+          _schedulePreview();
+        },
+        onQtySet: (item, value) {
+          setState(() => item.qty = math.max(1, value));
           _schedulePreview();
         },
         onRemove: (item) {
@@ -606,6 +628,14 @@ class _PosPageState extends State<PosPage> {
     }
     return Column(
       children: [
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          child: Visibility(
+            visible: _headerVisible,
+            maintainState: true,
+            child: Column(
+              children: [
         if (context.read<AuthStore>().role == 'owner' && _branches.length > 1)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
@@ -678,6 +708,10 @@ class _PosPageState extends State<PosPage> {
             ],
           ),
         ),
+              ],
+            ),
+          ),
+        ),
         Expanded(
           child: RefreshIndicator(
             onRefresh: () => _loadData(silent: true),
@@ -691,6 +725,9 @@ class _PosPageState extends State<PosPage> {
                     ],
                   )
                 : GridView.builder(
+                    controller: _gridScroll,
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(12),
                     gridDelegate:
@@ -819,6 +856,64 @@ class _ProductCard extends StatelessWidget {
   }
 }
 
+class _QtyInput extends StatefulWidget {
+  const _QtyInput({required this.value, required this.onChanged});
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  @override
+  State<_QtyInput> createState() => _QtyInputState();
+}
+
+class _QtyInputState extends State<_QtyInput> {
+  late final TextEditingController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = TextEditingController(text: '${widget.value}');
+  }
+
+  @override
+  void didUpdateWidget(_QtyInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value && _c.text != '${widget.value}') {
+      _c.text = '${widget.value}';
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 42,
+      child: TextField(
+        controller: _c,
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+        decoration: InputDecoration(
+          isDense: true,
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xffE7E0D6))),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        ),
+        onChanged: (t) {
+          final v = int.tryParse(t);
+          if (v != null && v >= 1) widget.onChanged(v);
+        },
+      ),
+    );
+  }
+}
+
 class _CartSheet extends StatelessWidget {
   const _CartSheet({
     required this.cart,
@@ -831,6 +926,7 @@ class _CartSheet extends StatelessWidget {
     required this.onCustomerChanged,
     required this.onPromoChanged,
     required this.onQtyChanged,
+    required this.onQtySet,
     required this.onRemove,
     required this.onEditPrice,
     required this.onPay,
@@ -846,6 +942,7 @@ class _CartSheet extends StatelessWidget {
   final ValueChanged<int?> onCustomerChanged;
   final ValueChanged<String> onPromoChanged;
   final void Function(CartItem, int) onQtyChanged;
+  final void Function(CartItem, int) onQtySet;
   final ValueChanged<CartItem> onRemove;
   final ValueChanged<CartItem> onEditPrice;
   final VoidCallback onPay;
@@ -912,17 +1009,33 @@ class _CartSheet extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(item.name,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w700)),
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.baseline,
+                                    textBaseline: TextBaseline.alphabetic,
+                                    children: [
+                                      Expanded(
+                                        child: Text(item.name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w700)),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(fmtRp(item.priceOverride ?? item.price),
+                                          style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w800,
+                                              color: Color(0xff1E3A5F))),
+                                    ],
+                                  ),
                                   if (item.variantLabel != null)
                                     Text(item.variantLabel!,
                                         style: TextStyle(
-                                            fontSize: 12,
+                                            fontSize: 11,
                                             color: Theme.of(context)
                                                 .colorScheme
                                                 .outline)),
-                                  Text(fmtRp(item.priceOverride ?? item.price)),
                                 ],
                               ),
                             ),
@@ -930,9 +1043,10 @@ class _CartSheet extends StatelessWidget {
                               onPressed: () => onQtyChanged(item, -1),
                               icon: const Icon(Icons.remove_circle_outline),
                             ),
-                            Text('${item.qty}',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w800)),
+                            _QtyInput(
+                              value: item.qty,
+                              onChanged: (v) => onQtySet(item, v),
+                            ),
                             IconButton(
                               onPressed: () => onQtyChanged(item, 1),
                               icon: const Icon(Icons.add_circle_outline),
