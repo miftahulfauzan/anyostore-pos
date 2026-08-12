@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -114,15 +116,43 @@ ThemeData _buildTheme() {
 class PosMobileApp extends StatelessWidget {
   const PosMobileApp({super.key});
 
+  static const double designW = 390;
+  static const double designH = 844;
+
   @override
-  Widget build(BuildContext context) => MaterialApp(
-        title: 'Anyostore App',
-        debugShowCheckedModeBanner: false,
-        theme: _buildTheme(),
-        themeMode: ThemeMode.light,
-        home: Consumer<AuthStore>(
-          builder: (_, auth, __) =>
-              auth.isAuthenticated ? const PosPage() : const LoginPage(),
+  Widget build(BuildContext context) {
+    // Skala responsif: di HP kecil UI ikut mengecil, di HP besar ikut membesar.
+    return LayoutBuilder(builder: (context, constraints) {
+      final mq = MediaQuery.of(context);
+      final scale = math
+          .min(constraints.maxWidth / designW, constraints.maxHeight / designH)
+          .clamp(0.8, 1.35);
+      return Center(
+        child: SizedBox(
+          width: designW * scale,
+          height: designH * scale,
+          child: Transform.scale(
+            scale: scale,
+            child: MediaQuery(
+              data: mq.copyWith(
+                size: const Size(designW, designH),
+                devicePixelRatio: mq.devicePixelRatio / scale,
+              ),
+              child: MaterialApp(
+                title: 'Anyostore App',
+                debugShowCheckedModeBanner: false,
+                theme: _buildTheme(),
+                themeMode: ThemeMode.light,
+                home: Consumer<AuthStore>(
+                  builder: (_, auth, __) => auth.isAuthenticated
+                      ? const PosPage()
+                      : const LoginPage(),
+                ),
+              ),
+            ),
+          ),
         ),
       );
+    });
+  }
 }
