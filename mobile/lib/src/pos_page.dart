@@ -664,81 +664,31 @@ class _PosPageState extends State<PosPage> {
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 SliverToBoxAdapter(
-                  child: Column(
-                    children: [
-        if (context.read<AuthStore>().role == 'owner' && _branches.length > 1)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-            child: DropdownButtonFormField<int?>(
-              initialValue: _posBranchId,
-              decoration: const InputDecoration(
-                  isDense: true,
-                  labelText: 'Toko / Gudang',
-                  prefixIcon: Icon(Icons.store, size: 18),
-                  border: OutlineInputBorder()),
-              items: [
-                for (final b in _branches)
-                  DropdownMenuItem<int?>(
-                      value: int.tryParse('${b['id']}'),
-                      child: Text(b['name']?.toString() ?? '')),
-              ],
-              onChanged: (v) {
-                setState(() {
-                  _posBranchId = v;
-                  _warehouseId = '';
-                  _cart.clear();
-                  _preview = null;
-                  _customerId = null;
-                  _promoCode = '';
-                });
-                _loadData();
-              },
-            ),
-          ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-          child: Row(
-            children: [
-              if (_warehouses.length > 1) ...[
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _warehouseId.isEmpty ? null : _warehouseId,
-                    decoration: const InputDecoration(
-                        isDense: true,
-                        labelText: 'Gudang',
-                        border: OutlineInputBorder()),
-                    items: [
-                      for (final w in _warehouses)
-                        DropdownMenuItem(
-                            value: '${w['id']}',
-                            child: Text(w['name']?.toString() ?? '')),
-                    ],
-                    onChanged: (v) => setState(() => _warehouseId = v ?? ''),
-                  ),
-                ),
-                const SizedBox(width: 10),
-              ],
-              Expanded(
-                flex: 2,
-                child: TextField(
-                  controller: _search,
-                  onChanged: (_) => _applyFilter(),
-                  decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.search),
-                      isDense: true,
-                      hintText: 'Cari nama / SKU / barcode',
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        onPressed: _openScanner,
-                        icon: const Icon(Icons.qr_code_scanner),
-                        tooltip: 'Scan barcode',
-                      )),
-                ),
-              ),
-            ],
-          ),
-        ),
-                    ],
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                    child: _PosHeaderRow(
+                      isOwner: context.read<AuthStore>().role == 'owner',
+                      branches: _branches,
+                      posBranchId: _posBranchId,
+                      onBranchChanged: (v) {
+                        setState(() {
+                          _posBranchId = v;
+                          _warehouseId = '';
+                          _cart.clear();
+                          _preview = null;
+                          _customerId = null;
+                          _promoCode = '';
+                        });
+                        _loadData();
+                      },
+                      warehouses: _warehouses,
+                      warehouseId: _warehouseId,
+                      onWarehouseChanged: (v) =>
+                          setState(() => _warehouseId = v),
+                      searchController: _search,
+                      onSearchChanged: (_) => _applyFilter(),
+                      onScan: _openScanner,
+                    ),
                   ),
                 ),
                 if (_visible.isEmpty)
@@ -880,6 +830,201 @@ class _ProductCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _PosHeaderRow extends StatefulWidget {
+  const _PosHeaderRow(
+      {
+      required this.isOwner,
+      required this.branches,
+      required this.posBranchId,
+      required this.onBranchChanged,
+      required this.warehouses,
+      required this.warehouseId,
+      required this.onWarehouseChanged,
+      required this.searchController,
+      required this.onSearchChanged,
+      required this.onScan});
+  final bool isOwner;
+  final List<Map<String, dynamic>> branches;
+  final int? posBranchId;
+  final ValueChanged<int?> onBranchChanged;
+  final List<Map<String, dynamic>> warehouses;
+  final String warehouseId;
+  final ValueChanged<String> onWarehouseChanged;
+  final TextEditingController searchController;
+  final ValueChanged<String> onSearchChanged;
+  final VoidCallback onScan;
+
+  @override
+  State<_PosHeaderRow> createState() => _PosHeaderRowState();
+}
+
+class _PosHeaderRowState extends State<_PosHeaderRow> {
+  String? _active; // 'branch' | 'search' | null
+  final _searchFocus = FocusNode();
+
+  bool get _hasBranch => widget.isOwner && widget.branches.length > 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchFocus.addListener(_onSearchFocus);
+  }
+
+  @override
+  void dispose() {
+    _searchFocus.dispose();
+    super.dispose();
+  }
+
+  void _onSearchFocus() {
+    if (_searchFocus.hasFocus) {
+      if (_active != 'search') setState(() => _active = 'search');
+    } else if (_active == 'search') {
+      setState(() => _active = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, c) {
+      final total = c.maxWidth;
+      const gap = 10.0;
+      final double branchW;
+      if (!_hasBranch) {
+        branchW = 0;
+      } else if (_active == 'search') {
+        branchW = 0;
+      } else if (_active == 'branch') {
+        branchW = total - gap;
+      } else {
+        branchW = total * 0.36;
+      }
+      final searchW = total - gap - branchW;
+
+      final branchName = widget.branches
+          .firstWhere((b) => int.tryParse('${b['id']}') == widget.posBranchId,
+              orElse: () => const {})
+          ['name']?.toString();
+
+      final Widget branchArea;
+      if (_active == 'branch') {
+        branchArea = Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<int?>(
+              initialValue: widget.posBranchId,
+              decoration: const InputDecoration(
+                  isDense: true,
+                  labelText: 'Toko / Gudang',
+                  prefixIcon: Icon(Icons.store, size: 18),
+                  border: OutlineInputBorder()),
+              items: [
+                for (final b in widget.branches)
+                  DropdownMenuItem<int?>(
+                      value: int.tryParse('${b['id']}'),
+                      child: Text(b['name']?.toString() ?? '')),
+              ],
+              onChanged: (v) {
+                widget.onBranchChanged(v);
+                setState(() => _active = null);
+              },
+            ),
+            if (widget.warehouses.length > 1) ...[
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue:
+                    widget.warehouseId.isEmpty ? null : widget.warehouseId,
+                decoration: const InputDecoration(
+                    isDense: true,
+                    labelText: 'Gudang',
+                    border: OutlineInputBorder()),
+                items: [
+                  for (final w in widget.warehouses)
+                    DropdownMenuItem(
+                        value: '${w['id']}',
+                        child: Text(w['name']?.toString() ?? '')),
+                ],
+                onChanged: (v) => widget.onWarehouseChanged(v ?? ''),
+              ),
+            ],
+          ],
+        );
+      } else {
+        branchArea = Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => setState(() => _active = 'branch'),
+            child: Container(
+              height: 48,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xffE7E0D6)),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.store, size: 17, color: Color(0xff1E3A5F)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(branchName ?? 'Toko / Gudang',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xff1E3A5F))),
+                  ),
+                  const Icon(Icons.expand_more,
+                      size: 18, color: Color(0xff8A857C)),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_hasBranch)
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeInOut,
+              width: branchW,
+              child: AnimatedSize(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeInOut,
+                child: branchArea,
+              ),
+            ),
+          if (_hasBranch) const SizedBox(width: gap),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeInOut,
+            width: searchW,
+            child: TextField(
+              controller: widget.searchController,
+              focusNode: _searchFocus,
+              onChanged: widget.onSearchChanged,
+              onTap: () => setState(() => _active = 'search'),
+              decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.search),
+                  isDense: true,
+                  hintText: 'Cari nama / SKU / barcode',
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    onPressed: widget.onScan,
+                    icon: const Icon(Icons.qr_code_scanner),
+                    tooltip: 'Scan barcode',
+                  )),
+            ),
+          ),
+        ],
+      );
+    });
   }
 }
 
