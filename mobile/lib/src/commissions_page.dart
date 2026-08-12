@@ -424,8 +424,13 @@ class _Card extends StatelessWidget {
               Text(title,
                   style: const TextStyle(
                       fontWeight: FontWeight.w800, fontSize: 15)),
-              const SizedBox(height: 8),
-              ...rows,
+              const SizedBox(height: 10),
+              for (var i = 0; i < rows.length; i++) ...[
+                if (i > 0)
+                  const Divider(
+                      height: 14, thickness: 1, color: Color(0x14E7E0D6)),
+                rows[i],
+              ],
             ],
           ),
         ),
@@ -439,7 +444,7 @@ class _Row extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(vertical: 7),
         child: Row(
           children: [
             Expanded(
@@ -450,7 +455,7 @@ class _Row extends StatelessWidget {
                       fontSize: 12,
                       color: Theme.of(context).colorScheme.outline)),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Text(value,
                 style: const TextStyle(
                     fontSize: 12, fontWeight: FontWeight.w700)),
