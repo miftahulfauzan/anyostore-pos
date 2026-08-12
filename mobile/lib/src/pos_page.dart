@@ -13,6 +13,7 @@ import 'format.dart';
 import 'history_tab.dart';
 import 'payment_sheet.dart';
 import 'printer_setup.dart';
+import 'barcode_scanner_page.dart';
 import 'variant_picker.dart';
 import 'task_ui.dart';
 
@@ -66,6 +67,7 @@ class _PosPageState extends State<PosPage> {
   Map<String, dynamic>? _preview;
   bool _loading = true;
   bool _saving = false;
+  bool _autoPrint = false;
   String? _error;
   String? _cartError;
 
@@ -113,13 +115,16 @@ class _PosPageState extends State<PosPage> {
         _client.products(branchId: branch),
         _client.warehouses(branch),
         _client.customers(),
+        _client.storeSettings(),
       ]);
       if (!mounted) return;
       setState(() {
-        _products = results[0].cast<Map<String, dynamic>>();
+        _products = (results[0] as List).cast<Map<String, dynamic>>();
         _visible = List.of(_products);
-        _warehouses = results[1].cast<Map<String, dynamic>>();
-        _customers = results[2].cast<Map<String, dynamic>>();
+        _warehouses = (results[1] as List).cast<Map<String, dynamic>>();
+        _customers = (results[2] as List).cast<Map<String, dynamic>>();
+        final settings = results[3] as Map<String, dynamic>;
+        _autoPrint = settings['auto_print'] == '1' || settings['auto_print'] == true;
         if (_warehouseId.isEmpty && _warehouses.isNotEmpty) {
           _warehouseId = '${_warehouses.first['id']}';
         }
@@ -436,6 +441,10 @@ class _PosPageState extends State<PosPage> {
           ],
         ),
       );
+      if (!mounted) return;
+      if (_autoPrint && id != null) {
+        printReceiptNow(context, () => _client.receipt(id));
+      }
       _loadData();
     } on ApiException catch (e) {
       if (mounted) {
@@ -499,6 +508,15 @@ class _PosPageState extends State<PosPage> {
     );
   }
 
+  Future<void> _openScanner() async {
+    final code = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const BarcodeScannerPage()),
+    );
+    if (code == null || !mounted) return;
+    setState(() => _search.text = code);
+    _applyFilter();
+  }
+
   Widget _buildKasir() {
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null) {
@@ -547,11 +565,16 @@ class _PosPageState extends State<PosPage> {
                 child: TextField(
                   controller: _search,
                   onChanged: (_) => _applyFilter(),
-                  decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.search),
+                  decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.search),
                       isDense: true,
                       hintText: 'Cari nama / SKU / barcode',
-                      border: OutlineInputBorder()),
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        onPressed: _openScanner,
+                        icon: const Icon(Icons.qr_code_scanner),
+                        tooltip: 'Scan barcode',
+                      )),
                 ),
               ),
             ],

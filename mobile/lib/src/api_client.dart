@@ -122,6 +122,23 @@ class ApiClient {
         'data_url': 'data:$mime;base64,$base64',
       });
 
+  Future<Map<String, dynamic>> uploadVariantPhoto(
+          int productId, int variantId, String mime, String base64) =>
+      post('/products/$productId/variants/$variantId/photo-data', {
+        'content_type': mime,
+        'filename': 'variant',
+        'data_url': 'data:$mime;base64,$base64',
+      });
+
+  Future<List<dynamic>> activityLogs({String search = ''}) async {
+    final res = await get('/activity-logs', {
+      if (search.isNotEmpty) 'search': search,
+    });
+    return (res['data'] as List?) ?? [];
+  }
+
+  Future<Map<String, dynamic>> backupNow() => get('/backup');
+
   Future<Map<String, dynamic>> deleteProductMedia(int id, int mediaId) =>
       delete('/products/$id/media/$mediaId');
 

@@ -15,6 +15,10 @@ class _VariantRow {
         barcode = TextEditingController(),
         price = TextEditingController();
   int? id;
+  Uint8List? photoBytes;
+  String? photoMime;
+  String? photoBase64;
+  String? existingUrl;
   final TextEditingController size;
   final TextEditingController color;
   final TextEditingController sku;
@@ -151,6 +155,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
       row.sku.text = m['sku']?.toString() ?? '';
       row.barcode.text = m['barcode']?.toString() ?? '';
       row.price.text = (asNumSafe(m['price'])).toStringAsFixed(0);
+      final vp = m['photo_path']?.toString();
+      if (vp != null && vp.isNotEmpty) row.existingUrl = _mediaUrl(vp);
       _variants.add(row);
     }
     for (final w in (d['wholesale_prices'] as List?) ?? []) {
@@ -281,6 +287,30 @@ class _ProductFormPageState extends State<ProductFormPage> {
               .uploadProductMedia(productId, p.mime ?? 'image/jpeg', p.base64!);
         } else if (p.removed && p.mediaId != null) {
           await widget.api.deleteProductMedia(productId, p.mediaId!);
+        }
+      }
+      if (_variants.any((v) => v.photoBase64 != null)) {
+        final detail = await widget.api
+            .product(productId, branchId: widget.branchId);
+        final variants = ((detail['variants'] as List?) ?? [])
+            .cast<Map<String, dynamic>>();
+        for (final v in _variants) {
+          if (v.photoBase64 == null) continue;
+          Map<String, dynamic>? match;
+          for (final dv in variants) {
+            if ((dv['color']?.toString() ?? '') == v.color.text.trim() &&
+                (dv['size']?.toString() ?? '') == v.size.text.trim()) {
+              match = dv;
+              break;
+            }
+          }
+          if (match != null) {
+            await widget.api.uploadVariantPhoto(
+                productId,
+                int.parse('${match['id']}'),
+                v.photoMime ?? 'image/jpeg',
+                v.photoBase64!);
+          }
         }
       }
       if (!mounted) return;
@@ -567,6 +597,22 @@ class _ProductFormPageState extends State<ProductFormPage> {
     );
   }
 
+  Future<void> _pickVariantPhoto(_VariantRow v) async {
+    final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 80);
+    if (picked == null || !mounted) return;
+    final bytes = await picked.readAsBytes();
+    setState(() {
+      v.photoBytes = bytes;
+      v.photoMime = picked.mimeType ?? 'image/jpeg';
+      v.photoBase64 = base64Encode(bytes);
+      v.existingUrl = null;
+    });
+  }
+
   Widget _variantCard(_VariantRow v, int i) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -613,6 +659,45 @@ class _ProductFormPageState extends State<ProductFormPage> {
               controller: v.price,
               keyboardType: TextInputType.number,
               decoration: _dec('Harga varian', prefix: 'Rp ')),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: v.photoBytes != null
+                      ? Image.memory(v.photoBytes!, fit: BoxFit.cover)
+                      : v.existingUrl != null && v.existingUrl!.isNotEmpty
+                          ? Image.network(v.existingUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  const ColoredBox(
+                                      color: Color(0xffE6ECF3)))
+                          : const ColoredBox(
+                              color: Color(0xffE6ECF3),
+                              child: Icon(Icons.photo_outlined,
+                                  size: 18, color: kTaskGray)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton.icon(
+                onPressed: () => _pickVariantPhoto(v),
+                icon: const Icon(Icons.add_photo_alternate, size: 16),
+                label: const Text('Foto varian'),
+              ),
+              if (v.photoBytes != null)
+                TextButton(
+                  onPressed: () => setState(() {
+                    v.photoBytes = null;
+                    v.photoBase64 = null;
+                  }),
+                  child: const Text('Batal',
+                      style: TextStyle(color: Color(0xffC2410C))),
+                ),
+            ],
+          ),
         ],
       ),
     );

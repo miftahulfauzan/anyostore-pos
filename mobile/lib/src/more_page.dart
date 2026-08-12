@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'activity_log_page.dart';
 import 'api_client.dart';
 import 'auth_store.dart';
 import 'cash_drawer_page.dart';
@@ -122,6 +123,11 @@ class MorePage extends StatelessWidget {
               _row(Icons.person_outline, 'Akun Saya', const Color(0xffE3EAF2),
                   const Color(0xff1E3A5F),
                   () => _open(context, 'Akun Saya', ProfilePage(api: api))),
+              _divider(),
+              _row(Icons.receipt_long_outlined, 'Riwayat Aktivitas',
+                  const Color(0xffE3EAF2), const Color(0xff1E3A5F),
+                  () => _open(context, 'Riwayat Aktivitas',
+                      ActivityLogPage(api: api))),
             ],
           ),
         ),

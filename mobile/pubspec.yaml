@@ -16,6 +16,7 @@ dependencies:
   connectivity_plus: ^6.0.5
   bluetooth_print_plus: ^2.0.0
   image_picker: ^1.1.2
+  mobile_scanner: ^7.0.0
 
 dependency_overrides:
   bluetooth_print_plus:

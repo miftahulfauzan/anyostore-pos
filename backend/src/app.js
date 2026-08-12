@@ -26,6 +26,8 @@ const { router: promotionsRouter } = require('./routes/promotions');
 const taxRouter = require('./routes/tax');
 const publicRouter = require('./routes/public');
 const linkPageRouter = require('./routes/link-page');
+const activityLogsRouter = require('./routes/activity-logs');
+const backupRouter = require('./routes/backup');
 const path = require('path');
 const { serveBlob } = require('./media-storage');
 
@@ -73,6 +75,8 @@ app.get('/api/auth/me', authenticate, async (req, res, next) => {
 });
 app.use('/api/public', publicRouter);
 app.use('/api/link-page', linkPageRouter);
+app.use('/api/activity-logs', activityLogsRouter);
+app.use('/api/backup', backupRouter);
 app.use('/api/products', productsRouter);
 app.use('/api/inventory', inventoryRouter);
 app.use('/api/transactions', transactionsRouter);

@@ -33,6 +33,11 @@ class _SettingsPageState extends State<SettingsPage> {
   final _npwp = TextEditingController();
   final _invoicePrefix = TextEditingController();
   final _receiptHeader = TextEditingController();
+  final _receiptFooter = TextEditingController();
+  final _receiptNote = TextEditingController();
+  String _printerSize = '80';
+  bool _autoPrint = false;
+  bool _backingUp = false;
 
   @override
   void initState() {
@@ -49,6 +54,8 @@ class _SettingsPageState extends State<SettingsPage> {
     _npwp.dispose();
     _invoicePrefix.dispose();
     _receiptHeader.dispose();
+    _receiptFooter.dispose();
+    _receiptNote.dispose();
     super.dispose();
   }
 
@@ -74,6 +81,10 @@ class _SettingsPageState extends State<SettingsPage> {
         _npwp.text = settings['store_tax_id']?.toString() ?? '';
         _invoicePrefix.text = settings['invoice_prefix']?.toString() ?? '';
         _receiptHeader.text = settings['receipt_header']?.toString() ?? '';
+        _receiptFooter.text = settings['receipt_footer']?.toString() ?? '';
+        _receiptNote.text = settings['receipt_note']?.toString() ?? '';
+        _printerSize = settings['printer_size']?.toString() ?? '80';
+        _autoPrint = settings['auto_print'] == '1' || settings['auto_print'] == true;
       });
       final savedPrinter = await PrinterService().savedPrinter();
       if (mounted) {
@@ -99,6 +110,10 @@ class _SettingsPageState extends State<SettingsPage> {
         'store_tax_id': _npwp.text.trim(),
         'invoice_prefix': _invoicePrefix.text.trim(),
         'receipt_header': _receiptHeader.text.trim(),
+        'receipt_footer': _receiptFooter.text.trim(),
+        'receipt_note': _receiptNote.text.trim(),
+        'printer_size': _printerSize,
+        'auto_print': _autoPrint ? '1' : '0',
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -340,6 +355,45 @@ class _SettingsPageState extends State<SettingsPage> {
     await _refreshPrinter();
   }
 
+  Future<void> _backupNow() async {
+    setState(() => _backingUp = true);
+    try {
+      final data = await widget.api.backupNow();
+      if (!mounted) return;
+      final info = (data['data'] as Map<String, dynamic>?) ?? data;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Backup Berhasil'),
+          content: Text(
+              'Waktu: ${info['generated_at'] ?? '-'}\n'
+              'Tabel: ${info['tables'] ?? 0}\n'
+              'Baris: ${info['total_rows'] ?? 0}\n'
+              'Ukuran: ${asSize(info['size_bytes'])}'),
+          actions: [
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Tutup')),
+          ],
+        ),
+      );
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _backingUp = false);
+    }
+  }
+
+  String asSize(dynamic v) {
+    final b = double.tryParse('$v') ?? 0;
+    if (b >= 1048576) return '${(b / 1048576).toStringAsFixed(1)} MB';
+    if (b >= 1024) return '${(b / 1024).toStringAsFixed(1)} KB';
+    return '${b.toStringAsFixed(0)} B';
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
@@ -393,10 +447,69 @@ class _SettingsPageState extends State<SettingsPage> {
                     decoration: const InputDecoration(
                         labelText: 'Header struk',
                         border: OutlineInputBorder())),
+                const SizedBox(height: 8),
+                TextField(
+                    controller: _receiptFooter,
+                    decoration: const InputDecoration(
+                        labelText: 'Footer struk',
+                        border: OutlineInputBorder())),
+                const SizedBox(height: 8),
+                TextField(
+                    controller: _receiptNote,
+                    decoration: const InputDecoration(
+                        labelText: 'Catatan struk',
+                        border: OutlineInputBorder())),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: _printerSize,
+                  decoration: const InputDecoration(
+                      labelText: 'Ukuran printer',
+                      border: OutlineInputBorder()),
+                  items: const [
+                    DropdownMenuItem(value: '58', child: Text('58 mm')),
+                    DropdownMenuItem(value: '80', child: Text('80 mm')),
+                  ],
+                  onChanged: (v) => setState(() => _printerSize = v ?? '80'),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Auto-print struk setelah bayar',
+                      style: TextStyle(fontSize: 13)),
+                  value: _autoPrint,
+                  onChanged: (v) => setState(() => _autoPrint = v),
+                ),
                 const SizedBox(height: 12),
                 FilledButton(
                   onPressed: _saving ? null : _saveSettings,
                   child: Text(_saving ? 'Menyimpan...' : 'Simpan Pengaturan'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        GlassCard(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('Backup Data',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                const SizedBox(height: 6),
+                const Text(
+                    'Simpan snapshot seluruh database ke perangkat. Disarankan rutin sebelum update besar.',
+                    style: TextStyle(fontSize: 11, color: kTaskGray)),
+                const SizedBox(height: 10),
+                FilledButton.icon(
+                  onPressed: _backingUp ? null : _backupNow,
+                  icon: _backingUp
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.save_alt, size: 18),
+                  label: Text(_backingUp ? 'Membackup...' : 'Backup Sekarang'),
                 ),
               ],
             ),
