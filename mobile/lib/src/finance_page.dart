@@ -182,6 +182,22 @@ class _FinancePageState extends State<FinancePage> {
     }
   }
 
+  Widget _plMini(String label, String value) {
+    return Column(
+      children: [
+        Text(value,
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: Colors.white)),
+        const SizedBox(height: 2),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 9, color: Color(0xffB9C9DC))),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -203,26 +219,49 @@ class _FinancePageState extends State<FinancePage> {
         if (_profitLoss != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Laba Rugi Hari Ini',
-                        style: TextStyle(fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 4),
-                    Text(
-                        'Pendapatan: ${fmtRp(asNum(_profitLoss?['revenue']))}'),
-                    Text(
-                        'Pengeluaran: ${fmtRp(asNum(_profitLoss?['expenses']))}'),
-                    Text(
-                        'Pemasukan lain: ${fmtRp(asNum(_profitLoss?['income']))}'),
-                    Text(
-                        'Laba bersih: ${fmtRp(asNum(_profitLoss?['net_profit']))}',
-                        style: const TextStyle(fontWeight: FontWeight.w800)),
-                  ],
-                ),
+            child: Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: const Color(0xff1E3A5F),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x331E3A5F), blurRadius: 18, offset: Offset(0, 8)),
+                ],
+              ),
+              child: Column(
+                children: [
+                  const Text('LABA RUGI HARI INI',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1,
+                          color: Color(0xffB9C9DC))),
+                  const SizedBox(height: 8),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                        fmtRp(asNum(_profitLoss?['net_profit'])),
+                        style: const TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white)),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _plMini('Pendapatan',
+                          fmtRp(asNum(_profitLoss?['revenue']))),
+                      const SizedBox(width: 14),
+                      _plMini('Pengeluaran',
+                          fmtRp(asNum(_profitLoss?['expenses']))),
+                      const SizedBox(width: 14),
+                      _plMini('Pemasukan',
+                          fmtRp(asNum(_profitLoss?['income']))),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),

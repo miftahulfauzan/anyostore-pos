@@ -1,6 +1,9 @@
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'api_client.dart';
 
 const kTaskBg = Color(0xffF5F1EA);
 const kTaskDark = Color(0xff1E3A5F);
@@ -10,7 +13,7 @@ const kTaskPurple = Color(0xff3B6EA5);
 const kTaskGray = Color(0xff8A857C);
 const kTaskBorder = Color(0xffE7E0D6);
 
-/// Tab pil ala Task Dashboard: aktif oranye, nonaktif putih.
+/// Tab pil: aktif biru denim, nonaktif putih.
 class PillTabs extends StatelessWidget {
   const PillTabs(
       {super.key,
@@ -68,7 +71,7 @@ class PillTabs extends StatelessWidget {
   }
 }
 
-/// Blob dekoratif lembut di latar (ungu & oranye).
+/// Blob dekoratif lembut di latar (biru denim).
 class SoftBlobs extends StatelessWidget {
   const SoftBlobs({super.key});
 
@@ -117,7 +120,85 @@ class SoftBlobs extends StatelessWidget {
   }
 }
 
-/// Bottom nav kaca ala Task Dashboard: ikon + FAB tengah oranye.
+/// Logo toko dari pengaturan (store_logo), dengan cache. Fallback: ikon keranjang.
+class BrandLogo extends StatefulWidget {
+  const BrandLogo({super.key, this.api, this.size = 44, this.radius = 14});
+  final ApiClient? api;
+  final double size;
+  final double radius;
+
+  @override
+  State<BrandLogo> createState() => _BrandLogoState();
+}
+
+class _BrandLogoState extends State<BrandLogo> {
+  static String? _cached;
+  String? _path;
+
+  static Future<String?> _readCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('pos_store_logo');
+  }
+
+  static Future<void> _writeCache(String path) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('pos_store_logo', path);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    _path = _cached ?? await _readCache();
+    if (mounted) setState(() {});
+    final api = widget.api;
+    if (api == null) return;
+    try {
+      final settings = await api.storeSettings();
+      final p = settings['store_logo']?.toString() ?? '';
+      if (p.isNotEmpty && p != _path) {
+        _cached = p;
+        await _writeCache(p);
+        if (mounted) setState(() => _path = p);
+      }
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = widget.size;
+    final path = _path ?? '';
+    Widget fallback = Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: const Color(0x141E3A5F),
+        borderRadius: BorderRadius.circular(widget.radius),
+        border: Border.all(color: kTaskBorder),
+      ),
+      child: Icon(Icons.shopping_bag_outlined,
+          size: size * 0.52, color: kTaskDark),
+    );
+    if (path.isEmpty) return fallback;
+    final base = (widget.api?.baseUrl ?? '').split('/api').first;
+    final url = path.startsWith('http') ? path : base + path;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(widget.radius),
+      child: Image.network(
+        url,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback,
+      ),
+    );
+  }
+}
+
+/// Bottom nav kaca: 4 ikon + FAB tengah bertuliskan POS.
 class GlassNavBar extends StatelessWidget {
   const GlassNavBar(
       {super.key,
@@ -165,7 +246,7 @@ class GlassNavBar extends StatelessWidget {
               ),
             ),
           ),
-          // FAB tengah
+          // FAB tengah: POS
           Positioned(
             bottom: 34 + bottomPad,
             child: GestureDetector(
@@ -243,7 +324,8 @@ class GlassNavBar extends StatelessWidget {
                   Text(item.label,
                       style: TextStyle(
                           fontSize: 9,
-                          fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                          fontWeight:
+                              active ? FontWeight.w700 : FontWeight.w500,
                           color: active ? kTaskOrange : kTaskGray)),
                 ],
               ),

@@ -249,6 +249,14 @@ class ApiClient {
   Future<Map<String, dynamic>> updateStoreSettings(Map<String, dynamic> body) =>
       put('/settings', body);
 
+  /// Upload logo toko via data-url (backend: POST /settings/logo-data).
+  Future<Map<String, dynamic>> uploadLogo(String mime, String base64) =>
+      post('/settings/logo-data', {
+        'content_type': mime,
+        'filename': 'logo',
+        'data_url': 'data:$mime;base64,$base64',
+      });
+
   // ===== Komisi =====
   Future<Map<String, dynamic>> commissions() async {
     final res = await get('/commissions');

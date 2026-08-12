@@ -5,8 +5,10 @@ import 'printer_service.dart';
 
 /// Bottom sheet untuk scan, pilih, dan cetak ke printer Bluetooth (GPrinter).
 class PrinterSetupSheet extends StatefulWidget {
-  const PrinterSetupSheet({super.key, required this.receiptLoader});
-  final Future<Map<String, dynamic>> Function() receiptLoader;
+  const PrinterSetupSheet({super.key, required this.title, required this.job});
+  final String title;
+  final Future<void> Function(PrinterService printer, BluetoothDevice device)
+      job;
 
   @override
   State<PrinterSetupSheet> createState() => _PrinterSetupSheetState();
@@ -48,10 +50,10 @@ class _PrinterSetupSheetState extends State<PrinterSetupSheet> {
       _error = null;
     });
     try {
-      final receipt = await widget.receiptLoader();
       await _printer.connect(printer);
       setState(() => _status = 'Mencetak...');
-      await _printer.printReceipt(receipt);
+      await widget.job(_printer, printer);
+      await _printer.savePrinter(printer);
       await _printer.disconnect();
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -79,7 +81,7 @@ class _PrinterSetupSheetState extends State<PrinterSetupSheet> {
           children: [
             Row(
               children: [
-                Text('Cetak ke Printer Bluetooth',
+                Text(widget.title,
                     style: Theme.of(context)
                         .textTheme
                         .titleMedium
@@ -115,7 +117,7 @@ class _PrinterSetupSheetState extends State<PrinterSetupSheet> {
             const SizedBox(height: 12),
             if (_devices.isEmpty && !_scanning)
               const Text(
-                  'Tips: pasangkan GPrinter dulu di Pengaturan > Bluetooth, lalu tekan Scan Printer.')
+                  'Tips: pasangkan GPrinter dulu di Pengaturan > Bluetooth, lalu tekan Scan Printer. Printer yang dipilih akan disimpan dan dipakai otomatis.')
             else
               Flexible(
                 child: ListView(
@@ -151,13 +153,61 @@ class _PrinterSetupSheetState extends State<PrinterSetupSheet> {
   }
 }
 
+Future<void> showPrinterJobSheet(
+  BuildContext context,
+  Future<void> Function(PrinterService printer, BluetoothDevice device) job, {
+  String title = 'Cetak ke Printer Bluetooth',
+}) {
+  return showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    builder: (_) => PrinterSetupSheet(title: title, job: job),
+  );
+}
+
 Future<void> showPrinterSheet(
   BuildContext context,
   Future<Map<String, dynamic>> Function() receiptLoader,
 ) {
-  return showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    builder: (_) => PrinterSetupSheet(receiptLoader: receiptLoader),
-  );
+  return showPrinterJobSheet(context, (printer, device) async {
+    final receipt = await receiptLoader();
+    await printer.printReceipt(receipt);
+  });
+}
+
+/// Cetak pakai printer tersimpan tanpa scan ulang; kalau belum ada,
+/// fallback ke bottom sheet pilih printer.
+Future<void> printNow(
+  BuildContext context,
+  Future<void> Function(PrinterService printer, BluetoothDevice device) job, {
+  String title = 'Cetak ke Printer Bluetooth',
+}) async {
+  final printer = PrinterService();
+  final saved = await printer.savedPrinter();
+  if (saved != null) {
+    try {
+      await printer.connect(saved);
+      await job(printer, saved);
+      await printer.disconnect();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Struk terkirim ke ${saved.name}')));
+      }
+      return;
+    } catch (_) {
+      await printer.disconnect();
+    }
+  }
+  if (!context.mounted) return;
+  await showPrinterJobSheet(context, job, title: title);
+}
+
+Future<void> printReceiptNow(
+  BuildContext context,
+  Future<Map<String, dynamic>> Function() receiptLoader,
+) {
+  return printNow(context, (printer, device) async {
+    final receipt = await receiptLoader();
+    await printer.printReceipt(receipt);
+  });
 }

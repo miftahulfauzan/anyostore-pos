@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'auth_store.dart';
+import 'task_ui.dart';
 
 const _kBg = Color(0xfff7f4ed);
 const _kInk = Color(0xff1E3A5F);
@@ -100,20 +101,13 @@ class _LoginPageState extends State<LoginPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    width: 48,
-                    height: 48,
-                    decoration: const BoxDecoration(
-                      color: Color(0x141E3A5F),
-                      borderRadius: BorderRadius.all(Radius.circular(12)),
-                      border: Border(
-                        top: BorderSide(color: _kBorder),
-                        bottom: BorderSide(color: _kBorder),
-                        left: BorderSide(color: _kBorder),
-                        right: BorderSide(color: _kBorder),
-                      ),
+                    decoration: BoxDecoration(
+                      color: const Color(0x141E3A5F),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _kBorder),
                     ),
-                    child: const Icon(Icons.shopping_bag_outlined,
-                        size: 26, color: _kInk),
+                    padding: const EdgeInsets.all(4),
+                    child: const BrandLogo(size: 40, radius: 9),
                   ),
                   const SizedBox(width: 12),
                   const Column(

@@ -1,9 +1,35 @@
 import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'format.dart';
 
 /// Cetak struk thermal ke printer Bluetooth ESC/POS (GPrinter, 80mm).
 class PrinterService {
+  static const _prefName = 'pos_saved_printer_name';
+  static const _prefAddr = 'pos_saved_printer_addr';
+
+  /// Simpan printer agar dipakai otomatis tanpa scan ulang.
+  Future<void> savePrinter(BluetoothDevice device) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefName, device.name);
+    await prefs.setString(_prefAddr, device.address);
+  }
+
+  Future<BluetoothDevice?> savedPrinter() async {
+    final prefs = await SharedPreferences.getInstance();
+    final name = prefs.getString(_prefName) ?? '';
+    final address = prefs.getString(_prefAddr) ?? '';
+    if (address.isEmpty) return null;
+    return BluetoothDevice(name, address);
+  }
+
+  Future<void> clearPrinter() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_prefName);
+    await prefs.remove(_prefAddr);
+  }
+
+
   Future<List<BluetoothDevice>> scan() async {
     final collected = <BluetoothDevice>[];
     final sub = BluetoothPrintPlus.scanResults.listen((list) {
@@ -154,6 +180,89 @@ class PrinterService {
     await blank();
     await esc.cutPaper();
 
+    final bytes = await esc.getCommand();
+    if (bytes != null) await BluetoothPrintPlus.write(bytes);
+  }
+
+  /// Cetak laporan penutupan harian.
+  Future<void> printClosing(Map<String, dynamic> closing) async {
+    final esc = EscCommand();
+    await esc.cleanCommand();
+    Future<void> line(String text,
+            {Alignment alignment = Alignment.left,
+            EscTextStyle style = EscTextStyle.default_,
+            EscFontSize fontSize = EscFontSize.default_}) =>
+        esc.text(
+            content: text,
+            alignment: alignment,
+            style: style,
+            fontSize: fontSize);
+    final store = (closing['store'] as Map<String, dynamic>?) ?? {};
+    final storeName = store['store_name']?.toString() ?? 'Anyostore';
+    final methods = (closing['methods'] as Map<String, dynamic>?) ?? {};
+
+    await line(storeName,
+        alignment: Alignment.center,
+        style: EscTextStyle.bold,
+        fontSize: EscFontSize.size2);
+    await line('--------------------------------');
+    await line('LAPORAN PENUTUPAN',
+        alignment: Alignment.center, style: EscTextStyle.bold);
+    await line(closing['date']?.toString() ?? '',
+        alignment: Alignment.center);
+    await line('--------------------------------');
+    await line('Total struk'.padRight(20) +
+        '${closing['receipt_count'] ?? 0}'.padLeft(28));
+    await line('Total penjualan'.padRight(20) +
+        fmtRp(asNum(closing['total_sales'])).padLeft(28));
+    await line('Retur'.padRight(20) +
+        '${closing['return_count'] ?? 0}'.padLeft(28));
+    await line('TOTAL KASIR'.padRight(20) +
+        fmtRp(asNum(closing['expected_total'])).padLeft(28));
+    await line('--------------------------------');
+    for (final entry in methods.entries) {
+      final m = entry.value as Map<String, dynamic>;
+      await line((entry.key).toString().toUpperCase(),
+          style: EscTextStyle.bold);
+      await line('  Penjualan'.padRight(20) +
+          fmtRp(asNum(m['sales'])).padLeft(28));
+      await line('  Retur'.padRight(20) +
+          fmtRp(asNum(m['returns'])).padLeft(28));
+      await line('  Pembatalan'.padRight(20) +
+          fmtRp(asNum(m['cancellations'])).padLeft(28));
+      await line('  Kas masuk/keluar'.padRight(20) +
+          fmtRp(asNum(m['cash_in_out'])).padLeft(28));
+      await line('  Total'.padRight(20) +
+          fmtRp(asNum(m['total'])).padLeft(28));
+    }
+    await line('--------------------------------');
+    await line('Terima kasih, sampai jumpa lagi!',
+        alignment: Alignment.center);
+    await esc.newline();
+    await esc.newline();
+    await esc.cutPaper();
+    final bytes = await esc.getCommand();
+    if (bytes != null) await BluetoothPrintPlus.write(bytes);
+  }
+
+  /// Uji cetak sederhana untuk memastikan printer siap dipakai.
+  Future<void> printTest() async {
+    final esc = EscCommand();
+    await esc.cleanCommand();
+    await esc.text(
+        content: 'Anyostore App',
+        alignment: Alignment.center,
+        style: EscTextStyle.bold,
+        fontSize: EscFontSize.size2);
+    await esc.text(content: '--------------------------------');
+    await esc.text(
+        content: 'UJI CETAK PRINTER',
+        alignment: Alignment.center,
+        style: EscTextStyle.bold);
+    await esc.text(content: 'Printer siap dipakai otomatis');
+    await esc.newline();
+    await esc.newline();
+    await esc.cutPaper();
     final bytes = await esc.getCommand();
     if (bytes != null) await BluetoothPrintPlus.write(bytes);
   }

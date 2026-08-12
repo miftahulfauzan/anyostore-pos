@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'login_page.dart';
+import 'task_ui.dart';
 
 const _kInk = Color(0xff1E3A5F);
 const _kMuted = Color(0xff5f5f5d);
@@ -33,8 +34,6 @@ class SplashPage extends StatelessWidget {
                         clipBehavior: Clip.none,
                         children: [
                           Container(
-                            width: 96,
-                            height: 96,
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(16),
@@ -46,8 +45,8 @@ class SplashPage extends StatelessWidget {
                                     offset: Offset(0, 3))
                               ],
                             ),
-                            child: const Icon(Icons.shopping_bag_outlined,
-                                size: 52, color: _kInk),
+                            padding: const EdgeInsets.all(4),
+                            child: const BrandLogo(size: 88, radius: 14),
                           ),
                           const Positioned(
                             top: -4,

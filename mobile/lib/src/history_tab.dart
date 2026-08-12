@@ -164,7 +164,7 @@ class _HistoryTabState extends State<HistoryTab> {
             FilledButton.icon(
               onPressed: () {
                 Navigator.pop(ctx);
-                showPrinterSheet(context, () => widget.api.receipt(id));
+                printReceiptNow(context, () => widget.api.receipt(id));
               },
               icon: const Icon(Icons.print),
               label: const Text('Cetak Struk'),

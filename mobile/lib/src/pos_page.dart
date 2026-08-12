@@ -427,7 +427,7 @@ class _PosPageState extends State<PosPage> {
               onPressed: () {
                 Navigator.pop(ctx);
                 if (id != null) {
-                  showPrinterSheet(context, () => _client.receipt(id));
+                  printReceiptNow(context, () => _client.receipt(id));
                 }
               },
               icon: const Icon(Icons.print),

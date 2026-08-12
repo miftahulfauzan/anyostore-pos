@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'dart:convert';
+
+import 'package:image_picker/image_picker.dart';
+
 import 'api_client.dart';
+import 'printer_service.dart';
+import 'printer_setup.dart';
+import 'task_ui.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key, required this.api});
@@ -15,6 +22,8 @@ class _SettingsPageState extends State<SettingsPage> {
   Map<String, dynamic> _settings = {};
   bool _loading = true;
   bool _saving = false;
+  bool _uploadingLogo = false;
+  String _printerLabel = '';
   String? _error;
 
   final _name = TextEditingController();
@@ -66,6 +75,12 @@ class _SettingsPageState extends State<SettingsPage> {
         _invoicePrefix.text = settings['invoice_prefix']?.toString() ?? '';
         _receiptHeader.text = settings['receipt_header']?.toString() ?? '';
       });
+      final savedPrinter = await PrinterService().savedPrinter();
+      if (mounted) {
+        setState(() => _printerLabel = savedPrinter == null
+            ? ''
+            : '${savedPrinter.name} (${savedPrinter.address})');
+      }
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {
@@ -243,6 +258,63 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<void> _pickLogo() async {
+    try {
+      final picked = await ImagePicker().pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 90);
+      if (picked == null || !mounted) return;
+      final bytes = await picked.readAsBytes();
+      if (bytes.length > 3 * 1024 * 1024) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Ukuran logo maksimal 3 MB')));
+        }
+        return;
+      }
+      setState(() => _uploadingLogo = true);
+      await widget.api.uploadLogo(picked.mimeType ?? 'image/png',
+          base64Encode(bytes));
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Logo berhasil diganti')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Gagal ganti logo: $e')));
+    } finally {
+      if (mounted) setState(() => _uploadingLogo = false);
+    }
+  }
+
+  Future<void> _refreshPrinter() async {
+    final savedPrinter = await PrinterService().savedPrinter();
+    if (!mounted) return;
+    setState(() => _printerLabel = savedPrinter == null
+        ? ''
+        : '${savedPrinter.name} (${savedPrinter.address})');
+  }
+
+  Future<void> _choosePrinter() async {
+    await showPrinterJobSheet(context,
+        (printer, device) => printer.printTest(),
+        title: 'Pilih & Simpan Printer');
+    await _refreshPrinter();
+  }
+
+  Future<void> _testPrinter() async {
+    await printNow(context, (printer, device) => printer.printTest(),
+        title: 'Uji Cetak');
+  }
+
+  Future<void> _clearPrinter() async {
+    await PrinterService().clearPrinter();
+    await _refreshPrinter();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
@@ -301,6 +373,99 @@ class _SettingsPageState extends State<SettingsPage> {
                   onPressed: _saving ? null : _saveSettings,
                   child: Text(_saving ? 'Menyimpan...' : 'Simpan Pengaturan'),
                 ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('Logo Aplikasi',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    BrandLogo(api: widget.api, size: 64, radius: 16),
+                    const SizedBox(width: 14),
+                    const Expanded(
+                      child: Text(
+                          'Logo tampil di splash, halaman login, dan header menu. Format JPG/PNG/WebP maks 3 MB.',
+                          style: TextStyle(fontSize: 11, color: kTaskGray)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                FilledButton.icon(
+                  onPressed: _uploadingLogo ? null : _pickLogo,
+                  icon: _uploadingLogo
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.image_outlined, size: 18),
+                  label: Text(_uploadingLogo ? 'Mengunggah...' : 'Ganti Logo'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('Printer Thermal',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.print, size: 18, color: kTaskDark),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _printerLabel.isEmpty
+                            ? 'Belum ada printer tersimpan.'
+                            : 'Printer aktif: $_printerLabel',
+                        style: const TextStyle(fontSize: 12, color: kTaskGray),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _choosePrinter,
+                        icon: const Icon(Icons.bluetooth, size: 16),
+                        label: const Text('Pilih Printer'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _testPrinter,
+                        icon: const Icon(Icons.print, size: 16),
+                        label: const Text('Uji Cetak'),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_printerLabel.isNotEmpty)
+                  TextButton(
+                    onPressed: _clearPrinter,
+                    child: const Text('Hapus Printer Tersimpan'),
+                  ),
+                const SizedBox(height: 2),
+                const Text(
+                    'Printer yang dipilih tersimpan otomatis dan dipakai tanpa konek ulang untuk struk, barcode, dan penutupan.',
+                    style: TextStyle(fontSize: 10, color: kTaskGray)),
               ],
             ),
           ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'api_client.dart';
 import 'format.dart';
+import 'printer_setup.dart';
 import 'task_ui.dart';
 
 class ReportsPage extends StatefulWidget {
@@ -236,9 +237,37 @@ class _ReportsPageState extends State<ReportsPage> {
     ];
   }
 
+  Future<void> _printClosing() {
+    return printNow(context, (printer, device) async {
+      final store = await widget.api.storeSettings();
+      await printer.printClosing({
+        'store': store,
+        'date': _data?['date'] ?? '',
+        'receipt_count': _data?['receipt_count'] ?? 0,
+        'total_sales': _data?['total_sales'] ?? 0,
+        'return_count': _data?['return_count'] ?? 0,
+        'expected_total': _data?['expected_total'] ?? 0,
+        'methods': _data?['methods'] ?? {},
+      });
+    }, title: 'Cetak Penutupan');
+  }
+
   List<Widget> _closing() {
     final methods = (_data?['methods'] as Map<String, dynamic>?) ?? {};
     return [
+      FilledButton.icon(
+        onPressed: _printClosing,
+        style: FilledButton.styleFrom(
+          backgroundColor: const Color(0xff1E3A5F),
+          foregroundColor: Colors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          minimumSize: const Size.fromHeight(50),
+        ),
+        icon: const Icon(Icons.print, size: 18),
+        label: const Text('Cetak Penutupan'),
+      ),
+      const SizedBox(height: 12),
       _Card('Penutupan ${_data?['date'] ?? ''}', [
         _Row('Total struk', '${_data?['receipt_count'] ?? 0}'),
         _Row('Total penjualan', fmtRp(asNum(_data?['total_sales']))),
