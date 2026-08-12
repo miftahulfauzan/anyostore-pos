@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'api_client.dart';
+import 'auth_store.dart';
 import 'cash_drawer_page.dart';
 import 'commissions_page.dart';
 import 'customers_page.dart';
@@ -10,6 +12,10 @@ import 'promotions_page.dart';
 import 'settings_page.dart';
 import 'users_page.dart';
 
+const _kInk = Color(0xff1c1c1c);
+const _kMuted = Color(0xff5f5f5d);
+const _kBorder = Color(0xffeceae4);
+
 class MorePage extends StatelessWidget {
   const MorePage(
       {super.key, required this.api, required this.branchId, this.role});
@@ -18,84 +24,160 @@ class MorePage extends StatelessWidget {
   final String? role;
 
   Widget _scaffold(String title, Widget child) => Scaffold(
-        appBar: AppBar(title: Text(title)),
+        backgroundColor: const Color(0xfff7f4ed),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          title: Text(title),
+        ),
         body: child,
       );
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthStore>();
+    final name = auth.userName ?? 'Pengguna';
+    final email = auth.email ?? '';
+    final initial = name.isEmpty ? 'A' : name.characters.first.toUpperCase();
+
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
-        _Tile(
-          icon: Icons.dashboard,
-          title: 'Dashboard',
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => _scaffold('Dashboard', DashboardPage(api: api)))),
+        // Profil header
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _kBorder),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0x0d1c1c1c),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: _kInk, width: 1.5),
+                ),
+                child: Text(initial,
+                    style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: _kInk)),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name,
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: _kInk)),
+                    if (email.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(email,
+                          style: const TextStyle(
+                              fontSize: 12, color: _kMuted)),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-        _Tile(
-          icon: Icons.people,
-          title: 'Transaksi',
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => _scaffold('Transaksi', CustomersPage(api: api)))),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _kBorder),
+          ),
+          child: Column(
+            children: [
+              _row(Icons.dashboard, 'Dashboard', const Color(0x0d1c1c1c),
+                  _kInk, () => _open(context, 'Dashboard', DashboardPage(api: api))),
+              _divider(),
+              _row(Icons.people, 'Transaksi', const Color(0xfff0ebe1),
+                  const Color(0xff5c4d3c), () => _open(context, 'Transaksi', CustomersPage(api: api))),
+              _divider(),
+              _row(Icons.payments, 'Laci Kas', const Color(0xffe8f0e9),
+                  const Color(0xff2d5238), () => _open(context, 'Laci Kas', CashDrawerPage(api: api))),
+              _divider(),
+              _row(Icons.settings, 'Pengaturan', const Color(0x0d1c1c1c),
+                  _kInk, () => _open(context, 'Pengaturan', SettingsPage(api: api))),
+              _divider(),
+              _row(Icons.badge, 'Pegawai', const Color(0xffe8f0e9),
+                  const Color(0xff2d5238), () => _open(context, 'Pegawai', UsersPage(api: api, branchId: branchId, role: role))),
+              _divider(),
+              _row(Icons.payments_outlined, 'Komisi', const Color(0xfff0ebe1),
+                  const Color(0xff5c4d3c), () => _open(context, 'Komisi', CommissionsPage(api: api, branchId: branchId, role: role))),
+              _divider(),
+              _row(Icons.local_offer, 'Promo', const Color(0x0d1c1c1c),
+                  _kInk, () => _open(context, 'Promo', PromotionsPage(api: api))),
+              _divider(),
+              _row(Icons.account_balance_wallet, 'Keuangan',
+                  const Color(0xffe8f0e9), const Color(0xff2d5238),
+                  () => _open(context, 'Keuangan', FinancePage(api: api))),
+            ],
+          ),
         ),
-        _Tile(
-          icon: Icons.payments,
-          title: 'Laci Kas',
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => _scaffold('Laci Kas', CashDrawerPage(api: api)))),
-        ),
-        _Tile(
-          icon: Icons.settings,
-          title: 'Pengaturan',
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => _scaffold('Pengaturan', SettingsPage(api: api)))),
-        ),
-        _Tile(
-          icon: Icons.badge,
-          title: 'Pegawai',
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => _scaffold(
-                  'Pegawai', UsersPage(api: api, branchId: branchId, role: role)))),
-        ),
-        _Tile(
-          icon: Icons.payments_outlined,
-          title: 'Komisi',
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => _scaffold('Komisi',
-                  CommissionsPage(api: api, branchId: branchId, role: role)))),
-        ),
-        _Tile(
-          icon: Icons.local_offer,
-          title: 'Promo',
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => _scaffold('Promo', PromotionsPage(api: api)))),
-        ),
-        _Tile(
-          icon: Icons.account_balance_wallet,
-          title: 'Keuangan',
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => _scaffold('Keuangan', FinancePage(api: api)))),
+        const Padding(
+          padding: EdgeInsets.only(top: 20, bottom: 8),
+          child: Text('Anyostore App v0.1.0',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 10, color: _kMuted)),
         ),
       ],
     );
   }
-}
 
-class _Tile extends StatelessWidget {
-  const _Tile({required this.icon, required this.title, required this.onTap});
-  final IconData icon;
-  final String title;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Card(
-        child: ListTile(
-          leading: Icon(icon),
-          title:
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: onTap,
-        ),
+  Widget _divider() => const Divider(
+        height: 1,
+        thickness: 1,
+        color: _kBorder,
+        indent: 16,
+        endIndent: 16,
       );
+
+  Widget _row(IconData icon, String title, Color chipBg, Color chipFg,
+      VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: chipBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 17, color: chipFg),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(title,
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: _kInk)),
+            ),
+            const Icon(Icons.chevron_right, size: 18, color: Color(0xff94a3b8)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _open(BuildContext context, String title, Widget child) {
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => _scaffold(title, child)));
+  }
 }

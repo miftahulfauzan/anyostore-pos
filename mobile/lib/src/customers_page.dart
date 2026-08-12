@@ -58,58 +58,93 @@ class _CustomersPageState extends State<CustomersPage> {
     final saved = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(existing == null ? 'Tambah Pelanggan' : 'Edit Pelanggan'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                    controller: name,
-                    decoration: const InputDecoration(
-                        labelText: 'Nama *', border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: phone,
-                    keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
-                        labelText: 'No. HP', border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: email,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                        labelText: 'Email', border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: address,
-                    decoration: const InputDecoration(
-                        labelText: 'Alamat', border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: tier,
-                  decoration: const InputDecoration(
-                      labelText: 'Tipe harga', border: OutlineInputBorder()),
-                  items: const [
-                    DropdownMenuItem(value: 'reguler', child: Text('Reguler')),
-                    DropdownMenuItem(
-                        value: 'semi_grosir', child: Text('Semi Grosir')),
-                    DropdownMenuItem(
-                        value: 'grosir_seri', child: Text('Grosir Seri')),
-                  ],
-                  onChanged: (v) => setDialogState(() => tier = v ?? 'reguler'),
-                ),
-              ],
+        builder: (ctx, setDialogState) => Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Color(0xffeceae4)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(existing == null ? 'Tambah Pelanggan' : 'Edit Pelanggan',
+                      style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xff1c1c1c))),
+                  const SizedBox(height: 4),
+                  const Text('Lengkapi data pelanggan di bawah ini.',
+                      style: TextStyle(fontSize: 12, color: Color(0xff5f5f5d))),
+                  const SizedBox(height: 18),
+                  _label('Nama *'),
+                  _field(name, 'Nama pelanggan'),
+                  const SizedBox(height: 12),
+                  _label('No. HP'),
+                  _field(phone, '08xxxxxxxxxx',
+                      keyboard: TextInputType.phone),
+                  const SizedBox(height: 12),
+                  _label('Email'),
+                  _field(email, 'nama@email.com',
+                      keyboard: TextInputType.emailAddress),
+                  const SizedBox(height: 12),
+                  _label('Alamat'),
+                  _field(address, 'Alamat lengkap'),
+                  const SizedBox(height: 12),
+                  _label('Tipe harga'),
+                  DropdownButtonFormField<String>(
+                    initialValue: tier,
+                    decoration: _decoration(),
+                    items: const [
+                      DropdownMenuItem(
+                          value: 'reguler', child: Text('Reguler')),
+                      DropdownMenuItem(
+                          value: 'semi_grosir', child: Text('Semi Grosir')),
+                      DropdownMenuItem(
+                          value: 'grosir_seri', child: Text('Grosir Seri')),
+                    ],
+                    onChanged: (v) =>
+                        setDialogState(() => tier = v ?? 'reguler'),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 46),
+                            foregroundColor: const Color(0xff5f5f5d),
+                            side: const BorderSide(color: Color(0xffeceae4)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Batal'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 46),
+                            backgroundColor: const Color(0xff0ea5e9),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Simpan'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Batal')),
-            FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Simpan')),
-          ],
         ),
       ),
     );
@@ -170,6 +205,39 @@ class _CustomersPageState extends State<CustomersPage> {
       }
     }
   }
+
+
+  Widget _label(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Text(text,
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xff334155))),
+      );
+
+  InputDecoration _decoration() {
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: Color(0xffe2e8f0)),
+    );
+    return InputDecoration(
+      filled: true,
+      fillColor: const Color(0xfff8fafc),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      enabledBorder: border,
+      focusedBorder: border.copyWith(
+          borderSide: const BorderSide(color: Color(0xff1c1c1c), width: 1.4)),
+    );
+  }
+
+  Widget _field(TextEditingController controller, String hint,
+          {TextInputType? keyboard}) =>
+      TextField(
+          controller: controller,
+          keyboardType: keyboard,
+          decoration: _decoration().copyWith(hintText: hint));
 
   @override
   Widget build(BuildContext context) {

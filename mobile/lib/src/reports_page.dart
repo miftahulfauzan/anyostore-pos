@@ -277,22 +277,28 @@ class _Card extends StatelessWidget {
   final List<Widget> rows;
 
   @override
-  Widget build(BuildContext context) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(title,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w800, fontSize: 15)),
-              const SizedBox(height: 8),
-              ...rows,
-            ],
-          ),
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xffeceae4)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(title,
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xff1c1c1c))),
+            const SizedBox(height: 12),
+            ...rows,
+          ],
         ),
       );
 }
+
 
 class _Row extends StatelessWidget {
   const _Row(this.label, this.value);
@@ -301,16 +307,19 @@ class _Row extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
+        padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Flexible(
-                child: Text(label,
-                    style: TextStyle(
-                        color: Theme.of(context).colorScheme.outline))),
-            Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
+            Text(label,
+                style: const TextStyle(fontSize: 12, color: Color(0xff5f5f5d))),
+            Text(value,
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xff1c1c1c))),
           ],
         ),
       );
 }
+

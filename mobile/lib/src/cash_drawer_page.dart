@@ -84,6 +84,24 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
   double _num(TextEditingController c) =>
       double.tryParse(c.text.replaceAll('.', '')) ?? 0;
 
+  InputDecoration _dec(String label, {String? prefix}) {
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: Color(0xffe2e8f0)),
+    );
+    return InputDecoration(
+      labelText: label,
+      prefixText: prefix,
+      filled: true,
+      fillColor: const Color(0xfff8fafc),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      enabledBorder: border,
+      focusedBorder: border.copyWith(
+          borderSide: const BorderSide(color: Color(0xff1c1c1c), width: 1.4)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
@@ -107,8 +125,7 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
             children: [
               DropdownButtonFormField<String>(
                 initialValue: _moveType,
-                decoration: const InputDecoration(
-                    labelText: 'Jenis', border: OutlineInputBorder()),
+                decoration: _dec('Jenis'),
                 items: const [
                   DropdownMenuItem(value: 'cash-in', child: Text('Kas masuk')),
                   DropdownMenuItem(
@@ -120,15 +137,11 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
               TextField(
                   controller: _moveAmount,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                      labelText: 'Nominal',
-                      border: OutlineInputBorder(),
-                      prefixText: 'Rp ')),
+                  decoration: _dec('Nominal', prefix: 'Rp ')),
               const SizedBox(height: 8),
               TextField(
                   controller: _moveReason,
-                  decoration: const InputDecoration(
-                      labelText: 'Alasan', border: OutlineInputBorder())),
+                  decoration: _dec('Alasan')),
               const SizedBox(height: 10),
               FilledButton(
                 onPressed: _saving ||
@@ -137,6 +150,11 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
                     ? null
                     : () => _run(() => widget.api.cashDrawerInOut(
                         _moveType, _num(_moveAmount), _moveReason.text.trim())),
+                style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xff0ea5e9),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12))),
                 child: const Text('Simpan Kas Masuk'),
               ),
             ],
@@ -148,22 +166,22 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
               TextField(
                   controller: _closeAmount,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                      labelText: 'Kas aktual',
-                      border: OutlineInputBorder(),
-                      prefixText: 'Rp ')),
+                  decoration: _dec('Kas aktual', prefix: 'Rp ')),
               const SizedBox(height: 8),
               TextField(
                   controller: _closeNotes,
-                  decoration: const InputDecoration(
-                      labelText: 'Catatan (wajib jika ada selisih)',
-                      border: OutlineInputBorder())),
+                  decoration: _dec('Catatan (wajib jika ada selisih)')),
               const SizedBox(height: 10),
               FilledButton(
                 onPressed: _saving || _closeAmount.text.isEmpty
                     ? null
                     : () => _run(() => widget.api.cashDrawerClose(
                         _num(_closeAmount), _closeNotes.text.trim())),
+                style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xff0ea5e9),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12))),
                 child: const Text('Tutup Laci Kas'),
               ),
             ],
@@ -177,16 +195,18 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
               TextField(
                   controller: _openAmount,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                      labelText: 'Modal awal',
-                      border: OutlineInputBorder(),
-                      prefixText: 'Rp ')),
+                  decoration: _dec('Modal awal', prefix: 'Rp ')),
               const SizedBox(height: 10),
               FilledButton(
                 onPressed: _saving || _openAmount.text.isEmpty
                     ? null
                     : () => _run(
                         () => widget.api.cashDrawerOpen(_num(_openAmount))),
+                style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xff0ea5e9),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12))),
                 child: const Text('Buka Laci'),
               ),
             ],
@@ -208,19 +228,24 @@ class _Card extends StatelessWidget {
   final List<Widget> children;
 
   @override
-  Widget build(BuildContext context) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(title,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w800, fontSize: 15)),
-              const SizedBox(height: 8),
-              ...children,
-            ],
-          ),
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xffeceae4)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(title,
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xff1c1c1c))),
+            const SizedBox(height: 12),
+            ...children,
+          ],
         ),
       );
 }
@@ -232,13 +257,17 @@ class _Row extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
+        padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(label,
-                style: TextStyle(color: Theme.of(context).colorScheme.outline)),
-            Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
+                style: const TextStyle(fontSize: 12, color: Color(0xff5f5f5d))),
+            Text(value,
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xff1c1c1c))),
           ],
         ),
       );
