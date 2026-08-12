@@ -11,6 +11,7 @@ import 'finance_page.dart';
 import 'promotions_page.dart';
 import 'settings_page.dart';
 import 'users_page.dart';
+import 'task_ui.dart';
 
 const _kInk = Color(0xff1E3A5F);
 const _kMuted = Color(0xff5f5f5d);
@@ -38,7 +39,6 @@ class MorePage extends StatelessWidget {
     final auth = context.watch<AuthStore>();
     final name = auth.userName ?? 'Pengguna';
     final email = auth.email ?? '';
-    final initial = name.isEmpty ? 'A' : name.characters.first.toUpperCase();
 
     return ListView(
       padding: const EdgeInsets.all(12),
@@ -53,21 +53,7 @@ class MorePage extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Container(
-                width: 56,
-                height: 56,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: const Color(0x141E3A5F),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: _kInk, width: 1.5),
-                ),
-                child: Text(initial,
-                    style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: _kInk)),
-              ),
+              BrandLogo(api: api, size: 56, radius: 28),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
