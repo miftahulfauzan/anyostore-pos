@@ -916,10 +916,13 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
           children: [
             DropdownButtonFormField<int?>(
               initialValue: widget.posBranchId,
-              style: const TextStyle(fontSize: 12.5),
+              style: const TextStyle(fontSize: 12.5, color: Color(0xff1E3A5F)),
               decoration: const InputDecoration(
                   labelText: 'Toko / Gudang',
-                  prefixIcon: Icon(Icons.store, size: 18),
+                  labelStyle: TextStyle(color: Color(0xff8A857C)),
+                  prefixIcon: Icon(Icons.store, size: 18, color: Color(0xff1E3A5F)),
+                  filled: true,
+                  fillColor: Colors.white,
                   border: OutlineInputBorder(),
                   contentPadding:
                       EdgeInsets.symmetric(horizontal: 12, vertical: 13)),
@@ -939,9 +942,12 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
               DropdownButtonFormField<String>(
                 initialValue:
                     widget.warehouseId.isEmpty ? null : widget.warehouseId,
-                style: const TextStyle(fontSize: 12.5),
+                style: const TextStyle(fontSize: 12.5, color: Color(0xff1E3A5F)),
                 decoration: const InputDecoration(
                     labelText: 'Gudang',
+                    labelStyle: TextStyle(color: Color(0xff8A857C)),
+                    filled: true,
+                    fillColor: Colors.white,
                     border: OutlineInputBorder(),
                     contentPadding:
                         EdgeInsets.symmetric(horizontal: 12, vertical: 13)),
