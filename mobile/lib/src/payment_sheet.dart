@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'format.dart';
+import 'task_ui.dart';
 
 class PaymentSheet extends StatefulWidget {
   const PaymentSheet({super.key, required this.grandTotal});
@@ -133,13 +134,13 @@ class _PaymentSheetState extends State<PaymentSheet> {
                 ],
               ),
               const SizedBox(height: 12),
-              SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment(value: false, label: Text('Tunai / 1 metode')),
-                  ButtonSegment(value: true, label: Text('Split')),
+              PillTabs(
+                tabs: const [
+                  (value: 'single', icon: Icons.payments, label: 'Tunai / 1 metode'),
+                  (value: 'split', icon: Icons.call_split, label: 'Split'),
                 ],
-                selected: {_split},
-                onSelectionChanged: (s) => setState(() => _split = s.first),
+                selected: _split ? 'split' : 'single',
+                onChanged: (v) => setState(() => _split = v == 'split'),
               ),
               const SizedBox(height: 12),
               if (!_split) ...[

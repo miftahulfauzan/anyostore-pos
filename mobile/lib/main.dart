@@ -19,26 +19,25 @@ Future<void> main() async {
 }
 
 ThemeData _buildTheme() {
-  const seed = Color(0xff1e3a5f);
+  const seed = Color(0xff213F33);
   final scheme = ColorScheme.fromSeed(
     seedColor: seed,
     brightness: Brightness.light,
     surface: const Color(0xffffffff),
   );
-  final radius = BorderRadius.circular(14);
   return ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
-    scaffoldBackgroundColor: const Color(0xfff6f8fc),
+    scaffoldBackgroundColor: const Color(0xffF5F1EA),
     fontFamily: 'sans-serif',
     appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xfff6f8fc),
+      backgroundColor: Colors.white,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: false,
       titleTextStyle: TextStyle(
-          fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xff101828)),
+          fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xff213F33)),
     ),
     cardTheme: CardThemeData(
       elevation: 0,
@@ -47,13 +46,13 @@ ThemeData _buildTheme() {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xffe7edf5)),
+        side: const BorderSide(color: Color(0xffE7E0D6)),
       ),
     ),
     navigationBarTheme: const NavigationBarThemeData(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.transparent,
-      indicatorColor: Color(0xffdce7f3),
+      indicatorColor: Color(0xffF5E8DC),
       elevation: 0,
       height: 68,
       labelTextStyle: WidgetStatePropertyAll(
@@ -81,21 +80,17 @@ ThemeData _buildTheme() {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: const Color(0xfff1f4f9),
-      border:
-          OutlineInputBorder(borderRadius: radius, borderSide: BorderSide.none),
-      enabledBorder:
-          OutlineInputBorder(borderRadius: radius, borderSide: BorderSide.none),
+      fillColor: Colors.white,
+      border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xffE7E0D6))),
+      enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xffE7E0D6))),
       focusedBorder: OutlineInputBorder(
-          borderRadius: radius,
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: seed, width: 1.5)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-    ),
-    segmentedButtonTheme: SegmentedButtonThemeData(
-      style: ButtonStyle(
-        shape: WidgetStatePropertyAll(
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-      ),
     ),
     bottomSheetTheme: const BottomSheetThemeData(
       backgroundColor: Colors.white,
@@ -110,7 +105,7 @@ ThemeData _buildTheme() {
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: const Color(0xff1c2430),
+      backgroundColor: const Color(0xff213F33),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
   );

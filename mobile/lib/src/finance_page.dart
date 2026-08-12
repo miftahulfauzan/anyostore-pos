@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'api_client.dart';
 import 'format.dart';
+import 'task_ui.dart';
 
 class FinancePage extends StatefulWidget {
   const FinancePage({super.key, required this.api});
@@ -187,14 +188,14 @@ class _FinancePageState extends State<FinancePage> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-          child: SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'expense', label: Text('Pengeluaran')),
-              ButtonSegment(value: 'income', label: Text('Pemasukan')),
+          child: PillTabs(
+            tabs: const [
+              (value: 'expense', icon: Icons.trending_down, label: 'Pengeluaran'),
+              (value: 'income', icon: Icons.trending_up, label: 'Pemasukan'),
             ],
-            selected: {_tab},
-            onSelectionChanged: (s) {
-              setState(() => _tab = s.first);
+            selected: _tab,
+            onChanged: (v) {
+              setState(() => _tab = v);
               _load();
             },
           ),

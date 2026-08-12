@@ -131,7 +131,7 @@ class _CustomersPageState extends State<CustomersPage> {
                           onPressed: () => Navigator.pop(ctx, true),
                           style: FilledButton.styleFrom(
                             minimumSize: const Size(0, 46),
-                            backgroundColor: const Color(0xff0ea5e9),
+                            backgroundColor: const Color(0xff213F33),
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),

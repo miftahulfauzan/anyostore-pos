@@ -106,10 +106,21 @@ class _ReportsPageState extends State<ReportsPage> {
               Expanded(
                 child: DropdownButtonFormField<String>(
                   initialValue: _preset,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                       isDense: true,
                       labelText: 'Rentang',
-                      border: OutlineInputBorder()),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide:
+                              const BorderSide(color: Color(0xffE7E0D6))),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: const BorderSide(
+                              color: Color(0xff213F33), width: 1.4))),
                   items: const [
                     DropdownMenuItem(value: 'today', child: Text('Hari ini')),
                     DropdownMenuItem(value: '7d', child: Text('7 hari')),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'api_client.dart';
 import 'format.dart';
+import 'task_ui.dart';
 
 class CommissionsPage extends StatefulWidget {
   const CommissionsPage(
@@ -221,21 +222,28 @@ class _CommissionsPageState extends State<CommissionsPage> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-          child: SegmentedButton<String>(
-            segments: [
+          child: PillTabs(
+            tabs: [
               for (final t in _tabs)
-                ButtonSegment(
-                    value: t,
-                    label: Text(switch (t) {
-                      'saya' => 'Saya',
-                      'rules' => 'Aturan',
-                      'records' => 'Catatan',
-                      _ => 'Laporan',
-                    })),
+                (
+                  value: t,
+                  icon: switch (t) {
+                    'saya' => Icons.person,
+                    'rules' => Icons.rule,
+                    'records' => Icons.list_alt,
+                    _ => Icons.bar_chart,
+                  },
+                  label: switch (t) {
+                    'saya' => 'Saya',
+                    'rules' => 'Aturan',
+                    'records' => 'Catatan',
+                    _ => 'Laporan',
+                  },
+                ),
             ],
-            selected: {_tab},
-            onSelectionChanged: (s) {
-              setState(() => _tab = s.first);
+            selected: _tab,
+            onChanged: (v) {
+              setState(() => _tab = v);
               _load();
             },
           ),

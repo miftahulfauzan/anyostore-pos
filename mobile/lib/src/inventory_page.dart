@@ -82,7 +82,7 @@ class _StockSection extends StatefulWidget {
 
 class _StockSectionState extends State<_StockSection> {
   final _search = TextEditingController();
-  bool _allBranches = false;
+  String _branchMode = 'this';
   List<Map<String, dynamic>> _rows = [];
   Map<String, dynamic> _summary = {};
   bool _loading = true;
@@ -103,7 +103,7 @@ class _StockSectionState extends State<_StockSection> {
       final data = await widget.api.stockTotal(
           branchId: widget.branchId,
           search: _search.text.trim(),
-          allBranches: _allBranches);
+          allBranches: _branchMode == 'all');
       if (!mounted) return;
       setState(() {
         _summary = (data['summary'] as Map<String, dynamic>?) ?? {};
@@ -124,14 +124,14 @@ class _StockSectionState extends State<_StockSection> {
         if (widget.isOwner)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-            child: SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment(value: false, label: Text('Toko ini')),
-                ButtonSegment(value: true, label: Text('Semua toko')),
+            child: PillTabs(
+              tabs: const [
+                (value: 'this', icon: Icons.store, label: 'Toko ini'),
+                (value: 'all', icon: Icons.storefront, label: 'Semua toko'),
               ],
-              selected: {_allBranches},
-              onSelectionChanged: (sel) {
-                setState(() => _allBranches = sel.first);
+              selected: _branchMode,
+              onChanged: (v) {
+                setState(() => _branchMode = v);
                 _load();
               },
             ),
@@ -847,14 +847,14 @@ class _TransferSectionState extends State<_TransferSection> {
             padding: const EdgeInsets.all(12),
             children: [
               if (widget.isOwner) ...[
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(value: false, label: Text('Dalam cabang')),
-                    ButtonSegment(value: true, label: Text('Antar cabang')),
+                PillTabs(
+                  tabs: const [
+                    (value: 'local', icon: Icons.store, label: 'Dalam cabang'),
+                    (value: 'inter', icon: Icons.swap_horiz, label: 'Antar cabang'),
                   ],
-                  selected: {_interStore},
-                  onSelectionChanged: (sel) => setState(() {
-                    _interStore = sel.first;
+                  selected: _interStore ? 'inter' : 'local',
+                  onChanged: (v) => setState(() {
+                    _interStore = v == 'inter';
                     _to = '';
                   }),
                 ),

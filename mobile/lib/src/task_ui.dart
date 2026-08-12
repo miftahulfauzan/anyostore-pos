@@ -188,7 +188,12 @@ class GlassNavBar extends StatelessWidget {
                   ],
                   border: Border.all(color: Colors.white, width: 4),
                 ),
-                child: const Icon(Icons.add, size: 28, color: Colors.white),
+                child: const Text('POS',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.4)),
               ),
             ),
           ),
