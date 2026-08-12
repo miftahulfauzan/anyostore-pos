@@ -27,6 +27,7 @@ class _UsersPageState extends State<UsersPage> {
   ];
   List<Map<String, dynamic>> _rows = [];
   List<Map<String, dynamic>> _branches = [];
+  int? _selectedBranchId;
   bool _loading = true;
   String? _error;
 
@@ -43,7 +44,7 @@ class _UsersPageState extends State<UsersPage> {
     });
     try {
       final results = await Future.wait([
-        widget.api.users(branchId: widget.branchId),
+        widget.api.users(branchId: _selectedBranchId ?? widget.branchId),
         if (widget.isOwner) widget.api.branches(),
       ]);
       final rows = results[0];
@@ -73,7 +74,7 @@ class _UsersPageState extends State<UsersPage> {
     var role = existing?['role']?.toString() ?? 'kasir';
     var branchId = existing?['branch_id'] != null
         ? int.tryParse('${existing?['branch_id']}')
-        : widget.branchId;
+        : _selectedBranchId ?? widget.branchId;
 
     final saved = await showDialog<bool>(
       context: context,
@@ -253,6 +254,38 @@ class _UsersPageState extends State<UsersPage> {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        if (widget.isOwner) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            child: DropdownButtonFormField<int?>(
+              initialValue: _selectedBranchId ?? widget.branchId,
+              decoration: InputDecoration(
+                labelText: 'Toko / Gudang',
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 12),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: kTaskBorder)),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide:
+                        const BorderSide(color: kTaskDark, width: 1.4)),
+              ),
+              items: [
+                for (final b in _branches)
+                  DropdownMenuItem<int?>(
+                      value: int.tryParse('${b['id']}'),
+                      child: Text(b['name']?.toString() ?? '')),
+              ],
+              onChanged: (v) {
+                setState(() => _selectedBranchId = v);
+                _load();
+              },
+            ),
+          ),
+        ],
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
           child: Row(

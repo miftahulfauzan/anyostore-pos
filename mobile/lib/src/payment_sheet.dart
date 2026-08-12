@@ -135,7 +135,7 @@ class _PaymentSheetState extends State<PaymentSheet> {
               ),
               const SizedBox(height: 12),
               PillTabs(
-                tabs: const [
+                  tabs: const [
                   (value: 'single', icon: Icons.payments, label: 'Tunai / 1 metode'),
                   (value: 'split', icon: Icons.call_split, label: 'Split'),
                 ],

@@ -69,7 +69,7 @@ class _MutationReportPageState extends State<MutationReportPage> {
               Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: PillTabs(
-                  tabs: const [
+                      tabs: const [
                     (value: 'in', icon: Icons.south_west, label: 'Masuk'),
                     (value: 'out', icon: Icons.north_east, label: 'Keluar'),
                   ],

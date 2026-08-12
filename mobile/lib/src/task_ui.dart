@@ -26,6 +26,24 @@ class PillTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (tabs.length <= 3) {
+      // 2-3 menu: satu baris, lebar dibagi rata.
+      return SizedBox(
+        height: 44,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              for (var i = 0; i < tabs.length; i++) ...[
+                if (i > 0) const SizedBox(width: 8),
+                Expanded(child: _pill(tabs[i], true)),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+    // 4+ menu: tetap bisa di-slide ke samping.
     return SizedBox(
       height: 44,
       child: ListView.separated(
@@ -33,39 +51,41 @@ class PillTabs extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         itemCount: tabs.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (_, i) {
-          final t = tabs[i];
-          final active = t.value == selected;
-          return Material(
-            color: active ? kTaskOrange : Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            elevation: active ? 3 : 1,
-            shadowColor: active
-                ? kTaskOrange.withValues(alpha: .45)
-                : const Color(0x14000000),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: () => onChanged(t.value),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                child: Row(
-                  children: [
-                    Icon(t.icon,
-                        size: 16,
-                        color: active ? Colors.white : kTaskGray),
-                    const SizedBox(width: 6),
-                    Text(t.label,
-                        style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: active ? Colors.white : kTaskGray)),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
+        itemBuilder: (_, i) => _pill(tabs[i], false),
+      ),
+    );
+  }
+
+  Widget _pill(({String value, IconData icon, String label}) t,
+      bool centered) {
+    final active = t.value == selected;
+    return Material(
+      color: active ? kTaskOrange : Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      elevation: active ? 3 : 1,
+      shadowColor: active
+          ? kTaskOrange.withValues(alpha: .45)
+          : const Color(0x14000000),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => onChanged(t.value),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            mainAxisAlignment:
+                centered ? MainAxisAlignment.center : MainAxisAlignment.start,
+            children: [
+              Icon(t.icon,
+                  size: 16, color: active ? Colors.white : kTaskGray),
+              const SizedBox(width: 6),
+              Text(t.label,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: active ? Colors.white : kTaskGray)),
+            ],
+          ),
+        ),
       ),
     );
   }
