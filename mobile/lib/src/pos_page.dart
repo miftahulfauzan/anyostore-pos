@@ -916,11 +916,13 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
           children: [
             DropdownButtonFormField<int?>(
               initialValue: widget.posBranchId,
+              style: const TextStyle(fontSize: 12.5),
               decoration: const InputDecoration(
-                  isDense: true,
                   labelText: 'Toko / Gudang',
                   prefixIcon: Icon(Icons.store, size: 18),
-                  border: OutlineInputBorder()),
+                  border: OutlineInputBorder(),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 13)),
               items: [
                 for (final b in widget.branches)
                   DropdownMenuItem<int?>(
@@ -937,10 +939,12 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
               DropdownButtonFormField<String>(
                 initialValue:
                     widget.warehouseId.isEmpty ? null : widget.warehouseId,
+                style: const TextStyle(fontSize: 12.5),
                 decoration: const InputDecoration(
-                    isDense: true,
                     labelText: 'Gudang',
-                    border: OutlineInputBorder()),
+                    border: OutlineInputBorder(),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 13)),
                 items: [
                   for (final w in widget.warehouses)
                     DropdownMenuItem(
@@ -975,7 +979,7 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                            fontSize: 12, color: Color(0xff1E3A5F))),
+                            fontSize: 12.5, color: Color(0xff1E3A5F))),
                   ),
                   const Icon(Icons.expand_more,
                       size: 18, color: Color(0xff8A857C)),
@@ -1010,11 +1014,13 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
               focusNode: _searchFocus,
               onChanged: widget.onSearchChanged,
               onTap: () => setState(() => _active = 'search'),
+              style: const TextStyle(fontSize: 12.5),
               decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.search),
-                  isDense: true,
                   hintText: 'Cari nama / SKU / barcode',
                   border: const OutlineInputBorder(),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 13),
                   suffixIcon: IconButton(
                     onPressed: widget.onScan,
                     icon: const Icon(Icons.qr_code_scanner),

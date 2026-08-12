@@ -81,9 +81,10 @@ class _VariantPickerState extends State<VariantPicker> {
                     onPressed: () =>
                         setState(() => _qty = _qty > 1 ? _qty - 1 : 1),
                     icon: const Icon(Icons.remove_circle_outline)),
-                Text('$_qty',
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.w800)),
+                _QtyField(
+                  value: _qty,
+                  onChanged: (v) => setState(() => _qty = v),
+                ),
                 IconButton(
                     onPressed: () => setState(() => _qty++),
                     icon: const Icon(Icons.add_circle_outline)),
@@ -105,3 +106,69 @@ class _VariantPickerState extends State<VariantPicker> {
     );
   }
 }
+
+
+class _QtyField extends StatefulWidget {
+  const _QtyField({required this.value, required this.onChanged});
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  @override
+  State<_QtyField> createState() => _QtyFieldState();
+}
+
+class _QtyFieldState extends State<_QtyField> {
+  late final TextEditingController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = TextEditingController(text: '${widget.value}');
+  }
+
+  @override
+  void didUpdateWidget(_QtyField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value && _c.text != '${widget.value}') {
+      _c.text = '${widget.value}';
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 48,
+      child: TextField(
+        controller: _c,
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+        decoration: InputDecoration(
+          isDense: true,
+          filled: true,
+          fillColor: const Color(0xFFF0F4F9),
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xffB9C9DC))),
+          focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide:
+                  const BorderSide(color: Color(0xff1E3A5F), width: 1.4)),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        ),
+        onChanged: (t) {
+          final v = int.tryParse(t);
+          if (v != null && v >= 1) widget.onChanged(v);
+        },
+      ),
+    );
+  }
+}
+
