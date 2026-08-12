@@ -177,7 +177,8 @@ class _StockSectionState extends State<_StockSection> {
                             final r = _rows[i];
                             final low = asNum(r['total_stock']) <=
                                 asNum(r['min_stock']);
-                            return Card(
+                            return GlassCard(
+                              padding: EdgeInsets.zero,
                               child: ListTile(
                                 title: Text(r['name']?.toString() ?? '',
                                     style: const TextStyle(
@@ -343,7 +344,8 @@ class _MutasiSectionState extends State<_MutasiSection> {
                           itemBuilder: (_, i) {
                             final r = _rows[i];
                             final positive = asNum(r['qty']) >= 0;
-                            return Card(
+                            return GlassCard(
+                              padding: EdgeInsets.zero,
                               child: ListTile(
                                 leading: CircleAvatar(
                                   child: Text(() {
@@ -373,10 +375,20 @@ class _MutasiSectionState extends State<_MutasiSection> {
                           },
                         ),
         ),
-        FloatingActionButton.extended(
-          onPressed: _openForm,
-          icon: const Icon(Icons.add),
-          label: const Text('Mutasi Stok'),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+          child: FilledButton.icon(
+            onPressed: _openForm,
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xff1E3A5F),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(28)),
+              minimumSize: const Size.fromHeight(50),
+            ),
+            icon: const Icon(Icons.add, size: 20),
+            label: const Text('Mutasi Stok'),
+          ),
         ),
       ],
     );
@@ -556,7 +568,8 @@ class _InOutFormState extends State<_InOutForm> {
                 ],
                 const SizedBox(height: 8),
                 for (final item in _items)
-                  Card(
+                  GlassCard(
+                    padding: EdgeInsets.zero,
                     child: ListTile(
                       dense: true,
                       title: Text(item['name']?.toString() ?? ''),
@@ -722,7 +735,8 @@ class _CatalogPickerState extends State<_CatalogPicker> {
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (_, i) {
                 final p = _filtered[i];
-                return Card(
+                return GlassCard(
+                  padding: EdgeInsets.zero,
                   child: ListTile(
                     title: Text(p['name']?.toString() ?? '',
                         style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -781,11 +795,9 @@ class _TransferSectionState extends State<_TransferSection> {
           if (_warehouses.length > 1) _to = '${_warehouses[1]['id']}';
         }
       });
-      if (widget.isOwner) {
-        final targets = await widget.api.storeTargets();
-        if (!mounted) return;
-        setState(() => _targets = targets.cast<Map<String, dynamic>>());
-      }
+      final targets = await widget.api.storeTargets();
+      if (!mounted) return;
+      setState(() => _targets = targets.cast<Map<String, dynamic>>());
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {
@@ -846,20 +858,18 @@ class _TransferSectionState extends State<_TransferSection> {
         : ListView(
             padding: const EdgeInsets.all(12),
             children: [
-              if (widget.isOwner) ...[
-                PillTabs(
-                  tabs: const [
-                    (value: 'local', icon: Icons.store, label: 'Dalam cabang'),
-                    (value: 'inter', icon: Icons.swap_horiz, label: 'Antar cabang'),
-                  ],
-                  selected: _interStore ? 'inter' : 'local',
-                  onChanged: (v) => setState(() {
-                    _interStore = v == 'inter';
-                    _to = '';
-                  }),
-                ),
-                const SizedBox(height: 8),
-              ],
+              PillTabs(
+                tabs: const [
+                  (value: 'local', icon: Icons.store, label: 'Dalam cabang'),
+                  (value: 'inter', icon: Icons.swap_horiz, label: 'Antar cabang'),
+                ],
+                selected: _interStore ? 'inter' : 'local',
+                onChanged: (v) => setState(() {
+                  _interStore = v == 'inter';
+                  _to = '';
+                }),
+              ),
+              const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 initialValue: _from.isEmpty ? null : _from,
                 decoration: const InputDecoration(
@@ -914,7 +924,8 @@ class _TransferSectionState extends State<_TransferSection> {
                         TextStyle(color: Theme.of(context).colorScheme.error)),
               ],
               for (final item in _items)
-                Card(
+                GlassCard(
+                  padding: EdgeInsets.zero,
                   child: ListTile(
                     dense: true,
                     title: Text(item['name']?.toString() ?? ''),
@@ -1054,7 +1065,8 @@ class _OpnameSectionState extends State<_OpnameSection> {
                         TextStyle(color: Theme.of(context).colorScheme.error)),
               ],
               for (final item in _items)
-                Card(
+                GlassCard(
+                  padding: EdgeInsets.zero,
                   child: ListTile(
                     dense: true,
                     title: Text(item['name']?.toString() ?? ''),
@@ -1208,7 +1220,8 @@ class _OpnamePickerState extends State<_OpnamePicker> {
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (_, i) {
                 final p = filtered[i];
-                return Card(
+                return GlassCard(
+                  padding: EdgeInsets.zero,
                   child: ListTile(
                     title: Text(p['name']?.toString() ?? ''),
                     subtitle: Text(
@@ -1326,7 +1339,8 @@ class _BarcodeSectionState extends State<_BarcodeSection> {
                               const SizedBox(height: 8),
                           itemBuilder: (_, i) {
                             final r = _rows[i];
-                            return Card(
+                            return GlassCard(
+                              padding: EdgeInsets.zero,
                               child: ListTile(
                                 title: Text(r['name']?.toString() ?? ''),
                                 subtitle: Text(

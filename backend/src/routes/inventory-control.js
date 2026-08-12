@@ -144,7 +144,7 @@ router.post(
     }
   },
 );
-router.get("/store-targets", authorize("owner"), async (req, res, next) => {
+router.get("/store-targets", authorize("owner", "manager", "admin", "gudang"), async (req, res, next) => {
   try {
     const [rows] = await db.execute(
       "SELECT b.id,b.name,w.id AS warehouse_id,w.name AS warehouse_name FROM branches b JOIN warehouses w ON w.branch_id=b.id AND w.is_active=TRUE WHERE b.is_active=TRUE AND b.id<>? ORDER BY b.name,w.name",
@@ -157,7 +157,7 @@ router.get("/store-targets", authorize("owner"), async (req, res, next) => {
 });
 router.post(
   "/transfers/inter-store",
-  authorize("owner"),
+  authorize("owner", "manager", "admin", "gudang"),
   async (req, res, next) => {
     const c = await db.getConnection();
     try {
