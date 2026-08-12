@@ -172,6 +172,25 @@ router.patch('/categories/reorder', authorize('owner', 'manager', 'admin', 'guda
   } catch (error) { next(error); }
 });
 
+// Versi produk per cabang — untuk cek perubahan ringan (tanpa unduh ulang daftar & gambar).
+router.get('/version', async (req, res, next) => {
+  try {
+    const branchId = await readableBranchId(req);
+    let rows;
+    if (branchId === 'all') {
+      [rows] = await db.execute(
+        "SELECT MAX(updated_at) AS updated_at, COUNT(*) AS count FROM products WHERE is_active = TRUE AND branch_id IN (SELECT id FROM branches WHERE type = 'gudang' AND is_active = TRUE)"
+      );
+    } else {
+      [rows] = await db.execute(
+        'SELECT MAX(updated_at) AS updated_at, COUNT(*) AS count FROM products WHERE branch_id = ? AND is_active = TRUE',
+        [branchId]
+      );
+    }
+    res.json({ success: true, data: { updated_at: rows[0].updated_at, count: Number(rows[0].count) } });
+  } catch (e) { next(e); }
+});
+
 router.get('/', async (req, res, next) => {
   try {
     const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);

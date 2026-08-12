@@ -86,6 +86,12 @@ class ApiClient {
   Future<Map<String, dynamic>> me() => get('/auth/me');
 
   // ===== Katalog & data toko =====
+  /// Cek versi produk (MAX updated_at) tanpa mengunduh daftar lengkap.
+  Future<Map<String, dynamic>> productsVersion({required int branchId}) async {
+    final res = await get('/products/version', {'branch_id': '$branchId'});
+    return (res['data'] as Map<String, dynamic>?) ?? {};
+  }
+
   Future<List<dynamic>> products({
     required int branchId,
     String search = '',

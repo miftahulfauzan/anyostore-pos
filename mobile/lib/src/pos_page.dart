@@ -130,11 +130,12 @@ class _PosPageState extends State<PosPage> {
     } else if (_products.isNotEmpty && _lastProductsSync != null) {
       // Cek versi dulu: kalau tidak ada perubahan, pakai data & gambar dari cache.
       try {
-        final v = await _client.productsVersion(branch: branch);
+        final v = await _client.productsVersion(branchId: branch);
         final ts = v['updated_at']?.toString() ?? '';
         if (ts.isNotEmpty && ts == _lastProductsSync) return;
       } catch (_) {}
     }
+    if (!mounted) return;
     try {
       final isOwner = context.read<AuthStore>().role == 'owner';
       final results = await Future.wait([
@@ -165,7 +166,7 @@ class _PosPageState extends State<PosPage> {
         }
       });
       try {
-        final v = await _client.productsVersion(branch: branch);
+        final v = await _client.productsVersion(branchId: branch);
         _lastProductsSync = v['updated_at']?.toString() ?? '';
       } catch (_) {}
     } on ApiException catch (e) {
