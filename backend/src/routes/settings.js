@@ -299,15 +299,17 @@ router.post('/logo', authorize('owner','manager','admin'), logoUpload.single('lo
 router.post('/logo-data', authorize('owner','manager','admin'), async (req, res, next) => {
   try {
     const id = branchId(req);
+    // key: store_logo (logo aplikasi) atau invoice_logo (logo kepala invoice)
+    const key = req.body.key === 'invoice_logo' ? 'invoice_logo' : 'store_logo';
     const file = decodeDataUpload(req.body, { fileSize: 3 * 1024 * 1024, mimeTypes: ['image/jpeg', 'image/png', 'image/webp'] });
     const [branches] = await db.execute('SELECT id FROM branches WHERE id = ? AND is_active = TRUE', [id]);
     if (!branches[0]) return res.status(404).json({ success: false, message: 'Toko tidak ditemukan' });
-    const [previous] = await db.execute('SELECT `value` FROM store_settings WHERE branch_id = ? AND `key` = \'store_logo\' LIMIT 1', [id]);
+    const [previous] = await db.execute('SELECT `value` FROM store_settings WHERE branch_id = ? AND `key` = ? LIMIT 1', [id, key]);
     const publicPath = await persistUploadedFile(file, 'logos');
-    await db.execute('INSERT INTO store_settings (branch_id,`key`,`value`) VALUES (?,\'store_logo\',?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)', [id, publicPath]);
+    await db.execute('INSERT INTO store_settings (branch_id,`key`,`value`) VALUES (?,?,?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)', [id, key, publicPath]);
     const oldPath = previous[0]?.value;
     if (oldPath?.startsWith('/uploads/logos/') && oldPath !== publicPath) await removeMedia(oldPath);
-    res.status(201).json({ success: true, data: { store_logo: publicPath } });
+    res.status(201).json({ success: true, data: { [key]: publicPath } });
   } catch (error) { next(error); }
 });
 

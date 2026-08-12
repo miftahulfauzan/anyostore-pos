@@ -349,12 +349,17 @@ class _Row extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label,
-                style: const TextStyle(fontSize: 12, color: Color(0xff5f5f5d))),
+            Expanded(
+              child: Text(label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xff5f5f5d))),
+            ),
+            const SizedBox(width: 12),
             Text(value,
                 style: const TextStyle(
                     fontSize: 12,

@@ -258,7 +258,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  Future<void> _pickLogo() async {
+  Future<void> _pickLogo({String key = 'store_logo'}) async {
     try {
       final picked = await ImagePicker().pickImage(
           source: ImageSource.gallery,
@@ -276,11 +276,15 @@ class _SettingsPageState extends State<SettingsPage> {
       }
       setState(() => _uploadingLogo = true);
       await widget.api.uploadLogo(picked.mimeType ?? 'image/png',
-          base64Encode(bytes));
+          base64Encode(bytes),
+          key: key);
       await _load();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Logo berhasil diganti')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              key == 'invoice_logo'
+                  ? 'Logo toko untuk invoice berhasil diganti'
+                  : 'Logo aplikasi berhasil diganti')));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -288,6 +292,27 @@ class _SettingsPageState extends State<SettingsPage> {
     } finally {
       if (mounted) setState(() => _uploadingLogo = false);
     }
+  }
+
+  Widget _logoPreview(String path) {
+    if (path.isEmpty) {
+      return Container(
+        width: 64,
+        height: 64,
+        decoration: BoxDecoration(
+          color: const Color(0x141E3A5F),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: kTaskBorder),
+        ),
+        child: const Icon(Icons.store, color: kTaskDark),
+      );
+    }
+    final base = widget.api.baseUrl.split('/api').first;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Image.network(base + path,
+          width: 64, height: 64, fit: BoxFit.cover),
+    );
   }
 
   Future<void> _refreshPrinter() async {
@@ -408,6 +433,47 @@ class _SettingsPageState extends State<SettingsPage> {
                           child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.image_outlined, size: 18),
                   label: Text(_uploadingLogo ? 'Mengunggah...' : 'Ganti Logo'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        GlassCard(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('Logo Toko (Kepala Invoice)',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    _logoPreview(
+                        _settings['invoice_logo']?.toString() ?? ''),
+                    const SizedBox(width: 14),
+                    const Expanded(
+                      child: Text(
+                          'Logo ini dipakai di kepala struk/invoice toko & gudang ini. Format JPG/PNG/WebP maks 3 MB.',
+                          style: TextStyle(fontSize: 11, color: kTaskGray)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                FilledButton.icon(
+                  onPressed: _uploadingLogo
+                      ? null
+                      : () => _pickLogo(key: 'invoice_logo'),
+                  icon: _uploadingLogo
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.receipt_long, size: 18),
+                  label: Text(
+                      _uploadingLogo ? 'Mengunggah...' : 'Ganti Logo Toko'),
                 ),
               ],
             ),

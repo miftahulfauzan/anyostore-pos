@@ -439,15 +439,21 @@ class _Row extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
+        padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Flexible(
-                child: Text(label,
-                    style: TextStyle(
-                        color: Theme.of(context).colorScheme.outline))),
-            Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
+            Expanded(
+              child: Text(label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.outline)),
+            ),
+            const SizedBox(width: 12),
+            Text(value,
+                style: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w700)),
           ],
         ),
       );

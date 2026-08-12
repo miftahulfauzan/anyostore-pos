@@ -249,12 +249,35 @@ class ApiClient {
   Future<Map<String, dynamic>> updateStoreSettings(Map<String, dynamic> body) =>
       put('/settings', body);
 
-  /// Upload logo toko via data-url (backend: POST /settings/logo-data).
-  Future<Map<String, dynamic>> uploadLogo(String mime, String base64) =>
+  /// Rekap stok masuk/keluar per batch (backend: GET /inventory/mutation-report).
+  Future<Map<String, dynamic>> mutationReport({
+    required String type,
+    String? start,
+    String? end,
+  }) =>
+      get('/inventory/mutation-report', {
+        'type': type,
+        if (start != null) 'start': start,
+        if (end != null) 'end': end,
+      });
+
+  Future<Map<String, dynamic>> updateProfile(
+          {required String name, required String email}) =>
+      put('/users/profile', {'name': name, 'email': email});
+
+  Future<Map<String, dynamic>> changePassword(
+          {required String current, required String next}) =>
+      put('/users/profile/password',
+          {'current_password': current, 'new_password': next});
+
+  /// Upload logo via data-url (key: store_logo = logo aplikasi, invoice_logo = logo kepala invoice).
+  Future<Map<String, dynamic>> uploadLogo(String mime, String base64,
+          {String key = 'store_logo'}) =>
       post('/settings/logo-data', {
         'content_type': mime,
         'filename': 'logo',
         'data_url': 'data:$mime;base64,$base64',
+        'key': key,
       });
 
   // ===== Komisi =====
