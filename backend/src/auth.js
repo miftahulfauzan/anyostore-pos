@@ -71,15 +71,16 @@ async function persistRefreshToken(userId, refreshToken) {
 async function loginWithPassword(req, res, next) {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ success: false, message: 'Email dan password wajib diisi' });
-    if (loginLocked(email)) return res.status(429).json({ success: false, message: 'Terlalu banyak percobaan login, coba lagi 15 menit' });
+    const identifier = String(email || '').trim();
+    if (!identifier || !password) return res.status(400).json({ success: false, message: 'Email/username dan password wajib diisi' });
+    if (loginLocked(identifier)) return res.status(429).json({ success: false, message: 'Terlalu banyak percobaan login, coba lagi 15 menit' });
     const [rows] = await db.execute(
-      'SELECT id, branch_id, name, email, password, role FROM users WHERE email = ? AND is_active = TRUE LIMIT 1',
-      [email]
+      'SELECT id, branch_id, name, email, username, password, role FROM users WHERE (email = ? OR username = ?) AND is_active = TRUE LIMIT 1',
+      [identifier, identifier]
     );
     const user = rows[0];
     if (!user || !(await bcrypt.compare(password, user.password))) {
-      recordLoginFailure(email);
+      recordLoginFailure(identifier);
       return res.status(401).json({ success: false, message: 'Kredensial tidak valid' });
     }
     clearLoginAttempts(email);
@@ -98,11 +99,12 @@ async function loginWithPassword(req, res, next) {
 async function loginWithPin(req, res, next) {
   try {
     const { email, pin } = req.body;
-    if (!email || !pin) return res.status(400).json({ success: false, message: 'Email dan PIN wajib diisi' });
-    if (loginLocked(email)) return res.status(429).json({ success: false, message: 'Terlalu banyak percobaan login, coba lagi 15 menit' });
+    const identifier = String(email || '').trim();
+    if (!identifier || !pin) return res.status(400).json({ success: false, message: 'Email/username dan PIN wajib diisi' });
+    if (loginLocked(identifier)) return res.status(429).json({ success: false, message: 'Terlalu banyak percobaan login, coba lagi 15 menit' });
     const [rows] = await db.execute(
-      'SELECT id, branch_id, name, email, password, role, pin_hash FROM users WHERE email = ? AND is_active = TRUE LIMIT 1',
-      [email]
+      'SELECT id, branch_id, name, email, username, password, role, pin_hash FROM users WHERE (email = ? OR username = ?) AND is_active = TRUE LIMIT 1',
+      [identifier, identifier]
     );
     const user = rows[0];
     if (!user?.pin_hash || !(await bcrypt.compare(String(pin), user.pin_hash))) {

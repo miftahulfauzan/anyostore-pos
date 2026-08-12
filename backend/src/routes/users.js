@@ -47,7 +47,7 @@ router.get('/', authenticate, authorize('owner'), async (req, res, next) => {
   try {
     const branchId = req.query.branch_id ? Number(req.query.branch_id) : req.user.branch_id;
     const [r] = await db.execute(
-      'SELECT u.id,u.name,u.email,u.role,u.pin_hash IS NOT NULL AS has_pin,u.is_active,u.last_login,u.created_at,b.name AS branch_name,u.branch_id FROM users u JOIN branches b ON b.id=u.branch_id WHERE u.branch_id=? ORDER BY u.name',
+      'SELECT u.id,u.name,u.username,u.email,u.role,u.pin_hash IS NOT NULL AS has_pin,u.is_active,u.last_login,u.created_at,b.name AS branch_name,u.branch_id FROM users u JOIN branches b ON b.id=u.branch_id WHERE u.branch_id=? ORDER BY u.name',
       [branchId]
     );
     res.json({ success: true, data: r });
@@ -56,17 +56,21 @@ router.get('/', authenticate, authorize('owner'), async (req, res, next) => {
 
 router.post('/', authenticate, authorize('owner'), async (req, res, next) => {
   try {
-    const { name, email, password, role, pin, branch_id: branchInput } = req.body;
+    const { name, email, password, role, pin, branch_id: branchInput, username: usernameInput } = req.body;
     const branchId = Number(branchInput || req.user.branch_id);
     if (!name?.trim() || !email?.trim() || typeof password !== 'string' || password.length < 8 || !ROLES.includes(role)) {
       return badRequest(res, 'Data pengguna tidak valid');
     }
     if (pin && !/^\d{6}$/.test(pin)) return badRequest(res, 'PIN harus enam digit');
+    const username = String(usernameInput || '').trim().toLowerCase() || String(email).trim().split('@')[0].toLowerCase();
+    if (!/^[a-z0-9._-]{3,50}$/.test(username)) return badRequest(res, 'Username 3-50 karakter (huruf/angka/titik/-/_ )');
     const [b] = await db.execute('SELECT id FROM branches WHERE id=? AND is_active=TRUE', [branchId]);
     if (!b[0]) return res.status(404).json({ success: false, message: 'Toko tidak ditemukan' });
+    const [dup] = await db.execute('SELECT id FROM users WHERE username=?', [username]);
+    if (dup[0]) return badRequest(res, 'Username sudah dipakai');
     const [r] = await db.execute(
-      'INSERT INTO users (branch_id,name,email,password,role,pin_hash) VALUES (?,?,?,?,?,?)',
-      [branchId, name.trim(), email.trim().toLowerCase(), await bcrypt.hash(password, 12), role, pin ? await bcrypt.hash(pin, 12) : null]
+      'INSERT INTO users (branch_id,name,username,email,password,role,pin_hash) VALUES (?,?,?,?,?,?,?)',
+      [branchId, name.trim(), username, email.trim().toLowerCase(), await bcrypt.hash(password, 12), role, pin ? await bcrypt.hash(pin, 12) : null]
     );
     res.status(201).json({ success: true, data: { id: r.insertId } });
   } catch (e) { next(e); }
@@ -75,13 +79,17 @@ router.post('/', authenticate, authorize('owner'), async (req, res, next) => {
 // Edit user (nama, email, role, PIN opsional).
 router.put('/:id', authenticate, authorize('owner'), async (req, res, next) => {
   try {
-    const { name, email, role, pin } = req.body;
+    const { name, email, role, pin, username: usernameInput } = req.body;
     if (!name?.trim() || !email?.trim() || !ROLES.includes(role)) return badRequest(res, 'Data pengguna tidak valid');
     if (pin && !/^\d{6}$/.test(pin)) return badRequest(res, 'PIN harus enam digit');
+    const username = String(usernameInput || '').trim().toLowerCase() || String(email).trim().split('@')[0].toLowerCase();
+    if (!/^[a-z0-9._-]{3,50}$/.test(username)) return badRequest(res, 'Username 3-50 karakter (huruf/angka/titik/-/_ )');
+    const [dup] = await db.execute('SELECT id FROM users WHERE username=? AND id<>?', [username, req.params.id]);
+    if (dup[0]) return badRequest(res, 'Username sudah dipakai');
     // Cegah owner mengubah role dirinya sendiri menjadi non-owner (lock-out).
     if (Number(req.params.id) === req.user.id && role !== 'owner') return badRequest(res, 'Tidak dapat mengubah peran akun sendiri');
-    const fields = ['name = ?', 'email = ?', 'role = ?'];
-    const values = [name.trim(), email.trim().toLowerCase(), role];
+    const fields = ['name = ?', 'username = ?', 'email = ?', 'role = ?'];
+    const values = [name.trim(), username, email.trim().toLowerCase(), role];
     if (pin) { fields.push('pin_hash = ?'); values.push(await bcrypt.hash(pin, 12)); }
     values.push(req.params.id);
     const [r] = await db.execute(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, values);

@@ -2,7 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'package:provider/provider.dart';
 import 'api_client.dart';
+import 'auth_store.dart';
 import 'format.dart';
 import 'pos_page.dart';
 import 'task_ui.dart';
@@ -23,6 +25,7 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   Map<String, dynamic>? _data;
+  List<Map<String, dynamic>> _lowStock = [];
   bool _loading = true;
   String? _error;
 
@@ -32,15 +35,28 @@ class _DashboardPageState extends State<DashboardPage> {
     _load();
   }
 
+  int get _branchId => context.read<AuthStore>().branchId ?? 0;
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final data = await widget.api.dashboard();
+      final results = await Future.wait([
+        widget.api.dashboard(),
+        widget.api.stockTotal(branchId: _branchId),
+      ]);
       if (!mounted) return;
-      setState(() => _data = data);
+      final products = (results[1]['products'] as List? ?? [])
+          .cast<Map<String, dynamic>>();
+      setState(() {
+        _data = results[0] as Map<String, dynamic>?;
+        _lowStock = products
+            .where((p) => asNum(p['total_stock']) <= asNum(p['min_stock']))
+            .take(5)
+            .toList();
+      });
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {
@@ -186,6 +202,65 @@ class _DashboardPageState extends State<DashboardPage> {
                 ),
               ],
             ),
+            if (_lowStock.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              GlassCard(
+                padding: const EdgeInsets.all(14),
+                radius: 20,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: const Color(0xffF7E4DE),
+                            borderRadius: BorderRadius.circular(9),
+                          ),
+                          child: const Icon(Icons.warning_amber,
+                              size: 15, color: Color(0xffC2410C)),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('Stok Menipis',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: kTaskDark)),
+                        const Spacer(),
+                        Text('${_lowStock.length} produk',
+                            style: const TextStyle(
+                                fontSize: 10, color: kTaskGray)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    for (final p in _lowStock)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                  p['name']?.toString() ?? '',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: kTaskDark)),
+                            ),
+                            Text(
+                                'Stok ${asNum(p['total_stock']).toStringAsFixed(0)} / min ${asNum(p['min_stock']).toStringAsFixed(0)}',
+                                style: const TextStyle(
+                                    fontSize: 10, color: Color(0xffC2410C))),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
             if (recent.isNotEmpty) ...[
               const SizedBox(height: 22),
               GlassCard(

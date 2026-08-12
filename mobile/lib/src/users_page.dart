@@ -64,6 +64,8 @@ class _UsersPageState extends State<UsersPage> {
   Future<void> _form([Map<String, dynamic>? existing]) async {
     final name =
         TextEditingController(text: existing?['name']?.toString() ?? '');
+    final username =
+        TextEditingController(text: existing?['username']?.toString() ?? '');
     final email =
         TextEditingController(text: existing?['email']?.toString() ?? '');
     final password = TextEditingController();
@@ -86,6 +88,14 @@ class _UsersPageState extends State<UsersPage> {
                     controller: name,
                     decoration: const InputDecoration(
                         labelText: 'Nama *', border: OutlineInputBorder())),
+                const SizedBox(height: 8),
+                TextField(
+                    controller: username,
+                    decoration: const InputDecoration(
+                        labelText: 'Username *',
+                        border: OutlineInputBorder(),
+                        hintText: 'contoh: nining'),
+                ),
                 const SizedBox(height: 8),
                 TextField(
                     controller: email,
@@ -150,13 +160,16 @@ class _UsersPageState extends State<UsersPage> {
       ),
     );
     if (saved != true || !mounted) return;
-    if (name.text.trim().isEmpty || email.text.trim().isEmpty) {
+    if (name.text.trim().isEmpty ||
+        username.text.trim().isEmpty ||
+        email.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Nama dan email wajib diisi')));
+          const SnackBar(content: Text('Nama, username, dan email wajib diisi')));
       return;
     }
     final body = <String, dynamic>{
       'name': name.text.trim(),
+      'username': username.text.trim(),
       'email': email.text.trim(),
       'role': role,
       if (widget.isOwner && branchId != null) 'branch_id': branchId,
@@ -279,7 +292,7 @@ class _UsersPageState extends State<UsersPage> {
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w700)),
                                 subtitle: Text(
-                                    '${row['role'] ?? ''} · ${row['email'] ?? ''}${row['has_pin'] == true ? ' · PIN ✓' : ''}'),
+                                    '@${row['username'] ?? ''} · ${row['role'] ?? ''} · ${row['email'] ?? ''}${row['has_pin'] == true ? ' · PIN ✓' : ''}'),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
