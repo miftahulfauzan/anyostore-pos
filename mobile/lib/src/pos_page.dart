@@ -59,7 +59,6 @@ class _PosPageState extends State<PosPage> {
   final _search = TextEditingController();
   final List<CartItem> _cart = [];
   Timer? _previewTimer;
-  Timer? _syncTimer;
 
   List<Map<String, dynamic>> _products = [];
   List<Map<String, dynamic>> _visible = [];
@@ -90,10 +89,6 @@ class _PosPageState extends State<PosPage> {
     PosPage.requestTab.addListener(_onExternalTab);
     _loadData();
     _syncPending();
-    // Sinkronisasi berkala: perubahan produk via web ikut ter-refresh.
-    _syncTimer = Timer.periodic(const Duration(seconds: 60), (_) {
-      if (mounted) _loadData(silent: true);
-    });
   }
 
   Future<void> _syncPending() async {
@@ -107,7 +102,6 @@ class _PosPageState extends State<PosPage> {
   @override
   void dispose() {
     _previewTimer?.cancel();
-    _syncTimer?.cancel();
     PosPage.requestTab.removeListener(_onExternalTab);
     _search.dispose();
     super.dispose();
@@ -772,9 +766,13 @@ class _ProductCard extends StatelessWidget {
                   Text(name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                      style:
+                          const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
                   Text(fmtRp(price),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
+                          fontSize: 12.5,
                           fontWeight: FontWeight.w800,
                           color: Theme.of(context).colorScheme.primary)),
                   Text(
