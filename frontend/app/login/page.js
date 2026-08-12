@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Eye, EyeOff, Mail, ShoppingBag } from 'lucide-react';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -9,19 +10,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [pin, setPin] = useState('');
   const [mode, setMode] = useState('password');
+  const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const modeButton = (active) => ({
-    flex: 1,
-    minHeight: 40,
-    borderRadius: '.55rem',
-    border: active ? '1.5px solid #1e3a5f' : '1px solid var(--border, #e5e7eb)',
-    background: active ? '#1e3a5f' : '#fff',
-    color: active ? '#fff' : '#52525b',
-    fontWeight: 700,
-    cursor: 'pointer',
-  });
 
   function homeFor(role) {
     return role === 'gudang' ? '/dashboard' : '/pos';
@@ -47,25 +38,71 @@ export default function LoginPage() {
     }
   }
 
+  const secret = mode === 'pin' ? pin : password;
+  const setSecret = (v) => (mode === 'pin' ? setPin(v) : setPassword(v));
+
   return (
     <main className="login-page">
-      <form className="login" onSubmit={submit}>
-        <div className="login-logo"><span>A</span> Anyostore</div>
-        <div><p className="eyebrow">SELAMAT DATANG</p><h2>Masuk ke akun Anda</h2><p className="muted">Gunakan akun pegawai atau owner yang terdaftar.</p></div>
-        <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-          <button type="button" style={modeButton(mode === 'password')} onClick={() => setMode('password')}>Password</button>
-          <button type="button" style={modeButton(mode === 'pin')} onClick={() => setMode('pin')}>PIN</button>
+      <header className="login-brand">
+        <div className="login-brand-inner">
+          <div className="login-logo-tile"><ShoppingBag size={26} strokeWidth={2.2} aria-hidden="true" /></div>
+          <div>
+            <h1>Anyostore POS</h1>
+            <p>Powering Your Business</p>
+          </div>
         </div>
-        <label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></label>
-        {mode === 'pin' ? (
-          <label>PIN (6 digit)<input type="password" inputMode="numeric" maxLength={6} value={pin} onChange={(event) => setPin(event.target.value)} required /></label>
-        ) : (
-          <label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
-        )}
-        <button disabled={loading}>{loading ? 'Memproses…' : 'Masuk ke POS'}</button>
-        {message && <p className="message" role="status">{message}</p>}
-        <p className="muted" style={{ fontSize: '.85rem', textAlign: 'center', marginTop: 6, paddingBottom: 2 }}><a href="/">← Kembali ke Grosir</a></p>
-      </form>
+      </header>
+
+      <div className="login-body">
+        <form className="login-card" onSubmit={submit}>
+          <div className="login-heading">
+            <h2>Login</h2>
+            <p>Masuk untuk mengakses kasir, stok, dan laporan toko.</p>
+          </div>
+
+          <div className="login-mode" role="tablist" aria-label="Metode masuk">
+            <button type="button" className={mode === 'password' ? 'active' : ''} onClick={() => setMode('password')}>Password</button>
+            <button type="button" className={mode === 'pin' ? 'active' : ''} onClick={() => setMode('pin')}>PIN</button>
+          </div>
+
+          <label className="login-field">
+            <span>Email <em className="login-required">*</em></span>
+            <div className="login-input">
+              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="admin@example.com" autoComplete="email" required />
+              <Mail size={16} strokeWidth={2} aria-hidden="true" />
+            </div>
+          </label>
+
+          <label className="login-field">
+            <span>{mode === 'pin' ? 'PIN (6 digit)' : 'Password'} <em className="login-required">*</em></span>
+            <div className="login-input">
+              <input
+                type={mode === 'pin' || showPassword ? 'text' : 'password'}
+                inputMode={mode === 'pin' ? 'numeric' : undefined}
+                maxLength={mode === 'pin' ? 6 : undefined}
+                value={secret}
+                onChange={(event) => setSecret(event.target.value)}
+                placeholder={mode === 'pin' ? '••••••' : '••••••••'}
+                autoComplete={mode === 'pin' ? 'one-time-code' : 'current-password'}
+                required
+              />
+              {mode === 'password' && (
+                <button type="button" className="login-eye" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}>
+                  {showPassword ? <EyeOff size={16} strokeWidth={2} /> : <Eye size={16} strokeWidth={2} />}
+                </button>
+              )}
+            </div>
+          </label>
+
+          <button className="login-submit" disabled={loading}>
+            {loading ? 'Memproses…' : 'Login'}
+          </button>
+
+          {message && <p className="message" role="status">{message}</p>}
+
+          <a className="login-back" href="/">Kembali ke Grosir</a>
+        </form>
+      </div>
     </main>
   );
 }
