@@ -8,6 +8,9 @@ import 'commissions_page.dart';
 import 'customers_page.dart';
 import 'dashboard_page.dart';
 import 'finance_page.dart';
+import 'mutation_report_page.dart';
+import 'profile_page.dart';
+import 'stock_movements_page.dart';
 import 'promotions_page.dart';
 import 'settings_page.dart';
 import 'users_page.dart';
@@ -102,6 +105,17 @@ class MorePage extends StatelessWidget {
               _row(Icons.account_balance_wallet, 'Keuangan',
                   const Color(0xffe8f0e9), const Color(0xff1E3A5F),
                   () => _open(context, 'Keuangan', FinancePage(api: api))),
+              _divider(),
+              _row(Icons.history, 'Riwayat Stok', const Color(0xffE3EAF2),
+                  const Color(0xff1E3A5F), () => _open(context, 'Riwayat Stok', StockMovementsPage(api: api, branchId: branchId))),
+              _divider(),
+              _row(Icons.swap_vert, 'Laporan Masuk/Keluar',
+                  const Color(0xffE3EAF2), const Color(0xff1E3A5F),
+                  () => _open(context, 'Laporan Masuk/Keluar', MutationReportPage(api: api))),
+              _divider(),
+              _row(Icons.person_outline, 'Akun Saya', const Color(0xffE3EAF2),
+                  const Color(0xff1E3A5F),
+                  () => _open(context, 'Akun Saya', ProfilePage(api: api))),
             ],
           ),
         ),

@@ -55,6 +55,13 @@ class AuthStore extends ChangeNotifier {
     branchId = int.tryParse('${user['branch_id']}');
   }
 
+  /// Perbarui nama/email dari halaman Akun Saya.
+  void updateSelf(String name, String email) {
+    userName = name;
+    this.email = email;
+    notifyListeners();
+  }
+
   Future<String?> loginPassword(String emailInput, String password) =>
       _login(() => _api.loginPassword(emailInput.trim(), password));
 
