@@ -56,7 +56,7 @@ export default function LoginPage() {
           <button type="button" style={modeButton(mode === 'password')} onClick={() => setMode('password')}>Password</button>
           <button type="button" style={modeButton(mode === 'pin')} onClick={() => setMode('pin')}>PIN</button>
         </div>
-        <label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></label>
+        <label>Email / Username<input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="email atau username" required /></label>
         {mode === 'pin' ? (
           <label>PIN (6 digit)<input type="password" inputMode="numeric" maxLength={6} value={pin} onChange={(event) => setPin(event.target.value)} required /></label>
         ) : (

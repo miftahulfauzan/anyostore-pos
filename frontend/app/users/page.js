@@ -5,7 +5,7 @@ import AppShell from '../components/AppShell';
 import { roleLabel } from '../lib/roles';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-const emptyForm = { name: '', email: '', password: '', role: 'kasir', pin: '' };
+const emptyForm = { name: '', username: '', email: '', password: '', role: 'kasir', pin: '' };
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -63,7 +63,7 @@ export default function Users() {
   async function saveEdit(e) {
     e.preventDefault();
     try {
-      const res = await fetch(`${api}/users/${editing.id}`, { method: 'PUT', headers: headers(), body: JSON.stringify({ name: editing.name, email: editing.email, role: editing.role, pin: editing.pin || undefined }) });
+      const res = await fetch(`${api}/users/${editing.id}`, { method: 'PUT', headers: headers(), body: JSON.stringify({ name: editing.name, username: editing.username, email: editing.email, role: editing.role, pin: editing.pin || undefined }) });
       const body = await res.json();
       if (!res.ok) throw new Error(body.message);
       setMessage('Pengguna diperbarui.');
@@ -119,6 +119,7 @@ export default function Users() {
         <form className="panel" onSubmit={submit}>
           <h2>Tambah Pengguna</h2>
           <label>Nama<input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+          <label>Username<input required minLength="3" maxLength="50" pattern="[a-zA-Z0-9._-]+" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></label>
           <label>Email<input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
           <label>Password<input required minLength="8" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>
           <label>Peran
@@ -141,10 +142,10 @@ export default function Users() {
               <article key={u.id}>
                 <div>
                   <strong>{u.name}</strong>
-                  <span>{u.email} · {roleLabel(u.role)} · {u.branch_name}</span>
+                  <span>@{u.username || u.email?.split('@')[0]} · {u.email} · {roleLabel(u.role)} · {u.branch_name}</span>
                 </div>
                 <div className="user-actions">
-                  <button type="button" className="link-button" onClick={() => setEditing({ id: u.id, name: u.name, email: u.email, role: u.role, pin: '' })}>Edit</button>
+                  <button type="button" className="link-button" onClick={() => setEditing({ id: u.id, name: u.name, username: u.username || '', email: u.email, role: u.role, pin: '' })}>Edit</button>
                   <button type="button" className="link-button" onClick={() => { setPwTarget({ id: u.id, name: u.name }); setNewPassword(''); }}>Password</button>
                   <button type="button" className="link-button" onClick={() => toggleActive(u)}>{u.is_active ? 'Nonaktifkan' : 'Aktifkan'}</button>
                   <button type="button" className="link-button danger" onClick={() => removeUser(u)}>Hapus</button>
@@ -162,6 +163,7 @@ export default function Users() {
           <form className="panel modal-card" onSubmit={saveEdit} onClick={(e) => e.stopPropagation()}>
             <h2>Edit Pengguna</h2>
             <label>Nama<input required value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></label>
+            <label>Username<input required minLength="3" maxLength="50" pattern="[a-zA-Z0-9._-]+" value={editing.username} onChange={(e) => setEditing({ ...editing, username: e.target.value })} /></label>
             <label>Email<input required type="email" value={editing.email} onChange={(e) => setEditing({ ...editing, email: e.target.value })} /></label>
             <label>Peran
               <select value={editing.role} onChange={(e) => setEditing({ ...editing, role: e.target.value })}>
