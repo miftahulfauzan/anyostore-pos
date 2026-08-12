@@ -221,7 +221,7 @@ class _CommissionsPageState extends State<CommissionsPage> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
           child: PillTabs(
             tabs: [
               for (final t in _tabs)

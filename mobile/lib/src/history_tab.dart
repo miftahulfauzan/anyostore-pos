@@ -461,7 +461,7 @@ class _HistoryTabState extends State<HistoryTab> {
           Column(
         children: [
           Padding(
-            padding: const EdgeInsets.only(top: 12),
+            padding: const EdgeInsets.only(top: 12, bottom: 12),
             child: PillTabs(
               tabs: const [
                 (value: 'transaksi', icon: Icons.receipt_long, label: 'Transaksi'),

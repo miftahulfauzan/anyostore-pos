@@ -31,7 +31,7 @@ class _InventoryPageState extends State<InventoryPage> {
           Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
           child: PillTabs(
             tabs: const [
               (value: 'stok', icon: Icons.inventory_2, label: 'Stok'),
@@ -869,7 +869,7 @@ class _TransferSectionState extends State<_TransferSection> {
                   _to = '';
                 }),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _from.isEmpty ? null : _from,
                 decoration: const InputDecoration(
