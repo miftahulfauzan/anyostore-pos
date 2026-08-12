@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
@@ -75,6 +76,7 @@ class _PosPageState extends State<PosPage> {
   bool _autoPrint = false;
   String? _error;
   String? _cartError;
+  String? _lastProductsSync;
 
   ApiClient get _client {
     final auth = context.read<AuthStore>();
@@ -125,6 +127,13 @@ class _PosPageState extends State<PosPage> {
         _loading = true;
         _error = null;
       });
+    } else if (_products.isNotEmpty && _lastProductsSync != null) {
+      // Cek versi dulu: kalau tidak ada perubahan, pakai data & gambar dari cache.
+      try {
+        final v = await _client.productsVersion(branch: branch);
+        final ts = v['updated_at']?.toString() ?? '';
+        if (ts.isNotEmpty && ts == _lastProductsSync) return;
+      } catch (_) {}
     }
     try {
       final isOwner = context.read<AuthStore>().role == 'owner';
@@ -155,6 +164,10 @@ class _PosPageState extends State<PosPage> {
           _warehouseId = '${_warehouses.first['id']}';
         }
       });
+      try {
+        final v = await _client.productsVersion(branch: branch);
+        _lastProductsSync = v['updated_at']?.toString() ?? '';
+      } catch (_) {}
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {
@@ -747,10 +760,16 @@ class _ProductCard extends StatelessWidget {
                       child: const Icon(Icons.image_not_supported,
                           color: Colors.grey),
                     )
-                  : Image.network(
-                      photo,
+                  : CachedNetworkImage(
+                      imageUrl: photo,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                      placeholder: (_, __) => Container(
+                        color: Colors.grey.shade200,
+                        alignment: Alignment.center,
+                        child: const Icon(Icons.image_not_supported,
+                            color: Colors.grey),
+                      ),
+                      errorWidget: (_, __, ___) => Container(
                         color: Colors.grey.shade200,
                         alignment: Alignment.center,
                         child: const Icon(Icons.image_not_supported,
@@ -763,24 +782,32 @@ class _ProductCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style:
-                          const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
-                  Text(fmtRp(price),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w800,
-                          color: Theme.of(context).colorScheme.primary)),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Expanded(
+                        child: Text(name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 11.5, fontWeight: FontWeight.w700)),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(fmtRp(price),
+                          maxLines: 1,
+                          style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                              color: Theme.of(context).colorScheme.primary)),
+                    ],
+                  ),
                   Text(
                       variantCount > 0
                           ? '$variantCount varian · stok $stock'
                           : 'Stok $stock',
                       style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 10.8,
                           color: Theme.of(context).colorScheme.outline)),
                 ],
               ),
