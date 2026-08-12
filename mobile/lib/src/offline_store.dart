@@ -91,9 +91,6 @@ class OfflineStore {
       'updated_at': updatedAt,
       'sync_date': syncDate,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
-    // ignore: avoid_print
-    print('CACHE saved branch=' + branchId.toString() +
-        ' sync=' + syncDate + ' len=' + payload.length.toString());
   }
 
   /// Baca cache produk untuk cabang; null kalau belum pernah disimpan.
@@ -101,8 +98,6 @@ class OfflineStore {
     final db = await _open();
     final rows = await db.query('products_cache',
         where: 'branch_id = ?', whereArgs: [branchId], limit: 1);
-    // ignore: avoid_print
-    print('CACHE load branch=' + branchId.toString() + ' rows=' + rows.length.toString());
     if (rows.isEmpty) return null;
     final r = rows.first;
     return {

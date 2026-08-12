@@ -129,17 +129,13 @@ class _PosPageState extends State<PosPage> {
     if (!silent && _products.isEmpty) {
       try {
         final cached = await OfflineStore.loadProductsCache(branch);
-        // ignore: avoid_print
-        print('CACHE check branch=' + branch.toString() +
-            ' cached=' + (cached != null).toString() +
-            ' cacheDate=' + (cached?['sync_date'] ?? 'null').toString() +
-            ' today=' + todayWib());
         if (cached != null && cached['sync_date'] == todayWib()) {
           final payload = cached['payload'] as Map<String, dynamic>;
           if (mounted) {
             setState(() {
               _applyStoreData(payload);
               _error = null;
+              _loading = false;
             });
           }
           _lastProductsSync = cached['updated_at']?.toString() ?? '';
