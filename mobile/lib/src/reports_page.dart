@@ -173,15 +173,22 @@ class _ReportsPageState extends State<ReportsPage> {
       onRefresh: _load,
       child: ListView(
         padding: const EdgeInsets.all(12),
-        children: switch (_section) {
+        children: _spaced(switch (_section) {
           'penjualan' => _sales(),
           'penutupan' => _closing(),
           'ppn' => _ppn(),
           _ => _overview(),
-        },
+        }),
       ),
     );
   }
+
+  List<Widget> _spaced(List<Widget> items) => [
+        for (var i = 0; i < items.length; i++) ...[
+          if (i > 0) const SizedBox(height: 12),
+          items[i],
+        ],
+      ];
 
   List<Widget> _overview() {
     final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
