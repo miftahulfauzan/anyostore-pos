@@ -59,6 +59,7 @@ class _PosPageState extends State<PosPage> {
   final _search = TextEditingController();
   final List<CartItem> _cart = [];
   Timer? _previewTimer;
+  Timer? _syncTimer;
 
   List<Map<String, dynamic>> _products = [];
   List<Map<String, dynamic>> _visible = [];
@@ -89,6 +90,10 @@ class _PosPageState extends State<PosPage> {
     PosPage.requestTab.addListener(_onExternalTab);
     _loadData();
     _syncPending();
+    // Sinkronisasi berkala: perubahan produk via web ikut ter-refresh.
+    _syncTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      if (mounted) _loadData(silent: true);
+    });
   }
 
   Future<void> _syncPending() async {
@@ -102,6 +107,7 @@ class _PosPageState extends State<PosPage> {
   @override
   void dispose() {
     _previewTimer?.cancel();
+    _syncTimer?.cancel();
     PosPage.requestTab.removeListener(_onExternalTab);
     _search.dispose();
     super.dispose();
@@ -117,13 +123,15 @@ class _PosPageState extends State<PosPage> {
 
   int get _branchId => context.read<AuthStore>().branchId ?? 0;
 
-  Future<void> _loadData() async {
+  Future<void> _loadData({bool silent = false}) async {
     final branch = _posBranchId ?? _branchId;
     if (branch == 0) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final isOwner = context.read<AuthStore>().role == 'owner';
       final results = await Future.wait([
@@ -156,7 +164,7 @@ class _PosPageState extends State<PosPage> {
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && !silent) setState(() => _loading = false);
     }
   }
 
@@ -541,11 +549,14 @@ class _PosPageState extends State<PosPage> {
           2 => 1,
           _ => _tab,
         },
-        onSelect: (i) => setState(() => _tab = switch (i) {
-          0 => 1,
-          1 => 2,
-          2 => 0,
-          _ => i,
+        onSelect: (i) => setState(() {
+          _tab = switch (i) {
+            0 => 1,
+            1 => 2,
+            2 => 0,
+            _ => i,
+          };
+          if (_tab == 0) _loadData(silent: true);
         }),
         items: const [
           (icon: Icons.receipt_long_outlined, activeIcon: Icons.receipt_long, label: 'Riwayat'),
@@ -660,23 +671,35 @@ class _PosPageState extends State<PosPage> {
           ),
         ),
         Expanded(
-          child: _visible.isEmpty
-              ? const Center(child: Text('Produk tidak ditemukan'))
-              : GridView.builder(
-                  padding: const EdgeInsets.all(12),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    childAspectRatio: 0.72,
+          child: RefreshIndicator(
+            onRefresh: () => _loadData(silent: true),
+            color: kTaskDark,
+            child: _visible.isEmpty
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: const [
+                      SizedBox(height: 220),
+                      Center(child: Text('Produk tidak ditemukan')),
+                    ],
+                  )
+                : GridView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(12),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 10,
+                      crossAxisSpacing: 10,
+                      childAspectRatio: 0.72,
+                    ),
+                    itemCount: _visible.length,
+                    itemBuilder: (_, i) => _ProductCard(
+                      product: _visible[i],
+                      mediaUrl: _mediaUrl,
+                      onTap: () => _addProduct(_visible[i]),
+                    ),
                   ),
-                  itemCount: _visible.length,
-                  itemBuilder: (_, i) => _ProductCard(
-                    product: _visible[i],
-                    mediaUrl: _mediaUrl,
-                    onTap: () => _addProduct(_visible[i]),
-                  ),
-                ),
+          ),
         ),
         SafeArea(
           top: false,
