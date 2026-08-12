@@ -12,9 +12,9 @@ class OfflineStore {
   static Future<Database> _open() async {
     if (_db != null) return _db!;
     final path = join(await getDatabasesPath(), 'anyostore_offline.db');
-    _db = await openDatabase(path, version: 1, onCreate: (db, version) async {
+    _db = await openDatabase(path, version: 2, onCreate: (db, version) async {
       await db.execute('''
-        CREATE TABLE offline_transactions (
+        CREATE TABLE IF NOT EXISTS offline_transactions (
           client_transaction_id TEXT PRIMARY KEY,
           temp_invoice_no TEXT NOT NULL,
           payload TEXT NOT NULL,
@@ -22,6 +22,25 @@ class OfflineStore {
           grand_total REAL NOT NULL DEFAULT 0
         )
       ''');
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS products_cache (
+          branch_id INTEGER PRIMARY KEY,
+          payload TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          sync_date TEXT NOT NULL
+        )
+      ''');
+    }, onUpgrade: (db, oldVersion, newVersion) async {
+      if (oldVersion < 2) {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS products_cache (
+            branch_id INTEGER PRIMARY KEY,
+            payload TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            sync_date TEXT NOT NULL
+          )
+        ''');
+      }
     });
     return _db!;
   }
@@ -60,6 +79,38 @@ class OfflineStore {
     final db = await _open();
     await db.delete('offline_transactions',
         where: 'client_transaction_id = ?', whereArgs: [clientTransactionId]);
+  }
+
+  /// Simpan cache produk/gudang/pelanggan/pengaturan untuk buka cepat tanpa server.
+  static Future<void> saveProductsCache(
+      int branchId, String payload, String updatedAt, String syncDate) async {
+    final db = await _open();
+    await db.insert('products_cache', {
+      'branch_id': branchId,
+      'payload': payload,
+      'updated_at': updatedAt,
+      'sync_date': syncDate,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    // ignore: avoid_print
+    print('CACHE saved branch=' + branchId.toString() +
+        ' sync=' + syncDate + ' len=' + payload.length.toString());
+  }
+
+  /// Baca cache produk untuk cabang; null kalau belum pernah disimpan.
+  static Future<Map<String, dynamic>?> loadProductsCache(int branchId) async {
+    final db = await _open();
+    final rows = await db.query('products_cache',
+        where: 'branch_id = ?', whereArgs: [branchId], limit: 1);
+    // ignore: avoid_print
+    print('CACHE load branch=' + branchId.toString() + ' rows=' + rows.length.toString());
+    if (rows.isEmpty) return null;
+    final r = rows.first;
+    return {
+      'payload': jsonDecode(r['payload'] as String? ?? '{}')
+          as Map<String, dynamic>,
+      'updated_at': r['updated_at']?.toString() ?? '',
+      'sync_date': r['sync_date']?.toString() ?? '',
+    };
   }
 }
 

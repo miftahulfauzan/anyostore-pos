@@ -235,8 +235,12 @@ class _OfflineTileState extends State<_OfflineTile> {
   }
 
   Future<void> _load() async {
-    final c = await OfflineStore.count();
-    if (mounted) setState(() => _count = c);
+    try {
+      final c = await OfflineStore.count();
+      if (mounted) setState(() => _count = c);
+    } catch (_) {
+      if (mounted) setState(() => _count = 0);
+    }
   }
 
   @override

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -58,9 +59,6 @@ class _PosPageState extends State<PosPage> {
   late final ApiClient _api;
   int _tab = 0;
   final _search = TextEditingController();
-  final _gridScroll = ScrollController();
-  double _lastGridOffset = 0;
-  bool _headerVisible = true;
   final List<CartItem> _cart = [];
   Timer? _previewTimer;
 
@@ -92,22 +90,8 @@ class _PosPageState extends State<PosPage> {
     super.initState();
     _api = context.read<AuthStore>().api;
     PosPage.requestTab.addListener(_onExternalTab);
-    _gridScroll.addListener(_onGridScroll);
     _loadData();
     _syncPending();
-  }
-
-  void _onGridScroll() {
-    final off = _gridScroll.offset;
-    final delta = off - _lastGridOffset;
-    _lastGridOffset = off;
-    if (delta > 6 && off > 90 && _headerVisible) {
-      setState(() => _headerVisible = false);
-    } else if (off < 12 && !_headerVisible) {
-      setState(() => _headerVisible = true);
-    } else if (delta < -6 && !_headerVisible) {
-      setState(() => _headerVisible = true);
-    }
   }
 
   Future<void> _syncPending() async {
@@ -122,7 +106,6 @@ class _PosPageState extends State<PosPage> {
   void dispose() {
     _previewTimer?.cancel();
     PosPage.requestTab.removeListener(_onExternalTab);
-    _gridScroll.dispose();
     _search.dispose();
     super.dispose();
   }
@@ -140,6 +123,31 @@ class _PosPageState extends State<PosPage> {
   Future<void> _loadData({bool silent = false}) async {
     final branch = _posBranchId ?? _branchId;
     if (branch == 0) return;
+
+    // Buka aplikasi (bukan refresh): kalau sudah disinkron hari ini,
+    // langsung pakai cache lokal tanpa menyentuh server.
+    if (!silent && _products.isEmpty) {
+      try {
+        final cached = await OfflineStore.loadProductsCache(branch);
+        // ignore: avoid_print
+        print('CACHE check branch=' + branch.toString() +
+            ' cached=' + (cached != null).toString() +
+            ' cacheDate=' + (cached?['sync_date'] ?? 'null').toString() +
+            ' today=' + todayWib());
+        if (cached != null && cached['sync_date'] == todayWib()) {
+          final payload = cached['payload'] as Map<String, dynamic>;
+          if (mounted) {
+            setState(() {
+              _applyStoreData(payload);
+              _error = null;
+            });
+          }
+          _lastProductsSync = cached['updated_at']?.toString() ?? '';
+          return;
+        }
+      } catch (_) {}
+    }
+
     if (!silent) {
       setState(() {
         _loading = true;
@@ -172,25 +180,47 @@ class _PosPageState extends State<PosPage> {
         });
       }
       if (!mounted) return;
-      setState(() {
-        _products = (results[0] as List).cast<Map<String, dynamic>>();
-        _visible = List.of(_products);
-        _warehouses = (results[1] as List).cast<Map<String, dynamic>>();
-        _customers = (results[2] as List).cast<Map<String, dynamic>>();
-        final settings = results[3] as Map<String, dynamic>;
-        _autoPrint = settings['auto_print'] == '1' || settings['auto_print'] == true;
-        if (_warehouseId.isEmpty && _warehouses.isNotEmpty) {
-          _warehouseId = '${_warehouses.first['id']}';
-        }
-      });
+      final storePayload = {
+        'products': results[0],
+        'warehouses': results[1],
+        'customers': results[2],
+        'settings': results[3],
+        if (isOwner) 'branches': results[4],
+      };
+      setState(() => _applyStoreData(storePayload));
       try {
         final v = await _client.productsVersion(branchId: branch);
         _lastProductsSync = v['updated_at']?.toString() ?? '';
+        await OfflineStore.saveProductsCache(branch,
+            jsonEncode(storePayload), _lastProductsSync ?? '', todayWib());
       } catch (_) {}
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {
       if (mounted && !silent) setState(() => _loading = false);
+    }
+  }
+
+  /// Terapkan data produk/gudang/pelanggan/pengaturan (dari server atau cache lokal).
+  void _applyStoreData(Map<String, dynamic> payload) {
+    _products =
+        ((payload['products'] as List?) ?? []).cast<Map<String, dynamic>>();
+    _visible = List.of(_products);
+    _warehouses =
+        ((payload['warehouses'] as List?) ?? []).cast<Map<String, dynamic>>();
+    _customers =
+        ((payload['customers'] as List?) ?? []).cast<Map<String, dynamic>>();
+    final settings = (payload['settings'] as Map<String, dynamic>?) ?? {};
+    _autoPrint =
+        settings['auto_print'] == '1' || settings['auto_print'] == true;
+    if (_warehouseId.isEmpty && _warehouses.isNotEmpty) {
+      _warehouseId = '${_warehouses.first['id']}';
+    }
+    final branches =
+        ((payload['branches'] as List?) ?? []).cast<Map<String, dynamic>>();
+    if (branches.isNotEmpty) {
+      _branches = branches;
+      _posBranchId ??= _branchId;
     }
   }
 
@@ -628,14 +658,18 @@ class _PosPageState extends State<PosPage> {
     }
     return Column(
       children: [
-        AnimatedSize(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeInOut,
-          child: Visibility(
-            visible: _headerVisible,
-            maintainState: true,
-            child: Column(
-              children: [
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () => _loadData(silent: true),
+            color: kTaskDark,
+            child: CustomScrollView(
+              keyboardDismissBehavior:
+                  ScrollViewKeyboardDismissBehavior.onDrag,
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Column(
+                    children: [
         if (context.read<AuthStore>().role == 'owner' && _branches.length > 1)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
@@ -708,42 +742,39 @@ class _PosPageState extends State<PosPage> {
             ],
           ),
         ),
-              ],
-            ),
-          ),
-        ),
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: () => _loadData(silent: true),
-            color: kTaskDark,
-            child: _visible.isEmpty
-                ? ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    children: const [
-                      SizedBox(height: 220),
-                      Center(child: Text('Produk tidak ditemukan')),
                     ],
-                  )
-                : GridView.builder(
-                    controller: _gridScroll,
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(12),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      mainAxisSpacing: 10,
-                      crossAxisSpacing: 10,
-                      childAspectRatio: 0.62,
+                  ),
+                ),
+                if (_visible.isEmpty)
+                  const SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 220,
+                      child: Center(child: Text('Produk tidak ditemukan')),
                     ),
-                    itemCount: _visible.length,
-                    itemBuilder: (_, i) => _ProductCard(
-                      product: _visible[i],
-                      mediaUrl: _mediaUrl,
-                      onTap: () => _addProduct(_visible[i]),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.all(12),
+                    sliver: SliverGrid(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        childAspectRatio: 0.62,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (_, i) => _ProductCard(
+                          product: _visible[i],
+                          mediaUrl: _mediaUrl,
+                          onTap: () => _addProduct(_visible[i]),
+                        ),
+                        childCount: _visible.length,
+                      ),
                     ),
                   ),
+              ],
+            ),
           ),
         ),
         SafeArea(
@@ -891,7 +922,7 @@ class _QtyInputState extends State<_QtyInput> {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 42,
+      width: 48,
       child: TextField(
         controller: _c,
         keyboardType: TextInputType.number,
@@ -899,9 +930,14 @@ class _QtyInputState extends State<_QtyInput> {
         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
         decoration: InputDecoration(
           isDense: true,
+          filled: true,
+          fillColor: const Color(0xFFF0F4F9),
           border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xffE7E0D6))),
+              borderSide: const BorderSide(color: Color(0xffB9C9DC))),
+          focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xff1E3A5F), width: 1.4)),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
         ),
