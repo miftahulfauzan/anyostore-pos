@@ -250,14 +250,7 @@ class _OfflineTileState extends State<_OfflineTile> {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       onTap: () async {
         await Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => Scaffold(
-                backgroundColor: const Color(0xfff7f4ed),
-                appBar: AppBar(
-                  backgroundColor: Colors.white,
-                  surfaceTintColor: Colors.transparent,
-                  title: const Text('Antrean Offline'),
-                ),
-                body: OfflineQueuePage(api: widget.api))));
+            builder: (_) => OfflineQueuePage(api: widget.api)));
         await _load();
       },
       child: Row(
