@@ -1,19 +1,16 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
-
 import 'package:provider/provider.dart';
+
 import 'api_client.dart';
 import 'auth_store.dart';
 import 'format.dart';
 import 'pos_page.dart';
 import 'task_ui.dart';
 
-const _kBg = Color(0xffF5F1EA);
-const _kDark = Color(0xff1E3A5F);
-const _kOrange = Color(0xff2E5D8F);
-const _kTeal = Color(0xff7FA8CF);
 const _kGray = Color(0xff8A857C);
+const _kDenim = Color(0xff2E5D8F);
+const _kDenimLight = Color(0xff7FA8CF);
+const _kBorder = Color(0xffE7E0D6);
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key, required this.api});
@@ -25,9 +22,10 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   Map<String, dynamic>? _data;
-  List<Map<String, dynamic>> _lowStock = [];
   bool _loading = true;
   String? _error;
+  String _range = 'today'; // today | 7d | month
+  int _chartSel = -1;
 
   @override
   void initState() {
@@ -35,28 +33,15 @@ class _DashboardPageState extends State<DashboardPage> {
     _load();
   }
 
-  int get _branchId => context.read<AuthStore>().branchId ?? 0;
-
   Future<void> _load() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final results = await Future.wait([
-        widget.api.dashboard(),
-        widget.api.stockTotal(branchId: _branchId),
-      ]);
+      final data = await widget.api.dashboard();
       if (!mounted) return;
-      final products = (results[1]['products'] as List? ?? [])
-          .cast<Map<String, dynamic>>();
-      setState(() {
-        _data = results[0] as Map<String, dynamic>?;
-        _lowStock = products
-            .where((p) => asNum(p['total_stock']) <= asNum(p['min_stock']))
-            .take(5)
-            .toList();
-      });
+      setState(() => _data = data);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {
@@ -67,6 +52,22 @@ class _DashboardPageState extends State<DashboardPage> {
   void _openKasir() {
     Navigator.of(context).popUntil((route) => route.isFirst);
     PosPage.requestTab.value = 0;
+  }
+
+  (double, double, double, double) _stats() {
+    final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
+    final (sales, expenses) = switch (_range) {
+      '7d' => (
+          asNum(summary['seven_day_sales']),
+          asNum(summary['seven_day_expenses'])),
+      'month' => (
+          asNum(summary['month_sales']),
+          asNum(summary['month_expenses'])),
+      _ => (asNum(summary['today_sales']), asNum(summary['today_expenses'])),
+    };
+    final profit = sales - expenses;
+    final margin = sales > 0 ? profit / sales * 100 : 0.0;
+    return (sales, expenses, profit, margin);
   }
 
   @override
@@ -87,182 +88,202 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
       );
     }
-    final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
+    final auth = context.watch<AuthStore>();
+    final name = auth.userName ?? 'Admin';
     final recent = ((_data?['recent_transactions'] as List?) ?? [])
         .cast<Map<String, dynamic>>();
-    final today = fmtRp(asNum(summary['today_sales']));
-    final week = fmtRp(asNum(summary['seven_day_sales']));
-    final month = fmtRp(asNum(summary['month_sales']));
-    final expenses = fmtRp(asNum(summary['today_expenses']));
+    final trend =
+        ((_data?['sales_trend'] as List?) ?? []).cast<Map<String, dynamic>>();
+    final maxTrend = trend.fold<double>(
+        0, (m, t) => asNum(t['sales']) > m ? asNum(t['sales']) : m);
+    final (sales, expenses, profit, margin) = _stats();
 
     return ColoredBox(
-      color: _kBg,
+      color: const Color(0xffF5F1EA),
       child: RefreshIndicator(
         onRefresh: _load,
-        color: _kDark,
+        color: kTaskDark,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _circleButton(
-                    Icons.storefront, () => _openKasir()),
-                const Column(
-                  children: [
-                    Text('Anyostore App',
-                        style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w800,
-                            color: _kDark,
-                            letterSpacing: -0.4)),
-                    SizedBox(height: 3),
-                    Text('Ringkasan bisnis Anda',
-                        style: TextStyle(fontSize: 13, color: _kGray)),
-                  ],
+                BrandLogo(api: widget.api, size: 42, radius: 13),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Anyostore App',
+                          style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: kTaskDark)),
+                      Text('Ringkasan bisnis Anda',
+                          style: TextStyle(fontSize: 11, color: _kGray)),
+                    ],
+                  ),
                 ),
                 _circleButton(Icons.refresh, _load),
               ],
             ),
-            const SizedBox(height: 18),
-            // Gauge penjualan hari ini
-            SizedBox(
-              width: 260,
-              height: 260,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  const CustomPaint(
-                    size: Size(260, 260),
-                    painter: _GaugePainter(),
-                  ),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('PENJUALAN HARI INI',
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.6,
-                              color: _kGray)),
-                      const SizedBox(height: 4),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(today,
-                            style: const TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.w800,
-                                color: _kDark,
-                                letterSpacing: -0.5)),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 4),
-            // Mini stats
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _miniStat('7 Hari', week),
-                  _miniStat('Bulan Ini', month, alignRight: true),
-                ],
-              ),
-            ),
-            const SizedBox(height: 22),
-            const Text('Ringkasan Hari Ini',
-                style: TextStyle(
-                    fontSize: 16,
+            const SizedBox(height: 16),
+            Text('Halo, $name',
+                style: const TextStyle(
+                    fontSize: 20,
                     fontWeight: FontWeight.w800,
-                    color: _kDark)),
-            const SizedBox(height: 12),
+                    color: kTaskDark)),
+            const SizedBox(height: 10),
+            // Time range pills
+            SizedBox(
+              height: 38,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: 3,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (_, i) {
+                  final label = const ['Hari ini', '7 Hari', 'Bulan Ini'][i];
+                  final value = const ['today', '7d', 'month'][i];
+                  final active = _range == value;
+                  return GestureDetector(
+                    onTap: () => setState(() => _range = value),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 9),
+                      decoration: BoxDecoration(
+                        color: active ? kTaskDark : Colors.white,
+                        borderRadius: BorderRadius.circular(99),
+                        border: active
+                            ? null
+                            : Border.all(color: _kBorder),
+                        boxShadow: active
+                            ? [
+                                BoxShadow(
+                                    color: kTaskDark.withValues(alpha: .25),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4))
+                              ]
+                            : null,
+                      ),
+                      child: Text(label,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: active ? Colors.white : _kGray)),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 14),
+            // 4 stat cards
             Row(
               children: [
                 Expanded(
-                  child: _overviewCard(
-                      'Transaksi',
-                      '${summary['today_transactions'] ?? 0}',
-                      Icons.receipt_long,
-                      _kDark,
-                      const Color(0xffE3EAF2)),
-                ),
+                    child: _stat('Penjualan', fmtRp(sales),
+                        Icons.trending_up, _kDenim, const Color(0xffE3EAF2))),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: _overviewCard('Pengeluaran', expenses,
-                      Icons.account_balance_wallet, _kOrange,
-                      const Color(0xffE3EAF2)),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _overviewCard('Penjualan 7 Hari', week,
-                      Icons.trending_up, _kTeal, const Color(0xffE9F1EF)),
-                ),
+                    child: _stat('Pengeluaran', fmtRp(expenses),
+                        Icons.account_balance_wallet, _kDenimLight,
+                        const Color(0xffE9F1F8))),
               ],
             ),
-            if (_lowStock.isNotEmpty) ...[
-              const SizedBox(height: 14),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                    child: _stat('Laba Bersih', fmtRp(profit),
+                        Icons.savings, kTaskDark, const Color(0xffE3EAF2))),
+                const SizedBox(width: 10),
+                Expanded(
+                    child: _stat('Margin',
+                        margin.isFinite ? '${margin.toStringAsFixed(1)}%' : '0%',
+                        Icons.pie_chart, const Color(0xff5A8BBF),
+                        const Color(0xffE9F1F8))),
+              ],
+            ),
+            const SizedBox(height: 14),
+            // Chart: Penjualan 7 Hari
+            if (trend.isNotEmpty)
               GlassCard(
-                padding: const EdgeInsets.all(14),
-                radius: 20,
+                padding: const EdgeInsets.all(16),
+                radius: 24,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: const Color(0xffF7E4DE),
-                            borderRadius: BorderRadius.circular(9),
-                          ),
-                          child: const Icon(Icons.warning_amber,
-                              size: 15, color: Color(0xffC2410C)),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text('Stok Menipis',
+                        const Text('Penjualan 7 Hari',
                             style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w800,
                                 color: kTaskDark)),
-                        const Spacer(),
-                        Text('${_lowStock.length} produk',
-                            style: const TextStyle(
-                                fontSize: 10, color: kTaskGray)),
+                        if (_chartSel >= 0 && _chartSel < trend.length)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: kTaskDark,
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                            child: Text(
+                                fmtRp(asNum(trend[_chartSel]['sales'])),
+                                style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white)),
+                          ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    for (final p in _lowStock)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 3),
-                        child: Row(
-                          children: [
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 130,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          for (var i = 0; i < trend.length; i++)
                             Expanded(
-                              child: Text(
-                                  p['name']?.toString() ?? '',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: kTaskDark)),
+                              child: GestureDetector(
+                                onTap: () => setState(() => _chartSel = i),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    Container(
+                                      height: maxTrend > 0
+                                          ? (asNum(trend[i]['sales']) /
+                                                  maxTrend *
+                                                  96)
+                                              .clamp(4.0, 96.0)
+                                          : 4,
+                                      margin: const EdgeInsets.symmetric(
+                                          horizontal: 5),
+                                      decoration: BoxDecoration(
+                                        color: _chartSel == i
+                                            ? kTaskDark
+                                            : _kDenim,
+                                        borderRadius:
+                                            const BorderRadius.vertical(
+                                                top: Radius.circular(6)),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(trend[i]['label']?.toString() ?? '',
+                                        style: const TextStyle(
+                                            fontSize: 9, color: _kGray)),
+                                  ],
+                                ),
+                              ),
                             ),
-                            Text(
-                                'Stok ${asNum(p['total_stock']).toStringAsFixed(0)} / min ${asNum(p['min_stock']).toStringAsFixed(0)}',
-                                style: const TextStyle(
-                                    fontSize: 10, color: Color(0xffC2410C))),
-                          ],
-                        ),
+                        ],
                       ),
+                    ),
                   ],
                 ),
               ),
-            ],
             if (recent.isNotEmpty) ...[
-              const SizedBox(height: 22),
+              const SizedBox(height: 14),
               GlassCard(
                 padding: const EdgeInsets.all(16),
                 radius: 24,
@@ -271,9 +292,9 @@ class _DashboardPageState extends State<DashboardPage> {
                   children: [
                     const Text('Transaksi Terakhir',
                         style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: FontWeight.w800,
-                            color: _kDark)),
+                            color: kTaskDark)),
                     const SizedBox(height: 8),
                     for (final t in recent)
                       Padding(
@@ -284,26 +305,26 @@ class _DashboardPageState extends State<DashboardPage> {
                               width: 34,
                               height: 34,
                               decoration: BoxDecoration(
-                                color: const Color(0xffE6ECF3),
+                                color: const Color(0xffE3EAF2),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Icon(Icons.receipt,
-                                  size: 16, color: _kDark),
+                                  size: 16, color: kTaskDark),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                       t['invoice_no']?.toString() ?? '',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w700,
-                                          color: _kDark)),
-                                  Text(
-                                      t['cashier']?.toString() ?? '',
+                                          color: kTaskDark)),
+                                  Text(t['cashier']?.toString() ?? '',
                                       style: const TextStyle(
                                           fontSize: 10, color: _kGray)),
                                 ],
@@ -313,7 +334,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                 style: const TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w800,
-                                    color: _kDark)),
+                                    color: kTaskDark)),
                           ],
                         ),
                       ),
@@ -321,17 +342,16 @@ class _DashboardPageState extends State<DashboardPage> {
                 ),
               ),
             ],
-            const SizedBox(height: 24),
-            // CTA Mulai Kasir
+            const SizedBox(height: 18),
             SizedBox(
-              height: 58,
+              height: 56,
               child: FilledButton(
                 onPressed: _openKasir,
                 style: FilledButton.styleFrom(
-                  backgroundColor: _kDark,
+                  backgroundColor: kTaskDark,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(29)),
+                      borderRadius: BorderRadius.circular(28)),
                   padding: const EdgeInsets.only(left: 30, right: 6),
                 ),
                 child: Row(
@@ -340,8 +360,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       child: Text('Mulai Kasir',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600)),
+                              fontSize: 15, fontWeight: FontWeight.w600)),
                     ),
                     Container(
                       width: 44,
@@ -351,7 +370,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.arrow_forward,
-                          size: 20, color: _kDark),
+                          size: 20, color: kTaskDark),
                     ),
                   ],
                 ),
@@ -371,129 +390,50 @@ class _DashboardPageState extends State<DashboardPage> {
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: SizedBox(
-          width: 44,
-          height: 44,
-          child: Icon(icon, size: 19, color: _kDark),
+          width: 42,
+          height: 42,
+          child: Icon(icon, size: 19, color: kTaskDark),
         ),
       ),
     );
   }
 
-  Widget _miniStat(String label, String value, {bool alignRight = false}) {
-    final text = Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.baseline,
-      textBaseline: TextBaseline.alphabetic,
-      children: [
-        Flexible(
-          child: Text(value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w800,
-                  color: _kDark)),
-        ),
-      ],
-    );
-    return Column(
-      crossAxisAlignment:
-          alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-      children: [
-        text,
-        const SizedBox(height: 3),
-        Text(label,
-            style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: _kGray)),
-      ],
-    );
-  }
-
-  Widget _overviewCard(
-      String label, String value, IconData icon, Color chipFg, Color chipBg) {
+  Widget _stat(String label, String value, IconData icon, Color chipFg,
+      Color chipBg) {
     return GlassCard(
-      height: 118,
-      padding: const EdgeInsets.all(12),
-      radius: 24,
+      padding: const EdgeInsets.all(14),
+      radius: 20,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(label,
-                  style:
-                      const TextStyle(fontSize: 10, color: _kGray)),
+                  style: const TextStyle(fontSize: 11, color: _kGray)),
               Container(
-                width: 26,
-                height: 26,
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
                   color: chipBg,
                   borderRadius: BorderRadius.circular(9),
                 ),
-                child: Icon(icon, size: 14, color: chipFg),
+                child: Icon(icon, size: 15, color: chipFg),
               ),
             ],
           ),
-          Text(value,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: _kDark)),
+          const SizedBox(height: 8),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(value,
+                maxLines: 1,
+                style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: kTaskDark)),
+          ),
         ],
       ),
     );
   }
-}
-
-class _GaugePainter extends CustomPainter {
-  const _GaugePainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const segments = 48;
-    const inner = 74.0;
-    const short = 15.0;
-    const long = 40.0;
-    const stroke = 7.0;
-    final center = Offset(size.width / 2, size.height / 2);
-    for (var i = 0; i < segments; i++) {
-      final deg = (i / segments) * 360;
-      late final Color color;
-      late final double length;
-      if (deg >= 330 || deg <= 150) {
-        color = _kOrange;
-        length = long;
-      } else if (deg > 150 && deg <= 225) {
-        color = _kDark;
-        length = short;
-      } else {
-        color = _kTeal;
-        length = short;
-      }
-      final rad = (deg - 90) * math.pi / 180;
-      final start = Offset(
-          center.dx + inner * math.cos(rad),
-          center.dy + inner * math.sin(rad));
-      final end = Offset(
-          center.dx + (inner + length) * math.cos(rad),
-          center.dy + (inner + length) * math.sin(rad));
-      canvas.drawLine(
-        start,
-        end,
-        Paint()
-          ..color = color
-          ..strokeWidth = stroke
-          ..strokeCap = StrokeCap.round,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
