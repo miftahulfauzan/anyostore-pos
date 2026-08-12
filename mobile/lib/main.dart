@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'src/api_client.dart';
 import 'src/auth_store.dart';
-import 'src/splash_page.dart';
+import 'src/login_page.dart';
 import 'src/pos_page.dart';
 
 Future<void> main() async {
@@ -122,7 +122,7 @@ class PosMobileApp extends StatelessWidget {
         themeMode: ThemeMode.light,
         home: Consumer<AuthStore>(
           builder: (_, auth, __) =>
-              auth.isAuthenticated ? const PosPage() : const SplashPage(),
+              auth.isAuthenticated ? const PosPage() : const LoginPage(),
         ),
       );
 }
