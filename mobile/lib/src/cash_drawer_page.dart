@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'api_client.dart';
 import 'format.dart';
+import 'task_ui.dart';
 
 class CashDrawerPage extends StatefulWidget {
   const CashDrawerPage({super.key, required this.api});
@@ -231,13 +232,7 @@ class _Card extends StatelessWidget {
   final List<Widget> children;
 
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xffeceae4)),
-        ),
+  Widget build(BuildContext context) => GlassCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

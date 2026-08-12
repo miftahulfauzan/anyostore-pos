@@ -44,13 +44,9 @@ class MorePage extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       children: [
         // Profil header
-        Container(
+        GlassCard(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _kBorder),
-          ),
+          radius: 20,
           child: Row(
             children: [
               BrandLogo(api: api, size: 56, radius: 28),
@@ -77,12 +73,9 @@ class MorePage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _kBorder),
-          ),
+        GlassCard(
+          padding: EdgeInsets.zero,
+          radius: 20,
           child: Column(
             children: [
               _row(Icons.dashboard, 'Dashboard', const Color(0x141E3A5F),

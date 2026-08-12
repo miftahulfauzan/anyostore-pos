@@ -675,15 +675,11 @@ class _TxCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
+    return GlassCard(
+      radius: 24,
+      padding: const EdgeInsets.all(14),
+      onTap: onTap,
+      child: Row(
             children: [
               Container(
                 width: 44,
@@ -733,8 +729,6 @@ class _TxCard extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
     );
   }
 }

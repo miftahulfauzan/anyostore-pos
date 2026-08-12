@@ -325,13 +325,7 @@ class _Card extends StatelessWidget {
   final List<Widget> rows;
 
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xffeceae4)),
-        ),
+  Widget build(BuildContext context) => GlassCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

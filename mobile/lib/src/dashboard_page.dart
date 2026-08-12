@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'api_client.dart';
 import 'format.dart';
 import 'pos_page.dart';
+import 'task_ui.dart';
 
 const _kBg = Color(0xffF5F1EA);
 const _kDark = Color(0xff1E3A5F);
@@ -187,15 +188,9 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
             if (recent.isNotEmpty) ...[
               const SizedBox(height: 22),
-              Container(
+              GlassCard(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: const [
-                    BoxShadow(color: Color(0x0d000000), blurRadius: 6),
-                  ],
-                ),
+                radius: 24,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -343,16 +338,10 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _overviewCard(
       String label, String value, IconData icon, Color chipFg, Color chipBg) {
-    return Container(
+    return GlassCard(
       height: 118,
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: const [
-          BoxShadow(color: Color(0x0d000000), blurRadius: 6),
-        ],
-      ),
+      radius: 24,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -198,7 +198,64 @@ class _BrandLogoState extends State<BrandLogo> {
   }
 }
 
-/// Bottom nav kaca: 4 ikon + FAB tengah bertuliskan POS.
+/// Kartu liquid glass: frosted translucent dengan blur dan border tipis.
+class GlassCard extends StatelessWidget {
+  const GlassCard(
+      {super.key,
+      required this.child,
+      this.radius = 24,
+      this.padding = const EdgeInsets.all(16),
+      this.height,
+      this.onTap});
+  final Widget child;
+  final double radius;
+  final EdgeInsets padding;
+  final double? height;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final inner = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(radius),
+        child: Padding(padding: padding, child: child),
+      ),
+    );
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(radius),
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withValues(alpha: .78),
+                Colors.white.withValues(alpha: .42),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(color: Colors.white.withValues(alpha: .55)),
+            boxShadow: const [
+              BoxShadow(
+                  color: Color(0x1A1E3A5F),
+                  blurRadius: 20,
+                  offset: Offset(0, 8)),
+            ],
+          ),
+          child: height == null
+              ? inner
+              : SizedBox(height: height, child: inner),
+        ),
+      ),
+    );
+  }
+}
+
+/// Bottom nav kaca: 4 ikon + FAB tengah ikon keranjang.
 class GlassNavBar extends StatelessWidget {
   const GlassNavBar(
       {super.key,
@@ -226,13 +283,13 @@ class GlassNavBar extends StatelessWidget {
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(32)),
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: Container(
                   height: 84 + bottomPad,
                   padding: EdgeInsets.only(
                       top: 8, left: 10, right: 10, bottom: bottomPad + 4),
                   decoration: const BoxDecoration(
-                    color: Color(0xD9FFFFFF),
+                    color: Color(0xB8FFFFFF),
                     border: Border(top: BorderSide(color: Colors.white)),
                   ),
                   child: Row(
@@ -269,16 +326,8 @@ class GlassNavBar extends StatelessWidget {
                   ],
                   border: Border.all(color: Colors.white, width: 4),
                 ),
-                child: const Center(
-                  child: FittedBox(
-                    child: Text('POS',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.4)),
-                  ),
-                ),
+                child: const Icon(Icons.shopping_bag_outlined,
+                    size: 27, color: Colors.white),
               ),
             ),
           ),

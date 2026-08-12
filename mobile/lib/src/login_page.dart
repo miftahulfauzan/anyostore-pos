@@ -87,7 +87,10 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _kBg,
-      body: SafeArea(
+      body: Stack(
+        children: [
+          const Positioned.fill(child: SoftBlobs()),
+          SafeArea(
         child: Column(
           children: [
             Container(
@@ -137,19 +140,9 @@ class _LoginPageState extends State<LoginPage> {
                 child: Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 420),
-                    child: Container(
+                    child: GlassCard(
                       padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: _kBorder),
-                        boxShadow: const [
-                          BoxShadow(
-                              color: Color(0x141E3A5F),
-                              blurRadius: 24,
-                              offset: Offset(0, 10))
-                        ],
-                      ),
+                      radius: 20,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -252,8 +245,10 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
             ),
-          ],
+            ],
+          ),
         ),
+        ],
       ),
     );
   }

@@ -268,7 +268,7 @@ class _FinancePageState extends State<FinancePage> {
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
           child: Align(
-            alignment: Alignment.centerRight,
+            alignment: Alignment.center,
             child: FilledButton.icon(
               onPressed: _form,
               icon: const Icon(Icons.add),

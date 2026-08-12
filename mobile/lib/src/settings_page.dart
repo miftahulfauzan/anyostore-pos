@@ -322,7 +322,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
-        Card(
+        GlassCard(
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
@@ -378,7 +378,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
         const SizedBox(height: 10),
-        Card(
+        GlassCard(
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
@@ -414,7 +414,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
         const SizedBox(height: 10),
-        Card(
+        GlassCard(
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
@@ -471,7 +471,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
         const SizedBox(height: 10),
-        Card(
+        GlassCard(
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
