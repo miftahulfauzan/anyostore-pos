@@ -13,6 +13,8 @@ import 'mutation_report_page.dart';
 import 'profile_page.dart';
 import 'products_page.dart';
 import 'stock_movements_page.dart';
+import 'offline_queue_page.dart';
+import 'offline_store.dart';
 import 'promotions_page.dart';
 import 'settings_page.dart';
 import 'users_page.dart';
@@ -77,6 +79,8 @@ class MorePage extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: 12),
+        _OfflineTile(api: api),
         const SizedBox(height: 12),
         GlassCard(
           padding: EdgeInsets.zero,
@@ -184,5 +188,85 @@ class MorePage extends StatelessWidget {
   void _open(BuildContext context, String title, Widget child) {
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => _scaffold(title, child)));
+  }
+}
+
+class _OfflineTile extends StatefulWidget {
+  const _OfflineTile({required this.api});
+  final ApiClient api;
+
+  @override
+  State<_OfflineTile> createState() => _OfflineTileState();
+}
+
+class _OfflineTileState extends State<_OfflineTile> {
+  int _count = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final c = await OfflineStore.count();
+    if (mounted) setState(() => _count = c);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      radius: 20,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      onTap: () async {
+        await Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => Scaffold(
+                backgroundColor: const Color(0xfff7f4ed),
+                appBar: AppBar(
+                  backgroundColor: Colors.white,
+                  surfaceTintColor: Colors.transparent,
+                  title: const Text('Antrean Offline'),
+                ),
+                body: OfflineQueuePage(api: widget.api))));
+        await _load();
+      },
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: const Color(0xffF7E8DD),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.cloud_off, size: 17, color: Color(0xffD47E4D)),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text('Antrean Offline',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xff1E3A5F))),
+          ),
+          if (_count > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xff1E3A5F),
+                borderRadius: BorderRadius.circular(99),
+              ),
+              child: Text('$_count',
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white)),
+            )
+          else
+            const Icon(Icons.chevron_right,
+                size: 18, color: Color(0xff94a3b8)),
+        ],
+      ),
+    );
   }
 }

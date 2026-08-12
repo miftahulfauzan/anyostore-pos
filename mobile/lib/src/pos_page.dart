@@ -1,13 +1,16 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
 import 'api_client.dart';
 import 'auth_store.dart';
 import 'inventory_page.dart';
 import 'more_page.dart';
+import 'offline_store.dart';
 import 'reports_page.dart';
 import 'format.dart';
 import 'history_tab.dart';
@@ -83,6 +86,15 @@ class _PosPageState extends State<PosPage> {
     _api = context.read<AuthStore>().api;
     PosPage.requestTab.addListener(_onExternalTab);
     _loadData();
+    _syncPending();
+  }
+
+  Future<void> _syncPending() async {
+    final n = await syncOfflineTransactions(_client);
+    if (n > 0 && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('$n transaksi offline berhasil disinkronkan')));
+    }
   }
 
   @override
@@ -393,25 +405,29 @@ class _PosPageState extends State<PosPage> {
       return;
     }
     setState(() => _saving = true);
+    final clientTransactionId = uuidV4();
+    final items = _cart
+        .map((c) => {
+              'product_id': c.productId,
+              if (c.variantId != null) 'variant_id': c.variantId,
+              'quantity': c.qty,
+              // Harga ikut HP: penting untuk mode offline.
+              'price': c.priceOverride ?? c.price,
+              if (c.priceOverride != null) 'price_override': c.priceOverride,
+            })
+        .toList();
+    final payload = <String, dynamic>{
+      'branch_id': branch,
+      'warehouse_id': warehouseId,
+      'items': items,
+      'client_transaction_id': clientTransactionId,
+      'allow_negative_stock': allowNegativeStock,
+      ...payment,
+      if (_customerId != null) 'customer_id': _customerId,
+      if (_promoCode.trim().isNotEmpty) 'promo_code': _promoCode.trim(),
+    };
     try {
-      final items = _cart
-          .map((c) => {
-                'product_id': c.productId,
-                if (c.variantId != null) 'variant_id': c.variantId,
-                'quantity': c.qty,
-                if (c.priceOverride != null) 'price_override': c.priceOverride,
-              })
-          .toList();
-      final result = await _client.createTransaction({
-        'branch_id': branch,
-        'warehouse_id': warehouseId,
-        'items': items,
-        'client_transaction_id': uuidV4(),
-        'allow_negative_stock': allowNegativeStock,
-        ...payment,
-        if (_customerId != null) 'customer_id': _customerId,
-        if (_promoCode.trim().isNotEmpty) 'promo_code': _promoCode.trim(),
-      });
+      final result = await _client.createTransaction(payload);
       if (!mounted) return;
       final id = int.tryParse('${result['id']}');
       _cart.clear();
@@ -452,7 +468,29 @@ class _PosPageState extends State<PosPage> {
             .showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (e) {
-      if (mounted) {
+      final isNetwork =
+          e is SocketException || e is TimeoutException || e is http.ClientException;
+      if (isNetwork) {
+        // Simpan offline: total & harga ikut HP, stok dipaksa negatif, sync otomatis nanti.
+        final tempInvoice = 'OFF-$branch-${DateTime.now().millisecondsSinceEpoch}';
+        payload['offline'] = true;
+        payload['offline_invoice_no'] = tempInvoice;
+        payload['allow_negative_stock'] = true;
+        payload['subtotal'] = asNum(_preview?['subtotal'] ?? _cartTotal);
+        payload['discount'] = asNum(_preview?['discount'] ?? 0);
+        final offlineTotal = asNum(_preview?['grand_total'] ?? _cartTotal);
+        await OfflineStore.insert(payload, tempInvoice,
+            grandTotal: offlineTotal);
+        if (!mounted) return;
+        _cart.clear();
+        _preview = null;
+        _promoCode = '';
+        _customerId = null;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Transaksi disimpan offline ($tempInvoice). Akan otomatis sync saat internet kembali.')));
+        _loadData();
+      } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Gagal memproses pembayaran: $e')));
       }

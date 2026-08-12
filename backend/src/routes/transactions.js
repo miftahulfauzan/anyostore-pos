@@ -144,16 +144,16 @@ router.get('/', async (req, res, next) => {
     if (isDate(dateTo)) { where += ' AND DATE(t.created_at) <= ?'; params.push(dateTo); }
     if (status && ['completed','cancelled','partially_cancelled','refunded'].includes(status)) { where += ' AND t.status = ?'; params.push(status); }
     if (search) {
-      where += ' AND (t.invoice_no LIKE ? OR u.name LIKE ? OR c.name LIKE ? OR t.grand_total LIKE ?)';
+      where += ' AND (t.invoice_no LIKE ? OR t.offline_invoice_no LIKE ? OR u.name LIKE ? OR c.name LIKE ? OR t.grand_total LIKE ?)';
       const like = `%${search}%`;
-      params.push(like, like, like, like);
+      params.push(like, like, like, like, like);
     }
 
     const [countRows] = await db.execute(`SELECT COUNT(*) AS total FROM transactions t JOIN users u ON u.id=t.user_id LEFT JOIN customers c ON c.id=t.customer_id ${where}`, params);
     const total = Number(countRows[0].total || 0);
 
     const [rows] = await db.execute(
-      `SELECT t.id, t.invoice_no, t.grand_total, t.payment_method, t.status, t.price_tier, t.cancelled_amount, t.created_at, u.name AS cashier, c.name AS customer, c.price_tier AS customer_tier
+      `SELECT t.id, t.invoice_no, t.offline_invoice_no, t.grand_total, t.payment_method, t.status, t.price_tier, t.cancelled_amount, t.created_at, u.name AS cashier, c.name AS customer, c.price_tier AS customer_tier
        FROM transactions t JOIN users u ON u.id = t.user_id LEFT JOIN customers c ON c.id = t.customer_id
        ${where} ORDER BY t.created_at DESC LIMIT ${limit} OFFSET ${offset}`,
       params
@@ -193,7 +193,7 @@ router.post('/pending/:id/resume', authorize('owner', 'manager', 'admin', 'kasir
 router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, res, next) => {
   const connection = await db.getConnection();
   try {
-    const { warehouse_id: warehouseId, customer_id: customerId = null, items, discount_type: discountType = 'none', discount_value: discountValue = 0, promo_code: promoCode, notes, client_transaction_id: clientTransactionId = null } = req.body;
+    const { warehouse_id: warehouseId, customer_id: customerId = null, items, discount_type: discountType = 'none', discount_value: discountValue = 0, promo_code: promoCode, notes, client_transaction_id: clientTransactionId = null, offline: isOffline = false, offline_invoice_no: offlineInvoiceNo = null } = req.body;
     const requestedBranch = Number(req.body.branch_id);
     const branchId = req.user.role === 'owner' && Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
     if (!Number.isInteger(Number(warehouseId)) || !Array.isArray(items) || !items.length || !['none', 'percentage', 'nominal'].includes(discountType)) {
@@ -252,7 +252,15 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
       let priceOverride = 0;
       let originalPrice = null;
       let overriddenBy = null;
-      if (input.price_override != null && input.price_override !== '') {
+      if (isOffline) {
+        // Mode offline: harga mengikuti yang dikirim HP.
+        const clientPrice = Number(input.price != null && input.price !== '' ? input.price : input.price_override);
+        if (!Number.isFinite(clientPrice) || clientPrice < 0) throw httpError(400, 'Harga item offline tidak valid');
+        originalPrice = basePrice;
+        price = money(clientPrice);
+        priceOverride = 1;
+        overriddenBy = req.user.id;
+      } else if (input.price_override != null && input.price_override !== '') {
         const overrideValue = Number(input.price_override);
         if (!Number.isFinite(overrideValue) || overrideValue < 0) throw httpError(400, 'Harga ubah manual tidak valid');
         originalPrice = basePrice;
@@ -265,24 +273,36 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
       subtotal = money(subtotal + lineSubtotal);
       lines.push({ product, productId, variantId, variant, quantity, itemDiscount, lineSubtotal, price, basePrice, priceOverride, originalPrice, overriddenBy });
     }
-    // Terapkan tier Semi Grosir / Grosir Seri (hanya untuk item yang tidak di-override manual).
     const tierLines = lines.filter((line) => !line.priceOverride);
-    const priceTier = await applyPriceTier(connection, branchId, tierLines, customerTier);
-    subtotal = money(lines.reduce((sum, line) => sum + line.lineSubtotal, 0));
-    let requestedDiscount = money(discountValue);
-    if (requestedDiscount < 0) throw httpError(400, 'Diskon transaksi tidak valid');
+    const priceTier = isOffline ? 'retail' : await applyPriceTier(connection, branchId, tierLines, customerTier);
+    let requestedDiscount;
     let effectiveDiscountType = discountType;
-    let discount = discountType === 'percentage' ? money(subtotal * requestedDiscount / 100) : discountType === 'nominal' ? requestedDiscount : 0;
+    let discount;
     let promo = null;
-    if (promoCode?.trim()) { const promotion = await findPromotion(connection, branchId, promoCode, subtotal); promo = promotion.promo; discount = promotion.discount; requestedDiscount = Number(promo.discount_value); effectiveDiscountType = promo.discount_type; }
-    if (discount > subtotal) throw httpError(400, 'Diskon transaksi melebihi subtotal');
+    if (isOffline) {
+      // Mode offline: subtotal/diskon/total ikut yang dikirim HP.
+      subtotal = money(Number(req.body.subtotal) || 0);
+      discount = money(Number(req.body.discount) || 0);
+      requestedDiscount = discount;
+      if (subtotal < 0 || discount < 0 || discount > subtotal) throw httpError(400, 'Total transaksi offline tidak valid');
+      const sumLines = money(lines.reduce((sum, line) => sum + line.lineSubtotal, 0));
+      if (Math.abs(sumLines - subtotal) > 1) throw httpError(400, 'Subtotal item tidak cocok dengan total');
+      effectiveDiscountType = discount > 0 ? 'nominal' : 'none';
+    } else {
+      subtotal = money(lines.reduce((sum, line) => sum + line.lineSubtotal, 0));
+      requestedDiscount = money(discountValue);
+      if (requestedDiscount < 0) throw httpError(400, 'Diskon transaksi tidak valid');
+      discount = discountType === 'percentage' ? money(subtotal * requestedDiscount / 100) : discountType === 'nominal' ? requestedDiscount : 0;
+      if (promoCode?.trim()) { const promotion = await findPromotion(connection, branchId, promoCode, subtotal); promo = promotion.promo; discount = promotion.discount; requestedDiscount = Number(promo.discount_value); effectiveDiscountType = promo.discount_type; }
+      if (discount > subtotal) throw httpError(400, 'Diskon transaksi melebihi subtotal');
+    }
     const grandTotal = money(subtotal - discount);
     const payment = normalizePayments(req.body, grandTotal);
     const invoiceNo = await nextInvoice(connection, branchId);
     const [transactionResult] = await connection.execute(
-      `INSERT INTO transactions (branch_id, invoice_no, client_transaction_id, user_id, customer_id, subtotal, discount_type, discount_value, discount, grand_total, payment_method, amount_paid, \`change\`, notes, price_tier)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [branchId, invoiceNo, clientTransactionId, req.user.id, customerId, subtotal, effectiveDiscountType, requestedDiscount, discount, grandTotal, payment.method, payment.paid, payment.change, [notes?.trim(), promo ? `Promo ${promo.code}` : null].filter(Boolean).join(' · ') || null, priceTier]
+      `INSERT INTO transactions (branch_id, invoice_no, offline_invoice_no, client_transaction_id, user_id, customer_id, subtotal, discount_type, discount_value, discount, grand_total, payment_method, amount_paid, \`change\`, notes, price_tier)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [branchId, invoiceNo, offlineInvoiceNo?.trim() || null, clientTransactionId, req.user.id, customerId, subtotal, effectiveDiscountType, requestedDiscount, discount, grandTotal, payment.method, payment.paid, payment.change, [notes?.trim(), promo ? `Promo ${promo.code}` : null].filter(Boolean).join(' · ') || null, priceTier]
     );
     if (promo) await connection.execute('UPDATE promotions SET usage_count=usage_count+1 WHERE id=?', [promo.id]);
     for (const line of lines) {
