@@ -179,7 +179,8 @@ class _PaymentSheetState extends State<PaymentSheet> {
                 ],
               ] else ...[
                 for (var i = 0; i < _rows.length; i++)
-                  Card(
+                  GlassCard(
+                    padding: EdgeInsets.zero,
                     child: Padding(
                       padding: const EdgeInsets.all(10),
                       child: Column(

@@ -206,11 +206,13 @@ class GlassCard extends StatelessWidget {
       this.radius = 24,
       this.padding = const EdgeInsets.all(16),
       this.height,
+      this.dark = false,
       this.onTap});
   final Widget child;
   final double radius;
   final EdgeInsets padding;
   final double? height;
+  final bool dark;
   final VoidCallback? onTap;
 
   @override
@@ -231,14 +233,22 @@ class GlassCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(radius),
             gradient: LinearGradient(
-              colors: [
-                Colors.white.withValues(alpha: .78),
-                Colors.white.withValues(alpha: .42),
-              ],
+              colors: dark
+                  ? [
+                      const Color(0xF01E3A5F),
+                      const Color(0xC92E5D8F),
+                    ]
+                  : [
+                      Colors.white.withValues(alpha: .78),
+                      Colors.white.withValues(alpha: .42),
+                    ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            border: Border.all(color: Colors.white.withValues(alpha: .55)),
+            border: Border.all(
+                color: dark
+                    ? Colors.white.withValues(alpha: .28)
+                    : Colors.white.withValues(alpha: .55)),
             boxShadow: const [
               BoxShadow(
                   color: Color(0x1A1E3A5F),

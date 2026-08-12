@@ -329,7 +329,8 @@ class _CommissionsPageState extends State<CommissionsPage> {
           separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (_, i) {
             final r = _records[i];
-            return Card(
+            return GlassCard(
+              padding: EdgeInsets.zero,
               child: ListTile(
                 title: Text(r['staff_name']?.toString() ?? ''),
                 subtitle:
@@ -346,7 +347,8 @@ class _CommissionsPageState extends State<CommissionsPage> {
         return ListView(
           padding: const EdgeInsets.all(12),
           children: [
-            Card(
+            GlassCard(
+              padding: EdgeInsets.zero,
               child: Padding(
                 padding: const EdgeInsets.all(14),
                 child: Column(
@@ -363,7 +365,8 @@ class _CommissionsPageState extends State<CommissionsPage> {
               ),
             ),
             for (final a in accounts)
-              Card(
+              GlassCard(
+                padding: EdgeInsets.zero,
                 child: ListTile(
                   title: Text(a['name']?.toString() ?? '',
                       style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -386,7 +389,8 @@ class _CommissionsPageState extends State<CommissionsPage> {
             ),
             const SizedBox(height: 8),
             for (final rule in _rules)
-              Card(
+              GlassCard(
+                padding: EdgeInsets.zero,
                 child: ListTile(
                   title: Text(rule['name']?.toString() ?? '',
                       style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -410,7 +414,8 @@ class _Card extends StatelessWidget {
   final List<Widget> rows;
 
   @override
-  Widget build(BuildContext context) => Card(
+  Widget build(BuildContext context) => GlassCard(
+        padding: EdgeInsets.zero,
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(

@@ -613,13 +613,13 @@ class _ProductCard extends StatelessWidget {
     final stock = int.tryParse('${product['stock'] ?? 0}') ?? 0;
     final variantCount = int.tryParse('${product['variant_count'] ?? 0}') ?? 0;
     final photo = mediaUrl(product['photo_path']?.toString());
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+    return GlassCard(
+      radius: 20,
+      padding: EdgeInsets.zero,
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
             Expanded(
               child: photo.isEmpty
                   ? Container(
@@ -662,8 +662,7 @@ class _ProductCard extends StatelessWidget {
                 ],
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -751,7 +750,8 @@ class _CartSheet extends StatelessWidget {
                 shrinkWrap: true,
                 children: [
                   for (final item in cart)
-                    Card(
+                    GlassCard(
+                      padding: EdgeInsets.zero,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 6),

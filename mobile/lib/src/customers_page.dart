@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
+import 'task_ui.dart';
 
 class CustomersPage extends StatefulWidget {
   const CustomersPage({super.key, required this.api});
@@ -59,7 +60,7 @@ class _CustomersPageState extends State<CustomersPage> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => Dialog(
-          backgroundColor: Colors.white,
+          backgroundColor: const Color(0xF2FFFFFF),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
             side: const BorderSide(color: Color(0xffeceae4)),
@@ -295,7 +296,8 @@ class _CustomersPageState extends State<CustomersPage> {
                               const SizedBox(height: 8),
                           itemBuilder: (_, i) {
                             final row = _rows[i];
-                            return Card(
+                            return GlassCard(
+                              padding: EdgeInsets.zero,
                               child: ListTile(
                                 title: Text(row['name']?.toString() ?? '',
                                     style: const TextStyle(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
+import 'task_ui.dart';
 
 class UsersPage extends StatefulWidget {
   const UsersPage(
@@ -271,7 +272,8 @@ class _UsersPageState extends State<UsersPage> {
                           itemBuilder: (_, i) {
                             final row = _rows[i];
                             final active = row['is_active'] != false;
-                            return Card(
+                            return GlassCard(
+                              padding: EdgeInsets.zero,
                               child: ListTile(
                                 title: Text(row['name']?.toString() ?? '',
                                     style: const TextStyle(

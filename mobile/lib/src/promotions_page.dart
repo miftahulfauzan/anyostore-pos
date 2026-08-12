@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'api_client.dart';
 import 'format.dart';
+import 'task_ui.dart';
 
 class PromotionsPage extends StatefulWidget {
   const PromotionsPage({super.key, required this.api});
@@ -204,7 +205,8 @@ class _PromotionsPageState extends State<PromotionsPage> {
                             final label = row['discount_type'] == 'percentage'
                                 ? '$value%'
                                 : fmtRp(asNum(value));
-                            return Card(
+                            return GlassCard(
+                              padding: EdgeInsets.zero,
                               child: ListTile(
                                 leading: CircleAvatar(
                                   child: Text(() {

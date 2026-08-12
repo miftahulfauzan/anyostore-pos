@@ -219,15 +219,10 @@ class _FinancePageState extends State<FinancePage> {
         if (_profitLoss != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-            child: Container(
+            child: GlassCard(
+              dark: true,
               padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: const Color(0xff1E3A5F),
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: const [
-                  BoxShadow(color: Color(0x331E3A5F), blurRadius: 18, offset: Offset(0, 8)),
-                ],
-              ),
+              radius: 24,
               child: Column(
                 children: [
                   const Text('LABA RUGI HARI INI',
@@ -292,7 +287,8 @@ class _FinancePageState extends State<FinancePage> {
                           itemBuilder: (_, i) {
                             final row = _rows[i];
                             final pending = row['status'] == 'pending';
-                            return Card(
+                            return GlassCard(
+                              padding: EdgeInsets.zero,
                               child: ListTile(
                                 title: Text(row['name']?.toString() ?? '',
                                     style: const TextStyle(

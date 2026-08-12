@@ -2,6 +2,7 @@ import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
 import 'package:flutter/material.dart';
 
 import 'printer_service.dart';
+import 'task_ui.dart';
 
 /// Bottom sheet untuk scan, pilih, dan cetak ke printer Bluetooth (GPrinter).
 class PrinterSetupSheet extends StatefulWidget {
@@ -124,7 +125,8 @@ class _PrinterSetupSheetState extends State<PrinterSetupSheet> {
                   shrinkWrap: true,
                   children: [
                     for (var i = 0; i < _devices.length; i++)
-                      Card(
+                      GlassCard(
+                        padding: EdgeInsets.zero,
                         child: ListTile(
                           leading: const Icon(Icons.print),
                           title: Text(_devices[i].name.isEmpty
