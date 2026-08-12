@@ -305,8 +305,12 @@ class ApiClient {
       });
 
   Future<Map<String, dynamic>> updateProfile(
-          {required String name, required String email}) =>
-      put('/users/profile', {'name': name, 'email': email});
+          {required String name, required String email, String? username}) =>
+      put('/users/profile', {
+        'name': name,
+        'email': email,
+        if (username != null && username.isNotEmpty) 'username': username,
+      });
 
   Future<Map<String, dynamic>> changePassword(
           {required String current, required String next}) =>

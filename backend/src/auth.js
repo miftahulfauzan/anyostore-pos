@@ -88,7 +88,7 @@ async function loginWithPassword(req, res, next) {
     await persistRefreshToken(user.id, tokens.refreshToken);
     await db.execute('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
     setAuthCookies(res, tokens);
-    const data = { user: { id: user.id, name: user.name, email: user.email, role: user.role, branch_id: user.branch_id }, accessToken: tokens.accessToken };
+    const data = { user: { id: user.id, name: user.name, username: user.username, email: user.email, role: user.role, branch_id: user.branch_id }, accessToken: tokens.accessToken };
     if (req.query?.mobile === '1') data.refreshToken = tokens.refreshToken;
     return res.json({ success: true, data });
   } catch (error) { return next(error); }
@@ -116,7 +116,7 @@ async function loginWithPin(req, res, next) {
     await persistRefreshToken(user.id, tokens.refreshToken);
     await db.execute('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
     setAuthCookies(res, tokens);
-    const data = { user: { id: user.id, name: user.name, email: user.email, role: user.role, branch_id: user.branch_id }, accessToken: tokens.accessToken };
+    const data = { user: { id: user.id, name: user.name, username: user.username, email: user.email, role: user.role, branch_id: user.branch_id }, accessToken: tokens.accessToken };
     if (req.query?.mobile === '1') data.refreshToken = tokens.refreshToken;
     return res.json({ success: true, data });
   } catch (error) { return next(error); }

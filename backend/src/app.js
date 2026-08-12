@@ -66,7 +66,7 @@ app.post('/api/auth/logout', logout);
 app.get('/api/auth/me', authenticate, async (req, res, next) => {
   try {
     const [[user], [branch]] = await Promise.all([
-      db.execute('SELECT id, name, email, role, branch_id FROM users WHERE id = ? LIMIT 1', [req.user.id]),
+      db.execute('SELECT id, name, username, email, role, branch_id FROM users WHERE id = ? LIMIT 1', [req.user.id]),
       db.execute('SELECT id, name FROM branches WHERE id = ? LIMIT 1', [req.user.branch_id])
     ]);
     if (!user[0]) return res.status(404).json({ success: false, message: 'Pengguna tidak ditemukan' });

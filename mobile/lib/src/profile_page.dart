@@ -16,6 +16,7 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   late final TextEditingController _name;
   late final TextEditingController _email;
+  late final TextEditingController _username;
   final _current = TextEditingController();
   final _next = TextEditingController();
   final _confirm = TextEditingController();
@@ -29,12 +30,14 @@ class _ProfilePageState extends State<ProfilePage> {
     final auth = context.read<AuthStore>();
     _name = TextEditingController(text: auth.userName ?? '');
     _email = TextEditingController(text: auth.email ?? '');
+    _username = TextEditingController(text: auth.username ?? '');
   }
 
   @override
   void dispose() {
     _name.dispose();
     _email.dispose();
+    _username.dispose();
     _current.dispose();
     _next.dispose();
     _confirm.dispose();
@@ -57,11 +60,14 @@ class _ProfilePageState extends State<ProfilePage> {
       _message = null;
     });
     try {
-      await widget.api
-          .updateProfile(name: _name.text.trim(), email: _email.text.trim());
+      await widget.api.updateProfile(
+          name: _name.text.trim(),
+          email: _email.text.trim(),
+          username: _username.text.trim());
       if (!mounted) return;
       final auth = context.read<AuthStore>();
-      auth.updateSelf(_name.text.trim(), _email.text.trim());
+      auth.updateSelf(
+          _name.text.trim(), _email.text.trim(), _username.text.trim());
       _snack('Profil diperbarui');
     } on ApiException catch (e) {
       _snack(e.message);
@@ -138,6 +144,14 @@ class _ProfilePageState extends State<ProfilePage> {
                         controller: _email,
                         keyboardType: TextInputType.emailAddress,
                         decoration: _dec('Email *')),
+                    const SizedBox(height: 10),
+                    TextField(
+                        controller: _username,
+                        decoration: _dec('Username (untuk login)')),
+                    const SizedBox(height: 6),
+                    const Text(
+                        '3-30 karakter: huruf, angka, titik, garis bawah, strip. Dipakai untuk login.',
+                        style: TextStyle(fontSize: 10, color: kTaskGray)),
                     const SizedBox(height: 14),
                     FilledButton(
                       onPressed: _savingProfile ? null : _saveProfile,

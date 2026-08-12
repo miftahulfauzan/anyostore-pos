@@ -14,10 +14,26 @@ function badRequest(res, message) {
 // Edit nama & email diri sendiri.
 router.put('/profile', authenticate, async (req, res, next) => {
   try {
-    const { name, email } = req.body;
+    const { name, email, username } = req.body;
     if (!name?.trim() || !email?.trim()) return badRequest(res, 'Nama dan email wajib diisi');
-    await db.execute('UPDATE users SET name = ?, email = ? WHERE id = ?', [name.trim(), email.trim().toLowerCase(), req.user.id]);
-    res.json({ success: true });
+    const hasUsername = username != null && String(username).trim() !== '';
+    let trimmedUsername = null;
+    if (hasUsername) {
+      trimmedUsername = String(username).trim();
+      if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(trimmedUsername)) {
+        return badRequest(res, 'Username 3-30 karakter (huruf, angka, titik, garis bawah, strip)');
+      }
+      const [dup] = await db.execute('SELECT id FROM users WHERE username = ? AND id <> ? LIMIT 1', [trimmedUsername, req.user.id]);
+      if (dup[0]) return badRequest(res, 'Username sudah dipakai pengguna lain');
+    }
+    if (trimmedUsername != null) {
+      await db.execute('UPDATE users SET name = ?, email = ?, username = ? WHERE id = ?',
+        [name.trim(), email.trim().toLowerCase(), trimmedUsername, req.user.id]);
+    } else {
+      await db.execute('UPDATE users SET name = ?, email = ? WHERE id = ?',
+        [name.trim(), email.trim().toLowerCase(), req.user.id]);
+    }
+    res.json({ success: true, data: { username: trimmedUsername } });
   } catch (e) { next(e); }
 });
 

@@ -17,6 +17,7 @@ class AuthStore extends ChangeNotifier {
   bool isAuthenticated = false;
   bool restoring = true;
   String? userName;
+  String? username;
   String? email;
   String? role;
   int? branchId;
@@ -50,14 +51,16 @@ class AuthStore extends ChangeNotifier {
 
   void _applyUser(Map<String, dynamic> user) {
     userName = user['name']?.toString();
+    username = user['username']?.toString();
     email = user['email']?.toString();
     role = user['role']?.toString();
     branchId = int.tryParse('${user['branch_id']}');
   }
 
-  /// Perbarui nama/email dari halaman Akun Saya.
-  void updateSelf(String name, String email) {
+  /// Perbarui nama/email/username dari halaman Akun Saya.
+  void updateSelf(String name, String email, [String? username]) {
     userName = name;
+    if (username != null) this.username = username;
     this.email = email;
     notifyListeners();
   }
