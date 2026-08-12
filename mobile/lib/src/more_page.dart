@@ -10,6 +10,7 @@ import 'dashboard_page.dart';
 import 'finance_page.dart';
 import 'mutation_report_page.dart';
 import 'profile_page.dart';
+import 'products_page.dart';
 import 'stock_movements_page.dart';
 import 'promotions_page.dart';
 import 'settings_page.dart';
@@ -81,30 +82,35 @@ class MorePage extends StatelessWidget {
           radius: 20,
           child: Column(
             children: [
-              _row(Icons.dashboard, 'Dashboard', const Color(0x141E3A5F),
+              _row(Icons.dashboard, 'Dashboard', const Color(0xffE3EAF2),
                   _kInk, () => _open(context, 'Dashboard', DashboardPage(api: api))),
               _divider(),
-              _row(Icons.people, 'Jenis Pelanggan', const Color(0xfff0ebe1),
-                  const Color(0xff2E5D8F), () => _open(context, 'Jenis Pelanggan', CustomersPage(api: api))),
+              _row(Icons.people, 'Jenis Pelanggan', const Color(0xffE3EAF2),
+                  const Color(0xff1E3A5F), () => _open(context, 'Jenis Pelanggan', CustomersPage(api: api))),
               _divider(),
-              _row(Icons.payments, 'Laci Kas', const Color(0xffe8f0e9),
+              _row(Icons.payments, 'Laci Kas', const Color(0xffE3EAF2),
                   const Color(0xff1E3A5F), () => _open(context, 'Laci Kas', CashDrawerPage(api: api))),
               _divider(),
-              _row(Icons.settings, 'Pengaturan', const Color(0x141E3A5F),
+              _row(Icons.settings, 'Pengaturan', const Color(0xffE3EAF2),
                   _kInk, () => _open(context, 'Pengaturan', SettingsPage(api: api))),
               _divider(),
-              _row(Icons.badge, 'Pegawai', const Color(0xffe8f0e9),
+              _row(Icons.badge, 'Pegawai', const Color(0xffE3EAF2),
                   const Color(0xff1E3A5F), () => _open(context, 'Pegawai', UsersPage(api: api, branchId: branchId, role: role))),
               _divider(),
-              _row(Icons.payments_outlined, 'Komisi', const Color(0xfff0ebe1),
-                  const Color(0xff2E5D8F), () => _open(context, 'Komisi', CommissionsPage(api: api, branchId: branchId, role: role))),
+              _row(Icons.payments_outlined, 'Komisi', const Color(0xffE3EAF2),
+                  const Color(0xff1E3A5F), () => _open(context, 'Komisi', CommissionsPage(api: api, branchId: branchId, role: role))),
               _divider(),
-              _row(Icons.local_offer, 'Promo', const Color(0x141E3A5F),
+              _row(Icons.local_offer, 'Promo', const Color(0xffE3EAF2),
                   _kInk, () => _open(context, 'Promo', PromotionsPage(api: api))),
               _divider(),
               _row(Icons.account_balance_wallet, 'Keuangan',
-                  const Color(0xffe8f0e9), const Color(0xff1E3A5F),
+                  const Color(0xffE3EAF2), const Color(0xff1E3A5F),
                   () => _open(context, 'Keuangan', FinancePage(api: api))),
+              _divider(),
+              _row(Icons.inventory_2_outlined, 'Daftar Produk',
+                  const Color(0xffE3EAF2), const Color(0xff1E3A5F),
+                  () => _open(context, 'Daftar Produk',
+                      ProductsPage(api: api, branchId: branchId))),
               _divider(),
               _row(Icons.history, 'Riwayat Stok', const Color(0xffE3EAF2),
                   const Color(0xff1E3A5F), () => _open(context, 'Riwayat Stok', StockMovementsPage(api: api, branchId: branchId))),

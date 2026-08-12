@@ -99,6 +99,32 @@ class ApiClient {
     return (res['data'] as List?) ?? [];
   }
 
+  Future<List<dynamic>> productCategories() async {
+    final res = await get('/products/categories');
+    return (res['data'] as List?) ?? [];
+  }
+
+  Future<Map<String, dynamic>> createProduct(Map<String, dynamic> body) =>
+      post('/products', body);
+
+  Future<Map<String, dynamic>> updateProduct(
+          int id, Map<String, dynamic> body) =>
+      put('/products/$id', body);
+
+  Future<Map<String, dynamic>> deleteProduct(int id) =>
+      delete('/products/$id');
+
+  Future<Map<String, dynamic>> uploadProductMedia(
+          int id, String mime, String base64) =>
+      post('/products/$id/media-data', {
+        'content_type': mime,
+        'filename': 'media',
+        'data_url': 'data:$mime;base64,$base64',
+      });
+
+  Future<Map<String, dynamic>> deleteProductMedia(int id, int mediaId) =>
+      delete('/products/$id/media/$mediaId');
+
   Future<Map<String, dynamic>> product(int id, {required int branchId}) async {
     final res = await get('/products/$id', {'branch_id': '$branchId'});
     return (res['data'] as Map<String, dynamic>?) ?? {};
