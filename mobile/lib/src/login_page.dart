@@ -123,12 +123,7 @@ class _LoginPageState extends State<LoginPage> {
                               color: _kInk,
                               letterSpacing: -0.2)),
                       SizedBox(height: 2),
-                      Text('POWERING YOUR BUSINESS',
-                          style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 1.1,
-                              color: _kMuted)),
+
                     ],
                   ),
                 ],
