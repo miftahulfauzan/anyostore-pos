@@ -377,7 +377,7 @@ router.put('/:id/cancel', authorize('owner', 'manager', 'admin'), async (req, re
       const [items] = await connection.execute('SELECT * FROM transaction_items WHERE id = ? AND transaction_id = ? FOR UPDATE', [itemId, transactions[0].id]);
       if (!items[0]) throw httpError(404, 'Item transaksi tidak ditemukan');
       const item = items[0];
-      const remaining = item.quantity - item.cancelled_qty;
+      const remaining = Number(item.quantity) - Number(item.cancelled_qty);
       if (cancelQty > remaining) throw httpError(400, `Qty batal melebihi sisa item ${item.product_name}`);
 
       // Cari gudang asal penjualan dari stock_mutations.

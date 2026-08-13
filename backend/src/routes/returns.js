@@ -49,8 +49,16 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
          JOIN returns r ON r.id = ri.return_id WHERE ri.transaction_item_id = ? AND r.status IN ('pending', 'approved')`,
         [sold[0].id]
       );
-      if (quantity + returned[0].quantity > sold[0].quantity) throw error(400, 'Jumlah retur melebihi item terjual');
-      const lineTotal = money((sold[0].subtotal / sold[0].quantity) * quantity * paidRatio);
+      // SUM() dari MySQL bisa kembali sebagai string (DECIMAL) -> wajib Number()
+      // supaya 1 + "0" tidak jadi "10" (concat) yang memicu false-positive.
+      if (Number(quantity) + Number(returned[0].quantity) >
+          Number(sold[0].quantity)) {
+        throw error(400, 'Jumlah retur melebihi item terjual');
+      }
+      const lineTotal = money(
+          (Number(sold[0].subtotal) / Number(sold[0].quantity)) *
+          quantity *
+          paidRatio);
       refund = money(refund + lineTotal);
       prepared.push({ sold: sold[0], quantity, lineTotal, reason: input.reason?.trim() || null });
     }
