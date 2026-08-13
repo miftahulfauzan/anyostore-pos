@@ -105,7 +105,7 @@ class _DashboardPageState extends State<DashboardPage> {
         color: kTaskDark,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
-          children: [
+          children: _stagger([
             Row(
               children: [
                 BrandLogo(api: widget.api, size: 42, radius: 13),
@@ -250,22 +250,33 @@ class _DashboardPageState extends State<DashboardPage> {
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
-                                    Container(
-                                      height: maxTrend > 0
-                                          ? (asNum(trend[i]['sales']) /
-                                                  maxTrend *
-                                                  96)
-                                              .clamp(4.0, 96.0)
-                                          : 4,
-                                      margin: const EdgeInsets.symmetric(
-                                          horizontal: 5),
-                                      decoration: BoxDecoration(
-                                        color: _chartSel == i
-                                            ? kTaskDark
-                                            : _kDenim,
-                                        borderRadius:
-                                            const BorderRadius.vertical(
-                                                top: Radius.circular(6)),
+                                    TweenAnimationBuilder<double>(
+                                      tween: Tween(
+                                          begin: 0,
+                                          end: maxTrend > 0
+                                              ? (asNum(trend[i]['sales']) /
+                                                          maxTrend *
+                                                      96)
+                                                  .clamp(4.0, 96.0)
+                                              : 4),
+                                      duration:
+                                          const Duration(milliseconds: 450),
+                                      curve: Interval(
+                                          i / (trend.length > 1 ? trend.length : 1),
+                                          1,
+                                          curve: Curves.easeOutCubic),
+                                      builder: (context, h, _) => Container(
+                                        height: h,
+                                        margin: const EdgeInsets.symmetric(
+                                            horizontal: 5),
+                                        decoration: BoxDecoration(
+                                          color: _chartSel == i
+                                              ? kTaskDark
+                                              : _kDenim,
+                                          borderRadius:
+                                              const BorderRadius.vertical(
+                                                  top: Radius.circular(6)),
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(height: 6),
@@ -376,11 +387,19 @@ class _DashboardPageState extends State<DashboardPage> {
                 ),
               ),
             ),
-          ],
+          ]),
         ),
       ),
     );
   }
+
+  List<Widget> _stagger(List<Widget> items) => [
+        for (var i = 0; i < items.length; i++)
+          Entrance(
+            delay: Duration(milliseconds: i * 70),
+            child: items[i],
+          ),
+      ];
 
   Widget _circleButton(IconData icon, VoidCallback onTap) {
     return Material(

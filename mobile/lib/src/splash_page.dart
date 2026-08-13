@@ -39,23 +39,32 @@ class _SplashPageState extends State<SplashPage> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Color(0xfff7f4ed),
+    return Scaffold(
+      backgroundColor: const Color(0xfff7f4ed),
       body: Stack(
         children: [
-          Positioned.fill(child: SoftBlobs()),
+          const Positioned.fill(child: SoftBlobs()),
           SafeArea(
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  GlassCard(
-                    padding: EdgeInsets.all(6),
-                    radius: 20,
-                    child: BrandLogo(size: 92, radius: 16),
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.86, end: 1.0),
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.easeOutBack,
+                    builder: (context, v, child) => Opacity(
+                      opacity: (v - 0.86) / 0.14,
+                      child: Transform.scale(scale: v, child: child),
+                    ),
+                    child: const GlassCard(
+                      padding: EdgeInsets.all(6),
+                      radius: 20,
+                      child: BrandLogo(size: 92, radius: 16),
+                    ),
                   ),
-                  SizedBox(height: 18),
-                  Text('Anyostore App',
+                  const SizedBox(height: 18),
+                  const Text('Anyostore App',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                           fontSize: 30,

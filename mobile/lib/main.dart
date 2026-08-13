@@ -20,6 +20,33 @@ Future<void> main() async {
   );
 }
 
+/// Transisi antar halaman: fade + slide halus (Corporate motion).
+class _FadeSlideTransitionsBuilder extends PageTransitionsBuilder {
+  const _FadeSlideTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+      PageRoute<T> route,
+      BuildContext context,
+      Animation<double> animation,
+      Animation<double> secondaryAnimation,
+      Widget child) {
+    final curved = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    return FadeTransition(
+      opacity: curved,
+      child: SlideTransition(
+        position:
+            Tween(begin: const Offset(0, 0.025), end: Offset.zero).animate(curved),
+        child: child,
+      ),
+    );
+  }
+}
+
 ThemeData _buildTheme() {
   const seed = Color(0xff1E3A5F);
   final scheme = ColorScheme.fromSeed(
@@ -30,6 +57,15 @@ ThemeData _buildTheme() {
   return ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: _FadeSlideTransitionsBuilder(),
+        TargetPlatform.iOS: _FadeSlideTransitionsBuilder(),
+        TargetPlatform.macOS: _FadeSlideTransitionsBuilder(),
+        TargetPlatform.windows: _FadeSlideTransitionsBuilder(),
+        TargetPlatform.linux: _FadeSlideTransitionsBuilder(),
+      },
+    ),
     scaffoldBackgroundColor: const Color(0xffF5F1EA),
     fontFamily: 'sans-serif',
     appBarTheme: const AppBarTheme(

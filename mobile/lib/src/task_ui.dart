@@ -13,6 +13,44 @@ const kTaskPurple = Color(0xff3B6EA5);
 const kTaskGray = Color(0xff8A857C);
 const kTaskBorder = Color(0xffE7E0D6);
 
+
+/// Entrance: fade + slide-up halus (Corporate motion). Delay untuk stagger.
+class Entrance extends StatelessWidget {
+  const Entrance(
+      {super.key,
+      required this.child,
+      this.delay = Duration.zero,
+      this.duration = const Duration(milliseconds: 320),
+      this.offset = 12});
+  final Widget child;
+  final Duration delay;
+  final Duration duration;
+  final double offset;
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.maybeDisableAnimationsOf(context) == true) return child;
+    final total = duration + delay;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: total,
+      curve: Interval(
+        delay.inMilliseconds / total.inMilliseconds,
+        1,
+        curve: Curves.easeOutCubic,
+      ),
+      builder: (context, v, child) => Opacity(
+        opacity: v,
+        child: Transform.translate(
+          offset: Offset(0, offset * (1 - v)),
+          child: child,
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
 /// Tab pil: aktif biru denim, nonaktif putih.
 class PillTabs extends StatelessWidget {
   const PillTabs(
@@ -59,31 +97,48 @@ class PillTabs extends StatelessWidget {
   Widget _pill(({String value, IconData icon, String label}) t,
       bool centered) {
     final active = t.value == selected;
-    return Material(
-      color: active ? kTaskOrange : Colors.white,
-      borderRadius: BorderRadius.circular(14),
-      elevation: active ? 3 : 1,
-      shadowColor: active
-          ? kTaskOrange.withValues(alpha: .45)
-          : const Color(0x14000000),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: () => onChanged(t.value),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: Row(
-            mainAxisAlignment:
-                centered ? MainAxisAlignment.center : MainAxisAlignment.start,
-            children: [
-              Icon(t.icon,
-                  size: 16, color: active ? Colors.white : kTaskGray),
-              const SizedBox(width: 6),
-              Text(t.label,
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: active ? Colors.white : kTaskGray)),
-            ],
+    return AnimatedScale(
+      scale: active ? 1.02 : 1.0,
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeInOutCubic,
+        decoration: BoxDecoration(
+          color: active ? kTaskOrange : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+                color: active
+                    ? kTaskOrange.withValues(alpha: .45)
+                    : const Color(0x14000000),
+                blurRadius: active ? 6 : 1,
+                offset: const Offset(0, 1)),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () => onChanged(t.value),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Row(
+                mainAxisAlignment: centered
+                    ? MainAxisAlignment.center
+                    : MainAxisAlignment.start,
+                children: [
+                  Icon(t.icon,
+                      size: 16, color: active ? Colors.white : kTaskGray),
+                  const SizedBox(width: 6),
+                  Text(t.label,
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: active ? Colors.white : kTaskGray)),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -91,50 +146,87 @@ class PillTabs extends StatelessWidget {
   }
 }
 
-/// Blob dekoratif lembut di latar (biru denim).
-class SoftBlobs extends StatelessWidget {
+/// Blob dekoratif lembut di latar (biru denim) dengan gerakan ambient pelan.
+class SoftBlobs extends StatefulWidget {
   const SoftBlobs({super.key});
+
+  @override
+  State<SoftBlobs> createState() => _SoftBlobsState();
+}
+
+class _SoftBlobsState extends State<SoftBlobs>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    final reduced = MediaQuery.maybeDisableAnimationsOf(context) == true;
+    _c = AnimationController(
+        vsync: this,
+        duration: const Duration(seconds: 7),
+        lowerBound: 0,
+        upperBound: 1);
+    if (!reduced) _c.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return IgnorePointer(
-      child: Stack(
-        children: [
-          Positioned(
-            top: -90,
-            right: -70,
-            child: Container(
-              width: 240,
-              height: 240,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    kTaskPurple.withValues(alpha: .22),
-                    kTaskPurple.withValues(alpha: 0),
-                  ],
+      child: AnimatedBuilder(
+        animation: _c,
+        builder: (context, child) {
+          final t = Curves.easeInOutSine.transform(_c.value);
+          final drift = (t - 0.5) * 10; // -5..5 px pelan
+          return Transform.translate(
+            offset: Offset(drift, -drift * 0.6),
+            child: child,
+          );
+        },
+        child: Stack(
+          children: [
+            Positioned(
+              top: -90,
+              right: -70,
+              child: Container(
+                width: 240,
+                height: 240,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      kTaskPurple.withValues(alpha: .22),
+                      kTaskPurple.withValues(alpha: 0),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          Positioned(
-            bottom: -70,
-            left: -60,
-            child: Container(
-              width: 220,
-              height: 220,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    kTaskOrange.withValues(alpha: .18),
-                    kTaskOrange.withValues(alpha: 0),
-                  ],
+            Positioned(
+              bottom: -70,
+              left: -60,
+              child: Container(
+                width: 220,
+                height: 220,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      kTaskOrange.withValues(alpha: .18),
+                      kTaskOrange.withValues(alpha: 0),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -299,7 +391,11 @@ class GlassNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomPad = MediaQuery.of(context).padding.bottom;
-    return SizedBox(
+    return Entrance(
+      offset: 18,
+      duration: const Duration(milliseconds: 420),
+      delay: const Duration(milliseconds: 120),
+      child: SizedBox(
       height: 84 + bottomPad,
       child: Stack(
         clipBehavior: Clip.none,
@@ -333,10 +429,10 @@ class GlassNavBar extends StatelessWidget {
               ),
             ),
           ),
-          // FAB tengah: POS
+          // FAB tengah: POS (press feedback)
           Positioned(
             bottom: 34 + bottomPad,
-            child: GestureDetector(
+            child: _FabPress(
               onTap: () => onSelect(2),
               child: Container(
                 width: 62,
@@ -375,7 +471,7 @@ class GlassNavBar extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _navIcon(int i) {
@@ -397,8 +493,22 @@ class GlassNavBar extends StatelessWidget {
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(active ? item.activeIcon : item.icon,
-                      size: 23, color: active ? kTaskOrange : kTaskGray),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, anim) => FadeTransition(
+                      opacity: anim,
+                      child: ScaleTransition(
+                          scale: Tween(begin: 0.6, end: 1.0).animate(anim),
+                          child: child),
+                    ),
+                    child: Icon(
+                        active ? item.activeIcon : item.icon,
+                        key: ValueKey(active),
+                        size: 23,
+                        color: active ? kTaskOrange : kTaskGray),
+                  ),
                   const SizedBox(height: 3),
                   Text(item.label,
                       style: TextStyle(
@@ -408,19 +518,49 @@ class GlassNavBar extends StatelessWidget {
                           color: active ? kTaskOrange : kTaskGray)),
                 ],
               ),
-              if (active)
-                Positioned(
-                  bottom: 0,
-                  child: Container(
-                    width: 5,
-                    height: 5,
-                    decoration: const BoxDecoration(
-                        color: kTaskOrange, shape: BoxShape.circle),
-                  ),
+              AnimatedScale(
+                scale: active ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutBack,
+                child: Container(
+                  width: 5,
+                  height: 5,
+                  decoration: const BoxDecoration(
+                      color: kTaskOrange, shape: BoxShape.circle),
                 ),
+              ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _FabPress extends StatefulWidget {
+  const _FabPress({required this.onTap, required this.child});
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  State<_FabPress> createState() => _FabPressState();
+}
+
+class _FabPressState extends State<_FabPress> {
+  bool _down = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _down = true),
+      onTapUp: (_) => setState(() => _down = false),
+      onTapCancel: () => setState(() => _down = false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _down ? 0.88 : 1.0,
+        duration: const Duration(milliseconds: 130),
+        curve: Curves.easeOutCubic,
+        child: widget.child,
       ),
     );
   }
