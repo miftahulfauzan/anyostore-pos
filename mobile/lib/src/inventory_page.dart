@@ -811,7 +811,6 @@ class _TransferSectionState extends State<_TransferSection> {
   List<Map<String, dynamic>> _targets = [];
   String _from = '';
   String _to = '';
-  bool _interStore = false;
   String _notes = '';
   final List<Map<String, dynamic>> _items = [];
   bool _loading = true;
@@ -832,12 +831,16 @@ class _TransferSectionState extends State<_TransferSection> {
         _warehouses = rows.cast<Map<String, dynamic>>();
         if (_warehouses.isNotEmpty) {
           _from = '${_warehouses.first['id']}';
-          if (_warehouses.length > 1) _to = '${_warehouses[1]['id']}';
         }
       });
       final targets = await widget.api.storeTargets();
       if (!mounted) return;
-      setState(() => _targets = targets.cast<Map<String, dynamic>>());
+      setState(() {
+        _targets = targets.cast<Map<String, dynamic>>();
+        if (_targets.isNotEmpty && _to.isEmpty) {
+          _to = '${_targets.first['warehouse_id']}';
+        }
+      });
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {
@@ -875,11 +878,7 @@ class _TransferSectionState extends State<_TransferSection> {
         if (_notes.trim().isNotEmpty) 'notes': _notes.trim(),
         'items': _items,
       };
-      if (_interStore) {
-        await widget.api.createInterStoreTransfer(body);
-      } else {
-        await widget.api.createTransfer(body);
-      }
+      await widget.api.createInterStoreTransfer(body);
       if (!mounted) return;
       setState(() => _items.clear());
       ScaffoldMessenger.of(context)
@@ -898,18 +897,6 @@ class _TransferSectionState extends State<_TransferSection> {
         : ListView(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 104),
             children: [
-              PillTabs(
-                tabs: const [
-                  (value: 'local', icon: Icons.store, label: 'Dalam cabang'),
-                  (value: 'inter', icon: Icons.swap_horiz, label: 'Antar cabang'),
-                ],
-                selected: _interStore ? 'inter' : 'local',
-                onChanged: (v) => setState(() {
-                  _interStore = v == 'inter';
-                  _to = '';
-                }),
-              ),
-              const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _from.isEmpty ? null : _from,
                 decoration: const InputDecoration(
@@ -925,24 +912,16 @@ class _TransferSectionState extends State<_TransferSection> {
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 initialValue: _to.isEmpty ? null : _to,
-                decoration: InputDecoration(
-                    labelText:
-                        _interStore ? 'Ke toko/gudang tujuan' : 'Ke gudang',
-                    border: const OutlineInputBorder()),
-                items: _interStore
-                    ? [
-                        for (final t in _targets)
-                          DropdownMenuItem<String>(
-                              value: '${t['warehouse_id']}',
-                              child: Text(
-                                  '${t['name']} · ${t['warehouse_name']}')),
-                      ]
-                    : [
-                        for (final w in _warehouses)
-                          DropdownMenuItem<String>(
-                              value: '${w['id']}',
-                              child: Text(w['name']?.toString() ?? '')),
-                      ],
+                decoration: const InputDecoration(
+                    labelText: 'Ke toko/gudang tujuan',
+                    border: OutlineInputBorder()),
+                items: [
+                  for (final t in _targets)
+                    DropdownMenuItem<String>(
+                        value: '${t['warehouse_id']}',
+                        child: Text(
+                            '${t['name']} · ${t['warehouse_name']}')),
+                ],
                 onChanged: (v) => setState(() => _to = v ?? ''),
               ),
               const SizedBox(height: 8),
