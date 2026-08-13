@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_const_constructors
+
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
@@ -50,7 +52,7 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: kTaskBg,
+      color: pageBg(context),
       child: Stack(
         children: [
           const Positioned.fill(child: SoftBlobs()),
@@ -141,14 +143,14 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                                           width: 38,
                                           height: 38,
                                           decoration: BoxDecoration(
-                                            color: const Color(0xffE3EAF2),
+                                            color: Color(0xffE3EAF2),
                                             borderRadius:
                                                 BorderRadius.circular(12),
                                           ),
-                                          child: const Icon(
+                                          child: Icon(
                                               Icons.history,
                                               size: 18,
-                                              color: kTaskDark),
+                                              color: ink(context)),
                                         ),
                                         const SizedBox(width: 10),
                                         Expanded(
@@ -159,11 +161,11 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                                               Text(
                                                   r['action']?.toString() ??
                                                       '',
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                       fontSize: 12,
                                                       fontWeight:
                                                           FontWeight.w800,
-                                                      color: kTaskDark)),
+                                                      color: ink(context))),
                                               const SizedBox(height: 2),
                                               Text(
                                                   r['description']

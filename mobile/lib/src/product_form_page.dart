@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_const_constructors
+
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -333,7 +335,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
     return ColoredBox(
-      color: kTaskBg,
+      color: pageBg(context),
       child: Stack(
         children: [
           const Positioned.fill(child: SoftBlobs()),
@@ -348,10 +350,10 @@ class _ProductFormPageState extends State<ProductFormPage> {
                         widget.existing == null
                             ? 'Tambah Produk'
                             : 'Edit Produk',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: kTaskDark)),
+                            color: ink(context))),
                     const SizedBox(height: 14),
                     TextField(controller: _name, decoration: _dec('Nama *')),
                     const SizedBox(height: 10),
@@ -442,12 +444,12 @@ class _ProductFormPageState extends State<ProductFormPage> {
                   children: [
                     Row(
                       children: [
-                        const Expanded(
+                        Expanded(
                             child: Text('Varian (warna/ukuran)',
                                 style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w800,
-                                    color: kTaskDark))),
+                                    color: ink(context)))),
                         TextButton.icon(
                           onPressed: () => setState(() => _variants.add(_VariantRow())),
                           icon: const Icon(Icons.add, size: 16),
@@ -474,12 +476,12 @@ class _ProductFormPageState extends State<ProductFormPage> {
                   children: [
                     Row(
                       children: [
-                        const Expanded(
+                        Expanded(
                             child: Text('Harga Grosir',
                                 style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w800,
-                                    color: kTaskDark))),
+                                    color: ink(context)))),
                         TextButton.icon(
                           onPressed: () => setState(() => _tiers.add(_TierRow())),
                           icon: const Icon(Icons.add, size: 16),
@@ -506,12 +508,12 @@ class _ProductFormPageState extends State<ProductFormPage> {
                   children: [
                     Row(
                       children: [
-                        const Expanded(
+                        Expanded(
                             child: Text('Foto Produk',
                                 style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w800,
-                                    color: kTaskDark))),
+                                    color: ink(context)))),
                         TextButton.icon(
                           onPressed: _pickPhotos,
                           icon: const Icon(Icons.add_photo_alternate,

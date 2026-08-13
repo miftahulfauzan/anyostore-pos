@@ -40,7 +40,7 @@ class _SplashPageState extends State<SplashPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xfff7f4ed),
+      backgroundColor: pageBg(context),
       body: Stack(
         children: [
           const Positioned.fill(child: SoftBlobs()),

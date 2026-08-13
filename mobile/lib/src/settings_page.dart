@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_const_constructors
+
 import 'package:flutter/material.dart';
 
 import 'dart:convert';
@@ -333,7 +335,7 @@ class _SettingsPageState extends State<SettingsPage> {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: kTaskBorder),
         ),
-        child: const Icon(Icons.store, color: kTaskDark),
+        child: Icon(Icons.store, color: ink(context)),
       );
     }
     final base = widget.api.baseUrl.split('/api').first;
@@ -731,7 +733,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(Icons.print, size: 18, color: kTaskDark),
+                    Icon(Icons.print, size: 18, color: ink(context)),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(

@@ -451,8 +451,11 @@ class _Row extends StatelessWidget {
               child: Text(label,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style:
-                      TextStyle(fontSize: 12, color: Color(0xff5f5f5d))),
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xffB8C2CF)
+                          : const Color(0xff5f5f5d))),
             ),
             const SizedBox(width: 14),
             Text(value,

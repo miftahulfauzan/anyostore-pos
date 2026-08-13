@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_const_constructors
+
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
@@ -57,7 +59,7 @@ class _StockMovementsPageState extends State<StockMovementsPage> {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: kTaskBg,
+      color: pageBg(context),
       child: Stack(
         children: [
           const Positioned.fill(child: SoftBlobs()),
@@ -131,11 +133,11 @@ class _StockMovementsPageState extends State<StockMovementsPage> {
                                                   maxLines: 1,
                                                   overflow:
                                                       TextOverflow.ellipsis,
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                       fontSize: 13,
                                                       fontWeight:
                                                           FontWeight.w800,
-                                                      color: Color(0xff1E3A5F))),
+                                                      color: ink(context))),
                                               const SizedBox(height: 2),
                                               Text(
                                                   '${r['type'] ?? ''} · ${r['warehouse_name'] ?? ''} · ${r['created_at'] ?? ''}',

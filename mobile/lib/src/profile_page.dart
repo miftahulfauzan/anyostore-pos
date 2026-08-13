@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_const_constructors
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -119,7 +121,7 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: kTaskBg,
+      color: pageBg(context),
       child: Stack(
         children: [
           const Positioned.fill(child: SoftBlobs()),
@@ -130,11 +132,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text('Profil Saya',
+                    Text('Profil Saya',
                         style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
-                            color: kTaskDark)),
+                            color: ink(context))),
                     const SizedBox(height: 12),
                     TextField(
                         controller: _name,
@@ -172,11 +174,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text('Ganti Password',
+                    Text('Ganti Password',
                         style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
-                            color: kTaskDark)),
+                            color: ink(context))),
                     const SizedBox(height: 12),
                     TextField(
                         controller: _current,

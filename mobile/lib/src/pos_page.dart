@@ -1246,13 +1246,22 @@ class _QtyInputState extends State<_QtyInput> {
         decoration: InputDecoration(
           isDense: true,
           filled: true,
-          fillColor: const Color(0xFFF0F4F9),
+          fillColor: Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xff1F2530)
+              : const Color(0xFFF0F4F9),
           border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xffB9C9DC))),
+              borderSide: BorderSide(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xff2A3140)
+                      : const Color(0xffB9C9DC))),
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xff1E3A5F), width: 1.4)),
+              borderSide: BorderSide(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xff7FA8CF)
+                      : const Color(0xff1E3A5F),
+                  width: 1.4)),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
         ),
@@ -1458,10 +1467,10 @@ class _CartSheetState extends State<_CartSheet> {
                                   const SizedBox(height: 2),
                                   Text(
                                       fmtRp(item.priceOverride ?? item.price),
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w800,
-                                          color: Color(0xff1E3A5F))),
+                                          color: ink(context))),
                                   if (item.variantLabel != null)
                                     Text(item.variantLabel!,
                                         style: TextStyle(

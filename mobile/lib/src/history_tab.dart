@@ -701,6 +701,9 @@ class _TxCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final chipBg = dark ? const Color(0xff26303F) : iconBg;
+    final chipFg = dark ? const Color(0xffDDE6F2) : iconFg;
     return GlassCard(
       radius: 24,
       padding: const EdgeInsets.all(14),
@@ -711,10 +714,10 @@ class _TxCard extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: iconBg,
+                  color: chipBg,
                   borderRadius: BorderRadius.circular(15),
                 ),
-                child: Icon(icon, size: 20, color: iconFg),
+                child: Icon(icon, size: 20, color: chipFg),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -765,12 +768,28 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
     final (label, bg, fg) = switch (status) {
-      'completed' => ('Selesai', const Color(0xffE3EAF2), const Color(0xff1E3A5F)),
-      'pending' => ('Menunggu', const Color(0xffE3EAF2), const Color(0xff2E5D8F)),
-      'partially_cancelled' => ('Sebagian dibatalkan', const Color(0xffE6ECF3), const Color(0xff8A857C)),
-      'cancelled' => ('Dibatalkan', const Color(0xffF3DDD8), const Color(0xffB0563A)),
-      _ => (status, const Color(0xffE6ECF3), const Color(0xff8A857C)),
+      'completed' => (
+          'Selesai',
+          dark ? const Color(0xff243047) : const Color(0xffE3EAF2),
+          dark ? const Color(0xffA9C4E8) : const Color(0xff1E3A5F)),
+      'pending' => (
+          'Menunggu',
+          dark ? const Color(0xff243047) : const Color(0xffE3EAF2),
+          dark ? const Color(0xffA9C4E8) : const Color(0xff2E5D8F)),
+      'partially_cancelled' => (
+          'Sebagian dibatalkan',
+          dark ? const Color(0xff2A2C31) : const Color(0xffE6ECF3),
+          dark ? const Color(0xffC3C9D2) : const Color(0xff8A857C)),
+      'cancelled' => (
+          'Dibatalkan',
+          dark ? const Color(0xff3A2622) : const Color(0xffF3DDD8),
+          dark ? const Color(0xffF2B8A5) : const Color(0xffB0563A)),
+      _ => (
+          status,
+          dark ? const Color(0xff2A2C31) : const Color(0xffE6ECF3),
+          dark ? const Color(0xffC3C9D2) : const Color(0xff8A857C)),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

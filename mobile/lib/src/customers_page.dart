@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_const_constructors
+
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
@@ -73,10 +75,10 @@ class _CustomersPageState extends State<CustomersPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(existing == null ? 'Tambah Pelanggan' : 'Edit Pelanggan',
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xff1E3A5F))),
+                          color: ink(context))),
                   const SizedBox(height: 4),
                   const Text('Lengkapi data pelanggan di bawah ini.',
                       style: TextStyle(fontSize: 12, color: Color(0xff5f5f5d))),

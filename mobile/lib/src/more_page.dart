@@ -33,10 +33,10 @@ class MorePage extends StatelessWidget {
   final int branchId;
   final String? role;
 
-  Widget _scaffold(String title, Widget child) => Scaffold(
-        backgroundColor: const Color(0xfff7f4ed),
+  Widget _scaffold(BuildContext context, String title, Widget child) =>
+      Scaffold(
+        backgroundColor: pageBg(context),
         appBar: AppBar(
-          backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
           title: Text(title),
         ),
@@ -275,7 +275,8 @@ class MorePage extends StatelessWidget {
 
   void _open(BuildContext context, String title, Widget child) {
     Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => _scaffold(title, child)));
+        .push(MaterialPageRoute(
+            builder: (_) => _scaffold(context, title, child)));
   }
 }
 

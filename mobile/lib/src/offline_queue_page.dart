@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_const_constructors
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -56,9 +58,8 @@ class _OfflineQueuePageState extends State<OfflineQueuePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffF5F1EA),
+      backgroundColor: pageBg(context),
       appBar: AppBar(
-        backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         title: const Text('Antrean Offline'),
       ),
@@ -132,7 +133,7 @@ class _OfflineQueuePageState extends State<OfflineQueuePage> {
                   color: const Color(0x141E3A5F),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.cloud_off, size: 20, color: kTaskDark),
+                child: Icon(Icons.cloud_off, size: 20, color: ink(context)),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -140,10 +141,10 @@ class _OfflineQueuePageState extends State<OfflineQueuePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(row['temp_invoice_no']?.toString() ?? '-',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
-                            color: kTaskDark)),
+                            color: ink(context))),
                     Text(
                         "Total ${fmtRp(asNum(payload['grand_total'] ?? row['grand_total']))}",
                         style: const TextStyle(

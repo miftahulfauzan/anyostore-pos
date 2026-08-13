@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'auth_store.dart';
 import 'task_ui.dart';
 
-const _kBg = Color(0xfff7f4ed);
 const _kInk = Color(0xff1E3A5F);
 const _kMuted = Color(0xff5f5f5d);
 const _kBorder = Color(0xffeceae4);
@@ -86,7 +85,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: pageBg(context),
       body: Stack(
         children: [
           const Positioned.fill(child: SoftBlobs()),

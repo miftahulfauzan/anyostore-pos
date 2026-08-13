@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_const_constructors
+
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
@@ -109,7 +111,7 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
     final open = _drawer?['status'] == 'open';
 
     return ColoredBox(
-      color: const Color(0xffF5F1EA),
+      color: pageBg(context),
       child: ListView(
         padding: const EdgeInsets.all(12),
         children: [
@@ -237,10 +239,10 @@ class _Card extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(title,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xff1E3A5F))),
+                    color: ink(context))),
             const SizedBox(height: 12),
             ...children,
           ],
@@ -260,12 +262,12 @@ class _Row extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(label,
-                style: const TextStyle(fontSize: 12, color: Color(0xff8A857C))),
+                style: TextStyle(fontSize: 12, color: Color(0xff8A857C))),
             Text(value,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xff1E3A5F))),
+                    color: ink(context))),
           ],
         ),
       );
