@@ -715,8 +715,34 @@ class _PosPageState extends State<PosPage> {
       appBar: _AutoHideAppBar(
         visible: _barVisible,
         child: AppBar(
-          title: Text('Anyostore App'
-              '${auth.userName != null ? ' · ${auth.userName}' : ''}'),
+          // Header gaya Instagram: logo kiri, judul di tengah, aksi kanan.
+          leadingWidth: 52,
+          leading: Padding(
+            padding: const EdgeInsets.only(left: 10),
+            child: BrandLogo(api: _api, size: 34, radius: 11),
+          ),
+          title: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Anyostore App',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xff1E3A5F))),
+              if (auth.userName != null)
+                Text(auth.userName!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xff8A857C))),
+            ],
+          ),
+          bottom: const PreferredSize(
+            preferredSize: Size.fromHeight(0.5),
+            child: Divider(height: 0.5, thickness: 0.5, color: Color(0xffE7E0D6)),
+          ),
           actions: [
             IconButton(
               onPressed: () => auth.logout(),
@@ -726,49 +752,60 @@ class _PosPageState extends State<PosPage> {
           ],
         ),
       ),
-      body: NotificationListener<ScrollNotification>(
-        onNotification: (n) {
-          if (n.metrics.axis != Axis.vertical) return false;
-          final double delta;
-          if (n is ScrollUpdateNotification) {
-            delta = n.scrollDelta ?? 0;
-          } else if (n is OverscrollNotification) {
-            delta = n.overscroll;
-          } else {
-            return false;
-          }
-          final px = n.metrics.pixels;
-          if (_barVisible && delta > 0 && px > 40) {
-            setState(() => _barVisible = false);
-          } else if (!_barVisible && delta < 0 && px < 160) {
-            setState(() => _barVisible = true);
-          }
-          return false;
-        },
-        child: IndexedStack(index: _tab, children: pages),
-      ),
-      bottomNavigationBar: GlassNavBar(
-        current: switch (_tab) {
-          0 => 2,
-          1 => 0,
-          2 => 1,
-          _ => _tab,
-        },
-        onSelect: (i) => setState(() {
-          _tab = switch (i) {
-            0 => 1,
-            1 => 2,
-            2 => 0,
-            _ => i,
-          };
-          if (_tab == 0) _loadData(silent: true);
-        }),
-        items: const [
-          (icon: Icons.receipt_long_outlined, activeIcon: Icons.receipt_long, label: 'Riwayat'),
-          (icon: Icons.inventory_2_outlined, activeIcon: Icons.inventory_2, label: 'Stok'),
-          (icon: Icons.add, activeIcon: Icons.add, label: 'Kasir'),
-          (icon: Icons.bar_chart_outlined, activeIcon: Icons.bar_chart, label: 'Laporan'),
-          (icon: Icons.more_horiz, activeIcon: Icons.more_horiz, label: 'Lainnya'),
+      body: Stack(
+        children: [
+          NotificationListener<ScrollNotification>(
+            onNotification: (n) {
+              if (n.metrics.axis != Axis.vertical) return false;
+              final double delta;
+              if (n is ScrollUpdateNotification) {
+                delta = n.scrollDelta ?? 0;
+              } else if (n is OverscrollNotification) {
+                delta = n.overscroll;
+              } else {
+                return false;
+              }
+              final px = n.metrics.pixels;
+              if (_barVisible && delta > 0 && px > 40) {
+                setState(() => _barVisible = false);
+              } else if (!_barVisible && delta < 0 && px < 160) {
+                setState(() => _barVisible = true);
+              }
+              return false;
+            },
+            child: IndexedStack(index: _tab, children: pages),
+          ),
+          // Navbar overlay: area di luar pil benar-benar transparan,
+          // konten halaman tetap terlihat/mengalir di belakangnya.
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: GlassNavBar(
+              current: switch (_tab) {
+                0 => 2,
+                1 => 0,
+                2 => 1,
+                _ => _tab,
+              },
+              onSelect: (i) => setState(() {
+                _tab = switch (i) {
+                  0 => 1,
+                  1 => 2,
+                  2 => 0,
+                  _ => i,
+                };
+                if (_tab == 0) _loadData(silent: true);
+              }),
+              items: const [
+                (icon: Icons.receipt_long_outlined, activeIcon: Icons.receipt_long, label: 'Riwayat'),
+                (icon: Icons.inventory_2_outlined, activeIcon: Icons.inventory_2, label: 'Stok'),
+                (icon: Icons.add, activeIcon: Icons.add, label: 'Kasir'),
+                (icon: Icons.bar_chart_outlined, activeIcon: Icons.bar_chart, label: 'Laporan'),
+                (icon: Icons.more_horiz, activeIcon: Icons.more_horiz, label: 'Lainnya'),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -801,9 +838,10 @@ class _PosPageState extends State<PosPage> {
         ),
       );
     }
-    return Column(
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+    return Stack(
       children: [
-        Expanded(
+        Positioned.fill(
           child: RefreshIndicator(
             onRefresh: () => _loadData(silent: true),
             color: kTaskDark,
@@ -849,7 +887,8 @@ class _PosPageState extends State<PosPage> {
                   )
                 else
                   SliverPadding(
-                    padding: const EdgeInsets.all(12),
+                    padding:
+                        EdgeInsets.fromLTRB(12, 12, 12, 178 + bottomPad),
                     sliver: SliverGrid(
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
@@ -872,18 +911,17 @@ class _PosPageState extends State<PosPage> {
             ),
           ),
         ),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(52)),
-              onPressed: _cart.isEmpty ? null : _openCart,
-              icon: const Icon(Icons.shopping_cart),
-              label:
-                  Text('Keranjang ${_cart.length} item · ${fmtRp(_cartTotal)}'),
-            ),
+        Positioned(
+          left: 12,
+          right: 12,
+          bottom: 98 + bottomPad,
+          child: FilledButton.icon(
+            style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52)),
+            onPressed: _cart.isEmpty ? null : _openCart,
+            icon: const Icon(Icons.shopping_cart),
+            label:
+                Text('Keranjang ${_cart.length} item · ${fmtRp(_cartTotal)}'),
           ),
         ),
       ],
@@ -1467,15 +1505,18 @@ class _AutoHideAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool visible;
   final AppBar child;
 
+  // Header punya hairline 0.5px di bawahnya.
+  static const _full = kToolbarHeight + 0.5;
+
   @override
-  Size get preferredSize => Size.fromHeight(visible ? kToolbarHeight : 0);
+  Size get preferredSize => Size.fromHeight(visible ? _full : 0);
 
   @override
   Widget build(BuildContext context) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
-      height: visible ? kToolbarHeight : 0,
+      height: visible ? _full : 0,
       clipBehavior: Clip.hardEdge,
       decoration: const BoxDecoration(color: Colors.white),
       alignment: Alignment.topCenter,

@@ -70,7 +70,7 @@ class MorePage extends StatelessWidget {
     final email = auth.email ?? '';
 
     return ListView(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 104),
       children: [
         // Profil header
         GlassCard(

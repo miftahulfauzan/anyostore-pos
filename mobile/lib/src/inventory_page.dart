@@ -174,7 +174,8 @@ class _StockSectionState extends State<_StockSection> {
                   : _rows.isEmpty
                       ? const Center(child: Text('Tidak ada produk'))
                       : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                          padding:
+                              const EdgeInsets.fromLTRB(12, 0, 12, 104),
                           itemCount: _rows.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 8),
@@ -375,7 +376,8 @@ class _MutasiSectionState extends State<_MutasiSection> {
                   : _rows.isEmpty
                       ? const Center(child: Text('Belum ada mutasi hari ini'))
                       : ListView.separated(
-                          padding: const EdgeInsets.all(12),
+                          padding:
+                              const EdgeInsets.fromLTRB(12, 12, 12, 104),
                           itemCount: _rows.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 8),
@@ -894,7 +896,7 @@ class _TransferSectionState extends State<_TransferSection> {
     return _loading
         ? const Center(child: CircularProgressIndicator())
         : ListView(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 104),
             children: [
               PillTabs(
                 tabs: const [
@@ -1111,7 +1113,7 @@ class _OpnameSectionState extends State<_OpnameSection> {
     return _loading
         ? const Center(child: CircularProgressIndicator())
         : ListView(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 104),
             children: [
               DropdownButtonFormField<String>(
                 initialValue: _warehouseId.isEmpty ? null : _warehouseId,
@@ -1407,7 +1409,8 @@ class _BarcodeSectionState extends State<_BarcodeSection> {
                   : _rows.isEmpty
                       ? const Center(child: Text('Tidak ada item barcode'))
                       : ListView.separated(
-                          padding: const EdgeInsets.all(12),
+                          padding:
+                              const EdgeInsets.fromLTRB(12, 12, 12, 104),
                           itemCount: _rows.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 8),

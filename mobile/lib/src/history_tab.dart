@@ -589,7 +589,7 @@ class _HistoryTabState extends State<HistoryTab> {
         return const Center(child: Text('Belum ada retur'));
       }
       return ListView.separated(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 104),
         itemCount: _returns.length,
         separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (_, i) {
@@ -621,7 +621,7 @@ class _HistoryTabState extends State<HistoryTab> {
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView.separated(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 104),
         itemCount: _rows.length + 1,
         separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (_, i) {

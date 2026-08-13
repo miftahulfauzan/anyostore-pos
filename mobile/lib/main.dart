@@ -99,7 +99,7 @@ ThemeData _buildTheme({Brightness brightness = Brightness.light}) {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
-      centerTitle: false,
+      centerTitle: true,
       titleTextStyle: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w700,
