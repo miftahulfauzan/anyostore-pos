@@ -76,7 +76,6 @@ class _PosPageState extends State<PosPage> {
   bool _loading = true;
   bool _saving = false;
   bool _autoPrint = false;
-  bool _barVisible = true;
   String? _error;
 
   /// Dipakai sheet keranjang untuk me-refresh dirinya saat _cart/_preview
@@ -490,10 +489,17 @@ class _PosPageState extends State<PosPage> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          _sheetRefresh = setSheetState;
-          return _CartSheet(
+      backgroundColor: Colors.transparent,
+      builder: (_) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.55,
+        minChildSize: 0.38,
+        maxChildSize: 1.0,
+        builder: (context, scrollController) => StatefulBuilder(
+          builder: (context, setSheetState) {
+            _sheetRefresh = setSheetState;
+            return _CartSheet(
+        scrollController: scrollController,
         cart: _cart,
         customers: _customers,
         customerId: _customerId,
@@ -561,7 +567,8 @@ class _PosPageState extends State<PosPage> {
         },
         onPay: () => _checkout(),
       );
-        },
+          },
+        ),
       ),
     );
     _sheetRefresh = null;
@@ -731,54 +738,10 @@ class _PosPageState extends State<PosPage> {
       MorePage(api: _client, branchId: _branchId, role: auth.role),
     ];
     return Scaffold(
-      appBar: _AutoHideAppBar(
-        visible: _barVisible,
-        child: AppBar(
-          // Header simetris (gaya Instagram): judul di tengah, tanpa logo.
-          leadingWidth: 52,
-          leading: const SizedBox(width: 52),
-          title: const Text('Anyostore App',
-              maxLines: 1,
-              style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xff1E3A5F))),
-          bottom: const PreferredSize(
-            preferredSize: Size.fromHeight(0.5),
-            child: Divider(height: 0.5, thickness: 0.5, color: Color(0xffE7E0D6)),
-          ),
-          actions: [
-            IconButton(
-              onPressed: () => auth.logout(),
-              icon: const Icon(Icons.logout),
-              tooltip: 'Keluar',
-            ),
-          ],
-        ),
-      ),
+      // Tanpa AppBar utama (header dihapus).
       body: Stack(
         children: [
-          NotificationListener<ScrollNotification>(
-            onNotification: (n) {
-              if (n.metrics.axis != Axis.vertical) return false;
-              final double delta;
-              if (n is ScrollUpdateNotification) {
-                delta = n.scrollDelta ?? 0;
-              } else if (n is OverscrollNotification) {
-                delta = n.overscroll;
-              } else {
-                return false;
-              }
-              final px = n.metrics.pixels;
-              if (_barVisible && delta > 0 && px > 40) {
-                setState(() => _barVisible = false);
-              } else if (!_barVisible && delta < 0 && px < 160) {
-                setState(() => _barVisible = true);
-              }
-              return false;
-            },
-            child: IndexedStack(index: _tab, children: pages),
-          ),
+          IndexedStack(index: _tab, children: pages),
           // Navbar overlay: area di luar pil benar-benar transparan,
           // konten halaman tetap terlihat/mengalir di belakangnya.
           Positioned(
@@ -787,7 +750,6 @@ class _PosPageState extends State<PosPage> {
             bottom: 0,
             child: GlassNavBar(
               current: _tab,
-              cartCount: _cart.length,
               onSelect: (i) => setState(() {
                 _tab = i;
                 if (_tab == 0) _loadData(silent: true);
@@ -1292,6 +1254,7 @@ class _QtyInputState extends State<_QtyInput> {
 
 class _CartSheet extends StatefulWidget {
   const _CartSheet({
+    this.scrollController,
     required this.cart,
     required this.customers,
     required this.customerId,
@@ -1310,6 +1273,7 @@ class _CartSheet extends StatefulWidget {
     required this.onResume,
   });
 
+  final ScrollController? scrollController;
   final List<CartItem> cart;
   final List<Map<String, dynamic>> customers;
   final int? customerId;
@@ -1352,6 +1316,7 @@ class _CartSheetState extends State<_CartSheet> {
     final grandTotal = asNum(widget.preview?['grand_total'] ?? subtotal);
     final customerName = _customerName();
     final hasExtra = customerName.isNotEmpty || widget.promoCode.isNotEmpty;
+    final totalPcs = cart.fold<int>(0, (sum, c) => sum + c.qty);
 
     return SafeArea(
       child: Padding(
@@ -1458,6 +1423,7 @@ class _CartSheetState extends State<_CartSheet> {
               ),
             Flexible(
               child: ListView(
+                controller: widget.scrollController,
                 shrinkWrap: true,
                 children: [
                   for (final item in cart)
@@ -1479,8 +1445,6 @@ class _CartSheetState extends State<_CartSheet> {
                                     children: [
                                       Expanded(
                                         child: Text(item.name,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(
                                                 fontWeight: FontWeight.w700)),
                                       ),
@@ -1531,7 +1495,8 @@ class _CartSheetState extends State<_CartSheet> {
               ),
             ),
             const SizedBox(height: 8),
-            Text('Subtotal: ${fmtRp(subtotal)}'),
+            Text('Total pcs: $totalPcs pcs',
+                style: const TextStyle(fontWeight: FontWeight.w700)),
             if (discount > 0) Text('Diskon: -${fmtRp(discount)}'),
             Text('Total: ${fmtRp(grandTotal)}',
                 style:
@@ -1557,35 +1522,6 @@ class _CartSheetState extends State<_CartSheet> {
           ],
         ),
       ),
-    );
-  }
-}
-
-
-
-/// AppBar yang otomatis menghilang saat konten di-scroll ke bawah
-/// dan muncul lagi saat scroll ke atas (menyusut mulus).
-class _AutoHideAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const _AutoHideAppBar({required this.visible, required this.child});
-  final bool visible;
-  final AppBar child;
-
-  // Header punya hairline 0.5px di bawahnya.
-  static const _full = kToolbarHeight + 0.5;
-
-  @override
-  Size get preferredSize => Size.fromHeight(visible ? _full : 0);
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
-      height: visible ? _full : 0,
-      clipBehavior: Clip.hardEdge,
-      decoration: const BoxDecoration(color: Colors.white),
-      alignment: Alignment.topCenter,
-      child: visible ? child : const SizedBox.shrink(),
     );
   }
 }

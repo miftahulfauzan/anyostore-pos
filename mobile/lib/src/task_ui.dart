@@ -390,232 +390,135 @@ class GlassCard extends StatelessWidget {
   }
 }
 
-/// Bottom nav Liquid Glass MELAYANG (gaya iOS 26): pil kaca mengambang
-/// dengan 5 item sebaris — POS (keranjang) paling kiri, lalu Riwayat,
-/// Stok, Laporan, Lainnya. Tidak ada FAB menonjol; semua item senada.
-class GlassNavBar extends StatefulWidget {
+/// Bottom nav Liquid Glass MELAYANG (statis, tanpa animasi): pil kaca
+/// mengambang dengan 5 item sebaris — POS (keranjang) paling kiri, lalu
+/// Riwayat, Stok, Laporan, Lainnya. Kontras teks dinaikkan supaya jelas.
+class GlassNavBar extends StatelessWidget {
   const GlassNavBar(
       {super.key,
       required this.current,
       required this.onSelect,
-      required this.items,
-      this.cartCount = 0});
+      required this.items});
   final int current;
   final ValueChanged<int> onSelect;
   final List<({IconData icon, IconData activeIcon, String label})> items;
-
-  /// Jumlah item di keranjang aktif -> badge di item POS (paling kiri).
-  final int cartCount;
-
-  @override
-  State<GlassNavBar> createState() => _GlassNavBarState();
-}
-
-class _GlassNavBarState extends State<GlassNavBar>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _light =
-      AnimationController(vsync: this, duration: const Duration(seconds: 7))
-        ..repeat();
-
-  @override
-  void dispose() {
-    _light.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final bottomPad = MediaQuery.of(context).padding.bottom;
-    return Entrance(
-      offset: 18,
-      duration: const Duration(milliseconds: 420),
-      delay: const Duration(milliseconds: 120),
-      child: SizedBox(
-        height: 78 + bottomPad,
-        child: Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.bottomCenter,
-          children: [
-            Positioned(
-              left: 14,
-              right: 14,
-              bottom: 14 + bottomPad,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(28),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                  child: ColorFiltered(
-                    // Naikkan saturasi backdrop, ala Liquid Glass "vibrancy".
-                    colorFilter: const ColorFilter.matrix([
-                      1.25, 0, 0, 0, 0,
-                      0, 1.25, 0, 0, 0,
-                      0, 0, 1.25, 0, 0,
-                      0, 0, 0, 1, 0,
-                    ]),
-                    child: Container(
-                      height: 62,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: dark
-                              ? const [
-                                  Color(0x80FFFFFF),
-                                  Color(0x30FFFFFF),
-                                  Color(0x14FFFFFF),
-                                ]
-                              : const [
-                                  Color(0xB3FFFFFF),
-                                  Color(0x73FFFFFF),
-                                  Color(0x2EFFFFFF),
-                                ],
+    return SizedBox(
+      height: 78 + bottomPad,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.bottomCenter,
+        children: [
+          Positioned(
+            left: 14,
+            right: 14,
+            bottom: 14 + bottomPad,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                child: ColorFiltered(
+                  colorFilter: const ColorFilter.matrix([
+                    1.25, 0, 0, 0, 0,
+                    0, 1.25, 0, 0, 0,
+                    0, 0, 1.25, 0, 0,
+                    0, 0, 0, 1, 0,
+                  ]),
+                  child: Container(
+                    height: 62,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: dark
+                            ? const [
+                                Color(0x80FFFFFF),
+                                Color(0x30FFFFFF),
+                                Color(0x14FFFFFF),
+                              ]
+                            : const [
+                                Color(0xB3FFFFFF),
+                                Color(0x73FFFFFF),
+                                Color(0x2EFFFFFF),
+                              ],
+                      ),
+                    ),
+                    child: Stack(
+                      children: [
+                        _LiquidRim(dark: dark),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            for (var i = 0; i < items.length; i++)
+                              _navIcon(i, dark: dark),
+                          ],
                         ),
-                      ),
-                      child: Stack(
-                        children: [
-                          // Specular: kilau lebar yang bergeser pelan.
-                          AnimatedBuilder(
-                            animation: _light,
-                            builder: (context, _) {
-                              final x = -0.35 + 1.7 * _light.value;
-                              return Positioned(
-                                left: x * MediaQuery.of(context).size.width,
-                                top: -18,
-                                child: Container(
-                                  width: 190,
-                                  height: 110,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: RadialGradient(
-                                      colors: [
-                                        Colors.white.withValues(alpha: .30),
-                                        Colors.white.withValues(alpha: .08),
-                                        Colors.white.withValues(alpha: 0),
-                                      ],
-                                      stops: const [0, .45, 1],
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          _LiquidRim(dark: dark, t: _light),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              for (var i = 0; i < widget.items.length; i++)
-                                _navIcon(i),
-                            ],
-                          ),
-                        ],
-                      ),
+                      ],
                     ),
                   ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _navIcon(int i) {
-    final item = widget.items[i];
-    final active = widget.current == i;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final idleColor = dark ? const Color(0xffB9C3D0) : const Color(0xff5F5F5D);
-    final activeColor = dark ? Colors.white : kTaskDark;
+  Widget _navIcon(int i, {required bool dark}) {
+    final item = items[i];
+    final active = current == i;
+    const idleColor = Color(0xff403C36);
+    const activeColor = Colors.white;
     return Semantics(
       label: item.label,
       button: true,
       selected: active,
       child: GestureDetector(
-        onTap: () => widget.onSelect(i),
+        onTap: () => onSelect(i),
         behavior: HitTestBehavior.opaque,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOutCubic,
-              width: 62,
-              height: 56,
-              margin: const EdgeInsets.symmetric(vertical: 1),
-              decoration: BoxDecoration(
-                color: active
-                    ? (dark
-                        ? kTaskDark.withValues(alpha: .45)
-                        : kTaskDark.withValues(alpha: .12))
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    switchInCurve: Curves.easeOutCubic,
-                    switchOutCurve: Curves.easeInCubic,
-                    transitionBuilder: (child, anim) => FadeTransition(
-                      opacity: anim,
-                      child: ScaleTransition(
-                          scale: Tween(begin: 0.6, end: 1.0).animate(anim),
-                          child: child),
-                    ),
-                    child: Icon(
-                        active ? item.activeIcon : item.icon,
-                        key: ValueKey(active),
-                        size: 21,
-                        color: active ? activeColor : idleColor),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(item.label,
-                      style: TextStyle(
-                          fontSize: 9,
-                          fontWeight:
-                              active ? FontWeight.w800 : FontWeight.w600,
-                          color: active ? activeColor : idleColor)),
-                ],
-              ),
-            ),
-            // Badge jumlah item keranjang aktif di item POS.
-            if (i == 0 && widget.cartCount > 0)
-              Positioned(
-                top: -3,
-                right: 0,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: const Color(0xffD64545),
-                    borderRadius: BorderRadius.circular(99),
-                    border: Border.all(color: Colors.white, width: 1.5),
-                  ),
-                  child: Text(
-                      '${widget.cartCount > 99 ? '99+' : widget.cartCount}',
-                      style: const TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white)),
-                ),
-              ),
-          ],
+        child: Container(
+          width: 62,
+          height: 54,
+          margin: const EdgeInsets.symmetric(vertical: 1),
+          decoration: BoxDecoration(
+            color: active
+                ? (dark
+                    ? const Color(0xff1E3A5F)
+                    : kTaskDark)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(active ? item.activeIcon : item.icon,
+                  size: 21, color: active ? activeColor : idleColor),
+              const SizedBox(height: 2),
+              Text(item.label,
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: active ? FontWeight.w800 : FontWeight.w700,
+                      color: active ? activeColor : idleColor)),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// Rim atas navbar: garis terang (refraction ring) + chromatic dispersion
-/// tipis merah/sian yang ikut arah cahaya, memudar di kedua ujung.
+/// Rim atas navbar (statis): garis terang (refraction ring) + chromatic
+/// dispersion tipis merah/sian, memudar di kedua ujung.
 class _LiquidRim extends StatelessWidget {
-  const _LiquidRim({required this.dark, required this.t});
+  const _LiquidRim({required this.dark});
   final bool dark;
-  final Animation<double> t;
 
   @override
   Widget build(BuildContext context) {
@@ -624,15 +527,9 @@ class _LiquidRim extends StatelessWidget {
       left: 0,
       right: 0,
       child: IgnorePointer(
-        child: AnimatedBuilder(
-          animation: t,
-          builder: (context, _) {
-            final dx = (-0.5 + t.value).clamp(-1.0, 1.0);
-            return CustomPaint(
-              size: Size(MediaQuery.of(context).size.width, 6),
-              painter: _LiquidRimPainter(dark: dark, dx: dx),
-            );
-          },
+        child: CustomPaint(
+          size: Size(MediaQuery.of(context).size.width, 6),
+          painter: _LiquidRimPainter(dark: dark),
         ),
       ),
     );
@@ -640,9 +537,8 @@ class _LiquidRim extends StatelessWidget {
 }
 
 class _LiquidRimPainter extends CustomPainter {
-  _LiquidRimPainter({required this.dark, required this.dx});
+  _LiquidRimPainter({required this.dark});
   final bool dark;
-  final double dx;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -675,7 +571,7 @@ class _LiquidRimPainter extends CustomPainter {
         stops: const [0, .35, .65, 1],
       ).createShader(Offset.zero & size)
       ..strokeWidth = 1;
-    canvas.drawLine(Offset(dx * 2, 1.2), Offset(w + dx * 2, 1.2), red);
+    canvas.drawLine(const Offset(0, 1.2), Offset(w, 1.2), red);
 
     final cyan = Paint()
       ..shader = LinearGradient(
@@ -688,10 +584,9 @@ class _LiquidRimPainter extends CustomPainter {
         stops: const [0, .35, .65, 1],
       ).createShader(Offset.zero & size)
       ..strokeWidth = 1;
-    canvas.drawLine(Offset(-dx * 2, 4.0), Offset(w - dx * 2, 4.0), cyan);
+    canvas.drawLine(const Offset(0, 4.0), Offset(w, 4.0), cyan);
   }
 
   @override
-  bool shouldRepaint(_LiquidRimPainter old) =>
-      old.dark != dark || old.dx != dx;
+  bool shouldRepaint(_LiquidRimPainter old) => old.dark != dark;
 }

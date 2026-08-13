@@ -161,6 +161,43 @@ class MorePage extends StatelessWidget {
               () => _open(context, 'Riwayat Aktivitas',
                   ActivityLogPage(api: api))),
         ]),
+        const SizedBox(height: 14),
+        // Keluar di paling bawah.
+        GlassCard(
+          padding: EdgeInsets.zero,
+          radius: 20,
+          child: InkWell(
+            onTap: () => auth.logout(),
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFCE8E6),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.logout,
+                        size: 17, color: Color(0xFFC2410C)),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text('Keluar',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFFC2410C))),
+                  ),
+                  const Icon(Icons.chevron_right,
+                      size: 18, color: Color(0xff94a3b8)),
+                ],
+              ),
+            ),
+          ),
+        ),
         const Padding(
           padding: EdgeInsets.only(top: 20, bottom: 8),
           child: Text('Anyostore App v0.1.0',
