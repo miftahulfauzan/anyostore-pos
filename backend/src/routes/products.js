@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { authenticate, authorize } = require('../auth');
 const { assertValidUpload, createMediaUpload, decodeDataUpload, discardUploadedFile, persistUploadedFile, removeMedia } = require('../media-storage');
+const { money } = require('../money');
 
 const router = express.Router();
 router.use(authenticate);
@@ -469,6 +470,7 @@ router.post('/', authorize('owner', 'manager', 'admin', 'gudang'), async (req, r
     if (!['male', 'female', 'unisex', 'kids'].includes(gender)) return res.status(400).json({ success: false, message: 'Gender tidak valid' });
     const [categories] = await db.execute('SELECT id FROM categories WHERE id = ? AND is_active = TRUE', [categoryId]);
     if (!categories[0]) return res.status(400).json({ success: false, message: 'Kategori tidak ditemukan' });
+    const [oldProducts] = await db.execute('SELECT id, name, price, sku FROM products WHERE id = ? AND branch_id = ?', [req.params.id, req.user.branch_id]);
     const tiers = normalizeWholesalePrices(wholesalePrices);
     const variants = normalizeVariants(inputVariants);
     const [result] = await db.execute(
@@ -516,6 +518,12 @@ router.put('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (req,
       }
     }
     await syncVariantColorsAcrossStores(Number(req.params.id), req.user.branch_id);
+    const oldProduct = oldProducts[0];
+    const priceChanged = oldProduct && Number(oldProduct.price) !== Number(price);
+    const desc = oldProduct
+      ? `Produk ${oldProduct.name}${priceChanged ? `: harga ${money(oldProduct.price)} -> ${money(Number(price))}` : ' diperbarui'}`
+      : `Produk ${name.trim()} diperbarui`;
+    await db.execute('INSERT INTO activity_logs (user_id, action, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)', [req.user.id, priceChanged ? 'product_price_update' : 'product_update', desc, req.ip, req.get('user-agent') || null]);
     res.json({ success: true, data: { id: Number(req.params.id) } });
   } catch (error) { next(error); }
 });

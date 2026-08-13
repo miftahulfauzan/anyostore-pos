@@ -22,6 +22,7 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   Map<String, dynamic>? _data;
+  Map<String, dynamic>? _commission;
   bool _loading = true;
   String? _error;
   String _range = 'today'; // today | 7d | month
@@ -33,15 +34,40 @@ class _DashboardPageState extends State<DashboardPage> {
     _load();
   }
 
+  (String, String) _rangeDates() {
+    final now = DateTime.now().toUtc().add(const Duration(hours: 7));
+    String d(DateTime x) =>
+        '${x.year.toString().padLeft(4, '0')}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
+    return switch (_range) {
+      '7d' => (d(now.subtract(const Duration(days: 6))), d(now)),
+      'month' => (
+          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-01',
+          d(now)),
+      _ => (d(now), d(now)),
+    };
+  }
+
+  bool _isOwner(BuildContext context) =>
+      context.read<AuthStore>().role == 'owner';
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final data = await widget.api.dashboard();
+      final (start, end) = _rangeDates();
+      final results = await Future.wait([
+        widget.api.dashboard(),
+        if (_isOwner(context)) widget.api.commissionAllBranches(start: start, end: end),
+      ]);
       if (!mounted) return;
-      setState(() => _data = data);
+      setState(() {
+        _data = results[0];
+        if (results.length > 1) {
+          _commission = results[1];
+        }
+      });
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {
@@ -146,7 +172,10 @@ class _DashboardPageState extends State<DashboardPage> {
                   final value = const ['today', '7d', 'month'][i];
                   final active = _range == value;
                   return GestureDetector(
-                    onTap: () => setState(() => _range = value),
+                    onTap: () {
+                      setState(() => _range = value);
+                      _load();
+                    },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 18, vertical: 9),
@@ -293,6 +322,16 @@ class _DashboardPageState extends State<DashboardPage> {
                   ],
                 ),
               ),
+            if (_isOwner(context) &&
+                ((_data?['stores'] as List?) ?? []).isNotEmpty) ...[
+              const SizedBox(height: 14),
+              _StoresCard(
+                stores: ((_data?['stores'] as List?) ?? [])
+                    .cast<Map<String, dynamic>>(),
+                commission: _commission,
+                range: _range,
+              ),
+            ],
             if (recent.isNotEmpty) ...[
               const SizedBox(height: 14),
               GlassCard(
@@ -453,6 +492,174 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Kartu "Semua Toko" (owner): ranking penjualan antar cabang + total komisi.
+class _StoresCard extends StatelessWidget {
+  const _StoresCard(
+      {required this.stores, required this.commission, required this.range});
+  final List<Map<String, dynamic>> stores;
+  final Map<String, dynamic>? commission;
+  final String range;
+
+  double _asNum(dynamic v) => asNum(v);
+
+  @override
+  Widget build(BuildContext context) {
+    final perBranch =
+        ((commission?['per_branch'] as List?) ?? []).cast<Map<String, dynamic>>();
+    double commOf(dynamic branchId) => _asNum(perBranch
+        .where((b) => '${b['branch_id']}' == '$branchId')
+        .fold<num>(0, (sum, b) => sum + _asNum(b['total_commission'])));
+    final totalComm = _asNum(commission?['total_commission']);
+    final is7d = range == '7d';
+    final isMonth = range == 'month';
+    final ranked = [...stores]..sort((a, b) =>
+        _asNum(is7d ? b['seven_day_sales'] : isMonth ? b['month_sales'] : b['today_sales'])
+            .compareTo(_asNum(is7d ? a['seven_day_sales'] : isMonth ? a['month_sales'] : a['today_sales'])));
+    final rangeLabel = switch (range) {
+      '7d' => '7 Hari',
+      'month' => 'Bulan Ini',
+      _ => 'Hari Ini',
+    };
+
+    return GlassCard(
+      padding: const EdgeInsets.all(16),
+      radius: 24,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text('Semua Toko',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: kTaskDark)),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xffE3EAF2),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Text(rangeLabel,
+                    style: const TextStyle(
+                        fontSize: 9, fontWeight: FontWeight.w700,
+                        color: kTaskDark)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (commission != null)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                    colors: [Color(0xff1E3A5F), Color(0xff2E5D8F)]),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.payments_outlined,
+                      size: 18, color: Colors.white),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text('Total Komisi Pegawai',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white)),
+                  ),
+                  Text(fmtRp(totalComm),
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white)),
+                ],
+              ),
+            ),
+          const SizedBox(height: 10),
+          for (var i = 0; i < ranked.length; i++) ...[
+            if (i > 0) const Divider(height: 14, color: _kBorder),
+            Row(
+              children: [
+                _RankBadge(rank: i + 1),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(ranked[i]['name']?.toString() ?? '',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: kTaskDark)),
+                      const SizedBox(height: 2),
+                      Text(
+                          '${fmtRp(_asNum(is7d ? ranked[i]['seven_day_sales'] : isMonth ? ranked[i]['month_sales'] : ranked[i]['today_sales']))}'
+                          ' · Laba ${fmtRp(_asNum(is7d ? ranked[i]['seven_day_sales'] : isMonth ? ranked[i]['month_sales'] : ranked[i]['today_sales']) - _asNum(is7d ? ranked[i]['seven_day_expenses'] : isMonth ? ranked[i]['month_expenses'] : ranked[i]['today_expenses']))}'
+                          ' · ${_asNum(is7d ? ranked[i]['seven_day_transactions'] : isMonth ? ranked[i]['month_transactions'] : ranked[i]['today_transactions'])} trx',
+                          style:
+                              const TextStyle(fontSize: 10, color: _kGray)),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(fmtRp(commOf(ranked[i]['id'])),
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: _kDenim)),
+                    const Text('komisi',
+                        style:
+                            TextStyle(fontSize: 9, color: _kGray)),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+
+/// Lencana peringkat toko (1-3 berwarna, sisanya netral).
+class _RankBadge extends StatelessWidget {
+  const _RankBadge({required this.rank});
+  final int rank;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = [
+      const Color(0xFFB8860B),
+      const Color(0xFF6B7280),
+      const Color(0xFFB45309),
+    ];
+    return Container(
+      width: 24,
+      height: 24,
+      decoration: BoxDecoration(
+        color: rank <= 3 ? colors[rank - 1] : const Color(0xffE3EAF2),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      alignment: Alignment.center,
+      child: Text('$rank',
+          style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: rank <= 3 ? Colors.white : kTaskDark)),
     );
   }
 }

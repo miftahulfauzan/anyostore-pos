@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'api_client.dart';
 import 'format.dart';
+import 'printer_setup.dart';
 import 'product_form_page.dart';
 import 'task_ui.dart';
 
@@ -61,6 +62,19 @@ class _ProductsPageState extends State<ProductsPage> {
     _load();
   }
 
+  Future<void> _printLabel(Map<String, dynamic> row) async {
+    await printNow(
+      context,
+      (printer, device) => printer.printPriceLabel(
+        name: row['name']?.toString() ?? '',
+        price: fmtRp(asNum(row['price'])),
+        sku: row['sku']?.toString(),
+        barcode: row['barcode']?.toString(),
+      ),
+      title: 'Cetak Label Harga (rak 40x30)',
+    );
+  }
+
   Future<void> _delete(Map<String, dynamic> row) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -107,8 +121,8 @@ class _ProductsPageState extends State<ProductsPage> {
                     prefixIcon: const Icon(Icons.search, size: 20),
                     filled: true,
                     fillColor: Colors.white,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
                     enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: const BorderSide(color: kTaskBorder)),
@@ -127,8 +141,8 @@ class _ProductsPageState extends State<ProductsPage> {
                         ? Center(child: Text(_error!))
                         : _rows.isEmpty
                             ? const Center(
-                                child:
-                                    Text('Belum ada produk. Ketuk Tambah Produk.'))
+                                child: Text(
+                                    'Belum ada produk. Ketuk Tambah Produk.'))
                             : ListView.separated(
                                 padding: const EdgeInsets.all(12),
                                 itemCount: _rows.length,
@@ -160,10 +174,10 @@ class _ProductsPageState extends State<ProductsPage> {
                                                 : Image.network(
                                                     photo,
                                                     fit: BoxFit.cover,
-                                                    errorBuilder: (_, __, ___) =>
-                                                        const ColoredBox(
-                                                      color:
-                                                          Color(0xffE6ECF3),
+                                                    errorBuilder:
+                                                        (_, __, ___) =>
+                                                            const ColoredBox(
+                                                      color: Color(0xffE6ECF3),
                                                       child: Icon(
                                                           Icons.inventory_2,
                                                           color: kTaskDark),
@@ -177,8 +191,7 @@ class _ProductsPageState extends State<ProductsPage> {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              Text(
-                                                  r['name']?.toString() ?? '',
+                                              Text(r['name']?.toString() ?? '',
                                                   maxLines: 1,
                                                   overflow:
                                                       TextOverflow.ellipsis,
@@ -200,21 +213,37 @@ class _ProductsPageState extends State<ProductsPage> {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.end,
                                           children: [
-                                            Text(
-                                                fmtRp(asNum(r['price'])),
+                                            Text(fmtRp(asNum(r['price'])),
                                                 style: const TextStyle(
                                                     fontSize: 13,
-                                                    fontWeight:
-                                                        FontWeight.w800,
+                                                    fontWeight: FontWeight.w800,
                                                     color: kTaskDark)),
-                                            IconButton(
-                                              onPressed: () => _delete(r),
-                                              visualDensity:
-                                                  VisualDensity.compact,
-                                              icon: const Icon(
-                                                  Icons.delete_outline,
-                                                  size: 18,
-                                                  color: Color(0xffC2410C)),
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                IconButton(
+                                                  onPressed: () =>
+                                                      _printLabel(r),
+                                                  visualDensity:
+                                                      VisualDensity.compact,
+                                                  tooltip: 'Cetak label harga',
+                                                  icon: const Icon(
+                                                      Icons.print,
+                                                      size: 18,
+                                                      color: kTaskDark),
+                                                ),
+                                                IconButton(
+                                                  onPressed: () =>
+                                                      _delete(r),
+                                                  visualDensity:
+                                                      VisualDensity.compact,
+                                                  icon: const Icon(
+                                                      Icons.delete_outline,
+                                                      size: 18,
+                                                      color:
+                                                          Color(0xffC2410C)),
+                                                ),
+                                              ],
                                             ),
                                           ],
                                         ),

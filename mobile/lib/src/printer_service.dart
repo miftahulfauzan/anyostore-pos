@@ -90,6 +90,43 @@ class PrinterService {
     if (bytes != null) await BluetoothPrintPlus.write(bytes);
   }
 
+  /// Label harga 40x30 mm untuk rak: nama, varian, harga besar, sku/barcode.
+  Future<void> printPriceLabel({
+    required String name,
+    required String price,
+    String? variant,
+    String? sku,
+    String? barcode,
+  }) async {
+    final esc = EscCommand();
+    await esc.cleanCommand();
+    await esc.text(content: name.trim(), style: EscTextStyle.bold);
+    if (variant != null && variant.trim().isNotEmpty) {
+      await esc.text(content: variant.trim());
+    }
+    await esc.newline();
+    await esc.text(
+        content: price.trim(),
+        alignment: Alignment.center,
+        style: EscTextStyle.bold,
+        fontSize: EscFontSize.size2);
+    await esc.newline();
+    if (sku != null && sku.trim().isNotEmpty) {
+      await esc.text(content: sku.trim(), alignment: Alignment.center);
+    }
+    if (barcode != null && barcode.trim().isNotEmpty) {
+      await esc.code128(
+          content: barcode.trim(),
+          height: 46,
+          alignment: Alignment.center,
+          hriPosition: HriPosition.below);
+    }
+    await esc.newline();
+    await esc.cutPaper();
+    final bytes = await esc.getCommand();
+    if (bytes != null) await BluetoothPrintPlus.write(bytes);
+  }
+
   Future<void> printReceipt(Map<String, dynamic> receipt) async {
     final esc = EscCommand();
     await esc.cleanCommand();

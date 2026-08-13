@@ -70,12 +70,18 @@ router.get('/', async (req, res, next) => {
     });
 
     const stores = owner ? (await db.execute(
-      'SELECT b.id, b.name, b.address, ' +
-      'COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (\'completed\',\'partially_cancelled\') AND DATE(t.created_at + INTERVAL 7 HOUR) = DATE(UTC_TIMESTAMP() + INTERVAL 7 HOUR)), 0) AS today_sales, ' +
-      'COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (\'completed\',\'partially_cancelled\') AND DATE(t.created_at + INTERVAL 7 HOUR) >= DATE_SUB(DATE(UTC_TIMESTAMP() + INTERVAL 7 HOUR), INTERVAL 6 DAY)), 0) AS seven_day_sales, ' +
-      'COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id AND e.status IN (\'pending\',\'approved\') AND YEAR(e.expense_date) = YEAR(UTC_TIMESTAMP() + INTERVAL 7 HOUR) AND MONTH(e.expense_date) = MONTH(UTC_TIMESTAMP() + INTERVAL 7 HOUR)), 0) AS month_expenses, ' +
-      '(SELECT COUNT(*) FROM products p WHERE p.branch_id = b.id AND p.is_active = TRUE) AS products ' +
-      'FROM branches b WHERE b.is_active = TRUE ORDER BY b.id'
+      `SELECT b.id, b.name, b.address,
+        COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN ('completed','partially_cancelled') AND DATE(t.created_at + INTERVAL 7 HOUR) = DATE(UTC_TIMESTAMP() + INTERVAL 7 HOUR)), 0) AS today_sales,
+        COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN ('completed','partially_cancelled') AND DATE(t.created_at + INTERVAL 7 HOUR) >= DATE_SUB(DATE(UTC_TIMESTAMP() + INTERVAL 7 HOUR), INTERVAL 6 DAY)), 0) AS seven_day_sales,
+        COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN ('completed','partially_cancelled') AND DATE(t.created_at + INTERVAL 7 HOUR) >= DATE_SUB(DATE(UTC_TIMESTAMP() + INTERVAL 7 HOUR), INTERVAL 29 DAY)), 0) AS month_sales,
+        COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id AND e.status IN ('pending','approved') AND e.expense_date = DATE(UTC_TIMESTAMP() + INTERVAL 7 HOUR)), 0) AS today_expenses,
+        COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id AND e.status IN ('pending','approved') AND e.expense_date >= DATE_SUB(DATE(UTC_TIMESTAMP() + INTERVAL 7 HOUR), INTERVAL 6 DAY)), 0) AS seven_day_expenses,
+        COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id AND e.status IN ('pending','approved') AND YEAR(e.expense_date) = YEAR(UTC_TIMESTAMP() + INTERVAL 7 HOUR) AND MONTH(e.expense_date) = MONTH(UTC_TIMESTAMP() + INTERVAL 7 HOUR)), 0) AS month_expenses,
+        COALESCE((SELECT COUNT(*) FROM transactions t WHERE t.branch_id = b.id AND t.status IN ('completed','partially_cancelled') AND DATE(t.created_at + INTERVAL 7 HOUR) = DATE(UTC_TIMESTAMP() + INTERVAL 7 HOUR)), 0) AS today_transactions,
+        COALESCE((SELECT COUNT(*) FROM transactions t WHERE t.branch_id = b.id AND t.status IN ('completed','partially_cancelled') AND DATE(t.created_at + INTERVAL 7 HOUR) >= DATE_SUB(DATE(UTC_TIMESTAMP() + INTERVAL 7 HOUR), INTERVAL 6 DAY)), 0) AS seven_day_transactions,
+        COALESCE((SELECT COUNT(*) FROM transactions t WHERE t.branch_id = b.id AND t.status IN ('completed','partially_cancelled') AND DATE(t.created_at + INTERVAL 7 HOUR) >= DATE_SUB(DATE(UTC_TIMESTAMP() + INTERVAL 7 HOUR), INTERVAL 29 DAY)), 0) AS month_transactions,
+        (SELECT COUNT(*) FROM products p WHERE p.branch_id = b.id AND p.is_active = TRUE) AS products
+       FROM branches b WHERE b.is_active = TRUE ORDER BY b.id`
     ))[0] : [];
 
     const summary = { ...salesRows[0][0], ...expenseRows[0][0] };

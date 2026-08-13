@@ -1008,6 +1008,41 @@ class _OpnameSectionState extends State<_OpnameSection> {
     setState(() => _items.addAll(result));
   }
 
+  Future<void> _editItem(Map<String, dynamic> item) async {
+    final ctrl =
+        TextEditingController(text: '${item['physical_stock'] ?? 0}');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Edit stok fisik · ${item['name'] ?? ''}'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+              labelText: 'Stok fisik (dihitung)',
+              border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Batal')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Simpan')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final value = int.tryParse(ctrl.text) ?? -1;
+    if (value < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Jumlah harus angka 0 atau lebih')));
+      return;
+    }
+    setState(() => item['physical_stock'] = value);
+  }
+
   Future<void> _submit() async {
     if (_warehouseId.isEmpty || _items.isEmpty) {
       setState(() => _error = 'Pilih gudang dan minimal satu item');
@@ -1069,9 +1104,10 @@ class _OpnameSectionState extends State<_OpnameSection> {
                   padding: EdgeInsets.zero,
                   child: ListTile(
                     dense: true,
+                    onTap: () => _editItem(item),
                     title: Text(item['name']?.toString() ?? ''),
                     subtitle: Text(
-                        '${item['variant_label'] ?? ''} · fisik ${item['physical_stock']}'),
+                        '${item['variant_label'] ?? ''} · fisik ${item['physical_stock']} · ketuk untuk edit'),
                     trailing: IconButton(
                       onPressed: () => setState(() => _items.remove(item)),
                       icon: const Icon(Icons.delete_outline),

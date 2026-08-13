@@ -32,6 +32,69 @@ router.get('/', authenticate, authorize('owner'), async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+async function computeBranchReport(branchId, start, end) {
+  const [rules] = await db.execute(`SELECT * FROM commission_rules WHERE (branch_id = ? OR branch_id IS NULL) AND (is_active=TRUE OR is_active=1)`, [branchId]);
+  const [users] = await db.execute('SELECT id, name, role FROM users WHERE branch_id=? AND is_active=TRUE ORDER BY role, name', [branchId]);
+  const perAccount = [];
+  for (const u of users) {
+    const applicable = rules.filter((r) => r.applies_to === 'all' || (r.applies_to === 'role' && String(r.role).toLowerCase() === String(u.role).toLowerCase()) || (r.applies_to === 'user' && Number(r.user_id) === Number(u.id)));
+    if (!applicable.length) continue;
+    const [rows] = await db.execute(
+      `SELECT COALESCE(c.price_tier, 'reguler') AS tier, COALESCE(SUM(ti.quantity - ti.cancelled_qty),0) AS qty, COUNT(DISTINCT t.id) AS trx, COALESCE(SUM(t.grand_total - t.cancelled_amount),0) AS sales
+       FROM transactions t
+       JOIN transaction_items ti ON ti.transaction_id=t.id
+       LEFT JOIN customers c ON c.id=t.customer_id
+       WHERE t.branch_id=? AND t.user_id=? AND t.status IN ('completed','partially_cancelled') AND DATE(t.created_at) BETWEEN ? AND ?
+       GROUP BY tier`,
+      [branchId, u.id, start, end]
+    );
+    const tierMap = Object.fromEntries(rows.map((r) => [r.tier, r]));
+    const getQty = (tier) => Number(tierMap[tier]?.qty || 0);
+    const getSales = () => rows.reduce((sum, r) => sum + Number(r.sales || 0), 0);
+    let totalCommission = 0;
+    const breakdown = [];
+    for (const r of applicable) {
+      let comm = 0;
+      if (r.calculation_type === 'per_pcs_customer_tier') {
+        comm += getQty('reguler') * Number(r.commission_reguler_per_pcs || 0);
+        comm += getQty('semi_grosir') * Number(r.commission_semi_grosir_per_pcs || 0);
+        comm += getQty('grosir_seri') * Number(r.commission_grosir_seri_per_pcs || 0);
+      } else if (r.calculation_type === 'percentage_sales') {
+        comm = getSales() * Number(r.percentage) / 100;
+      } else if (r.calculation_type === 'per_transaction') {
+        const [cntRow] = await db.execute('SELECT COUNT(*) AS cnt FROM transactions WHERE branch_id=? AND user_id=? AND status IN ("completed","partially_cancelled") AND DATE(created_at) BETWEEN ? AND ?', [branchId, u.id, start, end]);
+        comm = Number(cntRow[0].cnt) * Number(r.flat_amount);
+      } else {
+        comm = Number(r.flat_amount);
+      }
+      comm = asMoney(comm);
+      if (comm > 0) {
+        totalCommission += comm;
+        breakdown.push({ rule_id: r.id, name: r.name, type: r.calculation_type, commission: comm });
+      }
+    }
+    if (totalCommission > 0 || rows.length) {
+      perAccount.push({
+        user_id: u.id,
+        name: u.name,
+        role: u.role,
+        qty_reguler: getQty('reguler'),
+        qty_semi: getQty('semi_grosir'),
+        qty_grosir: getQty('grosir_seri'),
+        total_qty: getQty('reguler') + getQty('semi_grosir') + getQty('grosir_seri'),
+        total_sales: asMoney(getSales()),
+        total_transactions: rows.reduce((a, r) => a + Number(r.trx || 0), 0),
+        commission: asMoney(totalCommission),
+        breakdown,
+        tiers: rows,
+      });
+    }
+  }
+  perAccount.sort((a, b) => b.commission - a.commission);
+  const total = perAccount.reduce((sum, r) => sum + Number(r.commission), 0);
+  return { per_account: perAccount, total_commission: asMoney(total) };
+}
+
 router.get('/report', authenticate, authorize('owner'), async (req, res, next) => {
   try {
     const requestedBranch = Number(req.query.branch_id);
@@ -44,69 +107,30 @@ router.get('/report', authenticate, authorize('owner'), async (req, res, next) =
     const end = isDate(req.query.end) ? req.query.end : todayStr;
     if (start > end) return res.status(400).json({ success: false, message: 'Rentang tanggal tidak valid' });
 
-    // Live per user — include branch selector: owner can query any branch
     const [branches] = await db.execute('SELECT id, name FROM branches WHERE is_active=TRUE ORDER BY id');
-    const [rules] = await db.execute(`SELECT * FROM commission_rules WHERE (branch_id = ? OR branch_id IS NULL) AND (is_active=TRUE OR is_active=1)`, [branchId]);
-    const [users] = await db.execute('SELECT id, name, role FROM users WHERE branch_id=? AND is_active=TRUE ORDER BY role, name', [branchId]);
-    const report = [];
-    for (const u of users) {
-      const applicable = rules.filter((r) => r.applies_to === 'all' || (r.applies_to === 'role' && String(r.role).toLowerCase() === String(u.role).toLowerCase()) || (r.applies_to === 'user' && Number(r.user_id) === Number(u.id)));
-      if (!applicable.length) continue;
-      // aggregate qty per customer tier
-      const [rows] = await db.execute(
-        `SELECT COALESCE(c.price_tier, 'reguler') AS tier, COALESCE(SUM(ti.quantity - ti.cancelled_qty),0) AS qty, COUNT(DISTINCT t.id) AS trx, COALESCE(SUM(t.grand_total - t.cancelled_amount),0) AS sales
-         FROM transactions t
-         JOIN transaction_items ti ON ti.transaction_id=t.id
-         LEFT JOIN customers c ON c.id=t.customer_id
-         WHERE t.branch_id=? AND t.user_id=? AND t.status IN ('completed','partially_cancelled') AND DATE(t.created_at) BETWEEN ? AND ?
-         GROUP BY tier`,
-        [branchId, u.id, start, end]
-      );
-      const tierMap = Object.fromEntries(rows.map((r) => [r.tier, r]));
-      const getQty = (tier) => Number(tierMap[tier]?.qty || 0);
-      const getSales = () => rows.reduce((s, r) => s + Number(r.sales || 0), 0);
-      let totalCommission = 0;
-      const breakdown = [];
-      for (const r of applicable) {
-        let comm = 0;
-        if (r.calculation_type === 'per_pcs_customer_tier') {
-          comm += getQty('reguler') * Number(r.commission_reguler_per_pcs || 0);
-          comm += getQty('semi_grosir') * Number(r.commission_semi_grosir_per_pcs || 0);
-          comm += getQty('grosir_seri') * Number(r.commission_grosir_seri_per_pcs || 0);
-        } else if (r.calculation_type === 'percentage_sales') {
-          comm = getSales() * Number(r.percentage) / 100;
-        } else if (r.calculation_type === 'per_transaction') {
-          const [cntRow] = await db.execute('SELECT COUNT(*) AS cnt FROM transactions WHERE branch_id=? AND user_id=? AND status IN ("completed","partially_cancelled") AND DATE(created_at) BETWEEN ? AND ?', [branchId, u.id, start, end]);
-          comm = Number(cntRow[0].cnt) * Number(r.flat_amount);
-        } else {
-          comm = Number(r.flat_amount);
-        }
-        comm = asMoney(comm);
-        if (comm > 0) {
-          totalCommission += comm;
-          breakdown.push({ rule_id: r.id, name: r.name, type: r.calculation_type, commission: comm });
-        }
-      }
-      if (totalCommission > 0 || rows.length) {
-        report.push({
-          user_id: u.id,
-          name: u.name,
-          role: u.role,
-          qty_reguler: getQty('reguler'),
-          qty_semi: getQty('semi_grosir'),
-          qty_grosir: getQty('grosir_seri'),
-          total_qty: getQty('reguler') + getQty('semi_grosir') + getQty('grosir_seri'),
-          total_sales: asMoney(getSales()),
-          total_transactions: rows.reduce((a, r) => a + Number(r.trx || 0), 0),
-          commission: asMoney(totalCommission),
-          breakdown,
-          tiers: rows,
-        });
-      }
+    const report = await computeBranchReport(branchId, start, end);
+    res.json({ success: true, data: { period_start: start, period_end: end, branch_id: branchId, branches, ...report } });
+  } catch (error) { next(error); }
+});
+
+// Ringkasan komisi per cabang (owner) — buat dashboard "Semua Toko".
+router.get('/all-branches', authenticate, authorize('owner'), async (req, res, next) => {
+  try {
+    const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || '');
+    const today = new Date();
+    const first = localMonthStartString(today);
+    const todayStr = localDateString(today);
+    const start = isDate(req.query.start) ? req.query.start : first;
+    const end = isDate(req.query.end) ? req.query.end : todayStr;
+    if (start > end) return res.status(400).json({ success: false, message: 'Rentang tanggal tidak valid' });
+    const [branches] = await db.execute('SELECT id, name FROM branches WHERE is_active=TRUE ORDER BY id');
+    const perBranch = [];
+    for (const b of branches) {
+      const report = await computeBranchReport(b.id, start, end);
+      perBranch.push({ branch_id: b.id, branch_name: b.name, ...report });
     }
-    report.sort((a, b) => b.commission - a.commission);
-    const total = report.reduce((s, r) => s + Number(r.commission), 0);
-    res.json({ success: true, data: { period_start: start, period_end: end, branch_id: branchId, branches, total_commission: asMoney(total), per_account: report } });
+    const grandTotal = perBranch.reduce((sum, b) => sum + Number(b.total_commission), 0);
+    res.json({ success: true, data: { period_start: start, period_end: end, per_branch: perBranch, total_commission: asMoney(grandTotal) } });
   } catch (error) { next(error); }
 });
 

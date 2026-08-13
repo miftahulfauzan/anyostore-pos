@@ -9,11 +9,16 @@ router.use(authenticate);
 router.get('/', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
   try {
     const search = (req.query.search || '').trim();
+    const action = (req.query.action || '').trim();
     let where = 'WHERE 1 = 1';
     const params = [];
     if (req.user.role !== 'owner') {
       where += ' AND u.branch_id = ?';
       params.push(req.user.branch_id);
+    }
+    if (action) {
+      where += ' AND al.action LIKE ?';
+      params.push(action + '%');
     }
     if (search) {
       where += ' AND (al.description LIKE ? OR al.action LIKE ? OR u.name LIKE ?)';

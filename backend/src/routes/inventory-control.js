@@ -471,6 +471,16 @@ router.post(
         [diff, o.insertId],
       );
       await c.commit();
+      await db.execute(
+        "INSERT INTO activity_logs (user_id, action, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)",
+        [
+          req.user.id,
+          "stock_opname",
+          `Opname gudang ${warehouseId}: ${items.length} item, selisih ${diff}`,
+          req.ip,
+          req.get("user-agent") || null,
+        ],
+      );
       res
         .status(201)
         .json({

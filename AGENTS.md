@@ -233,8 +233,8 @@ Aplikasi Android (Flutter, folder mobile/) sudah melalui banyak perubahan. Dokum
   - Qty keranjang bisa diketik keyboard (_QtyInput) + tombol -/+; nama+harga satu baris.
   - Pemilih varian (variant_picker.dart): qty juga bisa diketik (_QtyField).
   - Transaksi offline: saat gagal jaringan (SocketException/Timeout/ClientException) -> simpan ke OfflineStore (sqflite anyostore_offline.db), nomor sementara OFF-<branch>-<ts>, harga ikut HP, stok negatif diizinkan, auto-sync via syncOfflineTransactions() saat app dibuka + halaman Antrean Offline (menu Lainnya). Backend menerima offline:true + offline_invoice_no di POST /api/transactions (skip tier/promo, total ikut klien); nomor resmi dibuat server saat sync, nomor sementara tersimpan di kolom transactions.offline_invoice_no dan tetap bisa dicari di Riwayat.
-- Riwayat: kartu glass, status chip, filter Rentang/Status/Cari satu gaya dengan Laporan; field Cari punya ikon scan barcode (BarcodeScannerPage) yang langsung mengisi nomor invoice/barcode lalu memuat hasil (buat retur cepat).
-- Dashboard (dashboard_page.dart): mengikuti wireframe POS Dashboard Overview - pill rentang Hari ini/7 Hari/Bulan Ini, 4 kartu stat (Penjualan, Pengeluaran, Laba Bersih, Margin), grafik batang Penjualan 7 Hari (ketuk batang -> tooltip nilai), Transaksi Terakhir, tombol Mulai Kasir.
+- Riwayat: kartu glass, status chip, filter Rentang/Status/Cari satu gaya dengan Laporan; kartu transaksi menampilkan "Kasir: <nama>" (dari kolom cashier di list transaksi); field Cari punya ikon scan barcode (BarcodeScannerPage) yang langsung mengisi nomor invoice/barcode lalu memuat hasil (buat retur cepat).
+- Dashboard (dashboard_page.dart): mengikuti wireframe POS Dashboard Overview - pill rentang Hari ini/7 Hari/Bulan Ini, 4 kartu stat (Penjualan, Pengeluaran, Laba Bersih, Margin), grafik batang Penjualan 7 Hari (ketuk batang -> tooltip nilai), Transaksi Terakhir, tombol Mulai Kasir. Untuk OWNER: kartu "Semua Toko" — ranking cabang (badge 1-3) per penjualan pada rentang terpilih + laba + jumlah transaksi + komisi per cabang (dari GET /api/commissions/all-branches) + banner Total Komisi.
 - Laporan: Ringkasan/Penjualan/Penutupan/PPN; Cetak Penutupan (struk thermal via printer tersimpan); kartu diberi jarak antar-kartu. Tombol Export (share_plus) menghasilkan file CSV laporan berjalan dan bisa langsung dibagikan (WA/email/Drive).
 - Keuangan: kartu LABA RUGI HARI INI (blok gelap denim, angka besar di tengah, Pendapatan/Pengeluaran/Pemasukan sejajar).
 - Pengaturan:
@@ -244,7 +244,9 @@ Aplikasi Android (Flutter, folder mobile/) sudah melalui banyak perubahan. Dokum
   - Backup Data: tombol Backup Sekarang -> GET /api/backup (owner), file JSON disimpan di app documents (path_provider) lalu bisa di-Bagikan (share_plus -> Google Drive/email/WA). Toggle "Backup otomatis harian" (pos_auto_backup): saat app dibuka, backup otomatis bila >24 jam sejak terakhir (BackupService.shouldAutoBackup/runBackup).
   - Notifikasi: toggle "Notifikasi stok menipis" (pos_notify_low_stock, default ON). NotificationService (flutter_local_notifications + timezone Asia/Jakarta): cek stok rendah dari reportOverview low_stock saat app dibuka; pengingat harian 09.00 WIB (zonedSchedule matchDateTimeComponents.time). Android butuh coreLibraryDesugaringEnabled + desugar_jdk_libs di android/app/build.gradle.kts dan permission POST_NOTIFICATIONS/RECEIVE_BOOT_COMPLETED/SCHEDULE_EXACT_ALARM + receiver ScheduledNotification(Boot)Receiver di AndroidManifest.
 - Komisi: tab Saya/Aturan/Catatan/Laporan; migrasi menambah aturan default global "Komisi per pcs (default)" (Reguler 3000, Semi 3000, Grosir Seri 1000 per pcs, branch_id NULL) kalau belum ada; perhitungan live dari transaksi per pegawai.
-- Menu Lainnya: grup menu (UTAMA/AKUN & TOKO/PRODUK & INVENTORI/TRANSAKSI & KEUANGAN), tile Jenis Pelanggan (buka CustomersPage), Antrean Offline dengan badge jumlah.
+- Menu Lainnya: grup menu (UTAMA/AKUN & TOKO/PRODUK & INVENTORI/TRANSAKSI & KEUANGAN/MANAJEMEN), tile Jenis Pelanggan (buka CustomersPage), Antrean Offline dengan badge jumlah, Riwayat Aktivitas (ActivityLogPage) dengan filter chip Semua/Transaksi/Stok/Retur/Produk (query ?action= prefix di /api/activity-logs).
+- Daftar Produk (products_page.dart): tiap kartu punya tombol cetak label harga (printPriceLabel di PrinterService: nama, varian, harga besar 2x, sku, barcode opsional) — label rak 40x30, cetak via printer tersimpan tanpa scan ulang.
+- Opname (inventory_page.dart): item yang sudah masuk daftar bisa di-edit stok fisiknya dengan ketuk kartu (dialog input keyboard numeric), selain dihapus.
 
 ### Mobile teknis
 - File baru: lib/src/theme_controller.dart (ThemeMode + SharedPreferences), lib/src/notification_service.dart (notif lokal & jadwal harian), lib/src/backup_service.dart (backup JSON ke dokumen + cek jadwal + cek stok rendah). Main.dart memanggil NotificationService.init() + cek stok + auto-backup + jadwal pengingat saat app dibuka (hanya kalau sudah login).
@@ -252,7 +254,11 @@ Aplikasi Android (Flutter, folder mobile/) sudah melalui banyak perubahan. Dokum
 - Build APK: JANGAN build di folder OneDrive (APK korup ZIP_BAD). Rsync mobile/ ke /private/tmp/mbuild2, build di sana, copy hasilnya. Gradle butuh ANDROID_HOME=/opt/homebrew/share/android-commandlinetools dan JAVA_HOME=/opt/homebrew/opt/openjdk@17 (di mesin ini). CI job android-apk (ci.yml) membangun APK & upload artifact.
 
 ### Backend tambahan
-- transactions.js: mode offline (harga/total ikut HP, allow_negative_stock, offline_invoice_no), search riwayat mencakup offline_invoice_no; hold/pending/resume menerima branch_id (owner).
+- transactions.js: mode offline (harga/total ikut HP, allow_negative_stock, offline_invoice_no), search riwayat mencakup offline_invoice_no; hold/pending/resume menerima branch_id (owner); list transaksi mengembalikan u.name AS cashier.
+- dashboard.js: untuk owner, array `stores` berisi metrik per cabang: today/7d/month sales, expenses, transactions + jumlah produk.
+- commissions.js: helper computeBranchReport dipakai /report dan endpoint baru /all-branches (owner) — ringkasan komisi per cabang + total untuk rentang start/end.
+- activity-logs.js: dukung filter ?action=<prefix> (mis. transaction_, stock_, return_, product_).
+- products.js: log product_update / product_price_update (harga lama -> baru) ke activity_logs; inventory-control.js: log stock_opname (jumlah item + selisih).
 - settings.js: /logo-data menerima key (store_logo | invoice_logo).
 - users.js + auth.js: login pakai email ATAU username; CRUD pegawai punya field username (unik, 3-50, lowercase).
 - Migrasi baru: 20260812_user_username.sql, 20260812_offline_transaction_sync.sql, 20260812_default_commission_rules.sql.

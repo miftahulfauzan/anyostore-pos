@@ -136,9 +136,10 @@ class ApiClient {
         'data_url': 'data:$mime;base64,$base64',
       });
 
-  Future<List<dynamic>> activityLogs({String search = ''}) async {
+  Future<List<dynamic>> activityLogs({String search = '', String action = ''}) async {
     final res = await get('/activity-logs', {
       if (search.isNotEmpty) 'search': search,
+      if (action.isNotEmpty) 'action': action,
     });
     return (res['data'] as List?) ?? [];
   }
@@ -273,6 +274,16 @@ class ApiClient {
   // ===== Dashboard =====
   Future<Map<String, dynamic>> dashboard() async {
     final res = await get('/dashboard');
+    return (res['data'] as Map<String, dynamic>?) ?? {};
+  }
+
+  /// Ringkasan komisi per cabang (owner) untuk dashboard "Semua Toko".
+  Future<Map<String, dynamic>> commissionAllBranches({
+    required String start,
+    required String end,
+  }) async {
+    final res = await get('/commissions/all-branches',
+        {'start': start, 'end': end});
     return (res['data'] as Map<String, dynamic>?) ?? {};
   }
 

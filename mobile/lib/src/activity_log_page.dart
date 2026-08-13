@@ -16,6 +16,7 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
   List<Map<String, dynamic>> _rows = [];
   bool _loading = true;
   String? _error;
+  String _action = ''; // '' | transaction_ | stock_ | return_ | product_
 
   @override
   void initState() {
@@ -35,8 +36,8 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
       _error = null;
     });
     try {
-      final rows =
-          await widget.api.activityLogs(search: _search.text.trim());
+      final rows = await widget.api
+          .activityLogs(search: _search.text.trim(), action: _action);
       if (!mounted) return;
       setState(() => _rows = rows.cast<Map<String, dynamic>>());
     } on ApiException catch (e) {
@@ -75,6 +76,44 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                             const BorderSide(color: kTaskDark, width: 1.4)),
                   ),
                   onSubmitted: (_) => _load(),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (final f in const [
+                        ('', 'Semua'),
+                        ('transaction_', 'Transaksi'),
+                        ('stock_', 'Stok'),
+                        ('return_', 'Retur'),
+                        ('product_', 'Produk'),
+                      ])
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(f.$2,
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: _action == f.$1
+                                        ? FontWeight.w800
+                                        : FontWeight.w600)),
+                            selected: _action == f.$1,
+                            selectedColor: kTaskDark,
+                            labelStyle: TextStyle(
+                                color: _action == f.$1
+                                    ? Colors.white
+                                    : kTaskGray),
+                            onSelected: (_) {
+                              setState(() => _action = f.$1);
+                              _load();
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
               Expanded(
