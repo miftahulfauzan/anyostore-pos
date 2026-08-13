@@ -1,12 +1,19 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import 'format.dart';
 
 class VariantPicker extends StatefulWidget {
   const VariantPicker(
-      {super.key, required this.product, required this.variants});
+      {super.key,
+      required this.product,
+      required this.variants,
+      required this.mediaUrl});
   final Map<String, dynamic> product;
   final List<Map<String, dynamic>> variants;
+
+  /// Mengubah path foto relatif -> URL penuh.
+  final String Function(String?) mediaUrl;
 
   @override
   State<VariantPicker> createState() => _VariantPickerState();
@@ -64,6 +71,27 @@ class _VariantPickerState extends State<VariantPicker> {
                           setState(() => _variantId = v['id'] as int?),
                     ),
                 ],
+              ),
+              const SizedBox(height: 10),
+              // Foto varian terpilih (fallback foto produk).
+              Builder(
+                builder: (context) {
+                  final photoPath = (sel?['photo_path']?.toString() ??
+                          widget.product['photo_path']?.toString()) ??
+                      '';
+                  final url = widget.mediaUrl(photoPath);
+                  if (url.isEmpty) return const SizedBox.shrink();
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: CachedNetworkImage(
+                      imageUrl: url,
+                      height: 110,
+                      width: double.maxFinite,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 10),
               if (sel != null)

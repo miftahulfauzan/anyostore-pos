@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_const_constructors
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -81,7 +83,7 @@ class _ReportsPageState extends State<ReportsPage> {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: const Color(0xffF5F1EA),
+      color: pageBg(context),
       child: Stack(
         children: [
           const Positioned.fill(child: SoftBlobs()),
@@ -409,10 +411,10 @@ class _Card extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(title,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xff1E3A5F))),
+                    color: ink(context))),
             const SizedBox(height: 10),
             for (var i = 0; i < rows.length; i++) ...[
               if (i > 0)
@@ -441,14 +443,14 @@ class _Row extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style:
-                      const TextStyle(fontSize: 12, color: Color(0xff5f5f5d))),
+                      TextStyle(fontSize: 12, color: Color(0xff5f5f5d))),
             ),
             const SizedBox(width: 14),
             Text(value,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xff1E3A5F))),
+                    color: ink(context))),
           ],
         ),
       );

@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_const_constructors
+
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
@@ -106,7 +108,7 @@ class _ProductsPageState extends State<ProductsPage> {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: kTaskBg,
+      color: pageBg(context),
       child: Stack(
         children: [
           const Positioned.fill(child: SoftBlobs()),
@@ -129,7 +131,7 @@ class _ProductsPageState extends State<ProductsPage> {
                     focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide:
-                            const BorderSide(color: kTaskDark, width: 1.4)),
+                            BorderSide(color: ink(context), width: 1.4)),
                   ),
                   onSubmitted: (_) => _load(),
                 ),
@@ -165,22 +167,22 @@ class _ProductsPageState extends State<ProductsPage> {
                                             width: 48,
                                             height: 48,
                                             child: photo.isEmpty
-                                                ? const ColoredBox(
+                                                ? ColoredBox(
                                                     color: Color(0xffE6ECF3),
                                                     child: Icon(
                                                         Icons.inventory_2,
-                                                        color: kTaskDark),
+                                                        color: ink(context)),
                                                   )
                                                 : Image.network(
                                                     photo,
                                                     fit: BoxFit.cover,
                                                     errorBuilder:
                                                         (_, __, ___) =>
-                                                            const ColoredBox(
+                                                            ColoredBox(
                                                       color: Color(0xffE6ECF3),
                                                       child: Icon(
                                                           Icons.inventory_2,
-                                                          color: kTaskDark),
+                                                          color: ink(context)),
                                                     ),
                                                   ),
                                           ),
@@ -195,11 +197,11 @@ class _ProductsPageState extends State<ProductsPage> {
                                                   maxLines: 1,
                                                   overflow:
                                                       TextOverflow.ellipsis,
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                       fontSize: 13,
                                                       fontWeight:
                                                           FontWeight.w800,
-                                                      color: kTaskDark)),
+                                                      color: ink(context))),
                                               const SizedBox(height: 2),
                                               Text(
                                                   '${r['sku'] ?? ''} · Stok ${r['stock'] ?? 0}',
@@ -214,10 +216,10 @@ class _ProductsPageState extends State<ProductsPage> {
                                               CrossAxisAlignment.end,
                                           children: [
                                             Text(fmtRp(asNum(r['price'])),
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                     fontSize: 13,
                                                     fontWeight: FontWeight.w800,
-                                                    color: kTaskDark)),
+                                                    color: ink(context))),
                                             Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
@@ -227,10 +229,10 @@ class _ProductsPageState extends State<ProductsPage> {
                                                   visualDensity:
                                                       VisualDensity.compact,
                                                   tooltip: 'Cetak label harga',
-                                                  icon: const Icon(
+                                                  icon: Icon(
                                                       Icons.print,
                                                       size: 18,
-                                                      color: kTaskDark),
+                                                      color: ink(context)),
                                                 ),
                                                 IconButton(
                                                   onPressed: () =>

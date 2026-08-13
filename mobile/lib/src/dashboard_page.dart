@@ -1,10 +1,11 @@
+// ignore_for_file: prefer_const_constructors
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'api_client.dart';
 import 'auth_store.dart';
 import 'format.dart';
-import 'pos_page.dart';
 import 'task_ui.dart';
 
 const _kGray = Color(0xff8A857C);
@@ -75,11 +76,6 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  void _openKasir() {
-    Navigator.of(context).popUntil((route) => route.isFirst);
-    PosPage.requestTab.value = 0;
-  }
-
   (double, double, double, double) _stats() {
     final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
     final (sales, expenses) = switch (_range) {
@@ -125,10 +121,10 @@ class _DashboardPageState extends State<DashboardPage> {
     final (sales, expenses, profit, margin) = _stats();
 
     return ColoredBox(
-      color: const Color(0xffF5F1EA),
+      color: pageBg(context),
       child: RefreshIndicator(
         onRefresh: _load,
-        color: kTaskDark,
+        color: ink(context),
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
           children: _stagger([
@@ -136,7 +132,7 @@ class _DashboardPageState extends State<DashboardPage> {
               children: [
                 BrandLogo(api: widget.api, size: 42, radius: 13),
                 const SizedBox(width: 10),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -144,7 +140,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           style: TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w800,
-                              color: kTaskDark)),
+                              color: ink(context))),
                       Text('Ringkasan bisnis Anda',
                           style: TextStyle(fontSize: 11, color: _kGray)),
                     ],
@@ -153,12 +149,12 @@ class _DashboardPageState extends State<DashboardPage> {
                 _circleButton(Icons.refresh, _load),
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text('Halo, $name',
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
-                    color: kTaskDark)),
+                    color: ink(context))),
             const SizedBox(height: 10),
             // Time range pills
             SizedBox(
@@ -233,6 +229,71 @@ class _DashboardPageState extends State<DashboardPage> {
               ],
             ),
             const SizedBox(height: 14),
+            // Info transaksi hari ini (summary dari backend).
+            GlassCard(
+              padding: const EdgeInsets.all(14),
+              radius: 20,
+              child: Row(
+                children: [
+                  const Icon(Icons.receipt_long, size: 18, color: _kDenim),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text('Transaksi hari ini',
+                        style: TextStyle(fontSize: 12, color: _kGray)),
+                  ),
+                  Text(
+                      '${((_data?['summary'] as Map<String, dynamic>?) ?? {})['today_transactions'] ?? 0} transaksi',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: ink(context))),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            // Metode pembayaran (30 hari).
+            if (((_data?['payments'] as List?) ?? []).isNotEmpty)
+              GlassCard(
+                padding: const EdgeInsets.all(16),
+                radius: 24,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Metode Pembayaran (30 hari)',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: kTaskDark)),
+                    const SizedBox(height: 8),
+                    for (final p
+                        in ((_data?['payments'] as List?) ?? [])
+                            .cast<Map<String, dynamic>>())
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 5),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                  (p['payment_method'] ?? '')
+                                      .toString()
+                                      .toUpperCase(),
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: ink(context))),
+                            ),
+                            Text(fmtRp(asNum(p['amount'])),
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: _kDenim)),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 14),
             // Chart: Penjualan 7 Hari
             if (trend.isNotEmpty)
               GlassCard(
@@ -244,17 +305,17 @@ class _DashboardPageState extends State<DashboardPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Penjualan 7 Hari',
+                        Text('Penjualan 7 Hari',
                             style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w800,
-                                color: kTaskDark)),
+                                color: ink(context))),
                         if (_chartSel >= 0 && _chartSel < trend.length)
                           Container(
-                            padding: const EdgeInsets.symmetric(
+                            padding: EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: kTaskDark,
+                              color: ink(context),
                               borderRadius: BorderRadius.circular(99),
                             ),
                             child: Text(
@@ -340,11 +401,11 @@ class _DashboardPageState extends State<DashboardPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Transaksi Terakhir',
+                    Text('Transaksi Terakhir',
                         style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
-                            color: kTaskDark)),
+                            color: ink(context))),
                     const SizedBox(height: 8),
                     for (final t in recent)
                       Padding(
@@ -355,11 +416,11 @@ class _DashboardPageState extends State<DashboardPage> {
                               width: 34,
                               height: 34,
                               decoration: BoxDecoration(
-                                color: const Color(0xffE3EAF2),
+                                color: Color(0xffE3EAF2),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Icon(Icons.receipt,
-                                  size: 16, color: kTaskDark),
+                              child: Icon(Icons.receipt,
+                                  size: 16, color: ink(context)),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
@@ -370,10 +431,10 @@ class _DashboardPageState extends State<DashboardPage> {
                                       t['invoice_no']?.toString() ?? '',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w700,
-                                          color: kTaskDark)),
+                                          color: ink(context))),
                                   Text(t['cashier']?.toString() ?? '',
                                       style: const TextStyle(
                                           fontSize: 10, color: _kGray)),
@@ -381,10 +442,10 @@ class _DashboardPageState extends State<DashboardPage> {
                               ),
                             ),
                             Text(fmtRp(asNum(t['grand_total'])),
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w800,
-                                    color: kTaskDark)),
+                                    color: ink(context))),
                           ],
                         ),
                       ),
@@ -392,40 +453,6 @@ class _DashboardPageState extends State<DashboardPage> {
                 ),
               ),
             ],
-            const SizedBox(height: 18),
-            SizedBox(
-              height: 56,
-              child: FilledButton(
-                onPressed: _openKasir,
-                style: FilledButton.styleFrom(
-                  backgroundColor: kTaskDark,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28)),
-                  padding: const EdgeInsets.only(left: 30, right: 6),
-                ),
-                child: Row(
-                  children: [
-                    const Expanded(
-                      child: Text('Mulai Kasir',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w600)),
-                    ),
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.arrow_forward,
-                          size: 20, color: kTaskDark),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           ]),
         ),
       ),
@@ -443,14 +470,14 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _circleButton(IconData icon, VoidCallback onTap) {
     return Material(
       color: Colors.white,
-      shape: const CircleBorder(),
+      shape: CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: SizedBox(
           width: 42,
           height: 42,
-          child: Icon(icon, size: 19, color: kTaskDark),
+          child: Icon(icon, size: 19, color: ink(context)),
         ),
       ),
     );
@@ -480,15 +507,15 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(value,
                 maxLines: 1,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
-                    color: kTaskDark)),
+                    color: ink(context))),
           ),
         ],
       ),
@@ -533,24 +560,24 @@ class _StoresCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text('Semua Toko',
                     style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
-                        color: kTaskDark)),
+                        color: ink(context))),
               ),
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: const Color(0xffE3EAF2),
                   borderRadius: BorderRadius.circular(99),
                 ),
                 child: Text(rangeLabel,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 9, fontWeight: FontWeight.w700,
-                        color: kTaskDark)),
+                        color: ink(context))),
               ),
             ],
           ),
@@ -597,10 +624,10 @@ class _StoresCard extends StatelessWidget {
                       Text(ranked[i]['name']?.toString() ?? '',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w800,
-                              color: kTaskDark)),
+                              color: ink(context))),
                       const SizedBox(height: 2),
                       Text(
                           '${fmtRp(_asNum(is7d ? ranked[i]['seven_day_sales'] : isMonth ? ranked[i]['month_sales'] : ranked[i]['today_sales']))}'

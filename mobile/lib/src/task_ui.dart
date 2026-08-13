@@ -13,6 +13,17 @@ const kTaskPurple = Color(0xff3B6EA5);
 const kTaskGray = Color(0xff8A857C);
 const kTaskBorder = Color(0xffE7E0D6);
 
+/// Warna latar halaman yang ikut mode terang/gelap.
+Color pageBg(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xff12151B)
+        : kTaskBg;
+
+/// Warna teks/ikon utama yang ikut mode terang/gelap.
+Color ink(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xffE7ECF4)
+        : kTaskDark;
 
 /// Entrance: fade + slide-up halus (Corporate motion). Delay untuk stagger.
 class Entrance extends StatelessWidget {
@@ -94,8 +105,7 @@ class PillTabs extends StatelessWidget {
     );
   }
 
-  Widget _pill(({String value, IconData icon, String label}) t,
-      bool centered) {
+  Widget _pill(({String value, IconData icon, String label}) t, bool centered) {
     final active = t.value == selected;
     return AnimatedScale(
       scale: active ? 1.02 : 1.0,
@@ -342,6 +352,8 @@ class GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark =
+        dark || Theme.of(context).brightness == Brightness.dark;
     final inner = Material(
       color: Colors.transparent,
       child: InkWell(
@@ -358,10 +370,10 @@ class GlassCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(radius),
             gradient: LinearGradient(
-              colors: dark
+              colors: isDark
                   ? [
-                      const Color(0xF01E3A5F),
-                      const Color(0xC92E5D8F),
+                      const Color(0xFF262F3D),
+                      const Color(0xFF1D2430),
                     ]
                   : [
                       Colors.white.withValues(alpha: .78),
@@ -371,8 +383,8 @@ class GlassCard extends StatelessWidget {
               end: Alignment.bottomRight,
             ),
             border: Border.all(
-                color: dark
-                    ? Colors.white.withValues(alpha: .28)
+                color: isDark
+                    ? Colors.white.withValues(alpha: .16)
                     : Colors.white.withValues(alpha: .55)),
             boxShadow: const [
               BoxShadow(
@@ -381,9 +393,8 @@ class GlassCard extends StatelessWidget {
                   offset: Offset(0, 8)),
             ],
           ),
-          child: height == null
-              ? inner
-              : SizedBox(height: height, child: inner),
+          child:
+              height == null ? inner : SizedBox(height: height, child: inner),
         ),
       ),
     );
@@ -423,15 +434,31 @@ class GlassNavBar extends StatelessWidget {
                 filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
                 child: ColorFiltered(
                   colorFilter: const ColorFilter.matrix([
-                    1.25, 0, 0, 0, 0,
-                    0, 1.25, 0, 0, 0,
-                    0, 0, 1.25, 0, 0,
-                    0, 0, 0, 1, 0,
+                    1.25,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1.25,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1.25,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                    0,
                   ]),
                   child: Container(
                     height: 62,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
@@ -489,9 +516,7 @@ class GlassNavBar extends StatelessWidget {
           margin: const EdgeInsets.symmetric(vertical: 1),
           decoration: BoxDecoration(
             color: active
-                ? (dark
-                    ? const Color(0xff1E3A5F)
-                    : kTaskDark)
+                ? (dark ? const Color(0xff1E3A5F) : kTaskDark)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(18),
           ),

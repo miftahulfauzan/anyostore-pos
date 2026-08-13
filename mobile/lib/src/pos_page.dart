@@ -253,7 +253,8 @@ class _PosPageState extends State<PosPage> {
             ((detail['variants'] as List?) ?? []).cast<Map<String, dynamic>>();
         final result = await showDialog<Map<String, dynamic>>(
           context: context,
-          builder: (_) => VariantPicker(product: detail, variants: variants),
+          builder: (_) => VariantPicker(
+              product: detail, variants: variants, mediaUrl: _mediaUrl),
         );
         if (result == null) return;
         variantId = result['variant_id'] as int?;
@@ -498,7 +499,12 @@ class _PosPageState extends State<PosPage> {
         builder: (context, scrollController) => StatefulBuilder(
           builder: (context, setSheetState) {
             _sheetRefresh = setSheetState;
-            return _CartSheet(
+            return ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(24)),
+              child: Material(
+                color: Theme.of(context).colorScheme.surface,
+                child: _CartSheet(
         scrollController: scrollController,
         cart: _cart,
         customers: _customers,
@@ -566,7 +572,9 @@ class _PosPageState extends State<PosPage> {
           }
         },
         onPay: () => _checkout(),
-      );
+      ),
+              ),
+            );
           },
         ),
       ),
@@ -741,7 +749,12 @@ class _PosPageState extends State<PosPage> {
       // Tanpa AppBar utama (header dihapus).
       body: Stack(
         children: [
-          IndexedStack(index: _tab, children: pages),
+          // Jarak dari status bar (header utama sudah dihapus).
+          SafeArea(
+            top: true,
+            bottom: false,
+            child: IndexedStack(index: _tab, children: pages),
+          ),
           // Navbar overlay: area di luar pil benar-benar transparan,
           // konten halaman tetap terlihat/mengalir di belakangnya.
           Positioned(
@@ -809,7 +822,7 @@ class _PosPageState extends State<PosPage> {
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
                     child: _PosHeaderRow(
                       isOwner: context.read<AuthStore>().role == 'owner',
                       branches: _branches,
@@ -1322,7 +1335,6 @@ class _CartSheetState extends State<_CartSheet> {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Judul: fokus daftar barang + jumlah item aktif.
@@ -1434,58 +1446,97 @@ class _CartSheetState extends State<_CartSheet> {
                             horizontal: 10, vertical: 6),
                         child: Row(
                           children: [
+                            // Setengah kiri: nama (penuh), harga, varian.
                             Expanded(
+                              flex: 3,
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.baseline,
-                                    textBaseline: TextBaseline.alphabetic,
-                                    children: [
-                                      Expanded(
-                                        child: Text(item.name,
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.w700)),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(fmtRp(item.priceOverride ?? item.price),
-                                          style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w800,
-                                              color: Color(0xff1E3A5F))),
-                                    ],
-                                  ),
+                                  Text(item.name,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          height: 1.2)),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                      fmtRp(item.priceOverride ?? item.price),
+                                      style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xff1E3A5F))),
                                   if (item.variantLabel != null)
                                     Text(item.variantLabel!,
                                         style: TextStyle(
-                                            fontSize: 11,
+                                            fontSize: 10,
                                             color: Theme.of(context)
                                                 .colorScheme
                                                 .outline)),
                                 ],
                               ),
                             ),
-                            IconButton(
-                              onPressed: () => widget.onQtyChanged(item, -1),
-                              icon: const Icon(Icons.remove_circle_outline),
-                            ),
-                            _QtyInput(
-                              value: item.qty,
-                              onChanged: (v) => widget.onQtySet(item, v),
-                            ),
-                            IconButton(
-                              onPressed: () => widget.onQtyChanged(item, 1),
-                              icon: const Icon(Icons.add_circle_outline),
-                            ),
-                            IconButton(
-                              onPressed: () => widget.onEditPrice(item),
-                              icon: const Icon(Icons.edit_outlined),
-                              tooltip: 'Ubah harga',
-                            ),
-                            IconButton(
-                              onPressed: () => widget.onRemove(item),
-                              icon: const Icon(Icons.delete_outline),
+                            const SizedBox(width: 6),
+                            // Setengah kanan: kontrol - qty + edit hapus.
+                            Expanded(
+                              flex: 2,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  IconButton(
+                                    onPressed: () =>
+                                        widget.onQtyChanged(item, -1),
+                                    visualDensity:
+                                        VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints:
+                                        const BoxConstraints.tightFor(
+                                            width: 28, height: 34),
+                                    icon: const Icon(
+                                        Icons.remove_circle_outline,
+                                        size: 19),
+                                  ),
+                                  _QtyInput(
+                                    value: item.qty,
+                                    onChanged: (v) =>
+                                        widget.onQtySet(item, v),
+                                  ),
+                                  IconButton(
+                                    onPressed: () =>
+                                        widget.onQtyChanged(item, 1),
+                                    visualDensity:
+                                        VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints:
+                                        const BoxConstraints.tightFor(
+                                            width: 28, height: 34),
+                                    icon: const Icon(
+                                        Icons.add_circle_outline,
+                                        size: 19),
+                                  ),
+                                  IconButton(
+                                    onPressed: () =>
+                                        widget.onEditPrice(item),
+                                    visualDensity:
+                                        VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints:
+                                        const BoxConstraints.tightFor(
+                                            width: 28, height: 34),
+                                    icon: const Icon(Icons.edit_outlined,
+                                        size: 17),
+                                    tooltip: 'Ubah harga',
+                                  ),
+                                  IconButton(
+                                    onPressed: () => widget.onRemove(item),
+                                    visualDensity:
+                                        VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints:
+                                        const BoxConstraints.tightFor(
+                                            width: 28, height: 34),
+                                    icon: const Icon(Icons.delete_outline,
+                                        size: 18),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),

@@ -162,8 +162,12 @@ class PrinterService {
       await line('NPWP: ${store['store_tax_id']}', alignment: Alignment.center);
     }
     if (store['receipt_header']?.toString().isNotEmpty == true) {
-      await line(store['receipt_header'].toString(),
-          alignment: Alignment.center);
+      // Header struk bisa beberapa baris (mis. daftar no HP admin).
+      for (final h in store['receipt_header'].toString().split('\n')) {
+        if (h.trim().isNotEmpty) {
+          await line(h.trim(), alignment: Alignment.center);
+        }
+      }
     }
     await line('--------------------------------');
 

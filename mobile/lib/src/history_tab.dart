@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_const_constructors
+
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
@@ -465,7 +467,7 @@ class _HistoryTabState extends State<HistoryTab> {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: const Color(0xffF5F1EA),
+      color: pageBg(context),
       child: Stack(
         children: [
           const Positioned.fill(child: SoftBlobs()),
@@ -717,10 +719,10 @@ class _TxCard extends StatelessWidget {
                     Text(title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xff1E3A5F))),
+                            color: ink(context))),
                     const SizedBox(height: 3),
                     Text(subtitle,
                         maxLines: 2,
@@ -730,15 +732,15 @@ class _TxCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(trailing,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xff1E3A5F))),
+                          color: ink(context))),
                   if (status != null && status!.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     _StatusChip(status!),

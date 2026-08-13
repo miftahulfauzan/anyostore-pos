@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_const_constructors
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -85,10 +87,10 @@ class MorePage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(name,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: _kInk)),
+                            color: ink(context))),
                     if (email.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(email,
@@ -105,58 +107,58 @@ class MorePage extends StatelessWidget {
         _OfflineTile(api: api),
         const SizedBox(height: 12),
         _group('UTAMA', [
-          _row(Icons.dashboard, 'Dashboard', const Color(0xffE3EAF2), _kInk,
+          _row(context, Icons.dashboard, 'Dashboard', const Color(0xffE3EAF2), _kInk,
               () => _open(context, 'Dashboard', DashboardPage(api: api))),
         ]),
         _group('AKUN & TOKO', [
-          _row(Icons.person_outline, 'Akun Saya', const Color(0xffE3EAF2),
+          _row(context, Icons.person_outline, 'Akun Saya', const Color(0xffE3EAF2),
               const Color(0xff1E3A5F),
               () => _open(context, 'Akun Saya', ProfilePage(api: api))),
           _divider(),
-          _row(Icons.settings, 'Pengaturan', const Color(0xffE3EAF2), _kInk,
+          _row(context, Icons.settings, 'Pengaturan', const Color(0xffE3EAF2), _kInk,
               () => _open(context, 'Pengaturan', SettingsPage(api: api))),
         ]),
         _group('PRODUK & INVENTORI', [
-          _row(Icons.inventory_2_outlined, 'Daftar Produk',
+          _row(context, Icons.inventory_2_outlined, 'Daftar Produk',
               const Color(0xffE3EAF2), const Color(0xff1E3A5F),
               () => _open(context, 'Daftar Produk',
                   ProductsPage(api: api, branchId: branchId))),
           _divider(),
-          _row(Icons.history, 'Riwayat Stok', const Color(0xffE3EAF2),
+          _row(context, Icons.history, 'Riwayat Stok', const Color(0xffE3EAF2),
               const Color(0xff1E3A5F), () => _open(context, 'Riwayat Stok',
                   StockMovementsPage(api: api, branchId: branchId))),
           _divider(),
-          _row(Icons.swap_vert, 'Laporan Masuk/Keluar',
+          _row(context, Icons.swap_vert, 'Laporan Masuk/Keluar',
               const Color(0xffE3EAF2), const Color(0xff1E3A5F),
               () => _open(context, 'Laporan Masuk/Keluar',
                   MutationReportPage(api: api))),
         ]),
         _group('TRANSAKSI & KEUANGAN', [
-          _row(Icons.people, 'Jenis Pelanggan', const Color(0xffE3EAF2),
+          _row(context, Icons.people, 'Jenis Pelanggan', const Color(0xffE3EAF2),
               const Color(0xff1E3A5F), () => _open(context, 'Jenis Pelanggan',
                   CustomersPage(api: api))),
           _divider(),
-          _row(Icons.payments, 'Laci Kas', const Color(0xffE3EAF2),
+          _row(context, Icons.payments, 'Laci Kas', const Color(0xffE3EAF2),
               const Color(0xff1E3A5F), () => _open(context, 'Laci Kas',
                   CashDrawerPage(api: api))),
           _divider(),
-          _row(Icons.account_balance_wallet, 'Keuangan',
+          _row(context, Icons.account_balance_wallet, 'Keuangan',
               const Color(0xffE3EAF2), const Color(0xff1E3A5F),
               () => _open(context, 'Keuangan', FinancePage(api: api))),
           _divider(),
-          _row(Icons.payments_outlined, 'Komisi', const Color(0xffE3EAF2),
+          _row(context, Icons.payments_outlined, 'Komisi', const Color(0xffE3EAF2),
               const Color(0xff1E3A5F), () => _open(context, 'Komisi',
                   CommissionsPage(api: api, branchId: branchId, role: role))),
         ]),
         _group('MANAJEMEN', [
-          _row(Icons.badge, 'Pegawai', const Color(0xffE3EAF2),
+          _row(context, Icons.badge, 'Pegawai', const Color(0xffE3EAF2),
               const Color(0xff1E3A5F), () => _open(context, 'Pegawai',
                   UsersPage(api: api, branchId: branchId, role: role))),
           _divider(),
-          _row(Icons.local_offer, 'Promo', const Color(0xffE3EAF2), _kInk,
+          _row(context, Icons.local_offer, 'Promo', const Color(0xffE3EAF2), _kInk,
               () => _open(context, 'Promo', PromotionsPage(api: api))),
           _divider(),
-          _row(Icons.receipt_long_outlined, 'Riwayat Aktivitas',
+          _row(context, Icons.receipt_long_outlined, 'Riwayat Aktivitas',
               const Color(0xffE3EAF2), const Color(0xff1E3A5F),
               () => _open(context, 'Riwayat Aktivitas',
                   ActivityLogPage(api: api))),
@@ -216,8 +218,8 @@ class MorePage extends StatelessWidget {
         endIndent: 16,
       );
 
-  Widget _row(IconData icon, String title, Color chipBg, Color chipFg,
-      VoidCallback onTap) {
+  Widget _row(BuildContext context, IconData icon, String title,
+      Color chipBg, Color chipFg, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -233,13 +235,13 @@ class MorePage extends StatelessWidget {
               ),
               child: Icon(icon, size: 17, color: chipFg),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(
               child: Text(title,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: _kInk)),
+                      color: ink(context))),
             ),
             const Icon(Icons.chevron_right, size: 18, color: Color(0xff94a3b8)),
           ],
@@ -299,15 +301,15 @@ class _OfflineTileState extends State<_OfflineTile> {
               color: const Color(0xffF7E8DD),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.cloud_off, size: 17, color: Color(0xffD47E4D)),
+            child: Icon(Icons.cloud_off, size: 17, color: Color(0xffD47E4D)),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Text('Antrean Offline',
                 style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xff1E3A5F))),
+                    color: ink(context))),
           ),
           if (_count > 0)
             Container(

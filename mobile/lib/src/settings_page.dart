@@ -497,8 +497,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 const SizedBox(height: 8),
                 TextField(
                     controller: _receiptHeader,
+                    minLines: 1,
+                    maxLines: 4,
                     decoration: const InputDecoration(
-                        labelText: 'Header struk',
+                        labelText: 'Header struk (maks 4 baris, bisa beberapa no HP)',
                         border: OutlineInputBorder())),
                 const SizedBox(height: 8),
                 TextField(

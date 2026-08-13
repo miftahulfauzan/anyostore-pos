@@ -24,7 +24,7 @@ class _InventoryPageState extends State<InventoryPage> {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: const Color(0xffF5F1EA),
+      color: pageBg(context),
       child: Stack(
         children: [
           const Positioned.fill(child: SoftBlobs()),
@@ -149,7 +149,7 @@ class _StockSectionState extends State<_StockSection> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
           child: Row(
             children: [
               _StatCell('Produk', '${_summary['total_products'] ?? 0}',
