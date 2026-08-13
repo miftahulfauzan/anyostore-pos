@@ -12,9 +12,9 @@ void main() {
           current: selected,
           onSelect: (i) => selected = i,
           items: const [
+            (icon: Icons.shopping_bag_outlined, activeIcon: Icons.shopping_bag, label: 'POS'),
             (icon: Icons.receipt_long_outlined, activeIcon: Icons.receipt_long, label: 'Riwayat'),
             (icon: Icons.inventory_2_outlined, activeIcon: Icons.inventory_2, label: 'Stok'),
-            (icon: Icons.add, activeIcon: Icons.add, label: 'Kasir'),
             (icon: Icons.bar_chart_outlined, activeIcon: Icons.bar_chart, label: 'Laporan'),
             (icon: Icons.more_horiz, activeIcon: Icons.more_horiz, label: 'Lainnya'),
           ],
@@ -22,11 +22,12 @@ void main() {
       ),
     ));
     await tester.pump(const Duration(milliseconds: 500));
-    // Label navbar tampil (Kasir diganti FAB tengah).
-    for (final label in ['Riwayat', 'Stok', 'Laporan', 'Lainnya']) {
+    // Semua label navbar tampil, POS paling kiri.
+    for (final label in ['POS', 'Riwayat', 'Stok', 'Laporan', 'Lainnya']) {
       expect(find.text(label), findsOneWidget);
     }
-    expect(find.byIcon(Icons.shopping_bag_outlined), findsOneWidget);
+    // POS aktif di awal -> ikon keranjang terisi.
+    expect(find.byIcon(Icons.shopping_bag), findsOneWidget);
     // Ketuk item -> onSelect terpanggil.
     await tester.tap(find.text('Laporan'));
     await tester.pump(const Duration(milliseconds: 300));

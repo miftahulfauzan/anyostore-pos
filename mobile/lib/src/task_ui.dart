@@ -390,10 +390,9 @@ class GlassCard extends StatelessWidget {
   }
 }
 
-/// Bottom nav Liquid Glass (iOS 26 style, diadaptasi dari
-/// QWEA0/Liquid-Glass-Android): backdrop blur + saturation, rim highlight
-/// dengan chromatic dispersion (pinggir merah/cyan), specular sweep dari
-/// "sumber cahaya" yang bergeser, dan FAB tengah seperti tetesan kaca.
+/// Bottom nav Liquid Glass MELAYANG (gaya iOS 26): pil kaca mengambang
+/// dengan 5 item sebaris — POS (keranjang) paling kiri, lalu Riwayat,
+/// Stok, Laporan, Lainnya. Tidak ada FAB menonjol; semua item senada.
 class GlassNavBar extends StatefulWidget {
   const GlassNavBar(
       {super.key,
@@ -429,18 +428,17 @@ class _GlassNavBarState extends State<GlassNavBar>
       duration: const Duration(milliseconds: 420),
       delay: const Duration(milliseconds: 120),
       child: SizedBox(
-        height: 100 + bottomPad,
+        height: 78 + bottomPad,
         child: Stack(
           clipBehavior: Clip.none,
           alignment: Alignment.bottomCenter,
           children: [
-            // Bar melayang: pil mengambang dengan margin kiri/kanan/bawah.
             Positioned(
               left: 14,
               right: 14,
               bottom: 14 + bottomPad,
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(28),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
                   child: ColorFiltered(
@@ -452,9 +450,9 @@ class _GlassNavBarState extends State<GlassNavBar>
                       0, 0, 0, 1, 0,
                     ]),
                     child: Container(
-                      height: 64,
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                      height: 62,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
@@ -489,8 +487,8 @@ class _GlassNavBarState extends State<GlassNavBar>
                                     shape: BoxShape.circle,
                                     gradient: RadialGradient(
                                       colors: [
-                                        Colors.white.withValues(alpha: .34),
-                                        Colors.white.withValues(alpha: .10),
+                                        Colors.white.withValues(alpha: .30),
+                                        Colors.white.withValues(alpha: .08),
                                         Colors.white.withValues(alpha: 0),
                                       ],
                                       stops: const [0, .45, 1],
@@ -500,114 +498,18 @@ class _GlassNavBarState extends State<GlassNavBar>
                               );
                             },
                           ),
-                          // Inner bevel di tepi atas (refraction ring).
-                          Positioned(
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            child: Container(
-                              height: 26,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    Colors.white.withValues(
-                                        alpha: dark ? .16 : .32),
-                                    Colors.white.withValues(alpha: 0),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          _LiquidRim(
-                            dark: dark,
-                            t: _light,
-                          ),
+                          _LiquidRim(dark: dark, t: _light),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               for (var i = 0; i < widget.items.length; i++)
-                                i == 2
-                                    ? const SizedBox(width: 64)
-                                    : _navIcon(i),
+                                _navIcon(i),
                             ],
                           ),
                         ],
                       ),
                     ),
                   ),
-                ),
-              ),
-            ),
-            // FAB tengah: tetesan kaca dengan highlight ikut "cahaya".
-            Positioned(
-              bottom: 44 + bottomPad,
-              child: _FabPress(
-                onTap: () => widget.onSelect(2),
-                child: AnimatedBuilder(
-                  animation: _light,
-                  builder: (context, _) {
-                    final lx = 0.18 + 0.64 * _light.value;
-                    final ly = 0.16 + 0.48 * _light.value;
-                    return Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          center: Alignment(lx - .5, ly - .5),
-                          radius: 1.1,
-                          colors: const [
-                            Color(0xFF9FC3E8),
-                            kTaskOrangeLight,
-                            kTaskOrange,
-                          ],
-                          stops: const [0, .48, 1],
-                        ),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: .95),
-                          width: 3,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: kTaskOrange.withValues(alpha: .55),
-                            blurRadius: 18,
-                            offset: const Offset(0, 7),
-                          ),
-                          BoxShadow(
-                            color: Colors.white.withValues(alpha: .45),
-                            blurRadius: 8,
-                            spreadRadius: -1,
-                          ),
-                        ],
-                      ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          // Specular dot kecil di permukaan kaca.
-                          Align(
-                            alignment: Alignment(lx * 2 - 1, ly * 2 - 1),
-                            child: Container(
-                              width: 26,
-                              height: 26,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: RadialGradient(
-                                  colors: [
-                                    Colors.white.withValues(alpha: .75),
-                                    Colors.white.withValues(alpha: 0),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          const Icon(Icons.shopping_bag_outlined,
-                              size: 27, color: Colors.white),
-                        ],
-                      ),
-                    );
-                  },
                 ),
               ),
             ),
@@ -620,6 +522,9 @@ class _GlassNavBarState extends State<GlassNavBar>
   Widget _navIcon(int i) {
     final item = widget.items[i];
     final active = widget.current == i;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final idleColor = dark ? const Color(0xffB9C3D0) : const Color(0xff5F5F5D);
+    final activeColor = dark ? Colors.white : kTaskDark;
     return Semantics(
       label: item.label,
       button: true,
@@ -627,51 +532,46 @@ class _GlassNavBarState extends State<GlassNavBar>
       child: GestureDetector(
         onTap: () => widget.onSelect(i),
         behavior: HitTestBehavior.opaque,
-        child: SizedBox(
-          width: 56,
-          height: 60,
-          child: Stack(
-            alignment: Alignment.center,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          width: 62,
+          height: 56,
+          margin: const EdgeInsets.symmetric(vertical: 1),
+          decoration: BoxDecoration(
+            color: active
+                ? (dark
+                    ? kTaskDark.withValues(alpha: .45)
+                    : kTaskDark.withValues(alpha: .12))
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    switchInCurve: Curves.easeOutCubic,
-                    switchOutCurve: Curves.easeInCubic,
-                    transitionBuilder: (child, anim) => FadeTransition(
-                      opacity: anim,
-                      child: ScaleTransition(
-                          scale: Tween(begin: 0.6, end: 1.0).animate(anim),
-                          child: child),
-                    ),
-                    child: Icon(
-                        active ? item.activeIcon : item.icon,
-                        key: ValueKey(active),
-                        size: 23,
-                        color: active ? kTaskOrange : kTaskGray),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(item.label,
-                      style: TextStyle(
-                          fontSize: 9,
-                          fontWeight:
-                              active ? FontWeight.w700 : FontWeight.w500,
-                          color: active ? kTaskOrange : kTaskGray)),
-                ],
-              ),
-              AnimatedScale(
-                scale: active ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOutBack,
-                child: Container(
-                  width: 5,
-                  height: 5,
-                  decoration: const BoxDecoration(
-                      color: kTaskOrange, shape: BoxShape.circle),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, anim) => FadeTransition(
+                  opacity: anim,
+                  child: ScaleTransition(
+                      scale: Tween(begin: 0.6, end: 1.0).animate(anim),
+                      child: child),
                 ),
+                child: Icon(
+                    active ? item.activeIcon : item.icon,
+                    key: ValueKey(active),
+                    size: 21,
+                    color: active ? activeColor : idleColor),
               ),
+              const SizedBox(height: 2),
+              Text(item.label,
+                  style: TextStyle(
+                      fontSize: 9,
+                      fontWeight:
+                          active ? FontWeight.w800 : FontWeight.w600,
+                      color: active ? activeColor : idleColor)),
             ],
           ),
         ),
@@ -764,33 +664,4 @@ class _LiquidRimPainter extends CustomPainter {
   @override
   bool shouldRepaint(_LiquidRimPainter old) =>
       old.dark != dark || old.dx != dx;
-}
-
-class _FabPress extends StatefulWidget {
-  const _FabPress({required this.onTap, required this.child});
-  final VoidCallback onTap;
-  final Widget child;
-
-  @override
-  State<_FabPress> createState() => _FabPressState();
-}
-
-class _FabPressState extends State<_FabPress> {
-  bool _down = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _down = true),
-      onTapUp: (_) => setState(() => _down = false),
-      onTapCancel: () => setState(() => _down = false),
-      onTap: widget.onTap,
-      child: AnimatedScale(
-        scale: _down ? 0.88 : 1.0,
-        duration: const Duration(milliseconds: 130),
-        curve: Curves.easeOutCubic,
-        child: widget.child,
-      ),
-    );
-  }
 }

@@ -78,6 +78,10 @@ class _PosPageState extends State<PosPage> {
   bool _autoPrint = false;
   bool _barVisible = true;
   String? _error;
+
+  /// Dipakai sheet keranjang untuk me-refresh dirinya saat _cart/_preview
+  /// berubah dari halaman POS (showModalBottomSheet tidak rebuild otomatis).
+  StateSetter? _sheetRefresh;
   String? _cartError;
   String? _lastProductsSync;
 
@@ -350,7 +354,10 @@ class _PosPageState extends State<PosPage> {
         'items': items,
         if (_promoCode.trim().isNotEmpty) 'promo_code': _promoCode.trim(),
       });
-      if (mounted) setState(() => _preview = preview);
+      if (mounted) {
+        setState(() => _preview = preview);
+        _sheetRefresh?.call(() {});
+      }
     } on ApiException catch (e) {
       if (mounted) setState(() => _cartError = e.message);
     }
@@ -483,7 +490,10 @@ class _PosPageState extends State<PosPage> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _CartSheet(
+      builder: (_) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          _sheetRefresh = setSheetState;
+          return _CartSheet(
         cart: _cart,
         customers: _customers,
         customerId: _customerId,
@@ -493,24 +503,29 @@ class _PosPageState extends State<PosPage> {
         saving: _saving,
         onCustomerChanged: (id) {
           setState(() => _customerId = id);
+          _sheetRefresh?.call(() {});
           _schedulePreview();
         },
         onPromoChanged: (code) {
           setState(() => _promoCode = code);
+          _sheetRefresh?.call(() {});
           _schedulePreview();
         },
         onQtyChanged: (item, delta) {
           setState(() => item.qty = math.max(1, item.qty + delta));
+          _sheetRefresh?.call(() {});
           _schedulePreview();
         },
         onQtySet: (item, value) {
           setState(() => item.qty = math.max(1, value));
+          _sheetRefresh?.call(() {});
           _schedulePreview();
         },
         onHold: _holdCart,
         onResume: _resumeCart,
         onRemove: (item) {
           setState(() => _cart.remove(item));
+          _sheetRefresh?.call(() {});
           _schedulePreview();
         },
         onEditPrice: (item) async {
@@ -540,12 +555,16 @@ class _PosPageState extends State<PosPage> {
           );
           if (result != null) {
             setState(() => item.priceOverride = result);
+            _sheetRefresh?.call(() {});
             _schedulePreview();
           }
         },
         onPay: () => _checkout(),
+      );
+        },
       ),
     );
+    _sheetRefresh = null;
   }
 
   Future<void> _checkout() async {
@@ -782,25 +801,15 @@ class _PosPageState extends State<PosPage> {
             right: 0,
             bottom: 0,
             child: GlassNavBar(
-              current: switch (_tab) {
-                0 => 2,
-                1 => 0,
-                2 => 1,
-                _ => _tab,
-              },
+              current: _tab,
               onSelect: (i) => setState(() {
-                _tab = switch (i) {
-                  0 => 1,
-                  1 => 2,
-                  2 => 0,
-                  _ => i,
-                };
+                _tab = i;
                 if (_tab == 0) _loadData(silent: true);
               }),
               items: const [
+                (icon: Icons.shopping_bag_outlined, activeIcon: Icons.shopping_bag, label: 'POS'),
                 (icon: Icons.receipt_long_outlined, activeIcon: Icons.receipt_long, label: 'Riwayat'),
                 (icon: Icons.inventory_2_outlined, activeIcon: Icons.inventory_2, label: 'Stok'),
-                (icon: Icons.add, activeIcon: Icons.add, label: 'Kasir'),
                 (icon: Icons.bar_chart_outlined, activeIcon: Icons.bar_chart, label: 'Laporan'),
                 (icon: Icons.more_horiz, activeIcon: Icons.more_horiz, label: 'Lainnya'),
               ],
@@ -911,19 +920,24 @@ class _PosPageState extends State<PosPage> {
             ),
           ),
         ),
-        Positioned(
-          left: 12,
-          right: 12,
-          bottom: 98 + bottomPad,
-          child: FilledButton.icon(
-            style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(52)),
-            onPressed: _cart.isEmpty ? null : _openCart,
-            icon: const Icon(Icons.shopping_cart),
-            label:
-                Text('Keranjang ${_cart.length} item · ${fmtRp(_cartTotal)}'),
+        if (_cart.isNotEmpty)
+          Positioned(
+            left: 12,
+            right: 12,
+            bottom: 98 + bottomPad,
+            child: AnimatedScale(
+              scale: 1,
+              duration: const Duration(milliseconds: 180),
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52)),
+                onPressed: _openCart,
+                icon: const Icon(Icons.shopping_cart),
+                label: Text(
+                    'Keranjang ${_cart.length} item · ${fmtRp(_cartTotal)}'),
+              ),
+            ),
           ),
-        ),
       ],
     );
   }
