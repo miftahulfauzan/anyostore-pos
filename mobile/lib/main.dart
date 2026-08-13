@@ -147,26 +147,28 @@ ThemeData _buildTheme({Brightness brightness = Brightness.light}) {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: Colors.white,
+      fillColor: dark ? const Color(0xff1F2530) : Colors.white,
       border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xffE7E0D6))),
+          borderSide: BorderSide(
+              color: dark ? const Color(0xff2A3140) : const Color(0xffE7E0D6))),
       enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xffE7E0D6))),
+          borderSide: BorderSide(
+              color: dark ? const Color(0xff2A3140) : const Color(0xffE7E0D6))),
       focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: seed, width: 1.5)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     ),
-    bottomSheetTheme: const BottomSheetThemeData(
-      backgroundColor: Color(0xEEFFFFFF),
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: dark ? const Color(0xF21A1F27) : const Color(0xEEFFFFFF),
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     ),
     dialogTheme: DialogThemeData(
-      backgroundColor: const Color(0xF2FFFFFF),
+      backgroundColor: dark ? const Color(0xF21A1F27) : const Color(0xF2FFFFFF),
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     ),
