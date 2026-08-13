@@ -272,8 +272,8 @@ class ApiClient {
   Future<Map<String, dynamic>> createReturn(Map<String, dynamic> body) =>
       post('/returns', body);
 
-  Future<Map<String, dynamic>> approveReturn(int id, int warehouseId) =>
-      put('/returns/$id/approve', {'warehouse_id': warehouseId});
+  Future<Map<String, dynamic>> approveReturn(int id) =>
+      put('/returns/$id/approve', {});
 
   // ===== Laci kas =====
   Future<Map<String, dynamic>> cashDrawerOpen(double openingAmount) =>

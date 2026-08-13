@@ -82,15 +82,24 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
 router.put('/:id/approve', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
   const connection = await db.getConnection();
   try {
-    const warehouseId = Number(req.body.warehouse_id);
-    if (!Number.isInteger(warehouseId)) throw error(400, 'warehouse_id wajib diisi');
     await connection.beginTransaction();
     const [returns] = await connection.execute('SELECT id, return_no, transaction_id, refund_amount, refund_method FROM returns WHERE id = ? AND branch_id = ? AND status = \'pending\' FOR UPDATE', [req.params.id, req.user.branch_id]);
     if (!returns[0]) throw error(404, 'Retur pending tidak ditemukan');
-    const [warehouses] = await connection.execute('SELECT id FROM warehouses WHERE id = ? AND branch_id = ? AND is_active = TRUE FOR UPDATE', [warehouseId, req.user.branch_id]);
-    if (!warehouses[0]) throw error(404, 'Gudang tidak ditemukan');
+    // Stok kembali ke gudang ASAL penjualan (dari stock_mutations transaksi);
+    // fallback ke gudang utama cabang kalau asal tidak terlacak.
+    const [mainWarehouses] = await connection.execute(
+      "SELECT id FROM warehouses WHERE branch_id=? AND is_active=TRUE AND type='utama' ORDER BY id LIMIT 1",
+      [req.user.branch_id]
+    );
+    const fallbackWarehouse = mainWarehouses[0]?.id;
     const [items] = await connection.execute('SELECT id, product_id, variant_id, quantity FROM return_items WHERE return_id = ?', [returns[0].id]);
     for (const item of items) {
+      const [mutations] = await connection.execute(
+        'SELECT warehouse_id FROM stock_mutations WHERE reference_type=? AND reference_id=? AND product_id=? AND variant_id<=>? ORDER BY id DESC LIMIT 1',
+        ['transaction', returns[0].transaction_id, item.product_id, item.variant_id]
+      );
+      const warehouseId = mutations[0]?.warehouse_id || fallbackWarehouse;
+      if (!warehouseId) throw error(404, 'Gudang asal penjualan tidak ditemukan');
       await adjustStock(connection, {
         branchId: req.user.branch_id,
         warehouseId,

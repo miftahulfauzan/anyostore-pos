@@ -409,32 +409,25 @@ class _HistoryTabState extends State<HistoryTab> {
   }
 
   Future<void> _approveReturn(Map<String, dynamic> row) async {
-    final controller = TextEditingController();
-    final ok = await showDialog<int>(
+    final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Setujui Retur'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-              labelText: 'ID gudang tujuan',
-              helperText: 'Cek daftar gudang di menu Kasir > Gudang',
-              border: OutlineInputBorder()),
-        ),
+        title: const Text('Setujui Retur?'),
+        content: const Text(
+            'Stok akan kembali otomatis ke gudang asal penjualan.'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Batal')),
           FilledButton(
-              onPressed: () =>
-                  Navigator.pop(ctx, int.tryParse(controller.text)),
+              onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Setujui')),
         ],
       ),
     );
-    if (ok == null || !mounted) return;
+    if (ok != true || !mounted) return;
     try {
-      await widget.api.approveReturn(int.parse('${row['id']}'), ok);
+      await widget.api.approveReturn(int.parse('${row['id']}'));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Retur disetujui, stok kembali')));
