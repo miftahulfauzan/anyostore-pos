@@ -252,7 +252,14 @@ Aplikasi Android (Flutter, folder mobile/) sudah melalui banyak perubahan. Dokum
 - Daftar Produk (products_page.dart): tiap kartu punya tombol cetak label harga (printPriceLabel di PrinterService: nama, varian, harga besar 2x, sku, barcode opsional) — label rak 40x30, cetak via printer tersimpan tanpa scan ulang.
 - Opname (inventory_page.dart): item yang sudah masuk daftar bisa di-edit stok fisiknya dengan ketuk kartu (dialog input keyboard numeric), selain dihapus.
 
-### Mobile teknis
+### iOS (baru disiapkan Agustus 2026)
+- Folder `mobile/ios/` dibuat via `flutter create --platforms ios --org com.anyostore .`; bundle id default `com.anyostore.posPakaianMobile`.
+- `ios/Runner/Info.plist` sudah berisi NSCameraUsageDescription (scan barcode), NSBluetoothAlwaysUsageDescription + NSBluetoothPeripheralUsageDescription (printer GPrinter BLE), dan UIBackgroundModes bluetooth-central.
+- Printer thermal iOS pakai plugin bluetooth_print_plus yang punya podspec dengan dependency `GSDK` (SDK resmi GPrinter, BLE) — WAJIB diuji dengan printer asli (mode BLE).
+- Prasyarat mesin: Xcode penuh (App Store; install manual via `sudo mas install 497799835` atau App Store) + `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer` + CocoaPods (sudah terinstall via brew) + akun Apple Developer ($99/th) untuk perangkat asli/TestFlight; tanpa akun hanya simulator.
+- Build uji: `cd mobile && flutter build ios --no-codesign` (setelah Xcode siap).
+
+## Mobile teknis
 - File baru: lib/src/theme_controller.dart (ThemeMode + SharedPreferences), lib/src/notification_service.dart (notif lokal & jadwal harian), lib/src/backup_service.dart (backup JSON ke dokumen + cek jadwal + cek stok rendah). Main.dart memanggil NotificationService.init() + cek stok + auto-backup + jadwal pengingat saat app dibuka (hanya kalau sudah login).
 - ApiClient._request membungkus error jaringan (TimeoutException/SocketException/http.ClientException) menjadi ApiException(isNetwork: true) dengan pesan ramah — SEMUA halaman cukup catch `on ApiException`. Deteksi offline di pos_page memakai `e is ApiException && e.isNetwork` (atau tipe mentah) supaya mode offline tetap jalan.
 - Dependensi baru di pubspec.yaml: share_plus, flutter_local_notifications, timezone, path_provider.
