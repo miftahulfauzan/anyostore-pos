@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import 'api_client.dart';
 import 'format.dart';
@@ -141,6 +144,11 @@ class _ReportsPageState extends State<ReportsPage> {
                       TextStyle(color: Theme.of(context).colorScheme.outline),
                 ),
               ),
+              IconButton(
+                onPressed: _export,
+                icon: const Icon(Icons.ios_share, size: 20),
+                tooltip: 'Export CSV',
+              ),
             ],
           ),
         ),
@@ -150,6 +158,70 @@ class _ReportsPageState extends State<ReportsPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _export() async {
+    final buf = StringBuffer();
+    void row(List<String> cells) => buf
+        .writeln(cells.map((c) => '"${c.replaceAll('"', '""')}"').join(';'));
+    row(['Laporan', _section, 'Rentang', '${_range.$1} s.d. ${_range.$2}']);
+    row([]);
+    final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
+    switch (_section) {
+      case 'penjualan':
+        row(['Transaksi', '${summary['transactions'] ?? 0}']);
+        row(['Penjualan bersih', fmtRp(asNum(summary['gross_sales']))]);
+        row(['Diskon', fmtRp(asNum(summary['discounts']))]);
+        for (final p in ((_data?['payments'] as List?) ?? [])
+            .cast<Map<String, dynamic>>()) {
+          row(['Metode', (p['payment_method'] ?? '').toString().toUpperCase(),
+              fmtRp(asNum(p['amount']))]);
+        }
+      case 'penutupan':
+        row(['Tanggal', (_data?['date'] ?? '').toString()]);
+        row(['Total struk', '${_data?['receipt_count'] ?? 0}']);
+        row(['Total penjualan', fmtRp(asNum(_data?['total_sales']))]);
+        row(['Retur', '${_data?['return_count'] ?? 0}']);
+        row(['Total kasir', fmtRp(asNum(_data?['expected_total']))]);
+        final methods = (_data?['methods'] as Map<String, dynamic>?) ?? {};
+        for (final e in methods.entries) {
+          final m = e.value as Map<String, dynamic>;
+          row(['Metode', e.key.toUpperCase(), 'Penjualan',
+              fmtRp(asNum(m['sales'])), 'Total', fmtRp(asNum(m['total']))]);
+        }
+      case 'ppn':
+        final kel = (_data?['ppn_keluaran'] as Map<String, dynamic>?) ?? {};
+        final mas = (_data?['ppn_masukan'] as Map<String, dynamic>?) ?? {};
+        row(['PPN Keluaran', fmtRp(asNum(kel['ppn_amount']))]);
+        row(['PPN Masukan', fmtRp(asNum(mas['ppn_amount']))]);
+        row(['PPN Bersih', fmtRp(asNum(_data?['net_ppn']))]);
+      default:
+        row(['Transaksi', '${summary['transactions'] ?? 0}']);
+        row(['Pendapatan', fmtRp(asNum(summary['revenue']))]);
+        row(['HPP', fmtRp(asNum(summary['cost_of_goods']))]);
+        row(['Laba kotor', fmtRp(asNum(summary['gross_profit']))]);
+        row(['Pengeluaran', fmtRp(asNum(summary['expenses']))]);
+        row(['Laba bersih', fmtRp(asNum(summary['net_profit']))]);
+        for (final m in ((_data?['payment_methods'] as List?) ?? [])
+            .cast<Map<String, dynamic>>()) {
+          row(['Metode', (m['payment_method'] ?? '').toString().toUpperCase(),
+              fmtRp(asNum(m['amount']))]);
+        }
+        for (final s in ((_data?['low_stock'] as List?) ?? [])
+            .cast<Map<String, dynamic>>()) {
+          row(['Stok rendah', s['name'].toString(),
+              '${s['stock']} / min ${s['min_stock']}']);
+        }
+        for (final p in ((_data?['products'] as List?) ?? [])
+            .cast<Map<String, dynamic>>()) {
+          row(['Produk', p['name'].toString(), '${p['quantity_sold']} pcs',
+              fmtRp(asNum(p['revenue']))]);
+        }
+    }
+    final file = File('${Directory.systemTemp.path}/laporan_$_section.csv');
+    await file.writeAsString(buf.toString());
+    if (!mounted) return;
+    await Share.shareXFiles([XFile(file.path)], subject: 'Laporan $_section');
   }
 
   Widget _buildBody() {

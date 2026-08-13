@@ -165,10 +165,12 @@ router.get('/', async (req, res, next) => {
 router.post('/hold', authorize('owner', 'manager', 'admin', 'kasir'), async (req, res, next) => {
   try {
     const { customer_id: customerId = null, items, subtotal = 0, discount_type: discountType = 'none', discount_value: discountValue = 0, notes } = req.body;
+    const requestedBranch = Number(req.body.branch_id);
+    const branchId = req.user.role === 'owner' && Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
     if (!Array.isArray(items) || !items.length || !['none', 'percentage', 'nominal'].includes(discountType)) return res.status(400).json({ success: false, message: 'Data hold tidak valid' });
     const [result] = await db.execute(
       'INSERT INTO pending_transactions (branch_id, user_id, customer_id, items_json, subtotal, discount_type, discount_value, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [req.user.branch_id, req.user.id, customerId, JSON.stringify(items), money(subtotal), discountType, money(discountValue), notes?.trim() || null]
+      [branchId, req.user.id, customerId, JSON.stringify(items), money(subtotal), discountType, money(discountValue), notes?.trim() || null]
     );
     res.status(201).json({ success: true, data: { id: result.insertId } });
   } catch (error) { next(error); }
@@ -176,14 +178,18 @@ router.post('/hold', authorize('owner', 'manager', 'admin', 'kasir'), async (req
 
 router.get('/pending', async (req, res, next) => {
   try {
-    const [rows] = await db.execute('SELECT id, customer_id, items_json, subtotal, discount_type, discount_value, notes, held_at FROM pending_transactions WHERE branch_id = ? AND resumed_at IS NULL ORDER BY held_at DESC', [req.user.branch_id]);
+    const requestedBranch = Number(req.query.branch_id);
+    const branchId = req.user.role === 'owner' && Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
+    const [rows] = await db.execute('SELECT id, customer_id, items_json, subtotal, discount_type, discount_value, notes, held_at FROM pending_transactions WHERE branch_id = ? AND resumed_at IS NULL ORDER BY held_at DESC', [branchId]);
     res.json({ success: true, data: rows.map((row) => ({ ...row, items: typeof row.items_json === 'string' ? JSON.parse(row.items_json) : row.items_json })) });
   } catch (error) { next(error); }
 });
 
 router.post('/pending/:id/resume', authorize('owner', 'manager', 'admin', 'kasir'), async (req, res, next) => {
   try {
-    const [rows] = await db.execute('SELECT id, customer_id, items_json, subtotal, discount_type, discount_value, notes FROM pending_transactions WHERE id = ? AND branch_id = ? AND resumed_at IS NULL', [req.params.id, req.user.branch_id]);
+    const requestedBranch = Number(req.query.branch_id);
+    const branchId = req.user.role === 'owner' && Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
+    const [rows] = await db.execute('SELECT id, customer_id, items_json, subtotal, discount_type, discount_value, notes FROM pending_transactions WHERE id = ? AND branch_id = ? AND resumed_at IS NULL', [req.params.id, branchId]);
     if (!rows[0]) return res.status(404).json({ success: false, message: 'Transaksi hold tidak ditemukan' });
     await db.execute('UPDATE pending_transactions SET resumed_at = NOW() WHERE id = ?', [rows[0].id]);
     res.json({ success: true, data: { ...rows[0], items: typeof rows[0].items_json === 'string' ? JSON.parse(rows[0].items_json) : rows[0].items_json } });

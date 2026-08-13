@@ -4,7 +4,7 @@ Konteks proyek ini otomatis dibaca semua AI agent di awal sesi. Baca sebelum men
 
 ## Ringkasan
 
-Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https://anyostore.my.id` (Tencent Cloud Lighthouse, Ubuntu, Docker, Caddy auto-HTTPS). Repo: `https://github.com/miftahulfauzan/anyostore-pos`. Lokasi lokal: `/Users/anyo/Documents/POS_ANYOSTORE` (dipindah keluar OneDrive agar git tidak terganggu sinkronisasi cloud; JANGAN kembali bekerja di folder OneDrive).
+Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https://anyostore.my.id` (Tencent Cloud Lighthouse, Ubuntu, Docker, Caddy auto-HTTPS). Repo: `https://github.com/miftahulfauzan/anyostore-pos`. Lokasi lokal aktif (workspace Codex): `/Users/anyo/Library/CloudStorage/OneDrive-Personal/pos-pakaian` (satu-satunya repo dengan commit terbaru). `~/Documents/POS_ANYOSTORE` adalah salinan lama yang tertinggal — jangan dipakai untuk kerja baru.
 
 - **Backend**: Express (Node 20), MySQL 8.4, `backend/src/`
 - **Frontend**: Next.js 16 App Router (`output: 'standalone'`), React 18, `frontend/app/`
@@ -222,6 +222,10 @@ Aplikasi Android (Flutter, folder mobile/) sudah melalui banyak perubahan. Dokum
 ### Halaman & fitur mobile
 - Splash (splash_page.dart): tampil sebentar lalu otomatis ke Login (tanpa tombol/tagline).
 - Login: field Email / Username (backend terima username ATAU email), Password/PIN, tombol Login.
+- POS/Kasir (pos_page.dart) — Tahan/Lanjut transaksi:
+  - Tombol Tahan (di sheet keranjang) -> POST /api/transactions/hold (item disimpan + nama/varian/foto), keranjang dikosongkan.
+  - Tombol Ambil Tahan -> GET /api/transactions/pending, pilih dari dialog -> POST /api/transactions/pending/:id/resume, keranjang di-restore, preview dihitung ulang.
+  - Backend hold/pending/resume menghormati branch_id (owner bisa pilih toko/gudang); kasir/manager tetap pakai cabangnya sendiri.
 - POS/Kasir (pos_page.dart):
   - Grid produk 3 kolom; kartu: nama kiri + harga kanan satu baris, font kecil, varian/stok di bawah.
   - Header accordion _PosHeaderRow: Toko/Gudang di kiri & Cari di kanan satu baris; klik salah satu -> memanjang menutup yang lain; dropdown Gudang muncul saat Toko/Gudang terekspansi.
@@ -229,16 +233,26 @@ Aplikasi Android (Flutter, folder mobile/) sudah melalui banyak perubahan. Dokum
   - Qty keranjang bisa diketik keyboard (_QtyInput) + tombol -/+; nama+harga satu baris.
   - Pemilih varian (variant_picker.dart): qty juga bisa diketik (_QtyField).
   - Transaksi offline: saat gagal jaringan (SocketException/Timeout/ClientException) -> simpan ke OfflineStore (sqflite anyostore_offline.db), nomor sementara OFF-<branch>-<ts>, harga ikut HP, stok negatif diizinkan, auto-sync via syncOfflineTransactions() saat app dibuka + halaman Antrean Offline (menu Lainnya). Backend menerima offline:true + offline_invoice_no di POST /api/transactions (skip tier/promo, total ikut klien); nomor resmi dibuat server saat sync, nomor sementara tersimpan di kolom transactions.offline_invoice_no dan tetap bisa dicari di Riwayat.
-- Riwayat: kartu glass, status chip, filter Rentang/Status/Cari satu gaya dengan Laporan.
+- Riwayat: kartu glass, status chip, filter Rentang/Status/Cari satu gaya dengan Laporan; field Cari punya ikon scan barcode (BarcodeScannerPage) yang langsung mengisi nomor invoice/barcode lalu memuat hasil (buat retur cepat).
 - Dashboard (dashboard_page.dart): mengikuti wireframe POS Dashboard Overview - pill rentang Hari ini/7 Hari/Bulan Ini, 4 kartu stat (Penjualan, Pengeluaran, Laba Bersih, Margin), grafik batang Penjualan 7 Hari (ketuk batang -> tooltip nilai), Transaksi Terakhir, tombol Mulai Kasir.
-- Laporan: Ringkasan/Penjualan/Penutupan/PPN; Cetak Penutupan (struk thermal via printer tersimpan); kartu diberi jarak antar-kartu.
+- Laporan: Ringkasan/Penjualan/Penutupan/PPN; Cetak Penutupan (struk thermal via printer tersimpan); kartu diberi jarak antar-kartu. Tombol Export (share_plus) menghasilkan file CSV laporan berjalan dan bisa langsung dibagikan (WA/email/Drive).
 - Keuangan: kartu LABA RUGI HARI INI (blok gelap denim, angka besar di tengah, Pendapatan/Pengeluaran/Pemasukan sejajar).
-- Pengaturan: kartu Ganti Logo Aplikasi (key store_logo) & Logo Toko/Kepala Invoice (key invoice_logo) via POST /api/settings/logo-data (body: content_type, filename, data_url, key); Printer Thermal - pilih printer sekali -> tersimpan (SharedPreferences pos_saved_printer_*) -> semua cetak (struk, barcode, penutupan) langsung pakai tanpa scan ulang (printNow/printReceiptNow di printer_setup.dart), ada Uji Cetak & Hapus.
+- Pengaturan:
+  - Kartu Ganti Logo Aplikasi (key store_logo) & Logo Toko/Kepala Invoice (key invoice_logo) via POST /api/settings/logo-data (body: content_type, filename, data_url, key).
+  - Printer Thermal multi-per toko: PrinterService menyimpan per branch (prefiks pos_saved_printer_name-<branchId> / pos_saved_printer_addr-<branchId>); pos_page memanggil PrinterService.setActiveBranch saat ganti cabang. Pilih printer sekali -> semua cetak (struk, barcode, penutupan) langsung pakai tanpa scan ulang; ada Uji Cetak & Hapus.
+  - Tampilan (mode gelap): ThemeController (pos_theme_mode di SharedPreferences) dengan pilihan Terang/Gelap/Sistem; main.dart membungkus MaterialApp dengan ValueListenableBuilder<ThemeMode> + _buildTheme(brightness) untuk darkTheme.
+  - Backup Data: tombol Backup Sekarang -> GET /api/backup (owner), file JSON disimpan di app documents (path_provider) lalu bisa di-Bagikan (share_plus -> Google Drive/email/WA). Toggle "Backup otomatis harian" (pos_auto_backup): saat app dibuka, backup otomatis bila >24 jam sejak terakhir (BackupService.shouldAutoBackup/runBackup).
+  - Notifikasi: toggle "Notifikasi stok menipis" (pos_notify_low_stock, default ON). NotificationService (flutter_local_notifications + timezone Asia/Jakarta): cek stok rendah dari reportOverview low_stock saat app dibuka; pengingat harian 09.00 WIB (zonedSchedule matchDateTimeComponents.time). Android butuh coreLibraryDesugaringEnabled + desugar_jdk_libs di android/app/build.gradle.kts dan permission POST_NOTIFICATIONS/RECEIVE_BOOT_COMPLETED/SCHEDULE_EXACT_ALARM + receiver ScheduledNotification(Boot)Receiver di AndroidManifest.
 - Komisi: tab Saya/Aturan/Catatan/Laporan; migrasi menambah aturan default global "Komisi per pcs (default)" (Reguler 3000, Semi 3000, Grosir Seri 1000 per pcs, branch_id NULL) kalau belum ada; perhitungan live dari transaksi per pegawai.
 - Menu Lainnya: grup menu (UTAMA/AKUN & TOKO/PRODUK & INVENTORI/TRANSAKSI & KEUANGAN), tile Jenis Pelanggan (buka CustomersPage), Antrean Offline dengan badge jumlah.
 
+### Mobile teknis
+- File baru: lib/src/theme_controller.dart (ThemeMode + SharedPreferences), lib/src/notification_service.dart (notif lokal & jadwal harian), lib/src/backup_service.dart (backup JSON ke dokumen + cek jadwal + cek stok rendah). Main.dart memanggil NotificationService.init() + cek stok + auto-backup + jadwal pengingat saat app dibuka (hanya kalau sudah login).
+- Dependensi baru di pubspec.yaml: share_plus, flutter_local_notifications, timezone, path_provider.
+- Build APK: JANGAN build di folder OneDrive (APK korup ZIP_BAD). Rsync mobile/ ke /private/tmp/mbuild2, build di sana, copy hasilnya. Gradle butuh ANDROID_HOME=/opt/homebrew/share/android-commandlinetools dan JAVA_HOME=/opt/homebrew/opt/openjdk@17 (di mesin ini). CI job android-apk (ci.yml) membangun APK & upload artifact.
+
 ### Backend tambahan
-- transactions.js: mode offline (harga/total ikut HP, allow_negative_stock, offline_invoice_no), search riwayat mencakup offline_invoice_no.
+- transactions.js: mode offline (harga/total ikut HP, allow_negative_stock, offline_invoice_no), search riwayat mencakup offline_invoice_no; hold/pending/resume menerima branch_id (owner).
 - settings.js: /logo-data menerima key (store_logo | invoice_logo).
 - users.js + auth.js: login pakai email ATAU username; CRUD pegawai punya field username (unik, 3-50, lowercase).
 - Migrasi baru: 20260812_user_username.sql, 20260812_offline_transaction_sync.sql, 20260812_default_commission_rules.sql.
@@ -251,6 +265,11 @@ Aplikasi Android (Flutter, folder mobile/) sudah melalui banyak perubahan. Dokum
 ```bash
 cd frontend && npm run build   # cek build (frontend)
 cd backend && npm test         # cek test (backend)
+cd mobile && flutter analyze --no-pub  # cek analyzer mobile
+# Build APK (hindari OneDrive): rsync ke /private/tmp/mbuild2 lalu:
+cd /private/tmp/mbuild2 && flutter build apk --release
+# Install & debug:
+adb install -r build/app/outputs/flutter-apk/app-release.apk && adb logcat
 cd backend && node scripts/reconcile-stock.js [--fix]  # audit/perbaiki selisih stok (jalankan di container backend)
 cd backend && node scripts/audit-payments.js           # audit konsistensi pembayaran (read-only)
 ```

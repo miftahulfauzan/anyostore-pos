@@ -17,7 +17,7 @@ const userRow = {
 };
 const dbStub = {
   execute: async (sql, params) => {
-    if (sql.includes('FROM users WHERE email')) {
+    if (sql.includes('FROM users WHERE')) {
       if (params[0] === 'kasir@test.local') return [[userRow], []];
       if (params[0] === 'nopin@test.local') return [[{ ...userRow, email: 'nopin@test.local', pin_hash: null }], []];
       return [[], []];

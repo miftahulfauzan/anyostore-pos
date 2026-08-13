@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
+import 'barcode_scanner_page.dart';
 import 'format.dart';
 import 'printer_setup.dart';
 import 'task_ui.dart';
@@ -61,6 +62,16 @@ class _HistoryTabState extends State<HistoryTab> {
       default:
         return (todayWib(), todayWib());
     }
+  }
+
+  Future<void> _openScanner() async {
+    final code = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const BarcodeScannerPage()),
+    );
+    if (code == null || !mounted) return;
+    setState(() => _search.text = code);
+    _page = 1;
+    _load();
   }
 
   Future<void> _load() async {
@@ -531,7 +542,13 @@ class _HistoryTabState extends State<HistoryTab> {
                 const SizedBox(height: 8),
                 TextField(
                   controller: _search,
-                  decoration: _dec('Cari invoice / nama', hint: true),
+                  decoration: _dec('Cari invoice / nama', hint: true).copyWith(
+                    suffixIcon: IconButton(
+                      onPressed: _openScanner,
+                      icon: const Icon(Icons.qr_code_scanner),
+                      tooltip: 'Scan barcode invoice',
+                    ),
+                  ),
                   onSubmitted: (_) {
                     _page = 1;
                     _load();

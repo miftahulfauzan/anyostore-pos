@@ -7,26 +7,45 @@ import 'format.dart';
 class PrinterService {
   static const _prefName = 'pos_saved_printer_name';
   static const _prefAddr = 'pos_saved_printer_addr';
+  static const _activeBranch = 'pos_active_branch';
 
-  /// Simpan printer agar dipakai otomatis tanpa scan ulang.
-  Future<void> savePrinter(BluetoothDevice device) async {
+  /// Printer disimpan per toko/gudang (multi-printer per cabang).
+  static Future<void> setActiveBranch(int branchId) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefName, device.name);
-    await prefs.setString(_prefAddr, device.address);
+    await prefs.setInt(_activeBranch, branchId);
   }
 
-  Future<BluetoothDevice?> savedPrinter() async {
+  Future<int?> activeBranchId() async {
     final prefs = await SharedPreferences.getInstance();
-    final name = prefs.getString(_prefName) ?? '';
-    final address = prefs.getString(_prefAddr) ?? '';
+    return prefs.getInt(_activeBranch);
+  }
+
+  Future<String> _suffix(int? branchId) async {
+    final b = branchId ?? await activeBranchId() ?? 0;
+    return b == 0 ? 'default' : '$b';
+  }
+
+  Future<void> savePrinter(BluetoothDevice device, {int? branchId}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final suffix = await _suffix(branchId);
+    await prefs.setString('$_prefName-$suffix', device.name);
+    await prefs.setString('$_prefAddr-$suffix', device.address);
+  }
+
+  Future<BluetoothDevice?> savedPrinter({int? branchId}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final suffix = await _suffix(branchId);
+    final name = prefs.getString('$_prefName-$suffix') ?? '';
+    final address = prefs.getString('$_prefAddr-$suffix') ?? '';
     if (address.isEmpty) return null;
     return BluetoothDevice(name, address);
   }
 
-  Future<void> clearPrinter() async {
+  Future<void> clearPrinter({int? branchId}) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_prefName);
-    await prefs.remove(_prefAddr);
+    final suffix = await _suffix(branchId);
+    await prefs.remove('$_prefName-$suffix');
+    await prefs.remove('$_prefAddr-$suffix');
   }
 
 

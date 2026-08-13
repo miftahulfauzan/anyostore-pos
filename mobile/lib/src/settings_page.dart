@@ -3,11 +3,16 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 
 import 'package:image_picker/image_picker.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_client.dart';
+import 'backup_service.dart';
+import 'notification_service.dart';
 import 'printer_service.dart';
 import 'printer_setup.dart';
 import 'task_ui.dart';
+import 'theme_controller.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key, required this.api});
@@ -38,6 +43,8 @@ class _SettingsPageState extends State<SettingsPage> {
   String _printerSize = '80';
   bool _autoPrint = false;
   bool _backingUp = false;
+  bool _autoBackup = false;
+  bool _notifyLowStock = true;
 
   @override
   void initState() {
@@ -86,11 +93,18 @@ class _SettingsPageState extends State<SettingsPage> {
         _printerSize = settings['printer_size']?.toString() ?? '80';
         _autoPrint = settings['auto_print'] == '1' || settings['auto_print'] == true;
       });
+      final prefs = await SharedPreferences.getInstance();
+      final autoBackup = prefs.getBool('pos_auto_backup') ?? false;
+      final notifyLowStock = prefs.getBool('pos_notify_low_stock') ?? true;
       final savedPrinter = await PrinterService().savedPrinter();
       if (mounted) {
-        setState(() => _printerLabel = savedPrinter == null
-            ? ''
-            : '${savedPrinter.name} (${savedPrinter.address})');
+        setState(() {
+          _autoBackup = autoBackup;
+          _notifyLowStock = notifyLowStock;
+          _printerLabel = savedPrinter == null
+              ? ''
+              : '${savedPrinter.name} (${savedPrinter.address})';
+        });
       }
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -330,8 +344,11 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  int? get _settingBranchId => int.tryParse('${_settings['branch_id']}');
+
   Future<void> _refreshPrinter() async {
-    final savedPrinter = await PrinterService().savedPrinter();
+    final savedPrinter =
+        await PrinterService().savedPrinter(branchId: _settingBranchId);
     if (!mounted) return;
     setState(() => _printerLabel = savedPrinter == null
         ? ''
@@ -339,6 +356,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _choosePrinter() async {
+    final bid = _settingBranchId;
+    if (bid != null) await PrinterService.setActiveBranch(bid);
+    if (!mounted) return;
     await showPrinterJobSheet(context,
         (printer, device) => printer.printTest(),
         title: 'Pilih & Simpan Printer');
@@ -351,29 +371,40 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _clearPrinter() async {
-    await PrinterService().clearPrinter();
+    await PrinterService().clearPrinter(branchId: _settingBranchId);
     await _refreshPrinter();
   }
 
   Future<void> _backupNow() async {
     setState(() => _backingUp = true);
     try {
-      final data = await widget.api.backupNow();
+      final file = await BackupService.runBackup(widget.api);
       if (!mounted) return;
-      final info = (data['data'] as Map<String, dynamic>?) ?? data;
+      if (file == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Backup gagal: data kosong')));
+        return;
+      }
+      final size = file.lengthSync();
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Backup Berhasil'),
           content: Text(
-              'Waktu: ${info['generated_at'] ?? '-'}\n'
-              'Tabel: ${info['tables'] ?? 0}\n'
-              'Baris: ${info['total_rows'] ?? 0}\n'
-              'Ukuran: ${asSize(info['size_bytes'])}'),
+              'File: ${file.path.split('/').last}\n'
+              'Ukuran: ${asSize(size)}\n\n'
+              'Pilih "Bagikan" untuk menyimpan ke Google Drive, email, atau WhatsApp.'),
           actions: [
-            FilledButton(
+            TextButton(
                 onPressed: () => Navigator.pop(ctx),
                 child: const Text('Tutup')),
+            FilledButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Share.shareXFiles([XFile(file.path)],
+                      subject: 'Backup Anyostore ${DateTime.now().toIso8601String().split('T').first}');
+                },
+                child: const Text('Bagikan')),
           ],
         ),
       );
@@ -384,6 +415,28 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     } finally {
       if (mounted) setState(() => _backingUp = false);
+    }
+  }
+
+  Future<void> _setTheme(ThemeMode m) async {
+    await ThemeController.set(m);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _toggleAutoBackup(bool v) async {
+    setState(() => _autoBackup = v);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('pos_auto_backup', v);
+    if (v) await NotificationService.scheduleDailyReminder();
+  }
+
+  Future<void> _toggleNotifyLowStock(bool v) async {
+    setState(() => _notifyLowStock = v);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('pos_notify_low_stock', v);
+    if (v) {
+      await NotificationService.scheduleDailyReminder();
+      await BackupService.checkLowStock(widget.api);
     }
   }
 
@@ -494,13 +547,58 @@ class _SettingsPageState extends State<SettingsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const Text('Tampilan',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                const SizedBox(height: 8),
+                ValueListenableBuilder<ThemeMode>(
+                  valueListenable: ThemeController.mode,
+                  builder: (context, mode, _) => SegmentedButton<ThemeMode>(
+                    segments: const [
+                      ButtonSegment(
+                          value: ThemeMode.light,
+                          icon: Icon(Icons.light_mode_outlined),
+                          label: Text('Terang')),
+                      ButtonSegment(
+                          value: ThemeMode.dark,
+                          icon: Icon(Icons.dark_mode_outlined),
+                          label: Text('Gelap')),
+                      ButtonSegment(
+                          value: ThemeMode.system,
+                          icon: Icon(Icons.brightness_auto_outlined),
+                          label: Text('Sistem')),
+                    ],
+                    selected: {mode},
+                    onSelectionChanged: (s) => _setTheme(s.first),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        GlassCard(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
                 const Text('Backup Data',
                     style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
                 const SizedBox(height: 6),
                 const Text(
                     'Simpan snapshot seluruh database ke perangkat. Disarankan rutin sebelum update besar.',
                     style: TextStyle(fontSize: 11, color: kTaskGray)),
-                const SizedBox(height: 10),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Backup otomatis harian',
+                      style: TextStyle(fontSize: 13)),
+                  subtitle: const Text(
+                      'Saat app dibuka, otomatis backup bila > 24 jam sejak terakhir.',
+                      style: TextStyle(fontSize: 11, color: kTaskGray)),
+                  value: _autoBackup,
+                  onChanged: _toggleAutoBackup,
+                ),
+                const SizedBox(height: 8),
                 FilledButton.icon(
                   onPressed: _backingUp ? null : _backupNow,
                   icon: _backingUp
@@ -511,6 +609,33 @@ class _SettingsPageState extends State<SettingsPage> {
                       : const Icon(Icons.save_alt, size: 18),
                   label: Text(_backingUp ? 'Membackup...' : 'Backup Sekarang'),
                 ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        GlassCard(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('Notifikasi',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                const SizedBox(height: 6),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Notifikasi stok menipis',
+                      style: TextStyle(fontSize: 13)),
+                  subtitle: const Text(
+                      'Muncul saat ada produk di bawah stok minimum.',
+                      style: TextStyle(fontSize: 11, color: kTaskGray)),
+                  value: _notifyLowStock,
+                  onChanged: _toggleNotifyLowStock,
+                ),
+                const Text(
+                    'Pengingat harian jam 09.00 WIB otomatis dijadwalkan untuk cek stok & backup.',
+                    style: TextStyle(fontSize: 10, color: kTaskGray)),
               ],
             ),
           ),

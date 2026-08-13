@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -5,19 +6,42 @@ import 'package:provider/provider.dart';
 
 import 'src/api_client.dart';
 import 'src/auth_store.dart';
+import 'src/backup_service.dart';
 import 'src/login_page.dart';
+import 'src/notification_service.dart';
 import 'src/pos_page.dart';
+import 'src/theme_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final auth = AuthStore(ApiClient());
   await auth.restore();
+  await ThemeController.load();
+  await NotificationService.init();
+  if (auth.isAuthenticated) {
+    // Cek stok menipis + backup otomatis + pengingat harian saat app dibuka.
+    unawaited(BackupService.checkLowStock(auth.api));
+    unawaited(_autoBackup(auth.api));
+    unawaited(NotificationService.scheduleDailyReminder());
+  }
   runApp(
     ChangeNotifierProvider.value(
       value: auth,
       child: const PosMobileApp(),
     ),
   );
+}
+
+Future<void> _autoBackup(ApiClient api) async {
+  try {
+    if (!await BackupService.shouldAutoBackup()) return;
+    final file = await BackupService.runBackup(api);
+    if (file != null) {
+      await NotificationService.showBackupDone(file.path.split('/').last);
+    }
+  } catch (_) {
+    // Backup gagal (offline/izin) — coba lagi besok.
+  }
 }
 
 /// Transisi antar halaman: fade + slide halus (Corporate motion).
@@ -39,20 +63,21 @@ class _FadeSlideTransitionsBuilder extends PageTransitionsBuilder {
     return FadeTransition(
       opacity: curved,
       child: SlideTransition(
-        position:
-            Tween(begin: const Offset(0, 0.025), end: Offset.zero).animate(curved),
+        position: Tween(begin: const Offset(0, 0.025), end: Offset.zero)
+            .animate(curved),
         child: child,
       ),
     );
   }
 }
 
-ThemeData _buildTheme() {
+ThemeData _buildTheme({Brightness brightness = Brightness.light}) {
+  final dark = brightness == Brightness.dark;
   const seed = Color(0xff1E3A5F);
   final scheme = ColorScheme.fromSeed(
     seedColor: seed,
-    brightness: Brightness.light,
-    surface: const Color(0xffffffff),
+    brightness: brightness,
+    surface: dark ? const Color(0xff1A1F27) : const Color(0xffffffff),
   );
   return ThemeData(
     useMaterial3: true,
@@ -66,34 +91,38 @@ ThemeData _buildTheme() {
         TargetPlatform.linux: _FadeSlideTransitionsBuilder(),
       },
     ),
-    scaffoldBackgroundColor: const Color(0xffF5F1EA),
+    scaffoldBackgroundColor:
+        dark ? const Color(0xff12151B) : const Color(0xffF5F1EA),
     fontFamily: 'sans-serif',
-    appBarTheme: const AppBarTheme(
-      backgroundColor: Colors.white,
+    appBarTheme: AppBarTheme(
+      backgroundColor: dark ? const Color(0xff1A1F27) : Colors.white,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: false,
       titleTextStyle: TextStyle(
-          fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xff1E3A5F)),
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: dark ? const Color(0xffE7ECF4) : const Color(0xff1E3A5F)),
     ),
     cardTheme: CardThemeData(
       elevation: 0,
-      color: Colors.white,
+      color: dark ? const Color(0xff1A1F27) : Colors.white,
       surfaceTintColor: Colors.transparent,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xffE7E0D6)),
+        side: BorderSide(
+            color: dark ? const Color(0xff2A3140) : const Color(0xffE7E0D6)),
       ),
     ),
-    navigationBarTheme: const NavigationBarThemeData(
-      backgroundColor: Colors.white,
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: dark ? const Color(0xff1A1F27) : Colors.white,
       surfaceTintColor: Colors.transparent,
-      indicatorColor: Color(0xffF5E8DC),
+      indicatorColor: dark ? const Color(0xff26303F) : const Color(0xffF5E8DC),
       elevation: 0,
       height: 68,
-      labelTextStyle: WidgetStatePropertyAll(
+      labelTextStyle: const WidgetStatePropertyAll(
           TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
     ),
     filledButtonTheme: FilledButtonThemeData(
@@ -158,37 +187,44 @@ class PosMobileApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Skala responsif: di HP kecil UI ikut mengecil, di HP besar ikut membesar.
-    return LayoutBuilder(builder: (context, constraints) {
-      final mq = MediaQuery.of(context);
-      final scale = math
-          .min(constraints.maxWidth / designW, constraints.maxHeight / designH)
-          .clamp(0.8, 1.35);
-      return Center(
-        child: SizedBox(
-          width: designW * scale,
-          height: designH * scale,
-          child: Transform.scale(
-            scale: scale,
-            child: MediaQuery(
-              data: mq.copyWith(
-                size: const Size(designW, designH),
-                devicePixelRatio: mq.devicePixelRatio / scale,
-              ),
-              child: MaterialApp(
-                title: 'Anyostore App',
-                debugShowCheckedModeBanner: false,
-                theme: _buildTheme(),
-                themeMode: ThemeMode.light,
-                home: Consumer<AuthStore>(
-                  builder: (_, auth, __) => auth.isAuthenticated
-                      ? const PosPage()
-                      : const LoginPage(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeController.mode,
+      builder: (context, themeMode, _) {
+        return LayoutBuilder(builder: (context, constraints) {
+          final mq = MediaQuery.of(context);
+          final scale = math
+              .min(constraints.maxWidth / designW,
+                  constraints.maxHeight / designH)
+              .clamp(0.8, 1.35);
+          return Center(
+            child: SizedBox(
+              width: designW * scale,
+              height: designH * scale,
+              child: Transform.scale(
+                scale: scale,
+                child: MediaQuery(
+                  data: mq.copyWith(
+                    size: const Size(designW, designH),
+                    devicePixelRatio: mq.devicePixelRatio / scale,
+                  ),
+                  child: MaterialApp(
+                    title: 'Anyostore App',
+                    debugShowCheckedModeBanner: false,
+                    theme: _buildTheme(brightness: Brightness.light),
+                    darkTheme: _buildTheme(brightness: Brightness.dark),
+                    themeMode: themeMode,
+                    home: Consumer<AuthStore>(
+                      builder: (_, auth, __) => auth.isAuthenticated
+                          ? const PosPage()
+                          : const LoginPage(),
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
-        ),
-      );
-    });
+          );
+        });
+      },
+    );
   }
 }

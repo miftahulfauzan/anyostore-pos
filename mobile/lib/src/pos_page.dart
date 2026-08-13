@@ -17,6 +17,7 @@ import 'reports_page.dart';
 import 'format.dart';
 import 'history_tab.dart';
 import 'payment_sheet.dart';
+import 'printer_service.dart';
 import 'printer_setup.dart';
 import 'barcode_scanner_page.dart';
 import 'variant_picker.dart';
@@ -123,6 +124,7 @@ class _PosPageState extends State<PosPage> {
   Future<void> _loadData({bool silent = false}) async {
     final branch = _posBranchId ?? _branchId;
     if (branch == 0) return;
+    PrinterService.setActiveBranch(branch);
 
     // Buka aplikasi (bukan refresh): kalau sudah disinkron hari ini,
     // langsung pakai cache lokal tanpa menyentuh server.
@@ -356,6 +358,125 @@ class _PosPageState extends State<PosPage> {
   double get _cartTotal =>
       _cart.fold(0, (sum, c) => sum + (c.priceOverride ?? c.price) * c.qty);
 
+  Future<void> _holdCart() async {
+    if (_cart.isEmpty) return;
+    final branch = _posBranchId ?? _branchId;
+    final preview = _preview;
+    final items = _cart
+        .map((c) => {
+              'product_id': c.productId,
+              if (c.variantId != null) 'variant_id': c.variantId,
+              'quantity': c.qty,
+              'price': c.priceOverride ?? c.price,
+              if (c.priceOverride != null) 'price_override': c.priceOverride,
+              'name': c.name,
+              if (c.variantLabel != null) 'variant_label': c.variantLabel,
+              if (c.photo != null) 'photo': c.photo,
+            })
+        .toList();
+    try {
+      await _client.holdTransaction({
+        'branch_id': branch,
+        'items': items,
+        'subtotal': asNum(preview?['subtotal'] ?? _cartTotal),
+        'discount_type': preview?['discount_type'] ?? 'none',
+        'discount_value': asNum(preview?['discount'] ?? 0),
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Transaksi ditahan. Bisa dilanjutkan kapan saja.')));
+      setState(() {
+        _cart.clear();
+        _preview = null;
+        _promoCode = '';
+        _customerId = null;
+      });
+      Navigator.of(context).pop();
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
+  Future<void> _resumeCart() async {
+    try {
+      final branch = _posBranchId ?? _branchId;
+      final pending = await _client.pendingTransactions(branchId: branch);
+      if (!mounted) return;
+      if (pending.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Tidak ada transaksi yang ditahan')));
+        return;
+      }
+      final picked = await showDialog<int>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Transaksi Ditahan'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                for (final p in pending)
+                  ListTile(
+                    dense: true,
+                    title: Text('${(p['items'] is List ? (p['items'] as List).length : 0).toString()} item'),
+                    subtitle: Text('Total ${fmtRp(asNum(p['subtotal']))}'),
+                    onTap: () => Navigator.pop(
+                        ctx, int.tryParse(p['id'].toString())),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Batal')),
+          ],
+        ),
+      );
+      if (picked == null || !mounted) return;
+      final resumed = await _client.resumeTransaction(picked,
+          branchId: _posBranchId ?? _branchId);
+      if (!mounted) return;
+      final items =
+          ((resumed['items'] as List?) ?? []).cast<Map<String, dynamic>>();
+      final cart = <CartItem>[];
+      for (final it in items) {
+        final vidRaw = it['variant_id'];
+        cart.add(CartItem(
+          productId: int.tryParse(it['product_id'].toString()) ?? 0,
+          variantId:
+              vidRaw != null ? int.tryParse(vidRaw.toString()) : null,
+          name: it['name']?.toString() ?? 'Produk',
+          variantLabel: it['variant_label']?.toString(),
+          photo: it['photo']?.toString(),
+          price: asNum(it['price'] ?? it['price_override']),
+          priceOverride: it['price_override'] != null
+              ? asNum(it['price_override'])
+              : null,
+          qty: int.tryParse(it['quantity'].toString()) ?? 1,
+        ));
+      }
+      setState(() {
+        _cart
+          ..clear()
+          ..addAll(cart);
+        _customerId = int.tryParse(resumed['customer_id']?.toString() ?? '');
+        _promoCode = '';
+        _preview = null;
+      });
+      _schedulePreview();
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
   Future<void> _openCart() async {
     setState(() => _cartError = null);
     await showModalBottomSheet(
@@ -385,6 +506,8 @@ class _PosPageState extends State<PosPage> {
           setState(() => item.qty = math.max(1, value));
           _schedulePreview();
         },
+        onHold: _holdCart,
+        onResume: _resumeCart,
         onRemove: (item) {
           setState(() => _cart.remove(item));
           _schedulePreview();
@@ -1119,6 +1242,8 @@ class _CartSheet extends StatelessWidget {
     required this.onRemove,
     required this.onEditPrice,
     required this.onPay,
+    required this.onHold,
+    required this.onResume,
   });
 
   final List<CartItem> cart;
@@ -1135,6 +1260,8 @@ class _CartSheet extends StatelessWidget {
   final ValueChanged<CartItem> onRemove;
   final ValueChanged<CartItem> onEditPrice;
   final VoidCallback onPay;
+  final VoidCallback onHold;
+  final VoidCallback onResume;
 
   @override
   Widget build(BuildContext context) {
@@ -1255,6 +1382,26 @@ class _CartSheet extends StatelessWidget {
                     ),
                 ],
               ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onHold,
+                    icon: const Icon(Icons.pause_circle_outline, size: 18),
+                    label: const Text('Tahan'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onResume,
+                    icon: const Icon(Icons.play_circle_outline, size: 18),
+                    label: const Text('Ambil Tahan'),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Text('Subtotal: ${fmtRp(subtotal)}'),

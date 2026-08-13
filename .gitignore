@@ -23,3 +23,7 @@ uploads/
 .agents/
 skills-lock.json
 .gstack/
+
+# Local squire tooling
+squire.md
+squire/

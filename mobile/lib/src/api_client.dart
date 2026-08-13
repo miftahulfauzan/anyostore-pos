@@ -187,6 +187,25 @@ class ApiClient {
     return (res['data'] as Map<String, dynamic>?) ?? {};
   }
 
+  Future<Map<String, dynamic>> holdTransaction(Map<String, dynamic> body) =>
+      post('/transactions/hold', body);
+
+  Future<List<dynamic>> pendingTransactions({int? branchId}) async {
+    final res = await get('/transactions/pending',
+        {if (branchId != null) 'branch_id': '$branchId'});
+    return (res['data'] as List?) ?? [];
+  }
+
+  Future<Map<String, dynamic>> resumeTransaction(int id,
+          {int? branchId}) =>
+      post('/transactions/pending/$id/resume',
+          {if (branchId != null) 'branch_id': '$branchId'});
+
+  Future<Map<String, dynamic>> fetchBackup() async {
+    final res = await get('/backup');
+    return res;
+  }
+
   Future<Map<String, dynamic>> cancelTransaction(
     int id,
     List<Map<String, dynamic>> items,
