@@ -528,30 +528,48 @@ class ApiClient {
   Future<Map<String, dynamic>> reportSales({
     required String start,
     required String end,
+    int? branchId,
   }) async {
-    final res = await get('/reports/sales', {'start': start, 'end': end});
+    final res = await get('/reports/sales', {
+      'start': start,
+      'end': end,
+      if (branchId != null) 'branch_id': '$branchId',
+    });
     return (res['data'] as Map<String, dynamic>?) ?? {};
   }
 
   Future<Map<String, dynamic>> reportOverview({
     required String start,
     required String end,
+    int? branchId,
   }) async {
-    final res = await get('/reports/overview', {'start': start, 'end': end});
+    final res = await get('/reports/overview', {
+      'start': start,
+      'end': end,
+      if (branchId != null) 'branch_id': '$branchId',
+    });
     return (res['data'] as Map<String, dynamic>?) ?? {};
   }
 
   Future<Map<String, dynamic>> reportDailyClosing(
-      {required String date}) async {
-    final res = await get('/reports/daily-closing', {'date': date});
+      {required String date, int? branchId}) async {
+    final res = await get('/reports/daily-closing', {
+      'date': date,
+      if (branchId != null) 'branch_id': '$branchId',
+    });
     return (res['data'] as Map<String, dynamic>?) ?? {};
   }
 
   Future<Map<String, dynamic>> taxReport({
     required String start,
     required String end,
+    int? branchId,
   }) async {
-    final res = await get('/tax/report', {'start': start, 'end': end});
+    final res = await get('/tax/report', {
+      'start': start,
+      'end': end,
+      if (branchId != null) 'branch_id': '$branchId',
+    });
     return (res['data'] as Map<String, dynamic>?) ?? {};
   }
 }

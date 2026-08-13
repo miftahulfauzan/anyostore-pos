@@ -64,6 +64,12 @@ router.get('/daily-closing', async (req, res, next) => {
        WHERE cd.branch_id=? AND DATE(cdm.created_at)=?`,
       [branchId, date]
     );
+    const [expenseRows] = await db.execute(
+      `SELECT COALESCE(SUM(CASE WHEN e.type='expense' THEN e.amount ELSE 0 END), 0) AS expense,
+              COALESCE(SUM(CASE WHEN e.type='income' THEN e.amount ELSE 0 END), 0) AS income
+       FROM expenses e WHERE e.branch_id=? AND e.status='approved' AND e.expense_date=?`,
+      [branchId, date]
+    );
 
     const methods = {};
     let totalGross = 0;
@@ -104,6 +110,8 @@ router.get('/daily-closing', async (req, res, next) => {
         return_count: returnCount,
         total_sales: money(salesData[0].total_sales),
         subtotal: money(salesData[0].total_sales),
+        expenses: money(Number(expenseRows[0].expense)),
+        income: money(Number(expenseRows[0].income)),
         methods,
         expected_total: expectedTotal,
       },

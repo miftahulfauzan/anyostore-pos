@@ -742,7 +742,7 @@ class _PosPageState extends State<PosPage> {
       _buildKasir(),
       HistoryTab(api: _client, role: auth.role),
       InventoryPage(api: _client, branchId: _branchId, role: auth.role),
-      ReportsPage(api: _client),
+      ReportsPage(api: _client, role: auth.role),
       MorePage(api: _client, branchId: _branchId, role: auth.role),
     ];
     return Scaffold(

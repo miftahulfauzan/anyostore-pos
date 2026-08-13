@@ -11,8 +11,9 @@ import 'printer_setup.dart';
 import 'task_ui.dart';
 
 class ReportsPage extends StatefulWidget {
-  const ReportsPage({super.key, required this.api});
+  const ReportsPage({super.key, required this.api, this.role});
   final ApiClient api;
+  final String? role;
 
   @override
   State<ReportsPage> createState() => _ReportsPageState();
@@ -24,6 +25,9 @@ class _ReportsPageState extends State<ReportsPage> {
   Map<String, dynamic>? _data;
   bool _loading = true;
   String? _error;
+  bool get _isOwner => widget.role == 'owner';
+  List<Map<String, dynamic>> _branches = [];
+  int? _branchId;
 
   (String, String) get _range {
     final now = DateTime.now().toUtc().add(const Duration(hours: 7));
@@ -56,20 +60,29 @@ class _ReportsPageState extends State<ReportsPage> {
       _error = null;
     });
     try {
+      if (_isOwner && _branches.isEmpty) {
+        try {
+          _branches = (await widget.api.branches()).cast<Map<String, dynamic>>();
+        } catch (_) {}
+      }
       final (start, end) = _range;
       Map<String, dynamic> data;
       switch (_section) {
         case 'penjualan':
-          data = await widget.api.reportSales(start: start, end: end);
+          data = await widget.api
+              .reportSales(start: start, end: end, branchId: _branchId);
           break;
         case 'penutupan':
-          data = await widget.api.reportDailyClosing(date: start);
+          data = await widget.api
+              .reportDailyClosing(date: start, branchId: _branchId);
           break;
         case 'ppn':
-          data = await widget.api.taxReport(start: start, end: end);
+          data = await widget.api
+              .taxReport(start: start, end: end, branchId: _branchId);
           break;
         default:
-          data = await widget.api.reportOverview(start: start, end: end);
+          data = await widget.api
+              .reportOverview(start: start, end: end, branchId: _branchId);
       }
       if (!mounted) return;
       setState(() => _data = data);
@@ -105,6 +118,50 @@ class _ReportsPageState extends State<ReportsPage> {
             },
           ),
         ),
+        if (_isOwner && _branches.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+            child: DropdownButtonFormField<int?>(
+              initialValue: _branchId,
+              isExpanded: true,
+              decoration: InputDecoration(
+                  labelText: 'Toko',
+                  filled: true,
+                  fillColor:
+                      Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xff1F2530)
+                          : Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 14),
+                  enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                          color: Theme.of(context).brightness ==
+                                  Brightness.dark
+                              ? const Color(0xff2A3140)
+                              : const Color(0xffE7E0D6))),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                          color: Theme.of(context).brightness ==
+                                  Brightness.dark
+                              ? const Color(0xff7FA8CF)
+                              : const Color(0xff1E3A5F),
+                          width: 1.4))),
+              items: [
+                const DropdownMenuItem<int?>(
+                    value: null, child: Text('Semua cabang saya (default)')),
+                for (final b in _branches)
+                  DropdownMenuItem<int?>(
+                      value: int.tryParse('${b['id']}'),
+                      child: Text(b['name']?.toString() ?? '')),
+              ],
+              onChanged: (v) {
+                setState(() => _branchId = v);
+                _load();
+              },
+            ),
+          ),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
           child: Row(
@@ -362,6 +419,8 @@ class _ReportsPageState extends State<ReportsPage> {
         _Row('Total struk', '${_data?['receipt_count'] ?? 0}'),
         _Row('Total penjualan', fmtRp(asNum(_data?['total_sales']))),
         _Row('Retur', '${_data?['return_count'] ?? 0}'),
+        _Row('Pengeluaran', fmtRp(asNum(_data?['expenses']))),
+        _Row('Pemasukan', fmtRp(asNum(_data?['income']))),
         _Row('Total kasir', fmtRp(asNum(_data?['expected_total']))),
       ]),
       for (final entry in methods.entries)
