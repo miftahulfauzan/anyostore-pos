@@ -149,15 +149,20 @@ class _StockSectionState extends State<_StockSection> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.all(12),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+          child: Row(
             children: [
-              _Chip('Produk', '${_summary['total_products'] ?? 0}'),
-              _Chip('Stok', '${_summary['total_stock'] ?? 0}'),
-              _Chip('Stok rendah', '${_summary['low_stock'] ?? 0}', warn: true),
-              _Chip('Habis', '${_summary['out_of_stock'] ?? 0}', warn: true),
+              _StatCell('Produk', '${_summary['total_products'] ?? 0}',
+                  icon: Icons.inventory_2),
+              const SizedBox(width: 8),
+              _StatCell('Stok', '${_summary['total_stock'] ?? 0}',
+                  icon: Icons.storage),
+              const SizedBox(width: 8),
+              _StatCell('Stok rendah', '${_summary['low_stock'] ?? 0}',
+                  icon: Icons.warning_amber_rounded, warn: true),
+              const SizedBox(width: 8),
+              _StatCell('Habis', '${_summary['out_of_stock'] ?? 0}',
+                  icon: Icons.block, warn: true),
             ],
           ),
         ),
@@ -212,19 +217,52 @@ class _StockSectionState extends State<_StockSection> {
   }
 }
 
-class _Chip extends StatelessWidget {
-  const _Chip(this.label, this.value, {this.warn = false});
+/// Statistik stok padat: 1 baris dibagi 4, font kecil seragam supaya muat.
+class _StatCell extends StatelessWidget {
+  const _StatCell(this.label, this.value,
+      {this.icon = Icons.circle, this.warn = false});
   final String label;
   final String value;
+  final IconData icon;
   final bool warn;
 
   @override
-  Widget build(BuildContext context) => Chip(
-        label: Text('$label: $value',
-            style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: warn ? Theme.of(context).colorScheme.error : null)),
-      );
+  Widget build(BuildContext context) {
+    final color = warn ? Theme.of(context).colorScheme.error : kTaskDark;
+    return Expanded(
+      child: GlassCard(
+        radius: 14,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
+        child: Column(
+          children: [
+            Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: kTaskGray)),
+            const SizedBox(height: 2),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 12, color: color),
+                  const SizedBox(width: 3),
+                  Text(value,
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: color)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _MutasiSection extends StatefulWidget {

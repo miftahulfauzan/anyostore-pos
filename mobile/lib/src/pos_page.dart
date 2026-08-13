@@ -76,6 +76,7 @@ class _PosPageState extends State<PosPage> {
   bool _loading = true;
   bool _saving = false;
   bool _autoPrint = false;
+  bool _barVisible = true;
   String? _error;
   String? _cartError;
   String? _lastProductsSync;
@@ -667,8 +668,10 @@ class _PosPageState extends State<PosPage> {
             .showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (e) {
-      final isNetwork =
-          e is SocketException || e is TimeoutException || e is http.ClientException;
+      final isNetwork = e is ApiException && e.isNetwork ||
+          e is SocketException ||
+          e is TimeoutException ||
+          e is http.ClientException;
       if (isNetwork) {
         // Simpan offline: total & harga ikut HP, stok dipaksa negatif, sync otomatis nanti.
         final tempInvoice = 'OFF-$branch-${DateTime.now().millisecondsSinceEpoch}';
@@ -709,18 +712,41 @@ class _PosPageState extends State<PosPage> {
       MorePage(api: _client, branchId: _branchId, role: auth.role),
     ];
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Anyostore App'
-            '${auth.userName != null ? ' · ${auth.userName}' : ''}'),
-        actions: [
-          IconButton(
-            onPressed: () => auth.logout(),
-            icon: const Icon(Icons.logout),
-            tooltip: 'Keluar',
-          ),
-        ],
+      appBar: _AutoHideAppBar(
+        visible: _barVisible,
+        child: AppBar(
+          title: Text('Anyostore App'
+              '${auth.userName != null ? ' · ${auth.userName}' : ''}'),
+          actions: [
+            IconButton(
+              onPressed: () => auth.logout(),
+              icon: const Icon(Icons.logout),
+              tooltip: 'Keluar',
+            ),
+          ],
+        ),
       ),
-      body: IndexedStack(index: _tab, children: pages),
+      body: NotificationListener<ScrollNotification>(
+        onNotification: (n) {
+          if (n.metrics.axis != Axis.vertical) return false;
+          final double delta;
+          if (n is ScrollUpdateNotification) {
+            delta = n.scrollDelta ?? 0;
+          } else if (n is OverscrollNotification) {
+            delta = n.overscroll;
+          } else {
+            return false;
+          }
+          final px = n.metrics.pixels;
+          if (_barVisible && delta > 0 && px > 40) {
+            setState(() => _barVisible = false);
+          } else if (!_barVisible && delta < 0 && px < 160) {
+            setState(() => _barVisible = true);
+          }
+          return false;
+        },
+        child: IndexedStack(index: _tab, children: pages),
+      ),
       bottomNavigationBar: GlassNavBar(
         current: switch (_tab) {
           0 => 2,
@@ -1429,6 +1455,31 @@ class _CartSheet extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+
+/// AppBar yang otomatis menghilang saat konten di-scroll ke bawah
+/// dan muncul lagi saat scroll ke atas (menyusut mulus).
+class _AutoHideAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const _AutoHideAppBar({required this.visible, required this.child});
+  final bool visible;
+  final AppBar child;
+
+  @override
+  Size get preferredSize => Size.fromHeight(visible ? kToolbarHeight : 0);
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      height: visible ? kToolbarHeight : 0,
+      clipBehavior: Clip.hardEdge,
+      decoration: const BoxDecoration(color: Colors.white),
+      alignment: Alignment.topCenter,
+      child: visible ? child : const SizedBox.shrink(),
     );
   }
 }

@@ -429,18 +429,18 @@ class _GlassNavBarState extends State<GlassNavBar>
       duration: const Duration(milliseconds: 420),
       delay: const Duration(milliseconds: 120),
       child: SizedBox(
-        height: 84 + bottomPad,
+        height: 100 + bottomPad,
         child: Stack(
           clipBehavior: Clip.none,
           alignment: Alignment.bottomCenter,
           children: [
+            // Bar melayang: pil mengambang dengan margin kiri/kanan/bawah.
             Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
+              left: 14,
+              right: 14,
+              bottom: 14 + bottomPad,
               child: ClipRRect(
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(36)),
+                borderRadius: BorderRadius.circular(30),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
                   child: ColorFiltered(
@@ -452,9 +452,9 @@ class _GlassNavBarState extends State<GlassNavBar>
                       0, 0, 0, 1, 0,
                     ]),
                     child: Container(
-                      height: 84 + bottomPad,
-                      padding: EdgeInsets.only(
-                          top: 8, left: 10, right: 10, bottom: bottomPad + 4),
+                      height: 64,
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
@@ -542,7 +542,7 @@ class _GlassNavBarState extends State<GlassNavBar>
             ),
             // FAB tengah: tetesan kaca dengan highlight ikut "cahaya".
             Positioned(
-              bottom: 34 + bottomPad,
+              bottom: 44 + bottomPad,
               child: _FabPress(
                 onTap: () => widget.onSelect(2),
                 child: AnimatedBuilder(
@@ -608,18 +608,6 @@ class _GlassNavBarState extends State<GlassNavBar>
                       ),
                     );
                   },
-                ),
-              ),
-            ),
-            // Home indicator
-            Positioned(
-              bottom: bottomPad + 6,
-              child: Container(
-                width: 120,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: kTaskDark.withValues(alpha: .85),
-                  borderRadius: BorderRadius.circular(99),
                 ),
               ),
             ),

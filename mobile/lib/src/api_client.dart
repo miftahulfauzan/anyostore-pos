@@ -1,11 +1,16 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
 class ApiException implements Exception {
-  ApiException(this.message, {this.statusCode});
+  ApiException(this.message, {this.statusCode, this.isNetwork = false});
   final String message;
   final int? statusCode;
+
+  /// true kalau gagal karena jaringan (offline/timeout/koneksi putus).
+  final bool isNetwork;
   @override
   String toString() => message;
 }
@@ -52,12 +57,26 @@ class ApiClient {
     Future<http.Response> Function() run, {
     bool retried = false,
   }) async {
-    final res = await run().timeout(const Duration(seconds: 30));
-    if (res.statusCode == 401 && !retried && refreshHandler != null) {
-      final ok = await refreshHandler!();
-      if (ok) return _request(run, retried: true);
+    try {
+      final res = await run().timeout(const Duration(seconds: 30));
+      if (res.statusCode == 401 && !retried && refreshHandler != null) {
+        final ok = await refreshHandler!();
+        if (ok) return _request(run, retried: true);
+      }
+      return _decode(res);
+    } on ApiException {
+      rethrow;
+    } on TimeoutException {
+      throw ApiException('Waktu habis. Periksa koneksi internet Anda.',
+          isNetwork: true);
+    } on SocketException {
+      throw ApiException('Tidak ada koneksi internet.', isNetwork: true);
+    } on http.ClientException {
+      throw ApiException('Koneksi gagal. Periksa internet Anda.',
+          isNetwork: true);
+    } catch (_) {
+      throw ApiException('Koneksi gagal. Coba lagi.', isNetwork: true);
     }
-    return _decode(res);
   }
 
   Map<String, dynamic> _decode(http.Response res) {
