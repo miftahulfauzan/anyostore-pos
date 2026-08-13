@@ -398,10 +398,14 @@ class GlassNavBar extends StatefulWidget {
       {super.key,
       required this.current,
       required this.onSelect,
-      required this.items});
+      required this.items,
+      this.cartCount = 0});
   final int current;
   final ValueChanged<int> onSelect;
   final List<({IconData icon, IconData activeIcon, String label})> items;
+
+  /// Jumlah item di keranjang aktif -> badge di item POS (paling kiri).
+  final int cartCount;
 
   @override
   State<GlassNavBar> createState() => _GlassNavBarState();
@@ -532,48 +536,74 @@ class _GlassNavBarState extends State<GlassNavBar>
       child: GestureDetector(
         onTap: () => widget.onSelect(i),
         behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOutCubic,
-          width: 62,
-          height: 56,
-          margin: const EdgeInsets.symmetric(vertical: 1),
-          decoration: BoxDecoration(
-            color: active
-                ? (dark
-                    ? kTaskDark.withValues(alpha: .45)
-                    : kTaskDark.withValues(alpha: .12))
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                transitionBuilder: (child, anim) => FadeTransition(
-                  opacity: anim,
-                  child: ScaleTransition(
-                      scale: Tween(begin: 0.6, end: 1.0).animate(anim),
-                      child: child),
-                ),
-                child: Icon(
-                    active ? item.activeIcon : item.icon,
-                    key: ValueKey(active),
-                    size: 21,
-                    color: active ? activeColor : idleColor),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              width: 62,
+              height: 56,
+              margin: const EdgeInsets.symmetric(vertical: 1),
+              decoration: BoxDecoration(
+                color: active
+                    ? (dark
+                        ? kTaskDark.withValues(alpha: .45)
+                        : kTaskDark.withValues(alpha: .12))
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(18),
               ),
-              const SizedBox(height: 2),
-              Text(item.label,
-                  style: TextStyle(
-                      fontSize: 9,
-                      fontWeight:
-                          active ? FontWeight.w800 : FontWeight.w600,
-                      color: active ? activeColor : idleColor)),
-            ],
-          ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, anim) => FadeTransition(
+                      opacity: anim,
+                      child: ScaleTransition(
+                          scale: Tween(begin: 0.6, end: 1.0).animate(anim),
+                          child: child),
+                    ),
+                    child: Icon(
+                        active ? item.activeIcon : item.icon,
+                        key: ValueKey(active),
+                        size: 21,
+                        color: active ? activeColor : idleColor),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(item.label,
+                      style: TextStyle(
+                          fontSize: 9,
+                          fontWeight:
+                              active ? FontWeight.w800 : FontWeight.w600,
+                          color: active ? activeColor : idleColor)),
+                ],
+              ),
+            ),
+            // Badge jumlah item keranjang aktif di item POS.
+            if (i == 0 && widget.cartCount > 0)
+              Positioned(
+                top: -3,
+                right: 0,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: const Color(0xffD64545),
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                  child: Text(
+                      '${widget.cartCount > 99 ? '99+' : widget.cartCount}',
+                      style: const TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white)),
+                ),
+              ),
+          ],
         ),
       ),
     );

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'src/api_client.dart';
@@ -14,6 +15,18 @@ import 'src/theme_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarIconBrightness:
+        ThemeController.mode.value == ThemeMode.dark
+            ? Brightness.light
+            : Brightness.dark,
+    systemStatusBarContrastEnforced: false,
+    systemNavigationBarContrastEnforced: false,
+  ));
   final auth = AuthStore(ApiClient());
   await auth.restore();
   await ThemeController.load();
@@ -192,40 +205,47 @@ class PosMobileApp extends StatelessWidget {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeController.mode,
       builder: (context, themeMode, _) {
-        return LayoutBuilder(builder: (context, constraints) {
-          final mq = MediaQuery.of(context);
-          final scale = math
-              .min(constraints.maxWidth / designW,
-                  constraints.maxHeight / designH)
-              .clamp(0.8, 1.35);
-          return Center(
-            child: SizedBox(
-              width: designW * scale,
-              height: designH * scale,
-              child: Transform.scale(
-                scale: scale,
-                child: MediaQuery(
-                  data: mq.copyWith(
-                    size: const Size(designW, designH),
-                    devicePixelRatio: mq.devicePixelRatio / scale,
-                  ),
-                  child: MaterialApp(
-                    title: 'Anyostore App',
-                    debugShowCheckedModeBanner: false,
-                    theme: _buildTheme(brightness: Brightness.light),
-                    darkTheme: _buildTheme(brightness: Brightness.dark),
-                    themeMode: themeMode,
-                    home: Consumer<AuthStore>(
-                      builder: (_, auth, __) => auth.isAuthenticated
-                          ? const PosPage()
-                          : const LoginPage(),
+        // Area di luar area desain diisi warna tema (bukan hitam) supaya
+        // tidak ada garis hitam di HP dengan rasio layar lebih tinggi.
+        final band = themeMode == ThemeMode.dark
+            ? const Color(0xff12151B)
+            : const Color(0xffF5F1EA);
+        return ColoredBox(
+            color: band,
+            child: LayoutBuilder(builder: (context, constraints) {
+              final mq = MediaQuery.of(context);
+              final scale = math
+                  .min(constraints.maxWidth / designW,
+                      constraints.maxHeight / designH)
+                  .clamp(0.8, 1.35);
+              return Center(
+                child: SizedBox(
+                  width: designW * scale,
+                  height: designH * scale,
+                  child: Transform.scale(
+                    scale: scale,
+                    child: MediaQuery(
+                      data: mq.copyWith(
+                        size: const Size(designW, designH),
+                        devicePixelRatio: mq.devicePixelRatio / scale,
+                      ),
+                      child: MaterialApp(
+                        title: 'Anyostore App',
+                        debugShowCheckedModeBanner: false,
+                        theme: _buildTheme(brightness: Brightness.light),
+                        darkTheme: _buildTheme(brightness: Brightness.dark),
+                        themeMode: themeMode,
+                        home: Consumer<AuthStore>(
+                          builder: (_, auth, __) => auth.isAuthenticated
+                              ? const PosPage()
+                              : const LoginPage(),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-          );
-        });
+              );
+            }));
       },
     );
   }

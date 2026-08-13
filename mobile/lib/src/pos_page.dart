@@ -734,30 +734,15 @@ class _PosPageState extends State<PosPage> {
       appBar: _AutoHideAppBar(
         visible: _barVisible,
         child: AppBar(
-          // Header gaya Instagram: logo kiri, judul di tengah, aksi kanan.
+          // Header simetris (gaya Instagram): judul di tengah, tanpa logo.
           leadingWidth: 52,
-          leading: Padding(
-            padding: const EdgeInsets.only(left: 10),
-            child: BrandLogo(api: _api, size: 34, radius: 11),
-          ),
-          title: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Anyostore App',
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xff1E3A5F))),
-              if (auth.userName != null)
-                Text(auth.userName!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xff8A857C))),
-            ],
-          ),
+          leading: const SizedBox(width: 52),
+          title: const Text('Anyostore App',
+              maxLines: 1,
+              style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xff1E3A5F))),
           bottom: const PreferredSize(
             preferredSize: Size.fromHeight(0.5),
             child: Divider(height: 0.5, thickness: 0.5, color: Color(0xffE7E0D6)),
@@ -802,6 +787,7 @@ class _PosPageState extends State<PosPage> {
             bottom: 0,
             child: GlassNavBar(
               current: _tab,
+              cartCount: _cart.length,
               onSelect: (i) => setState(() {
                 _tab = i;
                 if (_tab == 0) _loadData(silent: true);
@@ -1304,7 +1290,7 @@ class _QtyInputState extends State<_QtyInput> {
   }
 }
 
-class _CartSheet extends StatelessWidget {
+class _CartSheet extends StatefulWidget {
   const _CartSheet({
     required this.cart,
     required this.customers,
@@ -1342,11 +1328,31 @@ class _CartSheet extends StatelessWidget {
   final VoidCallback onResume;
 
   @override
+  State<_CartSheet> createState() => _CartSheetState();
+}
+
+class _CartSheetState extends State<_CartSheet> {
+  bool _showOptions = false;
+
+  String _customerName() {
+    for (final c in widget.customers) {
+      if ('${c['id']}' == '${widget.customerId}') {
+        return c['name']?.toString() ?? '';
+      }
+    }
+    return '';
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final subtotal = asNum(preview?['subtotal'] ??
+    final cart = widget.cart;
+    final subtotal = asNum(widget.preview?['subtotal'] ??
         cart.fold(0.0, (s, c) => s + (c.priceOverride ?? c.price) * c.qty));
-    final discount = asNum(preview?['discount'] ?? 0);
-    final grandTotal = asNum(preview?['grand_total'] ?? subtotal);
+    final discount = asNum(widget.preview?['discount'] ?? 0);
+    final grandTotal = asNum(widget.preview?['grand_total'] ?? subtotal);
+    final customerName = _customerName();
+    final hasExtra = customerName.isNotEmpty || widget.promoCode.isNotEmpty;
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1354,39 +1360,102 @@ class _CartSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Keranjang (${cart.length})',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 10),
-            if (customers.isNotEmpty)
-              DropdownButtonFormField<int?>(
-                initialValue: customerId,
+            // Judul: fokus daftar barang + jumlah item aktif.
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Keranjang (${cart.length} item)',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w800)),
+                ),
+                TextButton.icon(
+                  onPressed: () => setState(() => _showOptions = !_showOptions),
+                  icon: Icon(_showOptions
+                      ? Icons.expand_less
+                      : Icons.tune),
+                  label: Text(_showOptions ? 'Tutup Opsi' : 'Opsi'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            // Opsi (pelanggan/promo/tahan) hanya muncul saat dibuka.
+            if (_showOptions) ...[
+              if (widget.customers.isNotEmpty)
+                DropdownButtonFormField<int?>(
+                  initialValue: widget.customerId,
+                  decoration: const InputDecoration(
+                      isDense: true,
+                      labelText: 'Pelanggan (opsional)',
+                      border: OutlineInputBorder()),
+                  items: [
+                    const DropdownMenuItem<int?>(
+                        value: null, child: Text('Tanpa pelanggan')),
+                    for (final c in widget.customers)
+                      DropdownMenuItem<int?>(
+                          value: int.tryParse('${c['id']}'),
+                          child: Text(
+                              '${c['name']}${c['phone'] != null && (c['phone'] as String).isNotEmpty ? ' · ${c['phone']}' : ''}')),
+                  ],
+                  onChanged: widget.onCustomerChanged,
+                ),
+              const SizedBox(height: 8),
+              TextField(
                 decoration: const InputDecoration(
                     isDense: true,
-                    labelText: 'Pelanggan (opsional)',
+                    labelText: 'Kode promo (opsional)',
                     border: OutlineInputBorder()),
-                items: [
-                  const DropdownMenuItem<int?>(
-                      value: null, child: Text('Tanpa pelanggan')),
-                  for (final c in customers)
-                    DropdownMenuItem<int?>(
-                        value: int.tryParse('${c['id']}'),
-                        child: Text(
-                            '${c['name']}${c['phone'] != null && (c['phone'] as String).isNotEmpty ? ' · ${c['phone']}' : ''}')),
-                ],
-                onChanged: onCustomerChanged,
+                onChanged: widget.onPromoChanged,
               ),
-            const SizedBox(height: 10),
-            TextField(
-              decoration: const InputDecoration(
-                  isDense: true,
-                  labelText: 'Kode promo (opsional)',
-                  border: OutlineInputBorder()),
-              onChanged: onPromoChanged,
-            ),
-            const SizedBox(height: 8),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: widget.onHold,
+                      icon:
+                          const Icon(Icons.pause_circle_outline, size: 18),
+                      label: const Text('Tahan'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: widget.onResume,
+                      icon:
+                          const Icon(Icons.play_circle_outline, size: 18),
+                      label: const Text('Ambil Tahan'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+            ] else if (hasExtra)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    if (customerName.isNotEmpty)
+                      Chip(
+                        avatar: const Icon(Icons.person_outline, size: 15),
+                        label: Text(customerName,
+                            style: const TextStyle(fontSize: 11)),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    if (widget.promoCode.isNotEmpty)
+                      Chip(
+                        avatar: const Icon(Icons.local_offer_outlined,
+                            size: 15),
+                        label: Text(widget.promoCode,
+                            style: const TextStyle(fontSize: 11)),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                  ],
+                ),
+              ),
             Flexible(
               child: ListView(
                 shrinkWrap: true,
@@ -1434,24 +1503,24 @@ class _CartSheet extends StatelessWidget {
                               ),
                             ),
                             IconButton(
-                              onPressed: () => onQtyChanged(item, -1),
+                              onPressed: () => widget.onQtyChanged(item, -1),
                               icon: const Icon(Icons.remove_circle_outline),
                             ),
                             _QtyInput(
                               value: item.qty,
-                              onChanged: (v) => onQtySet(item, v),
+                              onChanged: (v) => widget.onQtySet(item, v),
                             ),
                             IconButton(
-                              onPressed: () => onQtyChanged(item, 1),
+                              onPressed: () => widget.onQtyChanged(item, 1),
                               icon: const Icon(Icons.add_circle_outline),
                             ),
                             IconButton(
-                              onPressed: () => onEditPrice(item),
+                              onPressed: () => widget.onEditPrice(item),
                               icon: const Icon(Icons.edit_outlined),
                               tooltip: 'Ubah harga',
                             ),
                             IconButton(
-                              onPressed: () => onRemove(item),
+                              onPressed: () => widget.onRemove(item),
                               icon: const Icon(Icons.delete_outline),
                             ),
                           ],
@@ -1462,42 +1531,23 @@ class _CartSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onHold,
-                    icon: const Icon(Icons.pause_circle_outline, size: 18),
-                    label: const Text('Tahan'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onResume,
-                    icon: const Icon(Icons.play_circle_outline, size: 18),
-                    label: const Text('Ambil Tahan'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
             Text('Subtotal: ${fmtRp(subtotal)}'),
             if (discount > 0) Text('Diskon: -${fmtRp(discount)}'),
             Text('Total: ${fmtRp(grandTotal)}',
                 style:
                     const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-            if (error != null) ...[
+            if (widget.error != null) ...[
               const SizedBox(height: 6),
-              Text(error!,
+              Text(widget.error!,
                   style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ],
             const SizedBox(height: 10),
             FilledButton(
               style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(50)),
-              onPressed: saving || cart.isEmpty ? null : onPay,
-              child: saving
+              onPressed:
+                  widget.saving || cart.isEmpty ? null : widget.onPay,
+              child: widget.saving
                   ? const SizedBox(
                       width: 22,
                       height: 22,
@@ -1510,6 +1560,7 @@ class _CartSheet extends StatelessWidget {
     );
   }
 }
+
 
 
 /// AppBar yang otomatis menghilang saat konten di-scroll ke bawah
