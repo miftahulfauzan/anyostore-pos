@@ -158,16 +158,29 @@ class _SoftBlobsState extends State<SoftBlobs>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c;
 
+  bool _reduced = false;
+
   @override
   void initState() {
     super.initState();
-    final reduced = MediaQuery.maybeDisableAnimationsOf(context) == true;
     _c = AnimationController(
         vsync: this,
         duration: const Duration(seconds: 7),
         lowerBound: 0,
         upperBound: 1);
-    if (!reduced) _c.repeat(reverse: true);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduced = MediaQuery.maybeDisableAnimationsOf(context) == true;
+    if (reduced == _reduced) return;
+    _reduced = reduced;
+    if (reduced) {
+      _c.stop();
+    } else if (!_c.isAnimating) {
+      _c.repeat(reverse: true);
+    }
   }
 
   @override

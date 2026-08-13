@@ -495,6 +495,7 @@ class _HistoryTabState extends State<HistoryTab> {
                     Expanded(
                       child: DropdownButtonFormField<String>(
                         initialValue: _preset,
+                        isExpanded: true,
                         decoration: _dec('Rentang'),
                         items: const [
                           DropdownMenuItem(
@@ -516,6 +517,7 @@ class _HistoryTabState extends State<HistoryTab> {
                     Expanded(
                       child: DropdownButtonFormField<String>(
                         initialValue: _status,
+                        isExpanded: true,
                         decoration: _dec('Status'),
                         items: const [
                           DropdownMenuItem(
