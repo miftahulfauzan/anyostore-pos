@@ -43,18 +43,20 @@ class MorePage extends StatelessWidget {
         body: child,
       );
 
-  Widget _group(String title, List<Widget> rows) {
+  Widget _group(BuildContext context, String title, List<Widget> rows) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(6, 16, 0, 6),
           child: Text(title,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.2,
-                  color: Color(0xff8A857C))),
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xff9AA5B1)
+                      : const Color(0xff8A857C))),
         ),
         GlassCard(
           padding: EdgeInsets.zero,
@@ -94,8 +96,12 @@ class MorePage extends StatelessWidget {
                     if (email.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(email,
-                          style: const TextStyle(
-                              fontSize: 12, color: _kMuted)),
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? const Color(0xff9AA5B1)
+                                  : _kMuted)),
                     ],
                   ],
                 ),
@@ -106,58 +112,58 @@ class MorePage extends StatelessWidget {
         const SizedBox(height: 12),
         _OfflineTile(api: api),
         const SizedBox(height: 12),
-        _group('UTAMA', [
+        _group(context, 'UTAMA', [
           _row(context, Icons.dashboard, 'Dashboard', const Color(0xffE3EAF2), _kInk,
               () => _open(context, 'Dashboard', DashboardPage(api: api))),
         ]),
-        _group('AKUN & TOKO', [
+        _group(context, 'AKUN & TOKO', [
           _row(context, Icons.person_outline, 'Akun Saya', const Color(0xffE3EAF2),
               const Color(0xff1E3A5F),
               () => _open(context, 'Akun Saya', ProfilePage(api: api))),
-          _divider(),
+          _divider(context),
           _row(context, Icons.settings, 'Pengaturan', const Color(0xffE3EAF2), _kInk,
               () => _open(context, 'Pengaturan', SettingsPage(api: api))),
         ]),
-        _group('PRODUK & INVENTORI', [
+        _group(context, 'PRODUK & INVENTORI', [
           _row(context, Icons.inventory_2_outlined, 'Daftar Produk',
               const Color(0xffE3EAF2), const Color(0xff1E3A5F),
               () => _open(context, 'Daftar Produk',
                   ProductsPage(api: api, branchId: branchId))),
-          _divider(),
+          _divider(context),
           _row(context, Icons.history, 'Riwayat Stok', const Color(0xffE3EAF2),
               const Color(0xff1E3A5F), () => _open(context, 'Riwayat Stok',
                   StockMovementsPage(api: api, branchId: branchId))),
-          _divider(),
+          _divider(context),
           _row(context, Icons.swap_vert, 'Laporan Masuk/Keluar',
               const Color(0xffE3EAF2), const Color(0xff1E3A5F),
               () => _open(context, 'Laporan Masuk/Keluar',
                   MutationReportPage(api: api))),
         ]),
-        _group('TRANSAKSI & KEUANGAN', [
+        _group(context, 'TRANSAKSI & KEUANGAN', [
           _row(context, Icons.people, 'Jenis Pelanggan', const Color(0xffE3EAF2),
               const Color(0xff1E3A5F), () => _open(context, 'Jenis Pelanggan',
                   CustomersPage(api: api))),
-          _divider(),
+          _divider(context),
           _row(context, Icons.payments, 'Laci Kas', const Color(0xffE3EAF2),
               const Color(0xff1E3A5F), () => _open(context, 'Laci Kas',
                   CashDrawerPage(api: api))),
-          _divider(),
+          _divider(context),
           _row(context, Icons.account_balance_wallet, 'Keuangan',
               const Color(0xffE3EAF2), const Color(0xff1E3A5F),
               () => _open(context, 'Keuangan', FinancePage(api: api))),
-          _divider(),
+          _divider(context),
           _row(context, Icons.payments_outlined, 'Komisi', const Color(0xffE3EAF2),
               const Color(0xff1E3A5F), () => _open(context, 'Komisi',
                   CommissionsPage(api: api, branchId: branchId, role: role))),
         ]),
-        _group('MANAJEMEN', [
+        _group(context, 'MANAJEMEN', [
           _row(context, Icons.badge, 'Pegawai', const Color(0xffE3EAF2),
               const Color(0xff1E3A5F), () => _open(context, 'Pegawai',
                   UsersPage(api: api, branchId: branchId, role: role))),
-          _divider(),
+          _divider(context),
           _row(context, Icons.local_offer, 'Promo', const Color(0xffE3EAF2), _kInk,
               () => _open(context, 'Promo', PromotionsPage(api: api))),
-          _divider(),
+          _divider(context),
           _row(context, Icons.receipt_long_outlined, 'Riwayat Aktivitas',
               const Color(0xffE3EAF2), const Color(0xff1E3A5F),
               () => _open(context, 'Riwayat Aktivitas',
@@ -179,19 +185,27 @@ class MorePage extends StatelessWidget {
                     width: 34,
                     height: 34,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFCE8E6),
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFF3A2422)
+                          : const Color(0xFFFCE8E6),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.logout,
-                        size: 17, color: Color(0xFFC2410C)),
+                    child: Icon(Icons.logout,
+                        size: 17,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFFF2B8A5)
+                            : const Color(0xFFC2410C)),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Text('Keluar',
                         style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFFC2410C))),
+                            color: Theme.of(context).brightness ==
+                                    Brightness.dark
+                                ? const Color(0xFFF2B8A5)
+                                : const Color(0xFFC2410C))),
                   ),
                   const Icon(Icons.chevron_right,
                       size: 18, color: Color(0xff94a3b8)),
@@ -200,26 +214,35 @@ class MorePage extends StatelessWidget {
             ),
           ),
         ),
-        const Padding(
+        Padding(
           padding: EdgeInsets.only(top: 20, bottom: 8),
           child: Text('Anyostore App v0.1.0',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 10, color: _kMuted)),
+              style: TextStyle(
+                  fontSize: 10,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xff8A8F98)
+                      : _kMuted)),
         ),
       ],
     );
   }
 
-  Widget _divider() => const Divider(
+  Widget _divider(BuildContext context) => Divider(
         height: 1,
         thickness: 1,
-        color: _kBorder,
+        color: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xff2A3140)
+            : _kBorder,
         indent: 16,
         endIndent: 16,
       );
 
   Widget _row(BuildContext context, IconData icon, String title,
       Color chipBg, Color chipFg, VoidCallback onTap) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final bg = dark ? const Color(0xff26303F) : chipBg;
+    final fg = dark ? const Color(0xffDDE6F2) : chipFg;
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -230,10 +253,10 @@ class MorePage extends StatelessWidget {
               width: 34,
               height: 34,
               decoration: BoxDecoration(
-                color: chipBg,
+                color: bg,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, size: 17, color: chipFg),
+              child: Icon(icon, size: 17, color: fg),
             ),
             SizedBox(width: 12),
             Expanded(

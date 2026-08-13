@@ -115,17 +115,26 @@ class _ReportsPageState extends State<ReportsPage> {
                   decoration: InputDecoration(
                       labelText: 'Rentang',
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xff1F2530)
+                          : Colors.white,
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 14),
                       enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
-                          borderSide:
-                              const BorderSide(color: Color(0xffE7E0D6))),
+                          borderSide: BorderSide(
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? const Color(0xff2A3140)
+                                  : const Color(0xffE7E0D6))),
                       focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(
-                              color: Color(0xff1E3A5F), width: 1.4))),
+                          borderSide: BorderSide(
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? const Color(0xff7FA8CF)
+                                  : const Color(0xff1E3A5F),
+                              width: 1.4))),
                   items: const [
                     DropdownMenuItem(value: 'today', child: Text('Hari ini')),
                     DropdownMenuItem(value: '7d', child: Text('7 hari')),

@@ -61,37 +61,14 @@ class _VariantPickerState extends State<VariantPicker> {
                 runSpacing: 8,
                 children: [
                   for (final v in widget.variants)
-                    ChoiceChip(
-                      label: Text([
-                        v['color']?.toString(),
-                        v['size']?.toString(),
-                      ].where((e) => e != null && e.isNotEmpty).join(' / ')),
+                    _VariantBox(
+                      variant: v,
                       selected: v['id'] == _variantId,
-                      onSelected: (_) =>
+                      mediaUrl: widget.mediaUrl,
+                      onTap: () =>
                           setState(() => _variantId = v['id'] as int?),
                     ),
                 ],
-              ),
-              const SizedBox(height: 10),
-              // Foto varian terpilih (fallback foto produk).
-              Builder(
-                builder: (context) {
-                  final photoPath = (sel?['photo_path']?.toString() ??
-                          widget.product['photo_path']?.toString()) ??
-                      '';
-                  final url = widget.mediaUrl(photoPath);
-                  if (url.isEmpty) return const SizedBox.shrink();
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: CachedNetworkImage(
-                      imageUrl: url,
-                      height: 110,
-                      width: double.maxFinite,
-                      fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => const SizedBox.shrink(),
-                    ),
-                  );
-                },
               ),
               const SizedBox(height: 10),
               if (sel != null)
@@ -200,3 +177,82 @@ class _QtyFieldState extends State<_QtyField> {
   }
 }
 
+
+
+/// Kotak varian seragam: foto kecil di kiri + nama warna/ukuran di kanan.
+class _VariantBox extends StatelessWidget {
+  const _VariantBox(
+      {required this.variant,
+      required this.selected,
+      required this.mediaUrl,
+      required this.onTap});
+  final Map<String, dynamic> variant;
+  final bool selected;
+  final String Function(String?) mediaUrl;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final label = [
+      variant['color']?.toString(),
+      variant['size']?.toString(),
+    ].where((e) => e != null && e.isNotEmpty).join(' / ');
+    final url = mediaUrl(variant['photo_path']?.toString());
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 134,
+        height: 42,
+        padding: const EdgeInsets.symmetric(horizontal: 5),
+        decoration: BoxDecoration(
+          color: selected
+              ? scheme.primary.withValues(alpha: .14)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? scheme.primary : scheme.outlineVariant,
+            width: selected ? 1.6 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                width: 28,
+                height: 28,
+                child: url.isEmpty
+                    ? ColoredBox(
+                        color: scheme.surfaceContainerHighest,
+                        child: const Icon(Icons.inventory_2,
+                            size: 14, color: Colors.grey),
+                      )
+                    : CachedNetworkImage(
+                        imageUrl: url,
+                        fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) => ColoredBox(
+                          color: scheme.surfaceContainerHighest,
+                          child: const Icon(Icons.inventory_2,
+                              size: 14, color: Colors.grey),
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight:
+                          selected ? FontWeight.w800 : FontWeight.w600,
+                      color: scheme.onSurface)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

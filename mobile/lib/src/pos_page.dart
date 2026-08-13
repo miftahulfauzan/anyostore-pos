@@ -1237,7 +1237,7 @@ class _QtyInputState extends State<_QtyInput> {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 48,
+      width: 40,
       child: TextField(
         controller: _c,
         keyboardType: TextInputType.number,
@@ -1433,10 +1433,9 @@ class _CartSheetState extends State<_CartSheet> {
                   ],
                 ),
               ),
-            Flexible(
+            Expanded(
               child: ListView(
                 controller: widget.scrollController,
-                shrinkWrap: true,
                 children: [
                   for (final item in cart)
                     GlassCard(
@@ -1475,68 +1474,61 @@ class _CartSheetState extends State<_CartSheet> {
                             ),
                             const SizedBox(width: 6),
                             // Setengah kanan: kontrol - qty + edit hapus.
-                            Expanded(
-                              flex: 2,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  IconButton(
-                                    onPressed: () =>
-                                        widget.onQtyChanged(item, -1),
-                                    visualDensity:
-                                        VisualDensity.compact,
-                                    padding: EdgeInsets.zero,
-                                    constraints:
-                                        const BoxConstraints.tightFor(
-                                            width: 28, height: 34),
-                                    icon: const Icon(
-                                        Icons.remove_circle_outline,
-                                        size: 19),
-                                  ),
-                                  _QtyInput(
-                                    value: item.qty,
-                                    onChanged: (v) =>
-                                        widget.onQtySet(item, v),
-                                  ),
-                                  IconButton(
-                                    onPressed: () =>
-                                        widget.onQtyChanged(item, 1),
-                                    visualDensity:
-                                        VisualDensity.compact,
-                                    padding: EdgeInsets.zero,
-                                    constraints:
-                                        const BoxConstraints.tightFor(
-                                            width: 28, height: 34),
-                                    icon: const Icon(
-                                        Icons.add_circle_outline,
-                                        size: 19),
-                                  ),
-                                  IconButton(
-                                    onPressed: () =>
-                                        widget.onEditPrice(item),
-                                    visualDensity:
-                                        VisualDensity.compact,
-                                    padding: EdgeInsets.zero,
-                                    constraints:
-                                        const BoxConstraints.tightFor(
-                                            width: 28, height: 34),
-                                    icon: const Icon(Icons.edit_outlined,
-                                        size: 17),
-                                    tooltip: 'Ubah harga',
-                                  ),
-                                  IconButton(
-                                    onPressed: () => widget.onRemove(item),
-                                    visualDensity:
-                                        VisualDensity.compact,
-                                    padding: EdgeInsets.zero,
-                                    constraints:
-                                        const BoxConstraints.tightFor(
-                                            width: 28, height: 34),
-                                    icon: const Icon(Icons.delete_outline,
-                                        size: 18),
-                                  ),
-                                ],
-                              ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  onPressed: () =>
+                                      widget.onQtyChanged(item, -1),
+                                  visualDensity: VisualDensity.compact,
+                                  padding: EdgeInsets.zero,
+                                  constraints:
+                                      const BoxConstraints.tightFor(
+                                          width: 26, height: 34),
+                                  icon: const Icon(
+                                      Icons.remove_circle_outline,
+                                      size: 18),
+                                ),
+                                _QtyInput(
+                                  value: item.qty,
+                                  onChanged: (v) =>
+                                      widget.onQtySet(item, v),
+                                ),
+                                IconButton(
+                                  onPressed: () =>
+                                      widget.onQtyChanged(item, 1),
+                                  visualDensity: VisualDensity.compact,
+                                  padding: EdgeInsets.zero,
+                                  constraints:
+                                      const BoxConstraints.tightFor(
+                                          width: 26, height: 34),
+                                  icon: const Icon(
+                                      Icons.add_circle_outline,
+                                      size: 18),
+                                ),
+                                IconButton(
+                                  onPressed: () =>
+                                      widget.onEditPrice(item),
+                                  visualDensity: VisualDensity.compact,
+                                  padding: EdgeInsets.zero,
+                                  constraints:
+                                      const BoxConstraints.tightFor(
+                                          width: 26, height: 34),
+                                  icon: const Icon(Icons.edit_outlined,
+                                      size: 16),
+                                  tooltip: 'Ubah harga',
+                                ),
+                                IconButton(
+                                  onPressed: () => widget.onRemove(item),
+                                  visualDensity: VisualDensity.compact,
+                                  padding: EdgeInsets.zero,
+                                  constraints:
+                                      const BoxConstraints.tightFor(
+                                          width: 26, height: 34),
+                                  icon: const Icon(Icons.delete_outline,
+                                      size: 17),
+                                ),
+                              ],
                             ),
                           ],
                         ),

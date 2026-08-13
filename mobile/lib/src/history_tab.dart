@@ -448,19 +448,24 @@ class _HistoryTabState extends State<HistoryTab> {
   }
 
   InputDecoration _dec(String label, {bool hint = false}) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(16),
-      borderSide: const BorderSide(color: Color(0xffE7E0D6)),
+      borderSide: BorderSide(
+          color: dark ? const Color(0xff2A3140) : const Color(0xffE7E0D6)),
     );
     return InputDecoration(
       labelText: hint ? null : label,
       hintText: hint ? label : null,
       filled: true,
-      fillColor: Colors.white,
+      fillColor: dark ? const Color(0xff1F2530) : Colors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       enabledBorder: border,
       focusedBorder: border.copyWith(
-          borderSide: const BorderSide(color: Color(0xff1E3A5F), width: 1.4)),
+          borderSide: BorderSide(
+              color:
+                  dark ? const Color(0xff7FA8CF) : const Color(0xff1E3A5F),
+              width: 1.4)),
     );
   }
 

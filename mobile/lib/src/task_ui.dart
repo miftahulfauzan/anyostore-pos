@@ -465,9 +465,9 @@ class GlassNavBar extends StatelessWidget {
                         end: Alignment.bottomCenter,
                         colors: dark
                             ? const [
-                                Color(0x80FFFFFF),
-                                Color(0x30FFFFFF),
-                                Color(0x14FFFFFF),
+                                Color(0x3DFFFFFF),
+                                Color(0x1FFFFFFF),
+                                Color(0x0AFFFFFF),
                               ]
                             : const [
                                 Color(0xB3FFFFFF),
@@ -501,7 +501,8 @@ class GlassNavBar extends StatelessWidget {
   Widget _navIcon(int i, {required bool dark}) {
     final item = items[i];
     final active = current == i;
-    const idleColor = Color(0xff403C36);
+    final idleColor =
+        dark ? const Color(0xffF1F5FB) : const Color(0xff403C36);
     const activeColor = Colors.white;
     return Semantics(
       label: item.label,
