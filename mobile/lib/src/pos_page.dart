@@ -243,9 +243,6 @@ class _PosPageState extends State<PosPage> {
                 _loading = false;
               });
               _lastProductsSync = cached['updated_at']?.toString() ?? '';
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text(
-                      'Offline — memakai data tersimpan. Transaksi akan tersimpan & otomatis sync saat internet kembali.')));
             }
             return;
           }
@@ -825,8 +822,7 @@ class _PosPageState extends State<PosPage> {
 
   /// Simpan transaksi ke antrean offline (harga/total ikut HP, sync nanti).
   Future<void> _saveOffline(Map<String, dynamic> payload, int branch) async {
-    final tempInvoice =
-        'OFF-$branch-${DateTime.now().millisecondsSinceEpoch}';
+    final tempInvoice = 'OFF-$branch-${DateTime.now().millisecondsSinceEpoch}';
     payload['offline'] = true;
     payload['offline_invoice_no'] = tempInvoice;
     payload['allow_negative_stock'] = true;
@@ -864,31 +860,21 @@ class _PosPageState extends State<PosPage> {
         bottom: false,
         child: Column(
           children: [
-            // Banner kuning saat data dipakai offline.
+            // Indikator offline: satu titik kuning kecil di atas (tanpa teks).
             ValueListenableBuilder<bool>(
               valueListenable: OfflineStatus.offline,
               builder: (context, offline, _) => offline
-                  ? Container(
-                      width: double.infinity,
-                      color: const Color(0xFFFFF3CD),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.cloud_off,
-                              size: 15, color: Color(0xFF8A6D1A)),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                                'Offline — memakai data tersimpan. Otomatis sync saat internet kembali.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF6B5208))),
+                  ? const Padding(
+                      padding: EdgeInsets.only(top: 6),
+                      child: Tooltip(
+                        message: 'Offline — memakai data tersimpan',
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Color(0xFFF2C230),
                           ),
-                        ],
+                          child: SizedBox(width: 10, height: 10),
+                        ),
                       ),
                     )
                   : const SizedBox.shrink(),
