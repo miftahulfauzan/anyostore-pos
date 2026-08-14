@@ -302,10 +302,14 @@ class _StockSectionState extends State<_StockSection> {
                   onChanged: (v) => setState(() => _sort = v ?? 'nama'),
                 ),
               ),
-              const SizedBox(width: 8),
-              _ViewToggle(
-                grid: _grid,
-                onChanged: (g) => setState(() => _grid = g),
+              const SizedBox(width: 10),
+              // Toggle ikon Card/Grid dengan ruang proporsional.
+              SizedBox(
+                width: 104,
+                child: _ViewToggle(
+                  grid: _grid,
+                  onChanged: (g) => setState(() => _grid = g),
+                ),
               ),
             ],
           ),
@@ -1812,11 +1816,11 @@ class _ViewToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      height: 42,
-      padding: const EdgeInsets.all(3),
+      height: 46,
+      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: dark ? const Color(0xff1F2530) : const Color(0xffF0EEE8),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
             color: dark ? const Color(0xff2A3140) : const Color(0xffE7E0D6)),
       ),
@@ -1838,15 +1842,15 @@ class _ViewToggle extends StatelessWidget {
         message: tooltip,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(11),
+          borderRadius: BorderRadius.circular(13),
           child: Container(
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: active ? const Color(0xff1E3A5F) : Colors.transparent,
-              borderRadius: BorderRadius.circular(11),
+              borderRadius: BorderRadius.circular(13),
             ),
             child: Icon(icon,
-                size: 16,
+                size: 19,
                 color: active ? Colors.white : const Color(0xff8A857C)),
           ),
         ),

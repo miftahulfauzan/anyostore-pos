@@ -112,20 +112,26 @@ class PillTabs extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             onTap: () => onChanged(t.value),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(t.icon,
-                      size: 16, color: active ? Colors.white : kTaskGray),
-                  const SizedBox(width: 6),
-                  Text(t.label,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: active ? Colors.white : kTaskGray)),
-                ],
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(t.icon,
+                        size: 16, color: active ? Colors.white : kTaskGray),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(t.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: active ? Colors.white : kTaskGray)),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
