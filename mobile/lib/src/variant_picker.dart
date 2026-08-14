@@ -65,8 +65,7 @@ class _VariantPickerState extends State<VariantPicker> {
                       variant: v,
                       selected: v['id'] == _variantId,
                       mediaUrl: widget.mediaUrl,
-                      onTap: () =>
-                          setState(() => _variantId = v['id'] as int?),
+                      onTap: () => setState(() => _variantId = v['id'] as int?),
                     ),
                 ],
               ),
@@ -112,7 +111,6 @@ class _VariantPickerState extends State<VariantPicker> {
   }
 }
 
-
 class _QtyField extends StatefulWidget {
   const _QtyField({required this.value, required this.onChanged});
   final int value;
@@ -135,8 +133,7 @@ class _QtyFieldState extends State<_QtyField> {
 
   void _selectAll() {
     if (_fn.hasFocus) {
-      _c.selection =
-          TextSelection(baseOffset: 0, extentOffset: _c.text.length);
+      _c.selection = TextSelection(baseOffset: 0, extentOffset: _c.text.length);
     }
   }
 
@@ -190,8 +187,6 @@ class _QtyFieldState extends State<_QtyField> {
   }
 }
 
-
-
 /// Kotak varian seragam: foto kecil di kiri + nama warna/ukuran di kanan.
 class _VariantBox extends StatelessWidget {
   const _VariantBox(
@@ -244,6 +239,7 @@ class _VariantBox extends StatelessWidget {
                     : CachedNetworkImage(
                         imageUrl: url,
                         fit: BoxFit.cover,
+                        memCacheWidth: 120,
                         errorWidget: (_, __, ___) => ColoredBox(
                           color: scheme.surfaceContainerHighest,
                           child: const Icon(Icons.inventory_2,
@@ -259,8 +255,7 @@ class _VariantBox extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                       fontSize: 10,
-                      fontWeight:
-                          selected ? FontWeight.w800 : FontWeight.w600,
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                       color: scheme.onSurface)),
             ),
           ],

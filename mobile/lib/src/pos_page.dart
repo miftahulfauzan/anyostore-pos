@@ -159,7 +159,7 @@ class _PosPageState extends State<PosPage> {
     if (!silent && _products.isEmpty) {
       try {
         final cached = await OfflineStore.loadProductsCache(branch);
-        if (cached != null && cached['sync_date'] == todayWib()) {
+        if (cached != null) {
           final payload = cached['payload'] as Map<String, dynamic>;
           if (mounted) {
             setState(() {
@@ -169,7 +169,10 @@ class _PosPageState extends State<PosPage> {
             });
           }
           _lastProductsSync = cached['updated_at']?.toString() ?? '';
-          return;
+          // Cache hari ini: langsung tampil tanpa sentuh server.
+          if (cached['sync_date'] == todayWib()) return;
+          // Cache lama: tampil dulu (instant), refresh dari server di background.
+          silent = true;
         }
       } catch (_) {}
     }
@@ -554,15 +557,16 @@ class _PosPageState extends State<PosPage> {
 
   Future<void> _openCart() async {
     setState(() => _cartError = null);
+    // Pakai MediaQuery halaman POS, BUKAN context sheet: route bottom sheet
+    // memakai MediaQuery.removePadding sehingga padding di dalam sheet = 0.
+    // Ini kunci supaya max tinggi benar-benar berhenti di bawah Dynamic Island.
+    final media = MediaQuery.of(context);
+    final topRatio = media.padding.top / media.size.height;
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (sheetCtx) {
-        // Maksimal tinggi sheet berhenti di bawah Dynamic Island / status bar
-        // (khusus iPhone; aman juga di HP lain).
-        final topRatio = MediaQuery.of(sheetCtx).padding.top /
-            MediaQuery.of(sheetCtx).size.height;
         return DraggableScrollableSheet(
           expand: false,
           initialChildSize: 0.55,
@@ -1069,6 +1073,7 @@ class _ProductCard extends StatelessWidget {
                 : CachedNetworkImage(
                     imageUrl: photo,
                     fit: BoxFit.cover,
+                    memCacheWidth: 420,
                     fadeInDuration: Duration.zero,
                     fadeOutDuration: Duration.zero,
                     placeholder: (_, __) => Container(
