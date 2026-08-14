@@ -57,10 +57,50 @@ class _FinancePageState extends State<FinancePage> {
         widget.api.profitLoss(start: todayWib(), end: todayWib()),
       ]);
       if (!mounted) return;
+      // Gabung pengeluaran/pemasukan offline (kuning) + sesuaikan laba rugi.
+      final serverRows = (results[0] as List).cast<Map<String, dynamic>>();
+      final pending = await OfflineStore.pendingExpenses();
+      final localRows = <Map<String, dynamic>>[
+        for (final r in pending)
+          if ((jsonDecode(r['payload'] as String? ?? '{}')
+                  as Map<String, dynamic>)['type'] ==
+              _tab) ...[
+            {
+              ...(jsonDecode(r['payload'] as String? ?? '{}')
+                  as Map<String, dynamic>),
+              'offline': true,
+              'local_id': r['id'],
+            },
+          ],
+      ];
+      final pendingTxs = await OfflineStore.pending();
+      double txTotal = 0;
+      for (final t in pendingTxs) {
+        txTotal += asNum(t['grand_total']);
+      }
+      double expSum = 0;
+      double incSum = 0;
+      for (final r in pending) {
+        final p2 =
+            jsonDecode(r['payload'] as String? ?? '{}') as Map<String, dynamic>;
+        if (p2['type'] == 'income') {
+          incSum += asNum(p2['amount']);
+        } else {
+          expSum += asNum(p2['amount']);
+        }
+      }
+      final pl = Map<String, dynamic>.from(results[2] as Map<String, dynamic>);
+      final revenue = asNum(pl['revenue']) + txTotal + incSum;
+      final expenses = asNum(pl['expenses']) + expSum;
+      final income = asNum(pl['income']) + incSum;
+      pl['revenue'] = revenue;
+      pl['expenses'] = expenses;
+      pl['income'] = income;
+      pl['net_profit'] = revenue - expenses;
       setState(() {
-        _rows = (results[0] as List).cast<Map<String, dynamic>>();
+        _rows = [...localRows, ...serverRows];
         _categories = (results[1] as List).cast<Map<String, dynamic>>();
-        _profitLoss = results[2] as Map<String, dynamic>;
+        _profitLoss = pl;
       });
       // Simpan cache keuangan (pengeluaran/pemasukan/laba rugi) untuk offline.
       await OfflineStore.cacheSet(
@@ -96,6 +136,12 @@ class _FinancePageState extends State<FinancePage> {
   }
 
   Future<void> _form([Map<String, dynamic>? existing]) async {
+    if (existing?['offline'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Data offline belum bisa diedit — tunggu sampai tersinkron.')));
+      return;
+    }
     final name =
         TextEditingController(text: existing?['name']?.toString() ?? '');
     final amount = TextEditingController(
@@ -198,7 +244,18 @@ class _FinancePageState extends State<FinancePage> {
       if (isEdit) {
         await widget.api.updateExpense(int.parse('${existing['id']}'), body);
       } else {
-        await widget.api.createExpense(body);
+        try {
+          await widget.api.createExpense(body);
+        } on ApiException catch (e) {
+          if (!e.isNetwork) rethrow;
+          // Offline: simpan ke antrean lokal, muncul kuning, sync nanti.
+          await OfflineStore.insertExpense(body);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text(
+                    'Disimpan offline — otomatis sync saat internet kembali.')));
+          }
+        }
       }
       _load();
     } on ApiException catch (e) {
@@ -227,6 +284,11 @@ class _FinancePageState extends State<FinancePage> {
       ),
     );
     if (ok != true || !mounted) return;
+    if (row['offline'] == true) {
+      await OfflineStore.removeExpense(int.parse('${row['local_id']}'));
+      _load();
+      return;
+    }
     try {
       await widget.api.deleteExpense(int.parse('${row['id']}'));
       _load();
@@ -347,11 +409,14 @@ class _FinancePageState extends State<FinancePage> {
                             return GlassCard(
                               padding: EdgeInsets.zero,
                               child: ListTile(
+                                tileColor: row['offline'] == true
+                                    ? const Color(0xFFFFF3CD)
+                                    : null,
                                 title: Text(row['name']?.toString() ?? '',
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w700)),
                                 subtitle: Text(
-                                    '${row['category'] ?? ''} · ${row['expense_date'] ?? ''} · ${row['payment_method'] ?? ''}'),
+                                    '${row['offline'] == true ? 'OFFLINE · ' : ''}${row['category'] ?? ''} · ${row['expense_date'] ?? ''} · ${row['payment_method'] ?? ''}'),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [

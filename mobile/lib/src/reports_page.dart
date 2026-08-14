@@ -102,18 +102,25 @@ class _ReportsPageState extends State<ReportsPage> {
               .reportOverview(start: start, end: end, branchId: _branchId);
       }
       if (!mounted) return;
-      setState(() => _data = data);
-      // Simpan cache laporan untuk offline.
+      // Transaksi & pengeluaran/pemasukan offline ikut masuk ringkasan/penutupan.
+      final merged = await _mergeOffline(data);
+      if (!mounted) return;
+      setState(() => _data = merged);
+      // Simpan cache laporan (data server asli) untuk offline.
       await OfflineStore.cacheSet(cacheKey, jsonEncode(data));
     } on ApiException catch (e) {
       if (e.isNetwork) {
         try {
           final cached = await OfflineStore.cacheGet(cacheKey);
           if (cached != null && mounted) {
-            setState(() {
-              _data = cached['payload'] as Map<String, dynamic>;
-              _error = null;
-            });
+            final merged =
+                await _mergeOffline(cached['payload'] as Map<String, dynamic>);
+            if (mounted) {
+              setState(() {
+                _data = merged;
+                _error = null;
+              });
+            }
             return;
           }
         } catch (_) {}
@@ -121,6 +128,84 @@ class _ReportsPageState extends State<ReportsPage> {
       if (mounted) setState(() => _error = e.message);
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// Tambahkan transaksi & pengeluaran/pemasukan offline ke Ringkasan/Penutupan.
+  Future<Map<String, dynamic>> _mergeOffline(Map<String, dynamic> data) async {
+    try {
+      final txs = await OfflineStore.pending();
+      final exps = await OfflineStore.pendingExpenses();
+      if (txs.isEmpty && exps.isEmpty) return data;
+      double txTotal = 0;
+      final byMethod = <String, double>{};
+      for (final t in txs) {
+        txTotal += asNum(t['grand_total']);
+        final p =
+            jsonDecode(t['payload'] as String? ?? '{}') as Map<String, dynamic>;
+        final m = (p['payment_method'] ?? 'cash').toString();
+        byMethod[m] = (byMethod[m] ?? 0) + asNum(t['grand_total']);
+      }
+      double expSum = 0;
+      double incSum = 0;
+      for (final r in exps) {
+        final p =
+            jsonDecode(r['payload'] as String? ?? '{}') as Map<String, dynamic>;
+        if (p['type'] == 'income') {
+          incSum += asNum(p['amount']);
+        } else {
+          expSum += asNum(p['amount']);
+        }
+      }
+      final copy = Map<String, dynamic>.from(data);
+      if (_section == 'penutupan') {
+        final methods = Map<String, dynamic>.from(
+            (copy['methods'] as Map<String, dynamic>?) ?? {});
+        for (final e in byMethod.entries) {
+          final m = Map<String, dynamic>.from(
+              (methods[e.key] as Map<String, dynamic>?) ?? {});
+          m['sales'] = asNum(m['sales']) + e.value;
+          m['total'] = asNum(m['total']) + e.value;
+          methods[e.key] = m;
+        }
+        copy['methods'] = methods;
+        copy['receipt_count'] = asNum(copy['receipt_count']) + txs.length;
+        copy['total_sales'] = asNum(copy['total_sales']) + txTotal;
+        copy['subtotal'] = asNum(copy['subtotal']) + txTotal;
+        copy['expenses'] = asNum(copy['expenses']) + expSum;
+        copy['income'] = asNum(copy['income']) + incSum;
+        copy['expected_total'] = asNum(copy['expected_total']) + txTotal;
+      } else {
+        final summary = Map<String, dynamic>.from(
+            (copy['summary'] as Map<String, dynamic>?) ?? {});
+        summary['transactions'] = asNum(summary['transactions']) + txs.length;
+        summary['revenue'] = asNum(summary['revenue']) + txTotal + incSum;
+        summary['income'] = asNum(summary['income']) + incSum;
+        summary['expenses'] = asNum(summary['expenses']) + expSum;
+        summary['gross_profit'] =
+            asNum(summary['gross_profit']) + txTotal + incSum;
+        summary['net_profit'] =
+            asNum(summary['net_profit']) + txTotal + incSum - expSum;
+        copy['summary'] = summary;
+        final payments = List<Map<String, dynamic>>.from(
+            (copy['payment_methods'] as List?) ?? []);
+        for (final e in byMethod.entries) {
+          final idx = payments.indexWhere(
+              (p) => (p['payment_method'] ?? '').toString() == e.key);
+          if (idx >= 0) {
+            payments[idx] = {
+              ...payments[idx],
+              'amount': asNum(payments[idx]['amount']) + e.value,
+            };
+          } else {
+            payments.add({'payment_method': e.key, 'amount': e.value});
+          }
+        }
+        copy['payment_methods'] = payments;
+      }
+      return copy;
+    } catch (_) {
+      return data;
     }
   }
 

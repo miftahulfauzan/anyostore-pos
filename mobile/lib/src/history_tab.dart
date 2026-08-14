@@ -142,8 +142,10 @@ class _HistoryTabState extends State<HistoryTab> {
         search: _search.text.trim(),
       );
       if (!mounted) return;
+      final merged = await _mergeOffline(rows.cast<Map<String, dynamic>>());
+      if (!mounted) return;
       setState(() {
-        _rows = rows.cast<Map<String, dynamic>>();
+        _rows = merged;
         _totalPages = totalPages;
         _loading = false;
       });
@@ -175,14 +177,18 @@ class _HistoryTabState extends State<HistoryTab> {
             final cached = await OfflineStore.cacheGet(cacheKey);
             if (cached != null && mounted) {
               final payload = cached['payload'] as Map<String, dynamic>;
-              setState(() {
-                _rows = ((payload['rows'] as List?) ?? [])
-                    .cast<Map<String, dynamic>>();
-                _totalPages =
-                    int.tryParse('${payload['totalPages'] ?? 1}') ?? 1;
-                _error = null;
-                _loading = false;
-              });
+              final merged = await _mergeOffline(
+                  ((payload['rows'] as List?) ?? [])
+                      .cast<Map<String, dynamic>>());
+              if (mounted) {
+                setState(() {
+                  _rows = merged;
+                  _totalPages =
+                      int.tryParse('${payload['totalPages'] ?? 1}') ?? 1;
+                  _error = null;
+                  _loading = false;
+                });
+              }
               return;
             }
           }
@@ -194,6 +200,29 @@ class _HistoryTabState extends State<HistoryTab> {
           _loading = false;
         });
       }
+    }
+  }
+
+  /// Gabungkan transaksi offline (kuning) ke atas daftar riwayat.
+  Future<List<Map<String, dynamic>>> _mergeOffline(
+      List<Map<String, dynamic>> rows) async {
+    try {
+      final pending = await OfflineStore.pending();
+      if (pending.isEmpty) return rows;
+      final offlineRows = <Map<String, dynamic>>[
+        for (final r in pending)
+          {
+            'offline': true,
+            'invoice_no': r['temp_invoice_no']?.toString() ?? '-',
+            'grand_total': r['grand_total'],
+            'created_at': r['created_at']?.toString() ?? '',
+            'status': 'offline',
+            'cashier': 'Belum sync',
+          },
+      ];
+      return [...offlineRows, ...rows];
+    } catch (_) {
+      return rows;
     }
   }
 
@@ -768,18 +797,28 @@ class _HistoryTabState extends State<HistoryTab> {
             );
           }
           final row = _rows[i];
+          final isOffline = row['offline'] == true;
           final status = (row['status'] ?? '').toString();
           return _TxCard(
-            icon: Icons.receipt,
-            iconBg: const Color(0xffE3EAF2),
-            iconFg: const Color(0xff1E3A5F),
+            icon: isOffline ? Icons.cloud_off : Icons.receipt,
+            iconBg:
+                isOffline ? const Color(0xFFF5E1A8) : const Color(0xffE3EAF2),
+            iconFg:
+                isOffline ? const Color(0xFF8A6D1A) : const Color(0xff1E3A5F),
             title: row['invoice_no']?.toString() ?? '-',
             subtitle:
-                '${row['created_at'] ?? ''} · ${(row['payment_method'] ?? '').toString().toUpperCase()}'
+                '${row['created_at'] ?? ''} · ${isOffline ? 'Belum tersinkron' : (row['payment_method'] ?? '').toString().toUpperCase()}'
                 '${row['cashier'] != null && (row['cashier'] as String).isNotEmpty ? ' · Kasir: ${row['cashier']}' : ''}',
             trailing: fmtRp(asNum(row['grand_total'])),
-            status: status,
-            onTap: () => _openDetail(row),
+            status: isOffline ? 'offline' : status,
+            offline: isOffline,
+            onTap: isOffline
+                ? () {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text(
+                            'Transaksi offline belum tersinkron — akan tampil lengkap setelah internet kembali.')));
+                  }
+                : () => _openDetail(row),
           );
         },
       ),
@@ -797,7 +836,8 @@ class _TxCard extends StatelessWidget {
       required this.trailing,
       this.status,
       this.extra,
-      this.onTap});
+      this.onTap,
+      this.offline = false});
   final IconData icon;
   final Color iconBg;
   final Color iconFg;
@@ -807,65 +847,71 @@ class _TxCard extends StatelessWidget {
   final String? status;
   final Widget? extra;
   final VoidCallback? onTap;
+  final bool offline;
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final chipBg = dark ? const Color(0xff26303F) : iconBg;
     final chipFg = dark ? const Color(0xffDDE6F2) : iconFg;
+    // Transaksi offline ditandai latar kuning.
+    const offlineBg = Color(0xFFFFF3CD);
     return GlassCard(
       radius: 24,
       padding: const EdgeInsets.all(14),
       onTap: onTap,
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: chipBg,
-              borderRadius: BorderRadius.circular(15),
+      child: ColoredBox(
+        color: offline ? offlineBg : Colors.transparent,
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: chipBg,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Icon(icon, size: 20, color: chipFg),
             ),
-            child: Icon(icon, size: 20, color: chipFg),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: ink(context))),
+                  const SizedBox(height: 3),
+                  Text(subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 10, color: Color(0xff8A857C))),
+                ],
+              ),
+            ),
+            SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                Text(trailing,
                     style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
                         color: ink(context))),
-                const SizedBox(height: 3),
-                Text(subtitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 10, color: Color(0xff8A857C))),
+                if (status != null && status!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  _StatusChip(status!),
+                ],
+                if (extra != null) extra!,
               ],
             ),
-          ),
-          SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(trailing,
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: ink(context))),
-              if (status != null && status!.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                _StatusChip(status!),
-              ],
-              if (extra != null) extra!,
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -898,6 +944,11 @@ class _StatusChip extends StatelessWidget {
           'Dibatalkan',
           dark ? const Color(0xff3A2622) : const Color(0xffF3DDD8),
           dark ? const Color(0xffF2B8A5) : const Color(0xffB0563A)
+        ),
+      'offline' => (
+          'OFFLINE',
+          dark ? const Color(0xff3A3320) : const Color(0xFFF5E1A8),
+          dark ? const Color(0xffE8C96A) : const Color(0xFF8A6D1A)
         ),
       _ => (
           status,

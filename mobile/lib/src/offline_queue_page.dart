@@ -30,10 +30,24 @@ class _OfflineQueuePageState extends State<OfflineQueuePage> {
   }
 
   Future<void> _load() async {
-    final rows = await OfflineStore.pending();
+    final txs = await OfflineStore.pending();
+    final exps = await OfflineStore.pendingExpenses();
     if (!mounted) return;
     setState(() {
-      _rows = rows;
+      _rows = [
+        for (final r in txs)
+          {
+            'kind': 'tx',
+            'id': r['client_transaction_id']?.toString() ?? '',
+            'row': r,
+          },
+        for (final r in exps)
+          {
+            'kind': 'expense',
+            'id': '${r['id']}',
+            'row': r,
+          },
+      ];
       _loading = false;
     });
   }
@@ -41,17 +55,23 @@ class _OfflineQueuePageState extends State<OfflineQueuePage> {
   Future<void> _sync() async {
     setState(() => _syncing = true);
     final n = await syncOfflineTransactions(widget.api);
+    final m = await syncOfflineExpenses(widget.api);
     await _load();
     if (!mounted) return;
     setState(() => _syncing = false);
+    final total = n + m;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(n > 0
-            ? '$n transaksi berhasil disinkronkan'
-            : 'Tidak ada transaksi yang tersinkron (cek koneksi/antrean)')));
+        content: Text(total > 0
+            ? '$total data berhasil disinkronkan'
+            : 'Tidak ada data yang tersinkron (cek koneksi/antrean)')));
   }
 
   Future<void> _remove(Map<String, dynamic> row) async {
-    await OfflineStore.remove(row['client_transaction_id']?.toString() ?? '');
+    if (row['kind'] == 'expense') {
+      await OfflineStore.removeExpense(int.parse('${row['id']}'));
+    } else {
+      await OfflineStore.remove(row['id']?.toString() ?? '');
+    }
     await _load();
   }
 
@@ -107,7 +127,7 @@ class _OfflineQueuePageState extends State<OfflineQueuePage> {
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_rows.isEmpty) {
       return const Center(
-        child: Text('Tidak ada transaksi offline menunggu sync.',
+        child: Text('Tidak ada data offline menunggu sync.',
             style: TextStyle(color: kTaskGray)),
       );
     }
@@ -117,10 +137,19 @@ class _OfflineQueuePageState extends State<OfflineQueuePage> {
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (_, i) {
         final row = _rows[i];
-        final payload = jsonDecode(row['payload'] as String? ?? '{}')
+        final isExpense = row['kind'] == 'expense';
+        final raw = row['row'] as Map<String, dynamic>;
+        final payload = jsonDecode(raw['payload'] as String? ?? '{}')
             as Map<String, dynamic>;
-        final created = row['created_at']?.toString() ?? '';
-        final datePart = created.contains('T') ? created.split('T').first : created;
+        final created = raw['created_at']?.toString() ?? '';
+        final datePart =
+            created.contains('T') ? created.split('T').first : created;
+        final title = isExpense
+            ? (payload['name']?.toString() ?? 'Pengeluaran')
+            : (raw['temp_invoice_no']?.toString() ?? '-');
+        final amount = isExpense
+            ? '${payload['type'] == 'income' ? 'Pemasukan' : 'Pengeluaran'} ${fmtRp(asNum(payload['amount']))}'
+            : "Transaksi ${fmtRp(asNum(payload['grand_total'] ?? raw['grand_total']))}";
         return GlassCard(
           padding: const EdgeInsets.all(12),
           radius: 18,
@@ -133,25 +162,25 @@ class _OfflineQueuePageState extends State<OfflineQueuePage> {
                   color: const Color(0x141E3A5F),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(Icons.cloud_off, size: 20, color: ink(context)),
+                child: Icon(
+                    isExpense ? Icons.account_balance_wallet : Icons.cloud_off,
+                    size: 20,
+                    color: ink(context)),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(row['temp_invoice_no']?.toString() ?? '-',
+                    Text(title,
                         style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
                             color: ink(context))),
-                    Text(
-                        "Total ${fmtRp(asNum(payload['grand_total'] ?? row['grand_total']))}",
-                        style: const TextStyle(
-                            fontSize: 12, color: kTaskGray)),
+                    Text(amount,
+                        style: const TextStyle(fontSize: 12, color: kTaskGray)),
                     Text(datePart,
-                        style: const TextStyle(
-                            fontSize: 10, color: kTaskGray)),
+                        style: const TextStyle(fontSize: 10, color: kTaskGray)),
                   ],
                 ),
               ),

@@ -122,9 +122,11 @@ class _PosPageState extends State<PosPage> {
 
   Future<void> _syncPending() async {
     final n = await syncOfflineTransactions(_client);
-    if (n > 0 && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('$n transaksi offline berhasil disinkronkan')));
+    final m = await syncOfflineExpenses(_client);
+    final total = n + m;
+    if (total > 0 && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$total data offline berhasil disinkronkan')));
     }
   }
 
