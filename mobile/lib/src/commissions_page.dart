@@ -37,8 +37,12 @@ class _CommissionsPageState extends State<CommissionsPage> {
   /// Manager/Admin juga boleh melihat Laporan komisi semua pegawai.
   bool get _canManage =>
       ['owner', 'manager', 'admin'].contains(widget.role);
-  List<String> get _tabs =>
-      _canManage ? ['saya', 'rules', 'records', 'report'] : ['saya'];
+  List<String> get _tabs {
+    if (_isOwner) return ['saya', 'rules', 'records', 'report'];
+    // Manager/Admin: hanya Saya + Laporan (Aturan/Catatan khusus owner).
+    if (_canManage) return ['saya', 'report'];
+    return ['saya'];
+  }
 
   (String, String) get _range {
     final now = DateTime.now().toUtc().add(const Duration(hours: 7));
