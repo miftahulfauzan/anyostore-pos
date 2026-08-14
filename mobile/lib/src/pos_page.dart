@@ -128,6 +128,8 @@ class _PosPageState extends State<PosPage> {
   Future<void> _loadData({bool silent = false}) async {
     final branch = _posBranchId ?? _branchId;
     if (branch == 0) return;
+    // POS punya pilihan toko sendiri; nonaktifkan scope owner dari Lainnya.
+    _api.activeBranchId = null;
     PrinterService.setActiveBranch(branch);
 
     // Buka aplikasi (bukan refresh): kalau sudah disinkron hari ini,

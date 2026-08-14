@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import 'src/api_client.dart';
 import 'src/auth_store.dart';
+import 'src/branch_scope.dart';
 import 'src/backup_service.dart';
 import 'src/login_page.dart';
 import 'src/notification_service.dart';
@@ -30,6 +31,7 @@ Future<void> main() async {
   final auth = AuthStore(ApiClient());
   await auth.restore();
   await ThemeController.load();
+  await BranchScope.load();
   await NotificationService.init();
   if (auth.isAuthenticated) {
     // Cek stok menipis + backup otomatis + pengingat harian saat app dibuka.

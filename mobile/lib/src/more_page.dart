@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'activity_log_page.dart';
 import 'api_client.dart';
 import 'auth_store.dart';
+import 'branch_scope.dart';
 import 'cash_drawer_page.dart';
 import 'commissions_page.dart';
 import 'customers_page.dart';
@@ -72,6 +73,9 @@ class MorePage extends StatelessWidget {
     final auth = context.watch<AuthStore>();
     final name = auth.userName ?? 'Pengguna';
     final email = auth.email ?? '';
+    final isOwner = auth.role == 'owner';
+    final activeBranch = BranchScope.active.value ?? branchId;
+    if (isOwner) api.activeBranchId = activeBranch;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 104),
@@ -109,6 +113,10 @@ class MorePage extends StatelessWidget {
             ],
           ),
         ),
+        if (isOwner) ...[
+          const SizedBox(height: 12),
+          _BranchScopeCard(api: api),
+        ],
         const SizedBox(height: 12),
         _OfflineTile(api: api),
         const SizedBox(height: 12),
@@ -128,11 +136,11 @@ class MorePage extends StatelessWidget {
           _row(context, Icons.inventory_2_outlined, 'Daftar Produk',
               const Color(0xffE3EAF2), const Color(0xff1E3A5F),
               () => _open(context, 'Daftar Produk',
-                  ProductsPage(api: api, branchId: branchId))),
+                  ProductsPage(api: api, branchId: activeBranch))),
           _divider(context),
           _row(context, Icons.history, 'Riwayat Stok', const Color(0xffE3EAF2),
               const Color(0xff1E3A5F), () => _open(context, 'Riwayat Stok',
-                  StockMovementsPage(api: api, branchId: branchId))),
+                  StockMovementsPage(api: api, branchId: activeBranch))),
           _divider(context),
           _row(context, Icons.swap_vert, 'Laporan Masuk/Keluar',
               const Color(0xffE3EAF2), const Color(0xff1E3A5F),
@@ -154,12 +162,12 @@ class MorePage extends StatelessWidget {
           _divider(context),
           _row(context, Icons.payments_outlined, 'Komisi', const Color(0xffE3EAF2),
               const Color(0xff1E3A5F), () => _open(context, 'Komisi',
-                  CommissionsPage(api: api, branchId: branchId, role: role))),
+                  CommissionsPage(api: api, branchId: activeBranch, role: role))),
         ]),
         _group(context, 'MANAJEMEN', [
           _row(context, Icons.badge, 'Pegawai', const Color(0xffE3EAF2),
               const Color(0xff1E3A5F), () => _open(context, 'Pegawai',
-                  UsersPage(api: api, branchId: branchId, role: role))),
+                  UsersPage(api: api, branchId: activeBranch, role: role))),
           _divider(context),
           _row(context, Icons.local_offer, 'Promo', const Color(0xffE3EAF2), _kInk,
               () => _open(context, 'Promo', PromotionsPage(api: api))),
@@ -351,6 +359,83 @@ class _OfflineTileState extends State<_OfflineTile> {
           else
             const Icon(Icons.chevron_right,
                 size: 18, color: Color(0xff94a3b8)),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// Pemilih Toko/Gudang aktif (khusus owner): semua pengaturan di Lainnya
+/// otomatis memakai cabang yang dipilih ini.
+class _BranchScopeCard extends StatefulWidget {
+  const _BranchScopeCard({required this.api});
+  final ApiClient api;
+
+  @override
+  State<_BranchScopeCard> createState() => _BranchScopeCardState();
+}
+
+class _BranchScopeCardState extends State<_BranchScopeCard> {
+  List<Map<String, dynamic>> _branches = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.api.activeBranchId = BranchScope.active.value;
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final rows = await widget.api.branches();
+      if (!mounted) return;
+      setState(() => _branches = rows.cast<Map<String, dynamic>>());
+      if (BranchScope.active.value == null && _branches.isNotEmpty) {
+        BranchScope.set(int.tryParse('${_branches.first['id']}'));
+        widget.api.activeBranchId = BranchScope.active.value;
+      }
+    } on ApiException catch (_) {
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const SizedBox.shrink();
+    return GlassCard(
+      padding: const EdgeInsets.all(12),
+      radius: 18,
+      child: Row(
+        children: [
+          const Icon(Icons.storefront, size: 18, color: Color(0xff1E3A5F)),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text('Toko/Gudang aktif',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xff8A857C))),
+          ),
+          const SizedBox(width: 8),
+          DropdownButton<int?>(
+            value: BranchScope.active.value,
+            underline: const SizedBox.shrink(),
+            items: [
+              for (final b in _branches)
+                DropdownMenuItem<int?>(
+                    value: int.tryParse('${b['id']}'),
+                    child: Text(b['name']?.toString() ?? '',
+                        style: const TextStyle(fontSize: 12))),
+            ],
+            onChanged: (v) {
+              BranchScope.set(v);
+              widget.api.activeBranchId = v;
+              setState(() {});
+            },
+          ),
         ],
       ),
     );

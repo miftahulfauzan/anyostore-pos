@@ -156,7 +156,14 @@ function authenticate(req, res, next) {
   try {
     const token = req.headers.authorization?.replace(/^Bearer\s+/i, '') || req.cookies?.pos_access || null;
     if (!token) return res.status(401).json({ success: false, message: 'Token wajib diisi' });
-    req.user = jwt.verify(token, jwtSecret);
+    const user = jwt.verify(token, jwtSecret);
+    // Owner bisa memilih toko/gudang aktif: semua route otomatis memakai
+    // branch_id dari query/body (GET maupun POST/PUT), tanpa mengubah token.
+    if (user.role === 'owner') {
+      const requested = Number(req.query.branch_id || req.body.branch_id);
+      if (Number.isInteger(requested) && requested > 0) user.branch_id = requested;
+    }
+    req.user = user;
     return next();
   } catch (_) { return res.status(401).json({ success: false, message: 'Token tidak valid' }); }
 }

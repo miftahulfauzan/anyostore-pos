@@ -24,6 +24,10 @@ class ApiClient {
   final String baseUrl;
   String? _token;
 
+  /// Toko/gudang aktif (owner memilih di Lainnya). Semua request otomatis
+  /// membawa branch_id kalau belum diset eksplisit.
+  int? activeBranchId;
+
   /// Dipanggil saat API mengembalikan 401 untuk mencoba refresh token.
   Future<bool> Function()? refreshHandler;
 
@@ -36,16 +40,26 @@ class ApiClient {
         if (_token != null) 'Authorization': 'Bearer $_token',
       };
 
-  Uri _uri(String path, [Map<String, String>? query]) =>
-      Uri.parse('$baseUrl$path').replace(queryParameters: query);
+  Uri _uri(String path, [Map<String, String>? query]) {
+    final q = {...?query};
+    if (activeBranchId != null && !q.containsKey('branch_id')) {
+      q['branch_id'] = '$activeBranchId';
+    }
+    return Uri.parse('$baseUrl$path').replace(queryParameters: q);
+  }
+
+  Map<String, dynamic> _withBranch(Map<String, dynamic> body) {
+    if (activeBranchId == null || body.containsKey('branch_id')) return body;
+    return {...body, 'branch_id': activeBranchId};
+  }
 
   Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body) =>
-      _request(() =>
-          http.post(_uri(path), headers: _headers, body: jsonEncode(body)));
+      _request(() => http.post(_uri(path),
+          headers: _headers, body: jsonEncode(_withBranch(body))));
 
   Future<Map<String, dynamic>> put(String path, Map<String, dynamic> body) =>
-      _request(() =>
-          http.put(_uri(path), headers: _headers, body: jsonEncode(body)));
+      _request(() => http.put(_uri(path),
+          headers: _headers, body: jsonEncode(_withBranch(body))));
 
   Future<Map<String, dynamic>> delete(String path) =>
       _request(() => http.delete(_uri(path), headers: _headers));
