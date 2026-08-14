@@ -1,8 +1,12 @@
+import 'dart:convert';
+
 // ignore_for_file: prefer_const_constructors
 
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
+import 'offline_status.dart';
+import 'offline_store.dart';
 import 'barcode_scanner_page.dart';
 import 'format.dart';
 import 'printer_setup.dart';
@@ -37,10 +41,18 @@ class _HistoryTabState extends State<HistoryTab> {
   void initState() {
     super.initState();
     _load();
+    // Saat internet kembali: otomatis muat ulang dari server (normal setelah sync).
+    OfflineStatus.syncTick.addListener(_onSyncTick);
+  }
+
+  void _onSyncTick() {
+    _page = 1;
+    _load(silent: true);
   }
 
   @override
   void dispose() {
+    OfflineStatus.syncTick.removeListener(_onSyncTick);
     _search.dispose();
     super.dispose();
   }
@@ -76,11 +88,16 @@ class _HistoryTabState extends State<HistoryTab> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
+    final range = _range;
+    final cacheKey =
+        'history-${range.$1}-${range.$2}-$_status-${_search.text.trim()}-$_page';
     try {
       if (_section == 'retur') {
         final rows = await widget.api.returnsList();
@@ -89,9 +106,11 @@ class _HistoryTabState extends State<HistoryTab> {
           _returns = rows.cast<Map<String, dynamic>>();
           _loading = false;
         });
+        // Simpan cache retur untuk offline.
+        await OfflineStore.cacheSet(
+            'history-retur', jsonEncode({'rows': rows}));
         return;
       }
-      final range = _range;
       final (rows, totalPages) = await widget.api.transactionsPage(
         page: _page,
         limit: 50,
@@ -106,7 +125,47 @@ class _HistoryTabState extends State<HistoryTab> {
         _totalPages = totalPages;
         _loading = false;
       });
+      // Simpan cache riwayat untuk offline.
+      await OfflineStore.cacheSet(
+          cacheKey,
+          jsonEncode({
+            'rows': rows,
+            'totalPages': totalPages,
+          }));
     } on ApiException catch (e) {
+      if (e.isNetwork) {
+        // Offline: pakai cache riwayat/retur terakhir.
+        try {
+          if (_section == 'retur') {
+            final cached = await OfflineStore.cacheGet('history-retur');
+            if (cached != null && mounted) {
+              setState(() {
+                _returns = ((cached['payload'] as Map<String, dynamic>)['rows']
+                            as List?)
+                        ?.cast<Map<String, dynamic>>() ??
+                    [];
+                _error = null;
+                _loading = false;
+              });
+              return;
+            }
+          } else {
+            final cached = await OfflineStore.cacheGet(cacheKey);
+            if (cached != null && mounted) {
+              final payload = cached['payload'] as Map<String, dynamic>;
+              setState(() {
+                _rows = ((payload['rows'] as List?) ?? [])
+                    .cast<Map<String, dynamic>>();
+                _totalPages =
+                    int.tryParse('${payload['totalPages'] ?? 1}') ?? 1;
+                _error = null;
+                _loading = false;
+              });
+              return;
+            }
+          }
+        } catch (_) {}
+      }
       if (mounted) {
         setState(() {
           _error = e.message;
@@ -119,78 +178,95 @@ class _HistoryTabState extends State<HistoryTab> {
   Future<void> _openDetail(Map<String, dynamic> row) async {
     final id = int.tryParse('${row['id']}');
     if (id == null) return;
+    Map<String, dynamic> detail;
     try {
-      final detail = await widget.api.transactionDetail(id);
-      if (!mounted) return;
-      final items =
-          ((detail['items'] as List?) ?? []).cast<Map<String, dynamic>>();
-      await showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(detail['invoice_no']?.toString() ?? 'Transaksi'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Total: ${fmtRp(asNum(detail['grand_total']))}',
-                      style: const TextStyle(fontWeight: FontWeight.w800)),
-                  Text(
-                      'Bayar: ${fmtRp(asNum(detail['amount_paid']))}  Kembalian: ${fmtRp(asNum(detail['change']))}'),
-                  Text(
-                      'Metode: ${detail['payment_method']?.toString().toUpperCase()}'),
-                  Text('Status: ${detail['status'] ?? ''}'),
-                  const Divider(),
-                  for (final item in items)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 3),
-                      child:
-                          Text('${item['product_name']}  x${item['quantity']}\n'
-                              '  ${fmtRp(asNum(item['subtotal']))}'),
-                    ),
-                ],
-              ),
+      detail = await widget.api.transactionDetail(id);
+      // Simpan cache detail transaksi untuk offline.
+      await OfflineStore.cacheSet('tx-detail-$id', jsonEncode(detail));
+    } on ApiException catch (e) {
+      if (!e.isNetwork) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(e.message)));
+        }
+        return;
+      }
+      // Offline: pakai detail transaksi dari cache.
+      final cached = await OfflineStore.cacheGet('tx-detail-$id');
+      final payload = cached?['payload'] as Map<String, dynamic>?;
+      if (payload == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text(
+                  'Detail transaksi belum tersimpan offline. Buka transaksi ini sekali saat online.')));
+        }
+        return;
+      }
+      detail = payload;
+    }
+    if (!mounted) return;
+    final items =
+        ((detail['items'] as List?) ?? []).cast<Map<String, dynamic>>();
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(detail['invoice_no']?.toString() ?? 'Transaksi'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Total: ${fmtRp(asNum(detail['grand_total']))}',
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
+                Text(
+                    'Bayar: ${fmtRp(asNum(detail['amount_paid']))}  Kembalian: ${fmtRp(asNum(detail['change']))}'),
+                Text(
+                    'Metode: ${detail['payment_method']?.toString().toUpperCase()}'),
+                Text('Status: ${detail['status'] ?? ''}'),
+                const Divider(),
+                for (final item in items)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child:
+                        Text('${item['product_name']}  x${item['quantity']}\n'
+                            '  ${fmtRp(asNum(item['subtotal']))}'),
+                  ),
+              ],
             ),
           ),
-          actions: [
-            if (_canCancel && detail['status'] != 'cancelled')
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _cancelFlow(id, detail, items);
-                },
-                child: const Text('Batalkan Item'),
-              ),
-            if (detail['status'] == 'completed')
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _returnFlow(id, items);
-                },
-                child: const Text('Buat Retur'),
-              ),
+        ),
+        actions: [
+          if (_canCancel && detail['status'] != 'cancelled')
             TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Tutup')),
-            FilledButton.icon(
               onPressed: () {
                 Navigator.pop(ctx);
-                printReceiptNow(context, () => widget.api.receipt(id));
+                _cancelFlow(id, detail, items);
               },
-              icon: const Icon(Icons.print),
-              label: const Text('Cetak Struk'),
+              child: const Text('Batalkan Item'),
             ),
-          ],
-        ),
-      );
-    } on ApiException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
-      }
-    }
+          if (detail['status'] == 'completed')
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _returnFlow(id, items);
+              },
+              child: const Text('Buat Retur'),
+            ),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Tutup')),
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              printReceiptNow(context, () => widget.api.receipt(id));
+            },
+            icon: const Icon(Icons.print),
+            label: const Text('Cetak Struk'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _cancelFlow(int id, Map<String, dynamic> detail,
@@ -415,8 +491,8 @@ class _HistoryTabState extends State<HistoryTab> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Setujui Retur?'),
-        content: const Text(
-            'Stok akan kembali otomatis ke gudang asal penjualan.'),
+        content:
+            const Text('Stok akan kembali otomatis ke gudang asal penjualan.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -458,8 +534,7 @@ class _HistoryTabState extends State<HistoryTab> {
       enabledBorder: border,
       focusedBorder: border.copyWith(
           borderSide: BorderSide(
-              color:
-                  dark ? const Color(0xff7FA8CF) : const Color(0xff1E3A5F),
+              color: dark ? const Color(0xff7FA8CF) : const Color(0xff1E3A5F),
               width: 1.4)),
     );
   }
@@ -472,98 +547,108 @@ class _HistoryTabState extends State<HistoryTab> {
         children: [
           const Positioned.fill(child: SoftBlobs()),
           Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 12, bottom: 12),
-            child: PillTabs(
-              tabs: const [
-                (value: 'transaksi', icon: Icons.receipt_long, label: 'Transaksi'),
-                (value: 'retur', icon: Icons.assignment_return, label: 'Retur'),
-              ],
-              selected: _section,
-              onChanged: (v) {
-                setState(() => _section = v);
-                _load();
-              },
-            ),
-          ),
-        if (_section == 'transaksi')
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _preset,
-                        isExpanded: true,
-                        decoration: _dec('Rentang'),
-                        items: const [
-                          DropdownMenuItem(
-                              value: 'today', child: Text('Hari ini')),
-                          DropdownMenuItem(
-                              value: '7d', child: Text('7 hari')),
-                          DropdownMenuItem(
-                              value: '30d', child: Text('30 hari')),
-                          DropdownMenuItem(
-                              value: 'all', child: Text('Semua')),
-                        ],
-                        onChanged: (v) {
-                          setState(() => _preset = v ?? 'today');
-                          _load();
-                        },
-                      ),
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 12, bottom: 12),
+                child: PillTabs(
+                  tabs: const [
+                    (
+                      value: 'transaksi',
+                      icon: Icons.receipt_long,
+                      label: 'Transaksi'
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _status,
-                        isExpanded: true,
-                        decoration: _dec('Status'),
-                        items: const [
-                          DropdownMenuItem(
-                              value: '', child: Text('Semua status')),
-                          DropdownMenuItem(
-                              value: 'completed', child: Text('Completed')),
-                          DropdownMenuItem(
-                              value: 'partially_cancelled',
-                              child: Text('Sebagian dibatalkan')),
-                          DropdownMenuItem(
-                              value: 'cancelled',
-                              child: Text('Dibatalkan')),
-                          DropdownMenuItem(
-                              value: 'refunded', child: Text('Refunded')),
-                        ],
-                        onChanged: (v) {
-                          setState(() => _status = v ?? '');
-                          _load();
-                        },
-                      ),
+                    (
+                      value: 'retur',
+                      icon: Icons.assignment_return,
+                      label: 'Retur'
                     ),
                   ],
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _search,
-                  decoration: _dec('Cari invoice / nama', hint: true).copyWith(
-                    suffixIcon: IconButton(
-                      onPressed: _openScanner,
-                      icon: const Icon(Icons.qr_code_scanner),
-                      tooltip: 'Scan barcode invoice',
-                    ),
-                  ),
-                  onSubmitted: (_) {
-                    _page = 1;
+                  selected: _section,
+                  onChanged: (v) {
+                    setState(() => _section = v);
                     _load();
                   },
                 ),
-              ],
-            ),
+              ),
+              if (_section == 'transaksi')
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              initialValue: _preset,
+                              isExpanded: true,
+                              decoration: _dec('Rentang'),
+                              items: const [
+                                DropdownMenuItem(
+                                    value: 'today', child: Text('Hari ini')),
+                                DropdownMenuItem(
+                                    value: '7d', child: Text('7 hari')),
+                                DropdownMenuItem(
+                                    value: '30d', child: Text('30 hari')),
+                                DropdownMenuItem(
+                                    value: 'all', child: Text('Semua')),
+                              ],
+                              onChanged: (v) {
+                                setState(() => _preset = v ?? 'today');
+                                _load();
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              initialValue: _status,
+                              isExpanded: true,
+                              decoration: _dec('Status'),
+                              items: const [
+                                DropdownMenuItem(
+                                    value: '', child: Text('Semua status')),
+                                DropdownMenuItem(
+                                    value: 'completed',
+                                    child: Text('Completed')),
+                                DropdownMenuItem(
+                                    value: 'partially_cancelled',
+                                    child: Text('Sebagian dibatalkan')),
+                                DropdownMenuItem(
+                                    value: 'cancelled',
+                                    child: Text('Dibatalkan')),
+                                DropdownMenuItem(
+                                    value: 'refunded', child: Text('Refunded')),
+                              ],
+                              onChanged: (v) {
+                                setState(() => _status = v ?? '');
+                                _load();
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _search,
+                        decoration:
+                            _dec('Cari invoice / nama', hint: true).copyWith(
+                          suffixIcon: IconButton(
+                            onPressed: _openScanner,
+                            icon: const Icon(Icons.qr_code_scanner),
+                            tooltip: 'Scan barcode invoice',
+                          ),
+                        ),
+                        onSubmitted: (_) {
+                          _page = 1;
+                          _load();
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              Expanded(child: _buildBody()),
+            ],
           ),
-            Expanded(child: _buildBody()),
-          ],
-        ),
         ],
       ),
     );
@@ -704,55 +789,55 @@ class _TxCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       onTap: onTap,
       child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: chipBg,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(icon, size: 20, color: chipFg),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: ink(context))),
+                const SizedBox(height: 3),
+                Text(subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 10, color: Color(0xff8A857C))),
+              ],
+            ),
+          ),
+          SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: chipBg,
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Icon(icon, size: 20, color: chipFg),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: ink(context))),
-                    const SizedBox(height: 3),
-                    Text(subtitle,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 10, color: Color(0xff8A857C))),
-                  ],
-                ),
-              ),
-              SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(trailing,
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: ink(context))),
-                  if (status != null && status!.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    _StatusChip(status!),
-                  ],
-                  if (extra != null) extra!,
-                ],
-              ),
+              Text(trailing,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: ink(context))),
+              if (status != null && status!.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                _StatusChip(status!),
+              ],
+              if (extra != null) extra!,
             ],
           ),
+        ],
+      ),
     );
   }
 }
@@ -768,23 +853,28 @@ class _StatusChip extends StatelessWidget {
       'completed' => (
           'Selesai',
           dark ? const Color(0xff243047) : const Color(0xffE3EAF2),
-          dark ? const Color(0xffA9C4E8) : const Color(0xff1E3A5F)),
+          dark ? const Color(0xffA9C4E8) : const Color(0xff1E3A5F)
+        ),
       'pending' => (
           'Menunggu',
           dark ? const Color(0xff243047) : const Color(0xffE3EAF2),
-          dark ? const Color(0xffA9C4E8) : const Color(0xff2E5D8F)),
+          dark ? const Color(0xffA9C4E8) : const Color(0xff2E5D8F)
+        ),
       'partially_cancelled' => (
           'Sebagian dibatalkan',
           dark ? const Color(0xff2A2C31) : const Color(0xffE6ECF3),
-          dark ? const Color(0xffC3C9D2) : const Color(0xff8A857C)),
+          dark ? const Color(0xffC3C9D2) : const Color(0xff8A857C)
+        ),
       'cancelled' => (
           'Dibatalkan',
           dark ? const Color(0xff3A2622) : const Color(0xffF3DDD8),
-          dark ? const Color(0xffF2B8A5) : const Color(0xffB0563A)),
+          dark ? const Color(0xffF2B8A5) : const Color(0xffB0563A)
+        ),
       _ => (
           status,
           dark ? const Color(0xff2A2C31) : const Color(0xffE6ECF3),
-          dark ? const Color(0xffC3C9D2) : const Color(0xff8A857C)),
+          dark ? const Color(0xffC3C9D2) : const Color(0xff8A857C)
+        ),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -793,7 +883,8 @@ class _StatusChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(99),
       ),
       child: Text(label,
-          style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: fg)),
+          style:
+              TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: fg)),
     );
   }
 }

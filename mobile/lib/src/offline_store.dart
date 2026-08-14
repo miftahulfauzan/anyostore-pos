@@ -12,7 +12,7 @@ class OfflineStore {
   static Future<Database> _open() async {
     if (_db != null) return _db!;
     final path = join(await getDatabasesPath(), 'anyostore_offline.db');
-    _db = await openDatabase(path, version: 2, onCreate: (db, version) async {
+    _db = await openDatabase(path, version: 3, onCreate: (db, version) async {
       await db.execute('''
         CREATE TABLE IF NOT EXISTS offline_transactions (
           client_transaction_id TEXT PRIMARY KEY,
@@ -30,6 +30,13 @@ class OfflineStore {
           sync_date TEXT NOT NULL
         )
       ''');
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS generic_cache (
+          cache_key TEXT PRIMARY KEY,
+          payload TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+      ''');
     }, onUpgrade: (db, oldVersion, newVersion) async {
       if (oldVersion < 2) {
         await db.execute('''
@@ -41,12 +48,20 @@ class OfflineStore {
           )
         ''');
       }
+      if (oldVersion < 3) {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS generic_cache (
+            cache_key TEXT PRIMARY KEY,
+            payload TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+          )
+        ''');
+      }
     });
     return _db!;
   }
 
-  static Future<void> insert(
-      Map<String, dynamic> payload, String tempInvoiceNo,
+  static Future<void> insert(Map<String, dynamic> payload, String tempInvoiceNo,
       {String? clientTransactionId, double grandTotal = 0}) async {
     final db = await _open();
     final id = clientTransactionId ??
@@ -63,15 +78,15 @@ class OfflineStore {
 
   static Future<List<Map<String, dynamic>>> pending() async {
     final db = await _open();
-    final rows = await db.query('offline_transactions',
-        orderBy: 'created_at ASC');
+    final rows =
+        await db.query('offline_transactions', orderBy: 'created_at ASC');
     return rows;
   }
 
   static Future<int> count() async {
     final db = await _open();
-    final rows = await db.rawQuery(
-        'SELECT COUNT(*) AS c FROM offline_transactions');
+    final rows =
+        await db.rawQuery('SELECT COUNT(*) AS c FROM offline_transactions');
     return (rows.first['c'] as int?) ?? 0;
   }
 
@@ -85,12 +100,15 @@ class OfflineStore {
   static Future<void> saveProductsCache(
       int branchId, String payload, String updatedAt, String syncDate) async {
     final db = await _open();
-    await db.insert('products_cache', {
-      'branch_id': branchId,
-      'payload': payload,
-      'updated_at': updatedAt,
-      'sync_date': syncDate,
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+        'products_cache',
+        {
+          'branch_id': branchId,
+          'payload': payload,
+          'updated_at': updatedAt,
+          'sync_date': syncDate,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   /// Baca cache produk untuk cabang; null kalau belum pernah disimpan.
@@ -101,10 +119,36 @@ class OfflineStore {
     if (rows.isEmpty) return null;
     final r = rows.first;
     return {
-      'payload': jsonDecode(r['payload'] as String? ?? '{}')
-          as Map<String, dynamic>,
+      'payload':
+          jsonDecode(r['payload'] as String? ?? '{}') as Map<String, dynamic>,
       'updated_at': r['updated_at']?.toString() ?? '',
       'sync_date': r['sync_date']?.toString() ?? '',
+    };
+  }
+
+  /// Cache JSON generik (riwayat, laporan, detail produk/varian) untuk offline.
+  static Future<void> cacheSet(String key, String payload) async {
+    final db = await _open();
+    await db.insert(
+        'generic_cache',
+        {
+          'cache_key': key,
+          'payload': payload,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  static Future<Map<String, dynamic>?> cacheGet(String key) async {
+    final db = await _open();
+    final rows = await db.query('generic_cache',
+        where: 'cache_key = ?', whereArgs: [key], limit: 1);
+    if (rows.isEmpty) return null;
+    final r = rows.first;
+    return {
+      'payload':
+          jsonDecode(r['payload'] as String? ?? '{}') as Map<String, dynamic>,
+      'updated_at': r['updated_at']?.toString() ?? '',
     };
   }
 }

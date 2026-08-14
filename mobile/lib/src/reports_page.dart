@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 // ignore_for_file: prefer_const_constructors
 
 import 'dart:io';
@@ -6,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'api_client.dart';
+import 'offline_status.dart';
+import 'offline_store.dart';
 import 'format.dart';
 import 'printer_setup.dart';
 import 'task_ui.dart';
@@ -52,20 +56,36 @@ class _ReportsPageState extends State<ReportsPage> {
   void initState() {
     super.initState();
     _load();
+    // Saat internet kembali: otomatis muat ulang dari server (normal setelah sync).
+    OfflineStatus.syncTick.addListener(_onSyncTick);
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  void _onSyncTick() {
+    _load(silent: true);
+  }
+
+  @override
+  void dispose() {
+    OfflineStatus.syncTick.removeListener(_onSyncTick);
+    super.dispose();
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
+    final (start, end) = _range;
+    final cacheKey = 'report-$_section-$_preset-$_branchId';
     try {
       if (_isOwner && _branches.isEmpty) {
         try {
-          _branches = (await widget.api.branches()).cast<Map<String, dynamic>>();
+          _branches =
+              (await widget.api.branches()).cast<Map<String, dynamic>>();
         } catch (_) {}
       }
-      final (start, end) = _range;
       Map<String, dynamic> data;
       switch (_section) {
         case 'penjualan':
@@ -87,7 +107,21 @@ class _ReportsPageState extends State<ReportsPage> {
       }
       if (!mounted) return;
       setState(() => _data = data);
+      // Simpan cache laporan untuk offline.
+      await OfflineStore.cacheSet(cacheKey, jsonEncode(data));
     } on ApiException catch (e) {
+      if (e.isNetwork) {
+        try {
+          final cached = await OfflineStore.cacheGet(cacheKey);
+          if (cached != null && mounted) {
+            setState(() {
+              _data = cached['payload'] as Map<String, dynamic>;
+              _error = null;
+            });
+            return;
+          }
+        } catch (_) {}
+      }
       if (mounted) setState(() => _error = e.message);
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -102,128 +136,145 @@ class _ReportsPageState extends State<ReportsPage> {
         children: [
           const Positioned.fill(child: SoftBlobs()),
           Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-          child: PillTabs(
-            tabs: const [
-              (value: 'ringkasan', icon: Icons.dashboard_outlined, label: 'Ringkasan'),
-              (value: 'penjualan', icon: Icons.trending_up, label: 'Penjualan'),
-              (value: 'penutupan', icon: Icons.event_available, label: 'Penutupan'),
-              (value: 'ppn', icon: Icons.receipt, label: 'PPN'),
-            ],
-            selected: _section,
-            onChanged: (v) {
-              setState(() => _section = v);
-              _load();
-            },
-          ),
-        ),
-        if (_isOwner && _branches.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-            child: DropdownButtonFormField<int?>(
-              initialValue: _branchId,
-              isExpanded: true,
-              decoration: InputDecoration(
-                  labelText: 'Toko',
-                  filled: true,
-                  fillColor:
-                      Theme.of(context).brightness == Brightness.dark
-                          ? const Color(0xff1F2530)
-                          : Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 14),
-                  enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide(
-                          color: Theme.of(context).brightness ==
-                                  Brightness.dark
-                              ? const Color(0xff2A3140)
-                              : const Color(0xffE7E0D6))),
-                  focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide(
-                          color: Theme.of(context).brightness ==
-                                  Brightness.dark
-                              ? const Color(0xff7FA8CF)
-                              : const Color(0xff1E3A5F),
-                          width: 1.4))),
-              items: [
-                const DropdownMenuItem<int?>(
-                    value: null, child: Text('Semua cabang saya (default)')),
-                for (final b in _branches)
-                  DropdownMenuItem<int?>(
-                      value: int.tryParse('${b['id']}'),
-                      child: Text(b['name']?.toString() ?? '')),
-              ],
-              onChanged: (v) {
-                setState(() => _branchId = v);
-                _load();
-              },
-            ),
-          ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-          child: Row(
             children: [
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  initialValue: _preset,
-                  decoration: InputDecoration(
-                      labelText: 'Rentang',
-                      filled: true,
-                      fillColor: Theme.of(context).brightness == Brightness.dark
-                          ? const Color(0xff1F2530)
-                          : Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 14),
-                      enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(
-                              color: Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? const Color(0xff2A3140)
-                                  : const Color(0xffE7E0D6))),
-                      focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(
-                              color: Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? const Color(0xff7FA8CF)
-                                  : const Color(0xff1E3A5F),
-                              width: 1.4))),
-                  items: const [
-                    DropdownMenuItem(value: 'today', child: Text('Hari ini')),
-                    DropdownMenuItem(value: '7d', child: Text('7 hari')),
-                    DropdownMenuItem(value: '30d', child: Text('30 hari')),
-                    DropdownMenuItem(value: 'bulan', child: Text('Bulan ini')),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                child: PillTabs(
+                  tabs: const [
+                    (
+                      value: 'ringkasan',
+                      icon: Icons.dashboard_outlined,
+                      label: 'Ringkasan'
+                    ),
+                    (
+                      value: 'penjualan',
+                      icon: Icons.trending_up,
+                      label: 'Penjualan'
+                    ),
+                    (
+                      value: 'penutupan',
+                      icon: Icons.event_available,
+                      label: 'Penutupan'
+                    ),
+                    (value: 'ppn', icon: Icons.receipt, label: 'PPN'),
                   ],
+                  selected: _section,
                   onChanged: (v) {
-                    setState(() => _preset = v ?? 'today');
+                    setState(() => _section = v);
                     _load();
                   },
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  '${_range.$1} s.d. ${_range.$2}',
-                  style:
-                      TextStyle(color: Theme.of(context).colorScheme.outline),
+              if (_isOwner && _branches.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                  child: DropdownButtonFormField<int?>(
+                    initialValue: _branchId,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                        labelText: 'Toko',
+                        filled: true,
+                        fillColor:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? const Color(0xff1F2530)
+                                : Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 14),
+                        enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? const Color(0xff2A3140)
+                                    : const Color(0xffE7E0D6))),
+                        focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? const Color(0xff7FA8CF)
+                                    : const Color(0xff1E3A5F),
+                                width: 1.4))),
+                    items: [
+                      const DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text('Semua cabang saya (default)')),
+                      for (final b in _branches)
+                        DropdownMenuItem<int?>(
+                            value: int.tryParse('${b['id']}'),
+                            child: Text(b['name']?.toString() ?? '')),
+                    ],
+                    onChanged: (v) {
+                      setState(() => _branchId = v);
+                      _load();
+                    },
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _preset,
+                        decoration: InputDecoration(
+                            labelText: 'Rentang',
+                            filled: true,
+                            fillColor:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? const Color(0xff1F2530)
+                                    : Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 14),
+                            enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide(
+                                    color: Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? const Color(0xff2A3140)
+                                        : const Color(0xffE7E0D6))),
+                            focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide(
+                                    color: Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? const Color(0xff7FA8CF)
+                                        : const Color(0xff1E3A5F),
+                                    width: 1.4))),
+                        items: const [
+                          DropdownMenuItem(
+                              value: 'today', child: Text('Hari ini')),
+                          DropdownMenuItem(value: '7d', child: Text('7 hari')),
+                          DropdownMenuItem(
+                              value: '30d', child: Text('30 hari')),
+                          DropdownMenuItem(
+                              value: 'bulan', child: Text('Bulan ini')),
+                        ],
+                        onChanged: (v) {
+                          setState(() => _preset = v ?? 'today');
+                          _load();
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        '${_range.$1} s.d. ${_range.$2}',
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.outline),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: _export,
+                      icon: const Icon(Icons.ios_share, size: 20),
+                      tooltip: 'Export CSV',
+                    ),
+                  ],
                 ),
               ),
-              IconButton(
-                onPressed: _export,
-                icon: const Icon(Icons.ios_share, size: 20),
-                tooltip: 'Export CSV',
-              ),
+              Expanded(child: _buildBody()),
             ],
           ),
-        ),
-          Expanded(child: _buildBody()),
-        ],
-      ),
         ],
       ),
     );
@@ -231,8 +282,8 @@ class _ReportsPageState extends State<ReportsPage> {
 
   Future<void> _export() async {
     final buf = StringBuffer();
-    void row(List<String> cells) => buf
-        .writeln(cells.map((c) => '"${c.replaceAll('"', '""')}"').join(';'));
+    void row(List<String> cells) =>
+        buf.writeln(cells.map((c) => '"${c.replaceAll('"', '""')}"').join(';'));
     row(['Laporan', _section, 'Rentang', '${_range.$1} s.d. ${_range.$2}']);
     row([]);
     final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
@@ -243,8 +294,11 @@ class _ReportsPageState extends State<ReportsPage> {
         row(['Diskon', fmtRp(asNum(summary['discounts']))]);
         for (final p in ((_data?['payments'] as List?) ?? [])
             .cast<Map<String, dynamic>>()) {
-          row(['Metode', (p['payment_method'] ?? '').toString().toUpperCase(),
-              fmtRp(asNum(p['amount']))]);
+          row([
+            'Metode',
+            (p['payment_method'] ?? '').toString().toUpperCase(),
+            fmtRp(asNum(p['amount']))
+          ]);
         }
       case 'penutupan':
         row(['Tanggal', (_data?['date'] ?? '').toString()]);
@@ -255,8 +309,14 @@ class _ReportsPageState extends State<ReportsPage> {
         final methods = (_data?['methods'] as Map<String, dynamic>?) ?? {};
         for (final e in methods.entries) {
           final m = e.value as Map<String, dynamic>;
-          row(['Metode', e.key.toUpperCase(), 'Penjualan',
-              fmtRp(asNum(m['sales'])), 'Total', fmtRp(asNum(m['total']))]);
+          row([
+            'Metode',
+            e.key.toUpperCase(),
+            'Penjualan',
+            fmtRp(asNum(m['sales'])),
+            'Total',
+            fmtRp(asNum(m['total']))
+          ]);
         }
       case 'ppn':
         final kel = (_data?['ppn_keluaran'] as Map<String, dynamic>?) ?? {};
@@ -273,18 +333,28 @@ class _ReportsPageState extends State<ReportsPage> {
         row(['Laba bersih', fmtRp(asNum(summary['net_profit']))]);
         for (final m in ((_data?['payment_methods'] as List?) ?? [])
             .cast<Map<String, dynamic>>()) {
-          row(['Metode', (m['payment_method'] ?? '').toString().toUpperCase(),
-              fmtRp(asNum(m['amount']))]);
+          row([
+            'Metode',
+            (m['payment_method'] ?? '').toString().toUpperCase(),
+            fmtRp(asNum(m['amount']))
+          ]);
         }
         for (final s in ((_data?['low_stock'] as List?) ?? [])
             .cast<Map<String, dynamic>>()) {
-          row(['Stok rendah', s['name'].toString(),
-              '${s['stock']} / min ${s['min_stock']}']);
+          row([
+            'Stok rendah',
+            s['name'].toString(),
+            '${s['stock']} / min ${s['min_stock']}'
+          ]);
         }
         for (final p in ((_data?['products'] as List?) ?? [])
             .cast<Map<String, dynamic>>()) {
-          row(['Produk', p['name'].toString(), '${p['quantity_sold']} pcs',
-              fmtRp(asNum(p['revenue']))]);
+          row([
+            'Produk',
+            p['name'].toString(),
+            '${p['quantity_sold']} pcs',
+            fmtRp(asNum(p['revenue']))
+          ]);
         }
     }
     final file = File('${Directory.systemTemp.path}/laporan_$_section.csv');
@@ -496,7 +566,6 @@ class _Card extends StatelessWidget {
       );
 }
 
-
 class _Row extends StatelessWidget {
   const _Row(this.label, this.value);
   final String label;
@@ -527,4 +596,3 @@ class _Row extends StatelessWidget {
         ),
       );
 }
-

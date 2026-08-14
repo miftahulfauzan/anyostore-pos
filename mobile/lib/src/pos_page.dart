@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
@@ -12,6 +13,7 @@ import 'api_client.dart';
 import 'auth_store.dart';
 import 'inventory_page.dart';
 import 'more_page.dart';
+import 'offline_status.dart';
 import 'offline_store.dart';
 import 'reports_page.dart';
 import 'format.dart';
@@ -62,6 +64,7 @@ class _PosPageState extends State<PosPage> {
   final _search = TextEditingController();
   final List<CartItem> _cart = [];
   Timer? _previewTimer;
+  StreamSubscription<List<ConnectivityResult>>? _connSub;
 
   List<Map<String, dynamic>> _products = [];
   List<Map<String, dynamic>> _visible = [];
@@ -97,6 +100,14 @@ class _PosPageState extends State<PosPage> {
     PosPage.requestTab.addListener(_onExternalTab);
     _loadData();
     _syncPending();
+    _connSub = Connectivity().onConnectivityChanged.listen((results) {
+      final online = results.any((r) => r != ConnectivityResult.none);
+      if (online && OfflineStatus.offline.value) {
+        OfflineStatus.notifyOnline();
+        _syncPending();
+        _loadData(silent: true);
+      }
+    });
   }
 
   Future<void> _syncPending() async {
@@ -110,6 +121,7 @@ class _PosPageState extends State<PosPage> {
   @override
   void dispose() {
     _previewTimer?.cancel();
+    _connSub?.cancel();
     PosPage.requestTab.removeListener(_onExternalTab);
     _search.dispose();
     super.dispose();
@@ -269,16 +281,36 @@ class _PosPageState extends State<PosPage> {
     int? variantId;
     int qty = 1;
     if (variantCount > 0) {
+      final productId = int.parse('${product['id']}');
+      final branch = _posBranchId ?? _branchId;
+      final cacheKey = 'product-$branch-$productId';
+      Map<String, dynamic>? detail;
       try {
-        final detail = await _client.product(int.parse('${product['id']}'),
-            branchId: _posBranchId ?? _branchId);
-        if (!mounted) return;
+        detail = await _client.product(productId, branchId: branch);
+        await OfflineStore.cacheSet(cacheKey, jsonEncode(detail));
+      } on ApiException catch (e) {
+        if (!e.isNetwork) rethrow;
+        // Offline: pakai detail produk + varian dari cache.
+        final cached = await OfflineStore.cacheGet(cacheKey);
+        detail = cached?['payload'] as Map<String, dynamic>?;
+      }
+      if (detail == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text(
+                  'Detail produk belum tersimpan offline. Buka produk ini sekali saat online.')));
+        }
+        return;
+      }
+      if (!mounted) return;
+      final d = detail;
+      try {
         final variants =
-            ((detail['variants'] as List?) ?? []).cast<Map<String, dynamic>>();
+            ((d['variants'] as List?) ?? []).cast<Map<String, dynamic>>();
         final result = await showDialog<Map<String, dynamic>>(
           context: context,
           builder: (_) => VariantPicker(
-              product: detail, variants: variants, mediaUrl: _mediaUrl),
+              product: d, variants: variants, mediaUrl: _mediaUrl),
         );
         if (result == null) return;
         variantId = result['variant_id'] as int?;
@@ -290,7 +322,7 @@ class _PosPageState extends State<PosPage> {
         _addToCart(
           productId: int.parse('${product['id']}'),
           name: product['name']?.toString() ?? '',
-          price: asNum(detail['price']),
+          price: asNum(d['price']),
           variantId: variantId,
           variantLabel: selectedVariant == null
               ? null
@@ -773,56 +805,90 @@ class _PosPageState extends State<PosPage> {
     ];
     return Scaffold(
       // Tanpa AppBar utama (header dihapus).
-      body: Stack(
-        children: [
-          // Jarak dari status bar (header utama sudah dihapus).
-          SafeArea(
-            top: true,
-            bottom: false,
-            child: IndexedStack(index: _tab, children: pages),
-          ),
-          // Navbar overlay: area di luar pil benar-benar transparan,
-          // konten halaman tetap terlihat/mengalir di belakangnya.
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: GlassNavBar(
-              current: _tab,
-              onSelect: (i) => setState(() {
-                _tab = i;
-                if (_tab == 0) _loadData(silent: true);
-              }),
-              items: const [
-                (
-                  icon: Icons.shopping_bag_outlined,
-                  activeIcon: Icons.shopping_bag,
-                  label: 'POS'
-                ),
-                (
-                  icon: Icons.receipt_long_outlined,
-                  activeIcon: Icons.receipt_long,
-                  label: 'Riwayat'
-                ),
-                (
-                  icon: Icons.inventory_2_outlined,
-                  activeIcon: Icons.inventory_2,
-                  label: 'Stok'
-                ),
-                (
-                  icon: Icons.bar_chart_outlined,
-                  activeIcon: Icons.bar_chart,
-                  label: 'Laporan'
-                ),
-                (
-                  icon: Icons.more_horiz,
-                  activeIcon: Icons.more_horiz,
-                  label: 'Lainnya'
-                ),
-              ],
+      body: SafeArea(
+        top: true,
+        bottom: false,
+        child: Column(
+          children: [
+            // Banner kuning saat data dipakai offline.
+            ValueListenableBuilder<bool>(
+              valueListenable: OfflineStatus.offline,
+              builder: (context, offline, _) => offline
+                  ? Container(
+                      width: double.infinity,
+                      color: const Color(0xFFFFF3CD),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.cloud_off,
+                              size: 15, color: Color(0xFF8A6D1A)),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                                'Offline — memakai data tersimpan. Otomatis sync saat internet kembali.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF6B5208))),
+                          ),
+                        ],
+                      ),
+                    )
+                  : const SizedBox.shrink(),
             ),
-          ),
-        ],
+            Expanded(
+              child: Stack(
+                children: [
+                  IndexedStack(index: _tab, children: pages),
+                  // Navbar overlay: area di luar pil benar-benar transparan,
+                  // konten halaman tetap terlihat/mengalir di belakangnya.
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: GlassNavBar(
+                      current: _tab,
+                      onSelect: (i) => setState(() {
+                        _tab = i;
+                        if (_tab == 0) _loadData(silent: true);
+                      }),
+                      items: const [
+                        (
+                          icon: Icons.shopping_bag_outlined,
+                          activeIcon: Icons.shopping_bag,
+                          label: 'POS'
+                        ),
+                        (
+                          icon: Icons.receipt_long_outlined,
+                          activeIcon: Icons.receipt_long,
+                          label: 'Riwayat'
+                        ),
+                        (
+                          icon: Icons.inventory_2_outlined,
+                          activeIcon: Icons.inventory_2,
+                          label: 'Stok'
+                        ),
+                        (
+                          icon: Icons.bar_chart_outlined,
+                          activeIcon: Icons.bar_chart,
+                          label: 'Laporan'
+                        ),
+                        (
+                          icon: Icons.more_horiz,
+                          activeIcon: Icons.more_horiz,
+                          label: 'Lainnya'
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

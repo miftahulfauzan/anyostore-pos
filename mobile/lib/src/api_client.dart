@@ -4,6 +4,8 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import 'offline_status.dart';
+
 class ApiException implements Exception {
   ApiException(this.message, {this.statusCode, this.isNetwork = false});
   final String message;
@@ -77,18 +79,23 @@ class ApiClient {
         final ok = await refreshHandler!();
         if (ok) return _request(run, retried: true);
       }
+      OfflineStatus.offline.value = false;
       return _decode(res);
     } on ApiException {
       rethrow;
     } on TimeoutException {
+      OfflineStatus.offline.value = true;
       throw ApiException('Waktu habis. Periksa koneksi internet Anda.',
           isNetwork: true);
     } on SocketException {
+      OfflineStatus.offline.value = true;
       throw ApiException('Tidak ada koneksi internet.', isNetwork: true);
     } on http.ClientException {
+      OfflineStatus.offline.value = true;
       throw ApiException('Koneksi gagal. Periksa internet Anda.',
           isNetwork: true);
     } catch (_) {
+      OfflineStatus.offline.value = true;
       throw ApiException('Koneksi gagal. Coba lagi.', isNetwork: true);
     }
   }
@@ -150,8 +157,7 @@ class ApiClient {
           int id, Map<String, dynamic> body) =>
       put('/products/$id', body);
 
-  Future<Map<String, dynamic>> deleteProduct(int id) =>
-      delete('/products/$id');
+  Future<Map<String, dynamic>> deleteProduct(int id) => delete('/products/$id');
 
   Future<Map<String, dynamic>> uploadProductMedia(
           int id, String mime, String base64) =>
@@ -169,7 +175,8 @@ class ApiClient {
         'data_url': 'data:$mime;base64,$base64',
       });
 
-  Future<List<dynamic>> activityLogs({String search = '', String action = ''}) async {
+  Future<List<dynamic>> activityLogs(
+      {String search = '', String action = ''}) async {
     final res = await get('/activity-logs', {
       if (search.isNotEmpty) 'search': search,
       if (action.isNotEmpty) 'action': action,
@@ -230,8 +237,7 @@ class ApiClient {
     return (res['data'] as List?) ?? [];
   }
 
-  Future<Map<String, dynamic>> resumeTransaction(int id,
-          {int? branchId}) =>
+  Future<Map<String, dynamic>> resumeTransaction(int id, {int? branchId}) =>
       post('/transactions/pending/$id/resume',
           {if (branchId != null) 'branch_id': '$branchId'});
 
@@ -315,8 +321,8 @@ class ApiClient {
     required String start,
     required String end,
   }) async {
-    final res = await get('/commissions/all-branches',
-        {'start': start, 'end': end});
+    final res =
+        await get('/commissions/all-branches', {'start': start, 'end': end});
     return (res['data'] as Map<String, dynamic>?) ?? {};
   }
 
