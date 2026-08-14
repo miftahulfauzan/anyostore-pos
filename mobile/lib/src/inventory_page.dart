@@ -99,6 +99,18 @@ class _StockSectionState extends State<_StockSection> {
   String? _error;
   bool _grid = false; // false = card (list), true = grid
   String _sort = 'nama'; // nama | nama_desc | stok_asc | stok_desc
+  bool _branchOpen = true; // accordion Toko/Gudang (owner)
+  bool _searchOpen = false; // accordion Cari (owner)
+
+  String get _branchLabel {
+    if (_branchMode == 'all') return 'Semua toko/gudang';
+    for (final b in _branches) {
+      if (int.tryParse('${b['id']}') == _branchId) {
+        return b['name']?.toString() ?? 'Toko / Gudang';
+      }
+    }
+    return 'Toko / Gudang';
+  }
 
   @override
   void initState() {
@@ -175,44 +187,91 @@ class _StockSectionState extends State<_StockSection> {
         if (widget.isOwner)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-            child: DropdownButtonFormField<String>(
-              initialValue: _branchMode,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                  isDense: true,
-                  labelText: 'Toko/Gudang',
-                  border: OutlineInputBorder()),
-              items: [
-                for (final b in _branches)
-                  DropdownMenuItem<String>(
-                      value: 'branch-${b['id']}',
-                      child: Text(b['name']?.toString() ?? '')),
-                const DropdownMenuItem<String>(
-                    value: 'all', child: Text('Semua toko/gudang')),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _InvHeaderSegment(
+                        icon: Icons.store,
+                        label: _branchLabel,
+                        active: _branchOpen,
+                        onTap: () => setState(() {
+                          _branchOpen = true;
+                          _searchOpen = false;
+                        }),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _InvHeaderSegment(
+                        icon: Icons.search,
+                        label: 'Cari produk',
+                        active: _searchOpen,
+                        onTap: () => setState(() {
+                          _searchOpen = true;
+                          _branchOpen = false;
+                        }),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_branchOpen) ...[
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: _branchMode,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                        isDense: true,
+                        labelText: 'Toko/Gudang',
+                        border: OutlineInputBorder()),
+                    items: [
+                      for (final b in _branches)
+                        DropdownMenuItem<String>(
+                            value: 'branch-${b['id']}',
+                            child: Text(b['name']?.toString() ?? '')),
+                      const DropdownMenuItem<String>(
+                          value: 'all', child: Text('Semua toko/gudang')),
+                    ],
+                    onChanged: (v) {
+                      setState(() {
+                        _branchMode = v ?? 'this';
+                        _branchId = _branchMode == 'all'
+                            ? null
+                            : int.tryParse(
+                                _branchMode.replaceFirst('branch-', ''));
+                      });
+                      _load();
+                    },
+                  ),
+                ] else if (_searchOpen) ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _search,
+                    decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.search),
+                        isDense: true,
+                        hintText: 'Cari produk / SKU',
+                        border: OutlineInputBorder()),
+                    onSubmitted: (_) => _load(),
+                  ),
+                ],
               ],
-              onChanged: (v) {
-                setState(() {
-                  _branchMode = v ?? 'this';
-                  _branchId = _branchMode == 'all'
-                      ? null
-                      : int.tryParse(_branchMode.replaceFirst('branch-', ''));
-                });
-                _load();
-              },
+            ),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+            child: TextField(
+              controller: _search,
+              decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.search),
+                  isDense: true,
+                  hintText: 'Cari produk / SKU',
+                  border: OutlineInputBorder()),
+              onSubmitted: (_) => _load(),
             ),
           ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-          child: TextField(
-            controller: _search,
-            decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                isDense: true,
-                hintText: 'Cari produk / SKU',
-                border: OutlineInputBorder()),
-            onSubmitted: (_) => _load(),
-          ),
-        ),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
           child: Row(
@@ -1594,6 +1653,65 @@ class _BarcodeSectionState extends State<_BarcodeSection> {
                         ),
         ),
       ],
+    );
+  }
+}
+
+/// Segmen header Toko/Gudang & Cari ala POS (kiri/kanan satu baris).
+class _InvHeaderSegment extends StatelessWidget {
+  const _InvHeaderSegment({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final fg = Theme.of(context).colorScheme.primary;
+    return Material(
+      color: dark ? const Color(0xff1F2530) : Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            border: Border.all(
+                color: active
+                    ? fg
+                    : (dark
+                        ? const Color(0xff2A3140)
+                        : const Color(0xffE7E0D6)),
+                width: active ? 1.5 : 1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 17, color: fg),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: fg)),
+              ),
+              const Icon(Icons.expand_more, size: 18, color: Color(0xff8A857C)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

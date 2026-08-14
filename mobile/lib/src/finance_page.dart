@@ -338,7 +338,7 @@ class _FinancePageState extends State<FinancePage> {
                   : _rows.isEmpty
                       ? const Center(child: Text('Belum ada data'))
                       : ListView.separated(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 104),
                           itemCount: _rows.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 8),
