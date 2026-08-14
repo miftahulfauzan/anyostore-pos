@@ -261,6 +261,7 @@ class _BrandLogoState extends State<BrandLogo> {
         width: size,
         height: size,
         fit: BoxFit.cover,
+        cacheWidth: 200,
         errorBuilder: (_, __, ___) => fallback,
       ),
     );
@@ -277,7 +278,9 @@ class GlassCard extends StatelessWidget {
       this.height,
       this.dark = false,
       this.onTap,
-      this.frosted = true});
+      // Default TANPA blur: BackdropFilter per kartu mahal di device lama.
+      // Nyalakan eksplisit (frosted: true) hanya untuk kartu hero tunggal.
+      this.frosted = false});
   final Widget child;
   final double radius;
   final EdgeInsets padding;
@@ -285,10 +288,9 @@ class GlassCard extends StatelessWidget {
   final bool dark;
   final VoidCallback? onTap;
 
-  /// false = tanpa BackdropFilter (blur). Untuk kartu yang jumlahnya banyak
-  /// dalam 1 layar (mis. grid POS), blur per kartu itu mahal banget dan
-  /// bikin scroll tidak smooth — efek kacanya tetap (gradien + border),
-  /// tapi jauh lebih ringan.
+  /// true = aktifkan BackdropFilter (blur). Default false: blur per kartu
+  /// mahal banget di device lama & bikin scroll berat. Efek kaca tetap ada
+  /// lewat gradien + border tipis tanpa blur.
   final bool frosted;
 
   @override

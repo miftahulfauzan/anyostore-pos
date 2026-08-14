@@ -176,6 +176,7 @@ class _ProductsPageState extends State<ProductsPage> {
                                                 : Image.network(
                                                     photo,
                                                     fit: BoxFit.cover,
+                                                    cacheWidth: 160,
                                                     errorBuilder:
                                                         (_, __, ___) =>
                                                             ColoredBox(
@@ -229,21 +230,18 @@ class _ProductsPageState extends State<ProductsPage> {
                                                   visualDensity:
                                                       VisualDensity.compact,
                                                   tooltip: 'Cetak label harga',
-                                                  icon: Icon(
-                                                      Icons.print,
+                                                  icon: Icon(Icons.print,
                                                       size: 18,
                                                       color: ink(context)),
                                                 ),
                                                 IconButton(
-                                                  onPressed: () =>
-                                                      _delete(r),
+                                                  onPressed: () => _delete(r),
                                                   visualDensity:
                                                       VisualDensity.compact,
                                                   icon: const Icon(
                                                       Icons.delete_outline,
                                                       size: 18,
-                                                      color:
-                                                          Color(0xffC2410C)),
+                                                      color: Color(0xffC2410C)),
                                                 ),
                                               ],
                                             ),

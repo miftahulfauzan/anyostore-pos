@@ -104,6 +104,7 @@ class _LoginPageState extends State<LoginPage> {
                         child: GlassCard(
                           padding: const EdgeInsets.all(24),
                           radius: 20,
+                          frosted: true,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [

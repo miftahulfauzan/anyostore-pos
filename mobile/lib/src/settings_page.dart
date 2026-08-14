@@ -93,7 +93,8 @@ class _SettingsPageState extends State<SettingsPage> {
         _receiptFooter.text = settings['receipt_footer']?.toString() ?? '';
         _receiptNote.text = settings['receipt_note']?.toString() ?? '';
         _printerSize = settings['printer_size']?.toString() ?? '80';
-        _autoPrint = settings['auto_print'] == '1' || settings['auto_print'] == true;
+        _autoPrint =
+            settings['auto_print'] == '1' || settings['auto_print'] == true;
       });
       final prefs = await SharedPreferences.getInstance();
       final autoBackup = prefs.getBool('pos_auto_backup') ?? false;
@@ -306,16 +307,15 @@ class _SettingsPageState extends State<SettingsPage> {
         return;
       }
       setState(() => _uploadingLogo = true);
-      await widget.api.uploadLogo(picked.mimeType ?? 'image/png',
-          base64Encode(bytes),
+      await widget.api.uploadLogo(
+          picked.mimeType ?? 'image/png', base64Encode(bytes),
           key: key);
       await _load();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-              key == 'invoice_logo'
-                  ? 'Logo toko untuk invoice berhasil diganti'
-                  : 'Logo aplikasi berhasil diganti')));
+          content: Text(key == 'invoice_logo'
+              ? 'Logo toko untuk invoice berhasil diganti'
+              : 'Logo aplikasi berhasil diganti')));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -342,7 +342,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: Image.network(base + path,
-          width: 64, height: 64, fit: BoxFit.cover),
+          width: 64, height: 64, fit: BoxFit.cover, cacheWidth: 192),
     );
   }
 
@@ -361,8 +361,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final bid = _settingBranchId;
     if (bid != null) await PrinterService.setActiveBranch(bid);
     if (!mounted) return;
-    await showPrinterJobSheet(context,
-        (printer, device) => printer.printTest(),
+    await showPrinterJobSheet(context, (printer, device) => printer.printTest(),
         title: 'Pilih & Simpan Printer');
     await _refreshPrinter();
   }
@@ -392,8 +391,7 @@ class _SettingsPageState extends State<SettingsPage> {
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Backup Berhasil'),
-          content: Text(
-              'File: ${file.path.split('/').last}\n'
+          content: Text('File: ${file.path.split('/').last}\n'
               'Ukuran: ${asSize(size)}\n\n'
               'Pilih "Bagikan" untuk menyimpan ke Google Drive, email, atau WhatsApp.'),
           actions: [
@@ -404,7 +402,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 onPressed: () {
                   Navigator.pop(ctx);
                   Share.shareXFiles([XFile(file.path)],
-                      subject: 'Backup Anyostore ${DateTime.now().toIso8601String().split('T').first}');
+                      subject:
+                          'Backup Anyostore ${DateTime.now().toIso8601String().split('T').first}');
                 },
                 child: const Text('Bagikan')),
           ],
@@ -502,7 +501,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     minLines: 1,
                     maxLines: 4,
                     decoration: const InputDecoration(
-                        labelText: 'Header struk (maks 4 baris, bisa beberapa no HP)',
+                        labelText:
+                            'Header struk (maks 4 baris, bisa beberapa no HP)',
                         border: OutlineInputBorder())),
                 const SizedBox(height: 8),
                 TextField(
@@ -552,7 +552,8 @@ class _SettingsPageState extends State<SettingsPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text('Tampilan',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                    style:
+                        TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
                 const SizedBox(height: 8),
                 ValueListenableBuilder<ThemeMode>(
                   valueListenable: ThemeController.mode,
@@ -587,7 +588,8 @@ class _SettingsPageState extends State<SettingsPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text('Backup Data',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                    style:
+                        TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
                 const SizedBox(height: 6),
                 const Text(
                     'Simpan snapshot seluruh database ke perangkat. Disarankan rutin sebelum update besar.',
@@ -625,7 +627,8 @@ class _SettingsPageState extends State<SettingsPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text('Notifikasi',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                    style:
+                        TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
                 const SizedBox(height: 6),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
@@ -652,7 +655,8 @@ class _SettingsPageState extends State<SettingsPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text('Logo Aplikasi',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                    style:
+                        TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -693,8 +697,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    _logoPreview(
-                        _settings['invoice_logo']?.toString() ?? ''),
+                    _logoPreview(_settings['invoice_logo']?.toString() ?? ''),
                     const SizedBox(width: 14),
                     const Expanded(
                       child: Text(
@@ -729,7 +732,8 @@ class _SettingsPageState extends State<SettingsPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text('Printer Thermal',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                    style:
+                        TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
                 const SizedBox(height: 6),
                 Row(
                   children: [
