@@ -165,19 +165,28 @@ class _FinancePageState extends State<FinancePage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                DropdownButtonFormField<int?>(
-                  initialValue: categoryId,
-                  decoration: const InputDecoration(
-                      labelText: 'Kategori', border: OutlineInputBorder()),
-                  items: [
-                    for (final c in _categories)
-                      if ((c['type'] ?? '') == type)
-                        DropdownMenuItem<int?>(
-                            value: int.tryParse('${c['id']}'),
-                            child: Text(c['name']?.toString() ?? '')),
-                  ],
-                  onChanged: (v) => setDialogState(() => categoryId = v),
-                ),
+                _categories.where((c) => (c['type'] ?? '') == type).isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.only(bottom: 8),
+                        child: Text(
+                            'Kategori: Umum (otomatis) — kategori belum tersedia offline',
+                            style: TextStyle(
+                                fontSize: 12, color: Color(0xff8A857C))),
+                      )
+                    : DropdownButtonFormField<int?>(
+                        initialValue: categoryId,
+                        decoration: const InputDecoration(
+                            labelText: 'Kategori', border: OutlineInputBorder()),
+                        items: [
+                          for (final c in _categories)
+                            if ((c['type'] ?? '') == type)
+                              DropdownMenuItem<int?>(
+                                  value: int.tryParse('${c['id']}'),
+                                  child: Text(c['name']?.toString() ?? '')),
+                        ],
+                        onChanged: (v) =>
+                            setDialogState(() => categoryId = v),
+                      ),
                 const SizedBox(height: 8),
                 TextField(
                     controller: name,
@@ -225,9 +234,7 @@ class _FinancePageState extends State<FinancePage> {
       ),
     );
     if (saved != true || !mounted) return;
-    if (categoryId == null ||
-        name.text.trim().isEmpty ||
-        amount.text.trim().isEmpty) {
+    if (name.text.trim().isEmpty || amount.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Kategori, nama, dan nominal wajib diisi')));
       return;

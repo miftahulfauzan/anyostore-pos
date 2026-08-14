@@ -42,13 +42,30 @@ router.post('/expenses', authorize('owner', 'manager', 'admin', 'kasir'), async 
     const { category_id: categoryId, name, amount: raw, payment_method: method = 'cash', expense_date: date, notes, type = 'expense' } = req.body;
     const amount = money(raw);
     const entryType = type === 'income' ? 'income' : 'expense';
-    if (!Number.isInteger(Number(categoryId)) || !name?.trim() || !Number.isFinite(amount) || amount <= 0 || !['cash', 'transfer', 'debit'].includes(method) || !date) {
+    if (!name?.trim() || !Number.isFinite(amount) || amount <= 0 || !['cash', 'transfer', 'debit'].includes(method) || !date) {
       throw fail(400, 'Data pengeluaran/pemasukan tidak valid');
+    }
+    // Kategori boleh tidak dikirim (mis. input offline dari HP): pakai kategori
+    // pertama sejenis, atau buat kategori 'Umum' kalau belum ada.
+    let catId = Number.isInteger(Number(categoryId)) ? categoryId : null;
+    if (catId == null) {
+      const [cats] = await db.execute(
+        'SELECT id FROM expense_categories WHERE type = ? ORDER BY id ASC LIMIT 1',
+        [entryType]
+      );
+      catId = cats[0]?.id ?? null;
+      if (catId == null) {
+        const [ins] = await db.execute(
+          "INSERT INTO expense_categories (name, type, description) VALUES ('Umum', ?, 'Kategori otomatis untuk input offline')",
+          [entryType]
+        );
+        catId = ins.insertId;
+      }
     }
     // Tanpa persetujuan: langsung approved supaya langsung masuk laporan/penutupan.
     const [r] = await db.execute(
       "INSERT INTO expenses (branch_id, category_id, name, amount, type, payment_method, expense_date, notes, user_id, status, approved_at) VALUES (?,?,?,?,?,?,?,?,?, 'approved', NOW())",
-      [req.user.branch_id, categoryId, name.trim(), amount, entryType, method, date, notes?.trim() || null, req.user.id]
+      [req.user.branch_id, catId, name.trim(), amount, entryType, method, date, notes?.trim() || null, req.user.id]
     );
     res.status(201).json({ success: true, data: { id: r.insertId, status: 'approved', type: entryType } });
   } catch (e) { next(e); }
@@ -93,11 +110,11 @@ router.put('/expenses/:id', authorize('owner', 'manager', 'admin'), async (req, 
     const { category_id: categoryId, name, amount: raw, payment_method: method = 'cash', expense_date: date, notes, type = 'expense' } = req.body;
     const amount = money(raw);
     const entryType = type === 'income' ? 'income' : 'expense';
-    if (!Number.isInteger(Number(categoryId)) || !name?.trim() || !Number.isFinite(amount) || amount <= 0 || !['cash', 'transfer', 'debit'].includes(method) || !date) {
+    if (!name?.trim() || !Number.isFinite(amount) || amount <= 0 || !['cash', 'transfer', 'debit'].includes(method) || !date) {
       throw fail(400, 'Data pengeluaran/pemasukan tidak valid');
     }
     const [r] = await db.execute(
-      "UPDATE expenses SET category_id=?, name=?, amount=?, type=?, payment_method=?, expense_date=?, notes=?, status='approved', approved_at=NOW() WHERE id=? AND branch_id=?",
+      "UPDATE expenses SET category_id=COALESCE(?, category_id), name=?, amount=?, type=?, payment_method=?, expense_date=?, notes=?, status='approved', approved_at=NOW() WHERE id=? AND branch_id=?",
       [categoryId, name.trim(), amount, entryType, method, date, notes?.trim() || null, req.params.id, req.user.branch_id]
     );
     if (!r.affectedRows) throw fail(404, 'Pengeluaran/pemasukan tidak ditemukan');

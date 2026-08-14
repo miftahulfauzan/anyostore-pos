@@ -800,36 +800,20 @@ class _PosPageState extends State<PosPage> {
       }
       _loadData();
     } on ApiException catch (e) {
-      if (mounted) {
+      // ApiException network JUG tertangkap di sini (bukan catch umum),
+      // jadi offline harus ditangani di sini.
+      if (e.isNetwork) {
+        await _saveOffline(payload, branch);
+      } else if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (e) {
-      final isNetwork = e is ApiException && e.isNetwork ||
-          e is SocketException ||
+      final isNetwork = e is SocketException ||
           e is TimeoutException ||
           e is http.ClientException;
       if (isNetwork) {
-        // Simpan offline: total & harga ikut HP, stok dipaksa negatif, sync otomatis nanti.
-        final tempInvoice =
-            'OFF-$branch-${DateTime.now().millisecondsSinceEpoch}';
-        payload['offline'] = true;
-        payload['offline_invoice_no'] = tempInvoice;
-        payload['allow_negative_stock'] = true;
-        payload['subtotal'] = asNum(_preview?['subtotal'] ?? _cartTotal);
-        payload['discount'] = asNum(_preview?['discount'] ?? 0);
-        final offlineTotal = asNum(_preview?['grand_total'] ?? _cartTotal);
-        await OfflineStore.insert(payload, tempInvoice,
-            grandTotal: offlineTotal);
-        if (!mounted) return;
-        _cart.clear();
-        _preview = null;
-        _promoCode = '';
-        _customerId = null;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(
-                'Transaksi disimpan offline ($tempInvoice). Akan otomatis sync saat internet kembali.')));
-        _loadData();
+        await _saveOffline(payload, branch);
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Gagal memproses pembayaran: $e')));
@@ -837,6 +821,30 @@ class _PosPageState extends State<PosPage> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  /// Simpan transaksi ke antrean offline (harga/total ikut HP, sync nanti).
+  Future<void> _saveOffline(Map<String, dynamic> payload, int branch) async {
+    final tempInvoice =
+        'OFF-$branch-${DateTime.now().millisecondsSinceEpoch}';
+    payload['offline'] = true;
+    payload['offline_invoice_no'] = tempInvoice;
+    payload['allow_negative_stock'] = true;
+    payload['subtotal'] = asNum(_preview?['subtotal'] ?? _cartTotal);
+    payload['discount'] = asNum(_preview?['discount'] ?? 0);
+    final offlineTotal = asNum(_preview?['grand_total'] ?? _cartTotal);
+    await OfflineStore.insert(payload, tempInvoice, grandTotal: offlineTotal);
+    if (!mounted) return;
+    _cart.clear();
+    _preview = null;
+    _promoCode = '';
+    _customerId = null;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+            'Transaksi disimpan offline ($tempInvoice). Akan otomatis sync saat internet kembali.')));
+    _loadData();
+    // Segarkan Riwayat supaya transaksi offline (kuning) langsung muncul.
+    HistoryTab.reloadTick.value++;
   }
 
   @override
@@ -899,7 +907,15 @@ class _PosPageState extends State<PosPage> {
                       current: _tab,
                       onSelect: (i) => setState(() {
                         _tab = i;
-                        if (_tab == 0) _loadData(silent: true);
+                        if (_tab == 0) {
+                          _loadData(silent: true);
+                        } else if (_tab == 1) {
+                          // Riwayat di-refresh (tetap simpan filter).
+                          HistoryTab.reloadTick.value++;
+                        } else if (_tab == 3) {
+                          // Laporan ikut di-refresh (ringkasan/penutupan).
+                          ReportsPage.reloadTick.value++;
+                        }
                       }),
                       items: const [
                         (

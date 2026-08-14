@@ -16,6 +16,7 @@ import 'task_ui.dart';
 
 class ReportsPage extends StatefulWidget {
   const ReportsPage({super.key, required this.api, this.role});
+  static final ValueNotifier<int> reloadTick = ValueNotifier(0);
   final ApiClient api;
   final String? role;
 
@@ -58,15 +59,22 @@ class _ReportsPageState extends State<ReportsPage> {
     _load();
     // Saat internet kembali: otomatis muat ulang dari server (normal setelah sync).
     OfflineStatus.syncTick.addListener(_onSyncTick);
+    // Saat tab Laporan dibuka lagi: muat ulang (data offline ikut terhitung).
+    ReportsPage.reloadTick.addListener(_onReloadTick);
   }
 
   void _onSyncTick() {
     _load(silent: true);
   }
 
+  void _onReloadTick() {
+    _load(silent: true);
+  }
+
   @override
   void dispose() {
     OfflineStatus.syncTick.removeListener(_onSyncTick);
+    ReportsPage.reloadTick.removeListener(_onReloadTick);
     super.dispose();
   }
 

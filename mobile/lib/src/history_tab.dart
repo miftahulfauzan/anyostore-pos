@@ -14,6 +14,7 @@ import 'task_ui.dart';
 
 class HistoryTab extends StatefulWidget {
   const HistoryTab({super.key, required this.api, required this.role});
+  static final ValueNotifier<int> reloadTick = ValueNotifier(0);
   final ApiClient api;
   final String? role;
 
@@ -43,6 +44,8 @@ class _HistoryTabState extends State<HistoryTab> {
     _load();
     // Saat internet kembali: otomatis muat ulang dari server (normal setelah sync).
     OfflineStatus.syncTick.addListener(_onSyncTick);
+    // Saat tab Riwayat dibuka lagi: muat ulang (transaksi offline langsung muncul).
+    HistoryTab.reloadTick.addListener(_onReloadTick);
   }
 
   void _onSyncTick() {
@@ -50,9 +53,14 @@ class _HistoryTabState extends State<HistoryTab> {
     _load(silent: true);
   }
 
+  void _onReloadTick() {
+    _load(silent: true);
+  }
+
   @override
   void dispose() {
     OfflineStatus.syncTick.removeListener(_onSyncTick);
+    HistoryTab.reloadTick.removeListener(_onReloadTick);
     _search.dispose();
     super.dispose();
   }
