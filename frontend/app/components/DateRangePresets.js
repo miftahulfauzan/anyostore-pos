@@ -12,8 +12,30 @@ export const DATE_PRESETS = [
 ];
 
 // Tombol preset rentang tanggal untuk semua filter laporan.
+import { useEffect, useState } from 'react';
+
 export default function DateRangePresets({ active, onPick }) {
-  const style = (isActive) => (isActive ? { background: '#1e3a5f', color: '#fff', borderColor: '#1e3a5f' } : undefined);
+  // Pantau mode gelap supaya warna tombol selalu kontras tinggi (terang/gelap).
+  const [dark, setDark] = useState(false);
+  useEffect(() => {
+    const update = () =>
+      setDark(document.documentElement.classList.contains('dark'));
+    update();
+    const mo = new MutationObserver(update);
+    mo.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+    return () => mo.disconnect();
+  }, []);
+  const style = (isActive) =>
+    isActive
+      ? { background: dark ? '#2563eb' : '#1e3a5f', color: '#fff', borderColor: 'transparent' }
+      : {
+          background: dark ? '#253247' : '#eef3fb',
+          color: dark ? '#eef3fb' : '#172033',
+          border: `1px solid ${dark ? '#334155' : '#cbd5e1'}`,
+        };
   return (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
       {DATE_PRESETS.map((p) => (

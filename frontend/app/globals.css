@@ -1612,3 +1612,6 @@ html[data-theme="purple"] .sidebar .side-nav a.active { background: #7c3aed !imp
 .dark .remove-tier { background: rgba(220,38,38,.12); color: #fca5a5; }
 /* Barcode label tetap putih untuk hasil cetak yang benar */
 .dark .barcode-label { background: #fff; color: #111827; }
+
+/* Native control (date picker, dropdown) ikut mode gelap supaya ikon/tulisan terlihat */
+.dark input, .dark select, .dark textarea, .dark option { color-scheme: dark; }
