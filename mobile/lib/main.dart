@@ -239,7 +239,9 @@ class PosMobileApp extends StatelessWidget {
                         themeMode: themeMode,
                         home: Consumer<AuthStore>(
                           builder: (_, auth, __) => auth.isAuthenticated
-                              ? const PosPage()
+                              // Key userId: saat ganti akun, PosPage dibuat ulang
+                              // supaya data (produk/toko/laporan) fresh.
+                              ? PosPage(key: ValueKey(auth.userId))
                               : const LoginPage(),
                         ),
                       ),

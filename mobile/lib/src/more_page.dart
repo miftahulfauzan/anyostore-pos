@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'account_switcher_page.dart';
 import 'activity_log_page.dart';
 import 'api_client.dart';
 import 'auth_store.dart';
@@ -68,6 +69,34 @@ class MorePage extends StatelessWidget {
     );
   }
 
+  Future<void> _confirmLogout(BuildContext context, AuthStore auth) async {
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Keluar'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, 'keep'),
+            child: const Text('Keluar saja (akun tetap tersimpan)'),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, 'remove'),
+            child: const Text('Keluar & hapus akun ini dari HP'),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+        ],
+      ),
+    );
+    if (choice == 'remove') {
+      await auth.logout(removeFromList: true);
+    } else if (choice == 'keep') {
+      await auth.logout();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthStore>();
@@ -121,61 +150,125 @@ class MorePage extends StatelessWidget {
         _OfflineTile(api: api),
         const SizedBox(height: 12),
         _group(context, 'UTAMA', [
-          _row(context, Icons.dashboard, 'Dashboard', const Color(0xffE3EAF2), _kInk,
+          _row(
+              context,
+              Icons.dashboard,
+              'Dashboard',
+              const Color(0xffE3EAF2),
+              _kInk,
               () => _open(context, 'Dashboard', DashboardPage(api: api))),
+          _divider(context),
+          _row(
+              context,
+              Icons.swap_horiz,
+              'Ganti Akun',
+              const Color(0xffE3EAF2),
+              const Color(0xff1E3A5F),
+              () => _open(context, 'Ganti Akun', const AccountSwitcherPage())),
         ]),
         _group(context, 'AKUN & TOKO', [
-          _row(context, Icons.person_outline, 'Akun Saya', const Color(0xffE3EAF2),
+          _row(
+              context,
+              Icons.person_outline,
+              'Akun Saya',
+              const Color(0xffE3EAF2),
               const Color(0xff1E3A5F),
               () => _open(context, 'Akun Saya', ProfilePage(api: api))),
           _divider(context),
-          _row(context, Icons.settings, 'Pengaturan', const Color(0xffE3EAF2), _kInk,
+          _row(
+              context,
+              Icons.settings,
+              'Pengaturan',
+              const Color(0xffE3EAF2),
+              _kInk,
               () => _open(context, 'Pengaturan', SettingsPage(api: api))),
         ]),
         _group(context, 'PRODUK & INVENTORI', [
-          _row(context, Icons.inventory_2_outlined, 'Daftar Produk',
-              const Color(0xffE3EAF2), const Color(0xff1E3A5F),
+          _row(
+              context,
+              Icons.inventory_2_outlined,
+              'Daftar Produk',
+              const Color(0xffE3EAF2),
+              const Color(0xff1E3A5F),
               () => _open(context, 'Daftar Produk',
                   ProductsPage(api: api, branchId: activeBranch))),
           _divider(context),
-          _row(context, Icons.history, 'Riwayat Stok', const Color(0xffE3EAF2),
-              const Color(0xff1E3A5F), () => _open(context, 'Riwayat Stok',
+          _row(
+              context,
+              Icons.history,
+              'Riwayat Stok',
+              const Color(0xffE3EAF2),
+              const Color(0xff1E3A5F),
+              () => _open(context, 'Riwayat Stok',
                   StockMovementsPage(api: api, branchId: activeBranch))),
           _divider(context),
-          _row(context, Icons.swap_vert, 'Laporan Masuk/Keluar',
-              const Color(0xffE3EAF2), const Color(0xff1E3A5F),
+          _row(
+              context,
+              Icons.swap_vert,
+              'Laporan Masuk/Keluar',
+              const Color(0xffE3EAF2),
+              const Color(0xff1E3A5F),
               () => _open(context, 'Laporan Masuk/Keluar',
                   MutationReportPage(api: api))),
         ]),
         _group(context, 'TRANSAKSI & KEUANGAN', [
-          _row(context, Icons.people, 'Jenis Pelanggan', const Color(0xffE3EAF2),
-              const Color(0xff1E3A5F), () => _open(context, 'Jenis Pelanggan',
-                  CustomersPage(api: api))),
+          _row(
+              context,
+              Icons.people,
+              'Jenis Pelanggan',
+              const Color(0xffE3EAF2),
+              const Color(0xff1E3A5F),
+              () => _open(context, 'Jenis Pelanggan', CustomersPage(api: api))),
           _divider(context),
-          _row(context, Icons.payments, 'Laci Kas', const Color(0xffE3EAF2),
-              const Color(0xff1E3A5F), () => _open(context, 'Laci Kas',
-                  CashDrawerPage(api: api))),
+          _row(
+              context,
+              Icons.payments,
+              'Laci Kas',
+              const Color(0xffE3EAF2),
+              const Color(0xff1E3A5F),
+              () => _open(context, 'Laci Kas', CashDrawerPage(api: api))),
           _divider(context),
-          _row(context, Icons.account_balance_wallet, 'Keuangan',
-              const Color(0xffE3EAF2), const Color(0xff1E3A5F),
+          _row(
+              context,
+              Icons.account_balance_wallet,
+              'Keuangan',
+              const Color(0xffE3EAF2),
+              const Color(0xff1E3A5F),
               () => _open(context, 'Keuangan', FinancePage(api: api))),
           _divider(context),
-          _row(context, Icons.payments_outlined, 'Komisi', const Color(0xffE3EAF2),
-              const Color(0xff1E3A5F), () => _open(context, 'Komisi',
-                  CommissionsPage(api: api, branchId: activeBranch, role: role))),
+          _row(
+              context,
+              Icons.payments_outlined,
+              'Komisi',
+              const Color(0xffE3EAF2),
+              const Color(0xff1E3A5F),
+              () => _open(
+                  context,
+                  'Komisi',
+                  CommissionsPage(
+                      api: api, branchId: activeBranch, role: role))),
         ]),
         _group(context, 'MANAJEMEN', [
-          _row(context, Icons.badge, 'Pegawai', const Color(0xffE3EAF2),
-              const Color(0xff1E3A5F), () => _open(context, 'Pegawai',
+          _row(
+              context,
+              Icons.badge,
+              'Pegawai',
+              const Color(0xffE3EAF2),
+              const Color(0xff1E3A5F),
+              () => _open(context, 'Pegawai',
                   UsersPage(api: api, branchId: activeBranch, role: role))),
           _divider(context),
-          _row(context, Icons.local_offer, 'Promo', const Color(0xffE3EAF2), _kInk,
-              () => _open(context, 'Promo', PromotionsPage(api: api))),
+          _row(context, Icons.local_offer, 'Promo', const Color(0xffE3EAF2),
+              _kInk, () => _open(context, 'Promo', PromotionsPage(api: api))),
           _divider(context),
-          _row(context, Icons.receipt_long_outlined, 'Riwayat Aktivitas',
-              const Color(0xffE3EAF2), const Color(0xff1E3A5F),
-              () => _open(context, 'Riwayat Aktivitas',
-                  ActivityLogPage(api: api))),
+          _row(
+              context,
+              Icons.receipt_long_outlined,
+              'Riwayat Aktivitas',
+              const Color(0xffE3EAF2),
+              const Color(0xff1E3A5F),
+              () => _open(
+                  context, 'Riwayat Aktivitas', ActivityLogPage(api: api))),
         ]),
         const SizedBox(height: 14),
         // Keluar di paling bawah.
@@ -183,10 +276,9 @@ class MorePage extends StatelessWidget {
           padding: EdgeInsets.zero,
           radius: 20,
           child: InkWell(
-            onTap: () => auth.logout(),
+            onTap: () => _confirmLogout(context, auth),
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Row(
                 children: [
                   Container(
@@ -210,10 +302,10 @@ class MorePage extends StatelessWidget {
                         style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: Theme.of(context).brightness ==
-                                    Brightness.dark
-                                ? const Color(0xFFF2B8A5)
-                                : const Color(0xFFC2410C))),
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? const Color(0xFFF2B8A5)
+                                    : const Color(0xFFC2410C))),
                   ),
                   const Icon(Icons.chevron_right,
                       size: 18, color: Color(0xff94a3b8)),
@@ -246,8 +338,8 @@ class MorePage extends StatelessWidget {
         endIndent: 16,
       );
 
-  Widget _row(BuildContext context, IconData icon, String title,
-      Color chipBg, Color chipFg, VoidCallback onTap) {
+  Widget _row(BuildContext context, IconData icon, String title, Color chipBg,
+      Color chipFg, VoidCallback onTap) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final bg = dark ? const Color(0xff26303F) : chipBg;
     final fg = dark ? const Color(0xffDDE6F2) : chipFg;
@@ -282,9 +374,8 @@ class MorePage extends StatelessWidget {
   }
 
   void _open(BuildContext context, String title, Widget child) {
-    Navigator.of(context)
-        .push(MaterialPageRoute(
-            builder: (_) => _scaffold(context, title, child)));
+    Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => _scaffold(context, title, child)));
   }
 }
 
@@ -357,14 +448,12 @@ class _OfflineTileState extends State<_OfflineTile> {
                       color: Colors.white)),
             )
           else
-            const Icon(Icons.chevron_right,
-                size: 18, color: Color(0xff94a3b8)),
+            const Icon(Icons.chevron_right, size: 18, color: Color(0xff94a3b8)),
         ],
       ),
     );
   }
 }
-
 
 /// Pemilih Toko/Gudang aktif (khusus owner): semua pengaturan di Lainnya
 /// otomatis memakai cabang yang dipilih ini.

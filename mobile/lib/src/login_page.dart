@@ -24,6 +24,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _pinMode = false;
   bool _showSecret = false;
   bool _loading = false;
+  bool _remember = true;
   String? _error;
 
   @override
@@ -43,6 +44,11 @@ class _LoginPageState extends State<LoginPage> {
         ? await auth.loginPin(_email.text, _secret.text)
         : await auth.loginPassword(_email.text, _secret.text);
     if (!mounted) return;
+    if (error == null) {
+      // Simpan ke daftar akun untuk fitur Ganti Akun (kalau dicentang).
+      await auth.saveCurrentAccount(remember: _remember);
+      if (!mounted) return;
+    }
     setState(() {
       _loading = false;
       _error = error;
@@ -179,7 +185,28 @@ class _LoginPageState extends State<LoginPage> {
                                     style: const TextStyle(
                                         color: _kError, fontSize: 13)),
                               ],
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 14),
+                              Row(
+                                children: [
+                                  Checkbox(
+                                    value: _remember,
+                                    onChanged: (v) =>
+                                        setState(() => _remember = v ?? true),
+                                    activeColor: _kInk,
+                                    visualDensity: VisualDensity.compact,
+                                    materialTapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Expanded(
+                                    child: Text(
+                                        'Ingat akun ini (muncul di menu Ganti Akun)',
+                                        style: TextStyle(
+                                            fontSize: 12, color: _kMuted)),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
                               FilledButton(
                                 onPressed: _loading ? null : _submit,
                                 style: FilledButton.styleFrom(

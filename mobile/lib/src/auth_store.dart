@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_client.dart';
+import 'branch_scope.dart';
 
 class AuthStore extends ChangeNotifier {
   AuthStore(this._api) {
@@ -28,10 +29,15 @@ class AuthStore extends ChangeNotifier {
   static const _tokenKey = 'pos_access_token';
   static const _refreshKey = 'pos_refresh_token';
   static const _userKey = 'pos_user';
+  static const _accountsKey = 'pos_saved_accounts';
+
+  /// Daftar akun tersimpan untuk fitur Ganti Akun (Level 2).
+  List<Map<String, dynamic>> savedAccounts = [];
 
   Future<void> restore() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      await _loadAccounts();
       final savedToken = prefs.getString(_tokenKey);
       final savedUser = prefs.getString(_userKey);
       refreshToken = prefs.getString(_refreshKey);
@@ -117,6 +123,15 @@ class AuthStore extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_tokenKey, access);
       if (newRt != null) await prefs.setString(_refreshKey, newRt);
+      // Token refresh akun tersimpan ikut diperbarui biar tetap segar.
+      final i = savedAccounts.indexWhere(
+          (a) => (a['user'] as Map<String, dynamic>?)?['id'] == userId);
+      if (i >= 0) {
+        savedAccounts[i]['token'] = access;
+        savedAccounts[i]['refreshToken'] =
+            newRt ?? savedAccounts[i]['refreshToken'];
+        await _persistAccounts();
+      }
       notifyListeners();
       return true;
     } catch (_) {
@@ -124,7 +139,95 @@ class AuthStore extends ChangeNotifier {
     }
   }
 
-  Future<void> logout() async {
+  Future<void> _loadAccounts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_accountsKey);
+      if (raw != null) {
+        savedAccounts =
+            ((jsonDecode(raw) as List?) ?? []).cast<Map<String, dynamic>>();
+      }
+    } catch (_) {
+      savedAccounts = [];
+    }
+  }
+
+  Future<void> _persistAccounts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_accountsKey, jsonEncode(savedAccounts));
+    } catch (_) {}
+  }
+
+  /// Simpan akun yang sedang aktif ke daftar akun tersimpan (Ganti Akun).
+  Future<void> saveCurrentAccount({bool remember = true}) async {
+    if (!remember) return;
+    final uid = userId;
+    final tok = token;
+    if (uid == null || tok == null) return;
+    final user = {
+      'id': uid,
+      'name': userName,
+      'username': username,
+      'email': email,
+      'role': role,
+      'branch_id': branchId,
+    };
+    final account = {
+      'user': user,
+      'token': tok,
+      'refreshToken': refreshToken,
+      'savedAt': DateTime.now().toIso8601String(),
+    };
+    final i = savedAccounts
+        .indexWhere((a) => (a['user'] as Map<String, dynamic>?)?['id'] == uid);
+    if (i >= 0) {
+      savedAccounts[i] = account;
+    } else {
+      savedAccounts.add(account);
+    }
+    await _persistAccounts();
+  }
+
+  /// Pindah ke akun lain yang tersimpan tanpa input ulang.
+  Future<void> switchToAccount(Map<String, dynamic> account) async {
+    final user = (account['user'] as Map<String, dynamic>?) ?? {};
+    final access = account['token']?.toString();
+    if (access == null) return;
+    _api.setToken(access);
+    token = access;
+    refreshToken = account['refreshToken']?.toString();
+    _applyUser(user);
+    isAuthenticated = true;
+    // Reset pilihan toko/gudang owner & branch aktif supaya tidak ketuker
+    // antar akun.
+    _api.activeBranchId = null;
+    BranchScope.set(null);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_tokenKey, access);
+    if (refreshToken != null) {
+      await prefs.setString(_refreshKey, refreshToken!);
+    }
+    await prefs.setString(_userKey, jsonEncode(user));
+    notifyListeners();
+  }
+
+  /// Hapus akun dari daftar tersimpan. Kalau itu akun aktif, ikut logout.
+  Future<void> removeAccount(int uid) async {
+    savedAccounts
+        .removeWhere((a) => (a['user'] as Map<String, dynamic>?)?['id'] == uid);
+    await _persistAccounts();
+    if (userId == uid) {
+      await logout();
+    }
+  }
+
+  Future<void> logout({bool removeFromList = false}) async {
+    if (removeFromList && userId != null) {
+      savedAccounts.removeWhere(
+          (a) => (a['user'] as Map<String, dynamic>?)?['id'] == userId);
+      await _persistAccounts();
+    }
     _api.setToken(null);
     token = null;
     refreshToken = null;
