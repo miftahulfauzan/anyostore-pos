@@ -1525,3 +1525,91 @@ html[data-theme="purple"] .sidebar { background: linear-gradient(180deg, #6b3fa0
 .dark .sidebar .nav-group-toggle { color: #94a3b8 !important; }
 .dark .sidebar .nav-group-toggle:hover { color: #fff !important; }
 .dark .sidebar .logout { border-color: #334155 !important; color: #cbd5e1 !important; }
+
+/* ===== Dark mode: konten utama (panel, tabel, form, POS) ===== */
+.dark .app-shell { background: #0f172a; color: #e2e8f0; }
+.dark .app-main {
+  background:
+    radial-gradient(circle at 100% 0, rgba(96,165,250,.06), transparent 28rem),
+    radial-gradient(circle at 40% 0, rgba(190,24,93,.04), transparent 24rem),
+    #0f172a;
+}
+.dark .app-header h1,
+.dark .metric-card strong,
+.dark .big-number,
+.dark .print-prompt-total,
+.dark .pos-standalone-brand { color: #f1f5f9; }
+.dark .metric-card span,
+.dark .metric-card small,
+.dark .muted,
+.dark .empty-state,
+.dark .cart-item-info s { color: #94a3b8; }
+.dark .empty-state strong { color: #e2e8f0; }
+.dark .panel,
+.dark .metric-card,
+.dark .store-summary-grid article,
+.dark .inventory-product,
+.dark .catalog-grid article,
+.dark .product-grid article,
+.dark .cart-lines article,
+.dark .customer-list article,
+.dark .commission-metrics > * {
+  background: #1e293b;
+  border-color: rgba(148,163,184,.18);
+}
+.dark .panel, .dark .metric-card { border-color: rgba(148,163,184,.18); box-shadow: 0 5px 16px rgba(15,23,42,.35); }
+.dark th { color: #94a3b8; }
+.dark th, .dark td { border-bottom-color: rgba(148,163,184,.14); }
+.dark tr:hover td { background: rgba(148,163,184,.05); }
+.dark .status.pending { background: rgba(217,119,6,.14); color: #fcd34d; }
+.dark .status.approved { background: rgba(37,99,235,.16); color: #93c5fd; }
+.dark .status.paid { background: rgba(22,163,74,.14); color: #86efac; }
+.dark .secondary { background: #1e293b; color: #6ee7b7; }
+.dark .secondary-link { background: #1e293b; color: #6ee7b7; }
+.dark .icon-action { background: #1e293b; border-color: #334155; color: #cbd5e1; }
+.dark .icon-action:hover { background: #253347; border-color: #60a5fa; color: #fff; }
+.dark .icon-action.danger:hover { border-color: #f87171; color: #f87171; background: rgba(220,38,38,.14); }
+.dark .catalog-search input,
+.dark .catalog-toolbar select,
+.dark .catalog-toolbar input,
+.dark .movement-filter input,
+.dark .movement-filter select,
+.dark .pos-store-bar select,
+.dark .pos-customer-select select,
+.dark .cart-unit-price input {
+  background: #1e293b;
+  color: #e2e8f0;
+  border-color: #334155;
+}
+.dark select option { background: #1e293b; color: #e2e8f0; }
+.dark .pos-store-bar { background: #1e293b; border-color: #1e3a5f; box-shadow: 3px 3px 0 #172a45; }
+.dark .pos-store-context strong,
+.dark .cart-unit-price { color: #e2e8f0; }
+.dark .pos-variant-modal,
+.dark .pos-print-modal { background: #1e293b; color: #e2e8f0; }
+.dark .pos-variant-heading button { background: #1e293b; color: #93c5fd; border-color: #1e3a5f; }
+.dark .pos-variant-options button { background: #1e293b; color: #e2e8f0; border-color: #475569; }
+.dark .pos-variant-options button:hover:not(:disabled) { border-color: #60a5fa; background: #253347; box-shadow: 2px 2px 0 #1e3a5f; }
+.dark .pos-variant-options button.out-of-stock { background: #182135; color: #94a3b8; }
+.dark .variant-row { background: #182135; border-color: #2a3a52; }
+.dark .variant-row input { background: #1e293b; color: #e2e8f0; }
+.dark .variant-stock strong,
+.dark .inventory-product header strong,
+.dark .inventory-variants strong,
+.dark .inventory-standard strong { color: #e2e8f0; }
+.dark .remove-variant { background: #1e293b; }
+.dark .inventory-product header { background: #182135; }
+.dark .inventory-variants > div,
+.dark .inventory-standard { background: #1e293b; }
+.dark .inventory-variants > div { border-top-color: rgba(148,163,184,.12); }
+.dark .media-grid figure { background: #182135; border-color: #2a3a52; }
+.dark .store-summary-grid header { background: #182135; border-bottom-color: #2a3a52; }
+.dark .store-summary-grid dd { color: #e2e8f0; }
+.dark .item-count { background: #1a2e23; color: #6ee7b7; }
+.dark .catalog-toolbar label,
+.dark .movement-filter label { color: #94a3b8; }
+.dark .edit-photo-row { background: #182135; border-color: #2a3a52; }
+.dark .wholesale-row { background: #182135; }
+.dark .remove-tier { background: rgba(220,38,38,.12); color: #fca5a5; }
+/* Barcode label tetap putih untuk hasil cetak yang benar */
+.dark .barcode-label { background: #fff; color: #111827; }
