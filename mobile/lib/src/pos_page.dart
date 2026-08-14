@@ -15,6 +15,7 @@ import 'inventory_page.dart';
 import 'more_page.dart';
 import 'offline_status.dart';
 import 'offline_store.dart';
+import 'prefetch_service.dart';
 import 'reports_page.dart';
 import 'format.dart';
 import 'history_tab.dart';
@@ -100,14 +101,23 @@ class _PosPageState extends State<PosPage> {
     PosPage.requestTab.addListener(_onExternalTab);
     _loadData();
     _syncPending();
+    _prefetchVariants();
     _connSub = Connectivity().onConnectivityChanged.listen((results) {
       final online = results.any((r) => r != ConnectivityResult.none);
       if (online && OfflineStatus.offline.value) {
         OfflineStatus.notifyOnline();
         _syncPending();
         _loadData(silent: true);
+        _prefetchVariants();
       }
     });
+  }
+
+  /// Unduh detail + varian semua produk cabang aktif ke cache lokal
+  /// supaya offline langsung bisa pilih varian tanpa klik produk satu per satu.
+  Future<void> _prefetchVariants() async {
+    final branch = _posBranchId ?? _branchId;
+    await PrefetchService.prefetchProductVariants(_client, branchId: branch);
   }
 
   Future<void> _syncPending() async {
@@ -210,6 +220,8 @@ class _PosPageState extends State<PosPage> {
         await OfflineStore.saveProductsCache(branch, jsonEncode(storePayload),
             _lastProductsSync ?? '', todayWib());
       } catch (_) {}
+      // Unduh varian produk cabang aktif untuk offline (tidak mengganggu UI).
+      _prefetchVariants();
     } on ApiException catch (e) {
       if (e.isNetwork) {
         // Offline: pakai cache produk berapa pun tanggalnya supaya POS tetap

@@ -1,7 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
 import 'format.dart';
+import 'offline_status.dart';
+import 'offline_store.dart';
 import 'task_ui.dart';
 
 class FinancePage extends StatefulWidget {
@@ -24,13 +28,28 @@ class _FinancePageState extends State<FinancePage> {
   void initState() {
     super.initState();
     _load();
+    // Saat internet kembali: otomatis muat ulang dari server (normal setelah sync).
+    OfflineStatus.syncTick.addListener(_onSyncTick);
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  void _onSyncTick() {
+    _load(silent: true);
+  }
+
+  @override
+  void dispose() {
+    OfflineStatus.syncTick.removeListener(_onSyncTick);
+    super.dispose();
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
+    final cacheKey = 'finance-$_tab-${widget.api.activeBranchId ?? 'default'}';
     try {
       final results = await Future.wait([
         widget.api.expenses(type: _tab),
@@ -43,7 +62,33 @@ class _FinancePageState extends State<FinancePage> {
         _categories = (results[1] as List).cast<Map<String, dynamic>>();
         _profitLoss = results[2] as Map<String, dynamic>;
       });
+      // Simpan cache keuangan (pengeluaran/pemasukan/laba rugi) untuk offline.
+      await OfflineStore.cacheSet(
+          cacheKey,
+          jsonEncode({
+            'rows': results[0],
+            'categories': results[1],
+            'profitLoss': results[2],
+          }));
     } on ApiException catch (e) {
+      if (e.isNetwork) {
+        // Offline: pakai cache keuangan terakhir.
+        try {
+          final cached = await OfflineStore.cacheGet(cacheKey);
+          if (cached != null && mounted) {
+            final payload = cached['payload'] as Map<String, dynamic>;
+            setState(() {
+              _rows = ((payload['rows'] as List?) ?? [])
+                  .cast<Map<String, dynamic>>();
+              _categories = ((payload['categories'] as List?) ?? [])
+                  .cast<Map<String, dynamic>>();
+              _profitLoss = payload['profitLoss'] as Map<String, dynamic>?;
+              _error = null;
+            });
+            return;
+          }
+        } catch (_) {}
+      }
       if (mounted) setState(() => _error = e.message);
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -51,7 +96,8 @@ class _FinancePageState extends State<FinancePage> {
   }
 
   Future<void> _form([Map<String, dynamic>? existing]) async {
-    final name = TextEditingController(text: existing?['name']?.toString() ?? '');
+    final name =
+        TextEditingController(text: existing?['name']?.toString() ?? '');
     final amount = TextEditingController(
         text: existing == null ? '' : '${asNum(existing['amount'])}');
     final date = TextEditingController(
@@ -150,8 +196,7 @@ class _FinancePageState extends State<FinancePage> {
         'type': type,
       };
       if (isEdit) {
-        await widget.api
-            .updateExpense(int.parse('${existing['id']}'), body);
+        await widget.api.updateExpense(int.parse('${existing['id']}'), body);
       } else {
         await widget.api.createExpense(body);
       }
@@ -203,8 +248,7 @@ class _FinancePageState extends State<FinancePage> {
                 color: Colors.white)),
         const SizedBox(height: 2),
         Text(label,
-            style: const TextStyle(
-                fontSize: 9, color: Color(0xffB9C9DC))),
+            style: const TextStyle(fontSize: 9, color: Color(0xffB9C9DC))),
       ],
     );
   }
@@ -217,7 +261,11 @@ class _FinancePageState extends State<FinancePage> {
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
           child: PillTabs(
             tabs: const [
-              (value: 'expense', icon: Icons.trending_down, label: 'Pengeluaran'),
+              (
+                value: 'expense',
+                icon: Icons.trending_down,
+                label: 'Pengeluaran'
+              ),
               (value: 'income', icon: Icons.trending_up, label: 'Pemasukan'),
             ],
             selected: _tab,
@@ -246,8 +294,7 @@ class _FinancePageState extends State<FinancePage> {
                   const SizedBox(height: 8),
                   FittedBox(
                     fit: BoxFit.scaleDown,
-                    child: Text(
-                        fmtRp(asNum(_profitLoss?['net_profit'])),
+                    child: Text(fmtRp(asNum(_profitLoss?['net_profit'])),
                         style: const TextStyle(
                             fontSize: 30,
                             fontWeight: FontWeight.w800,
@@ -257,14 +304,14 @@ class _FinancePageState extends State<FinancePage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _plMini('Pendapatan',
-                          fmtRp(asNum(_profitLoss?['revenue']))),
+                      _plMini(
+                          'Pendapatan', fmtRp(asNum(_profitLoss?['revenue']))),
                       const SizedBox(width: 14),
                       _plMini('Pengeluaran',
                           fmtRp(asNum(_profitLoss?['expenses']))),
                       const SizedBox(width: 14),
-                      _plMini('Pemasukan',
-                          fmtRp(asNum(_profitLoss?['income']))),
+                      _plMini(
+                          'Pemasukan', fmtRp(asNum(_profitLoss?['income']))),
                     ],
                   ),
                 ],
@@ -316,10 +363,8 @@ class _FinancePageState extends State<FinancePage> {
                                     ),
                                     IconButton(
                                       onPressed: () => _delete(row),
-                                      icon: const Icon(
-                                          Icons.delete_outline,
-                                          size: 18,
-                                          color: Color(0xFFC2410C)),
+                                      icon: const Icon(Icons.delete_outline,
+                                          size: 18, color: Color(0xFFC2410C)),
                                       tooltip: 'Hapus',
                                     ),
                                   ],
