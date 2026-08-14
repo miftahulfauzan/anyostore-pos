@@ -322,8 +322,13 @@ class ApiClient {
   Future<Map<String, dynamic>> resetPassword(int id, String newPassword) =>
       put('/users/$id/password', {'new_password': newPassword});
 
-  Future<Map<String, dynamic>> setPin(int id, String pin) =>
-      put('/users/$id/pin', {'pin': pin});
+  Future<Map<String, dynamic>> setPin(int id, String pin,
+          {String? currentPin}) =>
+      put('/users/$id/pin', {
+        'pin': pin,
+        if (currentPin != null && currentPin.isNotEmpty)
+          'current_pin': currentPin,
+      });
 
   Future<Map<String, dynamic>> toggleUser(int id) =>
       put('/users/$id/toggle-active', {});

@@ -92,42 +92,6 @@ class _LoginPageState extends State<LoginPage> {
           SafeArea(
         child: Column(
           children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(24, 28, 24, 22),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                border: Border(bottom: BorderSide(color: _kBorder)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0x141E3A5F),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _kBorder),
-                    ),
-                    padding: const EdgeInsets.all(4),
-                    child: const BrandLogo(size: 40, radius: 9),
-                  ),
-                  const SizedBox(width: 12),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Anyostore App',
-                          style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: _kInk,
-                              letterSpacing: -0.2)),
-                      SizedBox(height: 2),
-
-                    ],
-                  ),
-                ],
-              ),
-            ),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),

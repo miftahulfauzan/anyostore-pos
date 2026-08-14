@@ -16,6 +16,7 @@ class AuthStore extends ChangeNotifier {
 
   bool isAuthenticated = false;
   bool restoring = true;
+  int? userId;
   String? userName;
   String? username;
   String? email;
@@ -50,6 +51,7 @@ class AuthStore extends ChangeNotifier {
   }
 
   void _applyUser(Map<String, dynamic> user) {
+    userId = int.tryParse('${user['id']}');
     userName = user['name']?.toString();
     username = user['username']?.toString();
     email = user['email']?.toString();

@@ -125,12 +125,21 @@ router.put('/:id/password', authenticate, authorize('owner'), async (req, res, n
   } catch (e) { next(e); }
 });
 
-router.put('/:id/pin', authenticate, authorize('owner'), async (req, res, next) => {
+router.put('/:id/pin', authenticate, authorize('owner', 'manager', 'admin', 'kasir', 'gudang'), async (req, res, next) => {
   try {
     const pin = req.body.pin;
+    const currentPin = req.body.current_pin;
     if (!/^\d{6}$/.test(pin || '')) return badRequest(res, 'PIN harus enam digit');
-    const [r] = await db.execute('UPDATE users SET pin_hash=? WHERE id=?', [await bcrypt.hash(pin, 12), req.params.id]);
-    if (!r.affectedRows) return res.status(404).json({ success: false, message: 'Pengguna tidak ditemukan' });
+    const targetId = Number(req.params.id);
+    const isSelf = targetId === req.user.id;
+    if (!isSelf && req.user.role !== 'owner') return res.status(403).json({ success: false, message: 'Hanya owner yang bisa mengubah PIN pengguna lain' });
+    const [rows] = await db.execute('SELECT pin_hash FROM users WHERE id=?', [targetId]);
+    if (!rows[0]) return res.status(404).json({ success: false, message: 'Pengguna tidak ditemukan' });
+    // Ubah PIN sendiri: verifikasi PIN lama kalau diisi (dan user memang sudah punya PIN).
+    if (isSelf && rows[0].pin_hash && currentPin && !(await bcrypt.compare(String(currentPin), rows[0].pin_hash))) {
+      return badRequest(res, 'PIN saat ini salah');
+    }
+    await db.execute('UPDATE users SET pin_hash=? WHERE id=?', [await bcrypt.hash(pin, 12), targetId]);
     res.json({ success: true });
   } catch (e) { next(e); }
 });

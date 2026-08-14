@@ -22,8 +22,12 @@ class _ProfilePageState extends State<ProfilePage> {
   final _current = TextEditingController();
   final _next = TextEditingController();
   final _confirm = TextEditingController();
+  final _pinCurrent = TextEditingController();
+  final _pinNext = TextEditingController();
+  final _pinConfirm = TextEditingController();
   bool _savingProfile = false;
   bool _savingPass = false;
+  bool _savingPin = false;
   String? _message;
 
   @override
@@ -43,6 +47,9 @@ class _ProfilePageState extends State<ProfilePage> {
     _current.dispose();
     _next.dispose();
     _confirm.dispose();
+    _pinCurrent.dispose();
+    _pinNext.dispose();
+    _pinConfirm.dispose();
     super.dispose();
   }
 
@@ -75,6 +82,37 @@ class _ProfilePageState extends State<ProfilePage> {
       _snack(e.message);
     } finally {
       if (mounted) setState(() => _savingProfile = false);
+    }
+  }
+
+  Future<void> _savePin() async {
+    if (_pinNext.text.length != 6 ||
+        !RegExp(r'^\d{6}$').hasMatch(_pinNext.text)) {
+      _snack('PIN baru harus 6 digit angka');
+      return;
+    }
+    if (_pinNext.text != _pinConfirm.text) {
+      _snack('Konfirmasi PIN tidak sama');
+      return;
+    }
+    final auth = context.read<AuthStore>();
+    final myId = auth.userId;
+    if (myId == null) {
+      _snack('Data akun tidak ditemukan. Keluar lalu login ulang.');
+      return;
+    }
+    setState(() => _savingPin = true);
+    try {
+      await widget.api.setPin(myId, _pinNext.text,
+          currentPin: _pinCurrent.text);
+      _pinCurrent.clear();
+      _pinNext.clear();
+      _pinConfirm.clear();
+      _snack('PIN berhasil diganti');
+    } on ApiException catch (e) {
+      _snack(e.message);
+    } finally {
+      if (mounted) setState(() => _savingPin = false);
     }
   }
 
@@ -204,6 +242,50 @@ class _ProfilePageState extends State<ProfilePage> {
                             borderRadius: BorderRadius.circular(28)),
                       ),
                       child: Text(_savingPass ? 'Menyimpan...' : 'Ganti Password'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              GlassCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text('Ganti PIN (login cepat)',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: ink(context))),
+                    const SizedBox(height: 12),
+                    TextField(
+                        controller: _pinCurrent,
+                        obscureText: true,
+                        keyboardType: TextInputType.number,
+                        decoration: _dec('PIN lama (kosongkan jika belum punya)')),
+                    const SizedBox(height: 10),
+                    TextField(
+                        controller: _pinNext,
+                        obscureText: true,
+                        keyboardType: TextInputType.number,
+                        maxLength: 6,
+                        decoration: _dec('PIN baru (6 digit) *')),
+                    const SizedBox(height: 10),
+                    TextField(
+                        controller: _pinConfirm,
+                        obscureText: true,
+                        keyboardType: TextInputType.number,
+                        maxLength: 6,
+                        decoration: _dec('Ulangi PIN baru *')),
+                    const SizedBox(height: 14),
+                    FilledButton(
+                      onPressed: _savingPin ? null : _savePin,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: kTaskOrange,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(28)),
+                      ),
+                      child: Text(_savingPin ? 'Menyimpan...' : 'Ganti PIN'),
                     ),
                   ],
                 ),
