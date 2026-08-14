@@ -469,6 +469,13 @@ class ApiClient {
   Future<Map<String, dynamic>> createExpense(Map<String, dynamic> body) =>
       post('/finance/expenses', body);
 
+  Future<Map<String, dynamic>> updateExpense(
+          int id, Map<String, dynamic> body) =>
+      put('/finance/expenses/$id', body);
+
+  Future<Map<String, dynamic>> deleteExpense(int id) =>
+      delete('/finance/expenses/$id');
+
   Future<Map<String, dynamic>> approveExpense(int id) =>
       put('/finance/expenses/$id/approve', {});
 

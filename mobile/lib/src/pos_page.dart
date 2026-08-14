@@ -199,6 +199,28 @@ class _PosPageState extends State<PosPage> {
             _lastProductsSync ?? '', todayWib());
       } catch (_) {}
     } on ApiException catch (e) {
+      if (e.isNetwork) {
+        // Offline: pakai cache produk berapa pun tanggalnya supaya POS tetap
+        // bisa dipakai (keranjang & checkout offline berjalan).
+        try {
+          final cached = await OfflineStore.loadProductsCache(branch);
+          if (cached != null) {
+            final payload = cached['payload'] as Map<String, dynamic>;
+            if (mounted) {
+              setState(() {
+                _applyStoreData(payload);
+                _error = null;
+                _loading = false;
+              });
+              _lastProductsSync = cached['updated_at']?.toString() ?? '';
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text(
+                      'Offline — memakai data tersimpan. Transaksi akan tersimpan & otomatis sync saat internet kembali.')));
+            }
+            return;
+          }
+        } catch (_) {}
+      }
       if (mounted) setState(() => _error = e.message);
     } finally {
       if (mounted && !silent) setState(() => _loading = false);
@@ -962,6 +984,8 @@ class _ProductCard extends StatelessWidget {
                 : CachedNetworkImage(
                     imageUrl: photo,
                     fit: BoxFit.cover,
+                    fadeInDuration: Duration.zero,
+                    fadeOutDuration: Duration.zero,
                     placeholder: (_, __) => Container(
                       color: Colors.grey.shade200,
                       alignment: Alignment.center,

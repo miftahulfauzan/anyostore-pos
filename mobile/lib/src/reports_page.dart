@@ -73,8 +73,9 @@ class _ReportsPageState extends State<ReportsPage> {
               .reportSales(start: start, end: end, branchId: _branchId);
           break;
         case 'penutupan':
+          // Penutupan hanya untuk hari ini (tanpa rentang).
           data = await widget.api
-              .reportDailyClosing(date: start, branchId: _branchId);
+              .reportDailyClosing(date: todayWib(), branchId: _branchId);
           break;
         case 'ppn':
           data = await widget.api

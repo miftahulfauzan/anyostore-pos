@@ -204,7 +204,9 @@ class _HistoryTabState extends State<HistoryTab> {
       final remaining =
           (asNum(item['quantity']) - asNum(item['cancelled_qty'])).toInt();
       if (remaining > 0) {
-        controllers[itemId] = TextEditingController(text: '$remaining');
+        // Jangan prefill qty penuh: user mengetik jumlah yang dibatalkan,
+        // supaya pembatalan sebagian tidak malah membatalkan seluruh item.
+        controllers[itemId] = TextEditingController();
         reasons[itemId] = TextEditingController();
       }
     }

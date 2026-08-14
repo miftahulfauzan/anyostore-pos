@@ -31,35 +31,15 @@ class Entrance extends StatelessWidget {
       {super.key,
       required this.child,
       this.delay = Duration.zero,
-      this.duration = const Duration(milliseconds: 320),
-      this.offset = 12});
+      this.duration = const Duration(milliseconds: 1),
+      this.offset = 0});
   final Widget child;
   final Duration delay;
   final Duration duration;
   final double offset;
 
   @override
-  Widget build(BuildContext context) {
-    if (MediaQuery.maybeDisableAnimationsOf(context) == true) return child;
-    final total = duration + delay;
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: total,
-      curve: Interval(
-        delay.inMilliseconds / total.inMilliseconds,
-        1,
-        curve: Curves.easeOutCubic,
-      ),
-      builder: (context, v, child) => Opacity(
-        opacity: v,
-        child: Transform.translate(
-          offset: Offset(0, offset * (1 - v)),
-          child: child,
-        ),
-      ),
-      child: child,
-    );
-  }
+  Widget build(BuildContext context) => child;
 }
 
 /// Tab pil: aktif biru denim, nonaktif putih.
@@ -164,98 +144,52 @@ class SoftBlobs extends StatefulWidget {
   State<SoftBlobs> createState() => _SoftBlobsState();
 }
 
-class _SoftBlobsState extends State<SoftBlobs>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-
-  bool _reduced = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(
-        vsync: this,
-        duration: const Duration(seconds: 7),
-        lowerBound: 0,
-        upperBound: 1);
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final reduced = MediaQuery.maybeDisableAnimationsOf(context) == true;
-    if (reduced == _reduced) return;
-    _reduced = reduced;
-    if (reduced) {
-      _c.stop();
-    } else if (!_c.isAnimating) {
-      _c.repeat(reverse: true);
-    }
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
+class _SoftBlobsState extends State<SoftBlobs> {
   @override
   Widget build(BuildContext context) {
     return IgnorePointer(
-      child: AnimatedBuilder(
-        animation: _c,
-        builder: (context, child) {
-          final t = Curves.easeInOutSine.transform(_c.value);
-          final drift = (t - 0.5) * 10; // -5..5 px pelan
-          return Transform.translate(
-            offset: Offset(drift, -drift * 0.6),
-            child: child,
-          );
-        },
-        child: Stack(
-          children: [
-            Positioned(
-              top: -90,
-              right: -70,
-              child: Container(
-                width: 240,
-                height: 240,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      kTaskPurple.withValues(alpha: .22),
-                      kTaskPurple.withValues(alpha: 0),
-                    ],
-                  ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: -90,
+            right: -70,
+            child: Container(
+              width: 240,
+              height: 240,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    kTaskPurple.withValues(alpha: .22),
+                    kTaskPurple.withValues(alpha: 0),
+                  ],
                 ),
               ),
             ),
-            Positioned(
-              bottom: -70,
-              left: -60,
-              child: Container(
-                width: 220,
-                height: 220,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      kTaskOrange.withValues(alpha: .18),
-                      kTaskOrange.withValues(alpha: 0),
-                    ],
-                  ),
+          ),
+          Positioned(
+            bottom: -70,
+            left: -60,
+            child: Container(
+              width: 220,
+              height: 220,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    kTaskOrange.withValues(alpha: .18),
+                    kTaskOrange.withValues(alpha: 0),
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// Logo toko dari pengaturan (store_logo), dengan cache. Fallback: ikon keranjang.
 class BrandLogo extends StatefulWidget {
   const BrandLogo({super.key, this.api, this.size = 44, this.radius = 14});
   final ApiClient? api;
@@ -352,8 +286,7 @@ class GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark =
-        dark || Theme.of(context).brightness == Brightness.dark;
+    final isDark = dark || Theme.of(context).brightness == Brightness.dark;
     final inner = Material(
       color: Colors.transparent,
       child: InkWell(
@@ -501,8 +434,7 @@ class GlassNavBar extends StatelessWidget {
   Widget _navIcon(int i, {required bool dark}) {
     final item = items[i];
     final active = current == i;
-    final idleColor =
-        dark ? const Color(0xffF1F5FB) : const Color(0xff403C36);
+    final idleColor = dark ? const Color(0xffF1F5FB) : const Color(0xff403C36);
     const activeColor = Colors.white;
     return Semantics(
       label: item.label,

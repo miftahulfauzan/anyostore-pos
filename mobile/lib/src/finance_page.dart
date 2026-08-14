@@ -50,20 +50,25 @@ class _FinancePageState extends State<FinancePage> {
     }
   }
 
-  Future<void> _form() async {
-    final name = TextEditingController();
-    final amount = TextEditingController();
-    final date = TextEditingController(text: todayWib());
-    var categoryId =
-        _categories.isEmpty ? null : _categories.first['id'] as int?;
-    var method = 'cash';
-    final type = _tab;
+  Future<void> _form([Map<String, dynamic>? existing]) async {
+    final name = TextEditingController(text: existing?['name']?.toString() ?? '');
+    final amount = TextEditingController(
+        text: existing == null ? '' : '${asNum(existing['amount'])}');
+    final date = TextEditingController(
+        text: existing?['expense_date']?.toString() ?? todayWib());
+    var categoryId = existing == null
+        ? (_categories.isEmpty ? null : _categories.first['id'] as int?)
+        : int.tryParse('${existing['category_id']}');
+    var method = existing?['payment_method']?.toString() ?? 'cash';
+    final type = existing?['type']?.toString() ?? _tab;
+    final isEdit = existing != null;
     final saved = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(
-              type == 'income' ? 'Tambah Pemasukan' : 'Tambah Pengeluaran'),
+          title: Text(isEdit
+              ? (type == 'income' ? 'Edit Pemasukan' : 'Edit Pengeluaran')
+              : (type == 'income' ? 'Tambah Pemasukan' : 'Tambah Pengeluaran')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -136,14 +141,20 @@ class _FinancePageState extends State<FinancePage> {
       return;
     }
     try {
-      await widget.api.createExpense({
+      final body = {
         'category_id': categoryId,
         'name': name.text.trim(),
         'amount': double.tryParse(amount.text.replaceAll('.', '')) ?? 0,
         'payment_method': method,
         'expense_date': date.text.trim(),
         'type': type,
-      });
+      };
+      if (isEdit) {
+        await widget.api
+            .updateExpense(int.parse('${existing['id']}'), body);
+      } else {
+        await widget.api.createExpense(body);
+      }
       _load();
     } on ApiException catch (e) {
       if (mounted) {
@@ -153,12 +164,12 @@ class _FinancePageState extends State<FinancePage> {
     }
   }
 
-  Future<void> _approve(Map<String, dynamic> row) async {
+  Future<void> _delete(Map<String, dynamic> row) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(
-            'Setujui ${row['type'] == 'income' ? 'pemasukan' : 'pengeluaran'}?'),
+            'Hapus ${row['type'] == 'income' ? 'pemasukan' : 'pengeluaran'}?'),
         content: Text('${row['name']} sebesar ${fmtRp(asNum(row['amount']))}'),
         actions: [
           TextButton(
@@ -166,13 +177,13 @@ class _FinancePageState extends State<FinancePage> {
               child: const Text('Batal')),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Setujui')),
+              child: const Text('Hapus')),
         ],
       ),
     );
     if (ok != true || !mounted) return;
     try {
-      await widget.api.approveExpense(int.parse('${row['id']}'));
+      await widget.api.deleteExpense(int.parse('${row['id']}'));
       _load();
     } on ApiException catch (e) {
       if (mounted) {
@@ -286,7 +297,6 @@ class _FinancePageState extends State<FinancePage> {
                               const SizedBox(height: 8),
                           itemBuilder: (_, i) {
                             final row = _rows[i];
-                            final pending = row['status'] == 'pending';
                             return GlassCard(
                               padding: EdgeInsets.zero,
                               child: ListTile(
@@ -294,19 +304,24 @@ class _FinancePageState extends State<FinancePage> {
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w700)),
                                 subtitle: Text(
-                                    '${row['category'] ?? ''} · ${row['expense_date'] ?? ''} · ${row['payment_method'] ?? ''} · ${row['status'] ?? ''}'),
-                                trailing: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                    '${row['category'] ?? ''} · ${row['expense_date'] ?? ''} · ${row['payment_method'] ?? ''}'),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text(fmtRp(asNum(row['amount'])),
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w800)),
-                                    if (pending)
-                                      TextButton(
-                                        onPressed: () => _approve(row),
-                                        child: const Text('Setujui'),
-                                      ),
+                                    IconButton(
+                                      onPressed: () => _form(row),
+                                      icon: const Icon(Icons.edit_outlined,
+                                          size: 18),
+                                      tooltip: 'Edit',
+                                    ),
+                                    IconButton(
+                                      onPressed: () => _delete(row),
+                                      icon: const Icon(
+                                          Icons.delete_outline,
+                                          size: 18,
+                                          color: Color(0xFFC2410C)),
+                                      tooltip: 'Hapus',
+                                    ),
                                   ],
                                 ),
                               ),

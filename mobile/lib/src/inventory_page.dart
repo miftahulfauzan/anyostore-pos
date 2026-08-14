@@ -82,7 +82,9 @@ class _StockSection extends StatefulWidget {
 
 class _StockSectionState extends State<_StockSection> {
   final _search = TextEditingController();
-  String _branchMode = 'this';
+  String _branchMode = 'this'; // this | all
+  List<Map<String, dynamic>> _branches = [];
+  int? _branchId;
   List<Map<String, dynamic>> _rows = [];
   Map<String, dynamic> _summary = {};
   bool _loading = true;
@@ -91,7 +93,20 @@ class _StockSectionState extends State<_StockSection> {
   @override
   void initState() {
     super.initState();
+    _loadBranches();
     _load();
+  }
+
+  Future<void> _loadBranches() async {
+    if (!widget.isOwner) return;
+    try {
+      final rows = await widget.api.branches();
+      if (!mounted) return;
+      setState(() {
+        _branches = rows.cast<Map<String, dynamic>>();
+        _branchId ??= widget.branchId;
+      });
+    } catch (_) {}
   }
 
   Future<void> _load() async {
@@ -101,7 +116,7 @@ class _StockSectionState extends State<_StockSection> {
     });
     try {
       final data = await widget.api.stockTotal(
-          branchId: widget.branchId,
+          branchId: _branchId ?? widget.branchId,
           search: _search.text.trim(),
           allBranches: _branchMode == 'all');
       if (!mounted) return;
@@ -124,14 +139,29 @@ class _StockSectionState extends State<_StockSection> {
         if (widget.isOwner)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-            child: PillTabs(
-              tabs: const [
-                (value: 'this', icon: Icons.store, label: 'Toko ini'),
-                (value: 'all', icon: Icons.storefront, label: 'Semua toko'),
+            child: DropdownButtonFormField<String>(
+              initialValue: _branchMode,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                  isDense: true,
+                  labelText: 'Toko/Gudang',
+                  border: OutlineInputBorder()),
+              items: [
+                for (final b in _branches)
+                  DropdownMenuItem<String>(
+                      value: 'branch-${b['id']}',
+                      child: Text(b['name']?.toString() ?? '')),
+                const DropdownMenuItem<String>(
+                    value: 'all', child: Text('Semua toko/gudang')),
               ],
-              selected: _branchMode,
               onChanged: (v) {
-                setState(() => _branchMode = v);
+                setState(() {
+                  _branchMode = v ?? 'this';
+                  _branchId = _branchMode == 'all'
+                      ? null
+                      : int.tryParse(
+                          _branchMode.replaceFirst('branch-', ''));
+                });
                 _load();
               },
             ),

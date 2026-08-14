@@ -45,11 +45,12 @@ router.post('/expenses', authorize('owner', 'manager', 'admin', 'kasir'), async 
     if (!Number.isInteger(Number(categoryId)) || !name?.trim() || !Number.isFinite(amount) || amount <= 0 || !['cash', 'transfer', 'debit'].includes(method) || !date) {
       throw fail(400, 'Data pengeluaran/pemasukan tidak valid');
     }
+    // Tanpa persetujuan: langsung approved supaya langsung masuk laporan/penutupan.
     const [r] = await db.execute(
-      'INSERT INTO expenses (branch_id, category_id, name, amount, type, payment_method, expense_date, notes, user_id) VALUES (?,?,?,?,?,?,?,?,?)',
+      "INSERT INTO expenses (branch_id, category_id, name, amount, type, payment_method, expense_date, notes, user_id, status, approved_at) VALUES (?,?,?,?,?,?,?,?,?, 'approved', NOW())",
       [req.user.branch_id, categoryId, name.trim(), amount, entryType, method, date, notes?.trim() || null, req.user.id]
     );
-    res.status(201).json({ success: true, data: { id: r.insertId, status: 'pending', type: entryType } });
+    res.status(201).json({ success: true, data: { id: r.insertId, status: 'approved', type: entryType } });
   } catch (e) { next(e); }
 });
 
@@ -84,6 +85,33 @@ router.put('/expenses/:id/approve', authorize('owner', 'manager', 'admin'), asyn
   } finally {
     c.release();
   }
+});
+
+// Edit pengeluaran/pemasukan (tanpa perlu persetujuan).
+router.put('/expenses/:id', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+  try {
+    const { category_id: categoryId, name, amount: raw, payment_method: method = 'cash', expense_date: date, notes, type = 'expense' } = req.body;
+    const amount = money(raw);
+    const entryType = type === 'income' ? 'income' : 'expense';
+    if (!Number.isInteger(Number(categoryId)) || !name?.trim() || !Number.isFinite(amount) || amount <= 0 || !['cash', 'transfer', 'debit'].includes(method) || !date) {
+      throw fail(400, 'Data pengeluaran/pemasukan tidak valid');
+    }
+    const [r] = await db.execute(
+      "UPDATE expenses SET category_id=?, name=?, amount=?, type=?, payment_method=?, expense_date=?, notes=?, status='approved', approved_at=NOW() WHERE id=? AND branch_id=?",
+      [categoryId, name.trim(), amount, entryType, method, date, notes?.trim() || null, req.params.id, req.user.branch_id]
+    );
+    if (!r.affectedRows) throw fail(404, 'Pengeluaran/pemasukan tidak ditemukan');
+    res.json({ success: true, data: { id: Number(req.params.id), status: 'approved' } });
+  } catch (e) { next(e); }
+});
+
+// Hapus pengeluaran/pemasukan.
+router.delete('/expenses/:id', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+  try {
+    const [r] = await db.execute('DELETE FROM expenses WHERE id=? AND branch_id=?', [req.params.id, req.user.branch_id]);
+    if (!r.affectedRows) throw fail(404, 'Pengeluaran/pemasukan tidak ditemukan');
+    res.json({ success: true, data: { id: Number(req.params.id) } });
+  } catch (e) { next(e); }
 });
 
 router.post('/journals', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
