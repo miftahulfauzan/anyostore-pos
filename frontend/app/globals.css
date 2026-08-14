@@ -1493,19 +1493,19 @@ html[data-theme="purple"] .sidebar {
 .sidebar .collapse-toggle { border: 1px solid #334155 !important; background: rgba(255,255,255,.06) !important; color: #e2e8f0 !important; }
 .sidebar .collapse-toggle:hover { background: rgba(255,255,255,.14) !important; color: #fff !important; border-color: #475569 !important; }
 .sidebar .nav-group-toggle { color: #cbd5e1 !important; }
-.sidebar .nav-group-toggle:hover { background: rgba(255,255,255,.08) !important; color: #fff !important; }
+.sidebar .nav-group-toggle:hover { background: rgba(59,130,246,.28) !important; color: #fff !important; }
 .sidebar .side-nav a { color: #e2e8f0 !important; }
 .sidebar .side-nav a svg { color: #94a3b8 !important; }
-.sidebar .side-nav a:hover { background: rgba(255,255,255,.09) !important; color: #fff !important; }
+.sidebar .side-nav a:hover { background: rgba(59,130,246,.30) !important; color: #fff !important; }
 .sidebar .side-nav a:hover svg { color: #fff !important; }
-.sidebar .side-nav a.active { background: #2563eb !important; box-shadow: inset 3px 0 #fff, 0 3px 8px rgba(37,99,235,.35) !important; color: #fff !important; }
+.sidebar .side-nav a.active { background: #3b82f6 !important; box-shadow: inset 3px 0 #fff, 0 3px 8px rgba(59,130,246,.45) !important; color: #fff !important; }
 .sidebar .side-nav a.active svg { color: #fff !important; }
 .sidebar .logout { border-color: #475569 !important; color: #e2e8f0 !important; }
 .sidebar .logout:hover:not(:disabled) { border-color: #fca5a5 !important; background: rgba(239,68,68,.22) !important; color: #fff !important; }
 .sidebar .sidebar-footer { color: #e2e8f0 !important; border-top-color: rgba(255,255,255,.12) !important; }
 .sidebar .sidebar-footer small { color: #94a3b8 !important; }
-html[data-theme="green"] .sidebar .side-nav a.active { background: #16a34a !important; box-shadow: inset 3px 0 #fff, 0 3px 8px rgba(22,163,74,.3) !important; }
-html[data-theme="purple"] .sidebar .side-nav a.active { background: #7c3aed !important; box-shadow: inset 3px 0 #fff, 0 3px 8px rgba(124,58,237,.3) !important; }
+html[data-theme="green"] .sidebar .side-nav a.active { background: #22c55e !important; box-shadow: inset 3px 0 #fff, 0 3px 8px rgba(22,163,74,.3) !important; }
+html[data-theme="purple"] .sidebar .side-nav a.active { background: #8b5cf6 !important; box-shadow: inset 3px 0 #fff, 0 3px 8px rgba(124,58,237,.3) !important; }
 .dark .sidebar,
 .dark html[data-theme="green"] .sidebar,
 .dark html[data-theme="blue"] .sidebar,
@@ -1519,10 +1519,10 @@ html[data-theme="purple"] .sidebar .side-nav a.active { background: #7c3aed !imp
 .dark .sidebar .brand small { color: #94a3b8 !important; }
 .dark .sidebar .brand-mark { background: #2563eb !important; color: #fff !important; }
 .dark .sidebar .side-nav a { color: #e2e8f0 !important; }
-.dark .sidebar .side-nav a:hover { color: #fff !important; background: rgba(255,255,255,.09) !important; }
-.dark .sidebar .side-nav a.active { color: #fff !important; background: #2563eb !important; }
+.dark .sidebar .side-nav a:hover { color: #fff !important; background: rgba(59,130,246,.30) !important; }
+.dark .sidebar .side-nav a.active { color: #fff !important; background: #3b82f6 !important; }
 .dark .sidebar .nav-group-toggle { color: #cbd5e1 !important; }
-.dark .sidebar .nav-group-toggle:hover { color: #fff !important; }
+.dark .sidebar .nav-group-toggle:hover { color: #fff !important; background: rgba(59,130,246,.25) !important; }
 .dark .sidebar .logout { border-color: #475569 !important; color: #e2e8f0 !important; }
 
 /* ===== Dark mode: konten utama (panel, tabel, form, POS) ===== */
@@ -1645,3 +1645,17 @@ html[data-theme="purple"] .sidebar .side-nav a.active { background: #7c3aed !imp
 .dark .report-brand span, .dark .report-brand small { color: #94a3b8; }
 .dark .report-brand .report-title { color: #93c5fd; }
 .dark .closing-wrap, .dark .closing-print { color: #e2e8f0; }
+
+/* ===== Tombol aksi (Edit/Password/Nonaktifkan/Hapus) — kontras tinggi ===== */
+.link-button { background: #eef3fb; border-color: #cbd5e1; color: #1e40af; }
+.link-button:hover { background: #dbeafe; border-color: #3b82f6; color: #1e40af; }
+.link-button.danger { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+.link-button.danger:hover { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
+html[data-theme="green"] .link-button, html[data-theme="blue"] .link-button, html[data-theme="purple"] .link-button { background: #eef3fb; border-color: #cbd5e1; color: #1e40af; }
+html[data-theme="green"] .link-button:hover, html[data-theme="blue"] .link-button:hover, html[data-theme="purple"] .link-button:hover { background: #dbeafe; border-color: #3b82f6; color: #1e40af; }
+html[data-theme="green"] .link-button.danger, html[data-theme="blue"] .link-button.danger, html[data-theme="purple"] .link-button.danger { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+html[data-theme="green"] .link-button.danger:hover, html[data-theme="blue"] .link-button.danger:hover, html[data-theme="purple"] .link-button.danger:hover { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
+.dark .link-button { background: #253247; border-color: #334155; color: #93c5fd; }
+.dark .link-button:hover { background: #2f3f5a; border-color: #60a5fa; color: #dbeafe; }
+.dark .link-button.danger { background: #3a1d1d; border-color: #7f1d1d; color: #fca5a5; }
+.dark .link-button.danger:hover { background: #4c2020; border-color: #f87171; color: #fecaca; }
