@@ -9,6 +9,59 @@ const error = (status, message) => Object.assign(new Error(message), { status })
 const { money } = require('../money');
 const { adjustStock } = require('../stock');
 
+/// Auto-approve retur dalam transaksi yang sama (dipakai POST saat membuat
+/// retur — tanpa perlu persetujuan lagi).
+async function approveReturnInTx(connection, { returnId, transactionId, branchId, userId }) {
+  const [returns] = await connection.execute(
+    'SELECT id, return_no, transaction_id, refund_amount, refund_method FROM returns WHERE id = ? FOR UPDATE',
+    [returnId]
+  );
+  const ret = returns[0];
+  if (!ret) throw error(404, 'Retur tidak ditemukan');
+  const [mainWarehouses] = await connection.execute(
+    "SELECT id FROM warehouses WHERE branch_id=? AND is_active=TRUE AND type='utama' ORDER BY id LIMIT 1",
+    [branchId]
+  );
+  const fallbackWarehouse = mainWarehouses[0]?.id;
+  const [items] = await connection.execute('SELECT id, product_id, variant_id, quantity FROM return_items WHERE return_id = ?', [returnId]);
+  for (const item of items) {
+    const [mutations] = await connection.execute(
+      'SELECT warehouse_id FROM stock_mutations WHERE reference_type=? AND reference_id=? AND product_id=? AND variant_id<=>? ORDER BY id DESC LIMIT 1',
+      ['transaction', transactionId, item.product_id, item.variant_id]
+    );
+    const warehouseId = mutations[0]?.warehouse_id || fallbackWarehouse;
+    if (!warehouseId) throw error(404, 'Gudang asal penjualan tidak ditemukan');
+    await adjustStock(connection, {
+      branchId,
+      warehouseId,
+      productId: item.product_id,
+      variantId: item.variant_id,
+      delta: item.quantity,
+      userId,
+      type: 'sale_return',
+      referenceType: 'return',
+      referenceId: returnId,
+    });
+  }
+  const refundTotal = Number(ret.refund_amount || 0);
+  const refundIsCash = ret.refund_method == null || ret.refund_method === 'cash';
+  if (refundTotal > 0 && refundIsCash) {
+    const [drawers] = await connection.execute('SELECT id FROM cash_drawers WHERE branch_id = ? AND user_id = ? AND status = \'open\' FOR UPDATE', [branchId, userId]);
+    if (drawers[0]) {
+      const [payments] = await connection.execute('SELECT payment_method, COALESCE(SUM(amount), 0) AS amount FROM transaction_payments WHERE transaction_id = ? GROUP BY payment_method', [transactionId]);
+      const cashPaid = Number(payments.find((payment) => payment.payment_method === 'cash')?.amount || 0);
+      const [txRows] = await connection.execute('SELECT grand_total FROM transactions WHERE id = ?', [transactionId]);
+      const txGrandTotal = Number(txRows[0]?.grand_total || 0);
+      const cashRefund = txGrandTotal > 0 ? money(refundTotal * cashPaid / txGrandTotal) : 0;
+      if (cashRefund > 0) {
+        await connection.execute('INSERT INTO cash_drawer_movements (cash_drawer_id, user_id, type, amount, reason) VALUES (?, ?, ?, ?, ?)', [drawers[0].id, userId, 'cash_out', cashRefund, `Retur ${ret.return_no}`]);
+      }
+    }
+  }
+  await connection.execute('UPDATE returns SET status = \'approved\', approved_by = ? WHERE id = ?', [userId, returnId]);
+  await connection.execute('INSERT INTO activity_logs (user_id, action, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)', [userId, 'return_approve', `Retur ${ret.return_no}`, 'auto', null]);
+}
+
 router.get('/', async (req, res, next) => {
   try {
     const [rows] = await db.execute(
@@ -74,8 +127,18 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
       );
     }
     await connection.execute('INSERT INTO activity_logs (user_id, action, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'return_create', `Retur ${returnNo}`, req.ip, req.get('user-agent') || null]);
+    // Auto-approve: retur langsung disetujui tanpa menunggu persetujuan.
+    const approveNow = req.body.approve !== false;
+    if (approveNow) {
+      await approveReturnInTx(connection, {
+        returnId: result.insertId,
+        transactionId,
+        branchId: req.user.branch_id,
+        userId: req.user.id,
+      });
+    }
     await connection.commit();
-    res.status(201).json({ success: true, data: { id: result.insertId, return_no: returnNo, refund_amount: refund, status: 'pending' } });
+    res.status(201).json({ success: true, data: { id: result.insertId, return_no: returnNo, refund_amount: refund, status: approveNow ? 'approved' : 'pending' } });
   } catch (cause) { await connection.rollback(); next(cause); } finally { connection.release(); }
 });
 

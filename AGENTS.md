@@ -44,7 +44,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 | `transactions.js` | `/api/transactions` | Checkout (idempotency `client_transaction_id`), hold/resume, cancel |
 | `printer.js` | `/api/printer` | Struk thermal 58/80mm |
 | `customers.js` | `/api/customers` | CRUD pelanggan + price_tier |
-| `returns.js` | `/api/returns` | Retur (pending → approve, stok kembali) |
+| `returns.js` | `/api/returns` | Retur AUTO-APPROVE saat dibuat (POST langsung stok kembali + refund kas, tanpa persetujuan; `approve:false` di body bisa memaksa pending); PUT /:id/approve tetap ada untuk legacy |
 | `returns.js` | `/api/returns` | Retur menyimpan `refund_method` (cash/qris/transfer/debit) untuk laporan & laci kas |
 | `cash-drawer.js` | `/api/cash-drawer` | Buka/tutup kas, cash in/out |
 | `suppliers.js` | `/api/suppliers` | Supplier per cabang |

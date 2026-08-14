@@ -36,7 +36,6 @@ class _HistoryTabState extends State<HistoryTab> {
   final _search = TextEditingController();
 
   bool get _canCancel => ['owner', 'manager', 'admin'].contains(widget.role);
-  bool get _canApprove => _canCancel;
 
   @override
   void initState() {
@@ -535,39 +534,8 @@ class _HistoryTabState extends State<HistoryTab> {
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Retur diajukan (menunggu persetujuan)')));
-      _load();
-    } on ApiException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
-      }
-    }
-  }
-
-  Future<void> _approveReturn(Map<String, dynamic> row) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Setujui Retur?'),
-        content:
-            const Text('Stok akan kembali otomatis ke gudang asal penjualan.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Batal')),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Setujui')),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-    try {
-      await widget.api.approveReturn(int.parse('${row['id']}'));
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Retur disetujui, stok kembali')));
+          content: Text(
+              'Retur berhasil dibuat & disetujui — stok kembali otomatis')));
       _load();
     } on ApiException catch (e) {
       if (mounted) {
@@ -756,14 +724,8 @@ class _HistoryTabState extends State<HistoryTab> {
             subtitle: '${row['invoice_no'] ?? ''} · ${row['created_at'] ?? ''}',
             trailing: fmtRp(asNum(row['refund_amount'])),
             status: status,
-            extra: _canApprove && status == 'pending'
-                ? TextButton(
-                    onPressed: () => _approveReturn(row),
-                    style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xff1E3A5F)),
-                    child: const Text('Setujui'),
-                  )
-                : null,
+            // Retur otomatis disetujui backend — tidak perlu tombol Setujui.
+            extra: null,
           );
         },
       );
