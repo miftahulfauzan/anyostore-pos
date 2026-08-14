@@ -131,6 +131,7 @@ class _PosPageState extends State<PosPage> {
   @override
   void dispose() {
     _previewTimer?.cancel();
+    _searchDebounce?.cancel();
     _connSub?.cancel();
     PosPage.requestTab.removeListener(_onExternalTab);
     _search.dispose();
@@ -275,6 +276,13 @@ class _PosPageState extends State<PosPage> {
       _branches = branches;
       _posBranchId ??= _branchId;
     }
+  }
+
+  Timer? _searchDebounce;
+
+  void _applyFilterDebounced() {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 180), _applyFilter);
   }
 
   void _applyFilter() {
@@ -977,7 +985,7 @@ class _PosPageState extends State<PosPage> {
                       onWarehouseChanged: (v) =>
                           setState(() => _warehouseId = v),
                       searchController: _search,
-                      onSearchChanged: (_) => _applyFilter(),
+                      onSearchChanged: (_) => _applyFilterDebounced(),
                       onScan: _openScanner,
                     ),
                   ),
@@ -1001,12 +1009,16 @@ class _PosPageState extends State<PosPage> {
                         childAspectRatio: 0.62,
                       ),
                       delegate: SliverChildBuilderDelegate(
-                        (_, i) => _ProductCard(
-                          product: _visible[i],
-                          mediaUrl: _mediaUrl,
-                          onTap: () => _addProduct(_visible[i]),
+                        (_, i) => RepaintBoundary(
+                          child: _ProductCard(
+                            product: _visible[i],
+                            mediaUrl: _mediaUrl,
+                            onTap: () => _addProduct(_visible[i]),
+                          ),
                         ),
                         childCount: _visible.length,
+                        // Kartu jauh di luar layar dibuang, gambar tetap dari cache.
+                        addAutomaticKeepAlives: false,
                       ),
                     ),
                   ),
@@ -1059,6 +1071,8 @@ class _ProductCard extends StatelessWidget {
       radius: 20,
       padding: EdgeInsets.zero,
       onTap: onTap,
+      // Grid = puluhan kartu sekaligus; blur per kartu bikin scroll berat.
+      frosted: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

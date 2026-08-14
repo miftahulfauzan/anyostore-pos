@@ -276,13 +276,20 @@ class GlassCard extends StatelessWidget {
       this.padding = const EdgeInsets.all(16),
       this.height,
       this.dark = false,
-      this.onTap});
+      this.onTap,
+      this.frosted = true});
   final Widget child;
   final double radius;
   final EdgeInsets padding;
   final double? height;
   final bool dark;
   final VoidCallback? onTap;
+
+  /// false = tanpa BackdropFilter (blur). Untuk kartu yang jumlahnya banyak
+  /// dalam 1 layar (mis. grid POS), blur per kartu itu mahal banget dan
+  /// bikin scroll tidak smooth — efek kacanya tetap (gradien + border),
+  /// tapi jauh lebih ringan.
+  final bool frosted;
 
   @override
   Widget build(BuildContext context) {
@@ -295,40 +302,44 @@ class GlassCard extends StatelessWidget {
         child: Padding(padding: padding, child: child),
       ),
     );
+    final card = Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        gradient: LinearGradient(
+          colors: isDark
+              ? [
+                  const Color(0xFF262F3D),
+                  const Color(0xFF1D2430),
+                ]
+              : [
+                  Colors.white.withValues(alpha: .78),
+                  Colors.white.withValues(alpha: .42),
+                ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(
+            color: isDark
+                ? Colors.white.withValues(alpha: .16)
+                : Colors.white.withValues(alpha: .55)),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x1A1E3A5F), blurRadius: 20, offset: Offset(0, 8)),
+        ],
+      ),
+      child: height == null ? inner : SizedBox(height: height, child: inner),
+    );
+    if (!frosted) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: card,
+      );
+    }
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(radius),
-            gradient: LinearGradient(
-              colors: isDark
-                  ? [
-                      const Color(0xFF262F3D),
-                      const Color(0xFF1D2430),
-                    ]
-                  : [
-                      Colors.white.withValues(alpha: .78),
-                      Colors.white.withValues(alpha: .42),
-                    ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            border: Border.all(
-                color: isDark
-                    ? Colors.white.withValues(alpha: .16)
-                    : Colors.white.withValues(alpha: .55)),
-            boxShadow: const [
-              BoxShadow(
-                  color: Color(0x1A1E3A5F),
-                  blurRadius: 20,
-                  offset: Offset(0, 8)),
-            ],
-          ),
-          child:
-              height == null ? inner : SizedBox(height: height, child: inner),
-        ),
+        child: card,
       ),
     );
   }
