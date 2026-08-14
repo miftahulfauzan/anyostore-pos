@@ -195,8 +195,8 @@ class _PosPageState extends State<PosPage> {
       try {
         final v = await _client.productsVersion(branchId: branch);
         _lastProductsSync = v['updated_at']?.toString() ?? '';
-        await OfflineStore.saveProductsCache(branch,
-            jsonEncode(storePayload), _lastProductsSync ?? '', todayWib());
+        await OfflineStore.saveProductsCache(branch, jsonEncode(storePayload),
+            _lastProductsSync ?? '', todayWib());
       } catch (_) {}
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -393,8 +393,8 @@ class _PosPageState extends State<PosPage> {
         'discount_value': asNum(preview?['discount'] ?? 0),
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Transaksi ditahan. Bisa dilanjutkan kapan saja.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Transaksi ditahan. Bisa dilanjutkan kapan saja.')));
       setState(() {
         _cart.clear();
         _preview = null;
@@ -432,10 +432,11 @@ class _PosPageState extends State<PosPage> {
                 for (final p in pending)
                   ListTile(
                     dense: true,
-                    title: Text('${(p['items'] is List ? (p['items'] as List).length : 0).toString()} item'),
+                    title: Text(
+                        '${(p['items'] is List ? (p['items'] as List).length : 0).toString()} item'),
                     subtitle: Text('Total ${fmtRp(asNum(p['subtotal']))}'),
-                    onTap: () => Navigator.pop(
-                        ctx, int.tryParse(p['id'].toString())),
+                    onTap: () =>
+                        Navigator.pop(ctx, int.tryParse(p['id'].toString())),
                   ),
               ],
             ),
@@ -458,15 +459,13 @@ class _PosPageState extends State<PosPage> {
         final vidRaw = it['variant_id'];
         cart.add(CartItem(
           productId: int.tryParse(it['product_id'].toString()) ?? 0,
-          variantId:
-              vidRaw != null ? int.tryParse(vidRaw.toString()) : null,
+          variantId: vidRaw != null ? int.tryParse(vidRaw.toString()) : null,
           name: it['name']?.toString() ?? 'Produk',
           variantLabel: it['variant_label']?.toString(),
           photo: it['photo']?.toString(),
           price: asNum(it['price'] ?? it['price_override']),
-          priceOverride: it['price_override'] != null
-              ? asNum(it['price_override'])
-              : null,
+          priceOverride:
+              it['price_override'] != null ? asNum(it['price_override']) : null,
           qty: int.tryParse(it['quantity'].toString()) ?? 1,
         ));
       }
@@ -507,74 +506,76 @@ class _PosPageState extends State<PosPage> {
               child: Material(
                 color: Theme.of(context).colorScheme.surface,
                 child: _CartSheet(
-        scrollController: scrollController,
-        cart: _cart,
-        customers: _customers,
-        customerId: _customerId,
-        promoCode: _promoCode,
-        preview: _preview,
-        error: _cartError,
-        saving: _saving,
-        onCustomerChanged: (id) {
-          setState(() => _customerId = id);
-          _sheetRefresh?.call(() {});
-          _schedulePreview();
-        },
-        onPromoChanged: (code) {
-          setState(() => _promoCode = code);
-          _sheetRefresh?.call(() {});
-          _schedulePreview();
-        },
-        onQtyChanged: (item, delta) {
-          setState(() => item.qty = math.max(1, item.qty + delta));
-          _sheetRefresh?.call(() {});
-          _schedulePreview();
-        },
-        onQtySet: (item, value) {
-          setState(() => item.qty = math.max(1, value));
-          _sheetRefresh?.call(() {});
-          _schedulePreview();
-        },
-        onHold: _holdCart,
-        onResume: _resumeCart,
-        onRemove: (item) {
-          setState(() => _cart.remove(item));
-          _sheetRefresh?.call(() {});
-          _schedulePreview();
-        },
-        onEditPrice: (item) async {
-          final controller = TextEditingController(
-              text: item.priceOverride?.toStringAsFixed(0) ??
-                  item.price.toStringAsFixed(0));
-          final result = await showDialog<double>(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              title: const Text('Ubah harga'),
-              content: TextField(
-                controller: controller,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(prefixText: 'Rp '),
-              ),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Batal')),
-                FilledButton(
-                  onPressed: () => Navigator.pop(ctx,
-                      double.tryParse(controller.text.replaceAll('.', ''))),
-                  child: const Text('Simpan'),
+                  scrollController: scrollController,
+                  cart: _cart,
+                  customers: _customers,
+                  customerId: _customerId,
+                  promoCode: _promoCode,
+                  preview: _preview,
+                  error: _cartError,
+                  saving: _saving,
+                  onCustomerChanged: (id) {
+                    setState(() => _customerId = id);
+                    _sheetRefresh?.call(() {});
+                    _schedulePreview();
+                  },
+                  onPromoChanged: (code) {
+                    setState(() => _promoCode = code);
+                    _sheetRefresh?.call(() {});
+                    _schedulePreview();
+                  },
+                  onQtyChanged: (item, delta) {
+                    setState(() => item.qty = math.max(1, item.qty + delta));
+                    _sheetRefresh?.call(() {});
+                    _schedulePreview();
+                  },
+                  onQtySet: (item, value) {
+                    setState(() => item.qty = math.max(1, value));
+                    _sheetRefresh?.call(() {});
+                    _schedulePreview();
+                  },
+                  onHold: _holdCart,
+                  onResume: _resumeCart,
+                  onRemove: (item) {
+                    setState(() => _cart.remove(item));
+                    _sheetRefresh?.call(() {});
+                    _schedulePreview();
+                  },
+                  onEditPrice: (item) async {
+                    final controller = TextEditingController(
+                        text: item.priceOverride?.toStringAsFixed(0) ??
+                            item.price.toStringAsFixed(0));
+                    final result = await showDialog<double>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Ubah harga'),
+                        content: TextField(
+                          controller: controller,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(prefixText: 'Rp '),
+                        ),
+                        actions: [
+                          TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: const Text('Batal')),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(
+                                ctx,
+                                double.tryParse(
+                                    controller.text.replaceAll('.', ''))),
+                            child: const Text('Simpan'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (result != null) {
+                      setState(() => item.priceOverride = result);
+                      _sheetRefresh?.call(() {});
+                      _schedulePreview();
+                    }
+                  },
+                  onPay: () => _checkout(),
                 ),
-              ],
-            ),
-          );
-          if (result != null) {
-            setState(() => item.priceOverride = result);
-            _sheetRefresh?.call(() {});
-            _schedulePreview();
-          }
-        },
-        onPay: () => _checkout(),
-      ),
               ),
             );
           },
@@ -710,7 +711,8 @@ class _PosPageState extends State<PosPage> {
           e is http.ClientException;
       if (isNetwork) {
         // Simpan offline: total & harga ikut HP, stok dipaksa negatif, sync otomatis nanti.
-        final tempInvoice = 'OFF-$branch-${DateTime.now().millisecondsSinceEpoch}';
+        final tempInvoice =
+            'OFF-$branch-${DateTime.now().millisecondsSinceEpoch}';
         payload['offline'] = true;
         payload['offline_invoice_no'] = tempInvoice;
         payload['allow_negative_stock'] = true;
@@ -770,11 +772,31 @@ class _PosPageState extends State<PosPage> {
                 if (_tab == 0) _loadData(silent: true);
               }),
               items: const [
-                (icon: Icons.shopping_bag_outlined, activeIcon: Icons.shopping_bag, label: 'POS'),
-                (icon: Icons.receipt_long_outlined, activeIcon: Icons.receipt_long, label: 'Riwayat'),
-                (icon: Icons.inventory_2_outlined, activeIcon: Icons.inventory_2, label: 'Stok'),
-                (icon: Icons.bar_chart_outlined, activeIcon: Icons.bar_chart, label: 'Laporan'),
-                (icon: Icons.more_horiz, activeIcon: Icons.more_horiz, label: 'Lainnya'),
+                (
+                  icon: Icons.shopping_bag_outlined,
+                  activeIcon: Icons.shopping_bag,
+                  label: 'POS'
+                ),
+                (
+                  icon: Icons.receipt_long_outlined,
+                  activeIcon: Icons.receipt_long,
+                  label: 'Riwayat'
+                ),
+                (
+                  icon: Icons.inventory_2_outlined,
+                  activeIcon: Icons.inventory_2,
+                  label: 'Stok'
+                ),
+                (
+                  icon: Icons.bar_chart_outlined,
+                  activeIcon: Icons.bar_chart,
+                  label: 'Laporan'
+                ),
+                (
+                  icon: Icons.more_horiz,
+                  activeIcon: Icons.more_horiz,
+                  label: 'Lainnya'
+                ),
               ],
             ),
           ),
@@ -818,8 +840,7 @@ class _PosPageState extends State<PosPage> {
             onRefresh: () => _loadData(silent: true),
             color: kTaskDark,
             child: CustomScrollView(
-              keyboardDismissBehavior:
-                  ScrollViewKeyboardDismissBehavior.onDrag,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 SliverToBoxAdapter(
@@ -859,8 +880,7 @@ class _PosPageState extends State<PosPage> {
                   )
                 else
                   SliverPadding(
-                    padding:
-                        EdgeInsets.fromLTRB(12, 12, 12, 178 + bottomPad),
+                    padding: EdgeInsets.fromLTRB(12, 12, 12, 178 + bottomPad),
                     sliver: SliverGrid(
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
@@ -931,66 +951,66 @@ class _ProductCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-            Expanded(
-              child: photo.isEmpty
-                  ? Container(
+          Expanded(
+            child: photo.isEmpty
+                ? Container(
+                    color: Colors.grey.shade200,
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.image_not_supported,
+                        color: Colors.grey),
+                  )
+                : CachedNetworkImage(
+                    imageUrl: photo,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => Container(
                       color: Colors.grey.shade200,
                       alignment: Alignment.center,
                       child: const Icon(Icons.image_not_supported,
                           color: Colors.grey),
-                    )
-                  : CachedNetworkImage(
-                      imageUrl: photo,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(
-                        color: Colors.grey.shade200,
-                        alignment: Alignment.center,
-                        child: const Icon(Icons.image_not_supported,
-                            color: Colors.grey),
-                      ),
-                      errorWidget: (_, __, ___) => Container(
-                        color: Colors.grey.shade200,
-                        alignment: Alignment.center,
-                        child: const Icon(Icons.image_not_supported,
-                            color: Colors.grey),
-                      ),
                     ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Expanded(
-                        child: Text(name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 11.5, fontWeight: FontWeight.w700)),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(fmtRp(price),
-                          maxLines: 1,
-                          style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w800,
-                              color: Theme.of(context).colorScheme.primary)),
-                    ],
+                    errorWidget: (_, __, ___) => Container(
+                      color: Colors.grey.shade200,
+                      alignment: Alignment.center,
+                      child: const Icon(Icons.image_not_supported,
+                          color: Colors.grey),
+                    ),
                   ),
-                  Text(
-                      variantCount > 0
-                          ? '$variantCount varian · stok $stock'
-                          : 'Stok $stock',
-                      style: TextStyle(
-                          fontSize: 10.8,
-                          color: Theme.of(context).colorScheme.outline)),
-                ],
-              ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Expanded(
+                      child: Text(name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 11.5, fontWeight: FontWeight.w700)),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(fmtRp(price),
+                        maxLines: 1,
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                            color: Theme.of(context).colorScheme.primary)),
+                  ],
+                ),
+                Text(
+                    variantCount > 0
+                        ? '$variantCount varian · stok $stock'
+                        : 'Stok $stock',
+                    style: TextStyle(
+                        fontSize: 10.8,
+                        color: Theme.of(context).colorScheme.outline)),
+              ],
             ),
+          ),
         ],
       ),
     );
@@ -999,8 +1019,7 @@ class _ProductCard extends StatelessWidget {
 
 class _PosHeaderRow extends StatefulWidget {
   const _PosHeaderRow(
-      {
-      required this.isOwner,
+      {required this.isOwner,
       required this.branches,
       required this.posBranchId,
       required this.onBranchChanged,
@@ -1070,8 +1089,8 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
 
       final branchName = widget.branches
           .firstWhere((b) => int.tryParse('${b['id']}') == widget.posBranchId,
-              orElse: () => const {})
-          ['name']?.toString();
+              orElse: () => const {})['name']
+          ?.toString();
 
       final Widget branchArea;
       if (_active == 'branch') {
@@ -1084,7 +1103,8 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
               decoration: const InputDecoration(
                   labelText: 'Toko / Gudang',
                   labelStyle: TextStyle(color: Color(0xff8A857C)),
-                  prefixIcon: Icon(Icons.store, size: 18, color: Color(0xff1E3A5F)),
+                  prefixIcon:
+                      Icon(Icons.store, size: 18, color: Color(0xff1E3A5F)),
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(),
@@ -1106,7 +1126,8 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
               DropdownButtonFormField<String>(
                 initialValue:
                     widget.warehouseId.isEmpty ? null : widget.warehouseId,
-                style: const TextStyle(fontSize: 12.5, color: Color(0xff1E3A5F)),
+                style:
+                    const TextStyle(fontSize: 12.5, color: Color(0xff1E3A5F)),
                 decoration: const InputDecoration(
                     labelText: 'Gudang',
                     labelStyle: TextStyle(color: Color(0xff8A857C)),
@@ -1189,8 +1210,8 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
                   prefixIcon: const Icon(Icons.search),
                   hintText: 'Cari nama / SKU / barcode',
                   border: const OutlineInputBorder(),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 13),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
                   suffixIcon: IconButton(
                     onPressed: widget.onScan,
                     icon: const Icon(Icons.qr_code_scanner),
@@ -1215,11 +1236,19 @@ class _QtyInput extends StatefulWidget {
 
 class _QtyInputState extends State<_QtyInput> {
   late final TextEditingController _c;
+  late final FocusNode _fn;
 
   @override
   void initState() {
     super.initState();
     _c = TextEditingController(text: '${widget.value}');
+    _fn = FocusNode()..addListener(_selectAll);
+  }
+
+  void _selectAll() {
+    if (_fn.hasFocus) {
+      _c.selection = TextSelection(baseOffset: 0, extentOffset: _c.text.length);
+    }
   }
 
   @override
@@ -1232,6 +1261,7 @@ class _QtyInputState extends State<_QtyInput> {
 
   @override
   void dispose() {
+    _fn.dispose();
     _c.dispose();
     super.dispose();
   }
@@ -1242,6 +1272,7 @@ class _QtyInputState extends State<_QtyInput> {
       width: 40,
       child: TextField(
         controller: _c,
+        focusNode: _fn,
         keyboardType: TextInputType.number,
         textAlign: TextAlign.center,
         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
@@ -1342,238 +1373,235 @@ class _CartSheetState extends State<_CartSheet> {
     final hasExtra = customerName.isNotEmpty || widget.promoCode.isNotEmpty;
     final totalPcs = cart.fold<int>(0, (sum, c) => sum + c.qty);
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Judul: fokus daftar barang + jumlah item aktif.
-            Row(
-              children: [
-                Expanded(
-                  child: Text('Keranjang (${cart.length} item)',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w800)),
-                ),
-                TextButton.icon(
-                  onPressed: () => setState(() => _showOptions = !_showOptions),
-                  icon: Icon(_showOptions
-                      ? Icons.expand_less
-                      : Icons.tune),
-                  label: Text(_showOptions ? 'Tutup Opsi' : 'Opsi'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            // Opsi (pelanggan/promo/tahan) hanya muncul saat dibuka.
-            if (_showOptions) ...[
-              if (widget.customers.isNotEmpty)
-                DropdownButtonFormField<int?>(
-                  initialValue: widget.customerId,
-                  decoration: const InputDecoration(
-                      isDense: true,
-                      labelText: 'Pelanggan (opsional)',
-                      border: OutlineInputBorder()),
-                  items: [
-                    const DropdownMenuItem<int?>(
-                        value: null, child: Text('Tanpa pelanggan')),
-                    for (final c in widget.customers)
-                      DropdownMenuItem<int?>(
-                          value: int.tryParse('${c['id']}'),
-                          child: Text(
-                              '${c['name']}${c['phone'] != null && (c['phone'] as String).isNotEmpty ? ' · ${c['phone']}' : ''}')),
-                  ],
-                  onChanged: widget.onCustomerChanged,
-                ),
-              const SizedBox(height: 8),
-              TextField(
-                decoration: const InputDecoration(
-                    isDense: true,
-                    labelText: 'Kode promo (opsional)',
-                    border: OutlineInputBorder()),
-                onChanged: widget.onPromoChanged,
-              ),
-              const SizedBox(height: 8),
+    // Geser sheet ke atas saat keyboard muncul supaya Bayar tidak tertutup.
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Judul: fokus daftar barang + jumlah item aktif.
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: widget.onHold,
-                      icon:
-                          const Icon(Icons.pause_circle_outline, size: 18),
-                      label: const Text('Tahan'),
-                    ),
+                    child: Text('Keranjang (${cart.length} item)',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800)),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: widget.onResume,
-                      icon:
-                          const Icon(Icons.play_circle_outline, size: 18),
-                      label: const Text('Ambil Tahan'),
-                    ),
+                  TextButton.icon(
+                    onPressed: () =>
+                        setState(() => _showOptions = !_showOptions),
+                    icon: Icon(_showOptions ? Icons.expand_less : Icons.tune),
+                    label: Text(_showOptions ? 'Tutup Opsi' : 'Opsi'),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
-            ] else if (hasExtra)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+              const SizedBox(height: 6),
+              // Opsi (pelanggan/promo/tahan) hanya muncul saat dibuka.
+              if (_showOptions) ...[
+                if (widget.customers.isNotEmpty)
+                  DropdownButtonFormField<int?>(
+                    initialValue: widget.customerId,
+                    decoration: const InputDecoration(
+                        isDense: true,
+                        labelText: 'Pelanggan (opsional)',
+                        border: OutlineInputBorder()),
+                    items: [
+                      const DropdownMenuItem<int?>(
+                          value: null, child: Text('Tanpa pelanggan')),
+                      for (final c in widget.customers)
+                        DropdownMenuItem<int?>(
+                            value: int.tryParse('${c['id']}'),
+                            child: Text(
+                                '${c['name']}${c['phone'] != null && (c['phone'] as String).isNotEmpty ? ' · ${c['phone']}' : ''}')),
+                    ],
+                    onChanged: widget.onCustomerChanged,
+                  ),
+                const SizedBox(height: 8),
+                TextField(
+                  decoration: const InputDecoration(
+                      isDense: true,
+                      labelText: 'Kode promo (opsional)',
+                      border: OutlineInputBorder()),
+                  onChanged: widget.onPromoChanged,
+                ),
+                const SizedBox(height: 8),
+                Row(
                   children: [
-                    if (customerName.isNotEmpty)
-                      Chip(
-                        avatar: const Icon(Icons.person_outline, size: 15),
-                        label: Text(customerName,
-                            style: const TextStyle(fontSize: 11)),
-                        visualDensity: VisualDensity.compact,
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: widget.onHold,
+                        icon: const Icon(Icons.pause_circle_outline, size: 18),
+                        label: const Text('Tahan'),
                       ),
-                    if (widget.promoCode.isNotEmpty)
-                      Chip(
-                        avatar: const Icon(Icons.local_offer_outlined,
-                            size: 15),
-                        label: Text(widget.promoCode,
-                            style: const TextStyle(fontSize: 11)),
-                        visualDensity: VisualDensity.compact,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: widget.onResume,
+                        icon: const Icon(Icons.play_circle_outline, size: 18),
+                        label: const Text('Ambil Tahan'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+              ] else if (hasExtra)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      if (customerName.isNotEmpty)
+                        Chip(
+                          avatar: const Icon(Icons.person_outline, size: 15),
+                          label: Text(customerName,
+                              style: const TextStyle(fontSize: 11)),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      if (widget.promoCode.isNotEmpty)
+                        Chip(
+                          avatar:
+                              const Icon(Icons.local_offer_outlined, size: 15),
+                          label: Text(widget.promoCode,
+                              style: const TextStyle(fontSize: 11)),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                    ],
+                  ),
+                ),
+              Expanded(
+                child: ListView(
+                  controller: widget.scrollController,
+                  children: [
+                    for (final item in cart)
+                      GlassCard(
+                        padding: EdgeInsets.zero,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          child: Row(
+                            children: [
+                              // Setengah kiri: nama (penuh), harga, varian.
+                              Expanded(
+                                flex: 3,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(item.name,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            height: 1.2)),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                        fmtRp(item.priceOverride ?? item.price),
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w800,
+                                            color: ink(context))),
+                                    if (item.variantLabel != null)
+                                      Text(item.variantLabel!,
+                                          style: TextStyle(
+                                              fontSize: 10,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .outline)),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              // Setengah kanan: kontrol - qty + edit hapus.
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    onPressed: () =>
+                                        widget.onQtyChanged(item, -1),
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints.tightFor(
+                                        width: 26, height: 34),
+                                    icon: const Icon(
+                                        Icons.remove_circle_outline,
+                                        size: 18),
+                                  ),
+                                  _QtyInput(
+                                    value: item.qty,
+                                    onChanged: (v) => widget.onQtySet(item, v),
+                                  ),
+                                  IconButton(
+                                    onPressed: () =>
+                                        widget.onQtyChanged(item, 1),
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints.tightFor(
+                                        width: 26, height: 34),
+                                    icon: const Icon(Icons.add_circle_outline,
+                                        size: 18),
+                                  ),
+                                  IconButton(
+                                    onPressed: () => widget.onEditPrice(item),
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints.tightFor(
+                                        width: 26, height: 34),
+                                    icon: const Icon(Icons.edit_outlined,
+                                        size: 16),
+                                    tooltip: 'Ubah harga',
+                                  ),
+                                  IconButton(
+                                    onPressed: () => widget.onRemove(item),
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints.tightFor(
+                                        width: 26, height: 34),
+                                    icon: const Icon(Icons.delete_outline,
+                                        size: 17),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                   ],
                 ),
               ),
-            Expanded(
-              child: ListView(
-                controller: widget.scrollController,
-                children: [
-                  for (final item in cart)
-                    GlassCard(
-                      padding: EdgeInsets.zero,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        child: Row(
-                          children: [
-                            // Setengah kiri: nama (penuh), harga, varian.
-                            Expanded(
-                              flex: 3,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(item.name,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          height: 1.2)),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                      fmtRp(item.priceOverride ?? item.price),
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w800,
-                                          color: ink(context))),
-                                  if (item.variantLabel != null)
-                                    Text(item.variantLabel!,
-                                        style: TextStyle(
-                                            fontSize: 10,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .outline)),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            // Setengah kanan: kontrol - qty + edit hapus.
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  onPressed: () =>
-                                      widget.onQtyChanged(item, -1),
-                                  visualDensity: VisualDensity.compact,
-                                  padding: EdgeInsets.zero,
-                                  constraints:
-                                      const BoxConstraints.tightFor(
-                                          width: 26, height: 34),
-                                  icon: const Icon(
-                                      Icons.remove_circle_outline,
-                                      size: 18),
-                                ),
-                                _QtyInput(
-                                  value: item.qty,
-                                  onChanged: (v) =>
-                                      widget.onQtySet(item, v),
-                                ),
-                                IconButton(
-                                  onPressed: () =>
-                                      widget.onQtyChanged(item, 1),
-                                  visualDensity: VisualDensity.compact,
-                                  padding: EdgeInsets.zero,
-                                  constraints:
-                                      const BoxConstraints.tightFor(
-                                          width: 26, height: 34),
-                                  icon: const Icon(
-                                      Icons.add_circle_outline,
-                                      size: 18),
-                                ),
-                                IconButton(
-                                  onPressed: () =>
-                                      widget.onEditPrice(item),
-                                  visualDensity: VisualDensity.compact,
-                                  padding: EdgeInsets.zero,
-                                  constraints:
-                                      const BoxConstraints.tightFor(
-                                          width: 26, height: 34),
-                                  icon: const Icon(Icons.edit_outlined,
-                                      size: 16),
-                                  tooltip: 'Ubah harga',
-                                ),
-                                IconButton(
-                                  onPressed: () => widget.onRemove(item),
-                                  visualDensity: VisualDensity.compact,
-                                  padding: EdgeInsets.zero,
-                                  constraints:
-                                      const BoxConstraints.tightFor(
-                                          width: 26, height: 34),
-                                  icon: const Icon(Icons.delete_outline,
-                                      size: 17),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
+              const SizedBox(height: 8),
+              Text('Total pcs: $totalPcs pcs',
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+              if (discount > 0) Text('Diskon: -${fmtRp(discount)}'),
+              Text('Total: ${fmtRp(grandTotal)}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800, fontSize: 16)),
+              if (widget.error != null) ...[
+                const SizedBox(height: 6),
+                Text(widget.error!,
+                    style:
+                        TextStyle(color: Theme.of(context).colorScheme.error)),
+              ],
+              const SizedBox(height: 10),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50)),
+                onPressed: widget.saving || cart.isEmpty ? null : widget.onPay,
+                child: widget.saving
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text('Bayar'),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text('Total pcs: $totalPcs pcs',
-                style: const TextStyle(fontWeight: FontWeight.w700)),
-            if (discount > 0) Text('Diskon: -${fmtRp(discount)}'),
-            Text('Total: ${fmtRp(grandTotal)}',
-                style:
-                    const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-            if (widget.error != null) ...[
-              const SizedBox(height: 6),
-              Text(widget.error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ],
-            const SizedBox(height: 10),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50)),
-              onPressed:
-                  widget.saving || cart.isEmpty ? null : widget.onPay,
-              child: widget.saving
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Bayar'),
-            ),
-          ],
+          ),
         ),
       ),
     );

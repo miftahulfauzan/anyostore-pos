@@ -124,11 +124,20 @@ class _QtyField extends StatefulWidget {
 
 class _QtyFieldState extends State<_QtyField> {
   late final TextEditingController _c;
+  late final FocusNode _fn;
 
   @override
   void initState() {
     super.initState();
     _c = TextEditingController(text: '${widget.value}');
+    _fn = FocusNode()..addListener(_selectAll);
+  }
+
+  void _selectAll() {
+    if (_fn.hasFocus) {
+      _c.selection =
+          TextSelection(baseOffset: 0, extentOffset: _c.text.length);
+    }
   }
 
   @override
@@ -141,6 +150,7 @@ class _QtyFieldState extends State<_QtyField> {
 
   @override
   void dispose() {
+    _fn.dispose();
     _c.dispose();
     super.dispose();
   }
@@ -151,6 +161,7 @@ class _QtyFieldState extends State<_QtyField> {
       width: 48,
       child: TextField(
         controller: _c,
+        focusNode: _fn,
         keyboardType: TextInputType.number,
         textAlign: TextAlign.center,
         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
