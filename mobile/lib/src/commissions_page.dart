@@ -431,7 +431,10 @@ class _CommissionsPageState extends State<CommissionsPage> {
     if (_error != null) return Center(child: Text(_error!));
     switch (_tab) {
       case 'saya':
-        final mine = _mine ?? {};
+        // Backend mengembalikan data di objek `live`; fallback ke root.
+        final raw = _mine ?? {};
+        final mine =
+            (raw['live'] as Map<String, dynamic>?) ?? raw;
         return ListView(
           padding: const EdgeInsets.all(12),
           children: [
