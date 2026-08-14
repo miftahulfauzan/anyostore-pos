@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
@@ -31,8 +33,12 @@ class _CommissionsPageState extends State<CommissionsPage> {
   int? _branchId;
 
   bool get _isOwner => widget.role == 'owner';
+
+  /// Manager/Admin juga boleh melihat Laporan komisi semua pegawai.
+  bool get _canManage =>
+      ['owner', 'manager', 'admin'].contains(widget.role);
   List<String> get _tabs =>
-      _isOwner ? ['saya', 'rules', 'records', 'report'] : ['saya'];
+      _canManage ? ['saya', 'rules', 'records', 'report'] : ['saya'];
 
   (String, String) get _range {
     final now = DateTime.now().toUtc().add(const Duration(hours: 7));
@@ -88,7 +94,7 @@ class _CommissionsPageState extends State<CommissionsPage> {
   @override
   void initState() {
     super.initState();
-    if (!_isOwner) _tab = 'saya';
+    if (!_canManage) _tab = 'saya';
     _load();
   }
 
@@ -111,11 +117,13 @@ class _CommissionsPageState extends State<CommissionsPage> {
       if (_tab == 'saya') {
         final data = await widget.api
             .commissionMine(start: start, end: end, branchId: _branchId);
+        debugPrint('KOMISI_MINE branch=$_branchId range=$start..$end => ${jsonEncode(data)}');
         if (!mounted) return;
         setState(() => _mine = data);
       } else if (_tab == 'report') {
         final data = await widget.api
             .commissionReport(start: start, end: end, branchId: _branchId);
+        debugPrint('KOMISI_REPORT branch=$_branchId range=$start..$end => ${jsonEncode(data)}');
         if (!mounted) return;
         setState(() => _report = data);
       } else {

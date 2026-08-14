@@ -65,7 +65,7 @@ const navigation = [
   {
     label: 'ADMINISTRASI',
     items: [
-      { href: '/commissions', label: 'Komisi Staf', icon: BadgeDollarSign, roles: ['owner'] },
+      { href: '/commissions', label: 'Komisi Staf', icon: BadgeDollarSign, roles: ['owner', 'manager', 'admin'] },
       { href: '/users', label: 'Pegawai & Akses', icon: Users, roles: ['owner'] },
       { href: '/settings/link-page', label: 'Halaman Link', icon: Link2, roles: ['owner'] },
       { href: '/settings', label: 'Pengaturan', icon: Settings, roles: ['owner'] },

@@ -95,10 +95,12 @@ async function computeBranchReport(branchId, start, end) {
   return { per_account: perAccount, total_commission: asMoney(total) };
 }
 
-router.get('/report', authenticate, authorize('owner'), async (req, res, next) => {
+router.get('/report', authenticate, authorize('owner', 'manager', 'admin'), async (req, res, next) => {
   try {
     const requestedBranch = Number(req.query.branch_id);
-    const branchId = Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
+    const branchId = req.user.role === 'owner'
+      ? (Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id)
+      : req.user.branch_id;
     const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || '');
     const today = new Date();
     const first = localMonthStartString(today);
@@ -200,7 +202,7 @@ router.post('/rules', authenticate, authorize('owner'), async (req, res, next) =
   } catch (error) { next(error); }
 });
 
-router.post('/generate', authenticate, authorize('owner'), async (req, res, next) => {
+router.post('/generate', authenticate, authorize('owner', 'manager', 'admin'), async (req, res, next) => {
   const connection = await db.getConnection();
   try {
     const { period_start: periodStart, period_end: periodEnd } = req.body;
