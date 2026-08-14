@@ -308,14 +308,27 @@ class _PosPageState extends State<PosPage> {
       final branch = _posBranchId ?? _branchId;
       final cacheKey = 'product-$branch-$productId';
       Map<String, dynamic>? detail;
+      // Cache dulu (prefetch saat buka app sudah mengisi) supaya dialog
+      // varian langsung muncul tanpa nunggu jaringan.
       try {
-        detail = await _client.product(productId, branchId: branch);
-        await OfflineStore.cacheSet(cacheKey, jsonEncode(detail));
-      } on ApiException catch (e) {
-        if (!e.isNetwork) rethrow;
-        // Offline: pakai detail produk + varian dari cache.
         final cached = await OfflineStore.cacheGet(cacheKey);
         detail = cached?['payload'] as Map<String, dynamic>?;
+      } catch (_) {}
+      if (detail != null) {
+        // Tampilkan segera; versi terbaru di-refresh di background.
+        unawaited(() async {
+          try {
+            final fresh = await _client.product(productId, branchId: branch);
+            await OfflineStore.cacheSet(cacheKey, jsonEncode(fresh));
+          } catch (_) {}
+        }());
+      } else {
+        try {
+          detail = await _client.product(productId, branchId: branch);
+          await OfflineStore.cacheSet(cacheKey, jsonEncode(detail));
+        } on ApiException catch (e) {
+          if (!e.isNetwork) rethrow;
+        }
       }
       if (detail == null) {
         if (mounted) {
@@ -410,7 +423,7 @@ class _PosPageState extends State<PosPage> {
 
   void _schedulePreview() {
     _previewTimer?.cancel();
-    _previewTimer = Timer(const Duration(milliseconds: 350), _doPreview);
+    _previewTimer = Timer(const Duration(milliseconds: 150), _doPreview);
   }
 
   Future<void> _doPreview() async {
@@ -1622,6 +1635,7 @@ class _CartSheetState extends State<_CartSheet> {
                     for (final item in cart)
                       GlassCard(
                         padding: EdgeInsets.zero,
+                        frosted: false,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 6),
