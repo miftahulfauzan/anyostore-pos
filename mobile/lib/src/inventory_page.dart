@@ -223,46 +223,44 @@ class _StockSectionState extends State<_StockSection> {
         if (widget.isOwner)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: _InvHeaderSegment(
-                        icon: Icons.store,
-                        label: 'Toko / Gudang',
-                        active: false,
-                        onTap: () {
-                          setState(() => _searchOpen = false);
-                          _pickBranch();
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _InvHeaderSegment(
-                        icon: Icons.search,
-                        label: 'Cari produk',
-                        active: _searchOpen,
-                        onTap: () => setState(() => _searchOpen = !_searchOpen),
-                      ),
-                    ),
-                  ],
-                ),
-                if (_searchOpen) ...[
-                  const SizedBox(height: 8),
-                  TextField(
+            // Saat fitur cari aktif, baris diganti total dengan field cari
+            // (toko/gudang tertutup) — persis perilaku POS.
+            child: _searchOpen
+                ? TextField(
                     controller: _search,
-                    decoration: const InputDecoration(
-                        prefixIcon: Icon(Icons.search),
+                    autofocus: true,
+                    decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: () => setState(() => _searchOpen = false),
+                        ),
                         isDense: true,
                         hintText: 'Cari produk / SKU',
-                        border: OutlineInputBorder()),
+                        border: const OutlineInputBorder()),
                     onSubmitted: (_) => _load(),
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: _InvHeaderSegment(
+                          icon: Icons.store,
+                          label: 'Toko / Gudang',
+                          active: false,
+                          onTap: () => _pickBranch(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _InvHeaderSegment(
+                          icon: Icons.search,
+                          label: 'Cari produk',
+                          active: false,
+                          onTap: () => setState(() => _searchOpen = true),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ],
-            ),
           )
         else
           Padding(
@@ -1824,40 +1822,32 @@ class _ViewToggle extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _opt(Icons.view_agenda_outlined, 'Card', !grid,
-              onTap: () => onChanged(false)),
-          _opt(Icons.grid_view_outlined, 'Grid', grid,
-              onTap: () => onChanged(true)),
+          _opt(Icons.view_agenda_outlined, !grid,
+              tooltip: 'Tampilan kartu', onTap: () => onChanged(false)),
+          _opt(Icons.grid_view_outlined, grid,
+              tooltip: 'Tampilan grid', onTap: () => onChanged(true)),
         ],
       ),
     );
   }
 
-  Widget _opt(IconData icon, String label, bool active,
-      {required VoidCallback onTap}) {
+  Widget _opt(IconData icon, bool active,
+      {required String tooltip, required VoidCallback onTap}) {
     return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(11),
-        child: Container(
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: active ? const Color(0xff1E3A5F) : Colors.transparent,
-            borderRadius: BorderRadius.circular(11),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon,
-                  size: 14,
-                  color: active ? Colors.white : const Color(0xff8A857C)),
-              const SizedBox(width: 4),
-              Text(label,
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: active ? Colors.white : const Color(0xff8A857C))),
-            ],
+      child: Tooltip(
+        message: tooltip,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(11),
+          child: Container(
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: active ? const Color(0xff1E3A5F) : Colors.transparent,
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon,
+                size: 16,
+                color: active ? Colors.white : const Color(0xff8A857C)),
           ),
         ),
       ),

@@ -115,57 +115,51 @@ class _AccountSwitcherPageState extends State<AccountSwitcherPage> {
       });
     }
 
-    return Scaffold(
-      backgroundColor: pageBg(context),
-      appBar: AppBar(
-        surfaceTintColor: Colors.transparent,
-        title: const Text('Ganti Akun'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
-        children: [
-          if (accounts.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 48),
-              child: Center(
-                  child: Text(
-                      'Belum ada akun tersimpan. Centang "Ingat akun ini" saat login.')),
-            )
-          else
-            for (final acc in accounts)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _AccountTile(
-                  account: acc,
-                  roleLabel: _roleLabel(
-                      (acc['user'] as Map<String, dynamic>?)?['role']
-                          ?.toString()),
-                  isCurrent: (acc['user'] as Map<String, dynamic>?)?['id'] ==
-                      currentUid,
-                  onTap: () => _switchTo(context, auth, acc),
-                  onDelete: () => _deleteAccount(context, auth, acc),
-                ),
+    // Body saja (tanpa Scaffold/AppBar): MorePage sudah membungkus dengan
+    // AppBar 'Ganti Akun', supaya header tidak dobel.
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
+      children: [
+        if (accounts.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 48),
+            child: Center(
+                child: Text(
+                    'Belum ada akun tersimpan. Centang "Ingat akun ini" saat login.')),
+          )
+        else
+          for (final acc in accounts)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _AccountTile(
+                account: acc,
+                roleLabel: _roleLabel(
+                    (acc['user'] as Map<String, dynamic>?)?['role']
+                        ?.toString()),
+                isCurrent:
+                    (acc['user'] as Map<String, dynamic>?)?['id'] == currentUid,
+                onTap: () => _switchTo(context, auth, acc),
+                onDelete: () => _deleteAccount(context, auth, acc),
               ),
-          const SizedBox(height: 10),
-          FilledButton.icon(
-            style:
-                FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-            onPressed: () => _addAccount(context, auth),
-            icon: const Icon(Icons.person_add_alt),
-            label: const Text('Tambah Akun'),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Akun tersimpan hanya di HP ini. Kalau HP hilang, hapus akses lewat pengaturan akun di web.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-                fontSize: 11,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? const Color(0xff9AA5B1)
-                    : const Color(0xff8A857C)),
-          ),
-        ],
-      ),
+            ),
+        const SizedBox(height: 10),
+        FilledButton.icon(
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+          onPressed: () => _addAccount(context, auth),
+          icon: const Icon(Icons.person_add_alt),
+          label: const Text('Tambah Akun'),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Akun tersimpan hanya di HP ini. Kalau HP hilang, hapus akses lewat pengaturan akun di web.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+              fontSize: 11,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xff9AA5B1)
+                  : const Color(0xff8A857C)),
+        ),
+      ],
     );
   }
 }

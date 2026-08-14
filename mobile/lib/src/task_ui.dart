@@ -114,14 +114,13 @@ class PillTabs extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               child: Row(
-                mainAxisAlignment: centered
-                    ? MainAxisAlignment.center
-                    : MainAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(t.icon,
                       size: 16, color: active ? Colors.white : kTaskGray),
                   const SizedBox(width: 6),
                   Text(t.label,
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
