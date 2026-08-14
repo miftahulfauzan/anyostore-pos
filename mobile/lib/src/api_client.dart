@@ -401,16 +401,26 @@ class ApiClient {
   Future<Map<String, dynamic>> commissionMine({
     required String start,
     required String end,
+    int? branchId,
   }) async {
-    final res = await get('/commissions/mine', {'start': start, 'end': end});
+    final res = await get('/commissions/mine', {
+      'start': start,
+      'end': end,
+      if (branchId != null) 'branch_id': '$branchId',
+    });
     return (res['data'] as Map<String, dynamic>?) ?? {};
   }
 
   Future<Map<String, dynamic>> commissionReport({
     required String start,
     required String end,
+    int? branchId,
   }) async {
-    final res = await get('/commissions/report', {'start': start, 'end': end});
+    final res = await get('/commissions/report', {
+      'start': start,
+      'end': end,
+      if (branchId != null) 'branch_id': '$branchId',
+    });
     return (res['data'] as Map<String, dynamic>?) ?? {};
   }
 

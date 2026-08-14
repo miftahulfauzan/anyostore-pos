@@ -25,6 +25,10 @@ class _CommissionsPageState extends State<CommissionsPage> {
   String? _error;
   bool _generating = false;
   String _preset = 'bulan';
+  String? _customStart;
+  String? _customEnd;
+  List<Map<String, dynamic>> _branches = [];
+  int? _branchId;
 
   bool get _isOwner => widget.role == 'owner';
   List<String> get _tabs =>
@@ -34,13 +38,51 @@ class _CommissionsPageState extends State<CommissionsPage> {
     final now = DateTime.now().toUtc().add(const Duration(hours: 7));
     String d(DateTime x) =>
         '${x.year.toString().padLeft(4, '0')}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
-    if (_preset == '7d') {
-      return (d(now.subtract(const Duration(days: 6))), d(now));
+    switch (_preset) {
+      case 'today':
+        return (d(now), d(now));
+      case 'yesterday':
+        final y = now.subtract(const Duration(days: 1));
+        return (d(y), d(y));
+      case '7d':
+        return (d(now.subtract(const Duration(days: 6))), d(now));
+      case '30d':
+        return (d(now.subtract(const Duration(days: 29))), d(now));
+      case 'lastmonth':
+        final first = DateTime(now.year, now.month - 1, 1);
+        final last = DateTime(now.year, now.month, 0);
+        return (d(first), d(last));
+      case 'custom':
+        return (_customStart ?? d(now), _customEnd ?? d(now));
+      default:
+        return (
+          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-01',
+          d(now)
+        );
     }
-    return (
-      '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-01',
-      d(now)
+  }
+
+  Future<void> _pickDate(bool start) async {
+    final initial = DateTime.tryParse(
+            start ? (_customStart ?? '') : (_customEnd ?? '')) ??
+        DateTime.now().toUtc().add(const Duration(hours: 7));
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().toUtc().add(const Duration(hours: 7)),
     );
+    if (picked == null) return;
+    String d(DateTime x) =>
+        '${x.year.toString().padLeft(4, '0')}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
+    setState(() {
+      if (start) {
+        _customStart = d(picked);
+      } else {
+        _customEnd = d(picked);
+      }
+    });
+    _load();
   }
 
   @override
@@ -56,13 +98,24 @@ class _CommissionsPageState extends State<CommissionsPage> {
       _error = null;
     });
     try {
+      if (_isOwner && _branches.isEmpty) {
+        try {
+          _branches =
+              (await widget.api.branches()).cast<Map<String, dynamic>>();
+          _branchId ??= _branches.isEmpty
+              ? null
+              : int.tryParse('${_branches.first['id']}');
+        } catch (_) {}
+      }
       final (start, end) = _range;
       if (_tab == 'saya') {
-        final data = await widget.api.commissionMine(start: start, end: end);
+        final data = await widget.api
+            .commissionMine(start: start, end: end, branchId: _branchId);
         if (!mounted) return;
         setState(() => _mine = data);
       } else if (_tab == 'report') {
-        final data = await widget.api.commissionReport(start: start, end: end);
+        final data = await widget.api
+            .commissionReport(start: start, end: end, branchId: _branchId);
         if (!mounted) return;
         setState(() => _report = data);
       } else {
@@ -251,39 +304,110 @@ class _CommissionsPageState extends State<CommissionsPage> {
         if (_tab == 'saya' || _tab == 'report')
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _preset,
+                if (_isOwner && _branches.isNotEmpty && _tab == 'report')
+                  DropdownButtonFormField<int?>(
+                    initialValue: _branchId,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                         isDense: true,
-                        labelText: 'Periode',
+                        labelText: 'Toko',
                         border: OutlineInputBorder()),
-                    items: const [
-                      DropdownMenuItem(
-                          value: 'bulan', child: Text('Bulan ini')),
-                      DropdownMenuItem(value: '7d', child: Text('7 hari')),
+                    items: [
+                      const DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text('Cabang default saya')),
+                      for (final b in _branches)
+                        DropdownMenuItem<int?>(
+                            value: int.tryParse('${b['id']}'),
+                            child: Text(b['name']?.toString() ?? '')),
                     ],
                     onChanged: (v) {
-                      setState(() => _preset = v ?? 'bulan');
+                      setState(() => _branchId = v);
                       _load();
                     },
                   ),
-                ),
-                if (_tab == 'report') ...[
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: _generating ? null : _generate,
-                      icon: _generating
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.play_arrow),
-                      label: const Text('Generate'),
+                if (_isOwner && _branches.isNotEmpty && _tab == 'report')
+                  const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _preset,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                            isDense: true,
+                            labelText: 'Periode',
+                            border: OutlineInputBorder()),
+                        items: const [
+                          DropdownMenuItem(
+                              value: 'today', child: Text('Hari ini')),
+                          DropdownMenuItem(
+                              value: 'yesterday', child: Text('Kemarin')),
+                          DropdownMenuItem(
+                              value: '7d', child: Text('7 hari terakhir')),
+                          DropdownMenuItem(
+                              value: '30d', child: Text('30 hari terakhir')),
+                          DropdownMenuItem(
+                              value: 'bulan', child: Text('Bulan ini')),
+                          DropdownMenuItem(
+                              value: 'lastmonth', child: Text('Bulan lalu')),
+                          DropdownMenuItem(
+                              value: 'custom', child: Text('Rentang custom')),
+                        ],
+                        onChanged: (v) {
+                          setState(() => _preset = v ?? 'bulan');
+                          _load();
+                        },
+                      ),
                     ),
+                    if (_tab == 'report') ...[
+                      const SizedBox(width: 10),
+                      FilledButton.icon(
+                        onPressed: _generating ? null : _generate,
+                        icon: _generating
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.play_arrow),
+                        label: const Text('Generate'),
+                      ),
+                    ],
+                  ],
+                ),
+                if (_preset == 'custom') ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          readOnly: true,
+                          onTap: () => _pickDate(true),
+                          controller: TextEditingController(
+                              text: _customStart ?? ''),
+                          decoration: const InputDecoration(
+                              isDense: true,
+                              labelText: 'Dari',
+                              border: OutlineInputBorder()),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          readOnly: true,
+                          onTap: () => _pickDate(false),
+                          controller: TextEditingController(
+                              text: _customEnd ?? ''),
+                          decoration: const InputDecoration(
+                              isDense: true,
+                              labelText: 'Sampai',
+                              border: OutlineInputBorder()),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ],
