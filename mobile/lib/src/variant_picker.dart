@@ -163,6 +163,8 @@ class _QtyFieldState extends State<_QtyField> {
         controller: _c,
         focusNode: _fn,
         keyboardType: TextInputType.number,
+        textInputAction: TextInputAction.done,
+        onSubmitted: (_) => _fn.unfocus(),
         textAlign: TextAlign.center,
         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
         decoration: InputDecoration(

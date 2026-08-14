@@ -1274,6 +1274,8 @@ class _QtyInputState extends State<_QtyInput> {
         controller: _c,
         focusNode: _fn,
         keyboardType: TextInputType.number,
+        textInputAction: TextInputAction.done,
+        onSubmitted: (_) => _fn.unfocus(),
         textAlign: TextAlign.center,
         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
         decoration: InputDecoration(
@@ -1373,6 +1375,7 @@ class _CartSheetState extends State<_CartSheet> {
     final hasExtra = customerName.isNotEmpty || widget.promoCode.isNotEmpty;
     final totalPcs = cart.fold<int>(0, (sum, c) => sum + c.qty);
 
+    final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
     // Geser sheet ke atas saat keyboard muncul supaya Bayar tidak tertutup.
     return AnimatedPadding(
       duration: const Duration(milliseconds: 180),
@@ -1395,6 +1398,12 @@ class _CartSheetState extends State<_CartSheet> {
                             .titleMedium
                             ?.copyWith(fontWeight: FontWeight.w800)),
                   ),
+                  if (keyboardOpen)
+                    TextButton(
+                      onPressed: () =>
+                          FocusManager.instance.primaryFocus?.unfocus(),
+                      child: const Text('Selesai'),
+                    ),
                   TextButton.icon(
                     onPressed: () =>
                         setState(() => _showOptions = !_showOptions),
