@@ -71,6 +71,28 @@ class _HistoryTabState extends State<HistoryTab> {
         String d(DateTime x) =>
             '${x.year.toString().padLeft(4, '0')}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
         return (d(start), d(now));
+      case 'kemarin':
+        final now = DateTime.now().toUtc().add(const Duration(hours: 7));
+        String d(DateTime x) =>
+            '${x.year.toString().padLeft(4, '0')}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
+        final y = now.subtract(const Duration(days: 1));
+        return (d(y), d(y));
+      case 'bulan':
+        final now = DateTime.now().toUtc().add(const Duration(hours: 7));
+        String d(DateTime x) =>
+            '${x.year.toString().padLeft(4, '0')}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
+        return (
+          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-01',
+          d(now)
+        );
+      case 'bulan_lalu':
+        final now = DateTime.now().toUtc().add(const Duration(hours: 7));
+        String d(DateTime x) =>
+            '${x.year.toString().padLeft(4, '0')}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
+        final firstThis = DateTime(now.year, now.month, 1);
+        final lastLast = firstThis.subtract(const Duration(days: 1));
+        final firstLast = DateTime(lastLast.year, lastLast.month, 1);
+        return (d(firstLast), d(lastLast));
       case 'all':
         return (null, null);
       default:
@@ -589,6 +611,13 @@ class _HistoryTabState extends State<HistoryTab> {
                                     value: '7d', child: Text('7 hari')),
                                 DropdownMenuItem(
                                     value: '30d', child: Text('30 hari')),
+                                DropdownMenuItem(
+                                    value: 'kemarin', child: Text('Kemarin')),
+                                DropdownMenuItem(
+                                    value: 'bulan', child: Text('Bulan ini')),
+                                DropdownMenuItem(
+                                    value: 'bulan_lalu',
+                                    child: Text('Bulan kemarin')),
                                 DropdownMenuItem(
                                     value: 'all', child: Text('Semua')),
                               ],
