@@ -29,40 +29,48 @@ class _InventoryPageState extends State<InventoryPage> {
         children: [
           const Positioned.fill(child: SoftBlobs()),
           Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-          child: PillTabs(
-            tabs: const [
-              (value: 'stok', icon: Icons.inventory_2, label: 'Stok'),
-              (value: 'mutasi', icon: Icons.swap_vert, label: 'Mutasi'),
-              (value: 'transfer', icon: Icons.swap_horiz, label: 'Transfer'),
-              (value: 'opname', icon: Icons.fact_check, label: 'Opname'),
-              (value: 'barcode', icon: Icons.qr_code_scanner, label: 'Barcode'),
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                child: PillTabs(
+                  tabs: const [
+                    (value: 'stok', icon: Icons.inventory_2, label: 'Stok'),
+                    (value: 'mutasi', icon: Icons.swap_vert, label: 'Mutasi'),
+                    (
+                      value: 'transfer',
+                      icon: Icons.swap_horiz,
+                      label: 'Transfer'
+                    ),
+                    (value: 'opname', icon: Icons.fact_check, label: 'Opname'),
+                    (
+                      value: 'barcode',
+                      icon: Icons.qr_code_scanner,
+                      label: 'Barcode'
+                    ),
+                  ],
+                  selected: _section,
+                  onChanged: (v) => setState(() => _section = v),
+                ),
+              ),
+              Expanded(
+                child: switch (_section) {
+                  'stok' => _StockSection(
+                      api: widget.api,
+                      branchId: widget.branchId,
+                      isOwner: widget.isOwner),
+                  'mutasi' =>
+                    _MutasiSection(api: widget.api, branchId: widget.branchId),
+                  'transfer' => _TransferSection(
+                      api: widget.api,
+                      branchId: widget.branchId,
+                      isOwner: widget.isOwner),
+                  'opname' =>
+                    _OpnameSection(api: widget.api, branchId: widget.branchId),
+                  _ => _BarcodeSection(api: widget.api),
+                },
+              ),
             ],
-            selected: _section,
-            onChanged: (v) => setState(() => _section = v),
           ),
-        ),
-        Expanded(
-          child: switch (_section) {
-            'stok' => _StockSection(
-                api: widget.api,
-                branchId: widget.branchId,
-                isOwner: widget.isOwner),
-            'mutasi' =>
-              _MutasiSection(api: widget.api, branchId: widget.branchId),
-            'transfer' => _TransferSection(
-                api: widget.api,
-                branchId: widget.branchId,
-                isOwner: widget.isOwner),
-            'opname' =>
-              _OpnameSection(api: widget.api, branchId: widget.branchId),
-            _ => _BarcodeSection(api: widget.api),
-          },
-        ),
-      ],
-      ),
         ],
       ),
     );
@@ -89,12 +97,40 @@ class _StockSectionState extends State<_StockSection> {
   Map<String, dynamic> _summary = {};
   bool _loading = true;
   String? _error;
+  bool _grid = false; // false = card (list), true = grid
+  String _sort = 'nama'; // nama | nama_desc | stok_asc | stok_desc
 
   @override
   void initState() {
     super.initState();
     _loadBranches();
     _load();
+  }
+
+  List<Map<String, dynamic>> get _sorted {
+    final rows = List<Map<String, dynamic>>.of(_rows);
+    switch (_sort) {
+      case 'nama_desc':
+        rows.sort((a, b) => (b['name'] ?? '')
+            .toString()
+            .toLowerCase()
+            .compareTo((a['name'] ?? '').toString().toLowerCase()));
+        break;
+      case 'stok_asc':
+        rows.sort((a, b) =>
+            asNum(a['total_stock']).compareTo(asNum(b['total_stock'])));
+        break;
+      case 'stok_desc':
+        rows.sort((a, b) =>
+            asNum(b['total_stock']).compareTo(asNum(a['total_stock'])));
+        break;
+      default:
+        rows.sort((a, b) => (a['name'] ?? '')
+            .toString()
+            .toLowerCase()
+            .compareTo((b['name'] ?? '').toString().toLowerCase()));
+    }
+    return rows;
   }
 
   Future<void> _loadBranches() async {
@@ -159,8 +195,7 @@ class _StockSectionState extends State<_StockSection> {
                   _branchMode = v ?? 'this';
                   _branchId = _branchMode == 'all'
                       ? null
-                      : int.tryParse(
-                          _branchMode.replaceFirst('branch-', ''));
+                      : int.tryParse(_branchMode.replaceFirst('branch-', ''));
                 });
                 _load();
               },
@@ -176,6 +211,56 @@ class _StockSectionState extends State<_StockSection> {
                 hintText: 'Cari produk / SKU',
                 border: OutlineInputBorder()),
             onSubmitted: (_) => _load(),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  initialValue: _sort,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                      isDense: true,
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder()),
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'nama', child: Text('Urut: Nama A–Z')),
+                    DropdownMenuItem(
+                        value: 'nama_desc', child: Text('Urut: Nama Z–A')),
+                    DropdownMenuItem(
+                        value: 'stok_asc', child: Text('Urut: Stok terendah')),
+                    DropdownMenuItem(
+                        value: 'stok_desc',
+                        child: Text('Urut: Stok tertinggi')),
+                  ],
+                  onChanged: (v) => setState(() => _sort = v ?? 'nama'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(
+                      value: false,
+                      icon: Icon(Icons.view_list, size: 15),
+                      label: Text('Card')),
+                  ButtonSegment(
+                      value: true,
+                      icon: Icon(Icons.grid_view, size: 15),
+                      label: Text('Grid')),
+                ],
+                selected: {_grid},
+                onSelectionChanged: (v) => setState(() => _grid = v.first),
+                showSelectedIcon: false,
+                style: const ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ],
           ),
         ),
         Padding(
@@ -203,45 +288,112 @@ class _StockSectionState extends State<_StockSection> {
                   ? Center(child: Text(_error!))
                   : _rows.isEmpty
                       ? const Center(child: Text('Tidak ada produk'))
-                      : ListView.separated(
-                          padding:
-                              const EdgeInsets.fromLTRB(12, 0, 12, 104),
-                          itemCount: _rows.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 8),
-                          itemBuilder: (_, i) {
-                            final r = _rows[i];
-                            final low = asNum(r['total_stock']) <=
-                                asNum(r['min_stock']);
-                            return GlassCard(
-                              padding: EdgeInsets.zero,
-                              child: ListTile(
-                                title: Text(r['name']?.toString() ?? '',
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w700)),
-                                subtitle: Text(
-                                    '${r['sku'] ?? ''} · ${r['colors'] ?? ''}${r['branch_name'] != null ? ' · ${r['branch_name']}' : ''}'),
-                                trailing: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text('Stok ${r['total_stock'] ?? 0}',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.w800,
-                                            color: low
-                                                ? Theme.of(context)
-                                                    .colorScheme
-                                                    .error
-                                                : null)),
-                                    if (low)
-                                      Text('min ${r['min_stock'] ?? 0}',
-                                          style: const TextStyle(fontSize: 11)),
-                                  ],
-                                ),
+                      : _grid
+                          ? GridView.builder(
+                              padding:
+                                  const EdgeInsets.fromLTRB(12, 0, 12, 104),
+                              itemCount: _sorted.length,
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 10,
+                                crossAxisSpacing: 10,
+                                childAspectRatio: 1.35,
                               ),
-                            );
-                          },
-                        ),
+                              itemBuilder: (_, i) {
+                                final r = _sorted[i];
+                                final low = asNum(r['total_stock']) <=
+                                    asNum(r['min_stock']);
+                                return GlassCard(
+                                  padding: const EdgeInsets.all(12),
+                                  radius: 18,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(r['name']?.toString() ?? '',
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700)),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                          '${r['sku'] ?? ''}${r['colors'] != null && r['colors'] != '' ? ' · ${r['colors']}' : ''}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                              fontSize: 10,
+                                              color: Color(0xff8A857C))),
+                                      const Spacer(),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                                'Stok ${r['total_stock'] ?? 0}',
+                                                style: TextStyle(
+                                                    fontWeight: FontWeight.w800,
+                                                    fontSize: 14,
+                                                    color: low
+                                                        ? Theme.of(context)
+                                                            .colorScheme
+                                                            .error
+                                                        : null)),
+                                          ),
+                                          if (low)
+                                            Text('min ${r['min_stock'] ?? 0}',
+                                                style: const TextStyle(
+                                                    fontSize: 10,
+                                                    color: Color(0xffB0563A))),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            )
+                          : ListView.separated(
+                              padding:
+                                  const EdgeInsets.fromLTRB(12, 0, 12, 104),
+                              itemCount: _sorted.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 8),
+                              itemBuilder: (_, i) {
+                                final r = _sorted[i];
+                                final low = asNum(r['total_stock']) <=
+                                    asNum(r['min_stock']);
+                                return GlassCard(
+                                  padding: EdgeInsets.zero,
+                                  child: ListTile(
+                                    title: Text(r['name']?.toString() ?? '',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w700)),
+                                    subtitle: Text(
+                                        '${r['sku'] ?? ''} · ${r['colors'] ?? ''}${r['branch_name'] != null ? ' · ${r['branch_name']}' : ''}'),
+                                    trailing: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        Text('Stok ${r['total_stock'] ?? 0}',
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                color: low
+                                                    ? Theme.of(context)
+                                                        .colorScheme
+                                                        .error
+                                                    : null)),
+                                        if (low)
+                                          Text('min ${r['min_stock'] ?? 0}',
+                                              style: const TextStyle(
+                                                  fontSize: 11)),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
         ),
       ],
     );
@@ -406,8 +558,7 @@ class _MutasiSectionState extends State<_MutasiSection> {
                   : _rows.isEmpty
                       ? const Center(child: Text('Belum ada mutasi hari ini'))
                       : ListView.separated(
-                          padding:
-                              const EdgeInsets.fromLTRB(12, 12, 12, 104),
+                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 104),
                           itemCount: _rows.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 8),
@@ -446,7 +597,7 @@ class _MutasiSectionState extends State<_MutasiSection> {
                         ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 104),
           child: FilledButton.icon(
             onPressed: _openForm,
             style: FilledButton.styleFrom(
@@ -949,8 +1100,7 @@ class _TransferSectionState extends State<_TransferSection> {
                   for (final t in _targets)
                     DropdownMenuItem<String>(
                         value: '${t['warehouse_id']}',
-                        child: Text(
-                            '${t['name']} · ${t['warehouse_name']}')),
+                        child: Text('${t['name']} · ${t['warehouse_name']}')),
                 ],
                 onChanged: (v) => setState(() => _to = v ?? ''),
               ),
@@ -1058,8 +1208,7 @@ class _OpnameSectionState extends State<_OpnameSection> {
   }
 
   Future<void> _editItem(Map<String, dynamic> item) async {
-    final ctrl =
-        TextEditingController(text: '${item['physical_stock'] ?? 0}');
+    final ctrl = TextEditingController(text: '${item['physical_stock'] ?? 0}');
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1069,8 +1218,7 @@ class _OpnameSectionState extends State<_OpnameSection> {
           autofocus: true,
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(
-              labelText: 'Stok fisik (dihitung)',
-              border: OutlineInputBorder()),
+              labelText: 'Stok fisik (dihitung)', border: OutlineInputBorder()),
         ),
         actions: [
           TextButton(
@@ -1418,8 +1566,7 @@ class _BarcodeSectionState extends State<_BarcodeSection> {
                   : _rows.isEmpty
                       ? const Center(child: Text('Tidak ada item barcode'))
                       : ListView.separated(
-                          padding:
-                              const EdgeInsets.fromLTRB(12, 12, 12, 104),
+                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 104),
                           itemCount: _rows.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 8),

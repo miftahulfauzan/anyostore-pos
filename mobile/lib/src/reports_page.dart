@@ -88,10 +88,6 @@ class _ReportsPageState extends State<ReportsPage> {
       }
       Map<String, dynamic> data;
       switch (_section) {
-        case 'penjualan':
-          data = await widget.api
-              .reportSales(start: start, end: end, branchId: _branchId);
-          break;
         case 'penutupan':
           // Penutupan hanya untuk hari ini (tanpa rentang).
           data = await widget.api
@@ -145,11 +141,6 @@ class _ReportsPageState extends State<ReportsPage> {
                       value: 'ringkasan',
                       icon: Icons.dashboard_outlined,
                       label: 'Ringkasan'
-                    ),
-                    (
-                      value: 'penjualan',
-                      icon: Icons.trending_up,
-                      label: 'Penjualan'
                     ),
                     (
                       value: 'penutupan',
@@ -288,18 +279,6 @@ class _ReportsPageState extends State<ReportsPage> {
     row([]);
     final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
     switch (_section) {
-      case 'penjualan':
-        row(['Transaksi', '${summary['transactions'] ?? 0}']);
-        row(['Penjualan bersih', fmtRp(asNum(summary['gross_sales']))]);
-        row(['Diskon', fmtRp(asNum(summary['discounts']))]);
-        for (final p in ((_data?['payments'] as List?) ?? [])
-            .cast<Map<String, dynamic>>()) {
-          row([
-            'Metode',
-            (p['payment_method'] ?? '').toString().toUpperCase(),
-            fmtRp(asNum(p['amount']))
-          ]);
-        }
       case 'penutupan':
         row(['Tanggal', (_data?['date'] ?? '').toString()]);
         row(['Total struk', '${_data?['receipt_count'] ?? 0}']);
