@@ -558,95 +558,102 @@ class _PosPageState extends State<PosPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.55,
-        minChildSize: 0.38,
-        maxChildSize: 1.0,
-        builder: (context, scrollController) => StatefulBuilder(
-          builder: (context, setSheetState) {
-            _sheetRefresh = setSheetState;
-            return ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(24)),
-              child: Material(
-                color: Theme.of(context).colorScheme.surface,
-                child: _CartSheet(
-                  scrollController: scrollController,
-                  cart: _cart,
-                  customers: _customers,
-                  customerId: _customerId,
-                  promoCode: _promoCode,
-                  preview: _preview,
-                  error: _cartError,
-                  saving: _saving,
-                  onCustomerChanged: (id) {
-                    setState(() => _customerId = id);
-                    _sheetRefresh?.call(() {});
-                    _schedulePreview();
-                  },
-                  onPromoChanged: (code) {
-                    setState(() => _promoCode = code);
-                    _sheetRefresh?.call(() {});
-                    _schedulePreview();
-                  },
-                  onQtyChanged: (item, delta) {
-                    setState(() => item.qty = math.max(1, item.qty + delta));
-                    _sheetRefresh?.call(() {});
-                    _schedulePreview();
-                  },
-                  onQtySet: (item, value) {
-                    setState(() => item.qty = math.max(1, value));
-                    _sheetRefresh?.call(() {});
-                    _schedulePreview();
-                  },
-                  onHold: _holdCart,
-                  onResume: _resumeCart,
-                  onRemove: (item) {
-                    setState(() => _cart.remove(item));
-                    _sheetRefresh?.call(() {});
-                    _schedulePreview();
-                  },
-                  onEditPrice: (item) async {
-                    final controller = TextEditingController(
-                        text: item.priceOverride?.toStringAsFixed(0) ??
-                            item.price.toStringAsFixed(0));
-                    final result = await showDialog<double>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Ubah harga'),
-                        content: TextField(
-                          controller: controller,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(prefixText: 'Rp '),
-                        ),
-                        actions: [
-                          TextButton(
-                              onPressed: () => Navigator.pop(ctx),
-                              child: const Text('Batal')),
-                          FilledButton(
-                            onPressed: () => Navigator.pop(
-                                ctx,
-                                double.tryParse(
-                                    controller.text.replaceAll('.', ''))),
-                            child: const Text('Simpan'),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (result != null) {
-                      setState(() => item.priceOverride = result);
+      builder: (sheetCtx) {
+        // Maksimal tinggi sheet berhenti di bawah Dynamic Island / status bar
+        // (khusus iPhone; aman juga di HP lain).
+        final topRatio = MediaQuery.of(sheetCtx).padding.top /
+            MediaQuery.of(sheetCtx).size.height;
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.55,
+          minChildSize: 0.38,
+          maxChildSize: (1 - topRatio).clamp(0.6, 1.0),
+          builder: (context, scrollController) => StatefulBuilder(
+            builder: (context, setSheetState) {
+              _sheetRefresh = setSheetState;
+              return ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(24)),
+                child: Material(
+                  color: Theme.of(context).colorScheme.surface,
+                  child: _CartSheet(
+                    scrollController: scrollController,
+                    cart: _cart,
+                    customers: _customers,
+                    customerId: _customerId,
+                    promoCode: _promoCode,
+                    preview: _preview,
+                    error: _cartError,
+                    saving: _saving,
+                    onCustomerChanged: (id) {
+                      setState(() => _customerId = id);
                       _sheetRefresh?.call(() {});
                       _schedulePreview();
-                    }
-                  },
-                  onPay: () => _checkout(),
+                    },
+                    onPromoChanged: (code) {
+                      setState(() => _promoCode = code);
+                      _sheetRefresh?.call(() {});
+                      _schedulePreview();
+                    },
+                    onQtyChanged: (item, delta) {
+                      setState(() => item.qty = math.max(1, item.qty + delta));
+                      _sheetRefresh?.call(() {});
+                      _schedulePreview();
+                    },
+                    onQtySet: (item, value) {
+                      setState(() => item.qty = math.max(1, value));
+                      _sheetRefresh?.call(() {});
+                      _schedulePreview();
+                    },
+                    onHold: _holdCart,
+                    onResume: _resumeCart,
+                    onRemove: (item) {
+                      setState(() => _cart.remove(item));
+                      _sheetRefresh?.call(() {});
+                      _schedulePreview();
+                    },
+                    onEditPrice: (item) async {
+                      final controller = TextEditingController(
+                          text: item.priceOverride?.toStringAsFixed(0) ??
+                              item.price.toStringAsFixed(0));
+                      final result = await showDialog<double>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Ubah harga'),
+                          content: TextField(
+                            controller: controller,
+                            keyboardType: TextInputType.number,
+                            decoration:
+                                const InputDecoration(prefixText: 'Rp '),
+                          ),
+                          actions: [
+                            TextButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: const Text('Batal')),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(
+                                  ctx,
+                                  double.tryParse(
+                                      controller.text.replaceAll('.', ''))),
+                              child: const Text('Simpan'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (result != null) {
+                        setState(() => item.priceOverride = result);
+                        _sheetRefresh?.call(() {});
+                        _schedulePreview();
+                      }
+                    },
+                    onPay: () => _checkout(),
+                  ),
                 ),
-              ),
-            );
-          },
-        ),
-      ),
+              );
+            },
+          ),
+        );
+      },
     );
     _sheetRefresh = null;
   }
@@ -1690,9 +1697,6 @@ class _CartSheetState extends State<_CartSheet> {
               Text('Total pcs: $totalPcs pcs',
                   style: const TextStyle(fontWeight: FontWeight.w700)),
               if (discount > 0) Text('Diskon: -${fmtRp(discount)}'),
-              Text('Total: ${fmtRp(grandTotal)}',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w800, fontSize: 16)),
               if (widget.error != null) ...[
                 const SizedBox(height: 6),
                 Text(widget.error!,
@@ -1700,16 +1704,19 @@ class _CartSheetState extends State<_CartSheet> {
                         TextStyle(color: Theme.of(context).colorScheme.error)),
               ],
               const SizedBox(height: 10),
+              // Tombol bayar = jumlah total orderan (tap tetap lanjut bayar).
               FilledButton(
                 style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(50)),
+                    minimumSize: const Size.fromHeight(52)),
                 onPressed: widget.saving || cart.isEmpty ? null : widget.onPay,
                 child: widget.saving
                     ? const SizedBox(
                         width: 22,
                         height: 22,
                         child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Bayar'),
+                    : Text(fmtRp(grandTotal),
+                        style: const TextStyle(
+                            fontSize: 17, fontWeight: FontWeight.w800)),
               ),
             ],
           ),
