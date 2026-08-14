@@ -1477,54 +1477,53 @@ svg { max-width: 100%; }
   .link-option { transition: none; }
 }
 
-/* ===== Sidebar (mode terang) — denim gelap senada dengan brand ===== */
+/* ===== Sidebar — slate gelap netral, teks putih kontras tinggi ===== */
 .sidebar,
 html[data-theme="green"] .sidebar,
 html[data-theme="blue"] .sidebar,
 html[data-theme="purple"] .sidebar {
-  background: linear-gradient(180deg, #1f3d63 0%, #172c4d 100%) !important;
-  color: #eef4fb !important;
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%) !important;
+  color: #f8fafc !important;
   border: 1px solid rgba(255,255,255,.08) !important;
-  box-shadow: 0 8px 28px rgba(15,23,42,.22) !important;
+  box-shadow: 0 8px 28px rgba(15,23,42,.26) !important;
 }
-html[data-theme="green"] .sidebar { background: linear-gradient(180deg, #166534 0%, #0f4726 100%) !important; }
-html[data-theme="blue"] .sidebar { background: linear-gradient(180deg, #1d5fa8 0%, #163f73 100%) !important; }
-html[data-theme="purple"] .sidebar { background: linear-gradient(180deg, #6b3fa0 0%, #47266f 100%) !important; }
 .sidebar .brand { color: #fff !important; }
-.sidebar .brand small { color: rgba(255,255,255,.62) !important; }
-.sidebar .brand-mark { border-color: rgba(255,255,255,.28) !important; background: #fff !important; color: #1e3a5f !important; }
-.sidebar .collapse-toggle { border: 1px solid rgba(255,255,255,.22) !important; background: rgba(255,255,255,.08) !important; color: #e2e8f0 !important; }
-.sidebar .collapse-toggle:hover { background: rgba(255,255,255,.16) !important; color: #fff !important; border-color: rgba(255,255,255,.35) !important; }
-.sidebar .nav-group-toggle { color: rgba(255,255,255,.62) !important; }
+.sidebar .brand small { color: #94a3b8 !important; }
+.sidebar .brand-mark { border-color: rgba(255,255,255,.22) !important; background: #2563eb !important; color: #fff !important; box-shadow: 3px 3px 0 rgba(96,165,250,.4) !important; }
+.sidebar .collapse-toggle { border: 1px solid #334155 !important; background: rgba(255,255,255,.06) !important; color: #e2e8f0 !important; }
+.sidebar .collapse-toggle:hover { background: rgba(255,255,255,.14) !important; color: #fff !important; border-color: #475569 !important; }
+.sidebar .nav-group-toggle { color: #cbd5e1 !important; }
 .sidebar .nav-group-toggle:hover { background: rgba(255,255,255,.08) !important; color: #fff !important; }
-.sidebar .side-nav a { color: rgba(255,255,255,.8) !important; }
-.sidebar .side-nav a svg { color: rgba(255,255,255,.55) !important; }
-.sidebar .side-nav a:hover { background: rgba(255,255,255,.1) !important; color: #fff !important; }
+.sidebar .side-nav a { color: #e2e8f0 !important; }
+.sidebar .side-nav a svg { color: #94a3b8 !important; }
+.sidebar .side-nav a:hover { background: rgba(255,255,255,.09) !important; color: #fff !important; }
 .sidebar .side-nav a:hover svg { color: #fff !important; }
-.sidebar .side-nav a.active { background: rgba(255,255,255,.16) !important; box-shadow: inset 3px 0 #fff !important; color: #fff !important; }
+.sidebar .side-nav a.active { background: #2563eb !important; box-shadow: inset 3px 0 #fff, 0 3px 8px rgba(37,99,235,.35) !important; color: #fff !important; }
 .sidebar .side-nav a.active svg { color: #fff !important; }
-.sidebar .logout { border-color: rgba(255,255,255,.22) !important; color: rgba(255,255,255,.85) !important; }
+.sidebar .logout { border-color: #475569 !important; color: #e2e8f0 !important; }
 .sidebar .logout:hover:not(:disabled) { border-color: #fca5a5 !important; background: rgba(239,68,68,.22) !important; color: #fff !important; }
-.sidebar .sidebar-footer { color: rgba(255,255,255,.85) !important; border-top-color: rgba(255,255,255,.12) !important; }
-.sidebar .sidebar-footer small { color: rgba(255,255,255,.55) !important; }
+.sidebar .sidebar-footer { color: #e2e8f0 !important; border-top-color: rgba(255,255,255,.12) !important; }
+.sidebar .sidebar-footer small { color: #94a3b8 !important; }
+html[data-theme="green"] .sidebar .side-nav a.active { background: #16a34a !important; box-shadow: inset 3px 0 #fff, 0 3px 8px rgba(22,163,74,.3) !important; }
+html[data-theme="purple"] .sidebar .side-nav a.active { background: #7c3aed !important; box-shadow: inset 3px 0 #fff, 0 3px 8px rgba(124,58,237,.3) !important; }
 .dark .sidebar,
 .dark html[data-theme="green"] .sidebar,
 .dark html[data-theme="blue"] .sidebar,
 .dark html[data-theme="purple"] .sidebar {
-  background: linear-gradient(180deg, #182f52 0%, #0f1b33 100%) !important;
-  color: #e0f2fe !important;
-  border: 1px solid rgba(255,255,255,.07) !important;
-  box-shadow: 0 8px 32px rgba(15,23,42,.24) !important;
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%) !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4) !important;
 }
 .dark .sidebar .brand { color: #fff !important; }
 .dark .sidebar .brand small { color: #94a3b8 !important; }
-.dark .sidebar .brand-mark { background: #fff !important; color: #1e3a5f !important; }
-.dark .sidebar .side-nav a { color: #cbd5e1 !important; }
-.dark .sidebar .side-nav a:hover { color: #fff !important; background: rgba(96,165,250,.12) !important; }
-.dark .sidebar .side-nav a.active { color: #fff !important; background: rgba(96,165,250,.2) !important; }
-.dark .sidebar .nav-group-toggle { color: #94a3b8 !important; }
+.dark .sidebar .brand-mark { background: #2563eb !important; color: #fff !important; }
+.dark .sidebar .side-nav a { color: #e2e8f0 !important; }
+.dark .sidebar .side-nav a:hover { color: #fff !important; background: rgba(255,255,255,.09) !important; }
+.dark .sidebar .side-nav a.active { color: #fff !important; background: #2563eb !important; }
+.dark .sidebar .nav-group-toggle { color: #cbd5e1 !important; }
 .dark .sidebar .nav-group-toggle:hover { color: #fff !important; }
-.dark .sidebar .logout { border-color: #334155 !important; color: #cbd5e1 !important; }
+.dark .sidebar .logout { border-color: #475569 !important; color: #e2e8f0 !important; }
 
 /* ===== Dark mode: konten utama (panel, tabel, form, POS) ===== */
 .dark .app-shell { background: #0f172a; color: #e2e8f0; }
