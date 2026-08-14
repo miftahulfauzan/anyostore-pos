@@ -58,10 +58,14 @@ router.get('/daily-closing', async (req, res, next) => {
        GROUP BY tp.payment_method ORDER BY tp.payment_method`,
       [branchId, date]
     );
+    // Kas masuk/keluar hanya untuk catatan MANUAL. Refund pembatalan &
+    // retur sudah dihitung via payments.cancellations / returns — kalau ikut
+    // dihitung lagi di sini hasilnya minus dua kali (total kasir jadi negatif).
     const [movements] = await db.execute(
       `SELECT COALESCE(SUM(CASE WHEN cdm.type='cash_in' THEN cdm.amount ELSE -cdm.amount END), 0) AS net
        FROM cash_drawer_movements cdm JOIN cash_drawers cd ON cd.id = cdm.cash_drawer_id
-       WHERE cd.branch_id=? AND DATE(cdm.created_at)=?`,
+       WHERE cd.branch_id=? AND DATE(cdm.created_at)=?
+         AND (cdm.reason IS NULL OR (cdm.reason NOT LIKE 'Refund %' AND cdm.reason NOT LIKE 'Retur %'))`,
       [branchId, date]
     );
     const [expenseRows] = await db.execute(
