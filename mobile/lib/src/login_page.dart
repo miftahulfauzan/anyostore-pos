@@ -73,7 +73,10 @@ class _LoginPageState extends State<LoginPage> {
         padding: const EdgeInsets.only(bottom: 6),
         child: RichText(
           text: TextSpan(
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xff334155)),
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xff334155)),
             children: [
               TextSpan(text: text),
               const TextSpan(text: ' *', style: TextStyle(color: _kError)),
@@ -90,122 +93,126 @@ class _LoginPageState extends State<LoginPage> {
         children: [
           const Positioned.fill(child: SoftBlobs()),
           SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 420),
-                    child: GlassCard(
+            child: Column(
+              children: [
+                Expanded(
+                  child: Center(
+                    child: SingleChildScrollView(
                       padding: const EdgeInsets.all(24),
-                      radius: 20,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const Text('Login',
-                              style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w700,
-                                  color: _kInk)),
-                          const SizedBox(height: 4),
-                          const Text(
-                              'Masuk untuk mengakses kasir, stok, dan laporan toko.',
-                              style: TextStyle(fontSize: 12, color: _kMuted)),
-                          const SizedBox(height: 18),
-                          Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xfff4f2ec),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: _kBorder),
-                            ),
-                            child: Row(
-                              children: [
-                                _modeButton(false, 'Password'),
-                                _modeButton(true, 'PIN'),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 420),
+                        child: GlassCard(
+                          padding: const EdgeInsets.all(24),
+                          radius: 20,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const Text('Login',
+                                  style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w700,
+                                      color: _kInk)),
+                              const SizedBox(height: 4),
+                              const Text(
+                                  'Masuk untuk mengakses kasir, stok, dan laporan toko.',
+                                  style:
+                                      TextStyle(fontSize: 12, color: _kMuted)),
+                              const SizedBox(height: 18),
+                              Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xfff4f2ec),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: _kBorder),
+                                ),
+                                child: Row(
+                                  children: [
+                                    _modeButton(false, 'Password'),
+                                    _modeButton(true, 'PIN'),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              _fieldLabel('Email / Username'),
+                              TextField(
+                                controller: _email,
+                                keyboardType: TextInputType.emailAddress,
+                                textInputAction: TextInputAction.next,
+                                decoration: _dec('Email / Username',
+                                    hint: 'email atau username'),
+                              ),
+                              const SizedBox(height: 14),
+                              _fieldLabel(
+                                  _pinMode ? 'PIN (6 digit)' : 'Password'),
+                              TextField(
+                                controller: _secret,
+                                obscureText: !_showSecret,
+                                keyboardType: _pinMode
+                                    ? TextInputType.number
+                                    : TextInputType.text,
+                                maxLength: _pinMode ? 6 : null,
+                                textInputAction: TextInputAction.done,
+                                onSubmitted: (_) => _submit(),
+                                decoration: _dec(
+                                  _pinMode ? 'PIN (6 digit)' : 'Password',
+                                  hint: _pinMode ? '••••••' : '••••••••',
+                                  suffix: _pinMode
+                                      ? null
+                                      : IconButton(
+                                          icon: Icon(
+                                            _showSecret
+                                                ? Icons.visibility_off_outlined
+                                                : Icons.visibility_outlined,
+                                            size: 20,
+                                            color: _kMuted,
+                                          ),
+                                          onPressed: () => setState(
+                                              () => _showSecret = !_showSecret),
+                                        ),
+                                ),
+                              ),
+                              if (_error != null) ...[
+                                const SizedBox(height: 12),
+                                Text(_error!,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                        color: _kError, fontSize: 13)),
                               ],
-                            ),
+                              const SizedBox(height: 20),
+                              FilledButton(
+                                onPressed: _loading ? null : _submit,
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: _kInk,
+                                  foregroundColor: const Color(0xfffcfbf8),
+                                  disabledBackgroundColor:
+                                      _kInk.withValues(alpha: .7),
+                                  minimumSize: const Size.fromHeight(48),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                  textStyle: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                                child: _loading
+                                    ? const SizedBox(
+                                        width: 22,
+                                        height: 22,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Color(0xfffcfbf8)),
+                                      )
+                                    : const Text('Login'),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 16),
-                          _fieldLabel('Email / Username'),
-                          TextField(
-                            controller: _email,
-                            keyboardType: TextInputType.emailAddress,
-                            textInputAction: TextInputAction.next,
-                            decoration: _dec('Email / Username',
-                                hint: 'email atau username'),
-                          ),
-                          const SizedBox(height: 14),
-                          _fieldLabel(_pinMode ? 'PIN (6 digit)' : 'Password'),
-                          TextField(
-                            controller: _secret,
-                            obscureText: !_showSecret,
-                            keyboardType: _pinMode
-                                ? TextInputType.number
-                                : TextInputType.text,
-                            maxLength: _pinMode ? 6 : null,
-                            textInputAction: TextInputAction.done,
-                            onSubmitted: (_) => _submit(),
-                            decoration: _dec(
-                              _pinMode ? 'PIN (6 digit)' : 'Password',
-                              hint: _pinMode ? '••••••' : '••••••••',
-                              suffix: _pinMode
-                                  ? null
-                                  : IconButton(
-                                      icon: Icon(
-                                        _showSecret
-                                            ? Icons.visibility_off_outlined
-                                            : Icons.visibility_outlined,
-                                        size: 20,
-                                        color: _kMuted,
-                                      ),
-                                      onPressed: () => setState(
-                                          () => _showSecret = !_showSecret),
-                                    ),
-                            ),
-                          ),
-                          if (_error != null) ...[
-                            const SizedBox(height: 12),
-                            Text(_error!,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                    color: _kError, fontSize: 13)),
-                          ],
-                          const SizedBox(height: 20),
-                          FilledButton(
-                            onPressed: _loading ? null : _submit,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: _kInk,
-                              foregroundColor: const Color(0xfffcfbf8),
-                              disabledBackgroundColor: _kInk.withValues(alpha: .7),
-                              minimumSize: const Size.fromHeight(48),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
-                              textStyle: const TextStyle(
-                                  fontSize: 14, fontWeight: FontWeight.w600),
-                            ),
-                            child: _loading
-                                ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Color(0xfffcfbf8)),
-                                  )
-                                : const Text('Login'),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
-            ],
           ),
-        ),
         ],
       ),
     );
