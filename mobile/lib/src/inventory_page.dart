@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
@@ -99,17 +100,52 @@ class _StockSectionState extends State<_StockSection> {
   String? _error;
   bool _grid = false; // false = card (list), true = grid
   String _sort = 'nama'; // nama | nama_desc | stok_asc | stok_desc
-  bool _branchOpen = true; // accordion Toko/Gudang (owner)
   bool _searchOpen = false; // accordion Cari (owner)
 
-  String get _branchLabel {
-    if (_branchMode == 'all') return 'Semua toko/gudang';
-    for (final b in _branches) {
-      if (int.tryParse('${b['id']}') == _branchId) {
-        return b['name']?.toString() ?? 'Toko / Gudang';
-      }
-    }
-    return 'Toko / Gudang';
+  String _mediaUrl(String? path) {
+    if (path == null || path.isEmpty) return '';
+    final base = widget.api.baseUrl.split('/api').first;
+    return path.startsWith('http') ? path : base + path;
+  }
+
+  /// Pilih toko/gudang yang ingin dilihat lewat bottom sheet.
+  Future<void> _pickBranch() async {
+    final v = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text('Pilih Toko/Gudang',
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: ink(ctx))),
+            ),
+            for (final b in _branches)
+              ListTile(
+                leading: const Icon(Icons.store, size: 18),
+                title: Text(b['name']?.toString() ?? ''),
+                onTap: () => Navigator.pop(ctx, 'branch-${b['id']}'),
+              ),
+            ListTile(
+              leading: const Icon(Icons.all_inclusive, size: 18),
+              title: const Text('Semua toko/gudang'),
+              onTap: () => Navigator.pop(ctx, 'all'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (v == null || !mounted) return;
+    setState(() {
+      _branchMode = v;
+      _branchId =
+          v == 'all' ? null : int.tryParse(v.replaceFirst('branch-', ''));
+    });
+    _load();
   }
 
   @override
@@ -194,12 +230,12 @@ class _StockSectionState extends State<_StockSection> {
                     Expanded(
                       child: _InvHeaderSegment(
                         icon: Icons.store,
-                        label: _branchLabel,
-                        active: _branchOpen,
-                        onTap: () => setState(() {
-                          _branchOpen = true;
-                          _searchOpen = false;
-                        }),
+                        label: 'Toko / Gudang',
+                        active: false,
+                        onTap: () {
+                          setState(() => _searchOpen = false);
+                          _pickBranch();
+                        },
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -208,43 +244,12 @@ class _StockSectionState extends State<_StockSection> {
                         icon: Icons.search,
                         label: 'Cari produk',
                         active: _searchOpen,
-                        onTap: () => setState(() {
-                          _searchOpen = true;
-                          _branchOpen = false;
-                        }),
+                        onTap: () => setState(() => _searchOpen = !_searchOpen),
                       ),
                     ),
                   ],
                 ),
-                if (_branchOpen) ...[
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: _branchMode,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                        isDense: true,
-                        labelText: 'Toko/Gudang',
-                        border: OutlineInputBorder()),
-                    items: [
-                      for (final b in _branches)
-                        DropdownMenuItem<String>(
-                            value: 'branch-${b['id']}',
-                            child: Text(b['name']?.toString() ?? '')),
-                      const DropdownMenuItem<String>(
-                          value: 'all', child: Text('Semua toko/gudang')),
-                    ],
-                    onChanged: (v) {
-                      setState(() {
-                        _branchMode = v ?? 'this';
-                        _branchId = _branchMode == 'all'
-                            ? null
-                            : int.tryParse(
-                                _branchMode.replaceFirst('branch-', ''));
-                      });
-                      _load();
-                    },
-                  ),
-                ] else if (_searchOpen) ...[
+                if (_searchOpen) ...[
                   const SizedBox(height: 8),
                   TextField(
                     controller: _search,
@@ -300,24 +305,9 @@ class _StockSectionState extends State<_StockSection> {
                 ),
               ),
               const SizedBox(width: 8),
-              SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment(
-                      value: false,
-                      icon: Icon(Icons.view_list, size: 15),
-                      label: Text('Card')),
-                  ButtonSegment(
-                      value: true,
-                      icon: Icon(Icons.grid_view, size: 15),
-                      label: Text('Grid')),
-                ],
-                selected: {_grid},
-                onSelectionChanged: (v) => setState(() => _grid = v.first),
-                showSelectedIcon: false,
-                style: const ButtonStyle(
-                  visualDensity: VisualDensity.compact,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
+              _ViewToggle(
+                grid: _grid,
+                onChanged: (g) => setState(() => _grid = g),
               ),
             ],
           ),
@@ -357,54 +347,99 @@ class _StockSectionState extends State<_StockSection> {
                                 crossAxisCount: 2,
                                 mainAxisSpacing: 10,
                                 crossAxisSpacing: 10,
-                                childAspectRatio: 1.35,
+                                childAspectRatio: 0.8,
                               ),
                               itemBuilder: (_, i) {
                                 final r = _sorted[i];
                                 final low = asNum(r['total_stock']) <=
                                     asNum(r['min_stock']);
+                                final photo =
+                                    _mediaUrl(r['photo_path']?.toString());
                                 return GlassCard(
-                                  padding: const EdgeInsets.all(12),
+                                  padding: EdgeInsets.zero,
                                   radius: 18,
                                   child: Column(
                                     crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                        CrossAxisAlignment.stretch,
                                     children: [
-                                      Text(r['name']?.toString() ?? '',
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w700)),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                          '${r['sku'] ?? ''}${r['colors'] != null && r['colors'] != '' ? ' · ${r['colors']}' : ''}',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                              fontSize: 10,
-                                              color: Color(0xff8A857C))),
-                                      const Spacer(),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                                'Stok ${r['total_stock'] ?? 0}',
-                                                style: TextStyle(
-                                                    fontWeight: FontWeight.w800,
-                                                    fontSize: 14,
-                                                    color: low
-                                                        ? Theme.of(context)
-                                                            .colorScheme
-                                                            .error
-                                                        : null)),
-                                          ),
-                                          if (low)
-                                            Text('min ${r['min_stock'] ?? 0}',
+                                      Expanded(
+                                        child: photo.isEmpty
+                                            ? Container(
+                                                color: const Color(0xffE6ECF3),
+                                                alignment: Alignment.center,
+                                                child: const Icon(
+                                                    Icons.image_not_supported,
+                                                    size: 22,
+                                                    color: Color(0xff9AA5B1)),
+                                              )
+                                            : CachedNetworkImage(
+                                                imageUrl: photo,
+                                                fit: BoxFit.cover,
+                                                memCacheWidth: 420,
+                                                fadeInDuration: Duration.zero,
+                                                fadeOutDuration: Duration.zero,
+                                                placeholder: (_, __) => Container(
+                                                    color:
+                                                        const Color(0xffE6ECF3),
+                                                    child: const Icon(
+                                                        Icons
+                                                            .image_not_supported,
+                                                        size: 22,
+                                                        color:
+                                                            Color(0xff9AA5B1))),
+                                                errorWidget: (_, __, ___) =>
+                                                    Container(
+                                                        color: const Color(
+                                                            0xffE6ECF3),
+                                                        child: const Icon(
+                                                            Icons
+                                                                .image_not_supported,
+                                                            size: 22,
+                                                            color: Color(
+                                                                0xff9AA5B1))),
+                                              ),
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.all(10),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(r['name']?.toString() ?? '',
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
                                                 style: const TextStyle(
-                                                    fontSize: 10,
-                                                    color: Color(0xffB0563A))),
-                                        ],
+                                                    fontSize: 12,
+                                                    fontWeight:
+                                                        FontWeight.w700)),
+                                            const SizedBox(height: 4),
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                      'Stok ${r['total_stock'] ?? 0}',
+                                                      style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.w800,
+                                                          fontSize: 14,
+                                                          color: low
+                                                              ? Theme.of(
+                                                                      context)
+                                                                  .colorScheme
+                                                                  .error
+                                                              : null)),
+                                                ),
+                                                if (low)
+                                                  Text(
+                                                      'min ${r['min_stock'] ?? 0}',
+                                                      style: const TextStyle(
+                                                          fontSize: 10,
+                                                          color: Color(
+                                                              0xffB0563A))),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -421,34 +456,87 @@ class _StockSectionState extends State<_StockSection> {
                                 final r = _sorted[i];
                                 final low = asNum(r['total_stock']) <=
                                     asNum(r['min_stock']);
+                                final photo =
+                                    _mediaUrl(r['photo_path']?.toString());
                                 return GlassCard(
-                                  padding: EdgeInsets.zero,
-                                  child: ListTile(
-                                    title: Text(r['name']?.toString() ?? '',
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w700)),
-                                    subtitle: Text(
-                                        '${r['sku'] ?? ''} · ${r['colors'] ?? ''}${r['branch_name'] != null ? ' · ${r['branch_name']}' : ''}'),
-                                    trailing: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
-                                      children: [
-                                        Text('Stok ${r['total_stock'] ?? 0}',
-                                            style: TextStyle(
-                                                fontWeight: FontWeight.w800,
-                                                color: low
-                                                    ? Theme.of(context)
-                                                        .colorScheme
-                                                        .error
-                                                    : null)),
-                                        if (low)
-                                          Text('min ${r['min_stock'] ?? 0}',
-                                              style: const TextStyle(
-                                                  fontSize: 11)),
-                                      ],
-                                    ),
+                                  padding: const EdgeInsets.all(10),
+                                  radius: 18,
+                                  child: Row(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: SizedBox(
+                                          width: 48,
+                                          height: 48,
+                                          child: photo.isEmpty
+                                              ? const ColoredBox(
+                                                  color: Color(0xffE6ECF3),
+                                                  child: Icon(Icons.inventory_2,
+                                                      color: Color(0xff9AA5B1)),
+                                                )
+                                              : CachedNetworkImage(
+                                                  imageUrl: photo,
+                                                  fit: BoxFit.cover,
+                                                  memCacheWidth: 120,
+                                                  fadeInDuration: Duration.zero,
+                                                  fadeOutDuration:
+                                                      Duration.zero,
+                                                  errorWidget: (_, __, ___) =>
+                                                      const ColoredBox(
+                                                    color: Color(0xffE6ECF3),
+                                                    child: Icon(
+                                                        Icons.inventory_2,
+                                                        color:
+                                                            Color(0xff9AA5B1)),
+                                                  ),
+                                                ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(r['name']?.toString() ?? '',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 13)),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                                '${r['sku'] ?? ''}${r['colors'] != null && r['colors'] != '' ? ' · ${r['colors']}' : ''}${r['branch_name'] != null ? ' · ${r['branch_name']}' : ''}',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                    fontSize: 10.5,
+                                                    color: Color(0xff8A857C))),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                        children: [
+                                          Text('Stok ${r['total_stock'] ?? 0}',
+                                              style: TextStyle(
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 13,
+                                                  color: low
+                                                      ? Theme.of(context)
+                                                          .colorScheme
+                                                          .error
+                                                      : null)),
+                                          if (low)
+                                            Text('min ${r['min_stock'] ?? 0}',
+                                                style: const TextStyle(
+                                                    fontSize: 10,
+                                                    color: Color(0xffB0563A))),
+                                        ],
+                                      ),
+                                    ],
                                   ),
                                 );
                               },
@@ -1708,6 +1796,67 @@ class _InvHeaderSegment extends StatelessWidget {
                         color: fg)),
               ),
               const Icon(Icons.expand_more, size: 18, color: Color(0xff8A857C)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Toggle Card/Grid bergaya pill (senada dengan PillTabs & desain halaman lain).
+class _ViewToggle extends StatelessWidget {
+  const _ViewToggle({required this.grid, required this.onChanged});
+  final bool grid;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      height: 42,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: dark ? const Color(0xff1F2530) : const Color(0xffF0EEE8),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: dark ? const Color(0xff2A3140) : const Color(0xffE7E0D6)),
+      ),
+      child: Row(
+        children: [
+          _opt(Icons.view_agenda_outlined, 'Card', !grid,
+              onTap: () => onChanged(false)),
+          _opt(Icons.grid_view_outlined, 'Grid', grid,
+              onTap: () => onChanged(true)),
+        ],
+      ),
+    );
+  }
+
+  Widget _opt(IconData icon, String label, bool active,
+      {required VoidCallback onTap}) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(11),
+        child: Container(
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: active ? const Color(0xff1E3A5F) : Colors.transparent,
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon,
+                  size: 14,
+                  color: active ? Colors.white : const Color(0xff8A857C)),
+              const SizedBox(width: 4),
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: active ? Colors.white : const Color(0xff8A857C))),
             ],
           ),
         ),
