@@ -1615,3 +1615,33 @@ html[data-theme="purple"] .sidebar .side-nav a.active { background: #7c3aed !imp
 
 /* Native control (date picker, dropdown) ikut mode gelap supaya ikon/tulisan terlihat */
 .dark input, .dark select, .dark textarea, .dark option { color-scheme: dark; }
+
+/* ===== POS standalone & Cetak Penutupan — mode gelap ===== */
+.dark .pos-standalone-header { background: rgba(15,23,42,.96); border-bottom-color: #334155; }
+.dark .pos-standalone-brand { color: #f1f5f9; }
+.dark .pos-standalone-brand small { color: #94a3b8; }
+.dark .pos-standalone-header nav a { background: #1e293b; border-color: #334155; color: #93c5fd; }
+.dark .pos-standalone-header nav button { background: #1e293b; border-color: #475569; color: #fca5a5; }
+.dark .pos-store-context > span { background: #1e293b; color: #93c5fd; }
+.dark .pos-store-context small,
+.dark .pos-store-bar label,
+.dark .pos-customer-select,
+.dark .pos-tier-badge small,
+.dark .price-override,
+.dark .cart-line-total { color: #94a3b8; }
+.dark .tier-badge.retail { background: #334155; color: #e2e8f0; }
+.dark .tier-badge.semi_grosir { background: rgba(217,119,6,.18); color: #fcd34d; }
+.dark .tier-badge.grosir_seri { background: rgba(37,99,235,.18); color: #93c5fd; }
+.dark .cart { background: #1e293b; color: #e2e8f0; }
+.dark .cart-mobile-header { background: #182135; color: #f1f5f9; }
+.dark .cart-lines article { background: #1e293b; color: #e2e8f0; }
+.dark .cart-lines span, .dark .cart-lines article > strong:last-child { color: #e2e8f0; }
+.dark .history-item { border-bottom-color: rgba(148,163,184,.14); }
+.dark .history-item-info strong { color: #f1f5f9; }
+.dark .history-item-info span { color: #94a3b8; }
+.dark .history-item-actions label { color: #94a3b8; }
+.dark .report-brand { background: #1e293b; border-color: rgba(148,163,184,.18); }
+.dark .report-brand strong { color: #f1f5f9; }
+.dark .report-brand span, .dark .report-brand small { color: #94a3b8; }
+.dark .report-brand .report-title { color: #93c5fd; }
+.dark .closing-wrap, .dark .closing-print { color: #e2e8f0; }
