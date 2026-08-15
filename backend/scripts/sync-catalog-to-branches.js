@@ -13,9 +13,29 @@
 const db = require('../src/db');
 const { copyMediaFile } = require('../src/media-storage');
 
-async function findBranch(name) {
-  const [rows] = await db.execute('SELECT id, name, type FROM branches WHERE name = ? AND is_active = TRUE LIMIT 1', [name.trim()]);
-  return rows[0] || null;
+async function findBranch(input) {
+  const q = String(input).trim();
+  // Bisa pakai id atau nama. Kalau nama tidak persis, coba sebagian (LIKE)
+  // supaya "Metro" cocok dengan "Anyostore Metro", dst.
+  if (/^\d+$/.test(q)) {
+    const [rows] = await db.execute('SELECT id, name, type FROM branches WHERE id=? LIMIT 1', [Number(q)]);
+    if (rows[0]) return rows[0];
+  }
+  const [rows] = await db.execute('SELECT id, name, type FROM branches WHERE name = ? LIMIT 1', [q]);
+  if (rows[0]) return rows[0];
+  const [like] = await db.execute(
+    'SELECT id, name, type FROM branches WHERE name LIKE ? ORDER BY is_active DESC, id LIMIT 1',
+    [`%${q}%`]
+  );
+  return like[0] || null;
+}
+
+async function printBranches() {
+  const [all] = await db.execute('SELECT id, name, type, is_active FROM branches ORDER BY id');
+  console.log('Cabang yang tersedia:');
+  for (const b of all) {
+    console.log(`  ${b.id}: ${b.name} (${b.type}, aktif=${Number(b.is_active) === 1 ? 'ya' : 'tidak'})`);
+  }
 }
 
 async function main() {
@@ -30,11 +50,19 @@ async function main() {
   const targets = names.slice(1);
 
   const source = await findBranch(sourceName);
-  if (!source) { console.error(`Cabang sumber tidak ditemukan: ${sourceName}`); process.exit(1); }
+  if (!source) {
+    console.error(`Cabang sumber tidak ditemukan: ${sourceName}`);
+    await printBranches();
+    process.exit(1);
+  }
   const targetBranches = [];
   for (const t of targets) {
     const b = await findBranch(t);
-    if (!b) { console.error(`Cabang target tidak ditemukan: ${t}`); process.exit(1); }
+    if (!b) {
+      console.error(`Cabang target tidak ditemukan: ${t}`);
+      await printBranches();
+      process.exit(1);
+    }
     targetBranches.push(b);
   }
 
@@ -93,7 +121,9 @@ async function main() {
           const [dup] = await connection.execute('SELECT id FROM products WHERE sku=? LIMIT 1', [newSku]);
           if (dup[0]) continue;
         }
-        const newBarcode = null;
+        // Barcode disalin APA ADANYA (boleh sama di semua cabang —
+        // unique constraint produk sudah dihapus lewat migrasi barcode_multi_branch).
+        const newBarcode = p.barcode || null;
         const [res] = await connection.execute(
           `INSERT INTO products (branch_id, category_id, name, description, sku, barcode, price, cost, stock, min_stock, gender, is_active)
            VALUES (?,?,?,?,?,?,?,?,?,?,?,TRUE)`,
@@ -109,7 +139,7 @@ async function main() {
         for (const v of variants) {
           const [vr] = await connection.execute(
             'INSERT INTO product_variants (product_id, size, color, sku, barcode, stock, price, is_active) VALUES (?,?,?,?,?,?,?,TRUE)',
-            [newProductId, v.size || null, v.color || null, null, null, v.stock || 0, v.price]
+            [newProductId, v.size || null, v.color || null, null, v.barcode || null, v.stock || 0, v.price]
           );
           variantIdMap.set(v.id, vr.insertId);
         }
