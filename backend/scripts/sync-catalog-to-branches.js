@@ -107,6 +107,12 @@ async function main() {
         await connection.execute(
           'DELETE ws FROM warehouse_stocks ws JOIN products p ON p.id=ws.product_id WHERE p.branch_id=?', [target.id]
         );
+        // Bebaskan SKU lama (produk yang dinonaktifkan) supaya SKU salinan baru
+        // `B<target>-...` tidak bentrok dengan hasil clone sebelumnya.
+        await connection.execute(
+          "UPDATE products SET sku = CONCAT('OLD-', id) WHERE branch_id=? AND is_active=FALSE AND sku IS NOT NULL",
+          [target.id]
+        );
       }
 
       // 2) Warehouse target untuk penempatan stok salinan.
@@ -189,6 +195,9 @@ async function main() {
         cloned += 1;
       }
 
+      if (cloned === 0) {
+        throw new Error(`Tidak ada produk yang tersalin ke ${target.name} — dibatalkan, rollback`);
+      }
       console.log(`- ${target.name}: hapus ${oldCount} produk lama, salin ${cloned} produk dari ${source.name}`);
     }
 
