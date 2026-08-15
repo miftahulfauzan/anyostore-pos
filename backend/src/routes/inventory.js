@@ -90,13 +90,20 @@ router.delete('/warehouses/:id', authorize('owner', 'manager', 'admin', 'gudang'
 
 router.get('/mutations', async (req, res, next) => {
   try {
-    const requestedBranch = Number(req.query.branch_id);
-    const branchId = req.user.role === 'owner' && Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
+    const requestedBranch = req.query.branch_id;
+    const isOwner = req.user.role === 'owner';
+    const branchId = isOwner && Number.isInteger(Number(requestedBranch))
+      ? Number(requestedBranch)
+      : req.user.branch_id;
     const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
     const limit = Math.min(200, Math.max(10, Number.parseInt(req.query.limit, 10) || 50));
     const offset = (page - 1) * limit;
-    const params = [branchId];
-    let where = 'WHERE sm.branch_id = ?';
+    const params = [];
+    let where = 'WHERE 1=1';
+    if (!(isOwner && String(requestedBranch) === 'all')) {
+      where += ' AND sm.branch_id = ?';
+      params.push(branchId);
+    }
 
     if (req.query.product_id && Number.isInteger(Number(req.query.product_id))) {
       where += ' AND sm.product_id = ?';
@@ -187,14 +194,22 @@ router.get('/stock', async (req, res, next) => {
 router.get('/stock-by-category', authorize('owner', 'manager', 'admin', 'gudang', 'kasir'), async (req, res, next) => {
   try {
     let branchId = req.user.branch_id;
-    if (req.user.role === 'owner' && Number.isInteger(Number(req.query.branch_id))) branchId = Number(req.query.branch_id);
-    const [rows] = await db.execute(
-      `SELECT c.name, COALESCE(SUM(p.stock), 0) AS total
-       FROM categories c JOIN products p ON p.category_id = c.id
-       WHERE p.branch_id = ? AND p.is_active = TRUE
-       GROUP BY c.id, c.name ORDER BY total DESC LIMIT 8`,
-      [branchId]
-    );
+    const showAll = req.user.role === 'owner' && req.query.branch_id === 'all';
+    if (!showAll && req.user.role === 'owner' && Number.isInteger(Number(req.query.branch_id))) branchId = Number(req.query.branch_id);
+    const [rows] = showAll
+      ? await db.execute(
+          `SELECT c.name, COALESCE(SUM(p.stock), 0) AS total
+           FROM categories c JOIN products p ON p.category_id = c.id
+           WHERE p.is_active = TRUE
+           GROUP BY c.id, c.name ORDER BY total DESC LIMIT 8`
+        )
+      : await db.execute(
+          `SELECT c.name, COALESCE(SUM(p.stock), 0) AS total
+           FROM categories c JOIN products p ON p.category_id = c.id
+           WHERE p.branch_id = ? AND p.is_active = TRUE
+           GROUP BY c.id, c.name ORDER BY total DESC LIMIT 8`,
+          [branchId]
+        );
     res.json({ success: true, data: rows.map((r) => ({ name: r.name, total: Number(r.total) })) });
   } catch (e) { next(e); }
 });
@@ -203,16 +218,25 @@ router.get('/stock-by-category', authorize('owner', 'manager', 'admin', 'gudang'
 router.get('/top-products-out', authorize('owner', 'manager', 'admin', 'gudang', 'kasir'), async (req, res, next) => {
   try {
     let branchId = req.user.branch_id;
-    if (req.user.role === 'owner' && Number.isInteger(Number(req.query.branch_id))) branchId = Number(req.query.branch_id);
+    const showAll = req.user.role === 'owner' && req.query.branch_id === 'all';
+    if (!showAll && req.user.role === 'owner' && Number.isInteger(Number(req.query.branch_id))) branchId = Number(req.query.branch_id);
     const start = req.query.start || localDateString();
     const end = req.query.end || localDateString();
-    const [rows] = await db.execute(
-      `SELECT p.name, p.sku, COALESCE(SUM(ABS(sm.qty)), 0) AS total
-       FROM stock_mutations sm JOIN products p ON p.id = sm.product_id
-       WHERE sm.branch_id = ? AND sm.qty < 0 AND DATE(sm.created_at) BETWEEN ? AND ?
-       GROUP BY sm.product_id, p.name, p.sku ORDER BY total DESC LIMIT 6`,
-      [branchId, start, end]
-    );
+    const [rows] = showAll
+      ? await db.execute(
+          `SELECT p.name, p.sku, COALESCE(SUM(ABS(sm.qty)), 0) AS total
+           FROM stock_mutations sm JOIN products p ON p.id = sm.product_id
+           WHERE sm.qty < 0 AND DATE(sm.created_at) BETWEEN ? AND ?
+           GROUP BY sm.product_id, p.name, p.sku ORDER BY total DESC LIMIT 6`,
+          [start, end]
+        )
+      : await db.execute(
+          `SELECT p.name, p.sku, COALESCE(SUM(ABS(sm.qty)), 0) AS total
+           FROM stock_mutations sm JOIN products p ON p.id = sm.product_id
+           WHERE sm.branch_id = ? AND sm.qty < 0 AND DATE(sm.created_at) BETWEEN ? AND ?
+           GROUP BY sm.product_id, p.name, p.sku ORDER BY total DESC LIMIT 6`,
+          [branchId, start, end]
+        );
     res.json({ success: true, data: rows.map((r) => ({ name: r.name, sku: r.sku, total: Number(r.total) })) });
   } catch (e) { next(e); }
 });

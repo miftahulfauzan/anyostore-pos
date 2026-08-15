@@ -48,6 +48,9 @@ class _DashboardPageState extends State<DashboardPage> {
   DateTime? _from;
   DateTime? _to;
   bool _loading = true;
+  bool _isOwner = false;
+  List<Map<String, dynamic>> _branches = [];
+  String _branchMode = 'own'; // own | all | branch-<id>
 
   // Data
   double _masuk = 0;
@@ -83,7 +86,30 @@ class _DashboardPageState extends State<DashboardPage> {
     super.initState();
     // Tampilkan data dummy dulu supaya dashboard langsung kebaca.
     _daily = _dummyDaily();
+    final role = context.read<AuthStore>().role;
+    _isOwner = role == 'owner';
+    if (_isOwner) _loadBranches();
     _load();
+  }
+
+  Future<void> _loadBranches() async {
+    try {
+      final rows = await widget.api.branches();
+      if (mounted) {
+        setState(() => _branches = rows.cast<Map<String, dynamic>>());
+      }
+    } catch (_) {}
+  }
+
+  /// Owner: 'all' / branch-N / null (cabang owner sendiri).
+  /// Non-owner: null -> server pakai cabang masing-masing.
+  String? get _branchParam {
+    if (!_isOwner) return null;
+    if (_branchMode == 'all') return 'all';
+    if (_branchMode.startsWith('branch-')) {
+      return _branchMode.replaceFirst('branch-', '');
+    }
+    return null;
   }
 
   (String, String) get _rangeDates {
@@ -136,13 +162,23 @@ class _DashboardPageState extends State<DashboardPage> {
     try {
       final (start, end) = _rangeDates;
       final branch = context.read<AuthStore>().branchId ?? 0;
+      final bp = _branchParam;
+      final stockAll = _isOwner && _branchMode == 'all';
+      final stockBranch = int.tryParse(bp ?? '') ?? branch;
       final results = await Future.wait([
-        widget.api.mutationReport(type: 'in', start: start, end: end),
-        widget.api.mutationReport(type: 'out', start: start, end: end),
-        widget.api.mutations(dateFrom: start, dateTo: end, limit: 2000),
-        widget.api.stockTotal(branchId: branch, allBranches: false),
-        widget.api.stockByCategory(branchId: branch),
-        widget.api.topProductsOut(start: start, end: end, branchId: branch),
+        widget.api
+            .mutationReport(type: 'in', start: start, end: end, branchId: bp),
+        widget.api
+            .mutationReport(type: 'out', start: start, end: end, branchId: bp),
+        widget.api
+            .mutations(dateFrom: start, dateTo: end, limit: 2000, branchId: bp),
+        widget.api.stockTotal(branchId: stockBranch, allBranches: stockAll),
+        widget.api
+            .stockByCategory(branchId: bp == null ? branch : int.tryParse(bp)),
+        widget.api.topProductsOut(
+            start: start,
+            end: end,
+            branchId: bp == null ? branch : int.tryParse(bp)),
       ]);
       if (!mounted) return;
       final inSummary = ((results[0] as Map<String, dynamic>?)?['summary']
@@ -420,6 +456,32 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          if (_isOwner) ...[
+            const SizedBox(height: 10),
+            DropdownButtonFormField<String>(
+              initialValue: _branchMode,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                  isDense: true,
+                  labelText: 'Toko/Gudang',
+                  border: OutlineInputBorder()),
+              items: [
+                const DropdownMenuItem(
+                    value: 'own', child: Text('Toko saya (default)')),
+                const DropdownMenuItem(
+                    value: 'all', child: Text('Semua toko/gudang')),
+                for (final b in _branches)
+                  DropdownMenuItem(
+                      value: 'branch-${b['id']}',
+                      child: Text(b['name']?.toString() ?? '')),
+              ],
+              onChanged: (v) {
+                setState(() => _branchMode = v ?? 'own');
+                _load();
+              },
+            ),
+          ],
           const SizedBox(height: 10),
           Text(_activeLabel,
               style: TextStyle(

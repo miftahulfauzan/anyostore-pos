@@ -382,11 +382,13 @@ class ApiClient {
     required String type,
     String? start,
     String? end,
+    String? branchId,
   }) =>
       get('/inventory/mutation-report', {
         'type': type,
         if (start != null) 'start': start,
         if (end != null) 'end': end,
+        if (branchId != null) 'branch_id': branchId,
       });
 
   Future<Map<String, dynamic>> updateProfile(
@@ -555,6 +557,7 @@ class ApiClient {
     String? type,
     String? dateFrom,
     String? dateTo,
+    String? branchId,
   }) async {
     final res = await get('/inventory/mutations', {
       'page': '$page',
@@ -562,6 +565,7 @@ class ApiClient {
       if (type != null && type.isNotEmpty) 'type': type,
       if (dateFrom != null) 'date_from': dateFrom,
       if (dateTo != null) 'date_to': dateTo,
+      if (branchId != null) 'branch_id': branchId,
     });
     return (res['data'] as List?) ?? [];
   }
