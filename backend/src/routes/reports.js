@@ -52,7 +52,7 @@ router.get('/daily-closing', async (req, res, next) => {
     const [payments] = await db.execute(
       `SELECT tp.payment_method,
               COALESCE(SUM(tp.amount), 0) AS sales,
-              COALESCE(SUM((t.cancelled_amount + t.refunded_amount) * tp.amount / NULLIF(t.grand_total, 0)), 0) AS cancellations
+              COALESCE(SUM(t.cancelled_amount * tp.amount / NULLIF(t.grand_total, 0)), 0) AS cancellations
        FROM transaction_payments tp JOIN transactions t ON t.id = tp.transaction_id
        WHERE t.branch_id=? AND t.status IN ('completed','partially_cancelled','partially_refunded','refunded') AND DATE(t.created_at)=?
        GROUP BY tp.payment_method ORDER BY tp.payment_method`,

@@ -532,21 +532,21 @@ class ApiClient {
   Future<Map<String, dynamic>> createChannel(String name) =>
       post('/inventory/channels', {'name': name});
 
-  Future<List<dynamic>> stockByCategory({int? branchId}) async {
+  Future<List<dynamic>> stockByCategory({String? branchId}) async {
     final res = await get('/inventory/stock-by-category',
-        {if (branchId != null) 'branch_id': '$branchId'});
+        {if (branchId != null) 'branch_id': branchId});
     return (res['data'] as List?) ?? [];
   }
 
   Future<List<dynamic>> topProductsOut({
     required String start,
     required String end,
-    int? branchId,
+    String? branchId,
   }) async {
     final res = await get('/inventory/top-products-out', {
       'start': start,
       'end': end,
-      if (branchId != null) 'branch_id': '$branchId',
+      if (branchId != null) 'branch_id': branchId,
     });
     return (res['data'] as List?) ?? [];
   }

@@ -173,12 +173,8 @@ class _DashboardPageState extends State<DashboardPage> {
         widget.api
             .mutations(dateFrom: start, dateTo: end, limit: 2000, branchId: bp),
         widget.api.stockTotal(branchId: stockBranch, allBranches: stockAll),
-        widget.api
-            .stockByCategory(branchId: bp == null ? branch : int.tryParse(bp)),
-        widget.api.topProductsOut(
-            start: start,
-            end: end,
-            branchId: bp == null ? branch : int.tryParse(bp)),
+        widget.api.stockByCategory(branchId: bp),
+        widget.api.topProductsOut(start: start, end: end, branchId: bp),
       ]);
       if (!mounted) return;
       final inSummary = ((results[0] as Map<String, dynamic>?)?['summary']

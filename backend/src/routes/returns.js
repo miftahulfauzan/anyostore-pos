@@ -58,6 +58,9 @@ async function approveReturnInTx(connection, { returnId, transactionId, branchId
       }
     }
   }
+  // Mark retur approved DULU supaya qty retur & status transaksi
+  // menghitung retur yang sedang diproses ini (bukan hanya retur lama).
+  await connection.execute('UPDATE returns SET status = \'approved\', approved_by = ? WHERE id = ?', [userId, returnId]);
   // Catat qty retur per item & perbarui status transaksi (retur sebagian/penuh).
   const [itemRows] = await connection.execute(
     'SELECT id, quantity FROM transaction_items WHERE transaction_id = ?',
@@ -89,7 +92,6 @@ async function approveReturnInTx(connection, { returnId, transactionId, branchId
     );
   }
 
-  await connection.execute('UPDATE returns SET status = \'approved\', approved_by = ? WHERE id = ?', [userId, returnId]);
   await connection.execute(
     'UPDATE transactions SET refunded_amount = COALESCE(refunded_amount, 0) + ? WHERE id = ?',
     [Number(ret.refund_amount || 0), transactionId]
@@ -250,6 +252,8 @@ router.put('/:id/approve', authorize('owner', 'manager', 'admin'), async (req, r
       }
     }
 
+    // Mark retur approved DULU supaya qty retur & status transaksi menghitungnya.
+    await connection.execute('UPDATE returns SET status = \'approved\', approved_by = ? WHERE id = ?', [req.user.id, returns[0].id]);
     // Catat qty retur per item & perbarui status transaksi (retur sebagian/penuh).
     const [itemRows] = await connection.execute(
       'SELECT id, quantity FROM transaction_items WHERE transaction_id = ?',
@@ -281,7 +285,6 @@ router.put('/:id/approve', authorize('owner', 'manager', 'admin'), async (req, r
       );
     }
 
-    await connection.execute('UPDATE returns SET status = \'approved\', approved_by = ? WHERE id = ?', [req.user.id, returns[0].id]);
     await connection.execute(
       'UPDATE transactions SET refunded_amount = COALESCE(refunded_amount, 0) + ? WHERE id = ?',
       [Number(returns[0].refund_amount || 0), returns[0].transaction_id]
