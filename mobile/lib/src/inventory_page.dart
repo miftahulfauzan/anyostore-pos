@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
 import 'api_client.dart';
 import 'format.dart';
@@ -928,155 +929,152 @@ class _InOutFormState extends State<_InOutForm> {
   Widget build(BuildContext context) {
     final accent = _inOutAccent(widget.kind);
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: accent,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle.light,
         foregroundColor: Colors.white,
+        // Judul dijamin putih (theme global memakai denim).
+        titleTextStyle: const TextStyle(
+            color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+        flexibleSpace: Container(color: accent),
         title: Text(_inOutLabel(widget.kind)),
       ),
-      body: Column(
-        children: [
-          // Warna penuh sampai paling atas (area status bar).
-          Container(height: MediaQuery.of(context).padding.top, color: accent),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : ListView(
-                    padding: const EdgeInsets.all(12),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: EdgeInsets.fromLTRB(
+                  12,
+                  MediaQuery.of(context).padding.top + kToolbarHeight + 12,
+                  12,
+                  12),
+              children: [
+                // Banner pembeda warna solid + teks putih.
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: accent,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
                     children: [
-                      // Banner pembeda warna solid + teks putih.
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: accent,
-                          borderRadius: BorderRadius.circular(14),
+                      Icon(
+                          widget.kind == 'incoming'
+                              ? Icons.move_to_inbox
+                              : Icons.move_to_inbox_outlined,
+                          size: 20,
+                          color: Colors.white),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          widget.kind == 'incoming'
+                              ? 'Barang MASUK ke gudang'
+                              : 'Barang KELUAR dari gudang',
+                          style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white),
                         ),
-                        child: Row(
-                          children: [
-                            Icon(
-                                widget.kind == 'incoming'
-                                    ? Icons.move_to_inbox
-                                    : Icons.move_to_inbox_outlined,
-                                size: 20,
-                                color: Colors.white),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                widget.kind == 'incoming'
-                                    ? 'Barang MASUK ke gudang'
-                                    : 'Barang KELUAR dari gudang',
-                                style: const TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      DropdownButtonFormField<String>(
-                        initialValue:
-                            _warehouseId.isEmpty ? null : _warehouseId,
-                        decoration: const InputDecoration(
-                            labelText: 'Gudang', border: OutlineInputBorder()),
-                        items: [
-                          for (final w in _warehouses)
-                            DropdownMenuItem(
-                                value: '${w['id']}',
-                                child: Text(w['name']?.toString() ?? '')),
-                        ],
-                        onChanged: (v) =>
-                            setState(() => _warehouseId = v ?? ''),
-                      ),
-                      const SizedBox(height: 8),
-                      if (widget.kind == 'outgoing') ...[
-                        DropdownButtonFormField<String>(
-                          initialValue: _channel,
-                          decoration: InputDecoration(
-                              labelText: 'Channel',
-                              border: const OutlineInputBorder(),
-                              suffixIcon: IconButton(
-                                onPressed: _addChannel,
-                                icon: const Icon(Icons.add_circle_outline,
-                                    size: 20, color: Color(0xFFC2410C)),
-                                tooltip: 'Tambah channel',
-                              )),
-                          items: [
-                            for (final c in _channels)
-                              DropdownMenuItem(
-                                  value: c['name']?.toString() ?? '',
-                                  child: Text(c['name']?.toString() ?? '')),
-                            if (_channels.isEmpty)
-                              const DropdownMenuItem(
-                                  value: 'toko', child: Text('toko')),
-                          ],
-                          onChanged: (v) =>
-                              setState(() => _channel = v ?? 'toko'),
-                        ),
-                        const SizedBox(height: 8),
-                      ],
-                      TextField(
-                        decoration: const InputDecoration(
-                            labelText: 'Nomor batch / nota (opsional)',
-                            border: OutlineInputBorder()),
-                        onChanged: (v) => _batch = v,
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        decoration: const InputDecoration(
-                            labelText: 'Keterangan',
-                            border: OutlineInputBorder()),
-                        onChanged: (v) => _notes = v,
-                      ),
-                      const SizedBox(height: 12),
-                      FilledButton.icon(
-                        onPressed: _pickItem,
-                        style: FilledButton.styleFrom(backgroundColor: accent),
-                        icon: const Icon(Icons.add),
-                        label: const Text('Tambah Item'),
-                      ),
-                      if (_error != null) ...[
-                        const SizedBox(height: 8),
-                        Text(_error!,
-                            style: TextStyle(
-                                color: Theme.of(context).colorScheme.error)),
-                      ],
-                      const SizedBox(height: 8),
-                      for (final item in _items)
-                        GlassCard(
-                          padding: EdgeInsets.zero,
-                          child: ListTile(
-                            dense: true,
-                            title: Text(item['name']?.toString() ?? ''),
-                            subtitle: Text(
-                                '${item['variant_label'] ?? ''} · ${item['quantity']} pcs'),
-                            trailing: IconButton(
-                              onPressed: () =>
-                                  setState(() => _items.remove(item)),
-                              icon: const Icon(Icons.delete_outline),
-                            ),
-                          ),
-                        ),
-                      const SizedBox(height: 16),
-                      FilledButton(
-                        style: FilledButton.styleFrom(
-                            minimumSize: const Size.fromHeight(50),
-                            backgroundColor: accent),
-                        onPressed: _saving ? null : _submit,
-                        child: _saving
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2))
-                            : const Text('Simpan Mutasi'),
                       ),
                     ],
                   ),
-          ),
-        ],
-      ),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: _warehouseId.isEmpty ? null : _warehouseId,
+                  decoration: const InputDecoration(
+                      labelText: 'Gudang', border: OutlineInputBorder()),
+                  items: [
+                    for (final w in _warehouses)
+                      DropdownMenuItem(
+                          value: '${w['id']}',
+                          child: Text(w['name']?.toString() ?? '')),
+                  ],
+                  onChanged: (v) => setState(() => _warehouseId = v ?? ''),
+                ),
+                const SizedBox(height: 8),
+                if (widget.kind == 'outgoing') ...[
+                  DropdownButtonFormField<String>(
+                    initialValue: _channel,
+                    decoration: InputDecoration(
+                        labelText: 'Channel',
+                        border: const OutlineInputBorder(),
+                        suffixIcon: IconButton(
+                          onPressed: _addChannel,
+                          icon: const Icon(Icons.add_circle_outline,
+                              size: 20, color: Color(0xFFC2410C)),
+                          tooltip: 'Tambah channel',
+                        )),
+                    items: [
+                      for (final c in _channels)
+                        DropdownMenuItem(
+                            value: c['name']?.toString() ?? '',
+                            child: Text(c['name']?.toString() ?? '')),
+                      if (_channels.isEmpty)
+                        const DropdownMenuItem(
+                            value: 'toko', child: Text('toko')),
+                    ],
+                    onChanged: (v) => setState(() => _channel = v ?? 'toko'),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                TextField(
+                  decoration: const InputDecoration(
+                      labelText: 'Nomor batch / nota (opsional)',
+                      border: OutlineInputBorder()),
+                  onChanged: (v) => _batch = v,
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  decoration: const InputDecoration(
+                      labelText: 'Keterangan', border: OutlineInputBorder()),
+                  onChanged: (v) => _notes = v,
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: _pickItem,
+                  style: FilledButton.styleFrom(backgroundColor: accent),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Tambah Item'),
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 8),
+                  Text(_error!,
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.error)),
+                ],
+                const SizedBox(height: 8),
+                for (final item in _items)
+                  GlassCard(
+                    padding: EdgeInsets.zero,
+                    child: ListTile(
+                      dense: true,
+                      title: Text(item['name']?.toString() ?? ''),
+                      subtitle: Text(
+                          '${item['variant_label'] ?? ''} · ${item['quantity']} pcs'),
+                      trailing: IconButton(
+                        onPressed: () => setState(() => _items.remove(item)),
+                        icon: const Icon(Icons.delete_outline),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                      backgroundColor: accent),
+                  onPressed: _saving ? null : _submit,
+                  child: _saving
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Text('Simpan Mutasi'),
+                ),
+              ],
+            ),
     );
   }
 }
@@ -1195,9 +1193,15 @@ class _CatalogPickerState extends State<_CatalogPicker> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: widget.accent,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle.light,
         foregroundColor: Colors.white,
+        titleTextStyle: const TextStyle(
+            color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+        flexibleSpace: Container(color: widget.accent),
         title: Text('Pilih Produk — ${widget.title}'),
         actions: [
           TextButton(
@@ -1210,11 +1214,12 @@ class _CatalogPickerState extends State<_CatalogPicker> {
       ),
       body: Column(
         children: [
-          // Warna penuh sampai paling atas (area status bar).
-          Container(
-              height: MediaQuery.of(context).padding.top, color: widget.accent),
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.fromLTRB(
+                12,
+                MediaQuery.of(context).padding.top + kToolbarHeight + 12,
+                12,
+                0),
             child: TextField(
               onChanged: (v) => setState(() => _q = v),
               decoration: const InputDecoration(

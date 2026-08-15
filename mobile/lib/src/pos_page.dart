@@ -24,7 +24,7 @@ import 'printer_service.dart';
 import 'printer_setup.dart';
 import 'barcode_scanner_page.dart';
 import 'dashboard_page.dart';
-import 'finance_page.dart';
+import 'mutation_report_page.dart';
 import 'variant_picker.dart';
 import 'task_ui.dart';
 
@@ -853,7 +853,7 @@ class _PosPageState extends State<PosPage> {
     final pages = <Widget>[
       if (isGudang) DashboardPage(api: _client) else _buildKasir(),
       if (isGudang)
-        FinancePage(api: _client)
+        MutationReportPage(api: _client)
       else
         HistoryTab(api: _client, role: auth.role),
       InventoryPage(api: _client, branchId: _branchId, role: auth.role),
@@ -918,9 +918,9 @@ class _PosPageState extends State<PosPage> {
                                 label: 'Dashboard'
                               ),
                               (
-                                icon: Icons.account_balance_wallet_outlined,
-                                activeIcon: Icons.account_balance_wallet,
-                                label: 'Keuangan'
+                                icon: Icons.swap_vert,
+                                activeIcon: Icons.swap_vert,
+                                label: 'M/K Stok'
                               ),
                               (
                                 icon: Icons.inventory_2_outlined,
