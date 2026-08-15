@@ -61,7 +61,7 @@ CREATE TABLE products (
     description TEXT,
     slug VARCHAR(200) UNIQUE,
     sku VARCHAR(50) UNIQUE,
-    barcode VARCHAR(50) UNIQUE,
+    barcode VARCHAR(50),
     price DECIMAL(12,2) NOT NULL,
     cost DECIMAL(12,2) DEFAULT 0,
     stock INT DEFAULT 0,
