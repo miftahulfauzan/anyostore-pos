@@ -776,6 +776,13 @@ class _InOutForm extends StatefulWidget {
   State<_InOutForm> createState() => _InOutFormState();
 }
 
+/// Warna pembeda: hijau untuk Stok Masuk, oranye untuk Stok Keluar.
+Color _inOutAccent(String kind) =>
+    kind == 'incoming' ? const Color(0xFF2E7D4F) : const Color(0xFFC2410C);
+
+String _inOutLabel(String kind) =>
+    kind == 'incoming' ? 'Stok Masuk' : 'Stok Keluar';
+
 class _InOutFormState extends State<_InOutForm> {
   List<Map<String, dynamic>> _warehouses = [];
   List<Map<String, dynamic>> _channels = [];
@@ -826,11 +833,51 @@ class _InOutFormState extends State<_InOutForm> {
         builder: (_) => _CatalogPicker(
           products: catalog.cast<Map<String, dynamic>>(),
           withCost: widget.kind == 'incoming',
+          accent: _inOutAccent(widget.kind),
+          title: _inOutLabel(widget.kind),
         ),
       ),
     );
     if (result == null || result.isEmpty) return;
     setState(() => _items.addAll(result));
+  }
+
+  Future<void> _addChannel() async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Tambah Channel'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+              hintText: 'Nama channel', border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+              child: const Text('Tambah')),
+        ],
+      ),
+    );
+    if (name == null || name.isEmpty || !mounted) return;
+    try {
+      await widget.api.createChannel(name);
+      final ch = await widget.api.channels();
+      if (!mounted) return;
+      setState(() {
+        _channels = ch.cast<Map<String, dynamic>>();
+        _channel = name;
+      });
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
   }
 
   Future<void> _submit() async {
@@ -872,15 +919,51 @@ class _InOutFormState extends State<_InOutForm> {
 
   @override
   Widget build(BuildContext context) {
+    final accent = _inOutAccent(widget.kind);
     return Scaffold(
       appBar: AppBar(
-          title:
-              Text(widget.kind == 'incoming' ? 'Stok Masuk' : 'Stok Keluar')),
+        backgroundColor: accent,
+        foregroundColor: Colors.white,
+        title: Text(_inOutLabel(widget.kind)),
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               padding: const EdgeInsets.all(12),
               children: [
+                // Banner pembeda warna (hindari salah input).
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: .12),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: accent.withValues(alpha: .4)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                          widget.kind == 'incoming'
+                              ? Icons.move_to_inbox
+                              : Icons.move_to_inbox_outlined,
+                          size: 20,
+                          color: accent),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          widget.kind == 'incoming'
+                              ? 'Barang MASUK ke gudang'
+                              : 'Barang KELUAR dari gudang',
+                          style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                              color: accent),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                   initialValue: _warehouseId.isEmpty ? null : _warehouseId,
                   decoration: const InputDecoration(
@@ -897,8 +980,15 @@ class _InOutFormState extends State<_InOutForm> {
                 if (widget.kind == 'outgoing') ...[
                   DropdownButtonFormField<String>(
                     initialValue: _channel,
-                    decoration: const InputDecoration(
-                        labelText: 'Channel', border: OutlineInputBorder()),
+                    decoration: InputDecoration(
+                        labelText: 'Channel',
+                        border: const OutlineInputBorder(),
+                        suffixIcon: IconButton(
+                          onPressed: _addChannel,
+                          icon: const Icon(Icons.add_circle_outline,
+                              size: 20, color: Color(0xFFC2410C)),
+                          tooltip: 'Tambah channel',
+                        )),
                     items: [
                       for (final c in _channels)
                         DropdownMenuItem(
@@ -927,8 +1017,9 @@ class _InOutFormState extends State<_InOutForm> {
                 const SizedBox(height: 12),
                 FilledButton.icon(
                   onPressed: _pickItem,
+                  style: FilledButton.styleFrom(backgroundColor: accent),
                   icon: const Icon(Icons.add),
-                  label: const Text('Tambah Item'),
+                  label: const Text('Tambah Item (pilih produk ala POS)'),
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 8),
@@ -954,7 +1045,8 @@ class _InOutFormState extends State<_InOutForm> {
                 const SizedBox(height: 16),
                 FilledButton(
                   style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50)),
+                      minimumSize: const Size.fromHeight(50),
+                      backgroundColor: accent),
                   onPressed: _saving ? null : _submit,
                   child: _saving
                       ? const SizedBox(
@@ -970,9 +1062,15 @@ class _InOutFormState extends State<_InOutForm> {
 }
 
 class _CatalogPicker extends StatefulWidget {
-  const _CatalogPicker({required this.products, required this.withCost});
+  const _CatalogPicker(
+      {required this.products,
+      required this.withCost,
+      required this.accent,
+      required this.title});
   final List<Map<String, dynamic>> products;
   final bool withCost;
+  final Color accent;
+  final String title;
 
   @override
   State<_CatalogPicker> createState() => _CatalogPickerState();
@@ -1072,15 +1170,25 @@ class _CatalogPickerState extends State<_CatalogPicker> {
     });
   }
 
+  String _mediaUrl(String? path) {
+    if (path == null || path.isEmpty) return '';
+    return path.startsWith('http')
+        ? path
+        : path.replaceFirst(RegExp(r'^/'), '');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pilih Produk'),
+        backgroundColor: widget.accent,
+        foregroundColor: Colors.white,
+        title: Text('Pilih Produk — ${widget.title}'),
         actions: [
           TextButton(
             onPressed:
                 _added.isEmpty ? null : () => Navigator.pop(context, _added),
+            style: TextButton.styleFrom(foregroundColor: Colors.white),
             child: Text('Selesai (${_added.length})'),
           ),
         ],
@@ -1099,25 +1207,79 @@ class _CatalogPickerState extends State<_CatalogPicker> {
             ),
           ),
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              itemCount: _filtered.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (_, i) {
-                final p = _filtered[i];
-                return GlassCard(
-                  padding: EdgeInsets.zero,
-                  child: ListTile(
-                    title: Text(p['name']?.toString() ?? '',
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
-                    subtitle:
-                        Text('SKU ${p['sku'] ?? ''} · stok ${p['stock'] ?? 0}'),
-                    trailing: const Icon(Icons.add_circle_outline),
-                    onTap: () => _add(p),
+            child: _filtered.isEmpty
+                ? const Center(child: Text('Produk tidak ditemukan'))
+                : GridView.builder(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+                    itemCount: _filtered.length,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 10,
+                      crossAxisSpacing: 10,
+                      childAspectRatio: 0.85,
+                    ),
+                    itemBuilder: (_, i) {
+                      final p = _filtered[i];
+                      final photo = _mediaUrl(p['photo_path']?.toString());
+                      return GlassCard(
+                        padding: EdgeInsets.zero,
+                        radius: 18,
+                        onTap: () => _add(p),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: photo.isEmpty
+                                  ? Container(
+                                      color: const Color(0xffE6ECF3),
+                                      alignment: Alignment.center,
+                                      child: const Icon(
+                                          Icons.image_not_supported,
+                                          size: 22,
+                                          color: Color(0xff9AA5B1)),
+                                    )
+                                  : Image.network(
+                                      photo,
+                                      fit: BoxFit.cover,
+                                      cacheWidth: 300,
+                                      errorBuilder: (_, __, ___) => Container(
+                                        color: const Color(0xffE6ECF3),
+                                        alignment: Alignment.center,
+                                        child: const Icon(
+                                            Icons.image_not_supported,
+                                            size: 22,
+                                            color: Color(0xff9AA5B1)),
+                                      ),
+                                    ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(8),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(p['name']?.toString() ?? '',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700)),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                      'SKU ${p['sku'] ?? ''} · stok ${p['stock'] ?? 0}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          fontSize: 10,
+                                          color: Color(0xff8A857C))),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
         ],
       ),
@@ -1185,7 +1347,10 @@ class _TransferSectionState extends State<_TransferSection> {
     final result = await Navigator.of(context).push<List<Map<String, dynamic>>>(
       MaterialPageRoute(
         builder: (_) => _CatalogPicker(
-            products: catalog.cast<Map<String, dynamic>>(), withCost: false),
+            products: catalog.cast<Map<String, dynamic>>(),
+            withCost: false,
+            accent: const Color(0xff1E3A5F),
+            title: 'Transfer Stok'),
       ),
     );
     if (result == null || result.isEmpty) return;

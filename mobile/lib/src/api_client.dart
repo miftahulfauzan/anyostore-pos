@@ -527,6 +527,9 @@ class ApiClient {
     return (res['data'] as List?) ?? [];
   }
 
+  Future<Map<String, dynamic>> createChannel(String name) =>
+      post('/inventory/channels', {'name': name});
+
   Future<List<dynamic>> mutations({
     int page = 1,
     int limit = 50,
