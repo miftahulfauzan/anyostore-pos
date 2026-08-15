@@ -165,19 +165,16 @@ class _DashboardPageState extends State<DashboardPage> {
       final bp = _branchParam;
       final stockAll = _isOwner && _branchMode == 'all';
       final stockBranch = int.tryParse(bp ?? '') ?? branch;
+      // Kartu Masuk/Keluar/Selisih & grafik dari endpoint mutations-summary
+      // (SEMUA mutasi, tanpa batas paginasi) — konsisten satu sama lain.
       final results = await Future.wait([
-        widget.api
-            .mutationReport(type: 'in', start: start, end: end, branchId: bp),
-        widget.api
-            .mutationReport(type: 'out', start: start, end: end, branchId: bp),
-        widget.api
-            .mutations(dateFrom: start, dateTo: end, limit: 2000, branchId: bp),
+        widget.api.mutationsSummary(start: start, end: end, branchId: bp),
         widget.api.stockTotal(branchId: stockBranch, allBranches: stockAll),
         widget.api.stockByCategory(branchId: bp),
         widget.api.topProductsOut(start: start, end: end, branchId: bp),
       ]);
       if (!mounted) return;
-      final rows = (results[0] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final mutSummary = (results[0] as Map<String, dynamic>?) ?? {};
       final stockSummary = ((results[1] as Map<String, dynamic>?)?['summary']
               as Map<String, dynamic>?) ??
           {};
@@ -185,46 +182,27 @@ class _DashboardPageState extends State<DashboardPage> {
       final topRows = (results[3] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
       // Ringkasan masuk/keluar/selisih dari SEMUA mutasi periode terpilih.
-      double masuk = 0;
-      double keluar = 0;
-      for (final r in rows) {
-        final qty = asNum(r['qty']);
-        if (qty >= 0) {
-          masuk += qty;
-        } else {
-          keluar += -qty;
-        }
-      }
+      final masuk = asNum(mutSummary['total_in']);
+      final keluar = asNum(mutSummary['total_out']);
 
-      // Grafik harian dari mutasi (qty positif = masuk, negatif = keluar).
-      final buckets = <String, List<double>>{};
+      // Grafik harian dari ringkasan mutasi (hari kosong diisi 0).
+      final dailyList =
+          ((mutSummary['daily'] as List?) ?? []).cast<Map<String, dynamic>>();
+      final byDate = <String, Map<String, dynamic>>{
+        for (final d in dailyList) (d['date']?.toString() ?? ''): d,
+      };
       final startDate = DateTime.parse(start);
       final endDate = DateTime.parse(end);
-      for (var day = startDate;
-          !day.isAfter(endDate);
-          day = day.add(const Duration(days: 1))) {
-        final key =
-            '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
-        buckets[key] = [0, 0];
-      }
-      for (final r in rows) {
-        final created = (r['created_at'] ?? '').toString();
-        final key = created.contains('T') ? created.split('T').first : created;
-        final qty = asNum(r['qty']);
-        if (!buckets.containsKey(key)) continue;
-        if (qty >= 0) {
-          buckets[key]![0] += qty;
-        } else {
-          buckets[key]![1] += -qty;
-        }
-      }
+      String key(DateTime x) =>
+          '${x.year.toString().padLeft(4, '0')}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
       final daily = <({String label, double masuk, double keluar})>[
-        for (final e in buckets.entries)
+        for (var day = startDate;
+            !day.isAfter(endDate);
+            day = day.add(const Duration(days: 1)))
           (
-            label:
-                '${DateTime.parse(e.key).day} ${_months[DateTime.parse(e.key).month - 1]}',
-            masuk: e.value[0],
-            keluar: e.value[1]
+            label: '${day.day} ${_months[day.month - 1]}',
+            masuk: asNum(byDate[key(day)]?['in']),
+            keluar: asNum(byDate[key(day)]?['out']),
           ),
       ];
 

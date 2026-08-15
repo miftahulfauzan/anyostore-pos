@@ -241,6 +241,46 @@ router.get('/top-products-out', authorize('owner', 'manager', 'admin', 'gudang',
   } catch (e) { next(e); }
 });
 
+// GET /api/inventory/mutations-summary — total & harian MASUK/KELUAR untuk
+// dashboard Ringkasan (tanpa limit paginasi). Owner: branch_id=all / N.
+router.get('/mutations-summary', authorize('owner', 'manager', 'admin', 'gudang', 'kasir'), async (req, res, next) => {
+  try {
+    const requested = req.query.branch_id;
+    const isOwner = req.user.role === 'owner';
+    const showAll = isOwner && String(requested) === 'all';
+    const branchId = !showAll && isOwner && Number.isInteger(Number(requested))
+      ? Number(requested)
+      : req.user.branch_id;
+    const start = /^\d{4}-\d{2}-\d{2}$/.test(req.query.start || '') ? req.query.start : null;
+    const end = /^\d{4}-\d{2}-\d{2}$/.test(req.query.end || '') ? req.query.end : null;
+
+    let where = 'WHERE 1=1';
+    const params = [];
+    if (!showAll) { where += ' AND sm.branch_id = ?'; params.push(branchId); }
+    if (start) { where += ' AND DATE(sm.created_at) >= ?'; params.push(start); }
+    if (end) { where += ' AND DATE(sm.created_at) <= ?'; params.push(end); }
+
+    const [rows] = await db.execute(
+      `SELECT DATE(sm.created_at) AS date,
+              COALESCE(SUM(CASE WHEN sm.qty > 0 THEN sm.qty ELSE 0 END), 0) AS total_in,
+              COALESCE(SUM(CASE WHEN sm.qty < 0 THEN -sm.qty ELSE 0 END), 0) AS total_out
+       FROM stock_mutations sm ${where}
+       GROUP BY DATE(sm.created_at) ORDER BY date`,
+      params
+    );
+    let totalIn = 0;
+    let totalOut = 0;
+    const daily = rows.map((r) => {
+      const tin = Number(r.total_in || 0);
+      const tout = Number(r.total_out || 0);
+      totalIn += tin;
+      totalOut += tout;
+      return { date: r.date, in: tin, out: tout };
+    });
+    res.json({ success: true, data: { total_in: totalIn, total_out: totalOut, daily } });
+  } catch (e) { next(e); }
+});
+
 // GET /api/inventory/stock-total — total stock per product across all warehouses
 // Owner: ?branch_id=N for one branch, ?branch_id=all for all branches (default = own branch)
 router.get('/stock-total', async (req, res, next) => {

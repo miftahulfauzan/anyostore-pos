@@ -484,7 +484,9 @@ class _ReportsPageState extends State<ReportsPage> {
     return [
       _Card('Ringkasan', [
         _Row('Transaksi', '${summary['transactions'] ?? 0}'),
-        _Row('Pendapatan', fmtRp(asNum(summary['revenue']))),
+        _Row('Penjualan',
+            fmtRp(asNum(summary['gross_sales'] ?? summary['revenue']))),
+        _Row('Pemasukan', fmtRp(asNum(summary['income']))),
         _Row('HPP', fmtRp(asNum(summary['cost_of_goods']))),
         _Row('Laba kotor', fmtRp(asNum(summary['gross_profit']))),
         _Row('Pengeluaran', fmtRp(asNum(summary['expenses']))),

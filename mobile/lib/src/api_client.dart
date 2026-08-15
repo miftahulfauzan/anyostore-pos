@@ -532,6 +532,19 @@ class ApiClient {
   Future<Map<String, dynamic>> createChannel(String name) =>
       post('/inventory/channels', {'name': name});
 
+  Future<Map<String, dynamic>> mutationsSummary({
+    String? start,
+    String? end,
+    String? branchId,
+  }) async {
+    final res = await get('/inventory/mutations-summary', {
+      if (start != null) 'start': start,
+      if (end != null) 'end': end,
+      if (branchId != null) 'branch_id': branchId,
+    });
+    return (res['data'] as Map<String, dynamic>?) ?? {};
+  }
+
   Future<List<dynamic>> stockByCategory({String? branchId}) async {
     final res = await get('/inventory/stock-by-category',
         {if (branchId != null) 'branch_id': branchId});

@@ -131,7 +131,7 @@ router.get('/overview', async (req, res, next) => {
     const branchName = branch[0]?.name || '';
     res.json({ success: true, data: {
       start, end, branch_id: branchId, branch_name: branchName,
-      summary: { transactions: sales[0].transactions, revenue, discounts: sales[0].discounts, cost_of_goods: costOfGoods, gross_profit: revenue - costOfGoods, expenses: approvedExpenses, income, net_profit: money(revenue - costOfGoods - approvedExpenses) },
+      summary: { transactions: sales[0].transactions, revenue, gross_sales: Number(sales[0].revenue), discounts: sales[0].discounts, cost_of_goods: costOfGoods, gross_profit: revenue - costOfGoods, expenses: approvedExpenses, income, net_profit: money(revenue - costOfGoods - approvedExpenses) },
       payment_methods: payments[0], products: products[0], cashiers: cashiers[0], customers: customers[0], low_stock: lowStock[0], daily_sales: dailySales[0], price_tiers: priceTiers[0], transactions: transactions[0]
     } });
   } catch (error) { next(error); }
