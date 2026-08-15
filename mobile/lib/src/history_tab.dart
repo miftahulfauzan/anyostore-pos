@@ -773,6 +773,9 @@ class _HistoryTabState extends State<HistoryTab> {
                                     child: Text('Dibatalkan')),
                                 DropdownMenuItem(
                                     value: 'refunded', child: Text('Refunded')),
+                                DropdownMenuItem(
+                                    value: 'partially_refunded',
+                                    child: Text('Retur sebagian')),
                               ],
                               onChanged: (v) {
                                 setState(() => _status = v ?? '');

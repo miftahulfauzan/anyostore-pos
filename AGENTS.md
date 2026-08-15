@@ -44,11 +44,11 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 | `transactions.js` | `/api/transactions` | Checkout (idempotency `client_transaction_id`), hold/resume, cancel |
 | `printer.js` | `/api/printer` | Struk thermal 58/80mm |
 | `customers.js` | `/api/customers` | CRUD pelanggan + price_tier |
-| `returns.js` | `/api/returns` | GET /:id mengembalikan detail retur + item (dipakai mobile). Retur AUTO-APPROVE saat dibuat (POST langsung stok kembali + refund kas, tanpa persetujuan; `approve:false` di body bisa memaksa pending); PUT /:id/approve tetap ada untuk legacy. Saat retur disetujui, `transaction_items.returned_qty` diperbarui & status transaksi jadi `partially_refunded` (retur sebagian) / `refunded` (semua item diretur). Migrasi 20260815_return_partial_status.sql |
+| `returns.js` | `/api/returns` | GET /:id mengembalikan detail retur + item (dipakai mobile). Retur AUTO-APPROVE saat dibuat (POST langsung stok kembali + refund kas, tanpa persetujuan; `approve:false` di body bisa memaksa pending); PUT /:id/approve tetap ada untuk legacy. Saat retur disetujui, `transaction_items.returned_qty` diperbarui, `transactions.refunded_amount` diakumulasi, & status transaksi jadi `partially_refunded` (retur sebagian) / `refunded` (semua item diretur). Migrasi 20260815_return_partial_status.sql. Tanpa perbaikan ini transaksi retur-sebagian HILANG dari Ringkasan/Penutupan/Dashboard karena query hanya status completed/partially_cancelled. |
 | `returns.js` | `/api/returns` | Retur menyimpan `refund_method` (cash/qris/transfer/debit) untuk laporan & laci kas |
 | `cash-drawer.js` | `/api/cash-drawer` | Buka/tutup kas, cash in/out |
 | `suppliers.js` | `/api/suppliers` | Supplier per cabang |
-| `reports.js` | `/api/reports` | Sales + overview (owner bisa pilih branch via `?branch_id`) |
+| `reports.js` | `/api/reports` | Sales + overview (owner bisa pilih branch via `?branch_id`). SEMUA query penjualan menyertakan status `partially_refunded`/`refunded` dan mengurangi `refunded_amount` (refund retur) dari gross/revenue/payment; COGS/produk/komisi pakai `quantity - cancelled_qty - returned_qty` |
 | `purchase-orders.js` | `/api/purchase-orders` | PO + receive (update stok) |
 | `finance.js` | `/api/finance` | Expenses, income, journals, profit-loss |
 | `users.js` | `/api/users` | CRUD pegawai, role, PIN, password |
@@ -80,7 +80,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 | `product_photos` | product_id, variant_id, filename, path, media_type (image/video), is_primary, sort_order, `transform` (scale,x,y) |
 | `warehouse_stocks` | warehouse_id, product_id, variant_id, quantity, reserved_quantity |
 | `warehouses` | branch_id, name, description, type (utama/cadangan/reject) |
-| `transactions` | branch_id, invoice_no, client_transaction_id (UNIQUE), user_id, customer_id, subtotal, discount, grand_total, payment_method, status (completed/cancelled/refunded/pending/held/partially_cancelled/**partially_refunded**), cancelled_amount |
+| `transactions` | branch_id, invoice_no, client_transaction_id (UNIQUE), user_id, customer_id, subtotal, discount, grand_total, payment_method, status (completed/cancelled/refunded/pending/held/partially_cancelled/**partially_refunded**), cancelled_amount, **refunded_amount** |
 | `transaction_items` | transaction_id, product_id, variant_id, product_name, quantity, price, original_price, price_override, cost, cancelled_qty, **returned_qty** |
 | `invoice_sequences` | branch_id + business_date (PK), last_number — counter invoice atomik |
 | `customers` | name, phone, price_tier (reguler/semi_grosir/grosir_seri) |

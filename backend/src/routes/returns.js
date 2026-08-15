@@ -90,6 +90,10 @@ async function approveReturnInTx(connection, { returnId, transactionId, branchId
   }
 
   await connection.execute('UPDATE returns SET status = \'approved\', approved_by = ? WHERE id = ?', [userId, returnId]);
+  await connection.execute(
+    'UPDATE transactions SET refunded_amount = COALESCE(refunded_amount, 0) + ? WHERE id = ?',
+    [Number(ret.refund_amount || 0), transactionId]
+  );
   await connection.execute('INSERT INTO activity_logs (user_id, action, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)', [userId, 'return_approve', `Retur ${ret.return_no}`, 'auto', null]);
 }
 
@@ -278,6 +282,10 @@ router.put('/:id/approve', authorize('owner', 'manager', 'admin'), async (req, r
     }
 
     await connection.execute('UPDATE returns SET status = \'approved\', approved_by = ? WHERE id = ?', [req.user.id, returns[0].id]);
+    await connection.execute(
+      'UPDATE transactions SET refunded_amount = COALESCE(refunded_amount, 0) + ? WHERE id = ?',
+      [Number(returns[0].refund_amount || 0), returns[0].transaction_id]
+    );
     await connection.execute('INSERT INTO activity_logs (user_id, action, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'return_approve', `Retur ${returns[0].return_no}`, req.ip, req.get('user-agent') || null]);
     await connection.commit();
     res.json({ success: true, data: { id: returns[0].id, status: 'approved' } });

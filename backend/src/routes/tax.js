@@ -30,8 +30,8 @@ router.get('/report', async (req, res, next) => {
 
     // PPN Keluaran (from completed sales)
     const [salesData] = await db.execute(
-      `SELECT COUNT(*) AS transactions, COALESCE(SUM(grand_total - cancelled_amount), 0) AS gross_sales
-       FROM transactions WHERE branch_id=? AND status IN ('completed','partially_cancelled') AND DATE(created_at) BETWEEN ? AND ?`,
+      `SELECT COUNT(*) AS transactions, COALESCE(SUM(grand_total - cancelled_amount - refunded_amount), 0) AS gross_sales
+       FROM transactions WHERE branch_id=? AND status IN ('completed','partially_cancelled','partially_refunded','refunded') AND DATE(created_at) BETWEEN ? AND ?`,
       [branchId, start, end]
     );
     const grossSales = Number(salesData[0].gross_sales);
@@ -57,8 +57,8 @@ router.get('/report', async (req, res, next) => {
     const [monthly] = await db.execute(
       `SELECT DATE_FORMAT(created_at, '%Y-%m') AS month,
               COUNT(*) AS transactions,
-              COALESCE(SUM(grand_total - cancelled_amount), 0) AS gross_sales
-       FROM transactions WHERE branch_id=? AND status IN ('completed','partially_cancelled') AND DATE(created_at) BETWEEN ? AND ?
+              COALESCE(SUM(grand_total - cancelled_amount - refunded_amount), 0) AS gross_sales
+       FROM transactions WHERE branch_id=? AND status IN ('completed','partially_cancelled','partially_refunded','refunded') AND DATE(created_at) BETWEEN ? AND ?
        GROUP BY month ORDER BY month`,
       [branchId, start, end]
     );
@@ -122,7 +122,7 @@ router.get('/faktur-pajak', async (req, res, next) => {
        FROM transactions t
        LEFT JOIN users u ON u.id = t.user_id
        LEFT JOIN customers c ON c.id = t.customer_id
-       WHERE t.branch_id=? AND t.status IN ('completed','partially_cancelled') AND DATE(t.created_at) BETWEEN ? AND ?
+       WHERE t.branch_id=? AND t.status IN ('completed','partially_cancelled','partially_refunded','refunded') AND DATE(t.created_at) BETWEEN ? AND ?
        ORDER BY t.created_at ASC`,
       [branchId, start, end]
     );
