@@ -80,7 +80,13 @@ async function main() {
       `SELECT id, category_id, name, description, sku, barcode, price, cost, stock, min_stock, gender
        FROM products WHERE branch_id=? AND is_active=TRUE`, [source.id]
     );
-    const [srcWarehouses] = await connection.execute(
+    if (srcProducts.length === 0) {
+    console.error('Sumber tidak punya produk aktif — BATAL, tidak ada yang diubah.');
+    await connection.rollback();
+    await db.end();
+    process.exit(1);
+  }
+  const [srcWarehouses] = await connection.execute(
       'SELECT id, name, type FROM warehouses WHERE branch_id=? AND is_active=TRUE', [source.id]
     );
 
