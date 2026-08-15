@@ -78,6 +78,9 @@ class ApiClient {
       if (res.statusCode == 401 && !retried && refreshHandler != null) {
         final ok = await refreshHandler!();
         if (ok) return _request(run, retried: true);
+        // Refresh gagal (token lama sudah tidak valid/kedaluwarsa).
+        throw ApiException('Sesi berakhir. Silakan login ulang.',
+            statusCode: 401);
       }
       OfflineStatus.offline.value = false;
       return _decode(res);
