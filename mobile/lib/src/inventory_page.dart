@@ -888,6 +888,67 @@ class _InOutFormState extends State<_InOutForm> {
     }
   }
 
+  /// Edit jumlah (dan harga beli untuk masuk) item yang sudah dipilih.
+  Future<void> _editItem(Map<String, dynamic> item,
+      {bool withCost = false}) async {
+    final qty = TextEditingController(text: '${item['quantity']}');
+    final cost = TextEditingController(
+        text: withCost ? '${asNum(item['cost'] ?? 0)}' : '');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(item['name']?.toString() ?? 'Edit Item'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if ((item['variant_label'] ?? '').toString().isNotEmpty)
+                Text((item['variant_label'] ?? '').toString(),
+                    style: const TextStyle(
+                        fontSize: 11, color: Color(0xff8A857C))),
+              const SizedBox(height: 10),
+              TextField(
+                controller: qty,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                    labelText: 'Jumlah *', border: OutlineInputBorder()),
+              ),
+              if (withCost) ...[
+                const SizedBox(height: 8),
+                TextField(
+                  controller: cost,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                      labelText: 'Harga beli (opsional)',
+                      border: OutlineInputBorder(),
+                      prefixText: 'Rp '),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Batal')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Simpan')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final newQty = int.tryParse(qty.text) ?? 0;
+    if (newQty <= 0) return;
+    setState(() {
+      item['quantity'] = newQty;
+      if (withCost) {
+        item['cost'] = double.tryParse(cost.text.replaceAll('.', '')) ?? 0;
+      }
+    });
+  }
+
   Future<void> _submit() async {
     if (_items.isEmpty || _warehouseId.isEmpty) {
       setState(() => _error = 'Pilih gudang dan minimal satu item');
@@ -1051,12 +1112,26 @@ class _InOutFormState extends State<_InOutForm> {
                     padding: EdgeInsets.zero,
                     child: ListTile(
                       dense: true,
+                      onTap: () =>
+                          _editItem(item, withCost: widget.kind == 'incoming'),
                       title: Text(item['name']?.toString() ?? ''),
                       subtitle: Text(
-                          '${item['variant_label'] ?? ''} · ${item['quantity']} pcs'),
-                      trailing: IconButton(
-                        onPressed: () => setState(() => _items.remove(item)),
-                        icon: const Icon(Icons.delete_outline),
+                          '${item['variant_label'] ?? ''} · ${item['quantity']} pcs · ketuk untuk edit'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            onPressed: () => _editItem(item,
+                                withCost: widget.kind == 'incoming'),
+                            icon: const Icon(Icons.edit_outlined, size: 18),
+                            tooltip: 'Edit jumlah',
+                          ),
+                          IconButton(
+                            onPressed: () =>
+                                setState(() => _items.remove(item)),
+                            icon: const Icon(Icons.delete_outline),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -1396,6 +1471,67 @@ class _TransferSectionState extends State<_TransferSection> {
     setState(() => _items.addAll(result));
   }
 
+  /// Edit jumlah (dan harga beli untuk masuk) item yang sudah dipilih.
+  Future<void> _editItem(Map<String, dynamic> item,
+      {bool withCost = false}) async {
+    final qty = TextEditingController(text: '${item['quantity']}');
+    final cost = TextEditingController(
+        text: withCost ? '${asNum(item['cost'] ?? 0)}' : '');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(item['name']?.toString() ?? 'Edit Item'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if ((item['variant_label'] ?? '').toString().isNotEmpty)
+                Text((item['variant_label'] ?? '').toString(),
+                    style: const TextStyle(
+                        fontSize: 11, color: Color(0xff8A857C))),
+              const SizedBox(height: 10),
+              TextField(
+                controller: qty,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                    labelText: 'Jumlah *', border: OutlineInputBorder()),
+              ),
+              if (withCost) ...[
+                const SizedBox(height: 8),
+                TextField(
+                  controller: cost,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                      labelText: 'Harga beli (opsional)',
+                      border: OutlineInputBorder(),
+                      prefixText: 'Rp '),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Batal')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Simpan')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final newQty = int.tryParse(qty.text) ?? 0;
+    if (newQty <= 0) return;
+    setState(() {
+      item['quantity'] = newQty;
+      if (withCost) {
+        item['cost'] = double.tryParse(cost.text.replaceAll('.', '')) ?? 0;
+      }
+    });
+  }
+
   Future<void> _submit() async {
     if (_from.isEmpty || _to.isEmpty || _from == _to || _items.isEmpty) {
       setState(() => _error = 'Pilih gudang asal/tujuan dan minimal satu item');
@@ -1480,12 +1616,23 @@ class _TransferSectionState extends State<_TransferSection> {
                   padding: EdgeInsets.zero,
                   child: ListTile(
                     dense: true,
+                    onTap: () => _editItem(item, withCost: false),
                     title: Text(item['name']?.toString() ?? ''),
                     subtitle: Text(
-                        '${item['variant_label'] ?? ''} · ${item['quantity']} pcs'),
-                    trailing: IconButton(
-                      onPressed: () => setState(() => _items.remove(item)),
-                      icon: const Icon(Icons.delete_outline),
+                        '${item['variant_label'] ?? ''} · ${item['quantity']} pcs · ketuk untuk edit'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          onPressed: () => _editItem(item, withCost: false),
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          tooltip: 'Edit jumlah',
+                        ),
+                        IconButton(
+                          onPressed: () => setState(() => _items.remove(item)),
+                          icon: const Icon(Icons.delete_outline),
+                        ),
+                      ],
                     ),
                   ),
                 ),
