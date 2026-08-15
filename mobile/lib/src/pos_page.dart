@@ -857,7 +857,8 @@ class _PosPageState extends State<PosPage> {
       else
         HistoryTab(api: _client, role: auth.role),
       InventoryPage(api: _client, branchId: _branchId, role: auth.role),
-      ReportsPage(api: _client, role: auth.role),
+      // Role gudang tidak pakai Laporan (backend menolak) -> tab dihapus.
+      if (!isGudang) ReportsPage(api: _client, role: auth.role),
       MorePage(api: _client, branchId: _branchId, role: auth.role),
     ];
     return Scaffold(
@@ -905,7 +906,7 @@ class _PosPageState extends State<PosPage> {
                         } else if (_tab == 1 && !isGudang) {
                           // Riwayat di-refresh (tetap simpan filter).
                           HistoryTab.reloadTick.value++;
-                        } else if (_tab == 3) {
+                        } else if (_tab == 3 && !isGudang) {
                           // Laporan ikut di-refresh (ringkasan/penutupan).
                           ReportsPage.reloadTick.value++;
                         }
@@ -926,11 +927,6 @@ class _PosPageState extends State<PosPage> {
                                 icon: Icons.inventory_2_outlined,
                                 activeIcon: Icons.inventory_2,
                                 label: 'Stok'
-                              ),
-                              (
-                                icon: Icons.bar_chart_outlined,
-                                activeIcon: Icons.bar_chart,
-                                label: 'Laporan'
                               ),
                               (
                                 icon: Icons.more_horiz,
