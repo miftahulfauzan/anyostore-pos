@@ -9,6 +9,7 @@ import 'api_client.dart';
 import 'auth_store.dart';
 import 'branch_scope.dart';
 import 'cash_drawer_page.dart';
+import 'cost_audit_page.dart';
 import 'commissions_page.dart';
 import 'customers_page.dart';
 import 'dashboard_page.dart';
@@ -269,6 +270,17 @@ class MorePage extends StatelessWidget {
               const Color(0xff1E3A5F),
               () => _open(
                   context, 'Riwayat Aktivitas', ActivityLogPage(api: api))),
+          if (['owner', 'manager', 'admin'].contains(auth.role)) ...[
+            _divider(context),
+            _row(
+                context,
+                Icons.price_check,
+                'Audit Modal vs Harga',
+                const Color(0xffE3EAF2),
+                const Color(0xff1E3A5F),
+                () => _open(
+                    context, 'Audit Modal vs Harga', CostAuditPage(api: api))),
+          ],
         ]),
         const SizedBox(height: 14),
         // Keluar di paling bawah.
