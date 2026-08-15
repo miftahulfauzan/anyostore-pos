@@ -158,14 +158,6 @@ class MorePage extends StatelessWidget {
               const Color(0xffE3EAF2),
               _kInk,
               () => _open(context, 'Dashboard', DashboardPage(api: api))),
-          _divider(context),
-          _row(
-              context,
-              Icons.swap_horiz,
-              'Ganti Akun',
-              const Color(0xffE3EAF2),
-              const Color(0xff1E3A5F),
-              () => _open(context, 'Ganti Akun', const AccountSwitcherPage())),
         ]),
         _group(context, 'AKUN & TOKO', [
           _row(
@@ -175,6 +167,14 @@ class MorePage extends StatelessWidget {
               const Color(0xffE3EAF2),
               const Color(0xff1E3A5F),
               () => _open(context, 'Akun Saya', ProfilePage(api: api))),
+          _divider(context),
+          _row(
+              context,
+              Icons.swap_horiz,
+              'Ganti Akun',
+              const Color(0xffE3EAF2),
+              const Color(0xff1E3A5F),
+              () => _open(context, 'Ganti Akun', const AccountSwitcherPage())),
           _divider(context),
           _row(
               context,
