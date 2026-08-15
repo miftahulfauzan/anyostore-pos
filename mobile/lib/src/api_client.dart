@@ -162,6 +162,9 @@ class ApiClient {
 
   Future<Map<String, dynamic>> deleteProduct(int id) => delete('/products/$id');
 
+  Future<Map<String, dynamic>> copyProduct(int id) =>
+      post('/products/$id/copy', {});
+
   Future<Map<String, dynamic>> uploadProductMedia(
           int id, String mime, String base64) =>
       post('/products/$id/media-data', {

@@ -77,6 +77,38 @@ class _ProductsPageState extends State<ProductsPage> {
     );
   }
 
+  Future<void> _copy(Map<String, dynamic> r) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Salin produk?'),
+        content: Text(
+            'Membuat salinan "${r['name']}" (varian, harga grosir, dan foto ikut disalin; stok dimulai 0).'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Batal')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Salin')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await widget.api.copyProduct(int.parse('${r['id']}'));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Produk disalin — cek daftar untuk edit SKU/barcode')));
+      _load();
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
   Future<void> _delete(Map<String, dynamic> row) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -233,6 +265,15 @@ class _ProductsPageState extends State<ProductsPage> {
                                                   icon: Icon(Icons.print,
                                                       size: 18,
                                                       color: ink(context)),
+                                                ),
+                                                IconButton(
+                                                  onPressed: () => _copy(r),
+                                                  visualDensity:
+                                                      VisualDensity.compact,
+                                                  tooltip: 'Salin produk',
+                                                  icon: const Icon(
+                                                      Icons.copy_outlined,
+                                                      size: 17),
                                                 ),
                                                 IconButton(
                                                   onPressed: () => _delete(r),

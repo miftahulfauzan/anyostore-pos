@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { authenticate, authorize } = require('../auth');
-const { assertValidUpload, createMediaUpload, decodeDataUpload, discardUploadedFile, persistUploadedFile, removeMedia } = require('../media-storage');
+const { assertValidUpload, createMediaUpload, decodeDataUpload, discardUploadedFile, persistUploadedFile, removeMedia, copyMediaFile } = require('../media-storage');
 const { money } = require('../money');
 
 const router = express.Router();
@@ -470,7 +470,6 @@ router.post('/', authorize('owner', 'manager', 'admin', 'gudang'), async (req, r
     if (!['male', 'female', 'unisex', 'kids'].includes(gender)) return res.status(400).json({ success: false, message: 'Gender tidak valid' });
     const [categories] = await db.execute('SELECT id FROM categories WHERE id = ? AND is_active = TRUE', [categoryId]);
     if (!categories[0]) return res.status(400).json({ success: false, message: 'Kategori tidak ditemukan' });
-    const [oldProducts] = await db.execute('SELECT id, name, price, sku FROM products WHERE id = ? AND branch_id = ?', [req.params.id, req.user.branch_id]);
     const tiers = normalizeWholesalePrices(wholesalePrices);
     const variants = normalizeVariants(inputVariants);
     const [result] = await db.execute(
@@ -483,6 +482,74 @@ router.post('/', authorize('owner', 'manager', 'admin', 'gudang'), async (req, r
     await syncVariantColorsAcrossStores(result.insertId, req.user.branch_id);
     res.status(201).json({ success: true, data: { id: result.insertId } });
   } catch (error) { next(error); }
+});
+
+// Salin produk ke cabang yang sama: nama + " (Salinan)", SKU baru unik, barcode
+// dikosongkan, varian + harga grosir + foto (file disalin) ikut; stok 0.
+router.post('/:id/copy', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
+  const connection = await db.getConnection();
+  try {
+    const productId = Number(req.params.id);
+    if (!Number.isInteger(productId)) return res.status(400).json({ success: false, message: 'ID produk tidak valid' });
+    await connection.beginTransaction();
+    const [rows] = await connection.execute(
+      'SELECT id, category_id, name, description, sku, barcode, price, cost, min_stock, gender FROM products WHERE id = ? AND branch_id = ? AND is_active = TRUE FOR UPDATE',
+      [productId, req.user.branch_id]
+    );
+    if (!rows[0]) throw Object.assign(new Error('Produk tidak ditemukan'), { status: 404 });
+    const p = rows[0];
+
+    // SKU unik: <sku>-C, -C2, dst. Kalau tanpa SKU, biarkan null.
+    const base = (p.sku || '').trim();
+    let newSku = base ? `${base}-C` : null;
+    let suffix = 2;
+    while (newSku) {
+      const [dup] = await connection.execute('SELECT id FROM products WHERE sku = ? LIMIT 1', [newSku]);
+      if (!dup[0]) break;
+      newSku = `${base}-C${suffix}`.slice(0, 50);
+      suffix += 1;
+    }
+
+    const [res] = await connection.execute(
+      `INSERT INTO products (branch_id, category_id, name, description, sku, barcode, price, cost, stock, min_stock, gender, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, TRUE)`,
+      [req.user.branch_id, p.category_id, `${p.name} (Salinan)`, p.description, newSku, null, p.price, p.cost || 0, p.min_stock, p.gender]
+    );
+    const newId = res.insertId;
+
+    const [variants] = await connection.execute('SELECT id, size, color, sku, barcode, stock, price FROM product_variants WHERE product_id = ? AND is_active = TRUE', [productId]);
+    const variantMap = new Map();
+    for (const v of variants) {
+      const [vr] = await connection.execute(
+        'INSERT INTO product_variants (product_id, size, color, sku, barcode, stock, price, is_active) VALUES (?,?,?,?,?,0,?,TRUE)',
+        [newId, v.size || null, v.color || null, null, null, v.price]
+      );
+      variantMap.set(v.id, vr.insertId);
+    }
+
+    const [wholesale] = await connection.execute('SELECT min_qty, max_qty, price FROM wholesale_prices WHERE product_id = ? AND is_active = TRUE', [productId]);
+    for (const w of wholesale) {
+      await connection.execute('INSERT INTO wholesale_prices (product_id, min_qty, max_qty, price) VALUES (?,?,?,?)', [newId, w.min_qty, w.max_qty, w.price]);
+    }
+
+    const [photos] = await connection.execute('SELECT filename, path, media_type, is_primary, sort_order, variant_id, transform FROM product_photos WHERE product_id = ?', [productId]);
+    for (const ph of photos) {
+      const newPath = await copyMediaFile(ph.path, 'products');
+      await connection.execute(
+        'INSERT INTO product_photos (product_id, filename, path, media_type, is_primary, sort_order, variant_id, transform) VALUES (?,?,?,?,?,?,?,?)',
+        [newId, ph.filename, newPath, ph.media_type, ph.is_primary, ph.sort_order, ph.variant_id != null ? (variantMap.get(ph.variant_id) || null) : null, ph.transform]
+      );
+    }
+
+    await connection.execute('INSERT INTO activity_logs (user_id, action, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'product_create', `Salin produk ${p.name} -> ${p.name} (Salinan)`, req.ip, req.get('user-agent') || null]);
+    await connection.commit();
+    res.status(201).json({ success: true, data: { id: newId, sku: newSku } });
+  } catch (error) {
+    await connection.rollback();
+    next(error);
+  } finally {
+    connection.release();
+  }
 });
 
 router.put('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
