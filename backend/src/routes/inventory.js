@@ -183,6 +183,40 @@ router.get('/stock', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+// GET /api/inventory/stock-by-category — total stok per kategori (dashboard Ringkasan)
+router.get('/stock-by-category', authorize('owner', 'manager', 'admin', 'gudang', 'kasir'), async (req, res, next) => {
+  try {
+    let branchId = req.user.branch_id;
+    if (req.user.role === 'owner' && Number.isInteger(Number(req.query.branch_id))) branchId = Number(req.query.branch_id);
+    const [rows] = await db.execute(
+      `SELECT c.name, COALESCE(SUM(p.stock), 0) AS total
+       FROM categories c JOIN products p ON p.category_id = c.id
+       WHERE p.branch_id = ? AND p.is_active = TRUE
+       GROUP BY c.id, c.name ORDER BY total DESC LIMIT 8`,
+      [branchId]
+    );
+    res.json({ success: true, data: rows.map((r) => ({ name: r.name, total: Number(r.total) })) });
+  } catch (e) { next(e); }
+});
+
+// GET /api/inventory/top-products-out — top produk keluar per rentang (dashboard)
+router.get('/top-products-out', authorize('owner', 'manager', 'admin', 'gudang', 'kasir'), async (req, res, next) => {
+  try {
+    let branchId = req.user.branch_id;
+    if (req.user.role === 'owner' && Number.isInteger(Number(req.query.branch_id))) branchId = Number(req.query.branch_id);
+    const start = req.query.start || localDateString();
+    const end = req.query.end || localDateString();
+    const [rows] = await db.execute(
+      `SELECT p.name, p.sku, COALESCE(SUM(ABS(sm.qty)), 0) AS total
+       FROM stock_mutations sm JOIN products p ON p.id = sm.product_id
+       WHERE sm.branch_id = ? AND sm.qty < 0 AND DATE(sm.created_at) BETWEEN ? AND ?
+       GROUP BY sm.product_id, p.name, p.sku ORDER BY total DESC LIMIT 6`,
+      [branchId, start, end]
+    );
+    res.json({ success: true, data: rows.map((r) => ({ name: r.name, sku: r.sku, total: Number(r.total) })) });
+  } catch (e) { next(e); }
+});
+
 // GET /api/inventory/stock-total — total stock per product across all warehouses
 // Owner: ?branch_id=N for one branch, ?branch_id=all for all branches (default = own branch)
 router.get('/stock-total', async (req, res, next) => {

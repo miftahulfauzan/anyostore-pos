@@ -58,8 +58,9 @@ class _DashboardPageState extends State<DashboardPage> {
   int _kosong = 12;
   int _totalProduk = 0;
 
-  // Dummy (backend belum menyediakan): stok per kategori & top produk keluar.
-  final List<(String, double)> _categories = const [
+  // Stok per kategori & top produk keluar — diisi backend; dummy sebagai
+  // tampilan awal sebelum data masuk / kalau endpoint gagal.
+  List<(String, double)> _categories = const [
     ('KEMEJA', 8000),
     ('TUNIK', 2700),
     ('AB12 ON MODEL', 750),
@@ -68,7 +69,7 @@ class _DashboardPageState extends State<DashboardPage> {
     ('ONE SET', 120),
     ('ROK', 20),
   ];
-  final List<(String, double)> _topProducts = const [
+  List<(String, double)> _topProducts = const [
     ('AT77', 2200),
     ('AB12', 2100),
     ('OB', 1280),
@@ -140,6 +141,8 @@ class _DashboardPageState extends State<DashboardPage> {
         widget.api.mutationReport(type: 'out', start: start, end: end),
         widget.api.mutations(dateFrom: start, dateTo: end, limit: 2000),
         widget.api.stockTotal(branchId: branch, allBranches: false),
+        widget.api.stockByCategory(branchId: branch),
+        widget.api.topProductsOut(start: start, end: end, branchId: branch),
       ]);
       if (!mounted) return;
       final inSummary = ((results[0] as Map<String, dynamic>?)?['summary']
@@ -152,6 +155,8 @@ class _DashboardPageState extends State<DashboardPage> {
       final stockSummary = ((results[3] as Map<String, dynamic>?)?['summary']
               as Map<String, dynamic>?) ??
           {};
+      final catRows = (results[4] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final topRows = (results[5] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
       // Ringkasan masuk/keluar/selisih periode terpilih.
       final masuk = asNum(inSummary['total_qty']);
@@ -208,6 +213,18 @@ class _DashboardPageState extends State<DashboardPage> {
         _hampir = hampir;
         _kosong = kosong;
         _totalProduk = total;
+        if (catRows.isNotEmpty) {
+          _categories = [
+            for (final c in catRows)
+              (c['name']?.toString() ?? '-', asNum(c['total']))
+          ];
+        }
+        if (topRows.isNotEmpty) {
+          _topProducts = [
+            for (final t in topRows)
+              (t['name']?.toString() ?? '-', asNum(t['total']))
+          ];
+        }
       });
     } on ApiException catch (_) {
       // Biarkan data dummy tetap tampil.
