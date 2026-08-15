@@ -223,16 +223,21 @@ class PosMobileApp extends StatelessWidget {
               // Rata ke ATAS: warna AppBar/halaman bisa memenuhi area status bar
               // (dulu Center menyisakan pita atas yang warnanya beda -> status
               // bar setengah warna lain di halaman beraksen hijau/oranye).
+              // Tinggi kotak = penuh layar, tapi konten di-scroll/scaled dulu
+              // (child height = maxH/scale) supaya setelah Transform.scale hasil
+              // akhir TEPAT menutupi layar — tidak ada pita kosong di bawah.
+              final childHeight = constraints.maxHeight / scale;
               return Align(
                 alignment: Alignment.topCenter,
                 child: SizedBox(
                   width: designW * scale,
-                  height: designH * scale,
+                  height: constraints.maxHeight,
                   child: Transform.scale(
                     scale: scale,
+                    alignment: Alignment.topCenter,
                     child: MediaQuery(
                       data: mq.copyWith(
-                        size: const Size(designW, designH),
+                        size: Size(designW, childHeight),
                         devicePixelRatio: mq.devicePixelRatio / scale,
                       ),
                       child: MaterialApp(
