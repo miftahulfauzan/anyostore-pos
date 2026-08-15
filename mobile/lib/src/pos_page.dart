@@ -23,6 +23,8 @@ import 'payment_sheet.dart';
 import 'printer_service.dart';
 import 'printer_setup.dart';
 import 'barcode_scanner_page.dart';
+import 'dashboard_page.dart';
+import 'finance_page.dart';
 import 'variant_picker.dart';
 import 'task_ui.dart';
 
@@ -846,9 +848,14 @@ class _PosPageState extends State<PosPage> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthStore>();
+    // Role gudang tidak butuh POS/Riwayat: diganti Dashboard & Keuangan.
+    final isGudang = auth.role == 'gudang';
     final pages = <Widget>[
-      _buildKasir(),
-      HistoryTab(api: _client, role: auth.role),
+      if (isGudang) DashboardPage(api: _client) else _buildKasir(),
+      if (isGudang)
+        FinancePage(api: _client)
+      else
+        HistoryTab(api: _client, role: auth.role),
       InventoryPage(api: _client, branchId: _branchId, role: auth.role),
       ReportsPage(api: _client, role: auth.role),
       MorePage(api: _client, branchId: _branchId, role: auth.role),
@@ -893,9 +900,9 @@ class _PosPageState extends State<PosPage> {
                       current: _tab,
                       onSelect: (i) => setState(() {
                         _tab = i;
-                        if (_tab == 0) {
+                        if (_tab == 0 && !isGudang) {
                           _loadData(silent: true);
-                        } else if (_tab == 1) {
+                        } else if (_tab == 1 && !isGudang) {
                           // Riwayat di-refresh (tetap simpan filter).
                           HistoryTab.reloadTick.value++;
                         } else if (_tab == 3) {
@@ -903,33 +910,61 @@ class _PosPageState extends State<PosPage> {
                           ReportsPage.reloadTick.value++;
                         }
                       }),
-                      items: const [
-                        (
-                          icon: Icons.shopping_bag_outlined,
-                          activeIcon: Icons.shopping_bag,
-                          label: 'POS'
-                        ),
-                        (
-                          icon: Icons.receipt_long_outlined,
-                          activeIcon: Icons.receipt_long,
-                          label: 'Riwayat'
-                        ),
-                        (
-                          icon: Icons.inventory_2_outlined,
-                          activeIcon: Icons.inventory_2,
-                          label: 'Stok'
-                        ),
-                        (
-                          icon: Icons.bar_chart_outlined,
-                          activeIcon: Icons.bar_chart,
-                          label: 'Laporan'
-                        ),
-                        (
-                          icon: Icons.more_horiz,
-                          activeIcon: Icons.more_horiz,
-                          label: 'Lainnya'
-                        ),
-                      ],
+                      items: isGudang
+                          ? const [
+                              (
+                                icon: Icons.dashboard_outlined,
+                                activeIcon: Icons.dashboard,
+                                label: 'Dashboard'
+                              ),
+                              (
+                                icon: Icons.account_balance_wallet_outlined,
+                                activeIcon: Icons.account_balance_wallet,
+                                label: 'Keuangan'
+                              ),
+                              (
+                                icon: Icons.inventory_2_outlined,
+                                activeIcon: Icons.inventory_2,
+                                label: 'Stok'
+                              ),
+                              (
+                                icon: Icons.bar_chart_outlined,
+                                activeIcon: Icons.bar_chart,
+                                label: 'Laporan'
+                              ),
+                              (
+                                icon: Icons.more_horiz,
+                                activeIcon: Icons.more_horiz,
+                                label: 'Lainnya'
+                              ),
+                            ]
+                          : const [
+                              (
+                                icon: Icons.shopping_bag_outlined,
+                                activeIcon: Icons.shopping_bag,
+                                label: 'POS'
+                              ),
+                              (
+                                icon: Icons.receipt_long_outlined,
+                                activeIcon: Icons.receipt_long,
+                                label: 'Riwayat'
+                              ),
+                              (
+                                icon: Icons.inventory_2_outlined,
+                                activeIcon: Icons.inventory_2,
+                                label: 'Stok'
+                              ),
+                              (
+                                icon: Icons.bar_chart_outlined,
+                                activeIcon: Icons.bar_chart,
+                                label: 'Laporan'
+                              ),
+                              (
+                                icon: Icons.more_horiz,
+                                activeIcon: Icons.more_horiz,
+                                label: 'Lainnya'
+                              ),
+                            ],
                     ),
                   ),
                 ],

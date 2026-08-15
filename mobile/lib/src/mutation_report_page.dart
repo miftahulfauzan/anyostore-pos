@@ -20,16 +20,58 @@ class _MutationReportPageState extends State<MutationReportPage> {
   Map<String, dynamic> _summary = {};
   bool _loading = true;
   String? _error;
+  DateTime? _customStart;
+  DateTime? _customEnd;
 
   (String, String) get _range {
     final now = DateTime.now().toUtc().add(const Duration(hours: 7));
     String d(DateTime x) =>
         '${x.year.toString().padLeft(4, '0')}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
-    return switch (_preset) {
-      'today' => (d(now), d(now)),
-      '30d' => (d(now.subtract(const Duration(days: 29))), d(now)),
-      _ => (d(now.subtract(const Duration(days: 6))), d(now)),
-    };
+    switch (_preset) {
+      case 'today':
+        return (d(now), d(now));
+      case 'kemarin':
+        final y = now.subtract(const Duration(days: 1));
+        return (d(y), d(y));
+      case '30d':
+        return (d(now.subtract(const Duration(days: 29))), d(now));
+      case 'bulan':
+        return (
+          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-01',
+          d(now)
+        );
+      case 'bulan_lalu':
+        final firstThis = DateTime(now.year, now.month, 1);
+        final lastLast = firstThis.subtract(const Duration(days: 1));
+        final firstLast = DateTime(lastLast.year, lastLast.month, 1);
+        return (d(firstLast), d(lastLast));
+      case 'custom':
+        final cs = _customStart ?? now;
+        final ce = _customEnd ?? now;
+        return (d(cs), d(ce));
+      default:
+        return (d(now.subtract(const Duration(days: 6))), d(now));
+    }
+  }
+
+  Future<void> _pickCustomRange() async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: now,
+      initialDateRange: _customStart != null && _customEnd != null
+          ? DateTimeRange(start: _customStart!, end: _customEnd!)
+          : DateTimeRange(
+              start: now.subtract(const Duration(days: 6)), end: now),
+      helpText: 'Pilih rentang tanggal',
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _customStart = picked.start;
+      _customEnd = picked.end;
+    });
+    _load();
   }
 
   @override
@@ -45,8 +87,8 @@ class _MutationReportPageState extends State<MutationReportPage> {
     });
     try {
       final (start, end) = _range;
-      final data = await widget.api
-          .mutationReport(type: _type, start: start, end: end);
+      final data =
+          await widget.api.mutationReport(type: _type, start: start, end: end);
       if (!mounted) return;
       setState(() {
         _batches = ((data['data'] as List?) ?? []).cast<Map<String, dynamic>>();
@@ -71,7 +113,7 @@ class _MutationReportPageState extends State<MutationReportPage> {
               Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: PillTabs(
-                      tabs: const [
+                  tabs: const [
                     (value: 'in', icon: Icons.south_west, label: 'Masuk'),
                     (value: 'out', icon: Icons.north_east, label: 'Keluar'),
                   ],
@@ -87,16 +129,46 @@ class _MutationReportPageState extends State<MutationReportPage> {
                 child: PillTabs(
                   tabs: const [
                     (value: 'today', icon: Icons.today, label: 'Hari ini'),
+                    (value: 'kemarin', icon: Icons.history, label: 'Kemarin'),
                     (value: '7d', icon: Icons.date_range, label: '7 hari'),
-                    (value: '30d', icon: Icons.calendar_month, label: '30 hari'),
+                    (
+                      value: '30d',
+                      icon: Icons.calendar_month,
+                      label: '30 hari'
+                    ),
+                    (
+                      value: 'bulan',
+                      icon: Icons.calendar_month,
+                      label: 'Bulan ini'
+                    ),
+                    (
+                      value: 'bulan_lalu',
+                      icon: Icons.calendar_today,
+                      label: 'Bulan lalu'
+                    ),
+                    (value: 'custom', icon: Icons.date_range, label: 'Rentang'),
                   ],
                   selected: _preset,
                   onChanged: (v) {
                     setState(() => _preset = v);
-                    _load();
+                    if (v == 'custom' && _customStart == null) {
+                      _pickCustomRange();
+                    } else {
+                      _load();
+                    }
                   },
                 ),
               ),
+              if (_preset == 'custom')
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                  child: OutlinedButton.icon(
+                    onPressed: _pickCustomRange,
+                    icon: const Icon(Icons.edit_calendar, size: 18),
+                    label: Text(
+                        '${_customStart != null ? _range.$1 : 'Pilih'} s.d. ${_customEnd != null ? _range.$2 : 'tanggal'}'),
+                  ),
+                ),
               if (_batches.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
@@ -108,8 +180,7 @@ class _MutationReportPageState extends State<MutationReportPage> {
                       children: [
                         _stat('Jenis Produk',
                             '${_summary['product_count'] ?? 0}'),
-                        _stat('Total Qty',
-                            '${_summary['total_qty'] ?? 0}'),
+                        _stat('Total Qty', '${_summary['total_qty'] ?? 0}'),
                         _stat('Batch', '${_batches.length}'),
                       ],
                     ),
@@ -144,8 +215,7 @@ class _MutationReportPageState extends State<MutationReportPage> {
                                           children: [
                                             Expanded(
                                               child: Text(
-                                                  b['number']?.toString() ??
-                                                      '',
+                                                  b['number']?.toString() ?? '',
                                                   style: const TextStyle(
                                                       fontSize: 12,
                                                       fontWeight:
@@ -153,14 +223,11 @@ class _MutationReportPageState extends State<MutationReportPage> {
                                                       color:
                                                           Color(0xff1E3A5F))),
                                             ),
-                                            Text(
-                                                '${b['total_qty'] ?? 0} pcs',
+                                            Text('${b['total_qty'] ?? 0} pcs',
                                                 style: const TextStyle(
                                                     fontSize: 12,
-                                                    fontWeight:
-                                                        FontWeight.w800,
-                                                    color:
-                                                        Color(0xff1E3A5F))),
+                                                    fontWeight: FontWeight.w800,
+                                                    color: Color(0xff1E3A5F))),
                                           ],
                                         ),
                                         const SizedBox(height: 4),
@@ -182,19 +249,15 @@ class _MutationReportPageState extends State<MutationReportPage> {
                                                     child: Text(
                                                         p['code']?.toString() ??
                                                             '',
-                                                        style:
-                                                            const TextStyle(
-                                                                fontSize: 11,
-                                                                color: kTaskGray)),
+                                                        style: const TextStyle(
+                                                            fontSize: 11,
+                                                            color: kTaskGray)),
                                                   ),
-                                                  Text(
-                                                      '${p['qty'] ?? 0}',
-                                                      style:
-                                                          const TextStyle(
-                                                              fontSize: 11,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w700)),
+                                                  Text('${p['qty'] ?? 0}',
+                                                      style: const TextStyle(
+                                                          fontSize: 11,
+                                                          fontWeight:
+                                                              FontWeight.w700)),
                                                 ],
                                               ),
                                             ),
@@ -221,8 +284,7 @@ class _MutationReportPageState extends State<MutationReportPage> {
                 fontWeight: FontWeight.w800,
                 color: ink(context))),
         const SizedBox(height: 2),
-        Text(label,
-            style: const TextStyle(fontSize: 10, color: kTaskGray)),
+        Text(label, style: const TextStyle(fontSize: 10, color: kTaskGray)),
       ],
     );
   }

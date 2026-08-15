@@ -835,11 +835,18 @@ class _InOutFormState extends State<_InOutForm> {
           withCost: widget.kind == 'incoming',
           accent: _inOutAccent(widget.kind),
           title: _inOutLabel(widget.kind),
+          mediaUrl: _mediaUrl,
         ),
       ),
     );
     if (result == null || result.isEmpty) return;
     setState(() => _items.addAll(result));
+  }
+
+  String _mediaUrl(String? path) {
+    if (path == null || path.isEmpty) return '';
+    final base = widget.api.baseUrl.replaceAll(RegExp(r'/api$'), '');
+    return path.startsWith('http') ? path : base + path;
   }
 
   Future<void> _addChannel() async {
@@ -926,137 +933,150 @@ class _InOutFormState extends State<_InOutForm> {
         foregroundColor: Colors.white,
         title: Text(_inOutLabel(widget.kind)),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(12),
-              children: [
-                // Banner pembeda warna (hindari salah input).
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: .12),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: accent.withValues(alpha: .4)),
-                  ),
-                  child: Row(
+      body: Column(
+        children: [
+          // Warna penuh sampai paling atas (area status bar).
+          Container(height: MediaQuery.of(context).padding.top, color: accent),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : ListView(
+                    padding: const EdgeInsets.all(12),
                     children: [
-                      Icon(
-                          widget.kind == 'incoming'
-                              ? Icons.move_to_inbox
-                              : Icons.move_to_inbox_outlined,
-                          size: 20,
-                          color: accent),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          widget.kind == 'incoming'
-                              ? 'Barang MASUK ke gudang'
-                              : 'Barang KELUAR dari gudang',
-                          style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w800,
-                              color: accent),
+                      // Banner pembeda warna solid + teks putih.
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: accent,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                                widget.kind == 'incoming'
+                                    ? Icons.move_to_inbox
+                                    : Icons.move_to_inbox_outlined,
+                                size: 20,
+                                color: Colors.white),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                widget.kind == 'incoming'
+                                    ? 'Barang MASUK ke gudang'
+                                    : 'Barang KELUAR dari gudang',
+                                style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  initialValue: _warehouseId.isEmpty ? null : _warehouseId,
-                  decoration: const InputDecoration(
-                      labelText: 'Gudang', border: OutlineInputBorder()),
-                  items: [
-                    for (final w in _warehouses)
-                      DropdownMenuItem(
-                          value: '${w['id']}',
-                          child: Text(w['name']?.toString() ?? '')),
-                  ],
-                  onChanged: (v) => setState(() => _warehouseId = v ?? ''),
-                ),
-                const SizedBox(height: 8),
-                if (widget.kind == 'outgoing') ...[
-                  DropdownButtonFormField<String>(
-                    initialValue: _channel,
-                    decoration: InputDecoration(
-                        labelText: 'Channel',
-                        border: const OutlineInputBorder(),
-                        suffixIcon: IconButton(
-                          onPressed: _addChannel,
-                          icon: const Icon(Icons.add_circle_outline,
-                              size: 20, color: Color(0xFFC2410C)),
-                          tooltip: 'Tambah channel',
-                        )),
-                    items: [
-                      for (final c in _channels)
-                        DropdownMenuItem(
-                            value: c['name']?.toString() ?? '',
-                            child: Text(c['name']?.toString() ?? '')),
-                      if (_channels.isEmpty)
-                        const DropdownMenuItem(
-                            value: 'toko', child: Text('toko')),
-                    ],
-                    onChanged: (v) => setState(() => _channel = v ?? 'toko'),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                TextField(
-                  decoration: const InputDecoration(
-                      labelText: 'Nomor batch / nota (opsional)',
-                      border: OutlineInputBorder()),
-                  onChanged: (v) => _batch = v,
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  decoration: const InputDecoration(
-                      labelText: 'Keterangan', border: OutlineInputBorder()),
-                  onChanged: (v) => _notes = v,
-                ),
-                const SizedBox(height: 12),
-                FilledButton.icon(
-                  onPressed: _pickItem,
-                  style: FilledButton.styleFrom(backgroundColor: accent),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Tambah Item (pilih produk ala POS)'),
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: 8),
-                  Text(_error!,
-                      style: TextStyle(
-                          color: Theme.of(context).colorScheme.error)),
-                ],
-                const SizedBox(height: 8),
-                for (final item in _items)
-                  GlassCard(
-                    padding: EdgeInsets.zero,
-                    child: ListTile(
-                      dense: true,
-                      title: Text(item['name']?.toString() ?? ''),
-                      subtitle: Text(
-                          '${item['variant_label'] ?? ''} · ${item['quantity']} pcs'),
-                      trailing: IconButton(
-                        onPressed: () => setState(() => _items.remove(item)),
-                        icon: const Icon(Icons.delete_outline),
+                      const SizedBox(height: 10),
+                      DropdownButtonFormField<String>(
+                        initialValue:
+                            _warehouseId.isEmpty ? null : _warehouseId,
+                        decoration: const InputDecoration(
+                            labelText: 'Gudang', border: OutlineInputBorder()),
+                        items: [
+                          for (final w in _warehouses)
+                            DropdownMenuItem(
+                                value: '${w['id']}',
+                                child: Text(w['name']?.toString() ?? '')),
+                        ],
+                        onChanged: (v) =>
+                            setState(() => _warehouseId = v ?? ''),
                       ),
-                    ),
+                      const SizedBox(height: 8),
+                      if (widget.kind == 'outgoing') ...[
+                        DropdownButtonFormField<String>(
+                          initialValue: _channel,
+                          decoration: InputDecoration(
+                              labelText: 'Channel',
+                              border: const OutlineInputBorder(),
+                              suffixIcon: IconButton(
+                                onPressed: _addChannel,
+                                icon: const Icon(Icons.add_circle_outline,
+                                    size: 20, color: Color(0xFFC2410C)),
+                                tooltip: 'Tambah channel',
+                              )),
+                          items: [
+                            for (final c in _channels)
+                              DropdownMenuItem(
+                                  value: c['name']?.toString() ?? '',
+                                  child: Text(c['name']?.toString() ?? '')),
+                            if (_channels.isEmpty)
+                              const DropdownMenuItem(
+                                  value: 'toko', child: Text('toko')),
+                          ],
+                          onChanged: (v) =>
+                              setState(() => _channel = v ?? 'toko'),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      TextField(
+                        decoration: const InputDecoration(
+                            labelText: 'Nomor batch / nota (opsional)',
+                            border: OutlineInputBorder()),
+                        onChanged: (v) => _batch = v,
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        decoration: const InputDecoration(
+                            labelText: 'Keterangan',
+                            border: OutlineInputBorder()),
+                        onChanged: (v) => _notes = v,
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton.icon(
+                        onPressed: _pickItem,
+                        style: FilledButton.styleFrom(backgroundColor: accent),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Tambah Item'),
+                      ),
+                      if (_error != null) ...[
+                        const SizedBox(height: 8),
+                        Text(_error!,
+                            style: TextStyle(
+                                color: Theme.of(context).colorScheme.error)),
+                      ],
+                      const SizedBox(height: 8),
+                      for (final item in _items)
+                        GlassCard(
+                          padding: EdgeInsets.zero,
+                          child: ListTile(
+                            dense: true,
+                            title: Text(item['name']?.toString() ?? ''),
+                            subtitle: Text(
+                                '${item['variant_label'] ?? ''} · ${item['quantity']} pcs'),
+                            trailing: IconButton(
+                              onPressed: () =>
+                                  setState(() => _items.remove(item)),
+                              icon: const Icon(Icons.delete_outline),
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 16),
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(50),
+                            backgroundColor: accent),
+                        onPressed: _saving ? null : _submit,
+                        child: _saving
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2))
+                            : const Text('Simpan Mutasi'),
+                      ),
+                    ],
                   ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50),
-                      backgroundColor: accent),
-                  onPressed: _saving ? null : _submit,
-                  child: _saving
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Simpan Mutasi'),
-                ),
-              ],
-            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1066,11 +1086,13 @@ class _CatalogPicker extends StatefulWidget {
       {required this.products,
       required this.withCost,
       required this.accent,
-      required this.title});
+      required this.title,
+      required this.mediaUrl});
   final List<Map<String, dynamic>> products;
   final bool withCost;
   final Color accent;
   final String title;
+  final String Function(String?) mediaUrl;
 
   @override
   State<_CatalogPicker> createState() => _CatalogPickerState();
@@ -1170,13 +1192,6 @@ class _CatalogPickerState extends State<_CatalogPicker> {
     });
   }
 
-  String _mediaUrl(String? path) {
-    if (path == null || path.isEmpty) return '';
-    return path.startsWith('http')
-        ? path
-        : path.replaceFirst(RegExp(r'^/'), '');
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1195,6 +1210,9 @@ class _CatalogPickerState extends State<_CatalogPicker> {
       ),
       body: Column(
         children: [
+          // Warna penuh sampai paling atas (area status bar).
+          Container(
+              height: MediaQuery.of(context).padding.top, color: widget.accent),
           Padding(
             padding: const EdgeInsets.all(12),
             child: TextField(
@@ -1221,7 +1239,8 @@ class _CatalogPickerState extends State<_CatalogPicker> {
                     ),
                     itemBuilder: (_, i) {
                       final p = _filtered[i];
-                      final photo = _mediaUrl(p['photo_path']?.toString());
+                      final photo =
+                          widget.mediaUrl(p['photo_path']?.toString());
                       return GlassCard(
                         padding: EdgeInsets.zero,
                         radius: 18,
@@ -1239,11 +1258,21 @@ class _CatalogPickerState extends State<_CatalogPicker> {
                                           size: 22,
                                           color: Color(0xff9AA5B1)),
                                     )
-                                  : Image.network(
-                                      photo,
+                                  : CachedNetworkImage(
+                                      imageUrl: photo,
                                       fit: BoxFit.cover,
-                                      cacheWidth: 300,
-                                      errorBuilder: (_, __, ___) => Container(
+                                      memCacheWidth: 420,
+                                      fadeInDuration: Duration.zero,
+                                      fadeOutDuration: Duration.zero,
+                                      placeholder: (_, __) => Container(
+                                        color: const Color(0xffE6ECF3),
+                                        alignment: Alignment.center,
+                                        child: const Icon(
+                                            Icons.image_not_supported,
+                                            size: 22,
+                                            color: Color(0xff9AA5B1)),
+                                      ),
+                                      errorWidget: (_, __, ___) => Container(
                                         color: const Color(0xffE6ECF3),
                                         alignment: Alignment.center,
                                         child: const Icon(
@@ -1350,7 +1379,12 @@ class _TransferSectionState extends State<_TransferSection> {
             products: catalog.cast<Map<String, dynamic>>(),
             withCost: false,
             accent: const Color(0xff1E3A5F),
-            title: 'Transfer Stok'),
+            title: 'Transfer Stok',
+            mediaUrl: (path) {
+              if (path == null || path.isEmpty) return '';
+              final base = widget.api.baseUrl.replaceAll(RegExp(r'/api$'), '');
+              return path.startsWith('http') ? path : base + path;
+            }),
       ),
     );
     if (result == null || result.isEmpty) return;
