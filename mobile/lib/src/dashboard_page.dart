@@ -235,6 +235,12 @@ class _DashboardPageState extends State<DashboardPage> {
 
   double get _selisih => _masuk - _keluar;
 
+  /// Format angka polos dengan pemisah ribuan (tanpa Rp).
+  String _fmtNum(double v) {
+    final text = v.round().toString();
+    return text.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.');
+  }
+
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
@@ -259,21 +265,21 @@ class _DashboardPageState extends State<DashboardPage> {
                         Expanded(
                             child: _SummaryCard(
                                 label: 'Masuk',
-                                value: fmtRp(_masuk),
+                                value: _fmtNum(_masuk),
                                 icon: Icons.south_west,
                                 color: _kGreen)),
                         const SizedBox(width: 8),
                         Expanded(
                             child: _SummaryCard(
                                 label: 'Keluar',
-                                value: fmtRp(_keluar),
+                                value: _fmtNum(_keluar),
                                 icon: Icons.north_east,
                                 color: _kRed)),
                         const SizedBox(width: 8),
                         Expanded(
                             child: _SummaryCard(
                                 label: 'Selisih',
-                                value: fmtRp(_selisih),
+                                value: _fmtNum(_selisih),
                                 icon: Icons.swap_vert,
                                 color: _kBlueAccent)),
                       ],
