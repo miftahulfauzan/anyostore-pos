@@ -365,6 +365,89 @@ class _HistoryTabState extends State<HistoryTab> {
     );
   }
 
+  /// Detail retur ala struk (dari endpoint /returns/:id).
+  Future<void> _openReturnDetail(Map<String, dynamic> row) async {
+    final id = int.tryParse('${row['id']}');
+    if (id == null) return;
+    try {
+      final detail = await widget.api.returnDetail(id);
+      if (!mounted) return;
+      final items =
+          ((detail['items'] as List?) ?? []).cast<Map<String, dynamic>>();
+      await showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(detail['return_no']?.toString() ?? 'Retur'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(detail['return_no']?.toString() ?? 'Retur',
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w800)),
+                      ),
+                      _StatusChip(detail['status']?.toString() ?? ''),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Invoice: ${detail['invoice_no'] ?? ''}\n'
+                    '${detail['created_at'] ?? ''}${detail['created_by_name'] != null && (detail['created_by_name'] as String).isNotEmpty ? ' · Oleh: ${detail['created_by_name']}' : ''}'
+                    '${detail['reason'] != null && (detail['reason'] as String).isNotEmpty ? '\nAlasan: ${detail['reason']}' : ''}',
+                    style:
+                        const TextStyle(fontSize: 11, color: Color(0xff8A857C)),
+                  ),
+                  const Divider(),
+                  for (final item in items) ...[
+                    Text(item['product_name']?.toString() ?? '',
+                        style: const TextStyle(
+                            fontSize: 12.5, fontWeight: FontWeight.w700)),
+                    if ((item['variant_detail'] ?? '').toString().isNotEmpty)
+                      Text((item['variant_detail'] ?? '').toString(),
+                          style: const TextStyle(
+                              fontSize: 10.5, color: Color(0xff8A857C))),
+                    _StrukRow(
+                      '${item['quantity']} x ${fmtRp(asNum(item['unit_price']))}',
+                      fmtRp(asNum(item['subtotal'])),
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                  const Divider(),
+                  _StrukRow(
+                      'Total refund', fmtRp(asNum(detail['refund_amount'])),
+                      bold: true),
+                  _StrukRow(
+                      'Metode',
+                      detail['refund_method'] == null
+                          ? 'Sesuai metode bayar'
+                          : (detail['refund_method'] ?? '')
+                              .toString()
+                              .toUpperCase()),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Tutup')),
+          ],
+        ),
+      );
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
   Future<void> _cancelFlow(int id, Map<String, dynamic> detail,
       List<Map<String, dynamic>> items) async {
     final controllers = <int, TextEditingController>{};
@@ -764,6 +847,7 @@ class _HistoryTabState extends State<HistoryTab> {
             status: status,
             // Retur otomatis disetujui backend — tidak perlu tombol Setujui.
             extra: null,
+            onTap: () => _openReturnDetail(row),
           );
         },
       );
@@ -989,6 +1073,11 @@ class _StatusChip extends StatelessWidget {
           'OFFLINE',
           dark ? const Color(0xff3A3320) : const Color(0xFFF5E1A8),
           dark ? const Color(0xffE8C96A) : const Color(0xFF8A6D1A)
+        ),
+      'approved' => (
+          'Disetujui',
+          dark ? const Color(0xff243047) : const Color(0xffE3EAF2),
+          dark ? const Color(0xffA9C4E8) : const Color(0xff2E5D8F)
         ),
       'partially_refunded' => (
           'Retur sebagian',

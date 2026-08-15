@@ -292,6 +292,11 @@ class ApiClient {
   Future<Map<String, dynamic>> createReturn(Map<String, dynamic> body) =>
       post('/returns', body);
 
+  Future<Map<String, dynamic>> returnDetail(int id) async {
+    final res = await get('/returns/$id');
+    return (res['data'] as Map<String, dynamic>?) ?? {};
+  }
+
   Future<Map<String, dynamic>> approveReturn(int id) =>
       put('/returns/$id/approve', {});
 

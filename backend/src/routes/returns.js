@@ -105,6 +105,26 @@ router.get('/', async (req, res, next) => {
   } catch (cause) { next(cause); }
 });
 
+// Detail retur + item (dipakai mobile untuk tampilan ala struk).
+router.get('/:id', async (req, res, next) => {
+  try {
+    const [rows] = await db.execute(
+      `SELECT r.id, r.return_no, r.refund_amount, r.refund_method, r.reason, r.status, r.created_at, t.invoice_no, u.name AS created_by_name
+       FROM returns r JOIN transactions t ON t.id = r.transaction_id JOIN users u ON u.id = r.created_by
+       WHERE r.id = ? AND r.branch_id = ?`,
+      [req.params.id, req.user.branch_id]
+    );
+    if (!rows[0]) return res.status(404).json({ success: false, message: 'Retur tidak ditemukan' });
+    const [items] = await db.execute(
+      `SELECT ri.product_id, ri.variant_id, ri.quantity, ri.unit_price, ri.subtotal, ti.product_name, ti.variant_detail
+       FROM return_items ri JOIN transaction_items ti ON ti.id = ri.transaction_item_id
+       WHERE ri.return_id = ? ORDER BY ri.id ASC`,
+      [req.params.id]
+    );
+    res.json({ success: true, data: { ...rows[0], items } });
+  } catch (cause) { next(cause); }
+});
+
 router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, res, next) => {
   const connection = await db.getConnection();
   try {
