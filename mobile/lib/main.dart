@@ -220,7 +220,11 @@ class PosMobileApp extends StatelessWidget {
                   .min(constraints.maxWidth / designW,
                       constraints.maxHeight / designH)
                   .clamp(0.8, 1.35);
-              return Center(
+              // Rata ke ATAS: warna AppBar/halaman bisa memenuhi area status bar
+              // (dulu Center menyisakan pita atas yang warnanya beda -> status
+              // bar setengah warna lain di halaman beraksen hijau/oranye).
+              return Align(
+                alignment: Alignment.topCenter,
                 child: SizedBox(
                   width: designW * scale,
                   height: designH * scale,
