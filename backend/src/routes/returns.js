@@ -58,6 +58,37 @@ async function approveReturnInTx(connection, { returnId, transactionId, branchId
       }
     }
   }
+  // Catat qty retur per item & perbarui status transaksi (retur sebagian/penuh).
+  const [itemRows] = await connection.execute(
+    'SELECT id, quantity FROM transaction_items WHERE transaction_id = ?',
+    [transactionId]
+  );
+  const [returnedRows] = await connection.execute(
+    `SELECT ri.transaction_item_id, COALESCE(SUM(ri.quantity), 0) AS qty
+     FROM return_items ri JOIN returns r ON r.id = ri.return_id
+     WHERE r.transaction_id = ? AND r.status = 'approved'
+     GROUP BY ri.transaction_item_id`,
+    [transactionId]
+  );
+  const returnedByItem = new Map(returnedRows.map((x) => [x.transaction_item_id, Number(x.qty)]));
+  let allFullyReturned = itemRows.length > 0;
+  for (const it of itemRows) {
+    const returned = returnedByItem.get(it.id) || 0;
+    await connection.execute('UPDATE transaction_items SET returned_qty = ? WHERE id = ?', [returned, it.id]);
+    if (returned < Number(it.quantity)) allFullyReturned = false;
+  }
+  if (allFullyReturned) {
+    await connection.execute(
+      "UPDATE transactions SET status='refunded' WHERE id=? AND status IN ('completed','partially_refunded','partially_cancelled')",
+      [transactionId]
+    );
+  } else {
+    await connection.execute(
+      "UPDATE transactions SET status='partially_refunded' WHERE id=? AND status IN ('completed','partially_refunded')",
+      [transactionId]
+    );
+  }
+
   await connection.execute('UPDATE returns SET status = \'approved\', approved_by = ? WHERE id = ?', [userId, returnId]);
   await connection.execute('INSERT INTO activity_logs (user_id, action, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)', [userId, 'return_approve', `Retur ${ret.return_no}`, 'auto', null]);
 }
@@ -193,6 +224,37 @@ router.put('/:id/approve', authorize('owner', 'manager', 'admin'), async (req, r
           await connection.execute('INSERT INTO cash_drawer_movements (cash_drawer_id, user_id, type, amount, reason) VALUES (?, ?, ?, ?, ?)', [drawers[0].id, req.user.id, 'cash_out', cashRefund, `Retur ${returns[0].return_no}`]);
         }
       }
+    }
+
+    // Catat qty retur per item & perbarui status transaksi (retur sebagian/penuh).
+    const [itemRows] = await connection.execute(
+      'SELECT id, quantity FROM transaction_items WHERE transaction_id = ?',
+      [returns[0].transaction_id]
+    );
+    const [returnedRows] = await connection.execute(
+      `SELECT ri.transaction_item_id, COALESCE(SUM(ri.quantity), 0) AS qty
+       FROM return_items ri JOIN returns r ON r.id = ri.return_id
+       WHERE r.transaction_id = ? AND r.status = 'approved'
+       GROUP BY ri.transaction_item_id`,
+      [returns[0].transaction_id]
+    );
+    const returnedByItem = new Map(returnedRows.map((x) => [x.transaction_item_id, Number(x.qty)]));
+    let allFullyReturned = itemRows.length > 0;
+    for (const it of itemRows) {
+      const returned = returnedByItem.get(it.id) || 0;
+      await connection.execute('UPDATE transaction_items SET returned_qty = ? WHERE id = ?', [returned, it.id]);
+      if (returned < Number(it.quantity)) allFullyReturned = false;
+    }
+    if (allFullyReturned) {
+      await connection.execute(
+        "UPDATE transactions SET status='refunded' WHERE id=? AND status IN ('completed','partially_refunded','partially_cancelled')",
+        [returns[0].transaction_id]
+      );
+    } else {
+      await connection.execute(
+        "UPDATE transactions SET status='partially_refunded' WHERE id=? AND status IN ('completed','partially_refunded')",
+        [returns[0].transaction_id]
+      );
     }
 
     await connection.execute('UPDATE returns SET status = \'approved\', approved_by = ? WHERE id = ?', [req.user.id, returns[0].id]);

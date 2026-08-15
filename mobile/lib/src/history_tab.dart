@@ -276,21 +276,58 @@ class _HistoryTabState extends State<HistoryTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Total: ${fmtRp(asNum(detail['grand_total']))}',
-                    style: const TextStyle(fontWeight: FontWeight.w800)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                          detail['invoice_no']?.toString() ?? 'Transaksi',
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w800)),
+                    ),
+                    _StatusChip(detail['status']?.toString() ?? ''),
+                  ],
+                ),
+                const SizedBox(height: 4),
                 Text(
-                    'Bayar: ${fmtRp(asNum(detail['amount_paid']))}  Kembalian: ${fmtRp(asNum(detail['change']))}'),
-                Text(
-                    'Metode: ${detail['payment_method']?.toString().toUpperCase()}'),
-                Text('Status: ${detail['status'] ?? ''}'),
+                  '${detail['created_at'] ?? ''}${detail['cashier'] != null && (detail['cashier'] as String).isNotEmpty ? ' · Kasir: ${detail['cashier']}' : ''}',
+                  style:
+                      const TextStyle(fontSize: 11, color: Color(0xff8A857C)),
+                ),
                 const Divider(),
-                for (final item in items)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 3),
-                    child:
-                        Text('${item['product_name']}  x${item['quantity']}\n'
-                            '  ${fmtRp(asNum(item['subtotal']))}'),
+                for (final item in items) ...[
+                  Text(item['product_name']?.toString() ?? '',
+                      style: const TextStyle(
+                          fontSize: 12.5, fontWeight: FontWeight.w700)),
+                  if ((item['variant_detail'] ?? '').toString().isNotEmpty)
+                    Text((item['variant_detail'] ?? '').toString(),
+                        style: const TextStyle(
+                            fontSize: 10.5, color: Color(0xff8A857C))),
+                  _StrukRow(
+                    '${item['quantity']} x ${fmtRp(asNum(item['price']))}'
+                    '${asNum(item['cancelled_qty']) > 0 ? '  (batal ${item['cancelled_qty']})' : ''}'
+                    '${asNum(item['returned_qty']) > 0 ? '  (retur ${item['returned_qty']})' : ''}',
+                    fmtRp(asNum(item['subtotal'])),
                   ),
+                  const SizedBox(height: 4),
+                ],
+                const Divider(),
+                _StrukRow('Subtotal', fmtRp(asNum(detail['subtotal'] ?? 0))),
+                if (asNum(detail['discount'] ?? 0) > 0)
+                  _StrukRow('Diskon', '-${fmtRp(asNum(detail['discount']))}',
+                      valueColor: const Color(0xffB0563A)),
+                _StrukRow('Total', fmtRp(asNum(detail['grand_total'])),
+                    bold: true),
+                const Divider(),
+                _StrukRow('Bayar', fmtRp(asNum(detail['amount_paid']))),
+                if (asNum(detail['change']) > 0)
+                  _StrukRow('Kembalian', fmtRp(asNum(detail['change']))),
+                _StrukRow('Metode',
+                    (detail['payment_method'] ?? '').toString().toUpperCase()),
+                if (detail['cancelled_amount'] != null &&
+                    asNum(detail['cancelled_amount']) > 0)
+                  _StrukRow('Dibatalkan',
+                      '-${fmtRp(asNum(detail['cancelled_amount']))}',
+                      valueColor: const Color(0xffB0563A)),
               ],
             ),
           ),
@@ -304,7 +341,8 @@ class _HistoryTabState extends State<HistoryTab> {
               },
               child: const Text('Batalkan Item'),
             ),
-          if (detail['status'] == 'completed')
+          if (detail['status'] == 'completed' ||
+              detail['status'] == 'partially_refunded')
             TextButton(
               onPressed: () {
                 Navigator.pop(ctx);
@@ -887,6 +925,38 @@ class _TxCard extends StatelessWidget {
   }
 }
 
+/// Baris label-nilai ala struk (kiri/kanan rapi).
+class _StrukRow extends StatelessWidget {
+  const _StrukRow(this.label, this.value, {this.bold = false, this.valueColor});
+  final String label;
+  final String value;
+  final bool bold;
+  final Color? valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1.5),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 12,
+                    color: const Color(0xff5f5f5d),
+                    fontWeight: bold ? FontWeight.w800 : FontWeight.w400)),
+          ),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+                  color: valueColor ?? ink(context))),
+        ],
+      ),
+    );
+  }
+}
+
 class _StatusChip extends StatelessWidget {
   const _StatusChip(this.status);
   final String status;
@@ -919,6 +989,16 @@ class _StatusChip extends StatelessWidget {
           'OFFLINE',
           dark ? const Color(0xff3A3320) : const Color(0xFFF5E1A8),
           dark ? const Color(0xffE8C96A) : const Color(0xFF8A6D1A)
+        ),
+      'partially_refunded' => (
+          'Retur sebagian',
+          dark ? const Color(0xff243047) : const Color(0xffE3EAF2),
+          dark ? const Color(0xffA9C4E8) : const Color(0xff2E5D8F)
+        ),
+      'refunded' => (
+          'Retur penuh',
+          dark ? const Color(0xff243047) : const Color(0xffE3EAF2),
+          dark ? const Color(0xffA9C4E8) : const Color(0xff1E3A5F)
         ),
       _ => (
           status,

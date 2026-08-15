@@ -342,9 +342,9 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
 
 router.get('/:id', async (req, res, next) => {
   try {
-    const [transactions] = await db.execute('SELECT id, invoice_no, grand_total, amount_paid, `change`, cancelled_amount, cancel_reason, payment_method, status, price_tier, created_at FROM transactions WHERE id = ? AND branch_id = ?', [req.params.id, req.user.branch_id]);
+    const [transactions] = await db.execute('SELECT t.id, t.invoice_no, t.grand_total, t.amount_paid, t.`change`, t.cancelled_amount, t.cancel_reason, t.payment_method, t.status, t.price_tier, t.subtotal, t.discount, t.created_at, u.name AS cashier FROM transactions t LEFT JOIN users u ON u.id = t.user_id WHERE t.id = ? AND t.branch_id = ?', [req.params.id, req.user.branch_id]);
     if (!transactions[0]) return res.status(404).json({ success: false, message: 'Transaksi tidak ditemukan' });
-    const [items] = await db.execute('SELECT id AS transaction_item_id, product_name, product_sku, variant_detail, quantity, cancelled_qty, cancel_reason, price, original_price, price_override, discount, subtotal FROM transaction_items WHERE transaction_id = ?', [req.params.id]);
+    const [items] = await db.execute('SELECT id AS transaction_item_id, product_name, product_sku, variant_detail, quantity, cancelled_qty, returned_qty, cancel_reason, price, original_price, price_override, discount, subtotal FROM transaction_items WHERE transaction_id = ?', [req.params.id]);
     res.json({ success: true, data: { ...transactions[0], items } });
   } catch (error) { next(error); }
 });
