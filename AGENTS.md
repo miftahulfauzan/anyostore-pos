@@ -31,6 +31,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 | `scripts/migrate.js` | Jalankan migrasi SQL di `migrations/`, track `_migrations` table |
 | `scripts/fix-clone-paths.js` | One-off: copy file foto yang di-share antar cabang ke path baru (idempoten) |
 | `scripts/merge-warehouses.js` | One-off: sisakan 1 gudang per cabang — gabungkan stok, pindahkan referensi, hapus duplikat (JALANKAN MANUAL, bukan otomatis) |
+| `scripts/sync-catalog-to-branches.js` | One-off: HAPUS (soft) semua produk cabang target lalu SALIN katalog cabang sumber (foto produk+varian via copyMediaFile, stok products/variants/warehouse_stocks dengan mapping gudang utama->utama/reject->reject, harga grosir, varian; SKU baru B<targetId>-; dry-run default, eksekusi `--apply`; riwayat lama aman karena soft-delete) |
 
 ### Routes (`backend/src/routes/`)
 
