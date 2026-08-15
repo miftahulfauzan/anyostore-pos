@@ -853,10 +853,13 @@ class _PosPageState extends State<PosPage> {
     final pages = <Widget>[
       if (isGudang) DashboardPage(api: _client) else _buildKasir(),
       if (isGudang)
-        MutationReportPage(api: _client)
+        InventoryPage(api: _client, branchId: _branchId, role: auth.role)
       else
         HistoryTab(api: _client, role: auth.role),
-      InventoryPage(api: _client, branchId: _branchId, role: auth.role),
+      if (isGudang)
+        MutationReportPage(api: _client)
+      else
+        InventoryPage(api: _client, branchId: _branchId, role: auth.role),
       // Role gudang tidak pakai Laporan (backend menolak) -> tab dihapus.
       if (!isGudang) ReportsPage(api: _client, role: auth.role),
       MorePage(api: _client, branchId: _branchId, role: auth.role),
@@ -919,14 +922,14 @@ class _PosPageState extends State<PosPage> {
                                 label: 'Dashboard'
                               ),
                               (
-                                icon: Icons.swap_vert,
-                                activeIcon: Icons.swap_vert,
-                                label: 'M/K Stok'
-                              ),
-                              (
                                 icon: Icons.inventory_2_outlined,
                                 activeIcon: Icons.inventory_2,
                                 label: 'Stok'
+                              ),
+                              (
+                                icon: Icons.swap_vert,
+                                activeIcon: Icons.swap_vert,
+                                label: 'M/K Stok'
                               ),
                               (
                                 icon: Icons.more_horiz,
