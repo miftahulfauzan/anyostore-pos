@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const express = require('express');
 const db = require('../db');
+const { SALES_STATUSES_SQL } = require('../sales-status');
 const { authenticate, authorize } = require('../auth');
 const router = express.Router();
 router.use(authenticate);
@@ -159,7 +160,7 @@ router.get('/profit-loss', authorize('owner', 'manager', 'admin'), async (req, r
     const end = req.query.end || localDateString();
     // Definisi penjualan disamakan dengan laporan lain: transaksi completed +
     // partially_cancelled, dan omset dikurangi cancelled_amount.
-    const [sales] = await db.execute("SELECT COUNT(*) AS transactions, COALESCE(SUM(grand_total - cancelled_amount - refunded_amount),0) AS amount FROM transactions WHERE branch_id = ? AND status IN ('completed','partially_cancelled','partially_refunded','refunded') AND DATE(created_at) BETWEEN ? AND ?", [req.user.branch_id, start, end]);
+    const [sales] = await db.execute(`SELECT COUNT(*) AS transactions, COALESCE(SUM(grand_total - cancelled_amount - refunded_amount),0) AS amount FROM transactions WHERE branch_id = ? AND status IN (${SALES_STATUSES_SQL}) AND DATE(created_at) BETWEEN ? AND ?`, [req.user.branch_id, start, end]);
     const [expenses] = await db.execute("SELECT COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS amount, COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS income FROM expenses WHERE branch_id = ? AND status = 'approved' AND expense_date BETWEEN ? AND ?", [req.user.branch_id, start, end]);
     const revenue = money(Number(sales[0].amount) + Number(expenses[0].income));
     res.json({ success: true, data: { start, end, revenue, expenses: expenses[0].amount, income: expenses[0].income, net_profit: money(revenue - expenses[0].amount) } });

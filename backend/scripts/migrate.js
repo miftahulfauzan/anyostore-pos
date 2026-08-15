@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const mysql = require('mysql2/promise');
 
 // Kesalahan yang boleh dianggap "migrasi sudah terpasang" (idempotent). Ini
@@ -35,21 +36,44 @@ async function run() {
     database: process.env.DB_NAME,
     multipleStatements: true,
   });
-  await conn.query(`CREATE TABLE IF NOT EXISTS _migrations (id INT AUTO_INCREMENT PRIMARY KEY, filename VARCHAR(255) UNIQUE, executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-  const [executed] = await conn.query('SELECT filename FROM _migrations');
-  const done = new Set(executed.map(r => r.filename));
+  await conn.query(`CREATE TABLE IF NOT EXISTS _migrations (id INT AUTO_INCREMENT PRIMARY KEY, filename VARCHAR(255) UNIQUE, executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, content_hash VARCHAR(64) NULL)`);
+  try {
+    // Tabel lama tanpa kolom hash (sebelum guard ini).
+    await conn.query('ALTER TABLE _migrations ADD COLUMN content_hash VARCHAR(64) NULL');
+  } catch (_) { /* duplicate column: abaikan */ }
+  const [executed] = await conn.query('SELECT filename, content_hash FROM _migrations');
+  const done = new Map(executed.map(r => [r.filename, r.content_hash]));
 
   const stats = { applied: 0, skipped: 0, idempotent: 0, failed: [] };
 
   for (const file of files) {
-    if (done.has(file)) { console.log(`[migrate] skip ${file}`); stats.skipped += 1; continue; }
     const full = path.join(dir, file);
     const sql = fs.readFileSync(full, 'utf8');
+    const hash = crypto.createHash('sha256').update(sql).digest('hex');
+    if (done.has(file)) {
+      const prevHash = done.get(file);
+      if (prevHash && prevHash !== hash) {
+        // File migrasi DIEDIT setelah pernah dijalankan -> berbahaya (kolom
+        // tidak pernah terpasang). Wajib buat file migrasi BARU, bukan edit.
+        const msg = `file sudah terpasang tapi isinya BERUBAH — buat file migrasi baru, jangan edit file lama (hash lama ${prevHash.slice(0, 12)} != ${hash.slice(0, 12)})`;
+        console.error(`[migrate] FAILED ${file}: ${msg}`);
+        stats.failed.push({ file, message: msg });
+        continue;
+      }
+      if (!prevHash) {
+        // Migrasi lama (sebelum guard hash) — tidak bisa diverifikasi.
+        console.log(`[migrate] skip ${file} (tanpa hash terverifikasi)`);
+      } else {
+        console.log(`[migrate] skip ${file}`);
+      }
+      stats.skipped += 1;
+      continue;
+    }
     // split by statements loosely, run as multi-statement but catch errors per file
     console.log(`[migrate] applying ${file}`);
     try {
       await conn.query(sql);
-      await conn.query('INSERT INTO _migrations (filename) VALUES (?)', [file]);
+      await conn.query('INSERT INTO _migrations (filename, content_hash) VALUES (?, ?)', [file, hash]);
       console.log(`[migrate] done ${file}`);
       stats.applied += 1;
     } catch (e) {
@@ -57,7 +81,7 @@ async function run() {
       if (isIdempotentError(msg)) {
         // Tujuan migrasi sudah terpenuhi (kolom/entry/tabel sudah ada) — aman
         // ditandai selesai supaya tidak gagal lagi di restart berikutnya.
-        await conn.query('INSERT IGNORE INTO _migrations (filename) VALUES (?)', [file]);
+        await conn.query('INSERT IGNORE INTO _migrations (filename, content_hash) VALUES (?, ?)', [file, hash]);
         console.log(`[migrate] marked ${file} as done (idempotent): ${msg}`);
         stats.idempotent += 1;
       } else {

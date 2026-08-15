@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const { SALES_STATUSES_SQL } = require('../sales-status');
 const { authenticate, authorize } = require('../auth');
 
 const router = express.Router();
@@ -44,7 +45,7 @@ async function computeBranchReport(branchId, start, end) {
        FROM transactions t
        JOIN transaction_items ti ON ti.transaction_id=t.id
        LEFT JOIN customers c ON c.id=t.customer_id
-       WHERE t.branch_id=? AND t.user_id=? AND t.status IN ('completed','partially_cancelled','partially_refunded','refunded') AND DATE(t.created_at) BETWEEN ? AND ?
+       WHERE t.branch_id=? AND t.user_id=? AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) BETWEEN ? AND ?
        GROUP BY tier`,
       [branchId, u.id, start, end]
     );
@@ -62,7 +63,7 @@ async function computeBranchReport(branchId, start, end) {
       } else if (r.calculation_type === 'percentage_sales') {
         comm = getSales() * Number(r.percentage) / 100;
       } else if (r.calculation_type === 'per_transaction') {
-        const [cntRow] = await db.execute('SELECT COUNT(*) AS cnt FROM transactions WHERE branch_id=? AND user_id=? AND status IN ("completed","partially_cancelled","partially_refunded","refunded") AND DATE(created_at) BETWEEN ? AND ?', [branchId, u.id, start, end]);
+        const [cntRow] = await db.execute(`SELECT COUNT(*) AS cnt FROM transactions WHERE branch_id=? AND user_id=? AND status IN (${SALES_STATUSES_SQL}) AND DATE(created_at) BETWEEN ? AND ?`, [branchId, u.id, start, end]);
         comm = Number(cntRow[0].cnt) * Number(r.flat_amount);
       } else {
         comm = Number(r.flat_amount);
@@ -226,7 +227,7 @@ router.post('/generate', authenticate, authorize('owner', 'manager', 'admin'), a
            FROM transactions t
            JOIN transaction_items ti ON ti.transaction_id=t.id
            LEFT JOIN customers c ON c.id=t.customer_id
-           WHERE t.branch_id=? AND t.user_id=? AND t.status IN ('completed','partially_cancelled','partially_refunded','refunded') AND DATE(t.created_at) BETWEEN ? AND ?
+           WHERE t.branch_id=? AND t.user_id=? AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) BETWEEN ? AND ?
            GROUP BY tier`,
           [req.user.branch_id, user.id, periodStart, periodEnd]
         );
@@ -238,7 +239,7 @@ router.post('/generate', authenticate, authorize('owner', 'manager', 'admin'), a
         const [transactions] = await connection.execute(
           `SELECT t.id, t.grand_total, COALESCE(SUM((ti.price - ti.cost) * (ti.quantity - ti.cancelled_qty - ti.returned_qty) - ti.discount * (ti.quantity - ti.cancelled_qty - ti.returned_qty) / NULLIF(ti.quantity, 0)), 0) AS profit
            FROM transactions t LEFT JOIN transaction_items ti ON ti.transaction_id = t.id
-           WHERE t.branch_id = ? AND t.user_id = ? AND t.status IN ('completed','partially_cancelled','partially_refunded','refunded') AND DATE(t.created_at) BETWEEN ? AND ? GROUP BY t.id`,
+           WHERE t.branch_id = ? AND t.user_id = ? AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) BETWEEN ? AND ? GROUP BY t.id`,
           [req.user.branch_id, user.id, periodStart, periodEnd]
         );
         const totalSales = asMoney(transactions.reduce((sum, row) => sum + Number(row.grand_total), 0));
@@ -338,7 +339,7 @@ router.get('/mine', authenticate, async (req, res, next) => {
          FROM transactions t
          JOIN transaction_items ti ON ti.transaction_id=t.id
          LEFT JOIN customers c ON c.id=t.customer_id
-         WHERE t.branch_id=? AND t.user_id=? AND t.status IN ('completed','partially_cancelled','partially_refunded','refunded') AND DATE(t.created_at) BETWEEN ? AND ?
+         WHERE t.branch_id=? AND t.user_id=? AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) BETWEEN ? AND ?
          GROUP BY tier`,
         [branchId, userId, monthStart, monthEnd]
       );
@@ -349,7 +350,7 @@ router.get('/mine', authenticate, async (req, res, next) => {
       const sales = tierRows.reduce((s, r) => s + Number(r.sales || 0), 0);
       const cnt = tierRows.reduce((s, r) => s + Number(r.cnt || 0), 0);
       // distinct transactions
-      const [cntRow] = await db.execute('SELECT COUNT(*) AS cnt FROM transactions WHERE branch_id=? AND user_id=? AND status IN ("completed","partially_cancelled","partially_refunded","refunded") AND DATE(created_at) BETWEEN ? AND ?', [branchId, userId, monthStart, monthEnd]);
+      const [cntRow] = await db.execute(`SELECT COUNT(*) AS cnt FROM transactions WHERE branch_id=? AND user_id=? AND status IN (${SALES_STATUSES_SQL}) AND DATE(created_at) BETWEEN ? AND ?`, [branchId, userId, monthStart, monthEnd]);
       const totalTrx = Number(cntRow[0].cnt);
 
       let estimated = 0;
@@ -365,7 +366,7 @@ router.get('/mine', authenticate, async (req, res, next) => {
           const [profitRows] = await db.execute(
             `SELECT COALESCE(SUM((ti.price - ti.cost) * (ti.quantity - ti.cancelled_qty - ti.returned_qty) - ti.discount * (ti.quantity - ti.cancelled_qty - ti.returned_qty) / NULLIF(ti.quantity, 0)),0) AS profit
              FROM transactions t JOIN transaction_items ti ON ti.transaction_id=t.id
-             WHERE t.branch_id=? AND t.user_id=? AND t.status IN ('completed','partially_cancelled','partially_refunded','refunded') AND DATE(t.created_at) BETWEEN ? AND ?`,
+             WHERE t.branch_id=? AND t.user_id=? AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) BETWEEN ? AND ?`,
             [branchId, userId, monthStart, monthEnd]
           );
           comm = Number(profitRows[0]?.profit || 0) * Number(rule.percentage) / 100;

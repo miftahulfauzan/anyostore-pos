@@ -11,7 +11,7 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./docs/12-migration.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
       - ./backend/migrations/20260720_promotions.sql:/docker-entrypoint-initdb.d/002-promotions.sql:ro
       - ./backend/migrations/20260721_branch_contact_tax.sql:/docker-entrypoint-initdb.d/003-branch_contact_tax.sql:ro
       - ./backend/migrations/20260721_denim_variant_stock.sql:/docker-entrypoint-initdb.d/004-denim_variant_stock.sql:ro

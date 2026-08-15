@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const { SALES_STATUSES_SQL } = require('../sales-status');
 const { authenticate, authorize } = require('../auth');
 
 const router = express.Router();
@@ -31,7 +32,7 @@ router.get('/report', async (req, res, next) => {
     // PPN Keluaran (from completed sales)
     const [salesData] = await db.execute(
       `SELECT COUNT(*) AS transactions, COALESCE(SUM(grand_total - cancelled_amount - refunded_amount), 0) AS gross_sales
-       FROM transactions WHERE branch_id=? AND status IN ('completed','partially_cancelled','partially_refunded','refunded') AND DATE(created_at) BETWEEN ? AND ?`,
+       FROM transactions WHERE branch_id=? AND status IN (${SALES_STATUSES_SQL}) AND DATE(created_at) BETWEEN ? AND ?`,
       [branchId, start, end]
     );
     const grossSales = Number(salesData[0].gross_sales);
@@ -58,7 +59,7 @@ router.get('/report', async (req, res, next) => {
       `SELECT DATE_FORMAT(created_at, '%Y-%m') AS month,
               COUNT(*) AS transactions,
               COALESCE(SUM(grand_total - cancelled_amount - refunded_amount), 0) AS gross_sales
-       FROM transactions WHERE branch_id=? AND status IN ('completed','partially_cancelled','partially_refunded','refunded') AND DATE(created_at) BETWEEN ? AND ?
+       FROM transactions WHERE branch_id=? AND status IN (${SALES_STATUSES_SQL}) AND DATE(created_at) BETWEEN ? AND ?
        GROUP BY month ORDER BY month`,
       [branchId, start, end]
     );
@@ -122,7 +123,7 @@ router.get('/faktur-pajak', async (req, res, next) => {
        FROM transactions t
        LEFT JOIN users u ON u.id = t.user_id
        LEFT JOIN customers c ON c.id = t.customer_id
-       WHERE t.branch_id=? AND t.status IN ('completed','partially_cancelled','partially_refunded','refunded') AND DATE(t.created_at) BETWEEN ? AND ?
+       WHERE t.branch_id=? AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) BETWEEN ? AND ?
        ORDER BY t.created_at ASC`,
       [branchId, start, end]
     );

@@ -58,7 +58,7 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./docs/12-migration.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/init.sql
 
   redis:
     image: redis:7-alpine
@@ -286,7 +286,7 @@ find $BACKUP_DIR -name "*.gz" -mtime +30 -delete
 
 ```bash
 # Setelah clone repo dan npm install
-mysql -u root -p pos_pakaian < docs/12-migration.sql
+mysql -u root -p pos_pakaian < backend/schema.sql
 ```
 
 ```javascript

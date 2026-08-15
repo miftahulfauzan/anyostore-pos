@@ -177,22 +177,24 @@ class _DashboardPageState extends State<DashboardPage> {
         widget.api.topProductsOut(start: start, end: end, branchId: bp),
       ]);
       if (!mounted) return;
-      final inSummary = ((results[0] as Map<String, dynamic>?)?['summary']
+      final rows = (results[0] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final stockSummary = ((results[1] as Map<String, dynamic>?)?['summary']
               as Map<String, dynamic>?) ??
           {};
-      final outSummary = ((results[1] as Map<String, dynamic>?)?['summary']
-              as Map<String, dynamic>?) ??
-          {};
-      final rows = (results[2] as List?)?.cast<Map<String, dynamic>>() ?? [];
-      final stockSummary = ((results[3] as Map<String, dynamic>?)?['summary']
-              as Map<String, dynamic>?) ??
-          {};
-      final catRows = (results[4] as List?)?.cast<Map<String, dynamic>>() ?? [];
-      final topRows = (results[5] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final catRows = (results[2] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final topRows = (results[3] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
-      // Ringkasan masuk/keluar/selisih periode terpilih.
-      final masuk = asNum(inSummary['total_qty']);
-      final keluar = asNum(outSummary['total_qty']);
+      // Ringkasan masuk/keluar/selisih dari SEMUA mutasi periode terpilih.
+      double masuk = 0;
+      double keluar = 0;
+      for (final r in rows) {
+        final qty = asNum(r['qty']);
+        if (qty >= 0) {
+          masuk += qty;
+        } else {
+          keluar += -qty;
+        }
+      }
 
       // Grafik harian dari mutasi (qty positif = masuk, negatif = keluar).
       final buckets = <String, List<double>>{};

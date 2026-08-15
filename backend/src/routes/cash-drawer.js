@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const { SALES_STATUSES_SQL } = require('../sales-status');
 const { authenticate, authorize } = require('../auth');
 const router = express.Router();
 router.use(authenticate);
@@ -15,7 +16,7 @@ async function expectedCash(connection, drawer) {
   const [sales] = await connection.execute(
     `SELECT COALESCE(SUM(tp.amount - (t.cancelled_amount * tp.amount / NULLIF(t.grand_total, 0))), 0) AS amount FROM transaction_payments tp
      JOIN transactions t ON t.id = tp.transaction_id
-     WHERE t.branch_id = ? AND t.status IN ('completed','partially_cancelled','partially_refunded','refunded') AND tp.payment_method = 'cash' AND t.created_at >= ?`,
+     WHERE t.branch_id = ? AND t.status IN (${SALES_STATUSES_SQL}) AND tp.payment_method = 'cash' AND t.created_at >= ?`,
     [drawer.branch_id, drawer.opened_at]
   );
   const [moves] = await connection.execute(
@@ -66,7 +67,7 @@ router.put('/close', authorize('owner', 'manager', 'admin', 'kasir'), async (req
     const [payments] = await connection.execute(
       `SELECT tp.payment_method, COUNT(*) AS transactions, COALESCE(SUM(tp.amount - (t.cancelled_amount * tp.amount / NULLIF(t.grand_total, 0))), 0) AS amount
        FROM transaction_payments tp JOIN transactions t ON t.id = tp.transaction_id
-       WHERE t.branch_id = ? AND t.status IN ('completed','partially_cancelled','partially_refunded','refunded') AND tp.payment_method = 'cash' AND t.created_at >= ? AND t.created_at <= NOW()
+       WHERE t.branch_id = ? AND t.status IN (${SALES_STATUSES_SQL}) AND tp.payment_method = 'cash' AND t.created_at >= ? AND t.created_at <= NOW()
        GROUP BY tp.payment_method`,
       [drawer.branch_id, drawer.opened_at]
     );
