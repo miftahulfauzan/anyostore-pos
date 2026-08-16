@@ -52,6 +52,16 @@ class CartItem {
   double? priceOverride;
 }
 
+/// Satu-satunya sumber hitungan subtotal keranjang (harga satuan x qty,
+/// SEMUA item wajib masuk). Dipakai POS dan sheet keranjang supaya angka
+/// tidak mungkin beda.
+double cartSubtotal(List<CartItem> cart) =>
+    cart.fold(0.0, (sum, c) => sum + (c.priceOverride ?? c.price) * c.qty);
+
+/// Satu-satunya sumber hitungan total pcs keranjang.
+int cartTotalPcs(List<CartItem> cart) =>
+    cart.fold<int>(0, (sum, c) => sum + c.qty);
+
 class PosPage extends StatefulWidget {
   /// Tab yang diminta halaman lain (misal Dashboard -> Kasir).
   static final ValueNotifier<int> requestTab = ValueNotifier<int>(0);
@@ -468,8 +478,7 @@ class _PosPageState extends State<PosPage> {
     }
   }
 
-  double get _cartTotal =>
-      _cart.fold(0, (sum, c) => sum + (c.priceOverride ?? c.price) * c.qty);
+  double get _cartTotal => cartSubtotal(_cart);
 
   Future<void> _holdCart() async {
     if (_cart.isEmpty) return;
@@ -1562,8 +1571,7 @@ class _CartSheetState extends State<_CartSheet> {
   @override
   Widget build(BuildContext context) {
     final cart = widget.cart;
-    final localSubtotal =
-        cart.fold(0.0, (s, c) => s + (c.priceOverride ?? c.price) * c.qty);
+    final localSubtotal = cartSubtotal(cart);
     final subtotal = asNum(
         widget.previewFresh ? (widget.preview?['subtotal']) : localSubtotal);
     final discount =
@@ -1572,7 +1580,7 @@ class _CartSheetState extends State<_CartSheet> {
         widget.previewFresh ? (widget.preview?['grand_total']) : subtotal);
     final customerName = _customerName();
     final hasExtra = customerName.isNotEmpty || widget.promoCode.isNotEmpty;
-    final totalPcs = cart.fold<int>(0, (sum, c) => sum + c.qty);
+    final totalPcs = cartTotalPcs(cart);
 
     final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
     // Geser sheet ke atas saat keyboard muncul supaya Bayar tidak tertutup.
@@ -1756,6 +1764,24 @@ class _CartSheetState extends State<_CartSheet> {
                                     icon: const Icon(Icons.add_circle_outline,
                                         size: 18),
                                   ),
+                                  const SizedBox(width: 2),
+                                  SizedBox(
+                                    width: 72,
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerRight,
+                                      child: Text(
+                                        fmtRp(
+                                            (item.priceOverride ?? item.price) *
+                                                item.qty),
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w800,
+                                            color: ink(context)),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 2),
                                   IconButton(
                                     onPressed: () => widget.onEditPrice(item),
                                     visualDensity: VisualDensity.compact,
