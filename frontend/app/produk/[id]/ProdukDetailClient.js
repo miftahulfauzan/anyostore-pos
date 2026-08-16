@@ -36,6 +36,7 @@ export default function ProdukDetail() {
   const [selectedVariantId, setSelectedVariantId] = useState(null);
   const [added, setAdded] = useState(false);
   const [cartCount, setCartCount] = useState(0);
+  const [mounted, setMounted] = useState(false);
 
   function loadCart() {
     try { const c = JSON.parse(localStorage.getItem('landing_cart') || '[]'); return Array.isArray(c) ? c : []; } catch { return []; }
@@ -43,6 +44,10 @@ export default function ProdukDetail() {
   function saveCart(cart) {
     try { localStorage.setItem('landing_cart', JSON.stringify(cart)); } catch {}
   }
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!product) return;
@@ -86,6 +91,7 @@ export default function ProdukDetail() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  if (!mounted) return null;
   if (loading) return <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto', fontFamily: "'DM Sans', sans-serif" }}>Memuat produk…</div>;
   if (!product) return <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto', fontFamily: "'DM Sans', sans-serif" }}>Produk tidak ditemukan. <a href="/" style={{ color: C.accent, fontWeight: 700 }}>Kembali ke katalog</a></div>;
 
