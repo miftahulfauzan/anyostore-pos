@@ -52,19 +52,25 @@ export default function StockMovementsPage() {
     <div className="movement-page">
     <section className="panel movement-filter">
       <div><h2>Jejak audit stok</h2><p className="muted">Setiap stok masuk, keluar, transaksi, retur, transfer, dan opname tercatat bersama petugas serta saldo sebelum/sesudah.</p></div>
-      <form onSubmit={apply}>
-        <DateRangePresets active={preset} onPick={(key, range) => {
-          setPreset(key);
-          if (range) {
-            const next = { ...filters, date_from: range.start, date_to: range.end };
-            setFilters(next);
-            load(next);
-          }
-        }} />
-        <label>Dari tanggal<input type="date" value={filters.date_from} onChange={(event) => setFilters({ ...filters, date_from: event.target.value })} /></label>
-        <label>Sampai tanggal<input type="date" value={filters.date_to} onChange={(event) => setFilters({ ...filters, date_to: event.target.value })} /></label>
-        <label>Jenis perubahan<select value={filters.type} onChange={(event) => setFilters({ ...filters, type: event.target.value })}><option value="">Semua aktivitas</option>{Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-        <button type="submit" disabled={loading}>{loading ? 'Memuat…' : 'Terapkan filter'}</button>
+      <form onSubmit={apply} className="movement-form">
+        <div className="movement-controls">
+          <div className="movement-field">
+            <DateRangePresets active={preset} onPick={(key, range) => {
+              setPreset(key);
+              if (range) {
+                const next = { ...filters, date_from: range.start, date_to: range.end };
+                setFilters(next);
+                load(next);
+              }
+            }} />
+          </div>
+          <label className="movement-field">Dari tanggal<input type="date" value={filters.date_from} onChange={(event) => setFilters({ ...filters, date_from: event.target.value })} /></label>
+          <label className="movement-field">Sampai tanggal<input type="date" value={filters.date_to} onChange={(event) => setFilters({ ...filters, date_to: event.target.value })} /></label>
+          <label className="movement-field">Jenis perubahan<select value={filters.type} onChange={(event) => setFilters({ ...filters, type: event.target.value })}><option value="">Semua aktivitas</option>{Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        </div>
+        <div className="movement-actions">
+          <button type="submit" disabled={loading}>{loading ? 'Memuat…' : 'Terapkan filter'}</button>
+        </div>
       </form>
     </section>
     {message && <p className="message records" role="status">{message}</p>}
