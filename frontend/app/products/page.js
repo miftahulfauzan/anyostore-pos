@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Barcode, Pencil, Trash2 } from 'lucide-react';
+import { Barcode, Copy, Pencil, Trash2 } from 'lucide-react';
 import AppShell from '../components/AppShell';
 import BarcodeLabel from '../components/BarcodeLabel';
 
@@ -67,6 +67,17 @@ export default function ProductsPage() {
   }, [search, sort]);
 
   const mediaUrl = (photoPath) => photoPath ? `${apiUrl.replace('/api', '')}${photoPath}` : '';
+
+  async function copyProduct(product) {
+    if (!window.confirm(`Salin "${product.name}"? Varian, harga grosir, dan foto ikut disalin (stok mulai 0).`)) return;
+    try {
+      const r = await fetch(`${apiUrl}/products/${product.id}/copy`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      const b = await r.json();
+      if (!r.ok) throw new Error(b.message);
+      setMessage('Produk disalin — cek daftar untuk edit SKU/barcode.');
+      load(search);
+    } catch (e) { setMessage(e.message); }
+  }
 
   async function deleteProduct(product) {
     if (!window.confirm(`Hapus "${product.name}"?`)) return;
@@ -163,6 +174,7 @@ export default function ProductsPage() {
           <span>{product.category_name} · {product.sku || 'Tanpa SKU'}</span>
           {Number(product.variant_count) > 0 && <div className="variant-summary"><span>{product.variant_count} varian</span>{String(product.variant_colors || '').split('|').filter(Boolean).slice(0, 4).map((color) => <i key={color} title={color}>{color}</i>)}</div>}
           <div className="product-actions">
+            <button type="button" className="icon-action" title="Salin produk" onClick={() => copyProduct(product)}><Copy size={15} /></button>
             <button type="button" className="icon-action" title="Cetak barcode" onClick={() => { setBarcodeProduct(product); setBarcodeCopies(1); }}><Barcode size={15} /></button>
             <a className="icon-action" title="Kelola produk" href={`/products/${product.id}/edit`}><Pencil size={15} /></a>
             <button type="button" className="icon-action danger" title="Hapus produk" onClick={() => deleteProduct(product)}><Trash2 size={15} /></button>

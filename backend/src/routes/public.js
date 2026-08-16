@@ -17,11 +17,15 @@ router.get('/settings', async (req, res, next) => {
     const branchId = Number(req.query.branch_id) || null;
     let effectiveBranchId = branchId;
     if (!effectiveBranchId) {
-      const [metro] = await db.execute("SELECT id FROM branches WHERE name LIKE '%metro%' AND is_active=TRUE ORDER BY id LIMIT 1");
-      if (metro[0]) effectiveBranchId = metro[0].id;
+      const [gudang] = await db.execute("SELECT id FROM branches WHERE LOWER(TRIM(name)) = 'gudang utama' AND is_active=TRUE ORDER BY id LIMIT 1");
+      if (gudang[0]) effectiveBranchId = gudang[0].id;
       else {
-        const [first] = await db.execute('SELECT id FROM branches WHERE is_active=TRUE ORDER BY id LIMIT 1');
-        if (first[0]) effectiveBranchId = first[0].id;
+        const [gudangLike] = await db.execute("SELECT id FROM branches WHERE name LIKE '%gudang%utama%' AND is_active=TRUE ORDER BY id LIMIT 1");
+        effectiveBranchId = gudangLike[0]?.id || null;
+        if (!effectiveBranchId) {
+          const [first] = await db.execute('SELECT id FROM branches WHERE is_active=TRUE ORDER BY id LIMIT 1');
+          if (first[0]) effectiveBranchId = first[0].id;
+        }
       }
     }
     if (!effectiveBranchId) return res.json({ success: true, data: { branch_id: null, store_name: 'Anyostore', whatsapp: '', whatsapp_numbers: [] } });
@@ -91,14 +95,18 @@ router.get('/products', async (req, res, next) => {
     };
     const order = sortMap[req.query.sort] || sortMap.newest;
 
-    // resolve metro branch id if not given
+    // resolve default branch = Gudang Utama (bukan Metro)
     let effectiveBranchId = branchId;
     if (!effectiveBranchId) {
-      const [metro] = await db.execute("SELECT id FROM branches WHERE name LIKE '%metro%' AND is_active=TRUE ORDER BY id LIMIT 1");
-      effectiveBranchId = metro[0]?.id || null;
+      const [gudang] = await db.execute("SELECT id FROM branches WHERE LOWER(TRIM(name)) = 'gudang utama' AND is_active=TRUE ORDER BY id LIMIT 1");
+      effectiveBranchId = gudang[0]?.id || null;
       if (!effectiveBranchId) {
-        const [first] = await db.execute('SELECT id FROM branches WHERE is_active=TRUE ORDER BY id LIMIT 1');
-        effectiveBranchId = first[0]?.id || null;
+        const [gudangLike] = await db.execute("SELECT id FROM branches WHERE name LIKE '%gudang%utama%' AND is_active=TRUE ORDER BY id LIMIT 1");
+        effectiveBranchId = gudangLike[0]?.id || null;
+        if (!effectiveBranchId) {
+          const [first] = await db.execute('SELECT id FROM branches WHERE is_active=TRUE ORDER BY id LIMIT 1');
+          effectiveBranchId = first[0]?.id || null;
+        }
       }
     }
 

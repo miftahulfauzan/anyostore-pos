@@ -34,7 +34,8 @@ router.get('/warehouses/all', async (req, res, next) => {
     if (role === 'owner') {
       [warehouses] = await db.execute("SELECT w.id, w.name, w.description, w.type, w.branch_id, b.name AS branch_name FROM warehouses w JOIN branches b ON b.id = w.branch_id WHERE w.is_active = TRUE AND b.is_active = TRUE ORDER BY b.name, (w.type = 'utama') DESC, w.name");
     } else if (role === 'gudang') {
-      [warehouses] = await db.execute("SELECT w.id, w.name, w.description, w.type, w.branch_id, b.name AS branch_name FROM warehouses w JOIN branches b ON b.id = w.branch_id WHERE w.is_active = TRUE AND b.is_active = TRUE AND b.type = 'gudang' ORDER BY b.name, (w.type = 'utama') DESC, w.name");
+      // Admin gudang: boleh transfer ke SEMUA toko/gudang — lihat semua cabang.
+      [warehouses] = await db.execute("SELECT w.id, w.name, w.description, w.type, w.branch_id, b.name AS branch_name FROM warehouses w JOIN branches b ON b.id = w.branch_id WHERE w.is_active = TRUE AND b.is_active = TRUE ORDER BY b.name, (w.type = 'utama') DESC, w.name");
     } else {
       [warehouses] = await db.execute("SELECT w.id, w.name, w.description, w.type, w.branch_id, b.name AS branch_name FROM warehouses w JOIN branches b ON b.id = w.branch_id WHERE w.branch_id = ? AND w.is_active = TRUE ORDER BY (w.type = 'utama') DESC, w.name", [req.user.branch_id]);
     }
