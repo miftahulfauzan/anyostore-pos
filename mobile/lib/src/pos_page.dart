@@ -373,10 +373,13 @@ class _PosPageState extends State<PosPage> {
             variants.where((v) => v['id'] == variantId).toList();
         final selectedVariant =
             selectedVariants.isEmpty ? null : selectedVariants.first;
+        // Harga varian dipakai kalau > 0; harga 0/NULL mengikuti harga produk
+        // (sama dengan basis harga server) supaya total lokal = total server.
+        final variantPrice = asNum(selectedVariant?['price']);
         _addToCart(
           productId: int.parse('${product['id']}'),
           name: product['name']?.toString() ?? '',
-          price: asNum(d['price']),
+          price: variantPrice > 0 ? variantPrice : asNum(d['price']),
           variantId: variantId,
           variantLabel: selectedVariant == null
               ? null

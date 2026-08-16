@@ -41,8 +41,8 @@ class _VariantPickerState extends State<VariantPicker> {
   @override
   Widget build(BuildContext context) {
     final sel = _selected;
-    final price =
-        sel != null ? asNum(sel['price']) : asNum(widget.product['price']);
+    final selPrice = sel != null ? asNum(sel['price']) : 0;
+    final price = selPrice > 0 ? selPrice : asNum(widget.product['price']);
     return AlertDialog(
       title: Text(widget.product['name']?.toString() ?? 'Produk',
           style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),

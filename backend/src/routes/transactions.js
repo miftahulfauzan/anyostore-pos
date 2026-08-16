@@ -77,7 +77,7 @@ router.post('/preview', authorize('owner', 'manager', 'admin', 'kasir'), async (
         if (!variants[0]) return res.status(400).json({ success: false, message: 'Varian tidak ditemukan' });
         variant = variants[0];
       }
-      const basePrice = money(variant?.price == null ? product.price : variant.price);
+      const basePrice = money(variant && variant.price > 0 ? variant.price : product.price);
       let price = basePrice;
       let priceOverride = 0;
       if (input.price_override != null && input.price_override !== '') {
@@ -252,7 +252,7 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
         variant = variants[0];
       }
       // Harga dasar dari produk/varian.
-      const basePrice = money(variant?.price == null ? product.price : variant.price);
+      const basePrice = money(variant && variant.price > 0 ? variant.price : product.price);
       // Ubah harga manual di keranjang (admin/kasir). Tanpa batas bawah, dicatat untuk audit.
       let price = basePrice;
       let priceOverride = 0;
