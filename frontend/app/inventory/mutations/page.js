@@ -269,28 +269,6 @@ export default function Mutations() {
     {!cartOpen && <button type="button" className="cart-fab" onClick={() => setCartOpen(true)}>Keranjang · {totalQty} item</button>}
     {cartOpen && <div className="cart-backdrop" onClick={() => setCartOpen(false)} />}
     {picker && <StockVariantPicker product={picker} onClose={() => setPicker(null)} onAdd={(p, v, q) => { addToCart(p, v, q); setPicker(null); }} />}
-    <style>{`
-      .mutasi-layout { display: grid; grid-template-columns: 1fr 380px; gap: 22px; align-items: start; }
-      .mutasi-layout > * { min-width: 0; }
-      .mutasi-cart { position: sticky; top: 76; align-self: start; }
-      .cart-fab, .cart-backdrop, .cart-close { display: none; }
-      .stock-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
-      .stock-picker-card { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: #fff; transition: all .2s; display: flex; flex-direction: column; }
-      .stock-picker-card > div:last-child { flex: 1; display: grid; align-content: start; gap: 6px; }
-      .stock-picker-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.08); border-color: #1e3a5f; }
-      .stock-picker-card img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; background: #f1f5f9; }
-      .stock-picker-ph { width: 100%; aspect-ratio: 3/4; display: grid; place-items: center; color: #94a3b8; font-size: 11px; background: #f1f5f9; }
-      .stock-picker-badge { padding: 2px 8px; border-radius: 999px; background: #eef2ff; color: #1e3a5f; font-size: 11px; font-weight: 700; }
-      @media (max-width: 1180px) and (min-width: 901px) { .mutasi-layout { grid-template-columns: 1fr 340px; gap: 20px; } }
-      @media (max-width: 900px) {
-        .mutasi-layout { grid-template-columns: 1fr; }
-        .cart-fab { display: flex; position: fixed; right: 14px; bottom: 14px; z-index: 50; align-items: center; gap: 8; min-height: 46px; padding: 0 18px; border-radius: 999px; border: none; background: #1e3a5f; color: #fff; font-weight: 700; font-size: 14px; box-shadow: 0 6px 20px rgba(30,58,95,.35); cursor: pointer; }
-        .cart-backdrop { display: block; position: fixed; inset: 0; z-index: 55; background: rgba(15,23,42,.45); }
-        .cart-close { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; border: none; background: #1e3a5f; color: #fff; font-size: 16px; line-height: 1; cursor: pointer; }
-        .mutasi-cart { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; max-height: 78vh; overflow: auto; border-radius: 14px 14px 0 0; transform: translateY(105%); transition: transform .25s ease; box-shadow: 0 -10px 30px rgba(15,23,42,.2); }
-        .mutasi-cart.open { transform: translateY(0); }
-        .stock-picker-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
-      }
-    `}</style>
+    
   </AppShell>;
 }

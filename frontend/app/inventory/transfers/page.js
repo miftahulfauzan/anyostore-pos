@@ -139,7 +139,7 @@ export default function TransferPage() {
 
     <div className="mutasi-layout">
       <section className="panel">
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
           <input placeholder="Cari nama / kode produk…" value={query} onChange={(e) => setQuery(e.target.value)} style={{ flex: 1, minWidth: 180, minHeight: 40 }} />
           <select value={sort} onChange={(e) => setSort(e.target.value)} style={{ minHeight: 40 }}>
             <option value="name_asc">Abjad A-Z</option>
@@ -151,12 +151,12 @@ export default function TransferPage() {
           {visibleProducts.map((p) => (
             <article key={p.id} className="stock-picker-card" onClick={() => (p.variants && p.variants.length > 0 ? setPicker(p) : addToCart(p))} title={p.variants && p.variants.length > 0 ? 'Pilih varian & jumlah' : 'Klik untuk transfer stok umum'}>
               {p.photo_path ? <img src={mediaUrl(p.photo_path)} alt="" loading="lazy" /> : <div className="stock-picker-ph">Tanpa foto</div>}
-              <div style={{ padding: 8, display: 'grid', gap: 4 }}>
+              <div style={{ padding: 10, display: 'grid', gap: 6 }}>
                 <strong style={{ fontSize: 13, lineHeight: 1.3 }}>{p.name}</strong>
                 <span style={{ fontSize: 11, color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{p.sku || 'Tanpa SKU'}</span>
                 <span className="stock-picker-badge">Stok asal: {Number(p.stock || 0)}</span>
                 {p.variants && p.variants.length > 0 && (
-                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }} onClick={(e) => e.stopPropagation()}>
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }} onClick={(e) => e.stopPropagation()}>
                     {p.variants.map((v) => (
                       <button key={v.id} type="button" className="small secondary" title={`Stok ${v.color}: ${v.stock}`} onClick={() => addToCart(p, v)}>{v.color} ({v.stock})</button>
                     ))}
@@ -174,7 +174,7 @@ export default function TransferPage() {
           <h2 style={{ margin: 0 }}>Keranjang Transfer</h2>
           <button type="button" className="cart-close" onClick={() => setCartOpen(false)} aria-label="Tutup keranjang"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg></button>
         </div>
-        {cart.length === 0 && <p className="muted">Belum ada produk di keranjang.</p>}
+        {cart.length === 0 && <p className="muted" style={{ margin: '2px 0 10px', textAlign: 'center' }}>Belum ada produk di keranjang.</p>}
         {cart.map((c) => (
           <div key={c.key} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -195,25 +195,6 @@ export default function TransferPage() {
     {!cartOpen && <button type="button" className="cart-fab" onClick={() => setCartOpen(true)}>Keranjang · {totalQty} item</button>}
     {cartOpen && <div className="cart-backdrop" onClick={() => setCartOpen(false)} />}
     {picker && <StockVariantPicker product={picker} onClose={() => setPicker(null)} onAdd={(p, v, q) => { addToCart(p, v, q); setPicker(null); }} />}
-    <style>{`
-      .mutasi-layout { display: grid; grid-template-columns: 1fr 360px; gap: 16; align-items: start; }
-      .mutasi-cart { position: sticky; top: 76; }
-      .cart-fab, .cart-backdrop, .cart-close { display: none; }
-      .stock-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-      .stock-picker-card { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: #fff; transition: all .2s; }
-      .stock-picker-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.08); border-color: #1e3a5f; }
-      .stock-picker-card img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; background: #f1f5f9; }
-      .stock-picker-ph { width: 100%; aspect-ratio: 3/4; display: grid; place-items: center; color: #94a3b8; font-size: 11px; background: #f1f5f9; }
-      .stock-picker-badge { padding: 2px 8px; border-radius: 999px; background: #eef2ff; color: #1e3a5f; font-size: 11px; font-weight: 700; }
-      @media (max-width: 900px) {
-        .mutasi-layout { grid-template-columns: 1fr; }
-        .cart-fab { display: flex; position: fixed; right: 14px; bottom: 14px; z-index: 50; align-items: center; gap: 8; min-height: 46px; padding: 0 18px; border-radius: 999px; border: none; background: #1e3a5f; color: #fff; font-weight: 700; font-size: 14px; box-shadow: 0 6px 20px rgba(30,58,95,.35); cursor: pointer; }
-        .cart-backdrop { display: block; position: fixed; inset: 0; z-index: 55; background: rgba(15,23,42,.45); }
-        .cart-close { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; border: none; background: #1e3a5f; color: #fff; font-size: 16px; line-height: 1; cursor: pointer; }
-        .mutasi-cart { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; max-height: 78vh; overflow: auto; border-radius: 14px 14px 0 0; transform: translateY(105%); transition: transform .25s ease; box-shadow: 0 -10px 30px rgba(15,23,42,.2); }
-        .mutasi-cart.open { transform: translateY(0); }
-        .stock-picker-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
-      }
-    `}</style>
+    
   </AppShell>;
 }
