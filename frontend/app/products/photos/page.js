@@ -187,7 +187,7 @@ export default function BulkPhotoUploadPage() {
   const percent = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
 
   return (
-    <AppShell title="Upload Foto Massal" eyebrow="KATALOG PRODUK" actions={<a className="button-link secondary-link" href="/products">← Kembali ke Produk</a>}>
+    <AppShell title="Upload Foto Massal" eyebrow="KATALOG PRODUK" actions={<a className="button-link" href="/products">← Kembali ke Produk</a>}>
       <section className="form-page">
         <div className="panel product-form">
           <div><h2>Upload foto banyak produk sekaligus</h2><p className="muted">Pilih semua foto sekaligus dari Finder/Explorer. Nama file harus memuat SKU produk, contoh: <strong>A100.jpg</strong>, <strong>AB12-1.jpg</strong>, <strong>AT77 BORDIR depan.jpg</strong>. Maksimal 10 foto per produk.</p></div>

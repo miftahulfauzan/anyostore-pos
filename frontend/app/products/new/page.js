@@ -169,7 +169,7 @@ export default function NewProductPage() {
   }
 
   return (
-    <AppShell title="Tambah Produk" eyebrow="KATALOG PRODUK" actions={<a className="button-link secondary-link" href="/products">Kembali ke Daftar</a>}>
+    <AppShell title="Tambah Produk" eyebrow="KATALOG PRODUK" actions={<a className="button-link" href="/products">Kembali ke Daftar</a>}>
       <section className="form-page">
         <form className="panel product-form" onSubmit={submit}>
           <div><h2>Informasi produk</h2><p className="muted">Isi data produk sekaligus dengan maksimal 10 foto dan 1 video.</p></div>

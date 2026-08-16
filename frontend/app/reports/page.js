@@ -129,7 +129,7 @@ export default function ReportsPage() {
       eyebrow="ANALISIS TOKO"
       actions={
         <>
-          <a className="button-link secondary-link" href="/finance">
+          <a className="button-link" href="/finance">
             Keuangan
           </a>
           <button type="button" onClick={() => window.print()}>
