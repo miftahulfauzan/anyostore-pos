@@ -9,10 +9,12 @@
    link global (yang bikin tulisan tak terbaca di sidebar & tombol sekunder). */
 html[data-theme="blue"] { --expressive-primary:#1d5fa8; --expressive-secondary:#1d5fa8; --primary:#1d5fa8; --ring:#1d5fa8; }
 html[data-theme="blue"] .sidebar { background:#173e73; }
-html[data-theme="blue"] .app-main a { color:#1d5fa8; }
+html[data-theme="blue"] .app-main a:not(.button-link) { color:#1d5fa8; }
+html[data-theme="blue"] .app-main .button-link { color:#ffffff; }
 html[data-theme="purple"] { --expressive-primary:#683a9a; --expressive-secondary:#683a9a; --primary:#683a9a; --ring:#683a9a; }
 html[data-theme="purple"] .sidebar { background:#49266f; }
-html[data-theme="purple"] .app-main a { color:#683a9a; }
+html[data-theme="purple"] .app-main a:not(.button-link) { color:#683a9a; }
+html[data-theme="purple"] .app-main .button-link { color:#ffffff; }
 * { box-sizing: border-box; }
 body { margin: 0; }
 .eyebrow { font-size: .7rem; font-weight: 800; letter-spacing: .13em; color: #1e3a5f; text-transform: uppercase; }
@@ -131,7 +133,7 @@ a { color: var(--secondary); font-weight: 600; text-decoration: none; }
 @media print { .no-print { display: none; } .closing-print { margin: 0; box-shadow: none; } }
 .theme-toggle { display: inline-grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid var(--border); border-radius: .55rem; background: var(--card); color: var(--foreground); }
 .theme-toggle:hover { background: var(--muted); }
-.button-link { display: inline-flex; align-items: center; min-height: 44px; padding: .72rem 1rem; border-radius: .55rem; background: #1d5b43; color: #fff; }
+.button-link { display: inline-flex; align-items: center; min-height: 44px; padding: .72rem 1rem; border-radius: .55rem; background: #1d5b43; color: #fff !important; }
 .metrics-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; max-width: 1440px; margin: 0 auto 1rem; }
 .metric-card { display: grid; gap: .5rem; min-height: 150px; padding: 1.15rem; border: 1px solid var(--border); border-radius: .5rem; background: var(--card); box-shadow: 0 8px 28px rgba(15,23,42,.06); }
 .metric-card span, .metric-card small, .muted { color: #627167; }
