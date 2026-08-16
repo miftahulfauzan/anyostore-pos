@@ -1,8 +1,10 @@
 // ignore_for_file: prefer_const_constructors
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'api_client.dart';
+import 'auth_store.dart';
 import 'format.dart';
 import 'printer_setup.dart';
 import 'product_form_page.dart';
@@ -22,6 +24,11 @@ class _ProductsPageState extends State<ProductsPage> {
   List<Map<String, dynamic>> _rows = [];
   bool _loading = true;
   String? _error;
+  bool _isOwner = false;
+  List<Map<String, dynamic>> _branches = [];
+  int? _branchId;
+
+  int get _effectiveBranch => _branchId ?? widget.branchId;
 
   String _mediaUrl(String? path) => path == null || path.isEmpty
       ? ''
@@ -30,7 +37,18 @@ class _ProductsPageState extends State<ProductsPage> {
   @override
   void initState() {
     super.initState();
+    _isOwner = context.read<AuthStore>().role == 'owner';
+    if (_isOwner) _loadBranches();
     _load();
+  }
+
+  Future<void> _loadBranches() async {
+    try {
+      final rows = await widget.api.branches();
+      if (mounted) {
+        setState(() => _branches = rows.cast<Map<String, dynamic>>());
+      }
+    } catch (_) {}
   }
 
   @override
@@ -46,7 +64,7 @@ class _ProductsPageState extends State<ProductsPage> {
     });
     try {
       final rows = await widget.api
-          .products(branchId: widget.branchId, search: _search.text.trim());
+          .products(branchId: _effectiveBranch, search: _search.text.trim());
       if (!mounted) return;
       setState(() => _rows = rows.cast<Map<String, dynamic>>());
     } on ApiException catch (e) {
@@ -59,7 +77,7 @@ class _ProductsPageState extends State<ProductsPage> {
   Future<void> _openForm([Map<String, dynamic>? existing]) async {
     await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => ProductFormPage(
-          api: widget.api, branchId: widget.branchId, existing: existing),
+          api: widget.api, branchId: _effectiveBranch, existing: existing),
     ));
     _load();
   }
@@ -146,6 +164,28 @@ class _ProductsPageState extends State<ProductsPage> {
           const Positioned.fill(child: SoftBlobs()),
           Column(
             children: [
+              if (_isOwner)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                  child: DropdownButtonFormField<int?>(
+                    initialValue: _effectiveBranch,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                        isDense: true,
+                        labelText: 'Toko/Gudang',
+                        border: OutlineInputBorder()),
+                    items: [
+                      for (final b in _branches)
+                        DropdownMenuItem<int?>(
+                            value: int.tryParse('${b['id']}'),
+                            child: Text(b['name']?.toString() ?? '')),
+                    ],
+                    onChanged: (v) {
+                      setState(() => _branchId = v);
+                      _load();
+                    },
+                  ),
+                ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
                 child: TextField(
