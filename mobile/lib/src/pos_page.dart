@@ -67,6 +67,13 @@ class _PosPageState extends State<PosPage> {
   final _search = TextEditingController();
   final List<CartItem> _cart = [];
   Timer? _previewTimer;
+  // Versi keranjang vs preview: total tampil dari preview hanya kalau masih
+  // FRESH (mengikuti perubahan qty/isi keranjang terakhir).
+  int _cartVersion = 0;
+  int _previewVersion = -1;
+
+  bool get _previewFresh =>
+      _preview != null && _cartError == null && _previewVersion >= _cartVersion;
   StreamSubscription<List<ConnectivityResult>>? _connSub;
 
   List<Map<String, dynamic>> _products = [];
@@ -423,6 +430,8 @@ class _PosPageState extends State<PosPage> {
   }
 
   void _schedulePreview() {
+    // Perubahan keranjang menandai preview lama TIDAK fresh sampai yang baru datang.
+    _cartVersion++;
     _previewTimer?.cancel();
     _previewTimer = Timer(const Duration(milliseconds: 150), _doPreview);
   }
@@ -448,7 +457,10 @@ class _PosPageState extends State<PosPage> {
         if (_promoCode.trim().isNotEmpty) 'promo_code': _promoCode.trim(),
       });
       if (mounted) {
-        setState(() => _preview = preview);
+        setState(() {
+          _preview = preview;
+          _previewVersion = _cartVersion;
+        });
         _sheetRefresh?.call(() {});
       }
     } on ApiException catch (e) {
@@ -609,6 +621,7 @@ class _PosPageState extends State<PosPage> {
                     customerId: _customerId,
                     promoCode: _promoCode,
                     preview: _preview,
+                    previewFresh: _previewFresh,
                     error: _cartError,
                     saving: _saving,
                     onCustomerChanged: (id) {
@@ -698,7 +711,8 @@ class _PosPageState extends State<PosPage> {
           content: Text('Gudang belum dipilih. Muat ulang data toko.')));
       return;
     }
-    final grandTotal = asNum(_preview?['grand_total'] ?? _cartTotal);
+    final grandTotal =
+        asNum(_previewFresh ? (_preview?['grand_total']) : _cartTotal);
     final payment = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
@@ -1496,6 +1510,7 @@ class _CartSheet extends StatefulWidget {
     required this.customerId,
     required this.promoCode,
     required this.preview,
+    required this.previewFresh,
     required this.error,
     required this.saving,
     required this.onCustomerChanged,
@@ -1515,6 +1530,7 @@ class _CartSheet extends StatefulWidget {
   final int? customerId;
   final String promoCode;
   final Map<String, dynamic>? preview;
+  final bool previewFresh;
   final String? error;
   final bool saving;
   final ValueChanged<int?> onCustomerChanged;
@@ -1546,10 +1562,14 @@ class _CartSheetState extends State<_CartSheet> {
   @override
   Widget build(BuildContext context) {
     final cart = widget.cart;
-    final subtotal = asNum(widget.preview?['subtotal'] ??
-        cart.fold(0.0, (s, c) => s + (c.priceOverride ?? c.price) * c.qty));
-    final discount = asNum(widget.preview?['discount'] ?? 0);
-    final grandTotal = asNum(widget.preview?['grand_total'] ?? subtotal);
+    final localSubtotal =
+        cart.fold(0.0, (s, c) => s + (c.priceOverride ?? c.price) * c.qty);
+    final subtotal = asNum(
+        widget.previewFresh ? (widget.preview?['subtotal']) : localSubtotal);
+    final discount =
+        asNum(widget.previewFresh ? (widget.preview?['discount']) : 0);
+    final grandTotal = asNum(
+        widget.previewFresh ? (widget.preview?['grand_total']) : subtotal);
     final customerName = _customerName();
     final hasExtra = customerName.isNotEmpty || widget.promoCode.isNotEmpty;
     final totalPcs = cart.fold<int>(0, (sum, c) => sum + c.qty);
