@@ -33,6 +33,18 @@ async function readableBranchId(req) {
   }
   return req.user.branch_id;
 }
+
+// Tentukan cabang yang BISA DITULIS: owner bebas memilih via branch_id
+// (dari body/query); role lain hanya cabangnya sendiri. Dipakai semua route
+// tulis produk supaya owner bisa tambah/edit/hapus produk di toko/gudang
+// yang sedang dipilih di aplikasi/web.
+function writableBranchId(req) {
+  if (req.user.role === 'owner') {
+    const requested = Number(req.body.branch_id ?? req.query.branch_id);
+    return Number.isInteger(requested) && requested > 0 ? requested : req.user.branch_id;
+  }
+  return req.user.branch_id;
+}
 function normalizeWholesalePrices(input) {
   if (input == null) return [];
   if (!Array.isArray(input)) throw Object.assign(new Error('Data harga grosir tidak valid'), { status: 400 });
@@ -275,8 +287,9 @@ router.get('/:id', async (req, res, next) => {
 router.post('/:id/photo', authorize('owner', 'manager', 'admin', 'gudang'), upload.single('photo'), async (req, res, next) => {
   try {
     if (!req.file || !req.file.mimetype.startsWith('image/')) return res.status(400).json({ success: false, message: 'Pilih gambar JPG, PNG, atau WebP (maks. 30 MB)' });
+    const branchId = writableBranchId(req);
     await assertValidUpload(req.file);
-    const [products] = await db.execute('SELECT id FROM products WHERE id = ? AND branch_id = ?', [req.params.id, req.user.branch_id]);
+    const [products] = await db.execute('SELECT id FROM products WHERE id = ? AND branch_id = ?', [req.params.id, branchId]);
     if (!products[0]) {
       await discardUploadedFile(req.file);
       return res.status(404).json({ success: false, message: 'Produk tidak ditemukan' });
@@ -300,8 +313,9 @@ router.post('/:id/media', authorize('owner', 'manager', 'admin', 'gudang'), uplo
   try {
     const files = req.files || [];
     if (!files.length) return res.status(400).json({ success: false, message: 'Pilih foto atau video untuk diunggah' });
+    const branchId = writableBranchId(req);
     for (const file of files) await assertValidUpload(file);
-    const [products] = await db.execute('SELECT id FROM products WHERE id = ? AND branch_id = ?', [req.params.id, req.user.branch_id]);
+    const [products] = await db.execute('SELECT id FROM products WHERE id = ? AND branch_id = ?', [req.params.id, branchId]);
     if (!products[0]) return res.status(404).json({ success: false, message: 'Produk tidak ditemukan' });
     const imageFiles = files.filter((file) => file.mimetype.startsWith('image/'));
     const videoFiles = files.filter((file) => file.mimetype.startsWith('video/'));
@@ -326,7 +340,8 @@ router.post('/:id/media', authorize('owner', 'manager', 'admin', 'gudang'), uplo
 router.post('/:id/media-data', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
     const file = decodeDataUpload(req.body, dataUploadOptions);
-    const [products] = await db.execute('SELECT id FROM products WHERE id = ? AND branch_id = ?', [req.params.id, req.user.branch_id]);
+    const branchId = writableBranchId(req);
+    const [products] = await db.execute('SELECT id FROM products WHERE id = ? AND branch_id = ?', [req.params.id, branchId]);
     if (!products[0]) return res.status(404).json({ success: false, message: 'Produk tidak ditemukan' });
     const mediaType = file.mimetype.startsWith('video/') ? 'video' : 'image';
     const [counts] = await db.execute(`SELECT SUM(media_type = 'image') AS images, SUM(media_type = 'video') AS videos FROM product_photos WHERE product_id = ? AND variant_id IS NULL`, [products[0].id]);
@@ -347,11 +362,12 @@ router.post('/:id/media-data', authorize('owner', 'manager', 'admin', 'gudang'),
 // karena crop sudah "dipanggang" ke dalam file.
 router.patch('/:id/media/:mediaId/image-data', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
+    const branchId = writableBranchId(req);
     const file = decodeDataUpload(req.body, { ...dataUploadOptions, mimeTypes: ['image/jpeg', 'image/png', 'image/webp'] });
     const [rows] = await db.execute(
       `SELECT pp.id, pp.path FROM product_photos pp JOIN products p ON p.id = pp.product_id
        WHERE pp.id = ? AND pp.product_id = ? AND pp.variant_id IS NULL AND pp.media_type = 'image' AND p.branch_id = ?`,
-      [req.params.mediaId, req.params.id, req.user.branch_id]
+      [req.params.mediaId, req.params.id, branchId]
     );
     const media = rows[0];
     if (!media) {
@@ -374,11 +390,12 @@ router.patch('/:id/media/:mediaId/image-data', authorize('owner', 'manager', 'ad
 
 router.delete('/:id/media/:mediaId', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
+    const branchId = writableBranchId(req);
     const [rows] = await db.execute(
       `SELECT pp.id, pp.path, pp.media_type, pp.is_primary
        FROM product_photos pp JOIN products p ON p.id = pp.product_id
        WHERE pp.id = ? AND pp.product_id = ? AND pp.variant_id IS NULL AND p.branch_id = ?`,
-      [req.params.mediaId, req.params.id, req.user.branch_id]
+      [req.params.mediaId, req.params.id, branchId]
     );
     const media = rows[0];
     if (!media) return res.status(404).json({ success: false, message: 'Media produk tidak ditemukan' });
@@ -399,12 +416,13 @@ router.delete('/:id/media/:mediaId', authorize('owner', 'manager', 'admin', 'gud
 // Simpan urutan foto produk (drag & drop). Body: { order: [mediaId, ...] } — index 0 = foto utama.
 router.patch('/:id/media/reorder', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
+    const branchId = writableBranchId(req);
     const order = Array.isArray(req.body.order) ? req.body.order.map((id) => Number(id)).filter(Number.isInteger) : [];
     if (!order.length) return res.status(400).json({ success: false, message: 'Urutan media tidak valid' });
     const [owned] = await db.execute(
       `SELECT pp.id FROM product_photos pp JOIN products p ON p.id = pp.product_id
        WHERE pp.product_id = ? AND pp.variant_id IS NULL AND pp.media_type = 'image' AND p.branch_id = ?`,
-      [req.params.id, req.user.branch_id]
+      [req.params.id, branchId]
     );
     const ownedIds = new Set(owned.map((row) => row.id));
     if (order.some((id) => !ownedIds.has(id))) return res.status(400).json({ success: false, message: 'Ada media yang bukan milik produk ini' });
@@ -417,9 +435,10 @@ router.patch('/:id/media/reorder', authorize('owner', 'manager', 'admin', 'gudan
 
 router.post('/:id/variants/:variantId/photo', authorize('owner', 'manager', 'admin', 'gudang'), upload.single('media'), async (req, res, next) => {
   try {
+    const branchId = writableBranchId(req);
     if (!req.file || !req.file.mimetype.startsWith('image/')) return res.status(400).json({ success: false, message: 'Foto varian harus JPG, PNG, atau WebP' });
     await assertValidUpload(req.file);
-    const [variants] = await db.execute('SELECT pv.id FROM product_variants pv JOIN products p ON p.id = pv.product_id WHERE pv.id = ? AND pv.product_id = ? AND p.branch_id = ?', [req.params.variantId, req.params.id, req.user.branch_id]);
+    const [variants] = await db.execute('SELECT pv.id FROM product_variants pv JOIN products p ON p.id = pv.product_id WHERE pv.id = ? AND pv.product_id = ? AND p.branch_id = ?', [req.params.variantId, req.params.id, branchId]);
     if (!variants[0]) return res.status(404).json({ success: false, message: 'Varian produk tidak ditemukan' });
     const [previous] = await db.execute('SELECT path FROM product_photos WHERE variant_id = ?', [variants[0].id]);
     await db.execute('DELETE FROM product_photos WHERE variant_id = ?', [variants[0].id]);
@@ -433,13 +452,14 @@ router.post('/:id/variants/:variantId/photo', authorize('owner', 'manager', 'adm
 // PATCH /api/products/:id/media/:mediaId/transform — save zoom/pan adjustment
 router.patch('/:id/media/:mediaId/transform', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
+    const branchId = writableBranchId(req);
     const { transform } = req.body;
     if (typeof transform !== 'string' || (transform !== null && !/^-?\d+(\.\d+)?,-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(transform))) {
       return res.status(400).json({ success: false, message: 'Format transform tidak valid (scale,x,y)' });
     }
     const [rows] = await db.execute(
       'SELECT pp.id FROM product_photos pp JOIN products p ON p.id = pp.product_id WHERE pp.id = ? AND pp.product_id = ? AND p.branch_id = ?',
-      [req.params.mediaId, req.params.id, req.user.branch_id]
+      [req.params.mediaId, req.params.id, branchId]
     );
     if (!rows[0]) return res.status(404).json({ success: false, message: 'Media tidak ditemukan' });
     await db.execute('UPDATE product_photos SET `transform` = ? WHERE id = ?', [transform, req.params.mediaId]);
@@ -449,8 +469,9 @@ router.patch('/:id/media/:mediaId/transform', authorize('owner', 'manager', 'adm
 
 router.post('/:id/variants/:variantId/photo-data', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
+    const branchId = writableBranchId(req);
     const file = decodeDataUpload(req.body, { ...dataUploadOptions, mimeTypes: ['image/jpeg', 'image/png', 'image/webp'] });
-    const [variants] = await db.execute('SELECT pv.id FROM product_variants pv JOIN products p ON p.id = pv.product_id WHERE pv.id = ? AND pv.product_id = ? AND p.branch_id = ?', [req.params.variantId, req.params.id, req.user.branch_id]);
+    const [variants] = await db.execute('SELECT pv.id FROM product_variants pv JOIN products p ON p.id = pv.product_id WHERE pv.id = ? AND pv.product_id = ? AND p.branch_id = ?', [req.params.variantId, req.params.id, branchId]);
     if (!variants[0]) return res.status(404).json({ success: false, message: 'Varian produk tidak ditemukan' });
     const [previous] = await db.execute('SELECT path FROM product_photos WHERE variant_id = ?', [variants[0].id]);
     const publicPath = await persistUploadedFile(file, 'products');
@@ -468,6 +489,7 @@ router.post('/', authorize('owner', 'manager', 'admin', 'gudang'), async (req, r
       return res.status(400).json({ success: false, message: 'Nama, kategori, harga, biaya, dan stok minimum tidak valid' });
     }
     if (!['male', 'female', 'unisex', 'kids'].includes(gender)) return res.status(400).json({ success: false, message: 'Gender tidak valid' });
+    const branchId = writableBranchId(req);
     const [categories] = await db.execute('SELECT id FROM categories WHERE id = ? AND is_active = TRUE', [categoryId]);
     if (!categories[0]) return res.status(400).json({ success: false, message: 'Kategori tidak ditemukan' });
     const tiers = normalizeWholesalePrices(wholesalePrices);
@@ -475,11 +497,11 @@ router.post('/', authorize('owner', 'manager', 'admin', 'gudang'), async (req, r
     const [result] = await db.execute(
       `INSERT INTO products (branch_id, category_id, name, description, sku, barcode, price, cost, min_stock, gender)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.user.branch_id, categoryId, name.trim(), description?.trim() || null, sku?.trim() || null, barcode?.trim() || null, Number(price), Number(cost), Number(minStock), gender]
+      [branchId, categoryId, name.trim(), description?.trim() || null, sku?.trim() || null, barcode?.trim() || null, Number(price), Number(cost), Number(minStock), gender]
     );
     for (const tier of tiers) await db.execute('INSERT INTO wholesale_prices (product_id, min_qty, max_qty, price) VALUES (?, ?, ?, ?)', [result.insertId, tier.min_qty, tier.max_qty, tier.price]);
     for (const variant of variants) await db.execute('INSERT INTO product_variants (product_id, size, color, sku, barcode, stock, price) VALUES (?, ?, ?, ?, ?, 0, ?)', [result.insertId, variant.size || null, variant.color || null, variant.sku, variant.barcode, variant.price]);
-    await syncVariantColorsAcrossStores(result.insertId, req.user.branch_id);
+    await syncVariantColorsAcrossStores(result.insertId, branchId);
     res.status(201).json({ success: true, data: { id: result.insertId } });
   } catch (error) { next(error); }
 });
@@ -491,10 +513,11 @@ router.post('/:id/copy', authorize('owner', 'manager', 'admin', 'gudang'), async
   try {
     const productId = Number(req.params.id);
     if (!Number.isInteger(productId)) return res.status(400).json({ success: false, message: 'ID produk tidak valid' });
+    const branchId = writableBranchId(req);
     await connection.beginTransaction();
     const [rows] = await connection.execute(
       'SELECT id, category_id, name, description, sku, barcode, price, cost, min_stock, gender FROM products WHERE id = ? AND branch_id = ? AND is_active = TRUE FOR UPDATE',
-      [productId, req.user.branch_id]
+      [productId, branchId]
     );
     if (!rows[0]) throw Object.assign(new Error('Produk tidak ditemukan'), { status: 404 });
     const p = rows[0];
@@ -513,7 +536,7 @@ router.post('/:id/copy', authorize('owner', 'manager', 'admin', 'gudang'), async
     const [ins] = await connection.execute(
       `INSERT INTO products (branch_id, category_id, name, description, sku, barcode, price, cost, stock, min_stock, gender, is_active)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, TRUE)`,
-      [req.user.branch_id, p.category_id, `${p.name} (Salinan)`, p.description, newSku, null, p.price, p.cost || 0, p.min_stock, p.gender]
+      [branchId, p.category_id, `${p.name} (Salinan)`, p.description, newSku, null, p.price, p.cost || 0, p.min_stock, p.gender]
     );
     const newId = ins.insertId;
 
@@ -557,6 +580,7 @@ router.put('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (req,
     const { name, category_id: categoryId, sku, barcode, price, cost = 0, min_stock: minStock = 5, gender = 'unisex', description, wholesale_prices: wholesalePrices, variants: inputVariants } = req.body;
     if (!name?.trim() || !Number.isInteger(Number(categoryId)) || !positiveNumber(price) || !positiveNumber(cost) || !positiveNumber(minStock)) return res.status(400).json({ success: false, message: 'Nama, kategori, harga, biaya, dan stok minimum tidak valid' });
     if (!['male', 'female', 'unisex', 'kids'].includes(gender)) return res.status(400).json({ success: false, message: 'Target pengguna tidak valid' });
+    const branchId = writableBranchId(req);
     const [categories] = await db.execute('SELECT id FROM categories WHERE id = ? AND is_active = TRUE', [categoryId]);
     if (!categories[0]) return res.status(400).json({ success: false, message: 'Kategori tidak ditemukan' });
     const tiers = normalizeWholesalePrices(wholesalePrices);
@@ -564,12 +588,12 @@ router.put('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (req,
     // Data produk sebelum update, dipakai untuk log perubahan harga.
     const [oldProducts] = await db.execute(
       'SELECT id, name, price, sku FROM products WHERE id = ? AND branch_id = ?',
-      [req.params.id, req.user.branch_id]
+      [req.params.id, branchId]
     );
     const [result] = await db.execute(
       `UPDATE products SET category_id = ?, name = ?, description = ?, sku = ?, barcode = ?, price = ?, cost = ?, min_stock = ?, gender = ?
        WHERE id = ? AND branch_id = ?`,
-      [Number(categoryId), name.trim(), description?.trim() || null, sku?.trim() || null, barcode?.trim() || null, Number(price), Number(cost), Number(minStock), gender, req.params.id, req.user.branch_id]
+      [Number(categoryId), name.trim(), description?.trim() || null, sku?.trim() || null, barcode?.trim() || null, Number(price), Number(cost), Number(minStock), gender, req.params.id, branchId]
     );
     if (!result.affectedRows) return res.status(404).json({ success: false, message: 'Produk tidak ditemukan' });
     await db.execute('UPDATE wholesale_prices SET is_active = FALSE WHERE product_id = ?', [req.params.id]);
@@ -589,7 +613,7 @@ router.put('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (req,
         await db.execute('INSERT INTO product_variants (product_id, size, color, sku, barcode, stock, price) VALUES (?, ?, ?, ?, ?, 0, ?)', [req.params.id, variant.size || null, variant.color || null, variant.sku, variant.barcode, variant.price]);
       }
     }
-    await syncVariantColorsAcrossStores(Number(req.params.id), req.user.branch_id);
+    await syncVariantColorsAcrossStores(Number(req.params.id), branchId);
     const oldProduct = oldProducts[0];
     const priceChanged = oldProduct && Number(oldProduct.price) !== Number(price);
     const desc = oldProduct
@@ -605,6 +629,7 @@ router.post('/bulk-delete', authorize('owner', 'manager', 'admin', 'gudang'), as
   try {
     const ids = [...new Set((Array.isArray(req.body.ids) ? req.body.ids : []).map(Number).filter(Number.isInteger))].slice(0, 200);
     if (!ids.length) return res.status(400).json({ success: false, message: 'Pilih minimal 1 produk' });
+    const branchId = writableBranchId(req);
 
     let hard = 0;
     let soft = 0;
@@ -612,7 +637,7 @@ router.post('/bulk-delete', authorize('owner', 'manager', 'admin', 'gudang'), as
 
     for (const id of ids) {
       try {
-        const [product] = await db.execute('SELECT id, name, is_active FROM products WHERE id=? AND branch_id=?', [id, req.user.branch_id]);
+        const [product] = await db.execute('SELECT id, name, is_active FROM products WHERE id=? AND branch_id=?', [id, branchId]);
         if (!product[0]) { failed.push(id); continue; }
 
         const [trx] = await db.execute(
@@ -659,9 +684,10 @@ router.delete('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (r
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID tidak valid' });
+    const branchId = writableBranchId(req);
 
     // Verify product belongs to user's branch
-    const [product] = await db.execute('SELECT id, name, is_active FROM products WHERE id=? AND branch_id=?', [id, req.user.branch_id]);
+    const [product] = await db.execute('SELECT id, name, is_active FROM products WHERE id=? AND branch_id=?', [id, branchId]);
     if (!product[0]) return res.status(404).json({ success: false, message: 'Produk tidak ditemukan' });
 
     // Check if product has any history that must keep it alive (sales, PO, opname, transfer, retur)

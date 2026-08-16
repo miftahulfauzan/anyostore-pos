@@ -172,8 +172,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
     for (final m in (d['media'] as List?) ?? []) {
       final media = m as Map<String, dynamic>;
       if (media['media_type']?.toString() == 'image') {
-        _photos.add(_PhotoItem.existing(
-            int.tryParse('${media['id']}'), _mediaUrl(media['path']?.toString())));
+        _photos.add(_PhotoItem.existing(int.tryParse('${media['id']}'),
+            _mediaUrl(media['path']?.toString())));
       }
     }
   }
@@ -195,9 +195,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
       suffixIcon: suffix,
       filled: true,
       fillColor: Colors.white,
-      contentPadding: EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: multi ? 18 : 14),
+      contentPadding:
+          EdgeInsets.symmetric(horizontal: 14, vertical: multi ? 18 : 14),
       enabledBorder: border,
       focusedBorder: border.copyWith(
           borderSide: const BorderSide(color: kTaskDark, width: 1.4)),
@@ -205,8 +204,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
   }
 
   Future<void> _pickPhotos() async {
-    final picked = await ImagePicker().pickMultiImage(
-        maxWidth: 1200, maxHeight: 1200, imageQuality: 85);
+    final picked = await ImagePicker()
+        .pickMultiImage(maxWidth: 1200, maxHeight: 1200, imageQuality: 85);
     if (picked.isEmpty || !mounted) return;
     for (final p in picked) {
       if (_photos.where((x) => !x.removed).length >= 10) break;
@@ -238,6 +237,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
       _saving = true;
     });
     final body = <String, dynamic>{
+      'branch_id': widget.branchId,
       'name': _name.text.trim(),
       'category_id': int.tryParse(_categoryId),
       'sku': _sku.text.trim().isEmpty ? null : _sku.text.trim(),
@@ -246,17 +246,15 @@ class _ProductFormPageState extends State<ProductFormPage> {
       'cost': double.tryParse(_cost.text.replaceAll('.', '')) ?? 0,
       'min_stock': double.tryParse(_minStock.text.replaceAll('.', '')) ?? 5,
       'gender': _gender,
-      'description': _description.text.trim().isEmpty
-          ? null
-          : _description.text.trim(),
+      'description':
+          _description.text.trim().isEmpty ? null : _description.text.trim(),
       'wholesale_prices': [
         for (final t in _tiers)
           if (t.minQty.text.trim().isNotEmpty && t.price.text.trim().isNotEmpty)
             {
               'min_qty': int.tryParse(t.minQty.text.trim()) ?? 1,
               'max_qty': int.tryParse(t.maxQty.text.trim()),
-              'price':
-                  double.tryParse(t.price.text.replaceAll('.', '')) ?? 0,
+              'price': double.tryParse(t.price.text.replaceAll('.', '')) ?? 0,
             },
       ],
       'variants': [
@@ -265,8 +263,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
             {
               if (v.id != null) 'id': v.id,
               'size': v.size.text.trim().isEmpty ? null : v.size.text.trim(),
-              'color':
-                  v.color.text.trim().isEmpty ? null : v.color.text.trim(),
+              'color': v.color.text.trim().isEmpty ? null : v.color.text.trim(),
               'sku': v.sku.text.trim().isEmpty ? null : v.sku.text.trim(),
               'barcode':
                   v.barcode.text.trim().isEmpty ? null : v.barcode.text.trim(),
@@ -285,17 +282,19 @@ class _ProductFormPageState extends State<ProductFormPage> {
       }
       for (final p in _photos) {
         if (p.bytes != null) {
-          await widget.api
-              .uploadProductMedia(productId, p.mime ?? 'image/jpeg', p.base64!);
+          await widget.api.uploadProductMedia(
+              productId, p.mime ?? 'image/jpeg', p.base64!,
+              branchId: widget.branchId);
         } else if (p.removed && p.mediaId != null) {
-          await widget.api.deleteProductMedia(productId, p.mediaId!);
+          await widget.api.deleteProductMedia(productId, p.mediaId!,
+              branchId: widget.branchId);
         }
       }
       if (_variants.any((v) => v.photoBase64 != null)) {
-        final detail = await widget.api
-            .product(productId, branchId: widget.branchId);
-        final variants = ((detail['variants'] as List?) ?? [])
-            .cast<Map<String, dynamic>>();
+        final detail =
+            await widget.api.product(productId, branchId: widget.branchId);
+        final variants =
+            ((detail['variants'] as List?) ?? []).cast<Map<String, dynamic>>();
         for (final v in _variants) {
           if (v.photoBase64 == null) continue;
           Map<String, dynamic>? match;
@@ -311,7 +310,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
                 productId,
                 int.parse('${match['id']}'),
                 v.photoMime ?? 'image/jpeg',
-                v.photoBase64!);
+                v.photoBase64!,
+                branchId: widget.branchId);
           }
         }
       }
@@ -327,8 +327,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
 
   void _snack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -366,16 +365,14 @@ class _ProductFormPageState extends State<ProductFormPage> {
                               value: '${c['id']}',
                               child: Text(c['name']?.toString() ?? '')),
                       ],
-                      onChanged: (v) =>
-                          setState(() => _categoryId = v ?? ''),
+                      onChanged: (v) => setState(() => _categoryId = v ?? ''),
                     ),
                     const SizedBox(height: 10),
                     Row(
                       children: [
                         Expanded(
                             child: TextField(
-                                controller: _sku,
-                                decoration: _dec('SKU'))),
+                                controller: _sku, decoration: _dec('SKU'))),
                         const SizedBox(width: 10),
                         Expanded(
                             child: TextField(
@@ -390,8 +387,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
                             child: TextField(
                                 controller: _price,
                                 keyboardType: TextInputType.number,
-                                decoration: _dec('Harga jual *',
-                                    prefix: 'Rp '))),
+                                decoration:
+                                    _dec('Harga jual *', prefix: 'Rp '))),
                         const SizedBox(width: 10),
                         Expanded(
                             child: TextField(
@@ -451,7 +448,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
                                     fontWeight: FontWeight.w800,
                                     color: ink(context)))),
                         TextButton.icon(
-                          onPressed: () => setState(() => _variants.add(_VariantRow())),
+                          onPressed: () =>
+                              setState(() => _variants.add(_VariantRow())),
                           icon: const Icon(Icons.add, size: 16),
                           label: const Text('Tambah'),
                         ),
@@ -463,8 +461,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8),
                         child: Text('Belum ada varian. Produk dijual polos.',
-                            style:
-                                TextStyle(fontSize: 11, color: kTaskGray)),
+                            style: TextStyle(fontSize: 11, color: kTaskGray)),
                       ),
                   ],
                 ),
@@ -483,7 +480,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
                                     fontWeight: FontWeight.w800,
                                     color: ink(context)))),
                         TextButton.icon(
-                          onPressed: () => setState(() => _tiers.add(_TierRow())),
+                          onPressed: () =>
+                              setState(() => _tiers.add(_TierRow())),
                           icon: const Icon(Icons.add, size: 16),
                           label: const Text('Tambah'),
                         ),
@@ -495,8 +493,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8),
                         child: Text('Belum ada harga grosir.',
-                            style:
-                                TextStyle(fontSize: 11, color: kTaskGray)),
+                            style: TextStyle(fontSize: 11, color: kTaskGray)),
                       ),
                   ],
                 ),
@@ -516,8 +513,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                                     color: ink(context)))),
                         TextButton.icon(
                           onPressed: _pickPhotos,
-                          icon: const Icon(Icons.add_photo_alternate,
-                              size: 16),
+                          icon: const Icon(Icons.add_photo_alternate, size: 16),
                           label: const Text('Tambah Foto'),
                         ),
                       ],
@@ -526,8 +522,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8),
                         child: Text('Belum ada foto (maks 10).',
-                            style:
-                                TextStyle(fontSize: 11, color: kTaskGray)),
+                            style: TextStyle(fontSize: 11, color: kTaskGray)),
                       )
                     else
                       Wrap(
@@ -629,15 +624,13 @@ class _ProductFormPageState extends State<ProductFormPage> {
             children: [
               Expanded(
                   child: TextField(
-                      controller: v.color,
-                      decoration: _dec('Warna'))),
+                      controller: v.color, decoration: _dec('Warna'))),
               const SizedBox(width: 8),
               Expanded(
                   child: TextField(
                       controller: v.size, decoration: _dec('Ukuran'))),
               IconButton(
-                onPressed: () =>
-                    setState(() => _variants.removeAt(i)),
+                onPressed: () => setState(() => _variants.removeAt(i)),
                 icon: const Icon(Icons.delete_outline,
                     size: 18, color: Color(0xffC2410C)),
               ),
@@ -652,8 +645,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
               const SizedBox(width: 8),
               Expanded(
                   child: TextField(
-                      controller: v.barcode,
-                      decoration: _dec('Barcode'))),
+                      controller: v.barcode, decoration: _dec('Barcode'))),
             ],
           ),
           const SizedBox(height: 8),
@@ -675,8 +667,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                           ? Image.network(v.existingUrl!,
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) =>
-                                  const ColoredBox(
-                                      color: Color(0xffE6ECF3)))
+                                  const ColoredBox(color: Color(0xffE6ECF3)))
                           : const ColoredBox(
                               color: Color(0xffE6ECF3),
                               child: Icon(Icons.photo_outlined,

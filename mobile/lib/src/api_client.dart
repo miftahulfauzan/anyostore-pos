@@ -160,25 +160,32 @@ class ApiClient {
           int id, Map<String, dynamic> body) =>
       put('/products/$id', body);
 
-  Future<Map<String, dynamic>> deleteProduct(int id) => delete('/products/$id');
+  Future<Map<String, dynamic>> deleteProduct(int id, {int? branchId}) =>
+      delete('/products/$id${branchId != null ? '?branch_id=$branchId' : ''}');
 
-  Future<Map<String, dynamic>> copyProduct(int id) =>
-      post('/products/$id/copy', {});
+  Future<Map<String, dynamic>> copyProduct(int id, {int? branchId}) =>
+      post('/products/$id/copy', {
+        if (branchId != null) 'branch_id': branchId,
+      });
 
   Future<Map<String, dynamic>> uploadProductMedia(
-          int id, String mime, String base64) =>
+          int id, String mime, String base64,
+          {int? branchId}) =>
       post('/products/$id/media-data', {
         'content_type': mime,
         'filename': 'media',
         'data_url': 'data:$mime;base64,$base64',
+        if (branchId != null) 'branch_id': branchId,
       });
 
   Future<Map<String, dynamic>> uploadVariantPhoto(
-          int productId, int variantId, String mime, String base64) =>
+          int productId, int variantId, String mime, String base64,
+          {int? branchId}) =>
       post('/products/$productId/variants/$variantId/photo-data', {
         'content_type': mime,
         'filename': 'variant',
         'data_url': 'data:$mime;base64,$base64',
+        if (branchId != null) 'branch_id': branchId,
       });
 
   Future<List<dynamic>> activityLogs(
@@ -192,8 +199,10 @@ class ApiClient {
 
   Future<Map<String, dynamic>> backupNow() => get('/backup');
 
-  Future<Map<String, dynamic>> deleteProductMedia(int id, int mediaId) =>
-      delete('/products/$id/media/$mediaId');
+  Future<Map<String, dynamic>> deleteProductMedia(int id, int mediaId,
+          {int? branchId}) =>
+      delete(
+          '/products/$id/media/$mediaId${branchId != null ? '?branch_id=$branchId' : ''}');
 
   Future<Map<String, dynamic>> product(int id, {required int branchId}) async {
     final res = await get('/products/$id', {'branch_id': '$branchId'});

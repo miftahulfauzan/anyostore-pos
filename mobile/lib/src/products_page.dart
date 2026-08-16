@@ -114,7 +114,8 @@ class _ProductsPageState extends State<ProductsPage> {
     );
     if (ok != true || !mounted) return;
     try {
-      await widget.api.copyProduct(int.parse('${r['id']}'));
+      await widget.api
+          .copyProduct(int.parse('${r['id']}'), branchId: _effectiveBranch);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Produk disalin — cek daftar untuk edit SKU/barcode')));
@@ -145,7 +146,8 @@ class _ProductsPageState extends State<ProductsPage> {
     );
     if (ok != true || !mounted) return;
     try {
-      await widget.api.deleteProduct(int.parse('${row['id']}'));
+      await widget.api
+          .deleteProduct(int.parse('${row['id']}'), branchId: _effectiveBranch);
       _load();
     } on ApiException catch (e) {
       if (mounted) {

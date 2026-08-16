@@ -109,7 +109,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 - SKU clone: `B{branchId}-{sku}` (unik global)
 - Clone foto: `copyMediaFile` salin file ke path baru (bukan share path)
 - Hapus cabang: soft-delete dulu (`is_active=FALSE`), lalu hard-delete (cascade semua tabel branch_id, `SET FOREIGN_KEY_CHECKS=0`)
-- Owner bisa pilih cabang di `/settings`, laporan, stock report
+- Owner bisa pilih cabang di `/settings`, laporan, stock report; **route tulis produk** (tambah/edit/hapus/salin/upload foto) memakai helper writableBranchId(req) di products.js: owner memilih cabang via branch_id (body/query), role lain tetap cabangnya sendiri (fix: owner tidak bisa simpan edit produk di toko/gudang terpilih karena PUT/multipart lama terkunci ke branch akun).
 
 ### Transaksi (checkout)
 - `client_transaction_id` UUID → idempotency (retry tidak dobel)
