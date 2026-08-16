@@ -510,12 +510,12 @@ router.post('/:id/copy', authorize('owner', 'manager', 'admin', 'gudang'), async
       suffix += 1;
     }
 
-    const [res] = await connection.execute(
+    const [ins] = await connection.execute(
       `INSERT INTO products (branch_id, category_id, name, description, sku, barcode, price, cost, stock, min_stock, gender, is_active)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, TRUE)`,
       [req.user.branch_id, p.category_id, `${p.name} (Salinan)`, p.description, newSku, null, p.price, p.cost || 0, p.min_stock, p.gender]
     );
-    const newId = res.insertId;
+    const newId = ins.insertId;
 
     const [variants] = await connection.execute('SELECT id, size, color, sku, barcode, stock, price FROM product_variants WHERE product_id = ? AND is_active = TRUE', [productId]);
     const variantMap = new Map();
@@ -561,6 +561,11 @@ router.put('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (req,
     if (!categories[0]) return res.status(400).json({ success: false, message: 'Kategori tidak ditemukan' });
     const tiers = normalizeWholesalePrices(wholesalePrices);
     const variants = normalizeVariants(inputVariants);
+    // Data produk sebelum update, dipakai untuk log perubahan harga.
+    const [oldProducts] = await db.execute(
+      'SELECT id, name, price, sku FROM products WHERE id = ? AND branch_id = ?',
+      [req.params.id, req.user.branch_id]
+    );
     const [result] = await db.execute(
       `UPDATE products SET category_id = ?, name = ?, description = ?, sku = ?, barcode = ?, price = ?, cost = ?, min_stock = ?, gender = ?
        WHERE id = ? AND branch_id = ?`,

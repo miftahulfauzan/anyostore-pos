@@ -38,7 +38,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 | Router | Prefix | Fitur utama |
 |--------|--------|-------------|
 | `public.js` | `/api/public` | Landing: settings (multi-WA), categories, products (paginasi/search/sort), products/:id (media+variants) |
-| `products.js` | `/api/products` | CRUD produk, media (max 10 img + 1 video), varian, wholesale prices, categories CRUD, transform foto; `POST /:id/copy` = salin produk (nama + " (Salinan)", SKU unik -C/-C2, barcode kosong, varian+wholesale+foto disalin via copyMediaFile, stok 0); POST `/` TIDAK boleh menyentuh req.params.id (bug 500 sudah diperbaiki) |
+| `products.js` | `/api/products` | CRUD produk, media (max 10 img + 1 video), varian, wholesale prices, categories CRUD, transform foto; `POST /:id/copy` = salin produk (nama + " (Salinan)", SKU unik -C/-C2, barcode kosong, varian+wholesale+foto disalin via copyMediaFile, stok 0); POST `/` TIDAK boleh menyentuh req.params.id; PUT wajib deklarasi `oldProducts` (untuk log harga); route `/:id/copy` JANGAN menamai hasil query `res` (menimpa response Express -> 500) — pakai `ins` |
 | `products.js` | `/api/products/:id/media/:mediaId/image-data` | Ganti file foto dengan hasil crop 1200×1600 (modal Ubah Foto Produk) |
 | `inventory.js` | `/api/inventory` | Warehouse, mutasi, stock-total (branch/all), barcode search, incoming/outgoing per batch (`batch_number` BATCH-YYYYMMDD-NNN, `warehouse_id`, `transaction_date`) |
 | `inventory-control.js` | `/api/inventory-control` | Transfer antar gudang/cabang, opname |
