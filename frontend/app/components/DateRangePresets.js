@@ -28,20 +28,38 @@ export default function DateRangePresets({ active, onPick }) {
     });
     return () => mo.disconnect();
   }, []);
-  const style = (isActive) =>
-    isActive
-      ? { background: dark ? '#2563eb' : '#1e3a5f', color: '#fff', borderColor: 'transparent' }
-      : {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span className="small" style={{ color: dark ? '#94a3b8' : '#64748b', fontWeight: 700 }}>
+        Rentang
+      </span>
+      <select
+        value={DATE_PRESETS.some((p) => p.key === active) || active === 'custom' ? active : ''}
+        onChange={(e) => {
+          const key = e.target.value;
+          const preset = DATE_PRESETS.find((x) => x.key === key);
+          onPick(key, preset ? preset.range() : null);
+        }}
+        style={{
           background: dark ? '#253247' : '#eef3fb',
           color: dark ? '#eef3fb' : '#172033',
           border: `1px solid ${dark ? '#334155' : '#cbd5e1'}`,
-        };
-  return (
-    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-      {DATE_PRESETS.map((p) => (
-        <button key={p.key} type="button" className="small secondary" style={style(active === p.key)} onClick={() => onPick(p.key, p.range())}>{p.label}</button>
-      ))}
-      <button type="button" className="small secondary" style={style(active === 'custom')} onClick={() => onPick('custom', null)}>Rentang Kustom</button>
+          borderRadius: 6,
+          padding: '8px 10px',
+          fontSize: 13,
+          fontWeight: 600,
+          cursor: 'pointer',
+        }}
+      >
+        {active && !DATE_PRESETS.some((p) => p.key === active) && active !== 'custom' ? (
+          <option value={active}>Rentang terpilih</option>
+        ) : null}
+        <option value="">Pilih rentang</option>
+        {DATE_PRESETS.map((p) => (
+          <option key={p.key} value={p.key}>{p.label}</option>
+        ))}
+        <option value="custom">Rentang Kustom</option>
+      </select>
     </div>
   );
 }
