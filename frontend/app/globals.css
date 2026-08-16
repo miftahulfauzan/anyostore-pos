@@ -5,8 +5,14 @@
 @custom-variant dark (&:is(.dark *));
 
 :root { color-scheme: light; font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace; background: var(--background); color: var(--foreground); --expressive-primary:#1e3a5f; --expressive-secondary:#2563eb; --expressive-success:#16A34A; --expressive-warning:#D97706; --expressive-danger:#DC2626; --expressive-surface:#FFFFFF; --expressive-text:#111827; --background:#f8fafc; --foreground:#111827; --card:#ffffff; --card-foreground:#111827; --popover:#ffffff; --popover-foreground:#111827; --primary:#1e3a5f; --primary-foreground:#ffffff; --secondary:#2563eb; --secondary-foreground:#ffffff; --muted:#f1f5f9; --muted-foreground:#64748b; --accent:#dbeafe; --accent-foreground:#1e3a5f; --destructive:#dc2626; --border:#dbe3ee; --input:#cbd5e1; --ring:#1e3a5f; --chart-1:#1e3a5f; --chart-2:#2563eb; --chart-3:#16A34A; --chart-4:#D97706; --chart-5:#DC2626; --radius:.5rem; --sidebar:#111827; --sidebar-foreground:#e2e8f0; --sidebar-primary:#1e3a5f; --sidebar-primary-foreground:#ffffff; --sidebar-accent:#1e293b; --sidebar-accent-foreground:#ffffff; --sidebar-border:#334155; --sidebar-ring:#1e3a5f; }
-html[data-theme="blue"] .sidebar { background:#173e73; } html[data-theme="blue"] button, html[data-theme="blue"] .button-link, html[data-theme="blue"] .payment-option.selected, html[data-theme="blue"] .view-button.selected { background:#1d5fa8; } html[data-theme="blue"] a { color:#1d5fa8; }
-html[data-theme="purple"] .sidebar { background:#49266f; } html[data-theme="purple"] button, html[data-theme="purple"] .button-link, html[data-theme="purple"] .payment-option.selected, html[data-theme="purple"] .view-button.selected { background:#683a9a; } html[data-theme="purple"] a { color:#683a9a; }
+/* Tema brand hanya mengubah warna aksen (var), TIDAK memaksa semua tombol &
+   link global (yang bikin tulisan tak terbaca di sidebar & tombol sekunder). */
+html[data-theme="blue"] { --expressive-primary:#1d5fa8; --expressive-secondary:#1d5fa8; --primary:#1d5fa8; --ring:#1d5fa8; }
+html[data-theme="blue"] .sidebar { background:#173e73; }
+html[data-theme="blue"] .app-main a { color:#1d5fa8; }
+html[data-theme="purple"] { --expressive-primary:#683a9a; --expressive-secondary:#683a9a; --primary:#683a9a; --ring:#683a9a; }
+html[data-theme="purple"] .sidebar { background:#49266f; }
+html[data-theme="purple"] .app-main a { color:#683a9a; }
 * { box-sizing: border-box; }
 body { margin: 0; }
 .eyebrow { font-size: .7rem; font-weight: 800; letter-spacing: .13em; color: #1e3a5f; text-transform: uppercase; }
@@ -86,6 +92,17 @@ a { color: var(--secondary); font-weight: 600; text-decoration: none; }
 .side-nav a:hover { background:rgba(96,165,250,.1); color:#e0f2fe; }
 .side-nav a.active { background:linear-gradient(135deg,rgba(29,78,216,.32),rgba(8,145,178,.14)); box-shadow:inset 3px 0 #60a5fa; color:#f8fafc; }
 .logout { margin-top: auto; background: transparent; border: 1px solid #334155; color: #cbd5e1; font-size:.72rem; padding:.65rem; }
+/* Jaminan keterbacaan sidebar: link & tombol di dalam sidebar memakai warna
+   terang di atas latar gelap, TIDAK ikut aturan global button/a. */
+.sidebar a { color: #cbd5e1; }
+.sidebar a:hover { color: #e0f2fe; }
+.sidebar a.active { color: #f8fafc; }
+.sidebar .brand, .sidebar .brand a { color: #ffffff; }
+.sidebar button { background: transparent; color: #94a3b8; }
+.sidebar .nav-group-toggle:hover, .sidebar button:hover:not(:disabled) { background: rgba(148,163,184,.1); color: #e0f2fe; }
+.sidebar .collapse-toggle { background: rgba(255,255,255,.06); color: #94a3b8; border-color:#475569; }
+.sidebar .logout { background: transparent; color: #cbd5e1; border-color: #334155; }
+.sidebar .logout:hover { background: rgba(148,163,184,.1); color: #f8fafc; }
 .app-main { display: block; min-width: 0; min-height: 100vh; max-width: none; margin: 0; padding: 2rem clamp(1rem, 3vw, 3rem) 3rem; }
 .app-main, .app-main:not(.sidebar-collapsed) { margin-left: 308px; }
 .app-main.sidebar-collapsed { margin-left: 84px; }
