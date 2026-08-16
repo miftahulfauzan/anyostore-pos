@@ -239,26 +239,27 @@ a, .photo-upload { color:var(--expressive-secondary); }
 .movement-filter { grid-template-columns: 2fr 3fr; align-items: start; }
 /* Kolom kanan: semua kontrol filter rapi dalam satu area.
    Baris 1 = Rentang, Dari, Sampai, Jenis (4 kolom); baris 2 = tombol. */
-.movement-form { display: grid; gap: 14px; }
-.movement-controls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.movement-form { display: grid; gap: 16px; }
+/* Grid otomatis: desktop = 4 kolom (~180-200px), tablet = 2 baris,
+   mobile = 1 kolom — field TIDAK menyusut sampai teks terpotong. */
+.movement-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 16px; }
 .movement-field { display: grid; gap: 5px; align-content: start; min-width: 0; }
+.movement-field > span { white-space: nowrap; }
 .movement-field input,
 .movement-field select,
 .movement-field > div { width: 100%; box-sizing: border-box; }
 .movement-field input,
 .movement-field select { height: 40px; }
 .movement-field > div { display: flex; flex-direction: column; align-items: stretch; gap: 5px; }
-.movement-field select { min-width: 0; }
-.movement-actions { display: flex; justify-content: flex-end; }
-.movement-actions button { min-width: 160px; }
-@media (max-width: 1180px) {
-  .movement-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
+.movement-field > div .small { white-space: nowrap; }
+.movement-actions { display: flex; justify-content: flex-start; }
+.movement-actions button { width: 250px; }
 @media (max-width: 620px) {
   .movement-filter { grid-template-columns: 1fr; }
-  .movement-controls { grid-template-columns: 1fr; }
-  .movement-actions { justify-content: stretch; }
   .movement-actions button { width: 100%; }
+}
+@media (max-width: 420px) {
+  .movement-field > span { white-space: normal; }
 }
 .movement-filter h2, .barcode-picker h2 { margin: 0; font-size: 1.08rem; }
 .movement-filter p { margin: .38rem 0 0; max-width: 42rem; }
