@@ -36,7 +36,8 @@ export async function generateMetadata({ params }) {
     description,
     alternates: { canonical: `/produk/${id}` },
     openGraph: {
-      type: 'product',
+      // 'product' tidak didukung skema OpenGraph Next.js -> error 500 (digest).
+      type: 'website',
       title: product.name,
       description,
       url: `/produk/${id}`,
