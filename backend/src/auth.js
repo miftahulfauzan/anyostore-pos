@@ -7,8 +7,8 @@ const { jwtSecret, jwtRefreshSecret } = require('./config');
 const refreshHash = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
 const cookieBase = { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production' };
-const ACCESS_COOKIE_MAX_AGE = 12 * 60 * 60 * 1000;
-const REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+const ACCESS_COOKIE_MAX_AGE = 365 * 24 * 60 * 60 * 1000;
+const REFRESH_COOKIE_MAX_AGE = 365 * 24 * 60 * 60 * 1000;
 function setAuthCookies(res, tokens) {
   res.cookie('pos_access', tokens.accessToken, { ...cookieBase, maxAge: ACCESS_COOKIE_MAX_AGE });
   res.cookie('pos_refresh', tokens.refreshToken, { ...cookieBase, maxAge: REFRESH_COOKIE_MAX_AGE });
@@ -53,9 +53,9 @@ function issueTokens(user) {
   const accessToken = jwt.sign(
     { id: user.id, role: user.role, branch_id: user.branch_id },
     jwtSecret,
-    { expiresIn: '12h' }
+    { expiresIn: '365d' }
   );
-  const refreshToken = jwt.sign({ id: user.id }, jwtRefreshSecret, { expiresIn: '7d' });
+  const refreshToken = jwt.sign({ id: user.id }, jwtRefreshSecret, { expiresIn: '365d' });
   return { accessToken, refreshToken };
 }
 

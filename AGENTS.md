@@ -61,7 +61,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 
 ### Auth & Roles
 
-- JWT access 12 jam (payload: `id, role, branch_id`), refresh token 7 hari, hash SHA-256 di DB
+- JWT access & refresh token 365 HARI (praktis tanpa batas — user minta tidak ada auto-logout; logout hanya lewat tombol Keluar), hash SHA-256 di DB
 - Login/PIN/refresh menyetel **httpOnly cookie** (`pos_access`, `pos_refresh`, SameSite=Strict, Secure di produksi); `authenticate` membaca cookie (Bearer header tetap diterima). Refresh token TIDAK dikembalikan di body respons. Frontend tidak menyimpan JWT di localStorage.
 - Roles: `owner`, `manager`, `admin`, `kasir`, `gudang`
 - `authorize('owner')` dsb memfilter akses per route
@@ -277,7 +277,7 @@ Aplikasi Android (Flutter, folder mobile/) sudah melalui banyak perubahan. Dokum
 
 ## Mobile teknis
 - File baru: lib/src/theme_controller.dart (ThemeMode + SharedPreferences), lib/src/notification_service.dart (notif lokal & jadwal harian), lib/src/backup_service.dart (backup JSON ke dokumen + cek jadwal + cek stok rendah). Main.dart memanggil NotificationService.init() + cek stok + auto-backup + jadwal pengingat saat app dibuka (hanya kalau sudah login).
-- ApiClient._request membungkus error jaringan (TimeoutException/SocketException/http.ClientException) menjadi ApiException(isNetwork: true) dengan pesan ramah — SEMUA halaman cukup catch `on ApiException`. 401: coba refresh dulu; kalau refresh GAGAL -> AuthStore.logout() otomatis (balik ke Login) + pesan "Sesi berakhir. Silakan login ulang." (jangan tampilkan mentah "Refresh token tidak valid"). Deteksi offline di pos_page memakai `e is ApiException && e.isNetwork` (atau tipe mentah) supaya mode offline tetap jalan.
+- ApiClient._request membungkus error jaringan (TimeoutException/SocketException/http.ClientException) menjadi ApiException(isNetwork: true) dengan pesan ramah — SEMUA halaman cukup catch `on ApiException`. 401: coba refresh dulu; kalau refresh GAGAL -> TIDAK logout otomatis (sesi tetap; logout hanya tombol Keluar). Deteksi offline di pos_page memakai `e is ApiException && e.isNetwork` (atau tipe mentah) supaya mode offline tetap jalan.
 - Dependensi baru di pubspec.yaml: share_plus, flutter_local_notifications, timezone, path_provider.
 - Build APK: JANGAN build di folder OneDrive (APK korup ZIP_BAD). Rsync mobile/ ke /private/tmp/mbuild2, build di sana, copy hasilnya. Gradle butuh ANDROID_HOME=/opt/homebrew/share/android-commandlinetools dan JAVA_HOME=/opt/homebrew/opt/openjdk@17 (di mesin ini). CI job android-apk (ci.yml) membangun APK & upload artifact.
 - ATURAN: SETIAP perubahan/edit aplikasi mobile WAJIB langsung produksi juga kedua artefak build: APK di `mobile/build/app/outputs/flutter-apk/app-release.apk` dan IPA (development export) di `mobile/build/ios/ipa/anyostore-app.ipa` — lalu copy ke workspace. Urutan: flutter build apk --release; flutter build ipa --release (archive; export App Store gagal utk akun gratis — wajar); xcodebuild -exportArchive ... -exportOptionsPlist /private/tmp/export_dev.plist (method development) -> ipa_dev. Instal juga ke perangkat (Android via adb, iOS via devicectl; iOS perlu uninstall dulu kalau ada error MismatchedApplicationIdentifierEntitlement, dan user harus Trust developer di iPhone).

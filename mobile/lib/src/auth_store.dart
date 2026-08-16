@@ -135,9 +135,7 @@ class AuthStore extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (_) {
-      // Refresh token tidak valid / kedaluwarsa: akhiri sesi supaya aplikasi
-      // kembali ke halaman login dengan pesan jelas.
-      await logout();
+      // Tanpa auto-logout: sesi disimpan; logout hanya lewat tombol Keluar.
       return false;
     }
   }
