@@ -83,7 +83,7 @@ class _PosPageState extends State<PosPage> {
   int _previewVersion = -1;
 
   bool get _previewFresh =>
-      _preview != null && _cartError == null && _previewVersion >= _cartVersion;
+      _preview != null && _cartError == null && _previewVersion == _cartVersion;
   StreamSubscription<List<ConnectivityResult>>? _connSub;
 
   List<Map<String, dynamic>> _products = [];
@@ -451,6 +451,11 @@ class _PosPageState extends State<PosPage> {
       if (mounted) setState(() => _preview = null);
       return;
     }
+    // Snapshot versi keranjang saat request dikirim. Hasil request LAMA tidak
+    // boleh menimpa preview baru kalau urutan selesainya berbalik (mis. request
+    // 2 item selesai setelah request 3 item) - itu penyebab total basi seperti
+    // 12 pcs masih tampil Rp760.000.
+    final requestVersion = _cartVersion;
     try {
       final items = _cart
           .map((c) => {
@@ -466,15 +471,18 @@ class _PosPageState extends State<PosPage> {
         'items': items,
         if (_promoCode.trim().isNotEmpty) 'promo_code': _promoCode.trim(),
       });
-      if (mounted) {
+      if (mounted && requestVersion == _cartVersion) {
         setState(() {
           _preview = preview;
-          _previewVersion = _cartVersion;
+          _previewVersion = requestVersion;
+          _cartError = null;
         });
         _sheetRefresh?.call(() {});
       }
     } on ApiException catch (e) {
-      if (mounted) setState(() => _cartError = e.message);
+      if (mounted && requestVersion == _cartVersion) {
+        setState(() => _cartError = e.message);
+      }
     }
   }
 
