@@ -1,5 +1,5 @@
 import { headers } from 'next/headers';
-import ProdukDetailClient from './ProdukDetailClient';
+import ProdukDetailLoader from './ProdukDetailLoader';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,7 +75,7 @@ export default async function ProdukPage({ params }) {
       {jsonLd && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       )}
-      <ProdukDetailClient />
+      <ProdukDetailLoader />
     </>
   );
 }
