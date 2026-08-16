@@ -747,7 +747,10 @@ class _MutasiSectionState extends State<_MutasiSection> {
                         ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 104),
+          // Tambah padding bawah area aman (home indicator iPhone) supaya
+          // tombol tidak mepet navbar.
+          padding: EdgeInsets.fromLTRB(
+              12, 4, 12, 104 + MediaQuery.of(context).padding.bottom),
           child: FilledButton.icon(
             onPressed: _openForm,
             style: FilledButton.styleFrom(

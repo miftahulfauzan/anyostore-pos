@@ -295,7 +295,9 @@ class _ProductsPageState extends State<ProductsPage> {
                               ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                // Ruang bawah aman iPhone (home indicator).
+                padding: EdgeInsets.fromLTRB(
+                    12, 4, 12, 12 + MediaQuery.of(context).padding.bottom),
                 child: FilledButton.icon(
                   onPressed: () => _openForm(),
                   style: FilledButton.styleFrom(
