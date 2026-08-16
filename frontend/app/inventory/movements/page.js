@@ -68,7 +68,7 @@ export default function StockMovementsPage() {
     </section>
     {message && <p className="message records" role="status">{message}</p>}
 
-    <div style={{ display: 'grid', gap: '.75rem', maxWidth: 1440, margin: '0 auto' }}>
+    <div style={{ display: 'grid', gap: '.75rem' }}>
       {loading && Array.from({ length: 5 }).map((_, i) => <div key={i} className="panel" style={{ height: 80, borderRadius: 10, background: '#f1f5f9' }} />)}
       {!loading && rows.map((row) => (
         <article key={row.id} className="panel movement-card" onClick={() => setSelected(selected?.id === row.id ? null : row)} style={{ cursor: 'pointer', borderRadius: 10, padding: '14px 16px', display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', alignItems: 'start', borderLeft: row.qty >= 0 ? '3px solid #16a34a' : '3px solid #dc2626' }}>
