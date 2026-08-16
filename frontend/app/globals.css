@@ -215,7 +215,7 @@ a, .photo-upload { color:var(--expressive-secondary); }
 .edit-link { border-color:#bfdbfe; color:var(--expressive-secondary); }
 .catalog-search input, input, select, textarea { border-color:#cbd5e1; }
 
-/* Inventory audit trail and printable product labels */
+/* Inventory audit trail: section compact 2-kolom (40% info / 60% filter) */
 .movement-filter, .barcode-picker { max-width: 1440px; margin: 0 auto 1rem; }
 /* Satu parent untuk filter + list audit: lebar & edge kiri/kanan PASTI sejajar. */
 .app-content > .movement-page {
@@ -236,24 +236,37 @@ a, .photo-upload { color:var(--expressive-secondary); }
   max-width: none;
   margin: 0;
 }
-.movement-filter { grid-template-columns: 2fr 3fr; align-items: start; }
-/* Kolom kanan: semua kontrol filter rapi dalam satu area.
-   Baris 1 = Rentang, Dari, Sampai, Jenis (4 kolom); baris 2 = tombol. */
-.movement-form { display: grid; gap: 16px; }
-/* Grid otomatis: desktop = 4 kolom (~180-200px), tablet = 2 baris,
-   mobile = 1 kolom — field TIDAK menyusut sampai teks terpotong. */
-.movement-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 16px; }
-.movement-field { display: grid; gap: 5px; align-content: start; min-width: 0; }
-.movement-field > span { white-space: nowrap; }
+.movement-filter {
+  display: grid;
+  grid-template-columns: 38fr 62fr;
+  gap: 28px;
+  padding: 30px;
+  align-items: start;
+  height: auto;
+}
+.movement-filter > div:first-child h2, .barcode-picker h2 { margin: 0; font-size: 1.08rem; }
+.movement-filter > div:first-child p { margin: 10px 0 0; max-width: 42rem; }
+.movement-form { min-width: 0; }
+/* Baris 1: Rentang, Dari, Sampai — Baris 2: Jenis perubahan + Terapkan.
+   Field berukuran nyaman (180-220px), tinggi seragam 50px, label di atas field. */
+.movement-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 220px));
+  gap: 14px;
+  align-items: end;
+}
+.movement-field { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.movement-field > span { white-space: nowrap; font-size: 12px; }
 .movement-field input,
 .movement-field select,
 .movement-field > div { width: 100%; box-sizing: border-box; }
 .movement-field input,
-.movement-field select { height: 40px; }
-.movement-field > div { display: flex; flex-direction: column; align-items: stretch; gap: 5px; }
+.movement-field select { height: 50px; }
+.movement-field > div { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
 .movement-field > div .small { white-space: nowrap; }
-.movement-actions { display: flex; justify-content: flex-start; }
-.movement-actions button { width: 250px; }
+.movement-field:nth-child(4) { grid-column: 1 / 2; }
+.movement-actions { grid-column: 2 / 3; display: flex; }
+.movement-actions button { height: 50px; width: 230px; padding: 0 20px; white-space: nowrap; }
 /* ===== Mutasi Stok & Transfer Stok: layout 2 kolom (produk + keranjang) ===== */
 .mutasi-layout { display: grid; grid-template-columns: 1fr 380px; gap: 22px; align-items: start; }
 .mutasi-layout > * { min-width: 0; }
@@ -277,18 +290,26 @@ a, .photo-upload { color:var(--expressive-secondary); }
   .stock-picker-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
 }
 
-@media (max-width: 620px) {
-  .movement-filter { grid-template-columns: 1fr; }
+@media (max-width: 1200px) {
+  .movement-filter { gap: 22px; padding: 24px; }
+  .movement-controls { grid-template-columns: repeat(3, minmax(170px, 1fr)); }
+  .movement-actions button { width: 210px; }
+}
+@media (max-width: 1100px) {
+  .movement-filter { grid-template-columns: 1fr; gap: 18px; }
+  .movement-controls { grid-template-columns: repeat(3, minmax(160px, 1fr)); }
+}
+@media (max-width: 860px) {
+  .movement-controls { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
+  .movement-field:nth-child(4), .movement-actions { grid-column: auto; }
   .movement-actions button { width: 100%; }
+}
+@media (max-width: 600px) {
+  .movement-controls { grid-template-columns: 1fr; }
 }
 @media (max-width: 420px) {
   .movement-field > span { white-space: normal; }
 }
-.movement-filter h2, .barcode-picker h2 { margin: 0; font-size: 1.08rem; }
-.movement-filter p { margin: .38rem 0 0; max-width: 42rem; }
-.movement-filter form { display: grid; grid-template-columns: repeat(3, minmax(130px, 1fr)) auto; gap: .65rem; align-items: end; }
-.movement-filter input, .movement-filter select { min-height: 44px; }
-.movement-filter button { min-height: 44px; white-space: nowrap; }
 .movement-table td { max-width: 240px; }
 .movement-table td:last-child { min-width: 180px; white-space: normal; }
 .mutation-type { display: inline-flex; align-items: center; min-height: 24px; padding: .16rem .45rem; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: .75rem; font-weight: 800; }
@@ -305,8 +326,7 @@ a, .photo-upload { color:var(--expressive-secondary); }
 .barcode-label span, .barcode-label small { overflow: hidden; color: #475569; font-size: .65rem; text-overflow: ellipsis; white-space: nowrap; }
 .barcode-label svg { width: 100%; max-width: 190px; height: 48px; }
 .barcode-label b { justify-self: end; font-size: .75rem; }
-@media (max-width: 1100px) { .movement-filter { grid-template-columns: 1fr; }.movement-filter form { grid-template-columns: repeat(3, 1fr); }.movement-filter form button { grid-column: 1 / -1; } }
-@media (max-width: 700px) { .movement-filter form { grid-template-columns: 1fr; }.movement-filter form button { grid-column: auto; }.barcode-print-area { grid-template-columns: 1fr; }.movement-table td:last-child { min-width: 120px; } }
+@media (max-width: 700px) { .barcode-print-area { grid-template-columns: 1fr; }.movement-table td:last-child { min-width: 120px; } }
 @media print {
   @page { margin: 8mm; }
   body { background: #fff !important; }

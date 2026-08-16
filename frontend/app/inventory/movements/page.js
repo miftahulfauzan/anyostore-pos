@@ -67,9 +67,9 @@ export default function StockMovementsPage() {
           <label className="movement-field"><span>Dari tanggal</span><input type="date" value={filters.date_from} onChange={(event) => setFilters({ ...filters, date_from: event.target.value })} /></label>
           <label className="movement-field"><span>Sampai tanggal</span><input type="date" value={filters.date_to} onChange={(event) => setFilters({ ...filters, date_to: event.target.value })} /></label>
           <label className="movement-field"><span>Jenis perubahan</span><select value={filters.type} onChange={(event) => setFilters({ ...filters, type: event.target.value })}><option value="">Semua aktivitas</option>{Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-        </div>
-        <div className="movement-actions">
-          <button type="submit" disabled={loading}>{loading ? 'Memuat…' : 'Terapkan filter'}</button>
+          <div className="movement-actions">
+            <button type="submit" disabled={loading}>{loading ? 'Memuat…' : 'Terapkan filter'}</button>
+          </div>
         </div>
       </form>
     </section>
