@@ -49,8 +49,8 @@ export default function StockMovementsPage() {
   }
 
   return <AppShell title="Riwayat Pergerakan Stok" eyebrow="PRODUK & INVENTORI" actions={<a className="button-link" href="/inventory">Lihat Stok</a>}>
-    <div style={{ width: '100%', maxWidth: 1440, margin: '0 auto', display: 'grid', gap: 16, alignContent: 'start' }}>
-    <section className="panel movement-filter" style={{ margin: 0, width: '100%' }}>
+    <div className="movement-page">
+    <section className="panel movement-filter">
       <div><h2>Jejak audit stok</h2><p className="muted">Setiap stok masuk, keluar, transaksi, retur, transfer, dan opname tercatat bersama petugas serta saldo sebelum/sesudah.</p></div>
       <form onSubmit={apply}>
         <DateRangePresets active={preset} onPick={(key, range) => {

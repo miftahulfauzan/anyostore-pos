@@ -217,6 +217,25 @@ a, .photo-upload { color:var(--expressive-secondary); }
 
 /* Inventory audit trail and printable product labels */
 .movement-filter, .barcode-picker { max-width: 1440px; margin: 0 auto 1rem; }
+/* Satu parent untuk filter + list audit: lebar & edge kiri/kanan PASTI sejajar. */
+.app-content > .movement-page {
+  width: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  min-width: 0;
+}
+.movement-page > * {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+.movement-page .movement-filter {
+  max-width: none;
+  margin: 0;
+}
 .movement-filter { grid-template-columns: minmax(260px, 1fr) minmax(0, 1.5fr); align-items: end; }
 .movement-filter h2, .barcode-picker h2 { margin: 0; font-size: 1.08rem; }
 .movement-filter p { margin: .38rem 0 0; max-width: 42rem; }
