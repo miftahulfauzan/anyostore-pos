@@ -142,8 +142,33 @@ class _ReportsPageState extends State<ReportsPage> {
   /// Tambahkan transaksi & pengeluaran/pemasukan offline ke Ringkasan/Penutupan.
   Future<Map<String, dynamic>> _mergeOffline(Map<String, dynamic> data) async {
     try {
-      final txs = await OfflineStore.pending();
-      final exps = await OfflineStore.pendingExpenses();
+      final rawTxs = await OfflineStore.pending();
+      final rawExps = await OfflineStore.pendingExpenses();
+      // Filter by cabang: owner ganti cabang tidak boleh masuk ringkasan cabang lain.
+      final txs = _branchId == null
+          ? rawTxs
+          : rawTxs.where((t) {
+              try {
+                final p = jsonDecode(t['payload'] as String? ?? '{}') as Map<String, dynamic>;
+                final b = int.tryParse('${p['branch_id']}');
+                return b == _branchId;
+              } catch (_) {
+                return false;
+              }
+            }).toList();
+      final exps = _branchId == null
+          ? rawExps
+          : rawExps.where((r) {
+              try {
+                final p = jsonDecode(r['payload'] as String? ?? '{}') as Map<String, dynamic>;
+                final b = p['branch_id'] == null ? null : int.tryParse('${p['branch_id']}');
+                // legacy tanpa branch_id dianggap milik cabang aktif filter -> jangan hitung kalau filter cabang spesifik
+                if (b == null) return false;
+                return b == _branchId;
+              } catch (_) {
+                return false;
+              }
+            }).toList();
       if (txs.isEmpty && exps.isEmpty) return data;
       double txTotal = 0;
       final byMethod = <String, double>{};

@@ -58,8 +58,22 @@ class _FinancePageState extends State<FinancePage> {
       ]);
       if (!mounted) return;
       // Gabung pengeluaran/pemasukan offline (kuning) + sesuaikan laba rugi.
+      // Filter by cabang aktif supaya tidak tercampur antar cabang.
+      final activeBranch = widget.api.activeBranchId;
       final serverRows = (results[0] as List).cast<Map<String, dynamic>>();
-      final pending = await OfflineStore.pendingExpenses();
+      final rawPending = await OfflineStore.pendingExpenses();
+      final pending = activeBranch == null
+          ? rawPending
+          : rawPending.where((r) {
+              try {
+                final p = jsonDecode(r['payload'] as String? ?? '{}') as Map<String, dynamic>;
+                final b = p['branch_id'] == null ? null : int.tryParse('${p['branch_id']}');
+                if (b == null) return false;
+                return b == activeBranch;
+              } catch (_) {
+                return false;
+              }
+            }).toList();
       final localRows = <Map<String, dynamic>>[
         for (final r in pending)
           if ((jsonDecode(r['payload'] as String? ?? '{}')
@@ -73,7 +87,18 @@ class _FinancePageState extends State<FinancePage> {
             },
           ],
       ];
-      final pendingTxs = await OfflineStore.pending();
+      final rawPendingTxs = await OfflineStore.pending();
+      final pendingTxs = activeBranch == null
+          ? rawPendingTxs
+          : rawPendingTxs.where((t) {
+              try {
+                final p = jsonDecode(t['payload'] as String? ?? '{}') as Map<String, dynamic>;
+                final b = int.tryParse('${p['branch_id']}');
+                return b == activeBranch;
+              } catch (_) {
+                return false;
+              }
+            }).toList();
       double txTotal = 0;
       for (final t in pendingTxs) {
         txTotal += asNum(t['grand_total']);
@@ -247,6 +272,7 @@ class _FinancePageState extends State<FinancePage> {
         'payment_method': method,
         'expense_date': date.text.trim(),
         'type': type,
+        if (widget.api.activeBranchId != null) 'branch_id': widget.api.activeBranchId,
       };
       if (isEdit) {
         await widget.api.updateExpense(int.parse('${existing['id']}'), body);

@@ -64,10 +64,10 @@ router.post(
         throw fail(400, "Data transfer tidak valid");
       await c.beginTransaction();
       const [src] = await c.execute(
-        "SELECT id,branch_id FROM warehouses WHERE id=? AND is_active=TRUE FOR UPDATE",
-        [from],
+        "SELECT id,branch_id FROM warehouses WHERE id=? AND branch_id=? AND is_active=TRUE FOR UPDATE",
+        [from, req.user.branch_id],
       );
-      if (!src[0]) throw fail(404, "Gudang asal tidak ditemukan");
+      if (!src[0]) throw fail(404, "Gudang asal tidak ditemukan di toko Anda");
       const branchId = src[0].branch_id;
       const [w] = await c.execute(
         "SELECT id FROM warehouses WHERE id=? AND branch_id=? AND is_active=TRUE",
@@ -254,11 +254,12 @@ router.post(
           );
           const newProductId = res.insertId;
           const [variants] = await c.execute(
-            "SELECT color,size,sku,barcode,price FROM product_variants WHERE product_id=? AND is_active=TRUE",
+            "SELECT id,color,size,sku,barcode,price FROM product_variants WHERE product_id=? AND is_active=TRUE",
             [productId],
           );
+          const variantMap = new Map();
           for (const v of variants) {
-            await c.execute(
+            const [vr] = await c.execute(
               "INSERT INTO product_variants (product_id,size,color,sku,barcode,stock,price,is_active) VALUES (?,?,?,?,?,0,?,TRUE)",
               [
                 newProductId,
@@ -269,25 +270,28 @@ router.post(
                 v.price != null ? v.price : null,
               ],
             );
+            variantMap.set(v.id, vr.insertId);
           }
           const [wholesale] = await c.execute(
-            "SELECT min_qty,max_qty,price FROM wholesale_prices WHERE product_id=? AND is_active=TRUE",
+            "SELECT min_qty,max_qty,price,variant_id FROM wholesale_prices WHERE product_id=? AND is_active=TRUE",
             [productId],
           );
           for (const w of wholesale) {
+            const mappedVariantId = w.variant_id != null ? (variantMap.get(w.variant_id) || null) : null;
             await c.execute(
-              "INSERT INTO wholesale_prices (product_id,min_qty,max_qty,price,is_active) VALUES (?,?,?,?,TRUE)",
-              [newProductId, w.min_qty, w.max_qty, w.price],
+              "INSERT INTO wholesale_prices (product_id,variant_id,min_qty,max_qty,price,is_active) VALUES (?,?,?,?,?,TRUE)",
+              [newProductId, mappedVariantId, w.min_qty, w.max_qty, w.price],
             );
           }
           const [photos] = await c.execute(
-            "SELECT filename,path,media_type,is_primary,sort_order FROM product_photos WHERE product_id=?",
+            "SELECT filename,path,media_type,is_primary,sort_order,variant_id,`transform` FROM product_photos WHERE product_id=?",
             [productId],
           );
           for (const ph of photos) {
             const newPath = await copyMediaFile(ph.path, "products");
+            const mappedPhotoVariantId = ph.variant_id != null ? (variantMap.get(ph.variant_id) || null) : null;
             await c.execute(
-              "INSERT INTO product_photos (product_id,filename,path,media_type,is_primary,sort_order) VALUES (?,?,?,?,?,?)",
+              "INSERT INTO product_photos (product_id,filename,path,media_type,is_primary,sort_order,variant_id,`transform`) VALUES (?,?,?,?,?,?,?,?)",
               [
                 newProductId,
                 ph.filename,
@@ -295,6 +299,8 @@ router.post(
                 ph.media_type,
                 ph.is_primary,
                 ph.sort_order,
+                mappedPhotoVariantId,
+                ph.transform,
               ],
             );
           }

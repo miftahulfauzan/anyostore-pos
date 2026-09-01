@@ -225,28 +225,32 @@ router.post('/branches', authorize('owner'), async (req, res, next) => {
         );
         const newProductId = res.insertId;
 
-        const [variants] = await connection.execute('SELECT color, size, sku, barcode, stock, price FROM product_variants WHERE product_id=? AND is_active=TRUE', [p.id]);
+        const [variants] = await connection.execute('SELECT id, color, size, sku, barcode, stock, price FROM product_variants WHERE product_id=? AND is_active=TRUE', [p.id]);
+        const variantMap = new Map();
         for (const v of variants) {
           const vp = v.price != null ? Math.round((Number(v.price) * multiplier + Number.EPSILON) * 100) / 100 : null;
-          await connection.execute(
+          const [vr] = await connection.execute(
             'INSERT INTO product_variants (product_id, size, color, sku, barcode, stock, price, is_active) VALUES (?,?,?,?,?,0,?,TRUE)',
             [newProductId, v.size || null, v.color || null, null, null, vp]
           );
+          variantMap.set(v.id, vr.insertId);
         }
 
-        const [wholesale] = await connection.execute('SELECT min_qty, max_qty, price FROM wholesale_prices WHERE product_id=? AND is_active=TRUE', [p.id]);
+        const [wholesale] = await connection.execute('SELECT min_qty, max_qty, price, variant_id FROM wholesale_prices WHERE product_id=? AND is_active=TRUE', [p.id]);
         for (const w of wholesale) {
           const wp = Math.round((Number(w.price) * multiplier + Number.EPSILON) * 100) / 100;
-          await connection.execute('INSERT INTO wholesale_prices (product_id, min_qty, max_qty, price, is_active) VALUES (?,?,?,?,TRUE)', [newProductId, w.min_qty, w.max_qty, wp]);
+          const mappedVariantId = w.variant_id != null ? (variantMap.get(w.variant_id) || null) : null;
+          await connection.execute('INSERT INTO wholesale_prices (product_id, variant_id, min_qty, max_qty, price, is_active) VALUES (?,?,?,?,?,TRUE)', [newProductId, mappedVariantId, w.min_qty, w.max_qty, wp]);
         }
 
         if (clonePhotos) {
-          const [photos] = await connection.execute('SELECT filename, path, media_type, is_primary, sort_order FROM product_photos WHERE product_id=? AND variant_id IS NULL', [p.id]);
+          const [photos] = await connection.execute('SELECT filename, path, media_type, is_primary, sort_order, variant_id, `transform` FROM product_photos WHERE product_id=?', [p.id]);
           for (const ph of photos) {
             const newPath = await copyMediaFile(ph.path, 'products');
+            const mappedPhotoVariantId = ph.variant_id != null ? (variantMap.get(ph.variant_id) || null) : null;
             await connection.execute(
-              'INSERT INTO product_photos (product_id, filename, path, media_type, is_primary, sort_order) VALUES (?,?,?,?,?,?)',
-              [newProductId, ph.filename, newPath, ph.media_type, ph.is_primary, ph.sort_order]
+              'INSERT INTO product_photos (product_id, filename, path, media_type, is_primary, sort_order, variant_id, `transform`) VALUES (?,?,?,?,?,?,?,?)',
+              [newProductId, ph.filename, newPath, ph.media_type, ph.is_primary, ph.sort_order, mappedPhotoVariantId, ph.transform]
             );
           }
         }

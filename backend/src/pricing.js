@@ -47,10 +47,10 @@ function applySemiGrosir(lines) {
   return 'semi_grosir';
 }
 
-async function applyGrosirSeri(connection, lines) {
+async function applyGrosirSeri(connection, lines, force = true) {
   let hasGrosir = false;
   for (const line of lines) {
-    const wholesale = await findWholesalePrice(connection, line.productId, line.variantId, line.quantity, true);
+    const wholesale = await findWholesalePrice(connection, line.productId, line.variantId, line.quantity, force);
     if (wholesale != null && wholesale < line.price) {
       line.price = wholesale;
       line.lineSubtotal = money(line.price * line.quantity - line.itemDiscount);
@@ -62,8 +62,9 @@ async function applyGrosirSeri(connection, lines) {
 }
 
 async function applyAutoTier(connection, lines) {
-  // 1) Grosir Seri: line dengan qty>=6 yang punya harga grosir.
-  const grosirTier = await applyGrosirSeri(connection, lines);
+  // 1) Grosir Seri: line yang qty-nya memenuhi min_qty tier grosir (force=false
+  // agar qty kecil tidak dapat harga grosir).
+  const grosirTier = await applyGrosirSeri(connection, lines, false);
   if (grosirTier === 'grosir_seri') return 'grosir_seri';
 
   // 2) Semi Grosir: total qty > 3 dan lebih dari 1 model berbeda.

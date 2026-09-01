@@ -12,6 +12,7 @@ dependencies:
   provider: ^6.1.2
   http: ^1.2.2
   shared_preferences: ^2.3.2
+  flutter_secure_storage: ^9.2.2
   sqflite: ^2.3.3+1
   connectivity_plus: ^6.0.5
   bluetooth_print_plus: ^2.0.0

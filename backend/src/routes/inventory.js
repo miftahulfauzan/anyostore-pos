@@ -526,7 +526,10 @@ router.get('/mutation-report', authorize('owner','manager','admin','gudang'), as
   }catch(e){ next(e); }
 });
 
-// DELETE /api/inventory/mutation-report/:type/:batchId — hapus batch + balikin stok
+// DELETE /api/inventory/mutation-report/:type/:batchId — hapus batch + balikin stok.
+// Wajib scope cabang: user non-owner hanya boleh hapus batch tokonya sendiri
+// (cegah hapus/restock batch cabang lain via ID). Pakai adjustStock supaya
+// warehouse_stocks/products/product_variants tetap sinkron (satu jalur stok).
 router.delete('/mutation-report/:type/:batchId', authorize('owner','manager','admin','gudang'), async (req,res,next)=>{
   const conn = await db.getConnection();
   try{
@@ -536,15 +539,27 @@ router.delete('/mutation-report/:type/:batchId', authorize('owner','manager','ad
     if (!Number.isInteger(batchId)) return res.status(400).json({success:false,message:'ID batch tidak valid'});
     await conn.beginTransaction();
     const [rows] = await conn.execute(
-      'SELECT id, warehouse_id, product_id, variant_id, qty FROM stock_mutations WHERE reference_type=? AND reference_id=?',
+      'SELECT id, branch_id, warehouse_id, product_id, variant_id, qty FROM stock_mutations WHERE reference_type=? AND reference_id=?',
       [refType, batchId]
     );
     if (!rows.length) { await conn.rollback(); return res.status(404).json({success:false,message:'Batch tidak ditemukan'}); }
+    // Non-owner hanya boleh menghapus batch di cabangnya sendiri.
+    if (req.user.role !== 'owner' && rows.some((r) => r.branch_id !== req.user.branch_id)) {
+      await conn.rollback();
+      return res.status(403).json({success:false,message:'Batch bukan milik toko Anda'});
+    }
     for (const r of rows) {
       const sign = type === 'out' ? 1 : -1; // balikin stok: keluar -> tambah, masuk -> kurangi
-      await conn.execute('UPDATE warehouse_stocks SET quantity = quantity + ? WHERE warehouse_id=? AND product_id=? AND variant_id <=> ?', [sign*r.qty, r.warehouse_id, r.product_id, r.variant_id]);
-      await conn.execute('UPDATE products SET stock = stock + ? WHERE id=?', [sign*r.qty, r.product_id]);
-      if (r.variant_id) await conn.execute('UPDATE product_variants SET stock = stock + ? WHERE id=?', [sign*r.qty, r.variant_id]);
+      await adjustStock(conn, {
+        branchId: r.branch_id,
+        warehouseId: r.warehouse_id,
+        productId: r.product_id,
+        variantId: r.variant_id,
+        delta: sign * Number(r.qty),
+        userId: req.user.id,
+        type: 'adjustment',
+        notes: `Hapus batch ${refType} #${batchId}`,
+      });
       await conn.execute('DELETE FROM stock_mutations WHERE id=?', [r.id]);
     }
     await conn.commit();

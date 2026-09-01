@@ -60,7 +60,7 @@ function normalizeVariants(input) {
   const variants = input.map((variant) => ({
     id: Number.isInteger(Number(variant.id)) ? Number(variant.id) : null,
     color: String(variant.color || '').trim(),
-    size: '',
+    size: String(variant.size ?? '').trim() || null,
     sku: String(variant.sku || '').trim() || null,
     barcode: String(variant.barcode || '').trim() || null,
     price: variant.price === '' || variant.price == null ? null : Number(variant.price),
@@ -550,9 +550,10 @@ router.post('/:id/copy', authorize('owner', 'manager', 'admin', 'gudang'), async
       variantMap.set(v.id, vr.insertId);
     }
 
-    const [wholesale] = await connection.execute('SELECT min_qty, max_qty, price FROM wholesale_prices WHERE product_id = ? AND is_active = TRUE', [productId]);
+    const [wholesale] = await connection.execute('SELECT min_qty, max_qty, price, variant_id FROM wholesale_prices WHERE product_id = ? AND is_active = TRUE', [productId]);
     for (const w of wholesale) {
-      await connection.execute('INSERT INTO wholesale_prices (product_id, min_qty, max_qty, price) VALUES (?,?,?,?)', [newId, w.min_qty, w.max_qty, w.price]);
+      const mappedVariantId = w.variant_id != null ? (variantMap.get(w.variant_id) || null) : null;
+      await connection.execute('INSERT INTO wholesale_prices (product_id, variant_id, min_qty, max_qty, price) VALUES (?,?,?,?,?)', [newId, mappedVariantId, w.min_qty, w.max_qty, w.price]);
     }
 
     const [photos] = await connection.execute('SELECT filename, path, media_type, is_primary, sort_order, variant_id, transform FROM product_photos WHERE product_id = ?', [productId]);

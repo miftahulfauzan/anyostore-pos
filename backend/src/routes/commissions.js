@@ -237,12 +237,12 @@ router.post('/generate', authenticate, authorize('owner', 'manager', 'admin'), a
         const qtyGrosir = tierQty['grosir_seri'] || 0;
 
         const [transactions] = await connection.execute(
-          `SELECT t.id, t.grand_total, COALESCE(SUM((ti.price - ti.cost) * (ti.quantity - ti.cancelled_qty - ti.returned_qty) - ti.discount * (ti.quantity - ti.cancelled_qty - ti.returned_qty) / NULLIF(ti.quantity, 0)), 0) AS profit
+          `SELECT t.id, t.grand_total, t.cancelled_amount, t.refunded_amount, COALESCE(SUM((ti.price - ti.cost) * (ti.quantity - ti.cancelled_qty - ti.returned_qty) - ti.discount * (ti.quantity - ti.cancelled_qty - ti.returned_qty) / NULLIF(ti.quantity, 0)), 0) AS profit
            FROM transactions t LEFT JOIN transaction_items ti ON ti.transaction_id = t.id
            WHERE t.branch_id = ? AND t.user_id = ? AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) BETWEEN ? AND ? GROUP BY t.id`,
           [req.user.branch_id, user.id, periodStart, periodEnd]
         );
-        const totalSales = asMoney(transactions.reduce((sum, row) => sum + Number(row.grand_total), 0));
+        const totalSales = asMoney(transactions.reduce((sum, row) => sum + Number(row.grand_total) - Number(row.cancelled_amount || 0) - Number(row.refunded_amount || 0), 0));
         const totalProfit = asMoney(transactions.reduce((sum, row) => sum + Number(row.profit), 0));
         const qualifies = totalSales >= Number(rule.min_target) && transactions.length >= Number(rule.min_transactions);
         let commission = 0;
@@ -262,7 +262,7 @@ router.post('/generate', authenticate, authorize('owner', 'manager', 'admin'), a
         if (transactions.length && commission) {
           const basis = rule.calculation_type === 'percentage_profit' ? totalProfit : totalSales;
           for (const transaction of transactions) {
-            const source = rule.calculation_type === 'percentage_profit' ? Number(transaction.profit) : Number(transaction.grand_total);
+            const source = rule.calculation_type === 'percentage_profit' ? Number(transaction.profit) : (Number(transaction.grand_total) - Number(transaction.cancelled_amount || 0) - Number(transaction.refunded_amount || 0));
             const itemCommission = basis > 0 ? asMoney(commission * source / basis) : 0;
             await connection.execute('INSERT INTO commission_items (record_id, transaction_id, sale_amount, profit_amount, commission_amount) VALUES (?, ?, ?, ?, ?)', [record.insertId, transaction.id, transaction.grand_total, transaction.profit, itemCommission]);
           }

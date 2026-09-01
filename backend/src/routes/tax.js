@@ -42,8 +42,9 @@ router.get('/report', async (req, res, next) => {
 
     // PPN Masukan (from purchase orders received)
     const [purchaseData] = await db.execute(
-      `SELECT COUNT(*) AS orders, COALESCE(SUM(total_amount), 0) AS total_purchase
-       FROM purchase_orders WHERE branch_id=? AND status IN ('received','completed') AND received_at IS NOT NULL AND DATE(received_at) BETWEEN ? AND ?`,
+      `SELECT COUNT(DISTINCT po.id) AS orders, COALESCE(SUM(poi.unit_cost * poi.received_qty), 0) AS total_purchase
+       FROM purchase_orders po JOIN purchase_order_items poi ON poi.po_id = po.id
+       WHERE po.branch_id=? AND po.status IN ('received','completed') AND po.received_at IS NOT NULL AND DATE(po.received_at) BETWEEN ? AND ?`,
       [branchId, start, end]
     );
     const totalPurchase = Number(purchaseData[0].total_purchase || 0);
@@ -129,7 +130,7 @@ router.get('/faktur-pajak', async (req, res, next) => {
     );
 
     const faktur = invoices.map((t, idx) => {
-      const taxable = Number(t.grand_total) - Number(t.cancelled_amount || 0);
+      const taxable = Number(t.grand_total) - Number(t.cancelled_amount || 0) - Number(t.refunded_amount || 0);
       const base = pricesIncludeTax ? taxable / (1 + taxRate / 100) : taxable;
       const ppn = money(base * taxRate / 100);
       return {

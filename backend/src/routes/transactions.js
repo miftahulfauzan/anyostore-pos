@@ -142,7 +142,7 @@ router.get('/', async (req, res, next) => {
 
     if (isDate(dateFrom)) { where += ' AND DATE(t.created_at) >= ?'; params.push(dateFrom); }
     if (isDate(dateTo)) { where += ' AND DATE(t.created_at) <= ?'; params.push(dateTo); }
-    if (status && ['completed','cancelled','partially_cancelled','refunded'].includes(status)) { where += ' AND t.status = ?'; params.push(status); }
+    if (status && ['completed','cancelled','partially_cancelled','partially_refunded','refunded'].includes(status)) { where += ' AND t.status = ?'; params.push(status); }
     if (search) {
       where += ' AND (t.invoice_no LIKE ? OR t.offline_invoice_no LIKE ? OR u.name LIKE ? OR c.name LIKE ? OR t.grand_total LIKE ?)';
       const like = `%${search}%`;
@@ -230,6 +230,9 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
     if (products.length !== productIds.length) throw httpError(400, 'Satu atau lebih produk tidak ditemukan');
     const productById = new Map(products.map((product) => [product.id, product]));
     const lines = [];
+    // Akumulasi qty per (produk, varian) dalam 1 transaksi supaya cek stok
+    // tidak kelewat bila item sama dikirim dua baris (cegah oversell).
+    const reserved = new Map();
     let subtotal = 0;
     for (const input of items) {
       const productId = Number(input.product_id);
@@ -241,16 +244,19 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
       // Stok kurang/0 TETAP boleh dijual, tapi hanya jika klien mengirim
       // allow_negative_stock=true (setelah konfirmasi "Lanjutkan" di POS).
       const allowNegative = req.body.allow_negative_stock === true;
+      const stockKey = `${productId}|${variantId}`;
+      const alreadyReserved = reserved.get(stockKey) || 0;
       const [balances] = await connection.execute('SELECT id, quantity FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id <=> ? FOR UPDATE', [warehouseId, productId, variantId]);
       const available = Number(balances[0]?.quantity || 0);
-      if (!allowNegative && available < quantity) throw httpError(400, `Stok ${product.name} tidak mencukupi (tersedia ${available})`);
+      if (!allowNegative && available - alreadyReserved < quantity) throw httpError(400, `Stok ${product.name} tidak mencukupi (tersedia ${available - alreadyReserved})`);
       let variant = null;
       if (variantId) {
         const [variants] = await connection.execute('SELECT id, color, stock, price FROM product_variants WHERE id = ? AND product_id = ? AND is_active = TRUE FOR UPDATE', [variantId, productId]);
         if (!variants[0]) throw httpError(400, 'Varian tidak ditemukan');
-        if (!allowNegative && Number(variants[0].stock) < quantity) throw httpError(400, `Stok varian ${product.name} tidak mencukupi`);
+        if (!allowNegative && Number(variants[0].stock) - alreadyReserved < quantity) throw httpError(400, `Stok varian ${product.name} tidak mencukupi`);
         variant = variants[0];
       }
+      reserved.set(stockKey, alreadyReserved + quantity);
       // Harga dasar dari produk/varian.
       const basePrice = money(variant && variant.price > 0 ? variant.price : product.price);
       // Ubah harga manual di keranjang (admin/kasir). Tanpa batas bawah, dicatat untuk audit.

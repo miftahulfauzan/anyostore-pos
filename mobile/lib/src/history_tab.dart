@@ -457,7 +457,7 @@ class _HistoryTabState extends State<HistoryTab> {
           int.tryParse('${item['transaction_item_id'] ?? item['id']}');
       if (itemId == null) continue;
       final remaining =
-          (asNum(item['quantity']) - asNum(item['cancelled_qty'])).toInt();
+          (asNum(item['quantity']) - asNum(item['cancelled_qty']) - asNum(item['returned_qty'])).toInt();
       if (remaining > 0) {
         // Jangan prefill qty penuh: user mengetik jumlah yang dibatalkan,
         // supaya pembatalan sebagian tidak malah membatalkan seluruh item.
@@ -559,7 +559,7 @@ class _HistoryTabState extends State<HistoryTab> {
           int.tryParse('${item['transaction_item_id'] ?? item['id']}');
       if (itemId == null) continue;
       final remaining =
-          (asNum(item['quantity']) - asNum(item['cancelled_qty'])).toInt();
+          (asNum(item['quantity']) - asNum(item['cancelled_qty']) - asNum(item['returned_qty'])).toInt();
       if (remaining > 0) {
         controllers[itemId] = TextEditingController();
         reasons[itemId] = TextEditingController();
@@ -612,7 +612,7 @@ class _HistoryTabState extends State<HistoryTab> {
                                     isDense: true,
                                     labelText: 'Qty',
                                     hintText:
-                                        'max ${(asNum(item['quantity']) - asNum(item['cancelled_qty'])).toInt()}')),
+                                        'max ${(asNum(item['quantity']) - asNum(item['cancelled_qty']) - asNum(item['returned_qty'])).toInt()}')),
                           ),
                         ],
                       ),

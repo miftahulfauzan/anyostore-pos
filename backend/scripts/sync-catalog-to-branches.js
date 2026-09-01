@@ -158,25 +158,26 @@ async function main() {
 
         // Foto produk + foto varian (salin file)
         const [photos] = await connection.execute(
-          'SELECT filename, path, media_type, is_primary, sort_order, variant_id FROM product_photos WHERE product_id=?', [p.id]
+          'SELECT filename, path, media_type, is_primary, sort_order, variant_id, `transform` FROM product_photos WHERE product_id=?', [p.id]
         );
         for (const ph of photos) {
           const newPath = await copyMediaFile(ph.path, 'products');
           await connection.execute(
-            'INSERT INTO product_photos (product_id, filename, path, media_type, is_primary, sort_order, variant_id) VALUES (?,?,?,?,?,?,?)',
+            'INSERT INTO product_photos (product_id, filename, path, media_type, is_primary, sort_order, variant_id, `transform`) VALUES (?,?,?,?,?,?,?,?)',
             [newProductId, ph.filename, newPath, ph.media_type, ph.is_primary, ph.sort_order,
-             ph.variant_id != null ? (variantIdMap.get(ph.variant_id) || null) : null]
+             ph.variant_id != null ? (variantIdMap.get(ph.variant_id) || null) : null, ph.transform]
           );
         }
 
-        // Harga grosir
+        // Harga grosir (per varian jika ada)
         const [wholesale] = await connection.execute(
-          'SELECT min_qty, max_qty, price FROM wholesale_prices WHERE product_id=? AND is_active=TRUE', [p.id]
+          'SELECT min_qty, max_qty, price, variant_id FROM wholesale_prices WHERE product_id=? AND is_active=TRUE', [p.id]
         );
         for (const w of wholesale) {
+          const mappedVariantId = w.variant_id != null ? (variantIdMap.get(w.variant_id) || null) : null;
           await connection.execute(
-            'INSERT INTO wholesale_prices (product_id, min_qty, max_qty, price, is_active) VALUES (?,?,?,?,TRUE)',
-            [newProductId, w.min_qty, w.max_qty, w.price]
+            'INSERT INTO wholesale_prices (product_id, variant_id, min_qty, max_qty, price, is_active) VALUES (?,?,?,?,?,TRUE)',
+            [newProductId, mappedVariantId, w.min_qty, w.max_qty, w.price]
           );
         }
 

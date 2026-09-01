@@ -83,7 +83,7 @@ export default function HistoryPage() {
       const b = await r.json();
       if (!r.ok) throw Error(b.message);
       setSelected(b.data);
-      const maxQty = (i) => i.quantity - (i.cancelled_qty || 0);
+      const maxQty = (i) => i.quantity - (i.cancelled_qty || 0) - (i.returned_qty || 0);
       setQuantities(Object.fromEntries(b.data.items.map((i) => [i.transaction_item_id, maxQty(i)])));
       setCancelQuantities(Object.fromEntries(b.data.items.map((i) => [i.transaction_item_id, 0])));
       setRefundMethod('');
@@ -154,6 +154,8 @@ export default function HistoryPage() {
                     <option value="completed">Selesai</option>
                     <option value="partially_cancelled">Sebagian batal</option>
                     <option value="cancelled">Batal</option>
+                    <option value="partially_refunded">Retur sebagian</option>
+                    <option value="refunded">Retur penuh</option>
                   </select>
                 </label>
                 <button type="button" className="small secondary" onClick={applyFilter} style={{ alignSelf: 'end', minHeight: 40 }}>Filter</button>
@@ -231,7 +233,7 @@ export default function HistoryPage() {
                   <div style={{ display: 'grid', gap: '.6rem' }}>
                     <p className="muted" style={{ margin: 0, fontSize: '.85rem' }}>Pilih qty yang mau diretur. Stok akan kembali setelah approve.</p>
                     {selected.items.map((item) => {
-                      const remaining = item.quantity - (item.cancelled_qty || 0);
+                      const remaining = item.quantity - (item.cancelled_qty || 0) - (item.returned_qty || 0);
                       const qty = quantities[item.transaction_item_id] ?? 0;
                       return (
                         <div key={item.transaction_item_id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8, background: qty > 0 ? '#f0fdf4' : undefined }}>
@@ -264,7 +266,7 @@ export default function HistoryPage() {
                     {selected.status === 'cancelled' ? <p className="message">Transaksi sudah batal total.</p> : <>
                       <p className="muted" style={{ margin: 0, fontSize: '.85rem' }}>Batalkan sebagian atau semua item. Refund dihitung otomatis.</p>
                       {selected.items.map((item) => {
-                        const remaining = item.quantity - (item.cancelled_qty || 0);
+                        const remaining = item.quantity - (item.cancelled_qty || 0) - (item.returned_qty || 0);
                         if (remaining <= 0) return null;
                         const qty = cancelQuantities[item.transaction_item_id] ?? 0;
                         return (

@@ -138,7 +138,7 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
     if (!Number.isInteger(Number(transactionId)) || !Array.isArray(items) || !items.length) throw error(400, 'Data retur tidak valid');
     if (refundMethod != null && !['cash', 'qris', 'transfer', 'debit'].includes(refundMethod)) throw error(400, 'Metode refund tidak valid');
     await connection.beginTransaction();
-    const [transactions] = await connection.execute('SELECT id, customer_id FROM transactions WHERE id = ? AND branch_id = ? AND status = \'completed\' FOR UPDATE', [transactionId, req.user.branch_id]);
+    const [transactions] = await connection.execute('SELECT id, customer_id FROM transactions WHERE id = ? AND branch_id = ? AND status IN (\'completed\',\'partially_refunded\') FOR UPDATE', [transactionId, req.user.branch_id]);
     if (!transactions[0]) throw error(404, 'Transaksi tidak ditemukan atau tidak dapat diretur');
     // Refund memakai rasio yang sama dengan pembatalan (cancel): nilai item
     // dikali paidRatio (grand_total/subtotal) supaya diskon tingkat transaksi

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'api_client.dart';
 import 'branch_scope.dart';
@@ -31,6 +32,9 @@ class AuthStore extends ChangeNotifier {
   static const _userKey = 'pos_user';
   static const _accountsKey = 'pos_saved_accounts';
 
+  /// Token disimpan di Keychain/Keystore (bukan SharedPreferences plaintext).
+  static const FlutterSecureStorage _secure = FlutterSecureStorage();
+
   /// Daftar akun tersimpan untuk fitur Ganti Akun (Level 2).
   List<Map<String, dynamic>> savedAccounts = [];
 
@@ -38,9 +42,24 @@ class AuthStore extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       await _loadAccounts();
-      final savedToken = prefs.getString(_tokenKey);
+      var savedToken = await _secure.read(key: _tokenKey);
+      refreshToken = await _secure.read(key: _refreshKey);
       final savedUser = prefs.getString(_userKey);
-      refreshToken = prefs.getString(_refreshKey);
+      // Migrasi sekali dari SharedPreferences lama (plaintext) ke secure storage.
+      if (savedToken == null) {
+        final legacyToken = prefs.getString(_tokenKey);
+        if (legacyToken != null) {
+          savedToken = legacyToken;
+          await _secure.write(key: _tokenKey, value: legacyToken);
+        }
+      }
+      if (refreshToken == null) {
+        final legacyRt = prefs.getString(_refreshKey);
+        if (legacyRt != null) {
+          refreshToken = legacyRt;
+          await _secure.write(key: _refreshKey, value: legacyRt);
+        }
+      }
       if (savedToken != null && savedUser != null) {
         _api.setToken(savedToken);
         token = savedToken;
@@ -92,11 +111,11 @@ class AuthStore extends ChangeNotifier {
       refreshToken = data['refreshToken']?.toString();
       _applyUser(user);
       isAuthenticated = true;
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_tokenKey, accessToken);
+      await _secure.write(key: _tokenKey, value: accessToken);
       if (refreshToken != null) {
-        await prefs.setString(_refreshKey, refreshToken!);
+        await _secure.write(key: _refreshKey, value: refreshToken!);
       }
+      final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_userKey, jsonEncode(user));
       notifyListeners();
       return null;
@@ -120,9 +139,8 @@ class AuthStore extends ChangeNotifier {
       _api.setToken(access);
       token = access;
       if (newRt != null) refreshToken = newRt;
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_tokenKey, access);
-      if (newRt != null) await prefs.setString(_refreshKey, newRt);
+      await _secure.write(key: _tokenKey, value: access);
+      if (newRt != null) await _secure.write(key: _refreshKey, value: newRt);
       // Token refresh akun tersimpan ikut diperbarui biar tetap segar.
       final i = savedAccounts.indexWhere(
           (a) => (a['user'] as Map<String, dynamic>?)?['id'] == userId);
@@ -142,8 +160,16 @@ class AuthStore extends ChangeNotifier {
 
   Future<void> _loadAccounts() async {
     try {
+      var raw = await _secure.read(key: _accountsKey);
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_accountsKey);
+      if (raw == null) {
+        // Migrasi sekali dari SharedPreferences lama (plaintext).
+        final legacy = prefs.getString(_accountsKey);
+        if (legacy != null) {
+          raw = legacy;
+          await _secure.write(key: _accountsKey, value: legacy);
+        }
+      }
       if (raw != null) {
         savedAccounts =
             ((jsonDecode(raw) as List?) ?? []).cast<Map<String, dynamic>>();
@@ -155,8 +181,7 @@ class AuthStore extends ChangeNotifier {
 
   Future<void> _persistAccounts() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_accountsKey, jsonEncode(savedAccounts));
+      await _secure.write(key: _accountsKey, value: jsonEncode(savedAccounts));
     } catch (_) {}
   }
 
@@ -204,11 +229,11 @@ class AuthStore extends ChangeNotifier {
     // antar akun.
     _api.activeBranchId = null;
     BranchScope.set(null);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_tokenKey, access);
+    await _secure.write(key: _tokenKey, value: access);
     if (refreshToken != null) {
-      await prefs.setString(_refreshKey, refreshToken!);
+      await _secure.write(key: _refreshKey, value: refreshToken!);
     }
+    final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_userKey, jsonEncode(user));
     notifyListeners();
   }
@@ -236,9 +261,9 @@ class AuthStore extends ChangeNotifier {
     userName = null;
     role = null;
     branchId = null;
+    await _secure.delete(key: _tokenKey);
+    await _secure.delete(key: _refreshKey);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
-    await prefs.remove(_refreshKey);
     await prefs.remove(_userKey);
     notifyListeners();
   }

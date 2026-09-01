@@ -309,6 +309,14 @@ cd backend && node scripts/reconcile-stock.js [--fix]  # audit/perbaiki selisih 
 cd backend && node scripts/audit-payments.js           # audit konsistensi pembayaran (read-only)
 ```
 
+## Perbaikan audit 2026-08-24 (QA menyeluruh)
+
+- **Dashboard (backend/src/routes/dashboard.js)**: semua query ringkasan/grafik/breakdown pembayaran kini memakai `SALES_STATUSES_SQL` (tidak hardcode completed/partially_cancelled), tanggal pakai `DATE(created_at)`/`CURDATE()` langsung (DB produksi sudah `--default-time-zone=+07:00`, jangan tambah `INTERVAL 7 HOUR` lagi), dan pengeluaran hanya `status='approved'` (sejalan dengan finance/profit-loss). Perbaiki juga `stores` subquery dengan pola sama.
+- **Retur lanjutan (returns.js)**: `POST /api/returns` sekarang menerima transaksi `completed` ATAU `partially_refunded` supaya retur sebagian bisa dilanjutkan ke sisa item; `transactions.js` filter status riwayat menyertakan `partially_refunded`.
+- **Batas retur (mobile history_tab.dart + web history/page.js)**: sisa qty retur/batal dihitung `quantity - cancelled_qty - returned_qty`.
+- **Backup (backup.js)**: respons kini menyertakan `truncated_tables[]` (nama tabel + total baris) kalau ada tabel >10.000 baris sehingga backup yang terpotong tidak diam-diam.
+- **Keamanan**: JSON-LD detail produk di-escape `<` → `\u003c` (cegah stored XSS via `</script>`); Caddyfile menambah `X-Frame-Options` + `Content-Security-Policy`; token/refresh/daftar akun mobile dipindah dari SharedPreferences ke `flutter_secure_storage` (Keychain/Keystore) dengan migrasi otomatis dari data lama.
+
 ## Bahasa
 
 User berbahasa Indonesia. Jawab/terangkan dalam Bahasa Indonesia. Kode, error, command tetap asli.

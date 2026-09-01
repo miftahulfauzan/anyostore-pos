@@ -93,9 +93,9 @@ router.get('/closing/:id', async (req, res, next) => {
     if (!drawers[0]) throw fail(404, 'Penutupan tidak ditemukan');
     const drawer = drawers[0];
     const [payments] = await db.execute(
-      `SELECT tp.payment_method, COUNT(*) AS transactions, COALESCE(SUM(tp.amount), 0) AS amount
+      `SELECT tp.payment_method, COUNT(*) AS transactions, COALESCE(SUM(tp.amount - ((t.cancelled_amount + t.refunded_amount) * tp.amount / NULLIF(t.grand_total, 0))), 0) AS amount
        FROM transaction_payments tp JOIN transactions t ON t.id = tp.transaction_id
-       WHERE t.branch_id = ? AND t.status = 'completed' AND tp.payment_method = 'cash' AND t.created_at >= ? AND t.created_at <= ?
+       WHERE t.branch_id = ? AND t.status IN (${SALES_STATUSES_SQL}) AND tp.payment_method = 'cash' AND t.created_at >= ? AND t.created_at <= ?
        GROUP BY tp.payment_method`,
       [drawer.branch_id, drawer.opened_at, drawer.closed_at || new Date()]
     );

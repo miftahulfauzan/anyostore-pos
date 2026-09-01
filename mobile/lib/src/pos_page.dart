@@ -862,9 +862,12 @@ class _PosPageState extends State<PosPage> {
     payload['offline'] = true;
     payload['offline_invoice_no'] = tempInvoice;
     payload['allow_negative_stock'] = true;
-    payload['subtotal'] = asNum(_preview?['subtotal'] ?? _cartTotal);
-    payload['discount'] = asNum(_preview?['discount'] ?? 0);
-    final offlineTotal = asNum(_preview?['grand_total'] ?? _cartTotal);
+    // Guard _previewFresh: jika qty baru berubah dan preview belum selesai,
+    // jangan pakai angka stale — fallback ke hitungan lokal.
+    final usePreview = _previewFresh;
+    payload['subtotal'] = usePreview ? asNum(_preview?['subtotal']) : _cartTotal;
+    payload['discount'] = usePreview ? asNum(_preview?['discount']) : 0;
+    final offlineTotal = usePreview ? asNum(_preview?['grand_total']) : _cartTotal;
     await OfflineStore.insert(payload, tempInvoice, grandTotal: offlineTotal);
     if (!mounted) return;
     _cart.clear();
