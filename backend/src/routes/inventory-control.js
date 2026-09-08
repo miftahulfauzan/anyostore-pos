@@ -80,6 +80,7 @@ router.post(
         "INSERT INTO stock_transfers (from_warehouse_id,to_warehouse_id,branch_id,status,notes,created_by,approved_by,approved_at) VALUES (?, ?, ?, 'completed', ?, ?, ?, NOW())",
         [from, to, branchId, notes?.trim() || null, req.user.id, req.user.id],
       );
+      let createdProduct = false;
       for (const item of items) {
         const q = Number(item.quantity);
         if (
@@ -223,7 +224,6 @@ router.post(
           "SELECT id FROM products WHERE branch_id=? AND is_active=TRUE AND (UPPER(TRIM(sku))=? OR UPPER(TRIM(sku))=CONCAT('B-',?) OR UPPER(TRIM(sku))=CONCAT('B',branch_id,'-',?)) LIMIT 1 FOR UPDATE",
           [target[0].branch_id, key, key, key],
         );
-        let createdProduct = false;
         if (!dest[0]) {
           if (!newSku)
             throw fail(
