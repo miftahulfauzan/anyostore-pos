@@ -74,6 +74,37 @@ const navigation = [
   },
 ];
 
+// Navigasi khusus Admin Gudang: dibuat ringkas sesuai alur kerja gudang,
+// sementara role toko/owner tetap memakai navigasi umum di atas.
+const warehouseNavigation = [
+  {
+    label: 'TRANSAKSI',
+    items: [
+      { href: '/products', label: 'Master Produk', icon: Tags, roles: ['gudang'], tone: 'purple' },
+      { href: '/inventory/mutations?mode=in', label: 'Stock Masuk', icon: ArrowDownToLine, roles: ['gudang'], tone: 'blue' },
+      { href: '/inventory/mutations?mode=out', label: 'Stock Keluar', icon: ArrowUpFromLine, roles: ['gudang'], tone: 'red' },
+      { href: '/inventory/mutations', label: 'Mutasi Rak', icon: ArrowRightLeft, roles: ['gudang'], tone: 'cyan' },
+      { href: '/inventory/opname', label: 'Stock Opname', icon: ClipboardCheck, roles: ['gudang'], tone: 'cyan' },
+    ],
+  },
+  {
+    label: 'GUDANG',
+    items: [
+      { href: '/inventory', label: 'Manajemen Gudang', icon: Boxes, roles: ['gudang'], tone: 'blue' },
+      { href: '/inventory/transfers', label: 'Transfer Gudang', icon: ArrowRightLeft, roles: ['gudang'], tone: 'cyan' },
+      { href: '/products', label: 'Konversi Produk', icon: ArrowRightLeft, roles: ['gudang'], tone: 'purple', active: false },
+    ],
+  },
+  {
+    label: 'LAINNYA',
+    items: [
+      { href: '/inventory/mutation-report', label: 'Keluar Masuk', icon: ArrowDownToLine, roles: ['gudang'], tone: 'blue' },
+      { href: '/inventory/movements', label: 'Laporan Lainnya', icon: ChartNoAxesCombined, roles: ['gudang'], tone: 'pink' },
+      { href: '/settings', label: 'Pengaturan', icon: Settings, roles: ['gudang'], tone: 'slate' },
+    ],
+  },
+];
+
 export default function AppShell({ title, eyebrow, actions, children }) {
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -81,6 +112,7 @@ export default function AppShell({ title, eyebrow, actions, children }) {
   const [role, setRole] = useState(null);
   const [userName, setUserName] = useState('');
   const [theme, setTheme] = useState('light');
+  const [search, setSearch] = useState('');
   const [openGroups, setOpenGroups] = useState(() => Object.fromEntries(
     navigation.map((group) => [group.label, group.items.some((item) => pathname === item.href)])
   ));
@@ -124,7 +156,8 @@ export default function AppShell({ title, eyebrow, actions, children }) {
   // hanya untuk role tersebut. Selama role null (belum termuat), tampilkan semua
   // supaya tidak flicker.
   const roleKnown = role !== null;
-  const visibleNavigation = navigation
+  const navSource = role === 'gudang' ? warehouseNavigation : navigation;
+  const visibleNavigation = navSource
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => !roleKnown || !item.roles || item.roles.includes(role)),
@@ -132,6 +165,7 @@ export default function AppShell({ title, eyebrow, actions, children }) {
     .filter((group) => group.items.length > 0);
 
   useEffect(() => {
+    setSearch(window.location.search);
     setMobileNavOpen(false);
   }, [pathname]);
 
@@ -165,10 +199,10 @@ export default function AppShell({ title, eyebrow, actions, children }) {
     localStorage.setItem('pos_sidebar_collapsed', String(next));
   }
 
-  const sidebarClass = `sidebar${collapsed ? ' collapsed' : ''}${mobileNavOpen ? ' mobile-open' : ''}`;
+  const sidebarClass = `sidebar${collapsed ? ' collapsed' : ''}${mobileNavOpen ? ' mobile-open' : ''}${role === 'gudang' ? ' sidebar-warehouse' : ''}`;
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${role === 'gudang' ? ' app-shell-warehouse' : ''}`}>
       <button
         type="button"
         className={`sidebar-backdrop ${mobileNavOpen ? 'visible' : ''}`}
@@ -188,8 +222,8 @@ export default function AppShell({ title, eyebrow, actions, children }) {
 
         <nav className="side-nav">
           {visibleNavigation.map((group) => (
-            <section key={group.label} className="nav-group">
-              <button
+            <section key={group.label} className={`nav-group${role === 'gudang' ? ' warehouse-nav-group' : ''}`}>
+              {role === 'gudang' ? <div className="warehouse-nav-label">{group.label}</div> : <button
                 type="button"
                 className="nav-group-toggle"
                 onClick={() => setOpenGroups((current) => ({ ...current, [group.label]: !current[group.label] }))}
@@ -197,12 +231,14 @@ export default function AppShell({ title, eyebrow, actions, children }) {
               >
                 <span>{group.label}</span>
                 <ChevronDown aria-hidden="true" size={14} className={openGroups[group.label] ? 'chevron-open' : ''} />
-              </button>
-              {openGroups[group.label] && group.items.map((item) => {
+              </button>}
+              {(role === 'gudang' || openGroups[group.label]) && group.items.map((item) => {
                 const Icon = item.icon;
-                const active = pathname === item.href;
+                const itemPath = item.href.split('?')[0];
+                const itemQuery = item.href.includes('?') ? item.href.slice(item.href.indexOf('?')) : '';
+                const active = item.active !== false && pathname === itemPath && (!itemQuery || search === itemQuery);
                 return (
-                  <a key={item.href} href={item.href} className={active ? 'active' : ''}>
+                  <a key={item.href} href={item.href} className={`${active ? 'active' : ''}${item.tone ? ` tone-${item.tone}` : ''}`}>
                     <Icon aria-hidden="true" size={15} strokeWidth={active ? 2.4 : 1.9} />
                     <span>{item.label}</span>
                   </a>

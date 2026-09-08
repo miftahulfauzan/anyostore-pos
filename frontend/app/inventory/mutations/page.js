@@ -54,6 +54,8 @@ export default function Mutations() {
 
   useEffect(() => {
     /* sesi via httpOnly cookie */
+    const initialMode = new URLSearchParams(window.location.search).get('mode');
+    if (initialMode === 'in' || initialMode === 'out') setMode(initialMode);
     loadChannels().catch((e) => setMessage(e.message));
     Promise.all([
       fetch(api + '/inventory/incoming/targets', { headers: h() }).then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); return b.data || []; }),
