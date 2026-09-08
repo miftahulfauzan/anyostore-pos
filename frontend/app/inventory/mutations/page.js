@@ -60,10 +60,14 @@ export default function Mutations() {
     Promise.all([
       fetch(api + '/inventory/incoming/targets', { headers: h() }).then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); return b.data || []; }),
       fetch(api + '/inventory/warehouses/all', { headers: h() }).then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); return b.data || []; }),
-    ]).then(([brs, whs]) => {
+      fetch(api + '/auth/me', { headers: h() }).then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); return b.data || null; }),
+    ]).then(([brs, whs, user]) => {
       setStores(brs);
       setAllWarehouses(whs);
-      const id = String(brs[0]?.id || '');
+      // Default harus mengikuti cabang akun yang login, bukan urutan nama
+      // cabang (yang bisa membuat Gudang Riject terpilih lebih dulu).
+      const ownBranch = brs.find((branch) => String(branch.id) === String(user?.branch_id));
+      const id = String(ownBranch?.id || brs[0]?.id || '');
       setStore(id);
       const list = whs.filter((w) => String(w.branch_id) === String(id));
       const preferred = list.find((w) => w.type === 'utama') || list[0];
