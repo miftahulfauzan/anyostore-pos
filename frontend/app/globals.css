@@ -649,6 +649,32 @@ a, .photo-upload { color:var(--expressive-secondary); }
   box-shadow: none;
 }
 .product-photo { border-radius: 6px; background: #f1f5f9; }
+.product-select-control {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  place-items: center;
+  border: 1px solid rgba(15, 23, 42, .16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .2);
+  cursor: pointer;
+}
+.product-select-control input[type="checkbox"] {
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  min-height: 18px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
 .edit-link { border-radius: 4px; font-size: 10px; }
 .photo-upload { font-size: 10px; }
 .variant-section { display: grid; gap: 12px; padding: 16px 0; border-top: 1px solid #dbe3ee; }

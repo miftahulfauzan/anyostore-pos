@@ -166,8 +166,8 @@ export default function ProductsPage() {
       {message && <p className="message" role="status">{message}</p>}
       {loading ? <p>Memuat produk…</p> : <div className={`product-list ${view === 'grid' ? 'grid-view' : ''}`}>{products.map((product) => <article key={product.id} className="product-row" style={selected.has(product.id) ? { outline: '2px solid var(--primary)', outlineOffset: 2, borderRadius: 10 } : undefined}>
         <div className="product-photo" style={{ position: 'relative' }}>{product.photo_path ? <img src={mediaUrl(product.photo_path)} alt={`Foto ${product.name}`} loading="lazy" style={product.photo_transform ? (()=>{const t=(product.photo_transform||'').split(',').map(Number); return {objectFit:'cover',objectPosition:'center',transform:`translate(${t[1]||0}%,${t[2]||0}%) scale(${t[0]})`,width:'100%',height:'100%'};})():{}} /> : <span>Tanpa foto</span>}
-          <label title="Pilih produk" style={{ position: 'absolute', top: 6, left: 6, zIndex: 2, width: 24, height: 24, borderRadius: 7, background: 'rgba(255,255,255,.92)', border: '1px solid rgba(0,0,0,.16)', display: 'grid', placeItems: 'center', cursor: 'pointer', boxShadow: '0 1px 5px rgba(0,0,0,.22)' }}>
-            <input type="checkbox" checked={selected.has(product.id)} onChange={() => toggleSelect(product.id)} style={{ width: 15, height: 15, cursor: 'pointer', accentColor: 'var(--primary)' }} aria-label={`Pilih ${product.name}`} />
+          <label className="product-select-control" title="Pilih produk">
+            <input type="checkbox" checked={selected.has(product.id)} onChange={() => toggleSelect(product.id)} aria-label={`Pilih ${product.name}`} />
           </label></div>
         <div className="product-description">
           <strong>{product.name}</strong>
