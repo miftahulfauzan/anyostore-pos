@@ -4,10 +4,12 @@ import AppShell from '../../components/AppShell';
 import SafeImage from '../../components/SafeImage';
 import StockVariantPicker from '../../components/StockVariantPicker';
 import transferDefaults from './transfer-defaults.cjs';
+import transferLabels from './transfer-labels.cjs';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const mediaUrl = (p) => (p ? api.replace('/api', '') + p : '');
 const { selectTransferDefaults } = transferDefaults;
+const { formatTransferLocationLabel } = transferLabels;
 
 const transferStatusLabels = {
   pending: 'Menunggu',
@@ -195,14 +197,7 @@ export default function TransferPage() {
   const h = () => ({ 'Content-Type': 'application/json'});
 
   const targets = useMemo(() => warehouses.filter((w) => String(w.id) !== String(from)), [warehouses, from]);
-  // Label gudang: kalau gudang bernama sama dengan tokonya (toko = gudang),
-  // tampilkan nama tokonya saja. Kalau beda, tampilkan "Toko — Gudang (Tipe)".
-  const whLabel = (w) => {
-    const type = w.type ? ` (${w.type.charAt(0).toUpperCase()}${w.type.slice(1)})` : '';
-    if (w.branch_name && w.branch_name === w.name) return w.name;
-    if (w.branch_name && w.branch_name !== w.name) return `${w.branch_name} — ${w.name}${type}`;
-    return `${w.name || w.branch_name}${type}`;
-  };
+  const whLabel = formatTransferLocationLabel;
 
   async function loadProducts(warehouseId, warehouseList = warehouses) {
     if (!warehouseId) { setProducts([]); return; }
