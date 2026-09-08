@@ -386,6 +386,7 @@ router.post(
       )
         throw fail(400, "Data transfer antartoko tidak valid");
       await c.beginTransaction();
+      let createdProduct = false;
       const [source] = await c.execute(
         "SELECT id,branch_id FROM warehouses WHERE id=? AND branch_id=? AND is_active=TRUE FOR UPDATE",
         [from, req.user.branch_id],
