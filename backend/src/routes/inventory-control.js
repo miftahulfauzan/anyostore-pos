@@ -392,7 +392,6 @@ router.post(
       )
         throw fail(400, "Data transfer antartoko tidak valid");
       await c.beginTransaction();
-      let createdProduct = false;
       const [source] = await c.execute(
         canTransferAcrossBranches(req.user.role)
           ? "SELECT id,branch_id FROM warehouses WHERE id=? AND is_active=TRUE FOR UPDATE"
