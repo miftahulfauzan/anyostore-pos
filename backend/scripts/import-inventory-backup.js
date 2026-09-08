@@ -18,6 +18,7 @@ function readRows(backup, key, type) {
     source_id: Number(row.id),
     type,
     sku: String(row.sku || '').trim(),
+    name: String(row.namaProduk || '').trim(),
     quantity: Number(row.qty),
     number: String(row.nomor || '').trim(),
     warehouse: String(row.gudang || '').trim(),
@@ -51,9 +52,12 @@ async function main() {
     const userId = users[0].id;
     const [products] = await connection.execute('SELECT id, sku, name FROM products WHERE branch_id=? AND is_active=TRUE', [branchId]);
     const productBySku = new Map(products.filter((p) => p.sku).map((p) => [normalizeSku(p.sku), p]));
+    const productByName = new Map(products.filter((p) => p.name).map((p) => [normalizeSku(p.name), p]));
     const skipped = []; let inserted = 0; let alreadyImported = 0; let totalQty = 0;
     for (const row of rows) {
-      const product = productBySku.get(normalizeSku(row.sku)) || productBySku.get(normalizeSku(`B${branchId}-${row.sku}`));
+      const product = productBySku.get(normalizeSku(row.sku))
+        || productBySku.get(normalizeSku(`B${branchId}-${row.sku}`))
+        || productByName.get(normalizeSku(row.name));
       if (!product) { skipped.push({ sku: row.sku, number: row.number, type: row.type }); continue; }
       if (!Number.isInteger(row.quantity) || row.quantity <= 0) { skipped.push({ sku: row.sku, number: row.number, type: row.type, reason: 'qty tidak valid' }); continue; }
       const referenceType = row.type === 'incoming' ? 'legacy_stock_in' : 'legacy_stock_out';
