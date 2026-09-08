@@ -42,7 +42,7 @@ function numberOrZero(value) {
 }
 
 async function main() {
-  const csvPath = process.argv.find((arg) => !arg.startsWith('--') && arg !== process.argv[1]);
+  const csvPath = process.argv.slice(2).find((arg) => !arg.startsWith('--'));
   const apply = process.argv.includes('--apply');
   if (!csvPath) throw new Error('Berikan path CSV. Contoh: node scripts/import-products-from-csv.js /tmp/produk.csv');
 
