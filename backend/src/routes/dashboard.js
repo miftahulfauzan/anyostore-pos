@@ -89,7 +89,14 @@ router.get('/', async (req, res, next) => {
 
     // Admin Gudang: ringkasan stok gudang (semua cabang tipe gudang)
     let stockSummary = null;
+    let warehouseDashboard = null;
     if (req.user.role === 'gudang') {
+      const validDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
+      const dashboardEnd = validDate(req.query.end) ? req.query.end : localDateString();
+      const defaultStartDate = new Date(`${dashboardEnd}T00:00:00+07:00`);
+      defaultStartDate.setDate(defaultStartDate.getDate() - 6);
+      const dashboardStart = validDate(req.query.start) ? req.query.start : localDateString(defaultStartDate);
+
       const [stockRows] = await db.execute(
         `SELECT COUNT(DISTINCT ws.product_id) AS total_products,
                 COALESCE(SUM(ws.quantity), 0) AS total_stock,
@@ -110,6 +117,113 @@ router.get('/', async (req, res, next) => {
          ORDER BY sm.created_at DESC LIMIT 6`
       );
       stockSummary = { ...stockRows[0], recent_mutations: recentStock };
+
+      // Data Dashboard Gudang — seluruhnya dihitung dari stok/mutasi nyata.
+      // Produk dikelompokkan satu kali agar varian tidak menggandakan SKU.
+      const [warehouseProducts] = await db.execute(
+        `SELECT p.id, p.name, p.sku, p.min_stock, c.name AS category_name,
+                COALESCE(stock.total_stock, 0) AS total_stock,
+                COALESCE(stock.reserved_stock, 0) AS reserved_stock
+         FROM products p
+         JOIN branches b ON b.id = p.branch_id AND b.type = 'gudang' AND b.is_active = TRUE
+         LEFT JOIN categories c ON c.id = p.category_id
+         LEFT JOIN (
+           SELECT ws.product_id,
+                  SUM(ws.quantity) AS total_stock,
+                  SUM(ws.reserved_quantity) AS reserved_stock
+           FROM warehouse_stocks ws
+           JOIN warehouses w ON w.id = ws.warehouse_id AND w.is_active = TRUE
+           JOIN branches wb ON wb.id = w.branch_id AND wb.type = 'gudang' AND wb.is_active = TRUE
+           GROUP BY ws.product_id
+         ) stock ON stock.product_id = p.id
+         WHERE p.is_active = TRUE
+         ORDER BY p.name`
+      );
+      const productRows = warehouseProducts.map((row) => ({
+        id: row.id,
+        name: row.name,
+        sku: row.sku,
+        category_name: row.category_name || 'Tanpa kategori',
+        min_stock: Number(row.min_stock || 0),
+        total_stock: Number(row.total_stock || 0),
+        reserved_stock: Number(row.reserved_stock || 0),
+      }));
+      const categoryTotals = new Map();
+      for (const product of productRows) {
+        categoryTotals.set(product.category_name, (categoryTotals.get(product.category_name) || 0) + product.total_stock);
+      }
+      const categories = [...categoryTotals.entries()]
+        .map(([name, total]) => ({ name, total }))
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 8);
+      const lowStock = productRows
+        .filter((product) => product.total_stock > 0 && product.total_stock <= product.min_stock)
+        .sort((a, b) => a.total_stock - b.total_stock || a.name.localeCompare(b.name))
+        .slice(0, 8);
+      const outOfStock = productRows
+        .filter((product) => product.total_stock <= 0)
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .slice(0, 8);
+      const totalStock = productRows.reduce((sum, product) => sum + product.total_stock, 0);
+      const reservedStock = productRows.reduce((sum, product) => sum + product.reserved_stock, 0);
+
+      const [dailyRows] = await db.execute(
+        `SELECT DATE(sm.created_at) AS date,
+                COALESCE(SUM(CASE WHEN sm.qty > 0 THEN sm.qty ELSE 0 END), 0) AS total_in,
+                COALESCE(SUM(CASE WHEN sm.qty < 0 THEN -sm.qty ELSE 0 END), 0) AS total_out
+         FROM stock_mutations sm
+         JOIN warehouses w ON w.id = sm.warehouse_id AND w.is_active = TRUE
+         JOIN branches b ON b.id = w.branch_id AND b.type = 'gudang' AND b.is_active = TRUE
+         WHERE DATE(sm.created_at) BETWEEN ? AND ?
+         GROUP BY DATE(sm.created_at)
+         ORDER BY date`,
+        [dashboardStart, dashboardEnd]
+      );
+      const [topOutRows] = await db.execute(
+        `SELECT p.name, p.sku, COALESCE(SUM(ABS(sm.qty)), 0) AS total
+         FROM stock_mutations sm
+         JOIN products p ON p.id = sm.product_id
+         JOIN warehouses w ON w.id = sm.warehouse_id AND w.is_active = TRUE
+         JOIN branches b ON b.id = w.branch_id AND b.type = 'gudang' AND b.is_active = TRUE
+         WHERE sm.qty < 0 AND DATE(sm.created_at) BETWEEN ? AND ?
+         GROUP BY p.id, p.name, p.sku
+         ORDER BY total DESC, p.name
+         LIMIT 6`,
+        [dashboardStart, dashboardEnd]
+      );
+      const [incomingRows] = await db.execute(
+        `SELECT p.name, p.sku, COALESCE(SUM(sm.qty), 0) AS quantity, MAX(sm.created_at) AS latest_at
+         FROM stock_mutations sm
+         JOIN products p ON p.id = sm.product_id
+         JOIN warehouses w ON w.id = sm.warehouse_id AND w.is_active = TRUE
+         JOIN branches b ON b.id = w.branch_id AND b.type = 'gudang' AND b.is_active = TRUE
+         WHERE sm.qty > 0 AND DATE(sm.created_at) BETWEEN ? AND ?
+         GROUP BY p.id, p.name, p.sku
+         ORDER BY latest_at DESC, quantity DESC
+         LIMIT 8`,
+        [dashboardStart, dashboardEnd]
+      );
+      const lowCount = productRows.filter((product) => product.total_stock > 0 && product.total_stock <= product.min_stock).length;
+      const emptyCount = productRows.filter((product) => product.total_stock <= 0).length;
+      const safeCount = Math.max(0, productRows.length - lowCount - emptyCount);
+      warehouseDashboard = {
+        date_start: dashboardStart,
+        date_end: dashboardEnd,
+        summary: {
+          total_sku: productRows.length,
+          total_stock: totalStock,
+          reserved_stock: reservedStock,
+          low_stock: lowCount,
+          out_of_stock: emptyCount,
+          safe_stock: safeCount,
+        },
+        daily: dailyRows.map((row) => ({ date: row.date, in: Number(row.total_in || 0), out: Number(row.total_out || 0) })),
+        categories,
+        top_products_out: topOutRows.map((row) => ({ name: row.name, sku: row.sku, total: Number(row.total || 0) })),
+        recent_incoming: incomingRows.map((row) => ({ name: row.name, sku: row.sku, quantity: Number(row.quantity || 0), latest_at: row.latest_at })),
+        low_stock: lowStock.map((row) => ({ name: row.name, sku: row.sku, total_stock: row.total_stock, min_stock: row.min_stock })),
+        out_of_stock: outOfStock.map((row) => ({ name: row.name, sku: row.sku, total_stock: row.total_stock, min_stock: row.min_stock })),
+      };
     }
 
     res.json({
@@ -121,7 +235,8 @@ router.get('/', async (req, res, next) => {
         sales_trend: sevenDayTrend,
         payment_breakdown: payments[0],
         stores,
-        stock_summary: stockSummary
+        stock_summary: stockSummary,
+        warehouse_dashboard: warehouseDashboard,
       }
     });
   } catch (error) { next(error); }
