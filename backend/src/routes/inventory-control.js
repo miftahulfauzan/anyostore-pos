@@ -3,6 +3,7 @@ const db = require("../db");
 const { authenticate, authorize } = require("../auth");
 const { copyMediaFile } = require("../media-storage");
 const { adjustStock } = require("../stock");
+const { normalizeTransferSku, makeTargetSku } = require("../transfer-sku");
 const router = express.Router();
 router.use(authenticate);
 const fail = (s, m) => Object.assign(new Error(m), { status: s });
@@ -216,11 +217,8 @@ router.post(
               "Produk " + p[0].name + " punya varian — wajib pilih warna",
             );
         }
-        const baseSku = (p[0].sku || "").trim();
-        const key = baseSku.replace(/^B\d*-/i, "").toUpperCase();
-        const newSku = baseSku
-          ? ("B" + target[0].branch_id + "-" + baseSku).slice(0, 50)
-          : null;
+        const key = normalizeTransferSku(p[0].sku);
+        const newSku = makeTargetSku(target[0].branch_id, p[0].sku);
         let [dest] = await c.execute(
           "SELECT id FROM products WHERE branch_id=? AND is_active=TRUE AND (UPPER(TRIM(sku))=? OR UPPER(TRIM(sku))=CONCAT('B-',?) OR UPPER(TRIM(sku))=CONCAT('B',branch_id,'-',?)) LIMIT 1 FOR UPDATE",
           [target[0].branch_id, key, key, key],
