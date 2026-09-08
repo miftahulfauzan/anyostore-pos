@@ -294,31 +294,32 @@ export default function LandingPage() {
       </section>
 
       {/* 8. Footer */}
-      <footer style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 16px 48px', borderTop: `1px solid ${T.border}` }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 32 }}>
-          <div>
-            <strong style={{ fontSize: 16, fontWeight: 800, color: T.black }}>ANYOSTORE</strong>
-            <p style={{ margin: '8px 0 0', fontSize: 13, color: T.muted, lineHeight: 1.6 }}>Supplier baju denim grosir wanita. Minimal 4 pcs per model.</p>
+      <footer className="landing-footer" style={{ maxWidth: 1200, margin: '0 auto', borderTop: `1px solid ${T.border}` }}>
+        <div className="landing-footer-grid">
+          <div className="landing-footer-brand">
+            <strong>ANYOSTORE</strong>
+            <p>Supplier baju denim grosir wanita. Minimal 4 pcs per model.</p>
           </div>
-          <div>
-            <strong style={{ fontSize: 11, fontWeight: 700, color: T.black, textTransform: 'uppercase', letterSpacing: '.06em' }}>Navigasi</strong>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
-              <a href="#produk" style={{ fontSize: 13, color: T.muted, textDecoration: 'none' }}>Produk</a>
-              <button type="button" onClick={() => pickWa('')} style={{ fontSize: 13, color: T.muted, textDecoration: 'none' }}>Hubungi Admin</button>
-              <a href="/login" style={{ fontSize: 13, color: T.muted, textDecoration: 'none' }}>Login Pegawai</a>
-            </div>
+          <div className="landing-footer-column">
+            <strong className="landing-footer-heading">Navigasi</strong>
+            <nav className="landing-footer-nav" aria-label="Navigasi footer">
+              <a href="#produk">Produk</a>
+              <button type="button" onClick={() => pickWa('')} className="landing-footer-link">Hubungi Admin</button>
+              <a href="/login">Login Pegawai</a>
+            </nav>
           </div>
-          <div>
-            <strong style={{ fontSize: 13, fontWeight: 700, color: T.black, textTransform: 'uppercase', letterSpacing: '.06em' }}>Kontak</strong>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
-              {waPhones.map((ph, i) => (
-                <a key={i} href={waLink(ph, '')} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.muted, textDecoration: 'none' }}>Admin {i + 1}: {ph}</a>
-              ))}
+          <div className="landing-footer-column">
+            <strong className="landing-footer-heading">Kontak</strong>
+            <div className="landing-footer-nav">
+              {waPhones.length ? waPhones.map((ph, i) => (
+                <a key={i} href={waLink(ph, '')} target="_blank" rel="noopener noreferrer">Admin {i + 1}: {ph}</a>
+              )) : <span className="landing-footer-empty">Kontak admin belum tersedia</span>}
             </div>
           </div>
         </div>
-        <div style={{ marginTop: 32, paddingTop: 20, borderTop: `1px solid ${T.border}`, fontSize: 12, color: T.muted, textAlign: 'center' }}>
-          © {today.slice(0, 4) || new Date().getFullYear()} Anyostore. All rights reserved.
+        <div className="landing-footer-bottom">
+          <span>© {today.slice(0, 4) || new Date().getFullYear()} Anyostore</span>
+          <span>Grosir denim wanita</span>
         </div>
       </footer>
 
@@ -495,12 +496,29 @@ export default function LandingPage() {
         .page-btn.active { background: ${T.blue}; color: ${T.white}; border-color: ${T.blue}; box-shadow: 0 2px 8px rgba(30,58,95,.25); }
         .wa-modal-in { animation: modalIn .35s cubic-bezier(.4,0,.2,1); }
         @keyframes modalIn { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+        .landing-footer { padding: 52px 20px 28px; }
+        .landing-footer-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) repeat(2, minmax(180px, 1fr)); gap: 48px; align-items: start; }
+        .landing-footer-brand strong { display: block; color: ${T.black}; font-size: 16px; font-weight: 800; letter-spacing: .02em; }
+        .landing-footer-brand p { max-width: 280px; margin: 12px 0 0; color: ${T.muted}; font-size: 13px; line-height: 1.65; }
+        .landing-footer-column { min-width: 0; }
+        .landing-footer-heading { display: block; color: ${T.black}; font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+        .landing-footer-nav { display: grid; justify-items: start; gap: 5px; margin-top: 14px; }
+        .landing-footer-nav a, .landing-footer-link, .landing-footer-empty { display: inline-flex; align-items: center; min-height: 30px; padding: 0; color: ${T.muted}; font-family: inherit; font-size: 13px; font-weight: 600; line-height: 1.4; text-decoration: none; }
+        .landing-footer-link { width: auto; border: 0; border-radius: 0; background: transparent; cursor: pointer; }
+        .landing-footer-nav a:hover, .landing-footer-link:hover { color: ${T.blue}; }
+        .landing-footer-nav a:focus-visible, .landing-footer-link:focus-visible { outline: 2px solid ${T.blue}; outline-offset: 3px; border-radius: 3px; }
+        .landing-footer-empty { color: ${T.muted}; font-weight: 500; }
+        .landing-footer-bottom { display: flex; justify-content: space-between; gap: 16px; margin-top: 48px; padding-top: 18px; border-top: 1px solid ${T.border}; color: ${T.muted}; font-size: 12px; }
         @media (max-width: 900px) {
           .pcard-grid { grid-template-columns: repeat(3, 1fr); }
+          .landing-footer-grid { grid-template-columns: 1.2fr 1fr 1fr; gap: 28px; }
         }
         @media (max-width: 600px) {
           .pcard-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
           .feature-strip { grid-template-columns: 1fr; gap: 8px; padding: 16px 16px 4px; }
+          .landing-footer { padding: 40px 20px 24px; }
+          .landing-footer-grid { grid-template-columns: 1fr; gap: 28px; }
+          .landing-footer-bottom { align-items: flex-start; flex-direction: column; gap: 6px; margin-top: 36px; }
         }
         @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
       `}</style>
