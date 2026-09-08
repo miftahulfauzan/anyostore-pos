@@ -81,12 +81,14 @@ router.delete('/branches/:id', authorize('owner'), async (req, res, next) => {
         // 1. Collect all product IDs and their media paths
         const [products] = await connection.execute('SELECT id FROM products WHERE branch_id=?', [id]);
         const productIds = products.map((p) => p.id);
+        const mediaPaths = [];
 
-        // 2. Remove media files (product_photos paths) before deleting rows
+        // 2. Collect media paths. Hapus file setelah commit agar rollback DB
+        // tidak meninggalkan foto yang hilang.
         if (productIds.length) {
           const ph = productIds.map(() => '?').join(',');
           const [photos] = await connection.execute(`SELECT DISTINCT path FROM product_photos WHERE product_id IN (${ph}) AND path IS NOT NULL AND path <> ''`, productIds);
-          for (const row of photos) { try { await removeMedia(row.path); } catch {} }
+          mediaPaths.push(...photos.map((row) => row.path));
         }
 
         // 3. Hapus child product berdasarkan product_id (beberapa tabel tidak punya branch_id)
@@ -143,6 +145,9 @@ router.delete('/branches/:id', authorize('owner'), async (req, res, next) => {
         await connection.execute('SET FOREIGN_KEY_CHECKS=1');
 
         await connection.commit();
+        for (const path of mediaPaths) {
+          try { await removeMedia(path); } catch (error) { console.error(`[settings] gagal membersihkan media ${path}:`, error.message); }
+        }
         res.json({ success: true, data: { permanent: true, deleted_products: productIds.length } });
       } catch (err) {
         await connection.execute('SET FOREIGN_KEY_CHECKS=1').catch(() => {});
