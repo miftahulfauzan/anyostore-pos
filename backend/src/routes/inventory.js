@@ -425,7 +425,9 @@ router.delete('/channels/:id', authorize('owner', 'manager', 'admin'), async (re
 router.get('/mutation-report', authorize('owner','manager','admin','gudang'), async (req,res,next)=>{
   try{
     const type = req.query.type === 'out' ? 'out' : 'in';
-    const refType = type === 'out' ? 'manual_outgoing' : 'manual_incoming';
+    const refTypes = type === 'out'
+      ? ['manual_outgoing', 'legacy_stock_out']
+      : ['manual_incoming', 'legacy_stock_in'];
     // Visibilitas cabang: owner = semua (atau branch_id pilihan); admin gudang
     // = semua cabang siapa pun yang input (atau branch_id pilihan) karena dia
     // bertanggung jawab atas stok gudang; kasir/manager/admin = cabang sendiri.
@@ -449,8 +451,8 @@ router.get('/mutation-report', authorize('owner','manager','admin','gudang'), as
     const limit = Math.min(500, Math.max(10, Number.parseInt(req.query.limit,10)||50));
     const offset = Math.max(0, Number.parseInt(req.query.offset,10)||0);
 
-    let where = "WHERE sm.reference_type = ? AND sm.reference_id IS NOT NULL";
-    const params = [refType];
+    let where = "WHERE sm.reference_type IN (?, ?) AND sm.reference_id IS NOT NULL";
+    const params = [...refTypes];
     if (branchId) { where += ' AND sm.branch_id = ?'; params.push(branchId); }
     if (start) { where += ' AND DATE(sm.created_at) >= ?'; params.push(start); }
     if (end) { where += ' AND DATE(sm.created_at) <= ?'; params.push(end); }
@@ -488,9 +490,9 @@ router.get('/mutation-report', authorize('owner','manager','admin','gudang'), as
       const [items] = await db.execute(
         `SELECT sm.reference_id AS batch_id, p.sku AS code, SUM(ABS(sm.qty)) AS qty
          FROM stock_mutations sm JOIN products p ON p.id = sm.product_id
-         WHERE sm.reference_type = ? AND sm.reference_id IN (${ph})
+      WHERE sm.reference_type IN (?, ?) AND sm.reference_id IN (${ph})
          GROUP BY sm.reference_id, p.id ORDER BY p.sku`,
-        [refType, ...batchIds]
+        [...refTypes, ...batchIds]
       );
       for (const it of items) {
         if (!productsByBatch[it.batch_id]) productsByBatch[it.batch_id] = [];
@@ -536,6 +538,11 @@ router.delete('/mutation-report/:type/:batchId', authorize('owner','manager','ad
     const batchId = Number(req.params.batchId);
     const type = req.params.type === 'out' ? 'out' : 'in';
     const refType = type === 'out' ? 'manual_outgoing' : 'manual_incoming';
+    const [legacyRows] = await conn.execute(
+      `SELECT id FROM stock_mutations WHERE reference_type=? AND reference_id=? LIMIT 1`,
+      [type === 'out' ? 'legacy_stock_out' : 'legacy_stock_in', req.params.batchId]
+    );
+    if (legacyRows[0]) throw Object.assign(new Error('Histori import tidak dapat dihapus dari laporan ini'), { status: 400 });
     if (!Number.isInteger(batchId)) return res.status(400).json({success:false,message:'ID batch tidak valid'});
     await conn.beginTransaction();
     const [rows] = await conn.execute(
