@@ -113,7 +113,14 @@ router.delete('/branches/:id', authorize('owner'), async (req, res, next) => {
         await connection.execute('DELETE FROM refresh_tokens WHERE user_id IN (SELECT id FROM users WHERE branch_id=?)', [id]);
         await connection.execute('DELETE FROM activity_logs WHERE user_id IN (SELECT id FROM users WHERE branch_id=?)', [id]);
 
-        // 5. Tabel level cabang (punya branch_id) — child dulu, parent terakhir
+        // 5. Tabel level cabang (punya branch_id) — child dulu, parent terakhir.
+        // Pembayaran transaksi dan catatan komisi tidak memiliki branch_id,
+        // jadi harus dihapus lewat parent-nya sebelum transaksi/user dihapus.
+        await connection.execute('DELETE FROM transaction_payments WHERE transaction_id IN (SELECT id FROM transactions WHERE branch_id=?)', [id]);
+        await connection.execute('DELETE FROM commission_records WHERE branch_id=?', [id]);
+        // Tangkap mutasi yang mungkin tidak lagi punya product_id di katalog cabang.
+        await connection.execute('DELETE FROM stock_mutations WHERE branch_id=?', [id]);
+
         const branchTables = [
           'promotions', 'commission_rules',
           'purchase_orders', 'stock_transfers', 'stock_opnames',
@@ -123,11 +130,14 @@ router.delete('/branches/:id', authorize('owner'), async (req, res, next) => {
           'employee_schedules', 'shift_templates', 'shifts',
           'expense_budgets', 'expenses',
           'customers', 'suppliers', 'store_settings', 'warehouses',
-          'users', 'products', 'branches',
+          'users', 'products',
         ];
         for (const t of branchTables) {
           await connection.execute(`DELETE FROM \`${t}\` WHERE branch_id=?`, [id]);
         }
+
+        // Tabel branches memakai primary key `id`, bukan `branch_id`.
+        await connection.execute('DELETE FROM branches WHERE id=?', [id]);
 
         // Re-enable FK checks
         await connection.execute('SET FOREIGN_KEY_CHECKS=1');
