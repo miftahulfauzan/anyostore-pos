@@ -773,6 +773,11 @@ a, .photo-upload { color:var(--expressive-secondary); }
   accent-color: var(--primary);
   cursor: pointer;
 }
+.product-list:not(.grid-view) .product-select-control--list {
+  position: static;
+  flex: 0 0 32px;
+  align-self: center;
+}
 .edit-link { border-radius: 4px; font-size: 10px; }
 .photo-upload { font-size: 10px; }
 .variant-section { display: grid; gap: 12px; padding: 16px 0; border-top: 1px solid #dbe3ee; }
@@ -1605,7 +1610,7 @@ svg { max-width: 100%; }
   .product-list.grid-view .product-actions { gap: 8px; }
   .product-list.grid-view .edit-link { width: 100%; min-height: 44px; align-items: center; justify-content: center; margin-top: 0; }  .product-list:not(.grid-view) article,
   .data-list article { flex-wrap: wrap; }
-  .product-list:not(.grid-view) article > label { flex: 1 1 180px; }
+  .product-list:not(.grid-view) article > label:not(.product-select-control--list) { flex: 1 1 180px; }
   .form-actions { align-items: stretch; flex-direction: column; gap: 8px; }
   .form-actions > * { width: 100%; min-height: 44px; text-align: center; }
   .table-wrap { margin-inline: -4px; padding: 0 4px 6px; -webkit-overflow-scrolling: touch; }
