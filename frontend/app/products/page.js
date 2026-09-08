@@ -67,11 +67,12 @@ export default function ProductsPage() {
   }, [search, sort]);
 
   const mediaUrl = (photoPath) => photoPath ? `${apiUrl.replace('/api', '')}${photoPath}` : '';
+  const selectedBranchQuery = branchId && branchId !== 'all' ? `?branch_id=${encodeURIComponent(branchId)}` : '';
 
   async function copyProduct(product) {
     if (!window.confirm(`Salin "${product.name}"? Varian, harga grosir, dan foto ikut disalin (stok mulai 0).`)) return;
     try {
-      const r = await fetch(`${apiUrl}/products/${product.id}/copy`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      const r = await fetch(`${apiUrl}/products/${product.id}/copy${selectedBranchQuery}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
       setMessage('Produk disalin — cek daftar untuk edit SKU/barcode.');
@@ -82,7 +83,7 @@ export default function ProductsPage() {
   async function deleteProduct(product) {
     if (!window.confirm(`Hapus "${product.name}"?`)) return;
     try {
-      const r = await fetch(`${apiUrl}/products/${product.id}`, { method: 'DELETE', headers: {} });
+      const r = await fetch(`${apiUrl}/products/${product.id}${selectedBranchQuery}`, { method: 'DELETE', headers: {} });
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
       setMessage(b.data.message);
@@ -111,7 +112,7 @@ export default function ProductsPage() {
       const r = await fetch(`${apiUrl}/products/bulk-delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: [...selected] }),
+        body: JSON.stringify({ ids: [...selected], ...(branchId && branchId !== 'all' ? { branch_id: Number(branchId) } : {}) }),
       });
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
