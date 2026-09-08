@@ -39,21 +39,76 @@ test('CSV snapshot menerima stok nol dan menolak baris ambigu', () => {
   );
 });
 
-test('pencocokan memakai SKU dasar dan tidak membuat produk dummy', () => {
+test('pencocokan memprioritaskan nama produk dan tidak membuat produk dummy', () => {
   const result = planSnapshotMatches(
     [
       { target: 'rak riject', sku: 'AB12', name: 'AB12', quantity: 8 },
+      { target: 'rak riject', sku: 'A100', name: 'A100', quantity: 2 },
+      { target: 'rak riject', sku: 'A105', name: 'A105', quantity: 2 },
+      { target: 'rak riject', sku: 'AB70-BORDIR', name: 'AB70 BORDIR', quantity: 5 },
       { target: 'rak riject', sku: 'MISSING', name: 'Tidak Ada', quantity: 1 },
       { target: 'gudang riject perbaikan', sku: 'AB83', name: 'AB83', quantity: 4 },
     ],
     [
       { id: 10, branch_id: 2, sku: 'B2-AB12', name: 'AB12', variant_count: 0 },
+      { id: 12, branch_id: 2, sku: 'A100-2', name: 'A100', variant_count: 0 },
+      { id: 13, branch_id: 2, sku: 'A105-2', name: 'A105 Cheongsam', variant_count: 0 },
+      { id: 14, branch_id: 2, sku: 'AB70-BORDIR-2', name: 'AB70-BORDIR', variant_count: 0 },
       { id: 11, branch_id: 2, sku: 'AB83', name: 'AB83', variant_count: 2 },
     ],
   );
-  assert.equal(result.matched.length, 1);
+  assert.equal(result.matched.length, 4);
   assert.equal(result.matched[0].product.id, 10);
+  assert.equal(result.matched[0].matchBy, 'name');
+  assert.equal(result.matched[1].product.id, 12);
+  assert.equal(result.matched[1].matchBy, 'name');
+  assert.equal(result.matched[2].product.id, 13);
+  assert.equal(result.matched[2].matchBy, 'name-prefix');
+  assert.equal(result.matched[3].product.id, 14);
+  assert.equal(result.matched[3].matchBy, 'name');
   assert.equal(result.missing[0].sku, 'MISSING');
   assert.equal(result.variantBlocked[0].sku, 'AB83');
   assert.equal(result.safe, false);
+});
+
+test('pencocokan lewat nama menolak nama yang tidak unik', () => {
+  const result = planSnapshotMatches(
+    [{ target: 'rak riject', sku: 'OLD-AC03', name: 'AC03', quantity: 1 }],
+    [
+      { id: 20, branch_id: 2, sku: 'AC03-A', name: 'AC03', variant_count: 0 },
+      { id: 21, branch_id: 2, sku: 'AC03-B', name: 'AC03', variant_count: 0 },
+    ],
+  );
+  assert.equal(result.matched.length, 0);
+  assert.equal(result.missing.length, 0);
+  assert.deepEqual(result.ambiguous[0].candidates.map((candidate) => candidate.id), [20, 21]);
+  assert.equal(result.safe, false);
+});
+
+test('opsi canonical memilih katalog utama dan melewati varian dengan snapshot nol', () => {
+  const result = planSnapshotMatches(
+    [
+      { target: 'rak riject', sku: 'AT67', name: 'AT67', quantity: 2 },
+      { target: 'gudang riject perbaikan', sku: 'AB12', name: 'AB12', quantity: 57 },
+      { target: 'rak riject', sku: 'AT75', name: 'AT75', quantity: 0 },
+      { target: 'rak riject', sku: 'AC03', name: 'AC03', quantity: 0 },
+    ],
+    [
+      { id: 711, branch_id: 8, sku: 'B8-B4-AT67-2', name: 'AT67', stock: 0, variant_count: 0 },
+      { id: 735, branch_id: 8, sku: 'B8-AT67-2', name: 'AT67', stock: 1, variant_count: 0 },
+      { id: 607, branch_id: 7, sku: 'B7-B4-AB12-2', name: 'AB12', stock: 0, variant_count: 0 },
+      { id: 736, branch_id: 7, sku: 'B7-AB12-2', name: 'AB12', stock: 1, variant_count: 0 },
+      { id: 703, branch_id: 8, sku: 'B8-B4-AT75', name: 'AT75', stock: 0, variant_count: 1 },
+      { id: 713, branch_id: 8, sku: 'B8-B4-AT75-2', name: 'AT75', stock: 0, variant_count: 0 },
+      { id: 721, branch_id: 8, sku: 'B8-B4-AC03', name: 'AC03', stock: 0, variant_count: 1 },
+      { id: 722, branch_id: 8, sku: 'B8-AC03', name: 'AC03', stock: 0, variant_count: 0 },
+    ],
+    { preferCanonical: true, allowZeroVariants: true },
+  );
+  assert.deepEqual(result.matched.map((row) => row.product.id), [711, 607]);
+  assert.deepEqual(result.skippedZeroVariants.map((row) => row.product.id), [703, 721]);
+  assert.deepEqual(result.duplicates.map((row) => row.selected.id), [711, 607, 703, 721]);
+  assert.equal(result.duplicates[0].discarded[0].id, 735);
+  assert.equal(result.duplicates[1].discarded[0].id, 736);
+  assert.equal(result.safe, true);
 });

@@ -20,6 +20,31 @@ function normalizeText(value) {
   return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
+function normalizeProductName(value) {
+  return normalizeText(value).replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function canonicalSkuRank(product) {
+  let key = String(product.sku || '').trim().toUpperCase();
+  let branchPrefixCount = 0;
+  while (/^B\d+-/.test(key)) {
+    branchPrefixCount += 1;
+    key = key.replace(/^B\d+-/, '');
+  }
+  return {
+    branchPrefixCount,
+    generatedSuffix: /-\d+$/.test(key) ? 1 : 0,
+    id: Number(product.id) || Number.MAX_SAFE_INTEGER,
+  };
+}
+
+function compareCanonicalProducts(left, right) {
+  const a = canonicalSkuRank(left);
+  const b = canonicalSkuRank(right);
+  return b.branchPrefixCount - a.branchPrefixCount
+    || a.generatedSuffix - b.generatedSuffix
+    || a.id - b.id;
+}
 function normalizeSnapshotTarget(value) {
   const target = normalizeText(value);
   for (const [canonical, aliases] of TARGET_ALIASES) {
@@ -51,34 +76,65 @@ function parseSnapshotRows(rows) {
   });
 }
 
-function planSnapshotMatches(rows, products) {
+function planSnapshotMatches(rows, products, options = {}) {
+  const { preferCanonical = false, allowZeroVariants = false } = options;
   const matched = [];
   const missing = [];
   const ambiguous = [];
   const variantBlocked = [];
+  const skippedZeroVariants = [];
+  const duplicates = [];
   for (const row of rows) {
-    const key = normalizeTransferSku(row.sku);
-    const candidates = products.filter((product) => normalizeTransferSku(product.sku) === key);
+    const nameKey = normalizeProductName(row.name);
+    const exactNameCandidates = nameKey
+      ? products.filter((product) => normalizeProductName(product.name) === nameKey)
+      : [];
+    const prefixNameCandidates = nameKey
+      ? products.filter((product) => normalizeProductName(product.name).startsWith(`${nameKey} `))
+      : [];
+    let candidates = exactNameCandidates.length ? exactNameCandidates : prefixNameCandidates;
+    let matchBy = exactNameCandidates.length ? 'name' : 'name-prefix';
+
+    // Nama produk dari laporan lama adalah identitas yang diprioritaskan.
+    // SKU hanya menjadi cadangan bila nama tidak menghasilkan kandidat.
+    // Nama tidak boleh menjadi tebakan ketika ada lebih dari satu kandidat.
+    if (!candidates.length) {
+      const key = normalizeTransferSku(row.sku);
+      candidates = products.filter((product) => normalizeTransferSku(product.sku) === key);
+      matchBy = 'sku-fallback';
+    }
     if (!candidates.length) {
       missing.push(row);
       continue;
     }
-    if (candidates.length > 1) {
+    if (candidates.length > 1 && !preferCanonical) {
       ambiguous.push({ ...row, candidates: candidates.map((product) => ({ id: product.id, sku: product.sku, name: product.name })) });
       continue;
     }
+    if (candidates.length > 1) {
+      const [selected, ...discarded] = [...candidates].sort(compareCanonicalProducts);
+      duplicates.push({ ...row, selected, discarded });
+      candidates = [selected];
+      matchBy = `${matchBy}-canonical`;
+    }
     const product = candidates[0];
     if (Number(product.variant_count || 0) > 0) {
-      variantBlocked.push({ ...row, product });
+      if (allowZeroVariants && row.quantity === 0) {
+        skippedZeroVariants.push({ ...row, product, matchBy });
+        continue;
+      }
+      variantBlocked.push({ ...row, product, matchBy });
       continue;
     }
-    matched.push({ ...row, product });
+    matched.push({ ...row, product, matchBy });
   }
   return {
     matched,
     missing,
     ambiguous,
     variantBlocked,
+    skippedZeroVariants,
+    duplicates,
     safe: !missing.length && !ambiguous.length && !variantBlocked.length,
   };
 }
@@ -100,12 +156,28 @@ function printPlan(target, branch, warehouse, plan) {
   if (plan.missing.length) console.log(`  SKU tidak ditemukan: ${JSON.stringify(plan.missing.map((row) => row.sku))}`);
   if (plan.ambiguous.length) console.log(`  SKU ambigu: ${JSON.stringify(plan.ambiguous.map((row) => row.sku))}`);
   if (plan.variantBlocked.length) console.log(`  Perlu rincian varian warna: ${JSON.stringify(plan.variantBlocked.map((row) => row.sku))}`);
+  if (plan.skippedZeroVariants.length) console.log(`  Varian snapshot 0 (tidak diubah): ${JSON.stringify(plan.skippedZeroVariants.map((row) => row.sku))}`);
+  if (plan.duplicates.length) {
+    console.log(`  Katalog canonical dipilih: ${JSON.stringify(plan.duplicates.map((row) => ({
+      snapshot: row.sku,
+      dipakai: row.selected.id,
+      dilewati: row.discarded.map((product) => ({ id: product.id, sku: product.sku, stock: product.stock })),
+    })))}`);
+    const manual = plan.duplicates.flatMap((row) => row.discarded
+      .filter((product) => Number(product.stock || 0) !== 0)
+      .map((product) => ({ snapshot: row.sku, id: product.id, sku: product.sku, setStock: 0 })));
+    if (manual.length) console.log(`  Input manual setelah apply (duplikat stok nonzero): ${JSON.stringify(manual)}`);
+  }
+  const nameMatches = plan.matched.filter((row) => row.matchBy.startsWith('name'));
+  if (nameMatches.length) console.log(`  Cocok lewat nama (SKU format berbeda): ${JSON.stringify(nameMatches.map((row) => row.sku))}`);
 }
 
 async function main() {
   const args = process.argv.slice(2);
   const csvPath = args.find((arg) => !arg.startsWith('--'));
   const apply = args.includes('--apply');
+  const preferCanonical = args.includes('--prefer-canonical');
+  const allowZeroVariants = args.includes('--allow-zero-variants');
   const snapshotDateArg = args.find((arg) => arg.startsWith('--date='));
   const snapshotDate = snapshotDateArg ? snapshotDateArg.slice('--date='.length) : localDateString();
   if (!csvPath) throw new Error('Berikan path CSV. Contoh: node scripts/import-warehouse-snapshot.js /tmp/inventory-warehouse-snapshot.csv');
@@ -142,7 +214,7 @@ async function main() {
          GROUP BY p.id, p.branch_id, p.sku, p.name`,
         [branch.id],
       );
-      const plan = planSnapshotMatches(targetRows, products);
+      const plan = planSnapshotMatches(targetRows, products, { preferCanonical, allowZeroVariants });
       printPlan(target, branch, warehouse, plan);
       plans.push({ target, branch, warehouse, plan });
     }
@@ -157,7 +229,8 @@ async function main() {
     const totalQty = plans.reduce((sum, item) => sum + item.plan.matched.reduce((inner, row) => inner + row.quantity, 0), 0);
     if (!apply) {
       await connection.rollback();
-      console.log(`🔎 Preview selesai: ${rows.length} baris cocok · total snapshot dua tujuan: ${totalQty} pcs. Database tidak berubah.`);
+      const plannedRows = plans.reduce((sum, item) => sum + item.plan.matched.length + item.plan.skippedZeroVariants.length, 0);
+      console.log(`🔎 Preview selesai: ${plannedRows} baris dipetakan · total snapshot dua tujuan: ${totalQty} pcs. Database tidak berubah.`);
       return;
     }
 

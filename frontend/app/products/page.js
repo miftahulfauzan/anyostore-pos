@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Barcode, Copy, Pencil, Trash2 } from 'lucide-react';
 import AppShell from '../components/AppShell';
 import BarcodeLabel from '../components/BarcodeLabel';
+import { getProductSelectionPlacement } from './view-utils.cjs';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -67,11 +68,12 @@ export default function ProductsPage() {
   }, [search, sort]);
 
   const mediaUrl = (photoPath) => photoPath ? `${apiUrl.replace('/api', '')}${photoPath}` : '';
+  const selectedBranchQuery = branchId && branchId !== 'all' ? `?branch_id=${encodeURIComponent(branchId)}` : '';
 
   async function copyProduct(product) {
     if (!window.confirm(`Salin "${product.name}"? Varian, harga grosir, dan foto ikut disalin (stok mulai 0).`)) return;
     try {
-      const r = await fetch(`${apiUrl}/products/${product.id}/copy`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      const r = await fetch(`${apiUrl}/products/${product.id}/copy${selectedBranchQuery}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
       setMessage('Produk disalin — cek daftar untuk edit SKU/barcode.');
@@ -82,7 +84,7 @@ export default function ProductsPage() {
   async function deleteProduct(product) {
     if (!window.confirm(`Hapus "${product.name}"?`)) return;
     try {
-      const r = await fetch(`${apiUrl}/products/${product.id}`, { method: 'DELETE', headers: {} });
+      const r = await fetch(`${apiUrl}/products/${product.id}${selectedBranchQuery}`, { method: 'DELETE', headers: {} });
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
       setMessage(b.data.message);
@@ -111,7 +113,7 @@ export default function ProductsPage() {
       const r = await fetch(`${apiUrl}/products/bulk-delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: [...selected] }),
+        body: JSON.stringify({ ids: [...selected], ...(branchId && branchId !== 'all' ? { branch_id: Number(branchId) } : {}) }),
       });
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
@@ -122,6 +124,7 @@ export default function ProductsPage() {
   }
 
   const chosenBarcodes = Array.from({ length: Math.min(99, Number(barcodeCopies) || 1) }, () => barcodeProduct);
+  const selectionPlacement = getProductSelectionPlacement(view);
 
   return <AppShell title="Produk & Inventori" eyebrow="KATALOG PRODUK" actions={<><a className="button-link" href="/products/photos">Upload Foto Massal</a><a className="button-link" href="/products/new">Tambah Produk</a></>}>
     <section className="panel catalog-panel">
@@ -165,10 +168,13 @@ export default function ProductsPage() {
       </div>
       {message && <p className="message" role="status">{message}</p>}
       {loading ? <p>Memuat produk…</p> : <div className={`product-list ${view === 'grid' ? 'grid-view' : ''}`}>{products.map((product) => <article key={product.id} className="product-row" style={selected.has(product.id) ? { outline: '2px solid var(--primary)', outlineOffset: 2, borderRadius: 10 } : undefined}>
+        {selectionPlacement === 'column' && <label className="product-select-control product-select-control--list" title="Pilih produk">
+          <input type="checkbox" checked={selected.has(product.id)} onChange={() => toggleSelect(product.id)} aria-label={`Pilih ${product.name}`} />
+        </label>}
         <div className="product-photo" style={{ position: 'relative' }}>{product.photo_path ? <img src={mediaUrl(product.photo_path)} alt={`Foto ${product.name}`} loading="lazy" style={product.photo_transform ? (()=>{const t=(product.photo_transform||'').split(',').map(Number); return {objectFit:'cover',objectPosition:'center',transform:`translate(${t[1]||0}%,${t[2]||0}%) scale(${t[0]})`,width:'100%',height:'100%'};})():{}} /> : <span>Tanpa foto</span>}
-          <label className="product-select-control" title="Pilih produk">
+          {selectionPlacement === 'thumbnail' && <label className="product-select-control" title="Pilih produk">
             <input type="checkbox" checked={selected.has(product.id)} onChange={() => toggleSelect(product.id)} aria-label={`Pilih ${product.name}`} />
-          </label></div>
+          </label>}</div>
         <div className="product-description">
           <strong>{product.name}</strong>
           <span>{product.category_name} · {product.sku || 'Tanpa SKU'}</span>
