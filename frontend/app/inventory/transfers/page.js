@@ -2,9 +2,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '../../components/AppShell';
 import StockVariantPicker from '../../components/StockVariantPicker';
+import transferDefaults from './transfer-defaults.cjs';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const mediaUrl = (p) => (p ? api.replace('/api', '') + p : '');
+const { selectTransferDefaults } = transferDefaults;
 
 export default function TransferPage() {
   const [warehouses, setWarehouses] = useState([]);
@@ -31,10 +33,10 @@ export default function TransferPage() {
     return `${w.name || w.branch_name}${type}`;
   };
 
-  async function loadProducts(warehouseId) {
+  async function loadProducts(warehouseId, warehouseList = warehouses) {
     if (!warehouseId) { setProducts([]); return; }
     try {
-      const wh = warehouses.find((w) => String(w.id) === String(warehouseId));
+      const wh = warehouseList.find((w) => String(w.id) === String(warehouseId));
       const r = await fetch(`${api}/inventory/incoming/products?branch_id=${wh?.branch_id || ''}&warehouse_id=${warehouseId}`, { headers: h() });
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
@@ -44,16 +46,30 @@ export default function TransferPage() {
 
   useEffect(() => {
     /* sesi via httpOnly cookie */
-    fetch(api + '/inventory/warehouses/all', { headers: h() }).then(async (r) => {
-      const b = await r.json();
-      if (!r.ok) throw new Error(b.message);
-      const list = b.data || [];
+    Promise.all([
+      fetch(api + '/inventory/warehouses/all', { headers: h() }).then(async (r) => {
+        const b = await r.json();
+        if (!r.ok) throw new Error(b.message);
+        return b.data || [];
+      }),
+      fetch(api + '/auth/me', { headers: h() }).then(async (r) => {
+        const b = await r.json();
+        if (!r.ok) throw new Error(b.message);
+        return b.data || null;
+      }),
+    ]).then(([list, user]) => {
       setWarehouses(list);
-      const first = String(list[0]?.id || '');
-      setFrom(first);
-      const second = String(list.find((w) => String(w.id) !== first)?.id || '');
-      setTo(second);
-      if (first) loadProducts(first);
+      const defaults = selectTransferDefaults({
+        role: user?.role,
+        branchId: user?.branch_id,
+        warehouses: list,
+      });
+      setFrom(defaults.sourceId);
+      setTo(defaults.targetId);
+      if (defaults.sourceId) loadProducts(defaults.sourceId, list);
+      else setMessage(user?.role === 'gudang'
+        ? 'Cabang akun gudang belum memiliki gudang aktif.'
+        : 'Belum ada gudang aktif.');
     }).catch((e) => setMessage(e.message));
   }, []);
 
