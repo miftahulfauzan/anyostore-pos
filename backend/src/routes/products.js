@@ -3,6 +3,7 @@ const db = require('../db');
 const { authenticate, authorize } = require('../auth');
 const { assertValidUpload, createMediaUpload, decodeDataUpload, discardUploadedFile, persistUploadedFile, removeMedia, copyMediaFile } = require('../media-storage');
 const { money } = require('../money');
+const { deleteCatalogProduct, productCapabilities } = require('../product-lifecycle');
 
 const router = express.Router();
 router.use(authenticate);
@@ -46,22 +47,22 @@ function writableBranchId(req) {
   return req.user.branch_id;
 }
 
-// Penghapusan dari katalog khusus Gudang Riject Perbaikan boleh diarahkan ke
-// cabang yang sedang dipilih di UI. Aksi tambah/edit/media tetap memakai
-// writableBranchId agar akun gudang tidak bisa mengubah katalog lintas cabang.
+// The existing warehouse delete grant is stored on the branch, so renaming a
+// branch cannot grant or revoke access. Other cross-branch writes remain denied.
 async function writableDeleteBranchId(req) {
   if (req.user.role === 'owner') return writableBranchId(req);
+  const requested = Number(req.body.branch_id ?? req.query.branch_id ?? req.user.branch_id);
+  if (requested === Number(req.user.branch_id)) return requested;
   if (req.user.role === 'gudang') {
-    const requested = Number(req.body.branch_id ?? req.query.branch_id);
     if (Number.isInteger(requested) && requested > 0) {
       const [branches] = await db.execute(
-        "SELECT id FROM branches WHERE id=? AND is_active=TRUE AND type='gudang' AND LOWER(TRIM(name)) IN ('gudang riject perbaikan', 'gudang rijk perbaikan')",
+        "SELECT id FROM branches WHERE id=? AND is_active=TRUE AND type='gudang' AND warehouse_catalog_delete_enabled=TRUE",
         [requested],
       );
       if (branches[0]) return requested;
     }
   }
-  return req.user.branch_id;
+  throw Object.assign(new Error('Akun ini tidak memiliki izin menghapus produk pada cabang yang dipilih'), { status: 403 });
 }
 function normalizeWholesalePrices(input) {
   if (input == null) return [];
@@ -261,16 +262,21 @@ router.get('/', async (req, res, next) => {
               (SELECT JSON_ARRAYAGG(JSON_OBJECT('min_qty', wp.min_qty, 'max_qty', wp.max_qty, 'price', wp.price))
                FROM wholesale_prices wp WHERE wp.product_id = p.id AND wp.is_active = TRUE) AS wholesale_prices` : '';
     const [rows] = await db.execute(
-      `SELECT p.id, p.name, p.sku, p.barcode, p.price, p.cost, p.stock, p.min_stock, p.gender,
+      `SELECT p.id, p.branch_id, p.name, p.sku, p.barcode, p.price, p.cost, p.stock, p.min_stock, p.gender,
+              b.type AS branch_type, b.is_active AS branch_active, b.warehouse_catalog_delete_enabled,
               c.name AS category_name,
                (SELECT pp.path FROM product_photos pp WHERE pp.product_id = p.id AND pp.variant_id IS NULL AND pp.media_type = 'image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
                (SELECT pp.\`transform\` FROM product_photos pp WHERE pp.product_id = p.id AND pp.variant_id IS NULL AND pp.media_type = 'image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_transform,
               (SELECT COUNT(*) FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_active = TRUE) AS variant_count,
               (SELECT COALESCE(SUM(pv.stock), 0) FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_active = TRUE) AS variant_stock_total,
               (SELECT GROUP_CONCAT(DISTINCT pv.color ORDER BY pv.color SEPARATOR '|') FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_active = TRUE AND pv.color IS NOT NULL AND pv.color <> '') AS variant_colors${wholesaleSelect}
-       FROM products p JOIN categories c ON c.id = p.category_id
+       FROM products p JOIN categories c ON c.id = p.category_id JOIN branches b ON b.id=p.branch_id
        ${where} ORDER BY ${orderBy}, p.id LIMIT ${limit} OFFSET ${offset}`, params
     );
+    for (const row of rows) {
+      row.capabilities = productCapabilities(req.user, row);
+      delete row.warehouse_catalog_delete_enabled;
+    }
     if (includeWholesale) {
       for (const row of rows) {
         if (typeof row.wholesale_prices === 'string') row.wholesale_prices = JSON.parse(row.wholesale_prices);
