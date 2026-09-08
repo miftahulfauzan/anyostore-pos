@@ -45,6 +45,24 @@ function writableBranchId(req) {
   }
   return req.user.branch_id;
 }
+
+// Penghapusan dari katalog khusus Gudang Riject Perbaikan boleh diarahkan ke
+// cabang yang sedang dipilih di UI. Aksi tambah/edit/media tetap memakai
+// writableBranchId agar akun gudang tidak bisa mengubah katalog lintas cabang.
+async function writableDeleteBranchId(req) {
+  if (req.user.role === 'owner') return writableBranchId(req);
+  if (req.user.role === 'gudang') {
+    const requested = Number(req.body.branch_id ?? req.query.branch_id);
+    if (Number.isInteger(requested) && requested > 0) {
+      const [branches] = await db.execute(
+        "SELECT id FROM branches WHERE id=? AND is_active=TRUE AND type='gudang' AND LOWER(TRIM(name)) IN ('gudang riject perbaikan', 'gudang rijk perbaikan')",
+        [requested],
+      );
+      if (branches[0]) return requested;
+    }
+  }
+  return req.user.branch_id;
+}
 function normalizeWholesalePrices(input) {
   if (input == null) return [];
   if (!Array.isArray(input)) throw Object.assign(new Error('Data harga grosir tidak valid'), { status: 400 });
@@ -633,7 +651,7 @@ router.post('/bulk-delete', authorize('owner', 'manager', 'admin', 'gudang'), as
   try {
     const ids = [...new Set((Array.isArray(req.body.ids) ? req.body.ids : []).map(Number).filter(Number.isInteger))].slice(0, 200);
     if (!ids.length) return res.status(400).json({ success: false, message: 'Pilih minimal 1 produk' });
-    const branchId = writableBranchId(req);
+    const branchId = await writableDeleteBranchId(req);
 
     let hard = 0;
     let soft = 0;
@@ -688,7 +706,7 @@ router.delete('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (r
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID tidak valid' });
-    const branchId = writableBranchId(req);
+    const branchId = await writableDeleteBranchId(req);
 
     // Verify product belongs to user's branch
     const [product] = await db.execute('SELECT id, name, is_active FROM products WHERE id=? AND branch_id=?', [id, branchId]);
@@ -728,4 +746,6 @@ router.delete('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (r
 });
 
 router.normalizeVariants = normalizeVariants;
+router.writableDeleteBranchId = writableDeleteBranchId;
+router.writableBranchId = writableBranchId;
 module.exports = router;

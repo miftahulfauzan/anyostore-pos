@@ -9,6 +9,7 @@ process.env.JWT_SECRET = 'test-access-secret';
 process.env.JWT_REFRESH_SECRET = 'test-refresh-secret';
 
 const productsRouter = require('../src/routes/products');
+const db = require('../src/db');
 
 test('normalizeVariants menerima color null ketika size terisi', () => {
   const variants = productsRouter.normalizeVariants([
@@ -30,4 +31,51 @@ test('normalizeVariants tetap menolak kombinasi kosong', () => {
     () => productsRouter.normalizeVariants([{ color: null, size: null }]),
     /wajib memiliki warna atau ukuran/
   );
+});
+
+test('admin gudang dapat menghapus produk pada cabang Riject Perbaikan yang dipilih', async () => {
+  const originalExecute = db.execute;
+  db.execute = async (sql, params) => {
+    assert.match(sql, /type='gudang'/);
+    assert.match(sql, /gudang riject perbaikan/);
+    assert.deepEqual(params, [7]);
+    return [[{ id: 7 }], []];
+  };
+  try {
+    const branchId = await productsRouter.writableDeleteBranchId({
+      user: { role: 'gudang', branch_id: 3 },
+      body: {},
+      query: { branch_id: '7' },
+    });
+    assert.equal(branchId, 7);
+  } finally {
+    db.execute = originalExecute;
+  }
+});
+
+test('admin gudang tidak dapat menghapus produk pada cabang gudang lain melalui branch_id', async () => {
+  const originalExecute = db.execute;
+  db.execute = async (sql) => {
+    assert.match(sql, /gudang riject perbaikan/);
+    return [[], []];
+  };
+  try {
+    const branchId = await productsRouter.writableDeleteBranchId({
+      user: { role: 'gudang', branch_id: 3 },
+      body: {},
+      query: { branch_id: '2' },
+    });
+    assert.equal(branchId, 3);
+  } finally {
+    db.execute = originalExecute;
+  }
+});
+
+test('aksi tambah/edit produk admin gudang tetap memakai cabang akunnya', () => {
+  const branchId = productsRouter.writableBranchId({
+    user: { role: 'gudang', branch_id: 3 },
+    body: { branch_id: 7 },
+    query: {},
+  });
+  assert.equal(branchId, 3);
 });
