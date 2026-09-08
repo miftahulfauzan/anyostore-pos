@@ -1611,17 +1611,9 @@ html[data-theme="purple"] .sidebar {
 /* Sidebar Admin Gudang: alur operasional dipisah jelas dari menu toko. */
 @media (min-width: 821px) {
   .app-shell-warehouse .sidebar.sidebar-warehouse {
-    top: 0;
-    left: 0;
-    width: 320px;
-    height: 100dvh;
-    padding: 18px 16px;
-    border-radius: 0 12px 12px 0;
     background: #293548 !important;
-    box-shadow: 8px 0 28px rgba(15,23,42,.16) !important;
   }
-  .app-shell-warehouse .app-main { margin-left: 344px; }
-  .sidebar.sidebar-warehouse .brand { padding: 5px 10px 18px; }
+  .sidebar.sidebar-warehouse .brand { padding: 5px 8px 15px; }
   .sidebar.sidebar-warehouse .side-nav { gap: 0; padding: 0 2px; }
   .sidebar.sidebar-warehouse .warehouse-nav-group { gap: 3px; }
   .sidebar.sidebar-warehouse .warehouse-nav-group + .warehouse-nav-group {
