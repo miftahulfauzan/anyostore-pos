@@ -30,6 +30,7 @@ import {
   X,
 } from 'lucide-react';
 import { roleLabel } from '../lib/roles';
+import { useAppSession } from './AppStateProvider';
 
 // Roles per item: owner/manajer/admin/kasir/gudang.
 // Jika field `roles` tidak ada → tampil untuk semua role login.
@@ -115,57 +116,28 @@ const warehouseNavigation = [
 export default function AppShell({ title, eyebrow, actions, children }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { user, resolved: roleResolved, collapsed, theme, toggleTheme, toggleCollapse, clearSession, openGroups, setOpenGroups } = useAppSession();
+  const role = user?.role || null;
+  const userName = user?.name || '';
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
-  const [role, setRole] = useState(null);
-  const [roleResolved, setRoleResolved] = useState(false);
-  const [userName, setUserName] = useState('');
-  const [theme, setTheme] = useState('light');
   const [search, setSearch] = useState('');
   const mainRef = useRef(null);
-  const [openGroups, setOpenGroups] = useState(() => Object.fromEntries(
-    navigation.map((group) => [group.label, group.items.some((item) => pathname === item.href.split('?')[0])])
-  ));
+  const sidebarRef = useRef(null);
+  const [tooltip, setTooltip] = useState(null);
+  const groupIsOpen = (group) => role === 'gudang' || (openGroups[group.label] ?? group.items.some((item) => pathname === item.href.split('?')[0]));
 
-  // Ambil role user dan terapkan tema yang dipilih pengguna.
-  useEffect(() => {
-    setCollapsed(localStorage.getItem('pos_sidebar_collapsed') === 'true');
-    setTheme(localStorage.getItem('pos_theme') === 'dark' ? 'dark' : 'light');
-  }, []);
+  function showTooltip(event, label) {
+    if (!collapsed || !window.matchMedia('(min-width: 821px)').matches) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    setTooltip({ label, left: rect.right + 10, top: Math.min(rect.top, window.innerHeight - 40) });
+  }
 
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-    document.documentElement.style.colorScheme = theme;
-  }, [theme]);
-
-  useEffect(() => {
-
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-    fetch(`${baseUrl}/auth/me`)
-      .then((response) => (response.ok ? response.json() : null))
-      .then((body) => {
-        if (body?.data?.role) setRole(body.data.role);
-        if (body?.data?.name) setUserName(body.data.name);
-      })
-      .catch(() => {})
-      .finally(() => setRoleResolved(true));
-    fetch(`${baseUrl}/settings`)
-      .then((response) => (response.ok ? response.json() : null))
-      .then((body) => {
-        // Tema brand (green/blue/purple) dari Pengaturan toko -> data-theme.
-        const brandTheme = body?.data?.theme;
-        if (brandTheme && ['green', 'blue', 'purple'].includes(brandTheme)) {
-          document.documentElement.dataset.theme = brandTheme;
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  function toggleTheme() {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    localStorage.setItem('pos_theme', next);
-    document.documentElement.classList.toggle('dark', next === 'dark');
+  function tooltipProps(label) {
+    return { title: label, 'aria-label': label,
+      onMouseEnter: (event) => showTooltip(event, label), onFocus: (event) => showTooltip(event, label),
+      onMouseLeave: () => setTooltip(null), onBlur: () => setTooltip(null),
+      onKeyDown: (event) => { if (event.key === 'Escape') setTooltip(null); },
+    };
   }
 
   // Saring menu per role. Saat role belum selesai dibaca, menu dikosongkan
@@ -181,20 +153,31 @@ export default function AppShell({ title, eyebrow, actions, children }) {
 
   useEffect(() => {
     setMobileNavOpen(false);
+    setTooltip(null);
     setSearch(window.location.search);
     window.requestAnimationFrame(() => mainRef.current?.focus({ preventScroll: true }));
   }, [pathname]);
 
   useEffect(() => {
     if (!mobileNavOpen) return undefined;
+    const previousFocus = document.activeElement;
+    sidebarRef.current?.querySelector('.sidebar-close')?.focus();
     const closeOnEscape = (event) => {
       if (event.key === 'Escape') setMobileNavOpen(false);
+      if (event.key === 'Tab') {
+        const focusable = [...sidebarRef.current.querySelectorAll('a[href], button:not(:disabled)')].filter((node) => node.getClientRects().length > 0);
+        const first = focusable[0];
+        const last = focusable.at(-1);
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }
     };
     document.body.classList.add('mobile-nav-active');
     window.addEventListener('keydown', closeOnEscape);
     return () => {
       document.body.classList.remove('mobile-nav-active');
       window.removeEventListener('keydown', closeOnEscape);
+      if (previousFocus?.isConnected) previousFocus.focus();
     };
   }, [mobileNavOpen]);
 
@@ -203,16 +186,13 @@ export default function AppShell({ title, eyebrow, actions, children }) {
     fetch(`${baseUrl}/auth/logout`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
       .catch(() => {})
       .finally(() => {
-        localStorage.removeItem('pos_access_token');
-        localStorage.removeItem('pos_refresh_token');
+        clearSession();
+        try {
+          localStorage.removeItem('pos_access_token');
+          localStorage.removeItem('pos_refresh_token');
+        } catch { /* Logout also works when storage is blocked. */ }
         router.replace('/');
       });
-  }
-
-  function toggleCollapse() {
-    const next = !collapsed;
-    setCollapsed(next);
-    localStorage.setItem('pos_sidebar_collapsed', String(next));
   }
 
   const sidebarClass = `sidebar${collapsed ? ' collapsed' : ''}${mobileNavOpen ? ' mobile-open' : ''}${role === 'gudang' ? ' sidebar-warehouse' : ''}${roleResolved ? ' role-ready' : ' role-loading'}`;
@@ -227,11 +207,11 @@ export default function AppShell({ title, eyebrow, actions, children }) {
         tabIndex={mobileNavOpen ? 0 : -1}
         onClick={() => setMobileNavOpen(false)}
       />
-      <aside className={sidebarClass} aria-label="Navigasi utama" id="mobile-navigation">
+      <aside ref={sidebarRef} className={sidebarClass} aria-label="Navigasi utama" id="mobile-navigation" onScroll={() => setTooltip(null)}>
         <button type="button" className="sidebar-close" onClick={() => setMobileNavOpen(false)} aria-label="Tutup menu">
           <X aria-hidden="true" size={20} />
         </button>
-        <Link className="brand" href={role === 'gudang' ? '/dashboard' : '/pos'}>
+        <Link className="brand" href={role === 'gudang' ? '/dashboard' : '/pos'} {...tooltipProps('Anyostore')}>
           <span className="brand-mark">A</span>
           <span>Anyostore<small>{role === 'gudang' ? 'Operasional gudang' : 'Retail operations'}</small></span>
         </Link>
@@ -240,23 +220,24 @@ export default function AppShell({ title, eyebrow, actions, children }) {
           {!roleResolved && <div className="sidebar-nav-skeleton" aria-label="Memuat navigasi"><i /><i /><i /><i /></div>}
           {roleResolved && !roleKnown && <div className="sidebar-session-error" role="alert"><strong>Sesi tidak tersedia</strong><Link href="/login">Masuk lagi</Link></div>}
           {visibleNavigation.map((group) => (
-            <section key={group.label} className={`nav-group${role === 'gudang' ? ' warehouse-nav-group' : ''}`}>
+            <section key={group.label} className={`nav-group${groupIsOpen(group) ? ' nav-group-open' : ''}${role === 'gudang' ? ' warehouse-nav-group' : ''}`}>
               {role === 'gudang' ? <div className="warehouse-nav-label">{group.label}</div> : <button
                 type="button"
                 className="nav-group-toggle"
-                onClick={() => setOpenGroups((current) => ({ ...current, [group.label]: !current[group.label] }))}
-                aria-expanded={Boolean(openGroups[group.label])}
+                onClick={() => setOpenGroups((current) => ({ ...current, [group.label]: !groupIsOpen(group) }))}
+                aria-label={group.label}
+                aria-expanded={groupIsOpen(group)}
               >
                 <span>{group.label}</span>
-                <ChevronDown aria-hidden="true" size={14} className={openGroups[group.label] ? 'chevron-open' : ''} />
+                <ChevronDown aria-hidden="true" size={14} className={groupIsOpen(group) ? 'chevron-open' : ''} />
               </button>}
-              {(role === 'gudang' || openGroups[group.label]) && group.items.map((item) => {
+              {group.items.map((item) => {
                 const Icon = item.icon;
                 const itemPath = item.href.split('?')[0];
                 const itemQuery = item.href.includes('?') ? item.href.slice(item.href.indexOf('?')) : '';
-                const active = item.active !== false && pathname === itemPath && (!itemQuery || search === itemQuery);
+                const active = item.active !== false && pathname === itemPath && (itemQuery ? search === itemQuery : !search);
                 return (
-                  <Link key={item.href} href={item.href} onClick={() => setSearch(itemQuery)} className={`${active ? 'active' : ''}${item.tone ? ` tone-${item.tone}` : ''}`} aria-current={active ? 'page' : undefined}>
+                  <Link key={item.href} href={item.href} onClick={() => { setSearch(itemQuery); setTooltip(null); setMobileNavOpen(false); }} className={`${active ? 'active' : ''}${item.tone ? ` tone-${item.tone}` : ''}`} aria-current={active ? 'page' : undefined} {...tooltipProps(item.label)}>
                     <Icon aria-hidden="true" size={15} strokeWidth={active ? 2.4 : 1.9} />
                     <span>{item.label}</span>
                   </Link>
@@ -268,13 +249,14 @@ export default function AppShell({ title, eyebrow, actions, children }) {
 
         <div className="sidebar-footer">
           <span className="sidebar-store-dot" aria-hidden="true" />
-          {!collapsed && <div><strong>{userName || 'Sesi aktif'}</strong><small>{role ? roleLabel(role) : 'Kelola toko dengan aman'}</small></div>}
-          <button type="button" className="collapse-toggle" onClick={toggleCollapse} aria-label={collapsed ? 'Perluas sidebar' : 'Ciutkan sidebar'}>
+          <div><strong>{userName || 'Sesi aktif'}</strong><small>{role ? roleLabel(role) : 'Kelola toko dengan aman'}</small></div>
+          <button type="button" className="collapse-toggle" onClick={() => { toggleCollapse(); setTooltip(null); }} aria-expanded={!collapsed} {...tooltipProps(collapsed ? 'Perluas sidebar' : 'Ciutkan sidebar')}>
             <ChevronDown aria-hidden="true" size={16} style={{ transform: collapsed ? 'rotate(90deg)' : 'rotate(-90deg)', transition: 'transform .2s' }} />
           </button>
         </div>
-        <button type="button" className="logout" onClick={logout}><LogOut aria-hidden="true" size={15} /> <span>Keluar</span></button>
+        <button type="button" className="logout" onClick={logout} {...tooltipProps('Keluar')}><LogOut aria-hidden="true" size={15} /> <span>Keluar</span></button>
       </aside>
+      {tooltip && <div className="sidebar-tooltip" role="tooltip" style={{ left: tooltip.left, top: tooltip.top }}>{tooltip.label}</div>}
 
       <main ref={mainRef} id="main-content" tabIndex={-1} className={`app-main${collapsed ? ' sidebar-collapsed' : ''}`}>
         <header className="app-header">

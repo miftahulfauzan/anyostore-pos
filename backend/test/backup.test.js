@@ -64,7 +64,7 @@ test('complete snapshot exports 10037 rows, all tables and disk media, preservin
   assert.deepEqual(parsed.manifest.errors, []);
   assert.equal(parsed.manifest.media[0].size_bytes, photo.length);
   assert.ok(db.calls.some(sql => sql.includes('WITH CONSISTENT SNAPSHOT')));
-  assert.ok(db.calls.indexOf('COMMIT') < db.calls.indexOf('RELEASE'));
+  assert.ok(db.calls.indexOf('COMMIT') < db.calls.indexOf('DESTROY'));
   const checked = await validateBackup(result.filePath);
   assert.equal(checked.manifest.total_rows, 10039);
   let body = '';
@@ -179,9 +179,43 @@ test('restore rejects existing rows/files and rolls back failed inserts without 
   const result = await createBackup({ db: source(tables), ...dirs });
   t.after(result.cleanup);
   await assert.rejects(restoreBackup({ filePath: result.filePath, apply: true, target: isolated, connection: target(tables, { nonempty: true }), mediaDir: path.join(dirs.root, 'new') }), /empty|kosong/i);
-  await assert.rejects(restoreBackup({ filePath: result.filePath, apply: true, target: isolated, connection: target(tables), mediaDir: dirs.uploadsDir }), /exist|baru|kosong/i);
+  await assert.rejects(restoreBackup({ filePath: result.filePath, apply: true, target: isolated, connection: target(tables), mediaDir: dirs.uploadsDir }), /exist|new|baru|kosong/i);
   const conn = target(tables, { failInsert: true });
   await assert.rejects(restoreBackup({ filePath: result.filePath, apply: true, target: isolated, connection: conn, mediaDir: path.join(dirs.root, 'failed') }), error => !error.message.includes('password'));
   assert.ok(conn.calls.includes('ROLLBACK'));
   await assert.rejects(fs.access(path.join(dirs.root, 'failed')));
+});
+
+test('database media restores raw and stored-base64 blobs without changing bytes', async (t) => {
+  const dirs = await workspace(t);
+  const binary = Buffer.from([0, 128, 255, 10]);
+  const tables = { media_files: [{ key: 'products/raw.jpg', content_type: 'image/jpeg', data: binary },
+    { key: 'products/encoded.jpg', content_type: 'image/jpeg;base64', data: Buffer.from(binary.toString('base64')) }] };
+  const result = await createBackup({ db: source(tables), ...dirs, mediaStorage: 'database' });
+  t.after(result.cleanup);
+  const conn = target(tables);
+  await restoreBackup({ filePath: result.filePath, apply: true, target: isolated, connection: conn, mediaDir: path.join(dirs.root, 'db-media') });
+  assert.deepEqual(conn.inserted.media_files[0][2], binary);
+  assert.equal(conn.inserted.media_files[1][2].toString(), binary.toString('base64'));
+});
+
+test('corrupt backup cannot connect or create destination on apply', async (t) => {
+  const dirs = await workspace(t);
+  const filePath = path.join(dirs.root, 'bad.json');
+  await fs.writeFile(filePath, '{"tables":{}}');
+  const mediaDir = path.join(dirs.root, 'must-not-exist');
+  await assert.rejects(restoreBackup({ filePath, apply: true, target: isolated, connect: () => assert.fail('must validate before connecting'), mediaDir }));
+  await assert.rejects(fs.access(mediaDir));
+});
+
+test('CLI dry-run ignores application DB env; apply requires separate confirmed local credentials', () => {
+  const { parseArgs } = require('../scripts/restore-backup');
+  const env = { DB_HOST: 'production', DB_NAME: 'pos_pakaian', DB_PASSWORD: 'secret' };
+  assert.equal(parseArgs(['--file', '/tmp/backup.json'], env).apply, false);
+  assert.throws(() => parseArgs(['--file', '/tmp/backup.json', '--apply'], env));
+  assert.throws(() => parseArgs(['--file', '/tmp/backup.json', '--unknown'], env));
+  const options = parseArgs(['--file', '/tmp/backup.json', '--apply', '--isolated', '--confirm-database', isolated.database,
+    '--media-dir', '/tmp/restored-test-media'], { ...env, RESTORE_DB_HOST: isolated.host, RESTORE_DB_NAME: isolated.database,
+    RESTORE_DB_USER: 'restore', RESTORE_DB_PASSWORD: 'test' });
+  assert.equal(options.target.host, '127.0.0.1');
 });

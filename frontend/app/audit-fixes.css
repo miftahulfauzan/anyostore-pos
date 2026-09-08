@@ -1,0 +1,32 @@
+/* Apply the saved width during HTML parsing, before React is available. Keep
+   the established 60px rail / 84px content offset and mobile drawer sizes. */
+@media (min-width: 821px) {
+  html[data-pos-collapsed="true"] .sidebar { width: 60px; padding: 1rem .4rem; }
+  html[data-pos-collapsed="true"] .app-main { margin-left: 84px; }
+  html[data-pos-collapsed="true"] .sidebar .brand > span:not(.brand-mark),
+  html[data-pos-collapsed="true"] .sidebar .side-nav a > span,
+  html[data-pos-collapsed="true"] .sidebar .sidebar-footer > div,
+  html[data-pos-collapsed="true"] .sidebar .logout > span,
+  html[data-pos-collapsed="true"] .sidebar .warehouse-nav-label,
+  html[data-pos-collapsed="true"] .sidebar .nav-group-toggle { display: none; }
+  html[data-pos-collapsed="true"] .sidebar .brand,
+  html[data-pos-collapsed="true"] .sidebar .sidebar-footer,
+  html[data-pos-collapsed="true"] .sidebar .logout { justify-content: center; gap: 0; }
+  html[data-pos-collapsed="true"] .sidebar .brand-mark { display: grid; margin: 0; }
+  html[data-pos-collapsed="true"] .sidebar .side-nav a { display: flex; justify-content: center; gap: 0; padding-inline: 0; }
+  html[data-pos-collapsed="true"] .sidebar .collapse-toggle svg { transform: rotate(90deg) !important; }
+}
+.sidebar .nav-group:not(.nav-group-open) > a { display: none; }
+@media (min-width: 821px) {
+  html[data-pos-collapsed="true"] .sidebar .nav-group > a { display: flex; }
+}
+.sidebar :is(a, button):focus-visible { outline: 2px solid #bfdbfe; outline-offset: -2px; }
+.sidebar-tooltip { position: fixed; z-index: 140; padding: 7px 10px; border: 1px solid #64748b; border-radius: 6px; background: #0f172a; color: #fff; font-size: 12px; pointer-events: none; }
+.catalog-pagination { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px; margin-top: 20px; }
+.catalog-failures { padding: 12px; border: 1px solid var(--border); border-radius: 8px; margin-block: 12px; }
+.catalog-failures ul { margin-bottom: 0; padding-left: 20px; }
+.catalog-panel .icon-action:disabled { opacity: .45; cursor: not-allowed; }
+.catalog-panel .product-permissions { display: block; font-size: 11px; color: var(--muted-foreground); }
+.opname-count { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.opname-count input { width: 110px; }
+.opname-count button { font-size: 11px; min-height: 32px; }

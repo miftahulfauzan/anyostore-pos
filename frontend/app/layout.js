@@ -1,5 +1,8 @@
 import './globals.css';
+import './audit-fixes.css';
 import NotificationCenter from './components/NotificationCenter';
+import AppStateProvider from './components/AppStateProvider';
+import { preferencesScript } from './components/app-state.cjs';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://anyostore.my.id';
 const siteName = 'Anyostore - Grosir Pakaian Denim Wanita';
@@ -39,14 +42,14 @@ export default function RootLayout({ children }) {
   return (
     <html lang="id" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: "try{if(localStorage.getItem('pos_theme')==='dark'){document.documentElement.classList.add('dark');document.documentElement.style.colorScheme='dark';}}catch(e){}" }} />
+        <script dangerouslySetInnerHTML={{ __html: preferencesScript }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       </head>
       <body style={{ fontFamily: "'Plus Jakarta Sans', Inter, system-ui, -apple-system, sans-serif" }}>
         <a className="skip-link" href="#main-content">Lewati ke konten utama</a>
-        {children}
+        <AppStateProvider>{children}</AppStateProvider>
         <NotificationCenter />
       </body>
     </html>

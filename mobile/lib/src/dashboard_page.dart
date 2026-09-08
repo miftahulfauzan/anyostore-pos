@@ -33,7 +33,6 @@ const _months = [
   'Nov',
   'Des'
 ];
-const _days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key, required this.api});
@@ -48,6 +47,9 @@ class _DashboardPageState extends State<DashboardPage> {
   DateTime? _from;
   DateTime? _to;
   bool _loading = true;
+  String? _error;
+  String? _branchError;
+  int _requestVersion = 0;
   bool _isOwner = false;
   List<Map<String, dynamic>> _branches = [];
   String _branchMode = 'own'; // own | all | branch-<id>
@@ -56,36 +58,17 @@ class _DashboardPageState extends State<DashboardPage> {
   double _masuk = 0;
   double _keluar = 0;
   List<({String label, double masuk, double keluar})> _daily = [];
-  int _aman = 62;
-  int _hampir = 26;
-  int _kosong = 12;
+  int _aman = 0;
+  int _hampir = 0;
+  int _kosong = 0;
   int _totalProduk = 0;
 
-  // Stok per kategori & top produk keluar — diisi backend; dummy sebagai
-  // tampilan awal sebelum data masuk / kalau endpoint gagal.
-  List<(String, double)> _categories = const [
-    ('KEMEJA', 8000),
-    ('TUNIK', 2700),
-    ('AB12 ON MODEL', 750),
-    ('VEST', 550),
-    ('CELANA', 250),
-    ('ONE SET', 120),
-    ('ROK', 20),
-  ];
-  List<(String, double)> _topProducts = const [
-    ('AT77', 2200),
-    ('AB12', 2100),
-    ('OB', 1280),
-    ('A105', 1130),
-    ('AB12-ON-MODEL', 1120),
-    ('AT67', 670),
-  ];
+  List<(String, double)> _categories = [];
+  List<(String, double)> _topProducts = [];
 
   @override
   void initState() {
     super.initState();
-    // Tampilkan data dummy dulu supaya dashboard langsung kebaca.
-    _daily = _dummyDaily();
     final role = context.read<AuthStore>().role;
     _isOwner = role == 'owner';
     if (_isOwner) _loadBranches();
@@ -96,9 +79,16 @@ class _DashboardPageState extends State<DashboardPage> {
     try {
       final rows = await widget.api.branches();
       if (mounted) {
-        setState(() => _branches = rows.cast<Map<String, dynamic>>());
+        setState(() {
+          _branches = rows.cast<Map<String, dynamic>>();
+          _branchError = null;
+        });
       }
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) {
+        setState(() => _branchError = 'Gagal memuat pilihan toko/gudang.');
+      }
+    }
   }
 
   /// Owner: 'all' / branch-N / null (cabang owner sendiri).
@@ -135,29 +125,21 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  List<({String label, double masuk, double keluar})> _dummyDaily() {
-    final masuk = <double>[360, 95, 5, 440, 415, 0, 0];
-    final keluar = <double>[60, 235, 20, 50, 65, 70, 0];
-    final now = DateTime.now().toUtc().add(const Duration(hours: 7));
-    return [
-      for (var i = 6; i >= 0; i--)
-        (
-          label:
-              '${now.subtract(Duration(days: i)).day} ${_months[now.subtract(Duration(days: i)).month - 1]}',
-          masuk: masuk[6 - i],
-          keluar: keluar[6 - i]
-        ),
-    ];
-  }
-
   String get _activeLabel {
-    final now = DateTime.now().toUtc().add(const Duration(hours: 7));
-    return '${_days[now.weekday - 1]}, ${now.day} ${_months[now.month - 1]} ${now.year}';
+    final (start, end) = _rangeDates;
+    return start == end ? start : '$start s/d $end';
   }
 
   Future<void> _load() async {
+    final requestVersion = ++_requestVersion;
     setState(() {
       _loading = true;
+      _error = null;
+      _masuk = _keluar = 0;
+      _aman = _hampir = _kosong = _totalProduk = 0;
+      _daily = [];
+      _categories = [];
+      _topProducts = [];
     });
     try {
       final (start, end) = _rangeDates;
@@ -173,13 +155,20 @@ class _DashboardPageState extends State<DashboardPage> {
         widget.api.stockByCategory(branchId: bp),
         widget.api.topProductsOut(start: start, end: end, branchId: bp),
       ]);
-      if (!mounted) return;
+      if (!mounted || requestVersion != _requestVersion) return;
       final mutSummary = (results[0] as Map<String, dynamic>?) ?? {};
       final stockSummary = ((results[1] as Map<String, dynamic>?)?['summary']
               as Map<String, dynamic>?) ??
           {};
       final catRows = (results[2] as List?)?.cast<Map<String, dynamic>>() ?? [];
       final topRows = (results[3] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      if (mutSummary['daily'] is! List ||
+          ['total_in', 'total_out'].any((key) =>
+              num.tryParse('${mutSummary[key]}')?.isFinite != true) ||
+          ['total_products', 'low_stock', 'out_of_stock'].any((key) =>
+              int.tryParse('${stockSummary[key]}') == null)) {
+        throw const FormatException('Respons ringkasan tidak lengkap');
+      }
 
       // Ringkasan masuk/keluar/selisih dari SEMUA mutasi periode terpilih.
       final masuk = asNum(mutSummary['total_in']);
@@ -196,9 +185,10 @@ class _DashboardPageState extends State<DashboardPage> {
       String key(DateTime x) =>
           '${x.year.toString().padLeft(4, '0')}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
       final daily = <({String label, double masuk, double keluar})>[
-        for (var day = startDate;
-            !day.isAfter(endDate);
-            day = day.add(const Duration(days: 1)))
+        if (dailyList.isNotEmpty)
+          for (var day = startDate;
+              !day.isAfter(endDate);
+              day = day.add(const Duration(days: 1)))
           (
             label: '${day.day} ${_months[day.month - 1]}',
             masuk: asNum(byDate[key(day)]?['in']),
@@ -207,7 +197,7 @@ class _DashboardPageState extends State<DashboardPage> {
       ];
 
       // Status stok dari summary stock-total.
-      var aman = 62, hampir = 26, kosong = 12, total = 0;
+      var aman = 0, hampir = 0, kosong = 0, total = 0;
       total = int.tryParse('${stockSummary['total_products'] ?? 0}') ?? 0;
       final low = int.tryParse('${stockSummary['low_stock'] ?? 0}') ?? 0;
       final out = int.tryParse('${stockSummary['out_of_stock'] ?? 0}') ?? 0;
@@ -220,28 +210,30 @@ class _DashboardPageState extends State<DashboardPage> {
       setState(() {
         _masuk = masuk;
         _keluar = keluar;
-        _daily = daily.isEmpty ? _dummyDaily() : daily;
+        _daily = daily;
         _aman = aman;
         _hampir = hampir;
         _kosong = kosong;
         _totalProduk = total;
-        if (catRows.isNotEmpty) {
-          _categories = [
+        _categories = [
             for (final c in catRows)
               (c['name']?.toString() ?? '-', asNum(c['total']))
-          ];
-        }
-        if (topRows.isNotEmpty) {
-          _topProducts = [
+        ];
+        _topProducts = [
             for (final t in topRows)
               (t['name']?.toString() ?? '-', asNum(t['total']))
-          ];
-        }
+        ];
       });
-    } on ApiException catch (_) {
-      // Biarkan data dummy tetap tampil.
+    } catch (e) {
+      if (mounted && requestVersion == _requestVersion) {
+        setState(() => _error = e is ApiException
+            ? e.message
+            : 'Respons ringkasan tidak valid. Silakan coba lagi.');
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && requestVersion == _requestVersion) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -272,6 +264,15 @@ class _DashboardPageState extends State<DashboardPage> {
                   children: [
                     _buildHeader(),
                     const SizedBox(height: 12),
+                    if (_loading)
+                      _DashboardLoading()
+                    else if (_error != null)
+                      _DashboardMessage(
+                        title: 'Gagal memuat ringkasan',
+                        message: _error!,
+                        onRetry: _load,
+                      )
+                    else ...[
                     Row(
                       children: [
                         Expanded(
@@ -313,6 +314,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     _CategoryCard(categories: _categories),
                     const SizedBox(height: 12),
                     _TopProductsCard(products: _topProducts),
+                    ],
                   ],
                 ),
               ),
@@ -371,6 +373,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       if (_to == null || _to!.isBefore(picked)) _to = picked;
                       _preset = 'custom';
                     });
+                    _load();
                   }
                 }),
               ),
@@ -390,8 +393,12 @@ class _DashboardPageState extends State<DashboardPage> {
                   if (picked != null && mounted) {
                     setState(() {
                       _to = picked;
+                      if (_from == null || _from!.isAfter(picked)) {
+                        _from = picked;
+                      }
                       _preset = 'custom';
                     });
+                    _load();
                   }
                 }),
               ),
@@ -417,7 +424,10 @@ class _DashboardPageState extends State<DashboardPage> {
                     DropdownMenuItem(
                         value: 'custom', child: Text('Rentang kustom')),
                   ],
-                  onChanged: (v) => setState(() => _preset = v ?? '7d'),
+                  onChanged: (v) {
+                    setState(() => _preset = v ?? '7d');
+                    _load();
+                  },
                 ),
               ),
               const SizedBox(width: 8),
@@ -457,6 +467,13 @@ class _DashboardPageState extends State<DashboardPage> {
                 _load();
               },
             ),
+            if (_branchError != null) ...[
+              Text(_branchError!),
+              TextButton(
+                onPressed: _loadBranches,
+                child: const Text('Muat ulang pilihan toko/gudang'),
+              ),
+            ],
           ],
           const SizedBox(height: 10),
           Text(_activeLabel,
@@ -498,6 +515,67 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
     );
   }
+}
+
+class _DashboardLoading extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Semantics(
+        label: 'Memuat ringkasan',
+        child: GlassCard(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Memuat ringkasan…'),
+              for (final height in [64.0, 150.0, 120.0])
+                Container(
+                  height: height,
+                  margin: const EdgeInsets.only(top: 12),
+                  decoration: BoxDecoration(
+                    color: ink(context).withValues(alpha: .07),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _DashboardMessage extends StatelessWidget {
+  const _DashboardMessage({
+    required this.title,
+    required this.message,
+    this.onRetry,
+  });
+  final String title;
+  final String message;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) => GlassCard(
+        padding: const EdgeInsets.all(16),
+        radius: 22,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title,
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: ink(context))),
+            const SizedBox(height: 12),
+            Text(message),
+            if (onRetry != null) ...[
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Coba lagi')),
+            ],
+          ],
+        ),
+      );
 }
 
 /// Kartu ringkasan kecil (Masuk/Keluar/Selisih).
@@ -546,7 +624,7 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
-/// Line chart pergerakan stok 7 hari (masuk biru, keluar merah).
+/// Line chart pergerakan stok pada rentang terpilih.
 class _MovementCard extends StatelessWidget {
   const _MovementCard(
       {required this.daily,
@@ -558,6 +636,12 @@ class _MovementCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (daily.isEmpty) {
+      return const _DashboardMessage(
+        title: 'Pergerakan Stok',
+        message: 'Belum ada pergerakan stok pada rentang ini.',
+      );
+    }
     final maxV = daily.fold<double>(
         0, (s, d) => math.max(s, math.max(d.masuk, d.keluar)));
     final limit = maxV <= 0 ? 10.0 : maxV * 1.2;
@@ -570,7 +654,7 @@ class _MovementCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text('Pergerakan Stock 7 Hari',
+                child: Text('Pergerakan Stok',
                     style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
@@ -748,6 +832,12 @@ class _StatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (totalProduk == 0) {
+      return const _DashboardMessage(
+        title: 'Status Stok',
+        message: 'Belum ada produk pada toko/gudang ini.',
+      );
+    }
     return GlassCard(
       padding: const EdgeInsets.all(16),
       radius: 22,
@@ -853,6 +943,12 @@ class _CategoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (categories.isEmpty) {
+      return const _DashboardMessage(
+        title: 'Stok per Kategori',
+        message: 'Belum ada data stok per kategori.',
+      );
+    }
     final maxV = categories.fold<double>(0, (s, c) => math.max(s, c.$2));
     final limit = maxV <= 0 ? 10.0 : maxV * 1.15;
     return GlassCard(
@@ -967,6 +1063,12 @@ class _TopProductsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (products.isEmpty) {
+      return const _DashboardMessage(
+        title: 'Top Produk Keluar',
+        message: 'Belum ada produk keluar pada rentang ini.',
+      );
+    }
     final maxV = products.fold<double>(0, (s, p) => math.max(s, p.$2));
     return GlassCard(
       padding: const EdgeInsets.all(16),
