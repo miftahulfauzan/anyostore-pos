@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '../../components/AppShell';
+import SafeImage from '../../components/SafeImage';
 import StockVariantPicker from '../../components/StockVariantPicker';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -230,7 +231,11 @@ export default function Mutations() {
         <div className="stock-picker-grid">
           {visibleProducts.map((p) => (
             <article key={p.id} className="stock-picker-card" onClick={() => (p.variants && p.variants.length > 0 ? setPicker(p) : addToCart(p))} title={p.variants && p.variants.length > 0 ? 'Pilih varian & jumlah' : 'Klik untuk tambah stok umum'}>
-              {p.photo_path ? <img src={mediaUrl(p.photo_path)} alt="" loading="lazy" /> : <div className="stock-picker-ph">Tanpa foto</div>}
+              <div className="stock-picker-media">
+                {p.photo_path
+                  ? <SafeImage src={mediaUrl(p.photo_path)} alt={p.name} />
+                  : <div className="stock-picker-ph">Tanpa foto</div>}
+              </div>
               <div style={{ padding: 10, display: 'grid', gap: 6 }}>
                 <strong style={{ fontSize: 13, lineHeight: 1.3 }}>{p.name}</strong>
                 <span style={{ fontSize: 11, color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{p.sku || 'Tanpa SKU'}</span>

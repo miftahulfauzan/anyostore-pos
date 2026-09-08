@@ -276,8 +276,10 @@ a, .photo-upload { color:var(--expressive-secondary); }
 .stock-picker-card { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: #fff; transition: all .2s; display: flex; flex-direction: column; }
 .stock-picker-card > div:last-child { flex: 1; display: grid; align-content: start; gap: 6px; }
 .stock-picker-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.08); border-color: #1e3a5f; }
-.stock-picker-card img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; background: #f1f5f9; }
-.stock-picker-ph { width: 100%; aspect-ratio: 3/4; display: grid; place-items: center; color: #94a3b8; font-size: 11px; background: #f1f5f9; }
+.stock-picker-media { width: 100%; aspect-ratio: 3/4; overflow: hidden; background: #f1f5f9; }
+.stock-picker-media > img,
+.stock-picker-media > div { width: 100%; height: 100%; object-fit: cover; display: block; }
+.stock-picker-ph { display: grid !important; place-items: center; color: #94a3b8; font-size: 11px; background: #f1f5f9; }
 .stock-picker-badge { padding: 2px 8px; border-radius: 999px; background: #eef2ff; color: #1e3a5f; font-size: 11px; font-weight: 700; }
 @media (max-width: 1180px) and (min-width: 901px) { .mutasi-layout { grid-template-columns: 1fr 340px; gap: 20px; } }
 @media (max-width: 900px) {
@@ -288,6 +290,12 @@ a, .photo-upload { color:var(--expressive-secondary); }
   .mutasi-cart { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; max-height: 78vh; overflow: auto; border-radius: 14px 14px 0 0; transform: translateY(105%); transition: transform .25s ease; box-shadow: 0 -10px 30px rgba(15,23,42,.2); }
   .mutasi-cart.open { transform: translateY(0); }
   .stock-picker-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+}
+@media (max-width: 600px) {
+  .stock-picker-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .stock-picker-card > div:last-child { padding: 8px !important; }
+  .stock-picker-card > div:last-child strong { font-size: 12px !important; }
+  .stock-picker-card > div:last-child span { font-size: 10px !important; }
 }
 
 @media (max-width: 1200px) {
