@@ -83,7 +83,6 @@ const warehouseNavigation = [
       { href: '/products', label: 'Master Produk', icon: Tags, roles: ['gudang'], tone: 'purple' },
       { href: '/inventory/mutations?mode=in', label: 'Stock Masuk', icon: ArrowDownToLine, roles: ['gudang'], tone: 'blue' },
       { href: '/inventory/mutations?mode=out', label: 'Stock Keluar', icon: ArrowUpFromLine, roles: ['gudang'], tone: 'red' },
-      { href: '/inventory/mutations', label: 'Mutasi Rak', icon: ArrowRightLeft, roles: ['gudang'], tone: 'cyan' },
       { href: '/inventory/opname', label: 'Stock Opname', icon: ClipboardCheck, roles: ['gudang'], tone: 'cyan' },
     ],
   },
@@ -110,6 +109,7 @@ export default function AppShell({ title, eyebrow, actions, children }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => typeof window !== 'undefined' ? localStorage.getItem('pos_sidebar_collapsed') === 'true' : false);
   const [role, setRole] = useState(null);
+  const [roleResolved, setRoleResolved] = useState(false);
   const [userName, setUserName] = useState('');
   const [theme, setTheme] = useState('light');
   const [search, setSearch] = useState('');
@@ -130,7 +130,8 @@ export default function AppShell({ title, eyebrow, actions, children }) {
         if (body?.data?.role) setRole(body.data.role);
         if (body?.data?.name) setUserName(body.data.name);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setRoleResolved(true));
     fetch(`${baseUrl}/settings`)
       .then((response) => (response.ok ? response.json() : null))
       .then((body) => {
@@ -152,17 +153,16 @@ export default function AppShell({ title, eyebrow, actions, children }) {
     document.documentElement.classList.toggle('dark', next === 'dark');
   }
 
-  // Saring menu per role: item tanpa field `roles` tampil semua; dengan `roles`
-  // hanya untuk role tersebut. Selama role null (belum termuat), tampilkan semua
-  // supaya tidak flicker.
+  // Saring menu per role. Saat role belum selesai dibaca, menu dikosongkan
+  // sementara supaya navigasi role lain tidak sempat terlihat.
   const roleKnown = role !== null;
   const navSource = role === 'gudang' ? warehouseNavigation : navigation;
-  const visibleNavigation = navSource
+  const visibleNavigation = roleResolved ? navSource
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => !roleKnown || !item.roles || item.roles.includes(role)),
     }))
-    .filter((group) => group.items.length > 0);
+    .filter((group) => group.items.length > 0) : [];
 
   useEffect(() => {
     setSearch(window.location.search);
@@ -199,7 +199,7 @@ export default function AppShell({ title, eyebrow, actions, children }) {
     localStorage.setItem('pos_sidebar_collapsed', String(next));
   }
 
-  const sidebarClass = `sidebar${collapsed ? ' collapsed' : ''}${mobileNavOpen ? ' mobile-open' : ''}${role === 'gudang' ? ' sidebar-warehouse' : ''}`;
+  const sidebarClass = `sidebar${collapsed ? ' collapsed' : ''}${mobileNavOpen ? ' mobile-open' : ''}${role === 'gudang' ? ' sidebar-warehouse' : ''}${roleResolved ? ' role-ready' : ' role-loading'}`;
 
   return (
     <div className={`app-shell${role === 'gudang' ? ' app-shell-warehouse' : ''}`}>
