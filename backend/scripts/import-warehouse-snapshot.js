@@ -20,6 +20,10 @@ function normalizeText(value) {
   return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
+function normalizeProductName(value) {
+  return normalizeText(value).replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 function normalizeSnapshotTarget(value) {
   const target = normalizeText(value);
   for (const [canonical, aliases] of TARGET_ALIASES) {
@@ -57,26 +61,23 @@ function planSnapshotMatches(rows, products) {
   const ambiguous = [];
   const variantBlocked = [];
   for (const row of rows) {
-    const key = normalizeTransferSku(row.sku);
-    const skuCandidates = products.filter((product) => normalizeTransferSku(product.sku) === key);
-    let candidates = skuCandidates;
-    let matchBy = 'sku';
+    const nameKey = normalizeProductName(row.name);
+    const exactNameCandidates = nameKey
+      ? products.filter((product) => normalizeProductName(product.name) === nameKey)
+      : [];
+    const prefixNameCandidates = nameKey
+      ? products.filter((product) => normalizeProductName(product.name).startsWith(`${nameKey} `))
+      : [];
+    let candidates = exactNameCandidates.length ? exactNameCandidates : prefixNameCandidates;
+    let matchBy = exactNameCandidates.length ? 'name' : 'name-prefix';
 
-    // Katalog cabang hasil clone dapat memiliki SKU internal seperti
-    // `B4-A100-2`, sementara laporan lama menyimpan SKU dagang `A100`.
-    // Bila SKU tidak cocok tepat, gunakan nama produk hanya jika unik.
+    // Nama produk dari laporan lama adalah identitas yang diprioritaskan.
+    // SKU hanya menjadi cadangan bila nama tidak menghasilkan kandidat.
     // Nama tidak boleh menjadi tebakan ketika ada lebih dari satu kandidat.
-    if (!candidates.length || candidates.length > 1) {
-      const nameCandidates = products.filter(
-        (product) => normalizeText(product.name) === normalizeText(row.name) && normalizeText(row.name),
-      );
-      if (!candidates.length) {
-        candidates = nameCandidates;
-        matchBy = 'name';
-      } else if (nameCandidates.length === 1) {
-        candidates = nameCandidates;
-        matchBy = 'sku+name';
-      }
+    if (!candidates.length) {
+      const key = normalizeTransferSku(row.sku);
+      candidates = products.filter((product) => normalizeTransferSku(product.sku) === key);
+      matchBy = 'sku-fallback';
     }
     if (!candidates.length) {
       missing.push(row);
@@ -119,7 +120,7 @@ function printPlan(target, branch, warehouse, plan) {
   if (plan.missing.length) console.log(`  SKU tidak ditemukan: ${JSON.stringify(plan.missing.map((row) => row.sku))}`);
   if (plan.ambiguous.length) console.log(`  SKU ambigu: ${JSON.stringify(plan.ambiguous.map((row) => row.sku))}`);
   if (plan.variantBlocked.length) console.log(`  Perlu rincian varian warna: ${JSON.stringify(plan.variantBlocked.map((row) => row.sku))}`);
-  const nameMatches = plan.matched.filter((row) => row.matchBy !== 'sku');
+  const nameMatches = plan.matched.filter((row) => row.matchBy.startsWith('name'));
   if (nameMatches.length) console.log(`  Cocok lewat nama (SKU format berbeda): ${JSON.stringify(nameMatches.map((row) => row.sku))}`);
 }
 

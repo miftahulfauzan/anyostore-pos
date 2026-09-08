@@ -39,24 +39,33 @@ test('CSV snapshot menerima stok nol dan menolak baris ambigu', () => {
   );
 });
 
-test('pencocokan memakai SKU dasar dan tidak membuat produk dummy', () => {
+test('pencocokan memprioritaskan nama produk dan tidak membuat produk dummy', () => {
   const result = planSnapshotMatches(
     [
       { target: 'rak riject', sku: 'AB12', name: 'AB12', quantity: 8 },
       { target: 'rak riject', sku: 'A100', name: 'A100', quantity: 2 },
+      { target: 'rak riject', sku: 'A105', name: 'A105', quantity: 2 },
+      { target: 'rak riject', sku: 'AB70-BORDIR', name: 'AB70 BORDIR', quantity: 5 },
       { target: 'rak riject', sku: 'MISSING', name: 'Tidak Ada', quantity: 1 },
       { target: 'gudang riject perbaikan', sku: 'AB83', name: 'AB83', quantity: 4 },
     ],
     [
       { id: 10, branch_id: 2, sku: 'B2-AB12', name: 'AB12', variant_count: 0 },
       { id: 12, branch_id: 2, sku: 'A100-2', name: 'A100', variant_count: 0 },
+      { id: 13, branch_id: 2, sku: 'A105-2', name: 'A105 Cheongsam', variant_count: 0 },
+      { id: 14, branch_id: 2, sku: 'AB70-BORDIR-2', name: 'AB70-BORDIR', variant_count: 0 },
       { id: 11, branch_id: 2, sku: 'AB83', name: 'AB83', variant_count: 2 },
     ],
   );
-  assert.equal(result.matched.length, 2);
+  assert.equal(result.matched.length, 4);
   assert.equal(result.matched[0].product.id, 10);
+  assert.equal(result.matched[0].matchBy, 'name');
   assert.equal(result.matched[1].product.id, 12);
   assert.equal(result.matched[1].matchBy, 'name');
+  assert.equal(result.matched[2].product.id, 13);
+  assert.equal(result.matched[2].matchBy, 'name-prefix');
+  assert.equal(result.matched[3].product.id, 14);
+  assert.equal(result.matched[3].matchBy, 'name');
   assert.equal(result.missing[0].sku, 'MISSING');
   assert.equal(result.variantBlocked[0].sku, 'AB83');
   assert.equal(result.safe, false);
