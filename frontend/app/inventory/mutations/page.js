@@ -3,10 +3,12 @@ import { useEffect, useMemo, useState } from 'react';
 import AppShell from '../../components/AppShell';
 import SafeImage from '../../components/SafeImage';
 import StockVariantPicker from '../../components/StockVariantPicker';
+import mutationQuantity from './mutation-quantity.cjs';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const mediaUrl = (p) => (p ? api.replace('/api', '') + p : '');
 const localToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+const { normalizeQuantity } = mutationQuantity;
 
 export default function Mutations() {
   const [mode, setMode] = useState('in');
@@ -29,6 +31,9 @@ export default function Mutations() {
   const [saving, setSaving] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [picker, setPicker] = useState(null);
+  const [quantityPrompt, setQuantityPrompt] = useState(null);
+  const [quantityPromptQty, setQuantityPromptQty] = useState('1');
+  const [quantityPromptError, setQuantityPromptError] = useState('');
   const h = () => ({ 'Content-Type': 'application/json'});
 
   // Gudang tipe utama selalu paling depan, sisanya abjad.
@@ -102,6 +107,20 @@ export default function Mutations() {
       return [...cur, { key, product_id: product.id, variant_id: variant?.id || null, name: product.name, sku: product.sku, color: variant?.color || null, quantity: qty }];
     });
   }
+  function askQuantity(product) {
+    setQuantityPrompt(product);
+    setQuantityPromptQty('1');
+    setQuantityPromptError('');
+  }
+  function confirmQuantity() {
+    const qty = normalizeQuantity(quantityPromptQty);
+    if (!qty) {
+      setQuantityPromptError('Jumlah harus berupa bilangan bulat minimal 1.');
+      return;
+    }
+    addToCart(quantityPrompt, null, qty);
+    setQuantityPrompt(null);
+  }
   function setQty(key, value) {
     const q = Number(value);
     setCart((cur) => cur.flatMap((c) => (c.key === key ? (q > 0 ? [{ ...c, quantity: q }] : []) : [c])));
@@ -129,8 +148,8 @@ export default function Mutations() {
 
   return <AppShell title="Mutasi Stok" eyebrow="PRODUK & INVENTORI" actions={<a className="button-link" href="/inventory">Lihat Stok</a>}>
     <div className="tabs">
-      <button type="button" className={mode === 'in' ? 'active' : ''} onClick={() => { setMode('in'); setCart([]); setCartOpen(false); }}>Produk Masuk</button>
-      <button type="button" className={mode === 'out' ? 'active' : ''} onClick={() => { setMode('out'); setCart([]); setCartOpen(false); }}>Produk Keluar</button>
+      <button type="button" className={mode === 'in' ? 'active' : ''} onClick={() => { setMode('in'); setCart([]); setCartOpen(false); setQuantityPrompt(null); }}>Produk Masuk</button>
+      <button type="button" className={mode === 'out' ? 'active' : ''} onClick={() => { setMode('out'); setCart([]); setCartOpen(false); setQuantityPrompt(null); }}>Produk Keluar</button>
     </div>
 
     <section className="panel">
@@ -230,7 +249,7 @@ export default function Mutations() {
         </div>
         <div className="stock-picker-grid">
           {visibleProducts.map((p) => (
-            <article key={p.id} className="stock-picker-card" onClick={() => (p.variants && p.variants.length > 0 ? setPicker(p) : addToCart(p))} title={p.variants && p.variants.length > 0 ? 'Pilih varian & jumlah' : 'Klik untuk tambah stok umum'}>
+            <article key={p.id} className="stock-picker-card" onClick={() => (p.variants && p.variants.length > 0 ? setPicker(p) : askQuantity(p))} title={p.variants && p.variants.length > 0 ? 'Pilih varian & jumlah' : 'Tentukan jumlah stok sebelum ditambahkan'}>
               <div className="stock-picker-media">
                 {p.photo_path
                   ? <SafeImage src={mediaUrl(p.photo_path)} alt={p.name} />
@@ -266,7 +285,16 @@ export default function Mutations() {
               <strong style={{ fontSize: 13, display: 'block' }}>{c.name}</strong>
               <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>{c.sku}{c.color ? ` · ${c.color}` : ' · Stok umum'}</span>
             </div>
-            <input type="number" min="1" value={c.quantity} onChange={(e) => setQty(c.key, e.target.value)} style={{ width: 64, minHeight: 34 }} />
+            <input
+              type="number"
+              min="1"
+              value={c.quantity}
+              onFocus={(e) => e.currentTarget.select()}
+              onClick={(e) => e.currentTarget.select()}
+              onChange={(e) => setQty(c.key, e.target.value)}
+              style={{ width: 64, minHeight: 34 }}
+              aria-label={`Jumlah ${c.name}${c.color ? ` ${c.color}` : ''}`}
+            />
             <button type="button" onClick={() => setQty(c.key, 0)} aria-label="Hapus" style={{ minWidth: 30, minHeight: 30 }}>×</button>
           </div>
         ))}
@@ -280,6 +308,37 @@ export default function Mutations() {
     {!cartOpen && <button type="button" className="cart-fab" onClick={() => setCartOpen(true)}>Keranjang · {totalQty} item</button>}
     {cartOpen && <div className="cart-backdrop" onClick={() => setCartOpen(false)} />}
     {picker && <StockVariantPicker product={picker} onClose={() => setPicker(null)} onAdd={(p, v, q) => { addToCart(p, v, q); setPicker(null); }} />}
+    {quantityPrompt && <div className="quantity-dialog-backdrop" onMouseDown={() => setQuantityPrompt(null)}>
+      <section className="quantity-dialog" role="dialog" aria-modal="true" aria-labelledby="mutation-quantity-title" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="quantity-dialog-heading">
+          <div>
+            <strong id="mutation-quantity-title">Masukkan jumlah</strong>
+            <span>{quantityPrompt.name}</span>
+          </div>
+          <button type="button" className="quantity-dialog-close" onClick={() => setQuantityPrompt(null)} aria-label="Tutup">×</button>
+        </div>
+        <p className="muted">Tentukan jumlah stok yang akan {mode === 'in' ? 'dimasukkan' : 'dikeluarkan'} sebelum produk masuk ke keranjang.</p>
+        <label>Jumlah stok
+          <input
+            type="number"
+            min="1"
+            step="1"
+            inputMode="numeric"
+            autoFocus
+            value={quantityPromptQty}
+            onChange={(e) => { setQuantityPromptQty(e.target.value); setQuantityPromptError(''); }}
+            onFocus={(e) => e.currentTarget.select()}
+            onClick={(e) => e.currentTarget.select()}
+            onKeyDown={(e) => { if (e.key === 'Enter') confirmQuantity(); if (e.key === 'Escape') setQuantityPrompt(null); }}
+          />
+        </label>
+        {quantityPromptError && <p className="message" role="alert">{quantityPromptError}</p>}
+        <div className="quantity-dialog-actions">
+          <button type="button" className="secondary" onClick={() => setQuantityPrompt(null)}>Batal</button>
+          <button type="button" onClick={confirmQuantity}>Tambah · {normalizeQuantity(quantityPromptQty) || 0} pcs</button>
+        </div>
+      </section>
+    </div>}
     
   </AppShell>;
 }
