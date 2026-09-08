@@ -21,6 +21,10 @@ function presetDate(days) {
   if (days > 0) d.setDate(d.getDate() - (days - 1));
   return localDate(d);
 }
+function displayDate(value) {
+  const [year, month, day] = String(value || '').split('-');
+  return year && month && day ? `${day}-${month}-${year}` : value || '—';
+}
 
 export default function MutationReportPage() {
   const [tab, setTab] = useState('in');
@@ -35,7 +39,6 @@ export default function MutationReportPage() {
   const [breakdown, setBreakdown] = useState([]);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [detail, setDetail] = useState(null);
   const loadSeq = useRef(0);
   const headers = () => ({ 'Content-Type': 'application/json'});
 
@@ -86,11 +89,10 @@ export default function MutationReportPage() {
   }
 
   function exportCsv() {
-    const header = ['Tanggal', 'Nomor', 'Batch/Nota', 'Gudang', 'Produk (kode+qty)', 'Total Qty', tab === 'out' ? 'Tujuan' : 'Keterangan', 'Admin'];
+    const header = ['Tanggal', 'Nomor', 'Gudang', 'Produk (kode+qty)', 'Qty', tab === 'out' ? 'Tujuan' : 'Keterangan', 'Admin'];
     const lines = rows.map((r) => [
-      r.date,
+      displayDate(r.date),
       r.number,
-      r.batch || '',
       r.warehouse,
       r.products.map((p) => `${p.code} x${p.qty}`).join(', '),
       r.total_qty,
@@ -188,53 +190,65 @@ export default function MutationReportPage() {
         </section>}
 
         <section className="panel" style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <table className="mutation-report-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
                 <th style={{ padding: '8px 10px' }}>Tanggal</th>
                 <th style={{ padding: '8px 10px' }}>Nomor</th>
-                <th style={{ padding: '8px 10px' }}>Batch/Nota</th>
                 <th style={{ padding: '8px 10px' }}>Gudang</th>
                 <th style={{ padding: '8px 10px' }}>Produk</th>
-                <th style={{ padding: '8px 10px', textAlign: 'right' }}>Total Qty</th>
+                <th style={{ padding: '8px 10px', textAlign: 'right' }}>Qty</th>
                 <th style={{ padding: '8px 10px' }}>{tab === 'out' ? 'Tujuan' : 'Keterangan'}</th>
                 <th style={{ padding: '8px 10px' }}>Admin</th>
                 <th style={{ padding: '8px 10px' }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={9} style={{ padding: 20, textAlign: 'center', color: 'var(--muted-foreground)' }}>Memuat…</td></tr>}
+              {loading && <tr><td colSpan={8} style={{ padding: 20, textAlign: 'center', color: 'var(--muted-foreground)' }}>Memuat…</td></tr>}
               {!loading && displayRows.map((r) => (
                 <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                  <td style={{ padding: '8px 10px' }}>{r.date}</td>
-                  <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: 11 }}>{r.number}</td>
-                  <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: 11 }}>{r.batch || '—'}</td>
-                  <td style={{ padding: '8px 10px' }}>{r.warehouse}</td>
-                  <td style={{ padding: '8px 10px' }}>
-                    <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 999, background: 'var(--muted)', fontSize: 11 }}>{r.product_count} produk</span>{' '}
-                    <button type="button" className="link-button" onClick={() => setDetail(detail?.id === r.id ? null : r)}>{detail?.id === r.id ? 'Tutup' : 'Lihat'}</button>
-                    {detail?.id === r.id && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
-                        {r.products.map((p, i) => <span key={i} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border)', fontSize: 11 }}>{p.code} × {p.qty}</span>)}
-                      </div>
-                    )}
+                  <td style={{ padding: '10px' }}>{displayDate(r.date)}</td>
+                  <td style={{ padding: '10px', fontFamily: 'monospace', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{r.number}</td>
+                  <td style={{ padding: '10px' }}><span className="warehouse-pill">{r.warehouse}</span></td>
+                  <td style={{ padding: '10px', verticalAlign: 'top' }}>
+                    <div className="movement-product-list">
+                      {r.products.length ? r.products.map((p, i) => <span key={`${p.code}-${i}`}>{p.code}</span>) : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
+                    </div>
                   </td>
-                  <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>{r.total_qty.toLocaleString('id-ID')}</td>
+                  <td style={{ padding: '10px', textAlign: 'right', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
+                    <div className="movement-qty-list">{r.products.map((p, i) => <span key={`${p.code}-${i}`}>×{p.qty}</span>)}</div>
+                    <strong className="movement-total-qty">{r.total_qty.toLocaleString('id-ID')}</strong>
+                  </td>
                   <td style={{ padding: '8px 10px' }}>{r.description || <span style={{ color: 'var(--muted-foreground)' }}>—</span>}</td>
                   <td style={{ padding: '8px 10px' }}>{r.admin}</td>
                   <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
-                    <button type="button" className="link-button" onClick={() => setDetail(detail?.id === r.id ? null : r)}>Detail</button>
-                    <button type="button" className="link-button danger" onClick={() => removeBatch(r)}>Hapus</button>
+                    {r.deletable ? <button type="button" className="link-button danger" onClick={() => removeBatch(r)}>Hapus</button> : <span style={{ color: 'var(--muted-foreground)', fontSize: 11 }}>Import</span>}
                   </td>
                 </tr>
               ))}
-              {!loading && !displayRows.length && <tr><td colSpan={9} style={{ padding: 20, textAlign: 'center', color: 'var(--muted-foreground)' }}>Belum ada data.</td></tr>}
+              {!loading && !displayRows.length && <tr><td colSpan={8} style={{ padding: 20, textAlign: 'center', color: 'var(--muted-foreground)' }}>Belum ada data.</td></tr>}
             </tbody>
           </table>
         </section>
       </div>
       <style>{`
         .report-print-header { display: none; }
+        .mutation-report-table { min-width: 980px; table-layout: fixed; }
+        .mutation-report-table th { color: var(--muted-foreground); font-size: 11px; text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; }
+        .mutation-report-table th:nth-child(1) { width: 105px; }
+        .mutation-report-table th:nth-child(2) { width: 225px; }
+        .mutation-report-table th:nth-child(3) { width: 145px; }
+        .mutation-report-table th:nth-child(4) { width: 275px; }
+        .mutation-report-table th:nth-child(5) { width: 80px; }
+        .mutation-report-table th:nth-child(6) { width: 160px; }
+        .mutation-report-table th:nth-child(7) { width: 120px; }
+        .mutation-report-table th:nth-child(8) { width: 80px; }
+        .mutation-report-table td { vertical-align: top; }
+        .warehouse-pill { display: inline-block; padding: 3px 7px; border-radius: 5px; background: var(--muted); color: var(--foreground); font-size: 11px; font-weight: 700; white-space: nowrap; }
+        .movement-product-list, .movement-qty-list { display: grid; gap: 4px; line-height: 1.25; }
+        .movement-product-list span { color: var(--foreground); font-weight: 600; }
+        .movement-qty-list { justify-items: end; color: var(--foreground); font-weight: 600; }
+        .movement-total-qty { display: block; margin-top: 7px; padding-top: 5px; border-top: 1px solid var(--border); }
         @media print {
           @page { size: A4 portrait; margin: 12mm; }
           html, body { width: auto !important; }

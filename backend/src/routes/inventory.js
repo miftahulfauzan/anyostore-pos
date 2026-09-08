@@ -458,13 +458,28 @@ router.get('/mutation-report', authorize('owner','manager','admin','gudang'), as
     if (end) { where += ' AND DATE(sm.created_at) <= ?'; params.push(end); }
     if (desc) { where += ' AND sm.notes LIKE ?'; params.push('%'+desc+'%'); }
 
-    // Kelompokkan per batch (reference_id) lalu agregat produk
+    // Mutasi manual memakai reference_id sebagai batch. Histori lama diimpor
+    // per produk, sehingga semua baris dengan nomor IN-/OUT- yang sama harus
+    // digabung kembali menjadi satu transaksi seperti laporan sumber.
+    const batchExpression = `(CASE
+      WHEN sm.reference_type IN ('legacy_stock_in', 'legacy_stock_out')
+        AND NULLIF(TRIM(sm.batch_number), '') IS NOT NULL
+      THEN CONCAT(sm.reference_type, ':number:', sm.batch_number)
+      ELSE CONCAT(sm.reference_type, ':reference:', sm.reference_id)
+    END)`;
+
     const [rows] = await db.execute(
-      `SELECT sm.reference_id AS batch_id,
+      `SELECT ${batchExpression} AS batch_key,
+              MIN(sm.reference_id) AS batch_id,
+              MIN(sm.reference_type) AS reference_type,
               MIN(sm.created_at) AS created_at,
               MIN(w.name) AS warehouse_name,
               MIN(u.name) AS admin_name,
-              MIN(COALESCE(sm.notes,'')) AS description,
+              MIN(CASE
+                WHEN sm.reference_type IN ('legacy_stock_in', 'legacy_stock_out')
+                THEN NULLIF(TRIM(SUBSTRING_INDEX(COALESCE(sm.notes, ''), ' | Import histori dari project lama', 1)), '')
+                ELSE COALESCE(sm.notes, '')
+              END) AS description,
               MIN(sm.channel) AS channel,
               MIN(sm.batch_number) AS batch_number,
               COUNT(DISTINCT sm.product_id) AS product_count,
@@ -473,45 +488,48 @@ router.get('/mutation-report', authorize('owner','manager','admin','gudang'), as
        JOIN warehouses w ON w.id = sm.warehouse_id
        JOIN users u ON u.id = sm.user_id
        ${where}
-      GROUP BY sm.reference_id
+      GROUP BY ${batchExpression}
       -- Batch di tanggal yang sama punya created_at sama (00:00 tanggal
       -- transaksi), jadi urutan kedua memakai reference_id (timestamp buat)
       -- supaya batch terbaru selalu di atas.
-      ORDER BY created_at DESC, sm.reference_id DESC
+      ORDER BY created_at DESC, batch_key DESC
        LIMIT ${limit} OFFSET ${offset}`,
       params
     );
 
     // Ambil detail produk per batch (kode + qty)
-    const batchIds = rows.map(r=>r.batch_id);
+    const batchKeys = rows.map((r) => r.batch_key);
     let productsByBatch = {};
-    if (batchIds.length) {
-      const ph = batchIds.map(()=>'?').join(',');
+    if (batchKeys.length) {
+      const ph = batchKeys.map(()=>'?').join(',');
       const [items] = await db.execute(
-        `SELECT sm.reference_id AS batch_id, p.sku AS code, SUM(ABS(sm.qty)) AS qty
+        `SELECT ${batchExpression} AS batch_key, p.sku AS code, SUM(ABS(sm.qty)) AS qty
          FROM stock_mutations sm JOIN products p ON p.id = sm.product_id
-      WHERE sm.reference_type IN (?, ?) AND sm.reference_id IN (${ph})
-         GROUP BY sm.reference_id, p.id ORDER BY p.sku`,
-        [...refTypes, ...batchIds]
+         WHERE sm.reference_type IN (?, ?) AND ${batchExpression} IN (${ph})
+         GROUP BY ${batchExpression}, p.id ORDER BY p.sku`,
+        [...refTypes, ...batchKeys]
       );
       for (const it of items) {
-        if (!productsByBatch[it.batch_id]) productsByBatch[it.batch_id] = [];
-        productsByBatch[it.batch_id].push({ code: it.code, qty: Number(it.qty) });
+        if (!productsByBatch[it.batch_key]) productsByBatch[it.batch_key] = [];
+        productsByBatch[it.batch_key].push({ code: it.code, qty: Number(it.qty) });
       }
     }
 
     const data = rows.map(r => ({
-      id: r.batch_id,
+      id: r.reference_type.startsWith('legacy_') ? r.batch_key : r.batch_id,
       date: localDateString(r.created_at),
-      number: (type==='out'?'OUT':'IN') + '-' + new Date(r.created_at).toISOString().replace(/[-:T]/g,'').slice(0,14),
+      number: r.reference_type.startsWith('legacy_') && r.batch_number
+        ? r.batch_number
+        : (type==='out'?'OUT':'IN') + '-' + new Date(r.created_at).toISOString().replace(/[-:T]/g,'').slice(0,14),
       batch: r.batch_number || null,
       warehouse: r.warehouse_name,
-      products: productsByBatch[r.batch_id] || [],
+      products: productsByBatch[r.batch_key] || [],
       total_qty: Number(r.total_qty),
       product_count: Number(r.product_count),
-      description: r.description || '',
+      description: type === 'out' ? (r.channel || r.description || '') : (r.description || ''),
       channel: r.channel || null,
-      admin: r.admin_name
+      admin: r.admin_name,
+      deletable: !r.reference_type.startsWith('legacy_')
     }));
 
     // Summary: product count & total qty keseluruhan (tanpa pagination)
