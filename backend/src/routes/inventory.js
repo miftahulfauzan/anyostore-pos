@@ -524,7 +524,24 @@ router.get('/mutation-report', authorize('owner','manager','admin','gudang'), as
     );
     summary = { product_count: Number(sumRows[0].product_count), total_qty: Number(sumRows[0].total_qty) };
 
-    res.json({ success:true, data: data, summary, type, total: data.length });
+    // Histori lama menyimpan tujuan/keterangan di awal notes, lalu importer
+    // menambahkan penanda sumber dan admin setelahnya. Ringkas berdasarkan
+    // nilai yang benar-benar ada di database, tanpa membuat data contoh.
+    const importedLabel = "NULLIF(TRIM(SUBSTRING_INDEX(sm.notes, ' | Import histori dari project lama', 1)), '')";
+    const labelExpression = type === 'out'
+      ? `COALESCE(NULLIF(TRIM(sm.channel), ''), NULLIF(${importedLabel}, '-'), 'Lainnya')`
+      : `COALESCE(NULLIF(${importedLabel}, '-'), 'Lainnya')`;
+    const [breakdownRows] = await db.execute(
+      `SELECT ${labelExpression} AS label, COALESCE(SUM(ABS(sm.qty)), 0) AS total_qty
+       FROM stock_mutations sm
+       ${where}
+       GROUP BY ${labelExpression}
+       ORDER BY total_qty DESC, label ASC`,
+      params
+    );
+    const breakdown = breakdownRows.map((row) => ({ label: row.label, total_qty: Number(row.total_qty) }));
+
+    res.json({ success:true, data: data, summary, breakdown, type, total: data.length });
   }catch(e){ next(e); }
 });
 

@@ -32,6 +32,7 @@ export default function MutationReportPage() {
   const [desc, setDesc] = useState('');
   const [rows, setRows] = useState([]);
   const [summary, setSummary] = useState({ product_count: 0, total_qty: 0 });
+  const [breakdown, setBreakdown] = useState([]);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState(null);
@@ -57,6 +58,7 @@ export default function MutationReportPage() {
       if (!r.ok) throw new Error(b.message || 'Laporan tidak dapat dimuat');
       setRows(b.data || []);
       setSummary(b.summary || { product_count: 0, total_qty: 0 });
+      setBreakdown(b.breakdown || []);
     } catch (e) { if (seq === loadSeq.current) setMessage(e.message); }
     finally { if (seq === loadSeq.current) setLoading(false); }
   }
@@ -84,7 +86,7 @@ export default function MutationReportPage() {
   }
 
   function exportCsv() {
-    const header = ['Tanggal', 'Nomor', 'Batch/Nota', 'Gudang', 'Produk (kode+qty)', 'Total Qty', 'Deskripsi', 'Admin'];
+    const header = ['Tanggal', 'Nomor', 'Batch/Nota', 'Gudang', 'Produk (kode+qty)', 'Total Qty', tab === 'out' ? 'Tujuan' : 'Keterangan', 'Admin'];
     const lines = rows.map((r) => [
       r.date,
       r.number,
@@ -118,7 +120,7 @@ export default function MutationReportPage() {
   const displayRows = useMemo(() => rows, [rows]);
 
   return (
-    <AppShell title="Laporan Riwayat Barang Masuk" eyebrow="PRODUK & INVENTORI" actions={<>
+    <AppShell title={`Laporan Riwayat Barang ${tab === 'out' ? 'Keluar' : 'Masuk'}`} eyebrow="PRODUK & INVENTORI" actions={<>
       <button type="button" className="button-link" onClick={exportCsv} disabled={!rows.length}>Unduh Excel</button>
       <button type="button" className="button-link" onClick={() => window.print()} disabled={!rows.length}>Unduh PDF</button>
     </>}>
@@ -171,6 +173,20 @@ export default function MutationReportPage() {
           <article className="metric-card"><div><span>Total Qty</span><strong>{summary.total_qty.toLocaleString('id-ID')}</strong></div></article>
         </section>
 
+        {!!breakdown.length && <section className="panel no-print">
+          <h2 style={{ margin: 0, fontSize: 18 }}>{tab === 'out' ? 'Ringkasan Tujuan' : 'Ringkasan Keterangan'}</h2>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginTop: 10 }}>
+            <thead><tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
+              <th style={{ padding: '8px 10px' }}>{tab === 'out' ? 'Tujuan' : 'Keterangan'}</th>
+              <th style={{ padding: '8px 10px', textAlign: 'right' }}>Total Qty</th>
+            </tr></thead>
+            <tbody>{breakdown.map((item) => <tr key={item.label} style={{ borderBottom: '1px solid var(--border)' }}>
+              <td style={{ padding: '8px 10px' }}>{item.label}</td>
+              <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>{item.total_qty.toLocaleString('id-ID')}</td>
+            </tr>)}</tbody>
+          </table>
+        </section>}
+
         <section className="panel" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
@@ -181,13 +197,13 @@ export default function MutationReportPage() {
                 <th style={{ padding: '8px 10px' }}>Gudang</th>
                 <th style={{ padding: '8px 10px' }}>Produk</th>
                 <th style={{ padding: '8px 10px', textAlign: 'right' }}>Total Qty</th>
-                <th style={{ padding: '8px 10px' }}>Deskripsi</th>
+                <th style={{ padding: '8px 10px' }}>{tab === 'out' ? 'Tujuan' : 'Keterangan'}</th>
                 <th style={{ padding: '8px 10px' }}>Admin</th>
                 <th style={{ padding: '8px 10px' }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={8} style={{ padding: 20, textAlign: 'center', color: 'var(--muted-foreground)' }}>Memuat…</td></tr>}
+              {loading && <tr><td colSpan={9} style={{ padding: 20, textAlign: 'center', color: 'var(--muted-foreground)' }}>Memuat…</td></tr>}
               {!loading && displayRows.map((r) => (
                 <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td style={{ padding: '8px 10px' }}>{r.date}</td>
@@ -212,7 +228,7 @@ export default function MutationReportPage() {
                   </td>
                 </tr>
               ))}
-              {!loading && !displayRows.length && <tr><td colSpan={8} style={{ padding: 20, textAlign: 'center', color: 'var(--muted-foreground)' }}>Belum ada data.</td></tr>}
+              {!loading && !displayRows.length && <tr><td colSpan={9} style={{ padding: 20, textAlign: 'center', color: 'var(--muted-foreground)' }}>Belum ada data.</td></tr>}
             </tbody>
           </table>
         </section>
