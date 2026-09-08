@@ -5,6 +5,10 @@ const { copyMediaFile } = require("../media-storage");
 const { adjustStock } = require("../stock");
 const { normalizeTransferSku, makeTargetSku } = require("../transfer-sku");
 const {
+  canTransferAcrossBranches,
+  selectCanonicalProductByName,
+} = require("../transfer-rules");
+const {
   toTransferNumber,
   groupTransferMovements,
 } = require("../transfer-history");
@@ -273,10 +277,13 @@ router.post(
       )
         throw fail(400, "Data transfer tidak valid");
       await c.beginTransaction();
-      const [src] = await c.execute(
-        "SELECT id,branch_id FROM warehouses WHERE id=? AND branch_id=? AND is_active=TRUE FOR UPDATE",
-        [from, req.user.branch_id],
-      );
+      const sourceSql = canTransferAcrossBranches(req.user.role)
+        ? "SELECT id,branch_id FROM warehouses WHERE id=? AND is_active=TRUE FOR UPDATE"
+        : "SELECT id,branch_id FROM warehouses WHERE id=? AND branch_id=? AND is_active=TRUE FOR UPDATE";
+      const sourceParams = canTransferAcrossBranches(req.user.role)
+        ? [from]
+        : [from, req.user.branch_id];
+      const [src] = await c.execute(sourceSql, sourceParams);
       if (!src[0]) throw fail(404, "Gudang asal tidak ditemukan di toko Anda");
       const branchId = src[0].branch_id;
       const [w] = await c.execute(
@@ -289,7 +296,6 @@ router.post(
         "INSERT INTO stock_transfers (from_warehouse_id,to_warehouse_id,branch_id,status,notes,created_by,approved_by,approved_at) VALUES (?, ?, ?, 'completed', ?, ?, ?, NOW())",
         [from, to, branchId, notes?.trim() || null, req.user.id, req.user.id],
       );
-      let createdProduct = false;
       for (const item of items) {
         const q = Number(item.quantity);
         if (
@@ -386,10 +392,11 @@ router.post(
       )
         throw fail(400, "Data transfer antartoko tidak valid");
       await c.beginTransaction();
-      let createdProduct = false;
       const [source] = await c.execute(
-        "SELECT id,branch_id FROM warehouses WHERE id=? AND branch_id=? AND is_active=TRUE FOR UPDATE",
-        [from, req.user.branch_id],
+        canTransferAcrossBranches(req.user.role)
+          ? "SELECT id,branch_id FROM warehouses WHERE id=? AND is_active=TRUE FOR UPDATE"
+          : "SELECT id,branch_id FROM warehouses WHERE id=? AND branch_id=? AND is_active=TRUE FOR UPDATE",
+        canTransferAcrossBranches(req.user.role) ? [from] : [from, req.user.branch_id],
       );
       const [target] = await c.execute(
         "SELECT id,branch_id FROM warehouses WHERE id=? AND is_active=TRUE FOR UPDATE",
@@ -406,6 +413,7 @@ router.post(
         "INSERT INTO stock_transfers (from_warehouse_id,to_warehouse_id,branch_id,status,notes,created_by,approved_by,approved_at) VALUES (?, ?, ?, 'completed', ?, ?, ?, NOW())",
         [from, to, branchId, notes?.trim() || null, req.user.id, req.user.id],
       );
+      let createdProduct = false;
       for (const item of items) {
         const q = Number(item.quantity),
           productId = Number(item.product_id),
@@ -414,7 +422,7 @@ router.post(
           throw fail(400, "Item transfer tidak valid");
         const [p] = await c.execute(
           "SELECT id,category_id,name,description,sku,barcode,price,cost,min_stock,gender FROM products WHERE id=? AND branch_id=? AND is_active=TRUE FOR UPDATE",
-          [productId, req.user.branch_id],
+          [productId, branchId],
         );
         if (!p[0]) throw fail(404, "Produk asal tidak ditemukan");
         if (!variantId) {
@@ -428,12 +436,20 @@ router.post(
               "Produk " + p[0].name + " punya varian — wajib pilih warna",
             );
         }
+        const [nameMatches] = await c.execute(
+          "SELECT id,name,sku FROM products WHERE branch_id=? AND is_active=TRUE AND LOWER(TRIM(name))=LOWER(TRIM(?)) ORDER BY id FOR UPDATE",
+          [target[0].branch_id, p[0].name],
+        );
+        const nameMatch = selectCanonicalProductByName(nameMatches, p[0].name);
+        let dest = nameMatch.product ? [{ id: nameMatch.product.id }] : [];
         const key = normalizeTransferSku(p[0].sku);
         const newSku = makeTargetSku(target[0].branch_id, p[0].sku);
-        let [dest] = await c.execute(
-          "SELECT id FROM products WHERE branch_id=? AND is_active=TRUE AND (UPPER(TRIM(sku))=? OR UPPER(TRIM(sku))=CONCAT('B-',?) OR UPPER(TRIM(sku))=CONCAT('B',branch_id,'-',?)) LIMIT 1 FOR UPDATE",
-          [target[0].branch_id, key, key, key],
-        );
+        if (!dest[0]) {
+          [dest] = await c.execute(
+            "SELECT id FROM products WHERE branch_id=? AND is_active=TRUE AND (UPPER(TRIM(sku))=? OR UPPER(TRIM(sku))=CONCAT('B-',?) OR UPPER(TRIM(sku))=CONCAT('B',branch_id,'-',?)) ORDER BY id LIMIT 1 FOR UPDATE",
+            [target[0].branch_id, key, key, key],
+          );
+        }
         if (!dest[0]) {
           if (!newSku)
             throw fail(
