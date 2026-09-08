@@ -4,6 +4,10 @@ const { authenticate, authorize } = require("../auth");
 const { copyMediaFile } = require("../media-storage");
 const { adjustStock } = require("../stock");
 const { normalizeTransferSku, makeTargetSku } = require("../transfer-sku");
+const {
+  toTransferNumber,
+  groupTransferMovements,
+} = require("../transfer-history");
 const router = express.Router();
 router.use(authenticate);
 const fail = (s, m) => Object.assign(new Error(m), { status: s });
@@ -42,6 +46,207 @@ async function change(
     referenceId: refId,
   });
 }
+
+router.get(
+  "/transfers/history",
+  authorize("owner", "manager", "admin", "gudang"),
+  async (req, res, next) => {
+    try {
+      const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+      const limit = Math.min(
+        100,
+        Math.max(10, Number.parseInt(req.query.limit, 10) || 25),
+      );
+      const offset = (page - 1) * limit;
+      const where = ["1=1"];
+      const params = [];
+      const requestedBranch = String(req.query.branch_id || "");
+      const requestedBranchId = Number(requestedBranch);
+      const ownerAll = req.user.role === "owner" && requestedBranch === "all";
+      const scopedBranchId = ownerAll
+        ? null
+        : req.user.role === "owner" &&
+            Number.isInteger(requestedBranchId) &&
+            requestedBranchId > 0
+          ? requestedBranchId
+          : Number(req.user.branch_id);
+
+      if (!ownerAll) {
+        if (!Number.isInteger(scopedBranchId) || scopedBranchId <= 0) {
+          throw fail(400, "Cabang riwayat transfer tidak valid");
+        }
+        where.push("(wf.branch_id = ? OR wt.branch_id = ?)");
+        params.push(scopedBranchId, scopedBranchId);
+      }
+
+      const direction = String(req.query.direction || "");
+      if (direction && !["outgoing", "incoming"].includes(direction)) {
+        throw fail(400, "Arah transfer tidak valid");
+      }
+      if (direction === "outgoing" && scopedBranchId) {
+        where.push("wf.branch_id = ?");
+        params.push(scopedBranchId);
+      }
+      if (direction === "incoming" && scopedBranchId) {
+        where.push("wt.branch_id = ?");
+        params.push(scopedBranchId);
+      }
+
+      const status = String(req.query.status || "");
+      if (status && !["pending", "approved", "completed", "cancelled"].includes(status)) {
+        throw fail(400, "Status transfer tidak valid");
+      }
+      if (status) {
+        where.push("st.status = ?");
+        params.push(status);
+      }
+
+      const validDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
+      const dateFrom = String(req.query.start || req.query.date_from || "");
+      const dateTo = String(req.query.end || req.query.date_to || "");
+      if (dateFrom && !validDate(dateFrom)) throw fail(400, "Tanggal mulai tidak valid");
+      if (dateTo && !validDate(dateTo)) throw fail(400, "Tanggal akhir tidak valid");
+      if (dateFrom) {
+        where.push("st.created_at >= ?");
+        params.push(`${dateFrom} 00:00:00`);
+      }
+      if (dateTo) {
+        where.push("st.created_at <= ?");
+        params.push(`${dateTo} 23:59:59`);
+      }
+
+      const search = String(req.query.search || "").trim().slice(0, 100);
+      if (search) {
+        const pattern = `%${search}%`;
+        where.push(`EXISTS (
+          SELECT 1
+          FROM stock_transfer_items sti_search
+          JOIN products p_search ON p_search.id = sti_search.product_id
+          WHERE sti_search.transfer_id = st.id
+            AND (p_search.name LIKE ? OR p_search.sku LIKE ?)
+        )`);
+        params.push(pattern, pattern);
+      }
+
+      const whereSql = where.join(" AND ");
+      const joins = `
+        JOIN warehouses wf ON wf.id = st.from_warehouse_id
+        JOIN branches bf ON bf.id = wf.branch_id
+        JOIN warehouses wt ON wt.id = st.to_warehouse_id
+        JOIN branches bt ON bt.id = wt.branch_id
+      `;
+      const [rows] = await db.execute(
+        `SELECT
+           st.id,
+           st.status,
+           st.notes,
+           st.created_at,
+           wf.id AS source_warehouse_id,
+           wf.name AS source_warehouse_name,
+           bf.id AS source_branch_id,
+           bf.name AS source_branch_name,
+           wt.id AS destination_warehouse_id,
+           wt.name AS destination_warehouse_name,
+           bt.id AS destination_branch_id,
+           bt.name AS destination_branch_name,
+           u.name AS admin_name,
+           COUNT(DISTINCT sti.id) AS product_count,
+           COALESCE(SUM(sti.quantity), 0) AS total_qty
+         FROM stock_transfers st
+         ${joins}
+         LEFT JOIN users u ON u.id = st.created_by
+         LEFT JOIN stock_transfer_items sti ON sti.transfer_id = st.id
+         WHERE ${whereSql}
+         GROUP BY st.id, st.status, st.notes, st.created_at,
+           wf.id, wf.name, bf.id, bf.name,
+           wt.id, wt.name, bt.id, bt.name, u.name
+         ORDER BY st.created_at DESC, st.id DESC
+         LIMIT ${limit} OFFSET ${offset}`,
+        params,
+      );
+
+      const [countRows] = await db.execute(
+        `SELECT COUNT(*) AS total
+         FROM stock_transfers st
+         ${joins}
+         WHERE ${whereSql}`,
+        params,
+      );
+      const total = Number(countRows[0]?.total || 0);
+      const ids = rows.map((row) => row.id);
+      let detailRows = [];
+      if (ids.length) {
+        const placeholders = ids.map(() => "?").join(",");
+        [detailRows] = await db.execute(
+          `SELECT
+             sm.reference_id AS transfer_id,
+             sm.id AS mutation_id,
+             sm.branch_id,
+             sm.warehouse_id,
+             sm.product_id,
+             sm.variant_id,
+             sm.qty,
+             sm.stock_before,
+             sm.stock_after,
+             p.name AS product_name,
+             p.sku AS product_sku,
+             pv.color AS variant_color,
+             b.name AS branch_name,
+             w.name AS warehouse_name
+           FROM stock_mutations sm
+           JOIN products p ON p.id = sm.product_id
+           JOIN branches b ON b.id = sm.branch_id
+           LEFT JOIN warehouses w ON w.id = sm.warehouse_id
+           LEFT JOIN product_variants pv ON pv.id = sm.variant_id
+           WHERE sm.reference_type IN ('transfer', 'inter_store_transfer')
+             AND sm.reference_id IN (${placeholders})
+           ORDER BY sm.reference_id, sm.id`,
+          ids,
+        );
+      }
+
+      const grouped = groupTransferMovements(detailRows);
+      const data = rows.map((row) => {
+        const detail = grouped.get(String(row.id)) || { from: [], to: [] };
+        return {
+          id: row.id,
+          number: toTransferNumber(row.created_at, row.id),
+          created_at: row.created_at,
+          status: row.status,
+          notes: row.notes || "",
+          admin: row.admin_name || "Sistem",
+          source: {
+            branch_id: row.source_branch_id,
+            branch_name: row.source_branch_name,
+            warehouse_id: row.source_warehouse_id,
+            warehouse_name: row.source_warehouse_name,
+          },
+          destination: {
+            branch_id: row.destination_branch_id,
+            branch_name: row.destination_branch_name,
+            warehouse_id: row.destination_warehouse_id,
+            warehouse_name: row.destination_warehouse_name,
+          },
+          product_count: Number(row.product_count || 0),
+          total_qty: Number(row.total_qty || 0),
+          details: detail,
+        };
+      });
+
+      res.json({
+        success: true,
+        data,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
 // Alur transfer sengaja langsung 'completed' (self-approve) — tidak ada alur pending/approval terpisah.
 router.post(
   "/transfers",

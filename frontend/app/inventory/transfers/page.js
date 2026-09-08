@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import AppShell from '../../components/AppShell';
 import SafeImage from '../../components/SafeImage';
 import StockVariantPicker from '../../components/StockVariantPicker';
@@ -9,7 +9,170 @@ const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const mediaUrl = (p) => (p ? api.replace('/api', '') + p : '');
 const { selectTransferDefaults } = transferDefaults;
 
+const transferStatusLabels = {
+  pending: 'Menunggu',
+  approved: 'Disetujui',
+  completed: 'Selesai',
+  cancelled: 'Dibatalkan',
+};
+
+function formatHistoryDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Tanggal tidak tersedia';
+  return new Intl.DateTimeFormat('id-ID', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+}
+
+function formatNumber(value) {
+  return Number(value || 0).toLocaleString('id-ID');
+}
+
+function TransferHistory({
+  rows,
+  loading,
+  message,
+  total,
+  limit,
+  page,
+  filters,
+  setFilters,
+  onApply,
+  onRefresh,
+  onPage,
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+
+  return (
+    <section className="transfer-history-page">
+      <form className="panel transfer-history-filter" onSubmit={(event) => { event.preventDefault(); onApply(); }}>
+        <div className="transfer-history-filter-heading">
+          <div>
+            <h2>Riwayat Transfer</h2>
+            <p className="muted">Lihat alur stok dari lokasi asal ke lokasi tujuan berdasarkan transaksi yang tersimpan.</p>
+          </div>
+          <button type="button" className="secondary" onClick={onRefresh} disabled={loading}>Muat ulang</button>
+        </div>
+        <div className="transfer-history-filter-grid">
+          <label>Tanggal mulai
+            <input type="date" value={filters.start} onChange={(event) => setFilters((current) => ({ ...current, start: event.target.value }))} />
+          </label>
+          <label>Tanggal akhir
+            <input type="date" value={filters.end} onChange={(event) => setFilters((current) => ({ ...current, end: event.target.value }))} />
+          </label>
+          <label>Arah transfer
+            <select value={filters.direction} onChange={(event) => setFilters((current) => ({ ...current, direction: event.target.value }))}>
+              <option value="">Semua arah</option>
+              <option value="outgoing">Keluar dari cabang</option>
+              <option value="incoming">Masuk ke cabang</option>
+            </select>
+          </label>
+          <label>Status
+            <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}>
+              <option value="">Semua status</option>
+              <option value="completed">Selesai</option>
+              <option value="pending">Menunggu</option>
+              <option value="approved">Disetujui</option>
+              <option value="cancelled">Dibatalkan</option>
+            </select>
+          </label>
+          <label className="transfer-history-search">Cari produk atau SKU
+            <input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Contoh: AT67 atau denim" />
+          </label>
+          <div className="transfer-history-filter-actions">
+            <button type="submit" disabled={loading}>{loading ? 'Memuat…' : 'Terapkan filter'}</button>
+          </div>
+        </div>
+      </form>
+
+      {message && <p className="message" role="alert">{message}</p>}
+      {loading && <section className="panel transfer-history-state"><p className="muted">Memuat riwayat transfer…</p></section>}
+      {!loading && !rows.length && <section className="panel transfer-history-state"><strong>Belum ada riwayat transfer.</strong><p className="muted">Coba ubah rentang tanggal atau filter pencarian.</p></section>}
+      {!loading && rows.length > 0 && (
+        <div className="transfer-history-list">
+          {rows.map((row) => {
+            const source = row.source || {};
+            const destination = row.destination || {};
+            const fromLines = row.details?.from || [];
+            const toLines = row.details?.to || [];
+            const status = transferStatusLabels[row.status] || row.status || 'Tidak diketahui';
+            return (
+              <article key={row.id} className="transfer-history-card">
+                <div className="transfer-history-card-heading">
+                  <div className="transfer-history-card-meta">
+                    <div className="transfer-history-number-row">
+                      <span className={`transfer-history-status status-${row.status || 'unknown'}`}>{status}</span>
+                      <strong>{row.number}</strong>
+                    </div>
+                    <span className="muted">{formatHistoryDate(row.created_at)} · Admin: {row.admin}</span>
+                  </div>
+                  <div className="transfer-history-total">
+                    <strong>{formatNumber(row.total_qty)} pcs</strong>
+                    <span>{formatNumber(row.product_count)} produk</span>
+                  </div>
+                </div>
+
+                <div className="transfer-history-route">
+                  <div className="transfer-history-route-side">
+                    <span className="transfer-history-route-label">Dari</span>
+                    <strong>{source.branch_name || 'Cabang tidak tersedia'}</strong>
+                    <span>{source.warehouse_name || 'Gudang tidak tersedia'}</span>
+                  </div>
+                  <span className="transfer-history-route-arrow" aria-hidden="true">→</span>
+                  <div className="transfer-history-route-side destination">
+                    <span className="transfer-history-route-label">Ke</span>
+                    <strong>{destination.branch_name || 'Cabang tidak tersedia'}</strong>
+                    <span>{destination.warehouse_name || 'Gudang tidak tersedia'}</span>
+                  </div>
+                </div>
+
+                {row.notes && <p className="transfer-history-note"><strong>Keterangan:</strong> {row.notes}</p>}
+                <details className="transfer-history-details">
+                  <summary>Lihat rincian barang</summary>
+                  <div className="transfer-history-detail-grid">
+                    <TransferDetailColumn title={`Keluar dari ${source.warehouse_name || 'lokasi asal'}`} lines={fromLines} />
+                    <TransferDetailColumn title={`Masuk ke ${destination.warehouse_name || 'lokasi tujuan'}`} lines={toLines} />
+                  </div>
+                </details>
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      {!loading && totalPages > 1 && (
+        <div className="transfer-history-pagination" aria-label="Paginasi riwayat transfer">
+          <button type="button" className="secondary" disabled={page <= 1} onClick={() => onPage(page - 1)}>Sebelumnya</button>
+          <span>Halaman {page} dari {totalPages}</span>
+          <button type="button" className="secondary" disabled={page >= totalPages} onClick={() => onPage(page + 1)}>Berikutnya</button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function TransferDetailColumn({ title, lines }) {
+  return (
+    <section className="transfer-history-detail-column">
+      <h3>{title}</h3>
+      {!lines.length && <p className="muted">Rincian mutasi belum tersedia.</p>}
+      {lines.map((line, index) => (
+        <div className="transfer-history-detail-line" key={`${line.id || 'product'}-${line.variant_id || 'general'}-${index}`}>
+          <div>
+            <strong>{line.name}</strong>
+            <span>{line.sku || 'Tanpa SKU'}{line.variant_color ? ` · ${line.variant_color}` : ''}</span>
+            {line.stock_before !== null && line.stock_after !== null && <small>Stok {formatNumber(line.stock_before)} → {formatNumber(line.stock_after)}</small>}
+          </div>
+          <strong>{formatNumber(line.qty)} pcs</strong>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 export default function TransferPage() {
+  const [view, setView] = useState('create');
   const [warehouses, setWarehouses] = useState([]);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -22,6 +185,13 @@ export default function TransferPage() {
   const [saving, setSaving] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [picker, setPicker] = useState(null);
+  const [historyRows, setHistoryRows] = useState([]);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyMessage, setHistoryMessage] = useState('');
+  const [historyFilters, setHistoryFilters] = useState({ start: '', end: '', direction: '', status: '', search: '' });
+  const [historyAppliedFilters, setHistoryAppliedFilters] = useState({ start: '', end: '', direction: '', status: '', search: '' });
   const h = () => ({ 'Content-Type': 'application/json'});
 
   const targets = useMemo(() => warehouses.filter((w) => String(w.id) !== String(from)), [warehouses, from]);
@@ -43,6 +213,40 @@ export default function TransferPage() {
       if (!r.ok) throw new Error(b.message);
       setProducts(b.data || []);
     } catch (e) { setMessage(e.message); }
+  }
+
+  const loadHistory = useCallback(async (filters, page) => {
+    setHistoryLoading(true);
+    setHistoryMessage('');
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: '25' });
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) params.set(key, value);
+      });
+      const r = await fetch(`${api}/inventory-control/transfers/history?${params.toString()}`, { headers: { 'Content-Type': 'application/json' } });
+      const body = await r.json();
+      if (!r.ok) throw new Error(body.message || 'Riwayat transfer tidak dapat dimuat.');
+      setHistoryRows(body.data || []);
+      setHistoryTotal(Number(body.total || 0));
+    } catch (error) {
+      setHistoryRows([]);
+      setHistoryTotal(0);
+      setHistoryMessage(error.message);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  function changeView(nextView) {
+    setView(nextView);
+    const url = new URL(window.location.href);
+    if (nextView === 'history') url.searchParams.set('view', 'history');
+    else url.searchParams.delete('view');
+    window.history.replaceState({}, '', url);
+    if (nextView === 'history') {
+      setHistoryAppliedFilters(historyFilters);
+      setHistoryPage(1);
+    }
   }
 
   useEffect(() => {
@@ -73,6 +277,14 @@ export default function TransferPage() {
         : 'Belum ada gudang aktif.');
     }).catch((e) => setMessage(e.message));
   }, []);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('view') === 'history') setView('history');
+  }, []);
+
+  useEffect(() => {
+    if (view === 'history') loadHistory(historyAppliedFilters, historyPage);
+  }, [view, historyAppliedFilters, historyPage, loadHistory]);
 
   const visibleProducts = useMemo(() => {
     let list = products;
@@ -125,6 +337,12 @@ export default function TransferPage() {
   }
 
   return <AppShell title="Transfer Stok" eyebrow="PRODUK & INVENTORI" actions={<a className="button-link" href="/inventory">Lihat Stok</a>}>
+    <div className="transfer-view-tabs" role="tablist" aria-label="Transfer stok">
+      <button type="button" role="tab" aria-selected={view === 'create'} className={view === 'create' ? 'active' : 'secondary'} onClick={() => changeView('create')}>Buat transfer</button>
+      <button type="button" role="tab" aria-selected={view === 'history'} className={view === 'history' ? 'active' : 'secondary'} onClick={() => changeView('history')}>Riwayat transfer</button>
+    </div>
+
+    {view === 'create' ? <>
     <section className="panel">
       <h2>Informasi Transfer</h2>
       <p className="muted">Stok asal berkurang, stok tujuan bertambah. Transfer antar cabang (owner) otomatis membuat produk yang belum ada di tujuan.</p>
@@ -216,6 +434,18 @@ export default function TransferPage() {
     {!cartOpen && <button type="button" className="cart-fab" onClick={() => setCartOpen(true)}>Keranjang · {totalQty} item</button>}
     {cartOpen && <div className="cart-backdrop" onClick={() => setCartOpen(false)} />}
     {picker && <StockVariantPicker product={picker} onClose={() => setPicker(null)} onAdd={(p, v, q) => { addToCart(p, v, q); setPicker(null); }} />}
-    
+    </> : <TransferHistory
+      rows={historyRows}
+      loading={historyLoading}
+      message={historyMessage}
+      total={historyTotal}
+      limit={25}
+      page={historyPage}
+      filters={historyFilters}
+      setFilters={setHistoryFilters}
+      onApply={() => { setHistoryAppliedFilters(historyFilters); setHistoryPage(1); }}
+      onRefresh={() => loadHistory(historyAppliedFilters, historyPage)}
+      onPage={setHistoryPage}
+    />}
   </AppShell>;
 }

@@ -48,6 +48,7 @@ const navigation = [
       { href: '/inventory', label: 'Stok Produk', icon: Boxes },
       { href: '/inventory/mutations', label: 'Mutasi Stok', icon: ArrowUpFromLine, roles: ['owner', 'manager', 'admin', 'gudang'] },
       { href: '/inventory/transfers', label: 'Transfer Stok', icon: ArrowRightLeft, roles: ['owner', 'manager', 'admin', 'gudang'] },
+      { href: '/inventory/transfers?view=history', label: 'Riwayat Transfer', icon: History, roles: ['owner', 'manager', 'admin'] },
       { href: '/inventory/opname', label: 'Stok Opname', icon: ClipboardCheck, roles: ['owner', 'manager', 'admin', 'gudang'] },
       { href: '/inventory/movements', label: 'Riwayat Stok', icon: History },
       { href: '/inventory/mutation-report', label: 'Laporan Masuk/Keluar', icon: History, roles: ['owner', 'manager', 'admin', 'gudang'] },
@@ -98,6 +99,7 @@ const warehouseNavigation = [
     items: [
       { href: '/inventory', label: 'Manajemen Gudang', icon: Boxes, roles: ['gudang'], tone: 'blue' },
       { href: '/inventory/transfers', label: 'Transfer Gudang', icon: ArrowRightLeft, roles: ['gudang'], tone: 'cyan' },
+      { href: '/inventory/transfers?view=history', label: 'Riwayat Transfer', icon: History, roles: ['gudang'], tone: 'cyan' },
     ],
   },
   {
@@ -122,7 +124,7 @@ export default function AppShell({ title, eyebrow, actions, children }) {
   const [search, setSearch] = useState('');
   const mainRef = useRef(null);
   const [openGroups, setOpenGroups] = useState(() => Object.fromEntries(
-    navigation.map((group) => [group.label, group.items.some((item) => pathname === item.href)])
+    navigation.map((group) => [group.label, group.items.some((item) => pathname === item.href.split('?')[0])])
   ));
 
   // Ambil role user dan terapkan tema yang dipilih pengguna.
