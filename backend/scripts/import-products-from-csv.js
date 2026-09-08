@@ -118,13 +118,13 @@ async function main() {
       }
       usedSkus.add(targetSku.toLowerCase());
       const quantity = numberOrZero(row.Stok);
+      totalStock += quantity;
       if (apply && quantity > 0) {
         await adjustStock(connection, {
           branchId, warehouseId, productId, variantId: null, delta: quantity,
           userId, type: 'adjustment', referenceType: 'csv_import', referenceId,
           batchNumber, notes: `Import dari export CSV ${path.basename(csvPath)}`,
         });
-        totalStock += quantity;
       }
       created++;
     }
