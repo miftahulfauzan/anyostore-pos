@@ -58,7 +58,26 @@ function planSnapshotMatches(rows, products) {
   const variantBlocked = [];
   for (const row of rows) {
     const key = normalizeTransferSku(row.sku);
-    const candidates = products.filter((product) => normalizeTransferSku(product.sku) === key);
+    const skuCandidates = products.filter((product) => normalizeTransferSku(product.sku) === key);
+    let candidates = skuCandidates;
+    let matchBy = 'sku';
+
+    // Katalog cabang hasil clone dapat memiliki SKU internal seperti
+    // `B4-A100-2`, sementara laporan lama menyimpan SKU dagang `A100`.
+    // Bila SKU tidak cocok tepat, gunakan nama produk hanya jika unik.
+    // Nama tidak boleh menjadi tebakan ketika ada lebih dari satu kandidat.
+    if (!candidates.length || candidates.length > 1) {
+      const nameCandidates = products.filter(
+        (product) => normalizeText(product.name) === normalizeText(row.name) && normalizeText(row.name),
+      );
+      if (!candidates.length) {
+        candidates = nameCandidates;
+        matchBy = 'name';
+      } else if (nameCandidates.length === 1) {
+        candidates = nameCandidates;
+        matchBy = 'sku+name';
+      }
+    }
     if (!candidates.length) {
       missing.push(row);
       continue;
@@ -69,10 +88,10 @@ function planSnapshotMatches(rows, products) {
     }
     const product = candidates[0];
     if (Number(product.variant_count || 0) > 0) {
-      variantBlocked.push({ ...row, product });
+      variantBlocked.push({ ...row, product, matchBy });
       continue;
     }
-    matched.push({ ...row, product });
+    matched.push({ ...row, product, matchBy });
   }
   return {
     matched,
@@ -100,6 +119,8 @@ function printPlan(target, branch, warehouse, plan) {
   if (plan.missing.length) console.log(`  SKU tidak ditemukan: ${JSON.stringify(plan.missing.map((row) => row.sku))}`);
   if (plan.ambiguous.length) console.log(`  SKU ambigu: ${JSON.stringify(plan.ambiguous.map((row) => row.sku))}`);
   if (plan.variantBlocked.length) console.log(`  Perlu rincian varian warna: ${JSON.stringify(plan.variantBlocked.map((row) => row.sku))}`);
+  const nameMatches = plan.matched.filter((row) => row.matchBy !== 'sku');
+  if (nameMatches.length) console.log(`  Cocok lewat nama (SKU format berbeda): ${JSON.stringify(nameMatches.map((row) => row.sku))}`);
 }
 
 async function main() {
@@ -226,4 +247,3 @@ module.exports = {
   parseSnapshotRows,
   planSnapshotMatches,
 };
-
