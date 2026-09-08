@@ -1,0 +1,35 @@
+PODS:
+  - bluetooth_print_plus (2.4.6):
+    - Flutter
+    - GSDK (= 0.0.7)
+  - Flutter (1.0.0)
+  - flutter_secure_storage (6.0.0):
+    - Flutter
+  - GSDK (0.0.7)
+
+DEPENDENCIES:
+  - bluetooth_print_plus (from `.symlinks/plugins/bluetooth_print_plus/ios`)
+  - Flutter (from `Flutter`)
+  - flutter_secure_storage (from `.symlinks/plugins/flutter_secure_storage/ios`)
+
+SPEC REPOS:
+  trunk:
+    - GSDK
+
+EXTERNAL SOURCES:
+  bluetooth_print_plus:
+    :path: ".symlinks/plugins/bluetooth_print_plus/ios"
+  Flutter:
+    :path: Flutter
+  flutter_secure_storage:
+    :path: ".symlinks/plugins/flutter_secure_storage/ios"
+
+SPEC CHECKSUMS:
+  bluetooth_print_plus: fb7740efc4eb6623ae08ecd7972f61c17803ab1d
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  flutter_secure_storage: 1ed9476fba7e7a782b22888f956cce43e2c62f13
+  GSDK: 65d54603da7bece31b433c0f34f8a52c4431dd08
+
+PODFILE CHECKSUM: 1f3347c375bbbd4ae7d4eb25ec563011837869cc
+
+COCOAPODS: 1.17.0
