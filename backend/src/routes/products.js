@@ -68,7 +68,10 @@ function normalizeVariants(input) {
   if (variants.some((variant) => (!variant.color && !variant.size) || (variant.price != null && !positiveNumber(variant.price)))) {
     throw Object.assign(new Error('Setiap varian wajib memiliki warna atau ukuran; harga varian harus valid'), { status: 400 });
   }
-  const keys = variants.map((variant) => `${variant.color.toLowerCase()}|${variant.size.toLowerCase()}`);
+  // `color` atau `size` boleh kosong selama field lainnya terisi. Simpan
+  // sebagai null di database, tetapi gunakan string kosong saat membuat key
+  // agar edit produk tidak crash ketika frontend mengirim null.
+  const keys = variants.map((variant) => `${String(variant.color ?? '').toLowerCase()}|${String(variant.size ?? '').toLowerCase()}`);
   if (new Set(keys).size !== keys.length) throw Object.assign(new Error('Kombinasi warna dan ukuran varian tidak boleh sama'), { status: 400 });
   return variants;
 }
@@ -724,4 +727,5 @@ router.delete('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (r
   } catch (error) { next(error); }
 });
 
+router.normalizeVariants = normalizeVariants;
 module.exports = router;
