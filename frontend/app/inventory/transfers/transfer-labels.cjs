@@ -12,4 +12,13 @@ function formatTransferLocationLabel(location = {}) {
   return `${branchName} — ${warehouseName}${type}`;
 }
 
-module.exports = { formatTransferLocationLabel };
+function formatHistoryLocationLabel(location = {}) {
+  const branchName = String(location.branch_name || '').trim();
+  const warehouseName = String(location.warehouse_name || location.name || '').trim();
+  if (location.branch_type === 'gudang' || !warehouseName || branchName === warehouseName) {
+    return branchName || warehouseName || 'Lokasi tidak tersedia';
+  }
+  return `${branchName || 'Cabang tidak tersedia'} / ${warehouseName}`;
+}
+
+module.exports = { formatHistoryLocationLabel, formatTransferLocationLabel };

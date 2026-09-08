@@ -9,7 +9,7 @@ import transferLabels from './transfer-labels.cjs';
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const mediaUrl = (p) => (p ? api.replace('/api', '') + p : '');
 const { selectTransferDefaults } = transferDefaults;
-const { formatTransferLocationLabel } = transferLabels;
+const { formatHistoryLocationLabel, formatTransferLocationLabel } = transferLabels;
 
 const transferStatusLabels = {
   pending: 'Menunggu',
@@ -99,6 +99,8 @@ function TransferHistory({
             const fromLines = row.details?.from || [];
             const toLines = row.details?.to || [];
             const status = transferStatusLabels[row.status] || row.status || 'Tidak diketahui';
+            const sourceLabel = formatHistoryLocationLabel(source);
+            const destinationLabel = formatHistoryLocationLabel(destination);
             return (
               <article key={row.id} className="transfer-history-card">
                 <div className="transfer-history-card-heading">
@@ -118,14 +120,12 @@ function TransferHistory({
                 <div className="transfer-history-route">
                   <div className="transfer-history-route-side">
                     <span className="transfer-history-route-label">Dari</span>
-                    <strong>{source.branch_name || 'Cabang tidak tersedia'}</strong>
-                    <span>{source.warehouse_name || 'Gudang tidak tersedia'}</span>
+                    <strong>{sourceLabel}</strong>
                   </div>
                   <span className="transfer-history-route-arrow" aria-hidden="true">→</span>
                   <div className="transfer-history-route-side destination">
                     <span className="transfer-history-route-label">Ke</span>
-                    <strong>{destination.branch_name || 'Cabang tidak tersedia'}</strong>
-                    <span>{destination.warehouse_name || 'Gudang tidak tersedia'}</span>
+                    <strong>{destinationLabel}</strong>
                   </div>
                 </div>
 

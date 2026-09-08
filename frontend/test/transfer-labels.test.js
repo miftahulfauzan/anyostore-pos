@@ -1,6 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { formatTransferLocationLabel } = require('../app/inventory/transfers/transfer-labels.cjs');
+const {
+  formatHistoryLocationLabel,
+  formatTransferLocationLabel,
+} = require('../app/inventory/transfers/transfer-labels.cjs');
 
 test('cabang gudang memakai satu nama kanonis', () => {
   assert.equal(
@@ -22,5 +25,24 @@ test('cabang toko tetap membedakan gudang internal', () => {
       type: 'utama',
     }),
     'Anyostore Metro — Gudang Anyostore Metro (Utama)',
+  );
+});
+
+test('riwayat transfer merangkum lokasi tanpa nama gudang berulang', () => {
+  assert.equal(
+    formatHistoryLocationLabel({
+      branch_name: 'Gudang Utama',
+      warehouse_name: 'Gudang Utama',
+      branch_type: 'gudang',
+    }),
+    'Gudang Utama',
+  );
+  assert.equal(
+    formatHistoryLocationLabel({
+      branch_name: 'Anyostore Metro',
+      warehouse_name: 'Gudang Anyostore Metro',
+      branch_type: 'toko',
+    }),
+    'Anyostore Metro / Gudang Anyostore Metro',
   );
 });

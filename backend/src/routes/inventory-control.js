@@ -145,10 +145,12 @@ router.get(
            wf.name AS source_warehouse_name,
            bf.id AS source_branch_id,
            bf.name AS source_branch_name,
+           bf.type AS source_branch_type,
            wt.id AS destination_warehouse_id,
            wt.name AS destination_warehouse_name,
            bt.id AS destination_branch_id,
            bt.name AS destination_branch_name,
+           bt.type AS destination_branch_type,
            u.name AS admin_name,
            COUNT(DISTINCT sti.id) AS product_count,
            COALESCE(SUM(sti.quantity), 0) AS total_qty
@@ -159,7 +161,7 @@ router.get(
          WHERE ${whereSql}
          GROUP BY st.id, st.status, st.notes, st.created_at,
            wf.id, wf.name, bf.id, bf.name,
-           wt.id, wt.name, bt.id, bt.name, u.name
+           bf.type, wt.id, wt.name, bt.id, bt.name, bt.type, u.name
          ORDER BY st.created_at DESC, st.id DESC
          LIMIT ${limit} OFFSET ${offset}`,
         params,
@@ -218,12 +220,14 @@ router.get(
           source: {
             branch_id: row.source_branch_id,
             branch_name: row.source_branch_name,
+            branch_type: row.source_branch_type,
             warehouse_id: row.source_warehouse_id,
             warehouse_name: row.source_warehouse_name,
           },
           destination: {
             branch_id: row.destination_branch_id,
             branch_name: row.destination_branch_name,
+            branch_type: row.destination_branch_type,
             warehouse_id: row.destination_warehouse_id,
             warehouse_name: row.destination_warehouse_name,
           },
