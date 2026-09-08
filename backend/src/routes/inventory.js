@@ -3,6 +3,7 @@ const db = require('../db');
 const { authenticate, authorize } = require('../auth');
 const { localDateString } = require('../local-date');
 const { adjustStock } = require('../stock');
+const { CHANNEL_MANAGEMENT_ROLES } = require('../permissions');
 
 const router = express.Router();
 router.use(authenticate);
@@ -377,7 +378,7 @@ router.get('/channels', async (req, res, next) => {
 });
 
 // POST /api/inventory/channels — tambah saluran
-router.post('/channels', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+router.post('/channels', authorize(...CHANNEL_MANAGEMENT_ROLES), async (req, res, next) => {
   try {
     const { value, name } = req.body;
     const val = String(value || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
@@ -390,7 +391,7 @@ router.post('/channels', authorize('owner', 'manager', 'admin'), async (req, res
 });
 
 // PUT /api/inventory/channels/:id — edit saluran (nama / aktif)
-router.put('/channels/:id', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+router.put('/channels/:id', authorize(...CHANNEL_MANAGEMENT_ROLES), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const { name, is_active: isActive } = req.body;
@@ -409,7 +410,7 @@ router.put('/channels/:id', authorize('owner', 'manager', 'admin'), async (req, 
 });
 
 // DELETE /api/inventory/channels/:id — hapus saluran
-router.delete('/channels/:id', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+router.delete('/channels/:id', authorize(...CHANNEL_MANAGEMENT_ROLES), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID tidak valid' });
