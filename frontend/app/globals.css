@@ -1887,3 +1887,75 @@ html[data-theme="green"] .link-button.danger:hover, html[data-theme="blue"] .lin
 .dark .payment-bars > div > div strong { color: #f1f5f9; }
 .dark .dashboard-recent .section-heading a,
 .dark .panel .section-heading a { color: #93c5fd; }
+
+/* ===== Final UI quality pass: shared navigation, forms, states, and motion ===== */
+.skip-link {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 1000;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--primary);
+  color: var(--primary-foreground) !important;
+  transform: translateY(-160%);
+  transition: transform 180ms ease-out;
+}
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.skip-link:focus { transform: translateY(0); }
+.app-main { transition: margin-left 220ms ease-out; }
+.app-main:focus { outline: none; }
+.sidebar-nav-skeleton { display: grid; gap: 10px; padding: 12px 10px; }
+.sidebar-nav-skeleton i { display: block; height: 12px; border-radius: 5px; background: rgba(148,163,184,.22); animation: sidebar-pulse 1.2s ease-in-out infinite alternate; }
+.sidebar-nav-skeleton i:nth-child(2) { width: 82%; animation-delay: 80ms; }
+.sidebar-nav-skeleton i:nth-child(3) { width: 68%; animation-delay: 160ms; }
+.sidebar-nav-skeleton i:nth-child(4) { width: 76%; animation-delay: 240ms; }
+.sidebar-session-error { display: grid; gap: 8px; margin: 8px; padding: 12px; border: 1px solid rgba(248,113,113,.35); border-radius: 8px; color: #fecaca; font-size: 12px; }
+.sidebar-session-error a { color: #bfdbfe; text-decoration: underline; }
+.history-search-label { display: grid; gap: 5px; flex: 1 1 200px; color: var(--muted-foreground); font-size: 12px; font-weight: 700; }
+.stock-donut-empty { display: grid; place-items: center; gap: 6px; min-height: 190px; padding: 20px; color: var(--muted-foreground); text-align: center; }
+.stock-donut-empty strong { color: var(--foreground); font-size: 14px; }
+.stock-donut-empty span { max-width: 24ch; font-size: 12px; line-height: 1.5; }
+.warehouse-summary-triplet span { display: inline-flex; align-items: center; gap: 4px; }
+button.hero-btn,
+button.pcard-btn { font-family: inherit; }
+
+/* Keep all operational form controls readable when dark mode is enabled. */
+.dark input:not([type="checkbox"]):not([type="radio"]),
+.dark select,
+.dark textarea,
+.dark .opname-controls input,
+.dark .history-search-label input {
+  background: #1e293b;
+  color: #e2e8f0;
+  border-color: #334155;
+}
+.dark .opname-empty,
+.dark .history-search-label { color: #94a3b8; }
+/* Override legacy inline white controls/cards in dark mode; new UI should use tokens instead. */
+.dark [style*="background: rgb(255, 255, 255)"],
+.dark [style*="background: rgb(255, 255, 255, 1)"],
+.dark [style*="background: #fff"] {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+  border-color: #334155 !important;
+}
+
+@keyframes sidebar-pulse { from { opacity: .45; } to { opacity: .9; } }
+@media (max-width: 820px) {
+  /* A desktop collapse preference must not turn the mobile drawer into a 60px strip. */
+  .sidebar.collapsed { width: min(86vw, 320px); padding: max(16px, env(safe-area-inset-top)) 12px max(14px, env(safe-area-inset-bottom)); }
+  .sidebar.collapsed .brand span,
+  .sidebar.collapsed .side-nav a span,
+  .sidebar.collapsed .nav-group-toggle span,
+  .sidebar.collapsed .sidebar-footer div,
+  .sidebar.collapsed .logout span { display: block; }
+  .sidebar.collapsed .brand { justify-content: flex-start; }
+  .sidebar.collapsed .side-nav a { justify-content: flex-start; gap: 14px; padding: 10px 12px; }
+  .sidebar.collapsed .nav-group-toggle { justify-content: space-between; padding: .28rem .55rem; }
+  .sidebar.collapsed .sidebar-footer { justify-content: flex-start; }
+  .sidebar.collapsed .logout { justify-content: flex-start; padding: .65rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

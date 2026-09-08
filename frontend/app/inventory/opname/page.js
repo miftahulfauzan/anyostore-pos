@@ -119,7 +119,7 @@ export default function Opname() {
             </table>
           </div>
           <label>Catatan<textarea value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
-          <button disabled={saving || !stock.length}>{saving ? 'Menyimpan…' : 'Simpan stok opname'}</button>
+          <button type="submit" disabled={saving || !stock.length}>{saving ? 'Menyimpan…' : 'Simpan stok opname'}</button>
         </form>
         {message && <p className="message">{message}</p>}
       </section>

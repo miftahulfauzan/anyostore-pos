@@ -42,7 +42,7 @@ export default function ProdukDetail() {
     try { const c = JSON.parse(localStorage.getItem('landing_cart') || '[]'); return Array.isArray(c) ? c : []; } catch { return []; }
   }
   function saveCart(cart) {
-    try { localStorage.setItem('landing_cart', JSON.stringify(cart)); } catch {}
+    try { localStorage.setItem('landing_cart', JSON.stringify(cart)); } catch { /* storage may be unavailable in private browsing */ }
   }
 
   useEffect(() => {
@@ -125,7 +125,7 @@ export default function ProdukDetail() {
           {imgs.length > 1 && (
             <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
               {imgs.map((m, i) => (
-                <button key={`${m.path}-${i}`} onClick={() => setActiveImg(i)} title={m.color || ''} style={{ flex: '0 0 56px', width: 56, height: 56, borderRadius: 6, overflow: 'hidden', border: i === activeImg ? `2px solid ${C.accent}` : `1px solid ${C.border}`, padding: 0, background: C.white }}>
+                <button type="button" key={`${m.path}-${i}`} onClick={() => setActiveImg(i)} title={m.color || `Foto ${i + 1}`} aria-label={`Tampilkan foto ${i + 1}${m.color ? `, ${m.color}` : ''}`} aria-pressed={i === activeImg} style={{ flex: '0 0 56px', width: 56, height: 56, borderRadius: 6, overflow: 'hidden', border: i === activeImg ? `2px solid ${C.accent}` : `1px solid ${C.border}`, padding: 0, background: C.white }}>
                   <SafeImage src={`${api.replace('/api','')}${m.path}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
                 </button>
               ))}

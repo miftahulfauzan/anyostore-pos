@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint ."
   },
   "engines": {
     "node": ">=20"
@@ -35,6 +35,8 @@
     "sharp@0.35.3": true
   },
   "devDependencies": {
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.4",
     "shadcn": "^4.13.1"
   }
 }

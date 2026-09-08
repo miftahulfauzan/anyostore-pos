@@ -74,7 +74,6 @@ export default function MutationReportPage() {
       .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setStores(b.data || []); })
       .catch((e) => setMessage(e.message));
     load();
-    /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [tab]);
 
   function applyFilter() { load(); }

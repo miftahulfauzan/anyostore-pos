@@ -48,7 +48,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="login-page">
+    <main id="main-content" className="login-page">
       <form className="login" onSubmit={submit}>
         <div className="login-logo"><span>A</span> Anyostore</div>
         <div><p className="eyebrow">SELAMAT DATANG</p><h2>Masuk ke akun Anda</h2><p className="muted">Gunakan akun pegawai atau owner yang terdaftar.</p></div>
@@ -56,13 +56,13 @@ export default function LoginPage() {
           <button type="button" style={modeButton(mode === 'password')} onClick={() => setMode('password')}>Password</button>
           <button type="button" style={modeButton(mode === 'pin')} onClick={() => setMode('pin')}>PIN</button>
         </div>
-        <label>Email / Username<input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="email atau username" required /></label>
+        <label>Email / Username<input name="username" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="email atau username" required /></label>
         {mode === 'pin' ? (
-          <label>PIN (6 digit)<input type="password" inputMode="numeric" maxLength={6} value={pin} onChange={(event) => setPin(event.target.value)} required /></label>
+          <label>PIN (6 digit)<input name="pin" autoComplete="one-time-code" type="password" inputMode="numeric" maxLength={6} value={pin} onChange={(event) => setPin(event.target.value)} required /></label>
         ) : (
-          <label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
+          <label>Password<input name="password" autoComplete="current-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
         )}
-        <button disabled={loading}>{loading ? 'Memproses…' : 'Masuk ke POS'}</button>
+        <button type="submit" disabled={loading}>{loading ? 'Memproses…' : 'Masuk ke POS'}</button>
         {message && <p className="message" role="status">{message}</p>}
         <p className="muted" style={{ fontSize: '.85rem', textAlign: 'center', marginTop: 6, paddingBottom: 2 }}><a href="/">← Kembali ke Grosir</a></p>
       </form>

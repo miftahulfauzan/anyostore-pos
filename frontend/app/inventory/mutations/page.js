@@ -220,7 +220,7 @@ export default function Mutations() {
     <div className="mutasi-layout">
       <section className="panel">
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-          <input placeholder="Cari nama / kode produk…" value={query} onChange={(e) => setQuery(e.target.value)} style={{ flex: 1, minWidth: 180, minHeight: 40 }} />
+          <input aria-label="Cari produk berdasarkan nama atau kode" placeholder="Cari nama / kode produk…" value={query} onChange={(e) => setQuery(e.target.value)} style={{ flex: 1, minWidth: 180, minHeight: 40 }} />
           <select value={sort} onChange={(e) => setSort(e.target.value)} style={{ minHeight: 40 }}>
             <option value="name_asc">Abjad A-Z</option>
             <option value="name_desc">Abjad Z-A</option>
@@ -268,7 +268,7 @@ export default function Mutations() {
         <div style={{ display: 'flex', justifyContent: 'space-between', margin: '12px 0', fontWeight: 700 }}>
           <span>Total Qty</span><span>{totalQty}</span>
         </div>
-        <button disabled={saving || !cart.length} onClick={submit} style={{ width: '100%' }}>{saving ? 'Menyimpan…' : `Simpan ${mode === 'in' ? 'Stock Masuk' : 'Stock Keluar'}`}</button>
+        <button type="button" disabled={saving || !cart.length} onClick={submit} style={{ width: '100%' }}>{saving ? 'Menyimpan…' : `Simpan ${mode === 'in' ? 'Stock Masuk' : 'Stock Keluar'}`}</button>
         {message && <p className="message" role="status" style={{ marginTop: 10 }}>{message}</p>}
       </aside>
     </div>

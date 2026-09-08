@@ -39,7 +39,7 @@ export default function BulkPhotoUploadPage() {
     if (!el) return;
     el.setAttribute('webkitdirectory', '');
     el.setAttribute('directory', '');
-    try { el.webkitdirectory = true; } catch {}
+    try { el.webkitdirectory = true; } catch { /* browser may not expose this property */ }
   }, []);
 
   const skuMap = useMemo(() => {

@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   ArrowDownToLine,
   ArrowRightLeft,
@@ -97,7 +98,6 @@ const warehouseNavigation = [
     items: [
       { href: '/inventory', label: 'Manajemen Gudang', icon: Boxes, roles: ['gudang'], tone: 'blue' },
       { href: '/inventory/transfers', label: 'Transfer Gudang', icon: ArrowRightLeft, roles: ['gudang'], tone: 'cyan' },
-      { href: '/products', label: 'Konversi Produk', icon: ArrowRightLeft, roles: ['gudang'], tone: 'purple', active: false },
     ],
   },
   {
@@ -112,22 +112,31 @@ const warehouseNavigation = [
 
 export default function AppShell({ title, eyebrow, actions, children }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(() => typeof window !== 'undefined' ? localStorage.getItem('pos_sidebar_collapsed') === 'true' : false);
+  const [collapsed, setCollapsed] = useState(false);
   const [role, setRole] = useState(null);
   const [roleResolved, setRoleResolved] = useState(false);
   const [userName, setUserName] = useState('');
   const [theme, setTheme] = useState('light');
   const [search, setSearch] = useState('');
+  const mainRef = useRef(null);
   const [openGroups, setOpenGroups] = useState(() => Object.fromEntries(
     navigation.map((group) => [group.label, group.items.some((item) => pathname === item.href)])
   ));
 
-  // Ambil role user dan tema (localStorage dulu, fallback ke settings backend).
+  // Ambil role user dan terapkan tema yang dipilih pengguna.
   useEffect(() => {
-    // Selalu mulai terang; mode gelap hanya aktif setelah user menekan tombol tema.
-    setTheme('light');
-    document.documentElement.classList.toggle('dark', false);
+    setCollapsed(localStorage.getItem('pos_sidebar_collapsed') === 'true');
+    setTheme(localStorage.getItem('pos_theme') === 'dark' ? 'dark' : 'light');
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    document.documentElement.style.colorScheme = theme;
+  }, [theme]);
+
+  useEffect(() => {
 
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
     fetch(`${baseUrl}/auth/me`)
@@ -146,8 +155,6 @@ export default function AppShell({ title, eyebrow, actions, children }) {
         if (brandTheme && ['green', 'blue', 'purple'].includes(brandTheme)) {
           document.documentElement.dataset.theme = brandTheme;
         }
-        // Mode gelap/terang tidak lagi otomatis dari penyimpanan lama;
-        // dashboard selalu terang saat dibuka.
       })
       .catch(() => {});
   }, []);
@@ -163,7 +170,7 @@ export default function AppShell({ title, eyebrow, actions, children }) {
   // sementara supaya navigasi role lain tidak sempat terlihat.
   const roleKnown = role !== null;
   const navSource = role === 'gudang' ? warehouseNavigation : navigation;
-  const visibleNavigation = roleResolved ? navSource
+  const visibleNavigation = roleResolved && roleKnown ? navSource
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => !roleKnown || !item.roles || item.roles.includes(role)),
@@ -171,8 +178,9 @@ export default function AppShell({ title, eyebrow, actions, children }) {
     .filter((group) => group.items.length > 0) : [];
 
   useEffect(() => {
-    setSearch(window.location.search);
     setMobileNavOpen(false);
+    setSearch(window.location.search);
+    window.requestAnimationFrame(() => mainRef.current?.focus({ preventScroll: true }));
   }, [pathname]);
 
   useEffect(() => {
@@ -195,7 +203,7 @@ export default function AppShell({ title, eyebrow, actions, children }) {
       .finally(() => {
         localStorage.removeItem('pos_access_token');
         localStorage.removeItem('pos_refresh_token');
-        window.location.assign('/');
+        router.replace('/');
       });
   }
 
@@ -221,12 +229,14 @@ export default function AppShell({ title, eyebrow, actions, children }) {
         <button type="button" className="sidebar-close" onClick={() => setMobileNavOpen(false)} aria-label="Tutup menu">
           <X aria-hidden="true" size={20} />
         </button>
-        <a className="brand" href={role === 'gudang' ? '/dashboard' : '/pos'}>
+        <Link className="brand" href={role === 'gudang' ? '/dashboard' : '/pos'}>
           <span className="brand-mark">A</span>
           <span>Anyostore<small>{role === 'gudang' ? 'Operasional gudang' : 'Retail operations'}</small></span>
-        </a>
+        </Link>
 
         <nav className="side-nav">
+          {!roleResolved && <div className="sidebar-nav-skeleton" aria-label="Memuat navigasi"><i /><i /><i /><i /></div>}
+          {roleResolved && !roleKnown && <div className="sidebar-session-error" role="alert"><strong>Sesi tidak tersedia</strong><Link href="/login">Masuk lagi</Link></div>}
           {visibleNavigation.map((group) => (
             <section key={group.label} className={`nav-group${role === 'gudang' ? ' warehouse-nav-group' : ''}`}>
               {role === 'gudang' ? <div className="warehouse-nav-label">{group.label}</div> : <button
@@ -244,10 +254,10 @@ export default function AppShell({ title, eyebrow, actions, children }) {
                 const itemQuery = item.href.includes('?') ? item.href.slice(item.href.indexOf('?')) : '';
                 const active = item.active !== false && pathname === itemPath && (!itemQuery || search === itemQuery);
                 return (
-                  <a key={item.href} href={item.href} className={`${active ? 'active' : ''}${item.tone ? ` tone-${item.tone}` : ''}`}>
+                  <Link key={item.href} href={item.href} onClick={() => setSearch(itemQuery)} className={`${active ? 'active' : ''}${item.tone ? ` tone-${item.tone}` : ''}`} aria-current={active ? 'page' : undefined}>
                     <Icon aria-hidden="true" size={15} strokeWidth={active ? 2.4 : 1.9} />
                     <span>{item.label}</span>
-                  </a>
+                  </Link>
                 );
               })}
             </section>
@@ -261,10 +271,10 @@ export default function AppShell({ title, eyebrow, actions, children }) {
             <ChevronDown aria-hidden="true" size={16} style={{ transform: collapsed ? 'rotate(90deg)' : 'rotate(-90deg)', transition: 'transform .2s' }} />
           </button>
         </div>
-        <button className="logout" onClick={logout}><LogOut aria-hidden="true" size={15} /> Keluar</button>
+        <button type="button" className="logout" onClick={logout}><LogOut aria-hidden="true" size={15} /> <span>Keluar</span></button>
       </aside>
 
-      <main className={`app-main${collapsed ? ' sidebar-collapsed' : ''}`}>
+      <main ref={mainRef} id="main-content" tabIndex={-1} className={`app-main${collapsed ? ' sidebar-collapsed' : ''}`}>
         <header className="app-header">
           <div className="app-header-heading">
             <button

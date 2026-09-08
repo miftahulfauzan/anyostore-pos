@@ -189,7 +189,7 @@ export default function ProductsPage() {
         <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, padding: 20, maxWidth: 420, width: '100%', boxShadow: '0 24px 60px rgba(15,23,42,.3)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <strong style={{ fontSize: 15 }}>Cetak Barcode — {barcodeProduct.name}</strong>
-            <button onClick={() => setBarcodeProduct(null)} aria-label="Tutup" style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: '#f1f5f9', fontSize: 16, cursor: 'pointer', color: '#475569' }}>×</button>
+            <button type="button" onClick={() => setBarcodeProduct(null)} aria-label="Tutup" style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: '#f1f5f9', fontSize: 16, cursor: 'pointer', color: '#475569' }}>×</button>
           </div>
           <div className="barcode-print-area" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {chosenBarcodes.map((item, index) => <BarcodeLabel key={index} item={{ ...item, barcode_value: item.barcode || item.sku || item.name, variant_color: '' }} />)}

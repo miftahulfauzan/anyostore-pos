@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Printer } from 'lucide-react';
+import { cashMovementLabels, labelFor, paymentLabels } from '../../../lib/ui-labels';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rupiah = (n) => `Rp${Number(n || 0).toLocaleString('id-ID')}`;
@@ -28,7 +29,7 @@ export default function ClosingPrintPage() {
   return (
     <main className="closing-print">
       <div className="no-print" style={{ marginBottom: '1rem' }}>
-        <button onClick={print}><Printer size={16} /> Cetak / Simpan PDF</button>
+        <button type="button" onClick={print}><Printer size={16} /> Cetak / Simpan PDF</button>
       </div>
       <header>
         <h1>Laporan Penutupan Kas</h1>
@@ -53,7 +54,7 @@ export default function ClosingPrintPage() {
         {data.payments?.length ? (
           <table>
             <thead><tr><th>Metode</th><th>Transaksi</th><th>Nilai</th></tr></thead>
-            <tbody>{data.payments.map((p, i) => <tr key={i}><td>{p.payment_method}</td><td>{p.transactions}</td><td>{rupiah(p.amount)}</td></tr>)}</tbody>
+            <tbody>{data.payments.map((p, i) => <tr key={i}><td>{labelFor(paymentLabels, p.payment_method)}</td><td>{p.transactions}</td><td>{rupiah(p.amount)}</td></tr>)}</tbody>
           </table>
         ) : <p className="muted">Tidak ada pembayaran tunai.</p>}
       </section>
@@ -62,7 +63,7 @@ export default function ClosingPrintPage() {
         {data.movements?.length ? (
           <table>
             <thead><tr><th>Waktu</th><th>Tipe</th><th>Nominal</th><th>Alasan</th><th>Oleh</th></tr></thead>
-            <tbody>{data.movements.map((m, i) => <tr key={i}><td>{new Date(m.created_at).toLocaleString('id-ID')}</td><td>{m.type}</td><td>{rupiah(m.amount)}</td><td>{m.reason}</td><td>{m.user_name}</td></tr>)}</tbody>
+            <tbody>{data.movements.map((m, i) => <tr key={i}><td>{new Date(m.created_at).toLocaleString('id-ID')}</td><td>{labelFor(cashMovementLabels, m.type)}</td><td>{rupiah(m.amount)}</td><td>{m.reason}</td><td>{m.user_name}</td></tr>)}</tbody>
           </table>
         ) : <p className="muted">Tidak ada mutasi kas.</p>}
       </section>

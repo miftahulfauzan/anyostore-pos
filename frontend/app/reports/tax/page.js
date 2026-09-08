@@ -4,6 +4,7 @@ import { localDateString } from '../../lib/local-date';
 import { useEffect, useState } from 'react';
 import AppShell from '../../components/AppShell';
 import DateRangePresets from '../../components/DateRangePresets';
+import { labelFor, statusLabels } from '../../lib/ui-labels';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const money = (v) => Number(v || 0).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -94,12 +95,12 @@ export default function TaxReportPage() {
               Sampai
               <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
             </label>
-            <button onClick={refresh} disabled={loading} style={{ minWidth: 100 }}>{loading ? 'Memuat…' : 'Muat'}</button>
+            <button type="button" onClick={refresh} disabled={loading} style={{ minWidth: 100 }}>{loading ? 'Memuat…' : 'Muat'}</button>
           </div>
 
           <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
             {[{ id: 'ppn', label: 'PPN (VAT)' }, { id: 'faktur', label: 'Faktur Pajak' }, { id: 'pph23', label: 'PPh 23' }].map((t) => (
-              <button key={t.id} onClick={() => loadTab(t.id)} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: tab === t.id ? '#1e3a5f' : 'transparent', color: tab === t.id ? '#fff' : '#475569', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>{t.label}</button>
+              <button type="button" key={t.id} onClick={() => loadTab(t.id)} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: tab === t.id ? '#1e3a5f' : 'transparent', color: tab === t.id ? '#fff' : '#475569', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>{t.label}</button>
             ))}
           </div>
 
@@ -197,7 +198,7 @@ export default function TaxReportPage() {
                         <td style={{ padding: '6px 8px' }}>{f.customer}</td>
                         <td style={{ padding: '6px 8px', textAlign: 'right' }}>Rp{money(f.gross_amount)}</td>
                         <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, color: '#1e3a5f' }}>Rp{money(f.ppn_amount)}</td>
-                        <td style={{ padding: '6px 8px' }}><span className={`status ${f.status === 'completed' ? 'paid' : 'pending'}`}>{f.status}</span></td>
+                        <td style={{ padding: '6px 8px' }}><span className={`status ${f.status === 'completed' ? 'paid' : 'pending'}`}>{labelFor(statusLabels, f.status)}</span></td>
                       </tr>
                     ))}
                     {!faktur.faktur.length && <tr><td colSpan={7} style={{ padding: 16, textAlign: 'center', color: '#94a3b8' }}>Tidak ada faktur</td></tr>}

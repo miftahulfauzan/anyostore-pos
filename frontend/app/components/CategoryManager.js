@@ -16,7 +16,7 @@ export default function CategoryManager({ api, headers }) {
       const r = await fetch(`${api}/products/categories?all=true`, { headers: headers() });
       const b = await r.json();
       setCategories(b.data || []);
-    } catch {}
+    } catch { setMessage('Kategori tidak dapat dimuat.'); }
   }
 
   useEffect(() => { load(); }, []);

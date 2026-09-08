@@ -3,6 +3,7 @@ import { localDateString } from '../lib/local-date';
 import { useEffect, useState } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import AppShell from '../components/AppShell';
+import { labelFor, paymentLabels, statusLabels } from '../lib/ui-labels';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rupiah = (value) => `Rp${Number(value || 0).toLocaleString('id-ID')}`;
@@ -154,9 +155,9 @@ export default function Finance() {
                       <td>{row.expense_date}</td>
                       <td>{row.category}</td>
                       <td>{row.name}</td>
-                      <td>{row.payment_method}</td>
+                      <td>{labelFor(paymentLabels, row.payment_method)}</td>
                       <td>{rupiah(row.amount)}</td>
-                      <td>{row.status}</td>
+                      <td>{labelFor(statusLabels, row.status)}</td>
                       <td>{row.status === 'pending' ? <button type="button" onClick={() => approve(row.id)}>Setujui</button> : '—'}</td>
                     </tr>
                   ))}

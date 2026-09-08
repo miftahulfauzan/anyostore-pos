@@ -1,8 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDownToLine, ArrowRightLeft, ArrowUpFromLine, ArrowUpRight, Banknote, CalendarDays, ChartNoAxesCombined, ClipboardCheck, CreditCard, Package, ReceiptText, Sparkles, TriangleAlert } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { ArrowDown, ArrowDownToLine, ArrowRightLeft, ArrowUp, ArrowUpFromLine, ArrowUpRight, Banknote, Boxes, CalendarDays, ChartNoAxesCombined, ClipboardCheck, CreditCard, Package, ReceiptText, Sparkles, TriangleAlert } from 'lucide-react';
 import AppShell from '../components/AppShell';
+import { labelFor, paymentLabels } from '../lib/ui-labels';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rupiah = (value) => 'Rp' + Number(value || 0).toLocaleString('id-ID');
@@ -49,10 +52,11 @@ function WarehouseDashboard({ data, start, end }) {
   const dashboard = data?.warehouse_dashboard || {};
   const summary = dashboard.summary || {};
   const daily = useMemo(() => dateRangeDays(start, end, dashboard.daily), [start, end, dashboard.daily]);
-  const totalStatus = Math.max(1, Number(summary.safe_stock || 0) + Number(summary.low_stock || 0) + Number(summary.out_of_stock || 0));
-  const safePercent = Math.round(Number(summary.safe_stock || 0) / totalStatus * 100);
-  const lowPercent = Math.round(Number(summary.low_stock || 0) / totalStatus * 100);
-  const emptyPercent = Math.max(0, 100 - safePercent - lowPercent);
+  const totalStatus = Number(summary.safe_stock || 0) + Number(summary.low_stock || 0) + Number(summary.out_of_stock || 0);
+  const hasStatusData = totalStatus > 0;
+  const safePercent = hasStatusData ? Math.round(Number(summary.safe_stock || 0) / totalStatus * 100) : 0;
+  const lowPercent = hasStatusData ? Math.round(Number(summary.low_stock || 0) / totalStatus * 100) : 0;
+  const emptyPercent = hasStatusData ? Math.max(0, 100 - safePercent - lowPercent) : 0;
   const maxCategory = Math.max(1, ...(dashboard.categories || []).map((item) => Number(item.total || 0)));
   const maxOut = Math.max(1, ...(dashboard.top_products_out || []).map((item) => Number(item.total || 0)));
   const actionItems = [
@@ -66,19 +70,19 @@ function WarehouseDashboard({ data, start, end }) {
   return <div className="warehouse-dashboard">
     <section className="warehouse-stat-grid" aria-label="Ringkasan stok gudang">
       <article className="warehouse-stat stat-blue"><span className="warehouse-stat-icon"><Package size={16} /></span><span>Total SKU</span><strong>{Number(summary.total_sku || 0).toLocaleString('id-ID')}</strong><small>Produk aktif</small></article>
-      <article className="warehouse-stat stat-sky"><span className="warehouse-stat-icon"><BoxesIcon /></span><span>Total Stok</span><strong>{Number(summary.total_stock || 0).toLocaleString('id-ID')}</strong><small>Rata-rata {summary.total_sku ? Math.round(Number(summary.total_stock || 0) / Number(summary.total_sku)) : 0} / SKU</small></article>
+      <article className="warehouse-stat stat-sky"><span className="warehouse-stat-icon"><Boxes aria-hidden="true" size={16} /></span><span>Total Stok</span><strong>{Number(summary.total_stock || 0).toLocaleString('id-ID')}</strong><small>Rata-rata {summary.total_sku ? Math.round(Number(summary.total_stock || 0) / Number(summary.total_sku)) : 0} / SKU</small></article>
       <article className="warehouse-stat stat-amber"><span className="warehouse-stat-icon"><TriangleAlert size={16} /></span><span>Hampir Habis</span><strong>{Number(summary.low_stock || 0).toLocaleString('id-ID')}</strong><small>SKU perlu dipantau</small></article>
       <article className="warehouse-stat stat-red"><span className="warehouse-stat-icon"><TriangleAlert size={16} /></span><span>Stok Kosong</span><strong>{Number(summary.out_of_stock || 0).toLocaleString('id-ID')}</strong><small>SKU tanpa stok</small></article>
     </section>
 
     <section className="panel warehouse-summary-panel">
       <div className="warehouse-panel-heading"><div><h2>Ringkasan</h2><p>{fullDate(start)} s/d {fullDate(end)}</p></div><span className="warehouse-range-note">Masuk {daily.reduce((sum, item) => sum + Number(item.in || 0), 0).toLocaleString('id-ID')} · Keluar {daily.reduce((sum, item) => sum + Number(item.out || 0), 0).toLocaleString('id-ID')}</span></div>
-      <div className="warehouse-summary-triplet"><div><span className="summary-in">↥ Masuk</span><strong>{daily.reduce((sum, item) => sum + Number(item.in || 0), 0).toLocaleString('id-ID')}</strong></div><div><span className="summary-out">↧ Keluar</span><strong>{daily.reduce((sum, item) => sum + Number(item.out || 0), 0).toLocaleString('id-ID')}</strong></div><div><span className="summary-net">⇄ Selisih</span><strong>{(daily.reduce((sum, item) => sum + Number(item.in || 0) - Number(item.out || 0), 0)).toLocaleString('id-ID')}</strong></div></div>
+      <div className="warehouse-summary-triplet"><div><span className="summary-in"><ArrowDown aria-hidden="true" size={13} /> Masuk</span><strong>{daily.reduce((sum, item) => sum + Number(item.in || 0), 0).toLocaleString('id-ID')}</strong></div><div><span className="summary-out"><ArrowUp aria-hidden="true" size={13} /> Keluar</span><strong>{daily.reduce((sum, item) => sum + Number(item.out || 0), 0).toLocaleString('id-ID')}</strong></div><div><span className="summary-net"><ArrowRightLeft aria-hidden="true" size={13} /> Selisih</span><strong>{(daily.reduce((sum, item) => sum + Number(item.in || 0) - Number(item.out || 0), 0)).toLocaleString('id-ID')}</strong></div></div>
     </section>
 
     <section className="warehouse-chart-grid">
       <section className="panel"><div className="warehouse-panel-heading"><div><h2>Pergerakan Stok 7 Hari</h2><p>Mutasi aktual pada gudang aktif.</p></div></div><WarehouseTrend daily={daily} /></section>
-      <section className="panel warehouse-status-panel"><div className="warehouse-panel-heading"><div><h2>Status Stok</h2><p>Kondisi SKU saat ini.</p></div></div><div className="stock-donut" style={{ background: `conic-gradient(#2563eb 0 ${safePercent}%, #f59e0b ${safePercent}% ${safePercent + lowPercent}%, #ef4444 ${safePercent + lowPercent}% 100%)` }}><div><strong>{Number(summary.total_sku || 0).toLocaleString('id-ID')}</strong><span>SKU</span></div></div><div className="stock-status-legend"><span><i className="status-safe" />Aman <b>{safePercent}%</b></span><span><i className="status-low" />Hampir habis <b>{lowPercent}%</b></span><span><i className="status-empty" />Kosong <b>{emptyPercent}%</b></span></div></section>
+      <section className="panel warehouse-status-panel"><div className="warehouse-panel-heading"><div><h2>Status Stok</h2><p>Kondisi SKU saat ini.</p></div></div>{hasStatusData ? <><div className="stock-donut" style={{ background: `conic-gradient(#2563eb 0 ${safePercent}%, #f59e0b ${safePercent}% ${safePercent + lowPercent}%, #ef4444 ${safePercent + lowPercent}% 100%)` }}><div><strong>{Number(summary.total_sku || 0).toLocaleString('id-ID')}</strong><span>SKU</span></div></div><div className="stock-status-legend"><span><i className="status-safe" />Aman <b>{safePercent}%</b></span><span><i className="status-low" />Hampir habis <b>{lowPercent}%</b></span><span><i className="status-empty" />Kosong <b>{emptyPercent}%</b></span></div></> : <div className="stock-donut-empty" role="status"><strong>Belum ada data stok</strong><span>Data status akan muncul setelah ada SKU.</span></div>}</section>
     </section>
 
     <section className="warehouse-chart-grid warehouse-chart-grid-bottom"><section className="panel"><div className="warehouse-panel-heading"><div><h2>Stok per Kategori</h2><p>Total stok produk aktif.</p></div></div><div className="warehouse-bars">{(dashboard.categories || []).map((item) => <div className="warehouse-bar-row" key={item.name}><span>{item.name}</span><div><i style={{ width: `${Number(item.total || 0) / maxCategory * 100}%` }} /></div><strong>{Number(item.total || 0).toLocaleString('id-ID')}</strong></div>)}</div>{!dashboard.categories?.length && <p className="muted">Belum ada data kategori.</p>}</section><section className="panel"><div className="warehouse-panel-heading"><div><h2>Top Produk Keluar</h2><p>Periode yang dipilih.</p></div></div><div className="warehouse-bars out-bars">{(dashboard.top_products_out || []).map((item) => <div className="warehouse-bar-row" key={item.sku}><span title={item.name}>{item.sku || item.name}</span><div><i style={{ width: `${Number(item.total || 0) / maxOut * 100}%` }} /></div><strong>{Number(item.total || 0).toLocaleString('id-ID')}</strong></div>)}</div>{!dashboard.top_products_out?.length && <p className="muted">Belum ada data keluar.</p>}</section></section>
@@ -87,9 +91,8 @@ function WarehouseDashboard({ data, start, end }) {
   </div>;
 }
 
-function BoxesIcon() { return <span style={{ fontSize: 15, lineHeight: 1 }}>▣</span>; }
-
 export default function DashboardPage() {
+  const router = useRouter();
   const [data, setData] = useState(null);
   const [message, setMessage] = useState('');
   const [role, setRole] = useState(null);
@@ -135,7 +138,7 @@ export default function DashboardPage() {
         if (/token|401/i.test(error.message || '')) {
           localStorage.removeItem('pos_access_token');
           localStorage.removeItem('pos_refresh_token');
-          window.location.assign('/');
+          router.replace('/');
           return;
         }
         setMessage(error.message || 'Dasbor tidak dapat dimuat');
@@ -148,7 +151,7 @@ export default function DashboardPage() {
   const peakSales = Math.max(1, ...(data?.sales_trend || []).map((item) => Number(item.sales)));
   const paymentTotal = Math.max(1, ...(data?.payment_breakdown || []).map((item) => Number(item.amount)));
 
-  return <AppShell title="Dasbor" eyebrow={isGudang ? 'RINGKASAN GUDANG' : 'RINGKASAN TOKO'} actions={isGudang ? <><a className="button-link" href="/inventory">Kelola Stok</a><a className="button-link" href="/" target="_blank" rel="noopener noreferrer">Landing Page</a></> : <><a className="button-link" href="/" target="_blank" rel="noopener noreferrer">Landing Page</a><a className="button-link" href="/closing">Cetak Penutupan</a><a className="button-link" href="/pos">Buka Kasir <ArrowUpRight aria-hidden="true" size={15} /></a></>}>
+  return <AppShell title="Dasbor" eyebrow={isGudang ? 'RINGKASAN GUDANG' : 'RINGKASAN TOKO'} actions={isGudang ? <><Link className="button-link" href="/inventory">Kelola Stok</Link><a className="button-link" href="/" target="_blank" rel="noopener noreferrer">Landing Page</a></> : <><a className="button-link" href="/" target="_blank" rel="noopener noreferrer">Landing Page</a><Link className="button-link" href="/closing">Cetak Penutupan</Link><Link className="button-link" href="/pos">Buka Kasir <ArrowUpRight aria-hidden="true" size={15} /></Link></>}>
     {message && <p className="message" role="status">{message}</p>}
     {!data ? <section className="panel"><p>Memuat ringkasan toko…</p></section> : isGudang ? (
       <>
@@ -167,10 +170,10 @@ export default function DashboardPage() {
       </section>
       <section className="dashboard-grid dashboard-charts">
         <section className="panel"><div className="section-heading"><div><h2>Penjualan 7 hari terakhir</h2><p>Nilai transaksi selesai per hari, termasuk hari tanpa penjualan.</p></div></div><div className="bar-chart">{data.sales_trend.map((item) => <div className="bar-column" key={item.date}><strong>{rupiah(item.sales)}</strong><span className="bar" style={{ height: Math.max(8, Number(item.sales) / peakSales * 150) + 'px' }} /><small>{item.label}</small></div>)}</div></section>
-        <section className="panel"><div className="section-heading"><div><h2>Metode pembayaran</h2><p>Komposisi pembayaran 30 hari terakhir.</p></div></div><div className="payment-bars">{data.payment_breakdown?.length ? data.payment_breakdown.map((item) => <div key={item.payment_method}><div><span>{item.payment_method.toUpperCase()}</span><strong>{rupiah(item.amount)}</strong></div><span className="payment-bar"><i style={{ width: Number(item.amount) / paymentTotal * 100 + '%' }} /></span></div>) : <p>Belum ada data pembayaran.</p>}</div></section>
+        <section className="panel"><div className="section-heading"><div><h2>Metode pembayaran</h2><p>Komposisi pembayaran 30 hari terakhir.</p></div></div><div className="payment-bars">{data.payment_breakdown?.length ? data.payment_breakdown.map((item) => <div key={item.payment_method}><div><span>{labelFor(paymentLabels, item.payment_method)}</span><strong>{rupiah(item.amount)}</strong></div><span className="payment-bar"><i style={{ width: Number(item.amount) / paymentTotal * 100 + '%' }} /></span></div>) : <p>Belum ada data pembayaran.</p>}</div></section>
       </section>
       {data.stores?.length > 1 && <section className="panel store-summary"><div className="section-heading"><div><h2>Ringkasan semua toko</h2><p>Perbandingan cabang untuk owner/admin utama.</p></div></div><div className="store-summary-grid">{data.stores.map((store) => <article key={store.id}><header><div><strong>{store.name}</strong><span>{store.address || 'Alamat belum diatur'}</span></div><b>{store.products} produk</b></header><dl><div><dt>Hari ini</dt><dd>{rupiah(store.today_sales)}</dd></div><div><dt>7 hari</dt><dd>{rupiah(store.seven_day_sales)}</dd></div><div><dt>Pengeluaran bulan ini</dt><dd>{rupiah(store.month_expenses)}</dd></div></dl></article>)}</div></section>}
-      <section className="panel dashboard-recent"><div className="section-heading"><div><h2>Transaksi terbaru</h2><p>Aktivitas penjualan terakhir.</p></div><a href="/history">Lihat semua</a></div><div className="data-list">{data.recent_transactions.length ? data.recent_transactions.map((tx) => <article key={tx.id}><div><strong>{tx.invoice_no}</strong><span>{tx.cashier}{data.owner_summary ? ' · ' + tx.branch_name : ''} · {new Date(tx.created_at).toLocaleString('id-ID')}</span></div><div><strong>{rupiah(tx.grand_total)}</strong><span className="tag">{tx.payment_method}</span></div></article>) : <p>Belum ada transaksi.</p>}</div></section>
+      <section className="panel dashboard-recent"><div className="section-heading"><div><h2>Transaksi terbaru</h2><p>Aktivitas penjualan terakhir.</p></div><Link href="/history">Lihat semua</Link></div><div className="data-list">{data.recent_transactions.length ? data.recent_transactions.map((tx) => <article key={tx.id}><div><strong>{tx.invoice_no}</strong><span>{tx.cashier}{data.owner_summary ? ' · ' + tx.branch_name : ''} · {new Date(tx.created_at).toLocaleString('id-ID')}</span></div><div><strong>{rupiah(tx.grand_total)}</strong><span className="tag">{labelFor(paymentLabels, tx.payment_method)}</span></div></article>) : <p>Belum ada transaksi.</p>}</div></section>
     </>}
   </AppShell>;
 }

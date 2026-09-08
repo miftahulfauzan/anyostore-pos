@@ -131,7 +131,7 @@ export default function Users() {
             </select>
           </label>
           <label>PIN (opsional)<input pattern="[0-9]{6}" value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} /></label>
-          <button>Simpan</button>
+          <button type="submit">Simpan</button>
           {message && <p className="message">{message}</p>}
         </form>
 

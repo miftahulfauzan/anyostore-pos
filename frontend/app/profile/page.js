@@ -62,7 +62,6 @@ export default function MyAccount() {
   }, []);
   useEffect(() => {
     if (range.start && range.end) fetchCommission(range.start, range.end);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range.start, range.end]);
 
   function applyRange() {

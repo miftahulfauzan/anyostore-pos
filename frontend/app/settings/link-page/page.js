@@ -543,7 +543,7 @@ export default function LinkPageSettings() {
                     <select value={s.icon} onChange={(e) => updateSocial(i, { icon: e.target.value })} style={{ width: 130, padding: '.45rem .5rem', borderRadius: '.45rem', border: '1px solid var(--border)', background: '#fff' }} aria-label="Ikon sosial">
                       {iconOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                     </select>
-                    <input value={s.url} onChange={(e) => updateSocial(i, { url: e.target.value })} placeholder="https://… atau /halaman-internal" maxLength={1000} style={{ flex: '1 1 260px', minWidth: 220 }} />
+                    <input aria-label={`URL ikon sosial ${i + 1}`} value={s.url} onChange={(e) => updateSocial(i, { url: e.target.value })} placeholder="https://… atau /halaman-internal" maxLength={1000} style={{ flex: '1 1 260px', minWidth: 220 }} />
                     <label style={{ display: 'inline-flex', gap: 4, alignItems: 'center', fontSize: '.82rem', cursor: 'pointer' }}>
                       <input type="checkbox" checked={s.active} onChange={(e) => updateSocial(i, { active: e.target.checked })} /> Aktif
                     </label>
@@ -616,7 +616,7 @@ export default function LinkPageSettings() {
                               <button type="button" className="small secondary" onClick={() => updateLink(i, { logo: '' })} title="Hapus logo">×</button>
                             </span>
                           )}
-                          <input value={link.url} onChange={(e) => updateLink(i, { url: e.target.value })} placeholder="https://…" maxLength={1000} style={{ flex: '1 1 220px', minWidth: 200 }} />
+                          <input aria-label={`URL tautan ${i + 1}`} value={link.url} onChange={(e) => updateLink(i, { url: e.target.value })} placeholder="https://…" maxLength={1000} style={{ flex: '1 1 220px', minWidth: 200 }} />
                         </>
                       )}
 

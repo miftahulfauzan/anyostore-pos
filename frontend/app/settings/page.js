@@ -74,7 +74,7 @@ export default function SettingsPage() {
 
   function buildWaList(f) {
     if (Array.isArray(f.whatsapp_numbers)) return f.whatsapp_numbers.map(String).filter(Boolean);
-    try { const parsed = JSON.parse(f.whatsapp_numbers); if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean); } catch {}
+    try { const parsed = JSON.parse(f.whatsapp_numbers); if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean); } catch { /* keep legacy WhatsApp fields as fallback */ }
     return [f.whatsapp_number, f.whatsapp_number_2, f.whatsapp_number_3].map((v) => String(v || '').trim()).filter(Boolean);
   }
 
@@ -315,7 +315,7 @@ export default function SettingsPage() {
       <section className="panel">
         <h2>Simpan</h2>
         <p className="muted">Perubahan berlaku untuk toko dipilih.</p>
-        <button onClick={save} disabled={saving} style={{ width: '100%' }}>{saving ? 'Menyimpan…' : 'Simpan Pengaturan'}</button>
+        <button type="button" onClick={save} disabled={saving} style={{ width: '100%' }}>{saving ? 'Menyimpan…' : 'Simpan Pengaturan'}</button>
         {message && <p className="message" role="status">{message}</p>}
       </section>
       </div>

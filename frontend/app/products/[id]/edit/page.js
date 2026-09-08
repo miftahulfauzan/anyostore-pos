@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { FlipHorizontal2, FlipVertical2, GripVertical, ImagePlus, Plus, RotateCcw, RotateCw, Video, X, ZoomIn, ZoomOut } from 'lucide-react';
 import AppShell from '../../../components/AppShell';
 import { fileToDataUrl, uploadMediaData, validateDataUpload } from '../../../lib/media-upload';
@@ -126,7 +126,7 @@ function AdjModal({ photo, mediaUrl, onClose, onSave }) {
     if (e.pointerType === 'touch') return;
     e.preventDefault();
     dragRef.current = { id: e.pointerId, clientX: e.clientX, clientY: e.clientY, panX, panY };
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* pointer capture is optional */ }
   }
   function onPointerMove(e) {
     const d = dragRef.current;
@@ -137,7 +137,7 @@ function AdjModal({ photo, mediaUrl, onClose, onSave }) {
   }
   function onPointerEnd(e) {
     if (dragRef.current?.id === e.pointerId) dragRef.current = null;
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* pointer capture is optional */ }
   }
 
   function onTouchStart(e) {
@@ -279,7 +279,7 @@ function AdjModal({ photo, mediaUrl, onClose, onSave }) {
             <strong style={{ fontSize: 16, color: '#0f172a' }}>Ubah Foto Produk</strong>
             <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94a3b8' }}>Geser untuk posisi · gulir / pinch untuk zoom · hasil 1200×1600 (3:4)</p>
           </div>
-          <button onClick={onClose} disabled={saving} aria-label="Tutup" style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#f1f5f9', fontSize: 16, lineHeight: 1, cursor: 'pointer', color: '#475569', display: 'grid', placeItems: 'center' }}>×</button>
+          <button type="button" onClick={onClose} disabled={saving} aria-label="Tutup" style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#f1f5f9', fontSize: 16, lineHeight: 1, cursor: 'pointer', color: '#475569', display: 'grid', placeItems: 'center' }}>×</button>
         </div>
 
         <div style={{ display: 'flex', gap: 18, padding: 20, flexWrap: 'wrap', alignItems: 'flex-start' }}>
@@ -322,20 +322,20 @@ function AdjModal({ photo, mediaUrl, onClose, onSave }) {
         {/* Toolbar + aksi */}
         <div style={{ padding: '14px 20px 18px', borderTop: '1px solid #eef1f5', display: 'grid', gap: 12 }}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <button onClick={() => zoomBy(1 / 1.2)} style={toolBtn}><ZoomOut size={15} /> Perkecil</button>
+            <button type="button" onClick={() => zoomBy(1 / 1.2)} style={toolBtn}><ZoomOut size={15} /> Perkecil</button>
             <span style={{ fontSize: 12, color: '#475569', minWidth: 46, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{zoom.toFixed(2)}×</span>
-            <button onClick={() => zoomBy(1.2)} style={toolBtn}><ZoomIn size={15} /> Perbesar</button>
+            <button type="button" onClick={() => zoomBy(1.2)} style={toolBtn}><ZoomIn size={15} /> Perbesar</button>
             <span style={{ width: 1, height: 24, background: '#e2e8f0' }} />
-            <button onClick={() => setRotation((r) => (r + 270) % 360)} style={toolBtn}><RotateCcw size={15} /> Putar Kiri</button>
-            <button onClick={() => setRotation((r) => (r + 90) % 360)} style={toolBtn}><RotateCw size={15} /> Putar Kanan</button>
-            <button onClick={() => setFlipH((v) => !v)} style={flipH ? toolBtnActive : toolBtn}><FlipHorizontal2 size={15} /> Horizontal</button>
-            <button onClick={() => setFlipV((v) => !v)} style={flipV ? toolBtnActive : toolBtn}><FlipVertical2 size={15} /> Vertikal</button>
-            <button onClick={reset} style={toolBtn}>Reset</button>
+            <button type="button" onClick={() => setRotation((r) => (r + 270) % 360)} style={toolBtn}><RotateCcw size={15} /> Putar Kiri</button>
+            <button type="button" onClick={() => setRotation((r) => (r + 90) % 360)} style={toolBtn}><RotateCw size={15} /> Putar Kanan</button>
+            <button type="button" onClick={() => setFlipH((v) => !v)} style={flipH ? toolBtnActive : toolBtn}><FlipHorizontal2 size={15} /> Horizontal</button>
+            <button type="button" onClick={() => setFlipV((v) => !v)} style={flipV ? toolBtnActive : toolBtn}><FlipVertical2 size={15} /> Vertikal</button>
+            <button type="button" onClick={reset} style={toolBtn}>Reset</button>
           </div>
           {error && <p style={{ margin: 0, color: '#b91c1c', fontSize: 12 }}>{error}</p>}
           <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={onClose} disabled={saving} style={{ minHeight: 44, padding: '0 18px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#fff', color: '#1e293b', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Tutup</button>
-            <button onClick={handleSave} disabled={!image || saving || status !== 'ready'} style={{ flex: 1, minHeight: 44, borderRadius: 10, border: 'none', background: ACCENT, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: !image || status !== 'ready' ? .55 : 1 }}>{saving ? 'Menyimpan…' : 'Simpan Hasil Crop'}</button>
+            <button type="button" onClick={onClose} disabled={saving} style={{ minHeight: 44, padding: '0 18px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#fff', color: '#1e293b', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Tutup</button>
+            <button type="button" onClick={handleSave} disabled={!image || saving || status !== 'ready'} style={{ flex: 1, minHeight: 44, borderRadius: 10, border: 'none', background: ACCENT, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: !image || status !== 'ready' ? .55 : 1 }}>{saving ? 'Menyimpan…' : 'Simpan Hasil Crop'}</button>
           </div>
         </div>
       </div>
@@ -356,6 +356,7 @@ export default function EditProductPage() {
   const [media, setMedia] = useState([]);
   const [mediaUploading, setMediaUploading] = useState(false);
   const params = useParams();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const productId = params?.id;
   const branchId = searchParams.get('branch_id');
@@ -547,7 +548,7 @@ export default function EditProductPage() {
         setPreview('');
       }
       setMessage('Produk dan varian berhasil diperbarui.');
-      window.location.href = '/products';
+      router.replace('/products');
     } catch (error) { setMessage(error.message); } finally { setSaving(false); }
   }
 
@@ -572,7 +573,7 @@ export default function EditProductPage() {
               {variants.length > 0 && <div className="variant-list">{variants.map((variant, index) => <div className="variant-row" key={variant.id || index}><label>Warna<input value={variant.color} onChange={(event) => updateVariant(index, 'color', event.target.value)} placeholder="Contoh: Navy" required /></label><label>SKU varian<input value={variant.sku} onChange={(event) => updateVariant(index, 'sku', event.target.value)} placeholder="Opsional" /></label><label>Harga khusus<input type="number" min="0" value={variant.price} onChange={(event) => updateVariant(index, 'price', event.target.value)} placeholder="Harga produk" /></label><div className="variant-stock"><span>Stok</span><strong>{variant.stock ?? 0}</strong></div>{variant.id && <label className="variant-photo-upload">{variant.photo_path ? <img src={mediaUrl(variant.photo_path)} alt={`Foto varian ${variant.color}`} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} /> : 'Foto varian'}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => uploadVariantPhoto(variant.id, event.target.files?.[0])} /></label>}<button className="remove-variant" type="button" onClick={() => setVariants((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Hapus varian ${index + 1}`}><X aria-hidden="true" size={16} /></button></div>)}</div>}
             </section>
             <section className="wholesale-section"><div className="section-heading"><div><h3>Harga grosir</h3><p>Atur harga berdasarkan jumlah pembelian.</p></div><button type="button" className="secondary small" onClick={() => setTiers((current) => [...current, { min_qty: '', max_qty: '', price: '' }])}>Tambah tingkat</button></div>{tiers.map((tier, index) => <div className="wholesale-row" key={index}><label>Min. qty<input type="number" min="1" value={tier.min_qty} onChange={(event) => updateTier(index, 'min_qty', event.target.value)} required /></label><label>Maks. qty<input type="number" min="1" value={tier.max_qty} onChange={(event) => updateTier(index, 'max_qty', event.target.value)} placeholder="Tanpa batas" /></label><label>Harga/unit<input type="number" min="0" value={tier.price} onChange={(event) => updateTier(index, 'price', event.target.value)} required /></label><button type="button" className="remove-tier" onClick={() => setTiers((current) => current.filter((_, itemIndex) => itemIndex !== index))}>Hapus</button></div>)}</section>
-            <div className="form-actions"><button disabled={saving}>{saving ? 'Menyimpan…' : 'Simpan Perubahan'}</button><a href="/products">Batal</a></div>
+            <div className="form-actions"><button type="submit" disabled={saving}>{saving ? 'Menyimpan…' : 'Simpan Perubahan'}</button><a href="/products">Batal</a></div>
             {message && <p className="message" role="status">{message}</p>}
           </form>
         )}

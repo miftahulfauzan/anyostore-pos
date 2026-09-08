@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import AppShell from "../components/AppShell";
 import DateRangePresets from "../components/DateRangePresets";
 import { localDateString, localMonthStartString } from "../lib/local-date";
+import { labelFor, paymentLabels, statusLabels } from "../lib/ui-labels";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 const todayStr = () => localDateString();
@@ -28,10 +29,11 @@ function ReportTable({
       </div>
       <div className="table-wrap">
         <table>
+          <caption className="sr-only">{title}</caption>
           <thead>
             <tr>
               {columns.map((column) => (
-                <th key={column.label}>{column.label}</th>
+                <th scope="col" key={column.label}>{column.label}</th>
               ))}
             </tr>
           </thead>
@@ -189,7 +191,7 @@ export default function ReportsPage() {
             }
           />
         </label>
-        <button onClick={() => load()} disabled={loading}>
+        <button type="button" onClick={() => load()} disabled={loading}>
           {loading ? "Memuat…" : "Tampilkan"}
         </button>
       </section>
@@ -248,13 +250,13 @@ export default function ReportsPage() {
                 render: (row) => (
                   <>
                     <strong>{row.cashier}</strong>
-                    <small>{row.status}</small>
+                    <small>{labelFor(statusLabels, row.status)}</small>
                   </>
                 ),
               },
               {
                 label: "Metode",
-                key: "payment_method",
+                render: (row) => labelFor(paymentLabels, row.payment_method),
               },
               {
                 label: "Total",

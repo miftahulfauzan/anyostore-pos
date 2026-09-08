@@ -54,7 +54,7 @@ export default function ClosingPage() {
     <div className="closing-wrap" style={{ maxWidth: 420, margin: '0 auto', padding: 24 }}>
       <div className="no-print" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>Tanggal<input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ minHeight: 40 }} /></label>
-        <button onClick={() => window.print()} disabled={!data}>Cetak / Simpan PDF</button>
+        <button type="button" onClick={() => window.print()} disabled={!data}>Cetak / Simpan PDF</button>
         <a className="button-link" href="/dashboard">← Kembali ke Dasbor</a>
       </div>
       {message && <p className="message" role="status">{message}</p>}

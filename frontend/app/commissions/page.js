@@ -4,6 +4,7 @@ import { localDateString, localMonthStartString } from '../lib/local-date';
 import { useEffect, useState } from 'react';
 import AppShell from '../components/AppShell';
 import DateRangePresets from '../components/DateRangePresets';
+import { labelFor, statusLabels } from '../lib/ui-labels';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rupiah = (value) => `Rp${Number(value || 0).toLocaleString('id-ID')}`;
@@ -82,7 +83,7 @@ export default function CommissionsPage() {
       const r = await fetch(`${apiUrl}/settings/branches`, { headers: headers() });
       const b = await r.json();
       if (r.ok) setBranches(b.data || []);
-    } catch {}
+    } catch { /* malformed legacy configuration falls back to defaults */ }
   }
 
   useEffect(() => {
@@ -333,7 +334,7 @@ export default function CommissionsPage() {
                           : r.calculation_type.startsWith('percentage') ? `${r.percentage}%` : rupiah(r.flat_amount)
                         }
                       </td>
-                      <td><button className="small danger" style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }} onClick={() => deleteRule(r.id, r.name)}>Hapus</button></td>
+                      <td><button type="button" className="small danger" style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }} onClick={() => deleteRule(r.id, r.name)}>Hapus</button></td>
                     </tr>
                   ))}
                   {!rules.length && <tr><td colSpan={5}>Belum ada aturan.</td></tr>}
@@ -365,10 +366,10 @@ export default function CommissionsPage() {
                     <td>{rec.qty_semi_grosir || 0}</td>
                     <td>{rec.qty_grosir_seri || 0}</td>
                     <td>{rupiah(rec.commission_amount)}</td>
-                    <td><span className={'status ' + rec.status}>{rec.status}</span></td>
+                    <td><span className={'status ' + rec.status}>{labelFor(statusLabels, rec.status)}</span></td>
                     <td style={{ display: 'flex', gap: '.25rem' }}>
-                      <button className="small secondary" onClick={() => updateStatus(rec.id, 'approved')}>Setujui</button>
-                      <button className="small" onClick={() => updateStatus(rec.id, 'paid')}>Bayar</button>
+                      <button type="button" className="small secondary" onClick={() => updateStatus(rec.id, 'approved')}>Setujui</button>
+                      <button type="button" className="small" onClick={() => updateStatus(rec.id, 'paid')}>Bayar</button>
                     </td>
                   </tr>
                 ))}
