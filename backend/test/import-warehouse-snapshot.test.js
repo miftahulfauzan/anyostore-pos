@@ -84,3 +84,31 @@ test('pencocokan lewat nama menolak nama yang tidak unik', () => {
   assert.deepEqual(result.ambiguous[0].candidates.map((candidate) => candidate.id), [20, 21]);
   assert.equal(result.safe, false);
 });
+
+test('opsi canonical memilih katalog utama dan melewati varian dengan snapshot nol', () => {
+  const result = planSnapshotMatches(
+    [
+      { target: 'rak riject', sku: 'AT67', name: 'AT67', quantity: 2 },
+      { target: 'gudang riject perbaikan', sku: 'AB12', name: 'AB12', quantity: 57 },
+      { target: 'rak riject', sku: 'AT75', name: 'AT75', quantity: 0 },
+      { target: 'rak riject', sku: 'AC03', name: 'AC03', quantity: 0 },
+    ],
+    [
+      { id: 711, branch_id: 8, sku: 'B8-B4-AT67-2', name: 'AT67', stock: 0, variant_count: 0 },
+      { id: 735, branch_id: 8, sku: 'B8-AT67-2', name: 'AT67', stock: 1, variant_count: 0 },
+      { id: 607, branch_id: 7, sku: 'B7-B4-AB12-2', name: 'AB12', stock: 0, variant_count: 0 },
+      { id: 736, branch_id: 7, sku: 'B7-AB12-2', name: 'AB12', stock: 1, variant_count: 0 },
+      { id: 703, branch_id: 8, sku: 'B8-B4-AT75', name: 'AT75', stock: 0, variant_count: 1 },
+      { id: 713, branch_id: 8, sku: 'B8-B4-AT75-2', name: 'AT75', stock: 0, variant_count: 0 },
+      { id: 721, branch_id: 8, sku: 'B8-B4-AC03', name: 'AC03', stock: 0, variant_count: 1 },
+      { id: 722, branch_id: 8, sku: 'B8-AC03', name: 'AC03', stock: 0, variant_count: 0 },
+    ],
+    { preferCanonical: true, allowZeroVariants: true },
+  );
+  assert.deepEqual(result.matched.map((row) => row.product.id), [711, 607]);
+  assert.deepEqual(result.skippedZeroVariants.map((row) => row.product.id), [703, 721]);
+  assert.deepEqual(result.duplicates.map((row) => row.selected.id), [711, 607, 703, 721]);
+  assert.equal(result.duplicates[0].discarded[0].id, 735);
+  assert.equal(result.duplicates[1].discarded[0].id, 736);
+  assert.equal(result.safe, true);
+});
