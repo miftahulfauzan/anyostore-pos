@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { FlipHorizontal2, FlipVertical2, GripVertical, ImagePlus, Plus, RotateCcw, RotateCw, Video, X, ZoomIn, ZoomOut } from 'lucide-react';
 import AppShell from '../../../components/AppShell';
 import { fileToDataUrl, uploadMediaData, validateDataUpload } from '../../../lib/media-upload';
@@ -356,7 +356,10 @@ export default function EditProductPage() {
   const [media, setMedia] = useState([]);
   const [mediaUploading, setMediaUploading] = useState(false);
   const params = useParams();
+  const searchParams = useSearchParams();
   const productId = params?.id;
+  const branchId = searchParams.get('branch_id');
+  const branchQuery = branchId ? `?branch_id=${encodeURIComponent(branchId)}` : '';
   const headers = () => ({ 'Content-Type': 'application/json'});
   const mediaUrl = (path) => path ? `${apiUrl.replace('/api', '')}${path}` : '';
   const thumbStyle = (m) => {
@@ -366,7 +369,7 @@ export default function EditProductPage() {
 
   useEffect(() => {
     /* sesi via httpOnly cookie */
-    Promise.all([fetch(`${apiUrl}/products/${productId}`, { headers: headers() }), fetch(`${apiUrl}/products/categories`, { headers: headers() })])
+    Promise.all([fetch(`${apiUrl}/products/${productId}${branchQuery}`, { headers: headers() }), fetch(`${apiUrl}/products/categories`, { headers: headers() })])
       .then(async ([itemResponse, categoriesResponse]) => {
         const itemBody = await itemResponse.json();
         const categoriesBody = await categoriesResponse.json();
@@ -377,10 +380,10 @@ export default function EditProductPage() {
         setTiers((itemBody.data.wholesale_prices || []).map((tier) => ({ min_qty: String(tier.min_qty), max_qty: tier.max_qty == null ? '' : String(tier.max_qty), price: String(tier.price) })));
         setVariants((itemBody.data.variants || []).map((variant) => ({ id: variant.id, color: variant.color || '', size: variant.size || '', sku: variant.sku || '', barcode: variant.barcode || '', price: variant.price == null ? '' : String(variant.price), stock: variant.stock, photo_path: variant.photo_path || '' })));
         setMedia(itemBody.data.media || []);
-        setForm({ name: itemBody.data.name || '', category_id: String(itemBody.data.category_id), sku: itemBody.data.sku || '', barcode: itemBody.data.barcode || '', price: String(itemBody.data.price || ''), cost: String(itemBody.data.cost || ''), min_stock: String(itemBody.data.min_stock || 0), gender: itemBody.data.gender || 'unisex', description: itemBody.data.description || '' });
+        setForm({ branch_id: itemBody.data.branch_id, name: itemBody.data.name || '', category_id: String(itemBody.data.category_id), sku: itemBody.data.sku || '', barcode: itemBody.data.barcode || '', price: String(itemBody.data.price || ''), cost: String(itemBody.data.cost || ''), min_stock: String(itemBody.data.min_stock || 0), gender: itemBody.data.gender || 'unisex', description: itemBody.data.description || '' });
       })
       .catch((error) => setMessage(error.message || 'Produk tidak dapat dimuat'));
-  }, [productId]);
+  }, [productId, branchQuery]);
 
   useEffect(() => {
     function onPaste(event) {
@@ -432,8 +435,8 @@ export default function EditProductPage() {
     if (invalid) { setMessage(invalid); return; }
     setMediaUploading(true); setMessage('');
     try {
-      for (const file of selected) await uploadMediaData(`${apiUrl}/products/${productId}/media-data`, file);
-      const refreshed = await fetch(`${apiUrl}/products/${productId}`, { headers: headers() }).then((result) => result.json());
+      for (const file of selected) await uploadMediaData(`${apiUrl}/products/${productId}/media-data${branchQuery}`, file);
+      const refreshed = await fetch(`${apiUrl}/products/${productId}${branchQuery}`, { headers: headers() }).then((result) => result.json());
       setMedia(refreshed.data?.media || []);
       setMessage('Media produk berhasil diunggah.');
     } catch (error) { setMessage(error.message); } finally { setMediaUploading(false); }
@@ -443,7 +446,7 @@ export default function EditProductPage() {
     const invalid = validateDataUpload(file, ['image/jpeg', 'image/png', 'image/webp']);
     if (invalid) { setMessage(invalid); return; }
     try {
-      const body = await uploadMediaData(`${apiUrl}/products/${productId}/variants/${variantId}/photo-data`, file);
+      const body = await uploadMediaData(`${apiUrl}/products/${productId}/variants/${variantId}/photo-data${branchQuery}`, file);
       setVariants((current) => current.map((variant) => variant.id === variantId ? { ...variant, photo_path: body.data.path } : variant));
       setMessage('Foto varian berhasil diperbarui.');
     } catch (error) { setMessage(error.message); }
@@ -453,7 +456,7 @@ export default function EditProductPage() {
     if (!window.confirm('Hapus foto ini?')) return;
     setMessage('');
     try {
-      const response = await fetch(`${apiUrl}/products/${productId}/media/${mediaId}`, { method: 'DELETE', headers: headers() });
+      const response = await fetch(`${apiUrl}/products/${productId}/media/${mediaId}${branchQuery}`, { method: 'DELETE', headers: headers() });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message || 'Foto gagal dihapus');
       setMedia((current) => current.filter((item) => item.id !== mediaId));
@@ -463,7 +466,7 @@ export default function EditProductPage() {
 
   async function saveOrder(images) {
     try {
-      await fetch(`${apiUrl}/products/${productId}/media/reorder`, { method: 'PATCH', headers: headers(), body: JSON.stringify({ order: images.map((item) => item.id) }) });
+      await fetch(`${apiUrl}/products/${productId}/media/reorder${branchQuery}`, { method: 'PATCH', headers: headers(), body: JSON.stringify({ order: images.map((item) => item.id) }) });
     } catch { /* urutan tetap tersimpan lokal; abaikan kegagalan kecil */ }
   }
 
@@ -493,7 +496,7 @@ export default function EditProductPage() {
   async function saveCropped(file) {
     if (!adjPhoto) return;
     const dataUrl = await fileToDataUrl(file);
-    const response = await fetch(`${apiUrl}/products/${productId}/media/${adjPhoto.mediaId}/image-data`, {
+    const response = await fetch(`${apiUrl}/products/${productId}/media/${adjPhoto.mediaId}/image-data${branchQuery}`, {
       method: 'PATCH',
       headers: headers(),
       body: JSON.stringify({ filename: file.name || 'crop.jpg', content_type: file.type || 'image/jpeg', data_url: dataUrl }),
@@ -530,13 +533,13 @@ export default function EditProductPage() {
     setSaving(true);
     setMessage('');
     try {
-      const response = await fetch(`${apiUrl}/products/${productId}`, { method: 'PUT', headers: headers(), body: JSON.stringify({ ...form, category_id: Number(form.category_id), price: Number(form.price), cost: Number(form.cost || 0), min_stock: Number(form.min_stock), wholesale_prices: tiers, variants }) });
+      const response = await fetch(`${apiUrl}/products/${productId}`, { method: 'PUT', headers: headers(), body: JSON.stringify({ ...form, branch_id: Number(form.branch_id || branchId || 0), category_id: Number(form.category_id), price: Number(form.price), cost: Number(form.cost || 0), min_stock: Number(form.min_stock), wholesale_prices: tiers, variants }) });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message || 'Produk gagal diperbarui');
       if (photo) {
         const upload = new FormData();
         upload.append('photo', photo);
-        const uploadResponse = await fetch(`${apiUrl}/products/${productId}/photo`, { method: 'POST', headers: {}, body: upload });
+        const uploadResponse = await fetch(`${apiUrl}/products/${productId}/photo${branchQuery}`, { method: 'POST', headers: {}, body: upload });
         const uploadBody = await uploadResponse.json();
         if (!uploadResponse.ok) throw new Error(`Data produk diperbarui, tetapi foto gagal: ${uploadBody.message || 'coba lagi'}`);
         setProduct({ ...product, photo_path: uploadBody.data.path });

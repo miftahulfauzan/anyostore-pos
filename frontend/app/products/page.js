@@ -176,7 +176,7 @@ export default function ProductsPage() {
           <div className="product-actions">
             <button type="button" className="icon-action" title="Salin produk" onClick={() => copyProduct(product)}><Copy size={15} /></button>
             <button type="button" className="icon-action" title="Cetak barcode" onClick={() => { setBarcodeProduct(product); setBarcodeCopies(1); }}><Barcode size={15} /></button>
-            <a className="icon-action" title="Kelola produk" href={`/products/${product.id}/edit`}><Pencil size={15} /></a>
+            <a className="icon-action" title="Kelola produk" href={`/products/${product.id}/edit${branchId ? `?branch_id=${encodeURIComponent(branchId)}` : ''}`}><Pencil size={15} /></a>
             <button type="button" className="icon-action danger" title="Hapus produk" onClick={() => deleteProduct(product)}><Trash2 size={15} /></button>
           </div>
         </div>
