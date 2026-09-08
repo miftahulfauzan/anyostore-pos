@@ -12,7 +12,9 @@ const defaults = {
   theme: 'green', tax_rate: '0', prices_include_tax: 'false',
   loyalty_enabled: 'false', loyalty_points_rate: '1', loyalty_points_value: '0',
   show_logo: 'true', show_qr: 'false', show_cashier: 'true', show_barcode: 'true',
-  low_stock_alert: 'true', low_stock_email: '', order_prefix: '', invoice_prefix: 'INV', landing_page_size: '24'
+  low_stock_alert: 'true', low_stock_email: '', order_prefix: '', invoice_prefix: 'INV', landing_page_size: '24',
+  daily_email_enabled: 'false', daily_email_to: '', daily_email_from: '', daily_email_time: '19:00',
+  daily_email_api_url: 'https://api.resend.com/emails', daily_email_api_key: ''
 };
 
 function sanitizeBranchName(v) { return String(v || '').trim(); }
@@ -26,6 +28,9 @@ export default function SettingsPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [waList, setWaList] = useState([]);
+  const [emailKeySet, setEmailKeySet] = useState(false);
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [backupMessage, setBackupMessage] = useState('');
 
   // new branch state
   const [newBranch, setNewBranch] = useState({ name: '', address: '', phone: '', email: '', source_branch_id: '', price_multiplier: '1', clone_photos: true, pricing_tier_enabled: true });
@@ -40,7 +45,12 @@ export default function SettingsPage() {
       const response = await fetch(api + '/settings' + (id ? '?branch_id=' + id : ''), { headers: jsonHeaders() });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message);
-      setForm({ ...defaults, ...body.data });
+      const settings = { ...(body.data || {}) };
+      const apiKeySet = settings.daily_email_api_key_set;
+      delete settings.daily_email_api_key_set;
+      delete settings.daily_email_last_sent_date;
+      setForm({ ...defaults, ...settings, daily_email_api_key: '' });
+      setEmailKeySet(Boolean(apiKeySet));
       setWaList(buildWaList(body.data));
     } catch (error) { setMessage(error.message); }
   }
@@ -115,6 +125,31 @@ export default function SettingsPage() {
       setMessage('Pengaturan toko tersimpan di database.');
     } catch (error) { setMessage(error.message); }
     finally { setSaving(false); }
+  }
+
+  async function downloadBackup() {
+    setBackupLoading(true);
+    setBackupMessage('');
+    try {
+      const response = await fetch(api + '/backup', { headers: jsonHeaders(), credentials: 'include' });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body.data?.download) throw new Error(body.message || 'Backup database gagal dibuat');
+      const payload = body.data.download;
+      const blob = new Blob([payload], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `anyostore-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setBackupMessage(`Backup selesai: ${Number(body.data.tables || 0).toLocaleString('id-ID')} tabel dan ${Number(body.data.total_rows || 0).toLocaleString('id-ID')} baris.`);
+    } catch (error) {
+      setBackupMessage(error.message || 'Backup database gagal dibuat');
+    } finally {
+      setBackupLoading(false);
+    }
   }
 
   async function createBranch(event) {
@@ -244,6 +279,24 @@ export default function SettingsPage() {
       )}
       <CategoryManager api={api} headers={jsonHeaders} />
 
+      {isOwner && (
+        <section className="panel settings-feature-panel">
+          <div className="section-heading">
+            <div>
+              <h2>Backup Database</h2>
+              <p>Download seluruh data database dalam satu file JSON untuk disimpan dengan aman. API key email tidak ikut diunduh.</p>
+            </div>
+            <span className="tag">Owner</span>
+          </div>
+          <div className="form-actions">
+            <button type="button" className="secondary" onClick={downloadBackup} disabled={backupLoading}>
+              {backupLoading ? 'Menyiapkan backup…' : '↓ Backup Database'}
+            </button>
+          </div>
+          {backupMessage && <p className="message success" role="status">{backupMessage}</p>}
+        </section>
+      )}
+
       <section className="panel">
         <h2>Toko aktif & identitas</h2>
         {stores.length > 1 && <label>Pilih toko<select value={branch} onChange={(event) => { setBranch(event.target.value); load(event.target.value); }}>{stores.map((store) => <option key={store.id} value={store.id} style={{ opacity: store.is_active ? 1 : .5 }}>{store.name}{store.is_active ? '' : ' (nonaktif)'}</option>)}</select></label>}
@@ -306,6 +359,38 @@ export default function SettingsPage() {
         {select('low_stock_alert', 'Alert stok rendah', [['true', 'Ya'], ['false', 'Tidak']])}
         {input('low_stock_email', 'Email alert', 'email')}
       </section>
+
+      {isOwner && (
+        <section className="panel settings-feature-panel">
+          <div className="section-heading">
+            <div>
+              <h2>Laporan Harian Email</h2>
+              <p>Laporan stok masuk dan keluar yang benar-benar tercatat akan dikirim otomatis setiap hari sesuai waktu WIB.</p>
+            </div>
+            <span className="tag">Owner</span>
+          </div>
+          {select('daily_email_enabled', 'Status laporan', [['false', 'Nonaktif'], ['true', 'Aktif']])}
+          <div className="two-fields">
+            {input('daily_email_to', 'Email tujuan', 'email')}
+            {input('daily_email_from', 'Email pengirim')}
+          </div>
+          <div className="two-fields">
+            {input('daily_email_time', 'Jam kirim (WIB)', 'time')}
+            {input('daily_email_api_url', 'API URL')}
+          </div>
+          <label>API key Resend
+            <input
+              type="password"
+              value={form.daily_email_api_key}
+              onChange={(event) => setForm({ ...form, daily_email_api_key: event.target.value })}
+              placeholder={emailKeySet ? 'API key tersimpan — kosongkan jika tidak diubah' : 're_...'}
+              autoComplete="new-password"
+            />
+          </label>
+          {emailKeySet && <p className="muted" style={{ margin: 0, fontSize: '.82rem' }}>API key tersimpan dan tidak pernah ditampilkan kembali.</p>}
+          <p className="muted" style={{ margin: 0, fontSize: '.82rem' }}>Provider yang didukung saat ini: Resend. Laporan dikirim berdasarkan mutasi stok nyata pada cabang yang dipilih.</p>
+        </section>
+      )}
 
       <section className="panel">
         <h2>Landing page (grosir)</h2>

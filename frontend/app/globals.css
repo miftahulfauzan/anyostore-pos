@@ -1959,3 +1959,18 @@ button.pcard-btn { font-family: inherit; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* Collapsed desktop sidebar is an icon rail: never let labels squeeze into
+   clipped fragments. The mobile drawer intentionally keeps its labels. */
+@media (min-width: 821px) {
+  .sidebar.collapsed .brand > span:not(.brand-mark),
+  .sidebar.collapsed .side-nav a > span,
+  .sidebar.collapsed .nav-group-toggle > span,
+  .sidebar.collapsed .sidebar-footer > div,
+  .sidebar.collapsed .logout > span,
+  .sidebar.collapsed .warehouse-nav-label { display: none; }
+  .sidebar.collapsed .brand-mark { display: grid; }
+  .sidebar.collapsed .side-nav a { justify-content: center; gap: 0; padding-inline: 0; }
+  .sidebar.collapsed .nav-group-toggle { justify-content: center; }
+  .sidebar.collapsed .logout { justify-content: center; gap: 0; }
+}

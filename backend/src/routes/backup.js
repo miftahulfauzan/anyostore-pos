@@ -4,6 +4,7 @@ const { authenticate, authorize } = require('../auth');
 
 const router = express.Router();
 router.use(authenticate);
+const sensitiveSettingKeys = new Set(['daily_email_api_key']);
 
 // GET /api/backup — snapshot JSON semua tabel (owner). Dipakai tombol "Backup Sekarang".
 router.get('/', authorize('owner'), async (req, res, next) => {
@@ -18,7 +19,9 @@ router.get('/', authorize('owner'), async (req, res, next) => {
       const name = String(t[tableKey]);
       try {
         const [rows] = await db.execute('SELECT * FROM `' + name.replace(/[^A-Za-z0-9_]/g, '') + '` LIMIT ' + ROW_LIMIT);
-        dump.tables[name] = rows;
+        dump.tables[name] = name === 'store_settings'
+          ? rows.map((row) => sensitiveSettingKeys.has(row.key) ? { ...row, value: '[REDACTED]' } : row)
+          : rows;
         totalRows += rows.length;
         if (rows.length >= ROW_LIMIT) {
           const [counts] = await db.execute('SELECT COUNT(*) AS c FROM `' + name.replace(/[^A-Za-z0-9_]/g, '') + '`');

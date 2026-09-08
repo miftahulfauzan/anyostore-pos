@@ -5,7 +5,11 @@ const { assertValidUpload, createMediaUpload, decodeDataUpload, discardUploadedF
 
 const router = express.Router();
 router.use(authenticate);
-const allowed = new Set(['store_name','store_address','store_phone','store_email','store_tax_id','receipt_header','receipt_footer','receipt_note','printer_size','auto_print','theme','tax_rate','prices_include_tax','loyalty_enabled','loyalty_points_rate','loyalty_points_value','show_logo','show_qr','show_cashier','show_barcode','low_stock_alert','low_stock_email','order_prefix','invoice_prefix','whatsapp_number','whatsapp_number_2','whatsapp_number_3','whatsapp_numbers','landing_page_size']);
+const allowed = new Set(['store_name','store_address','store_phone','store_email','store_tax_id','receipt_header','receipt_footer','receipt_note','printer_size','auto_print','theme','tax_rate','prices_include_tax','loyalty_enabled','loyalty_points_rate','loyalty_points_value','show_logo','show_qr','show_cashier','show_barcode','low_stock_alert','low_stock_email','order_prefix','invoice_prefix','whatsapp_number','whatsapp_number_2','whatsapp_number_3','whatsapp_numbers','landing_page_size','daily_email_enabled','daily_email_to','daily_email_from','daily_email_time','daily_email_api_url','daily_email_api_key']);
+const dailyEmailKeys = new Set(['daily_email_enabled','daily_email_to','daily_email_from','daily_email_time','daily_email_api_url','daily_email_api_key']);
+const DEFAULT_EMAIL_API_URL = 'https://api.resend.com/emails';
+const emailPattern = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
+const senderPattern = /^(?:[^<>]+\s)?<([^<>\s@]+@[^<>\s@]+\.[^<>\s@]+)>$|^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
 const profileKeys = new Set(['store_name', 'store_address', 'store_phone', 'store_email', 'store_tax_id']);
 const logoUpload = createMediaUpload('logos', {
   fileSize: 5 * 1024 * 1024,
@@ -328,12 +332,13 @@ router.get('/', async (req, res, next) => {
     if (!branch) return res.status(404).json({ success: false, message: 'Toko tidak ditemukan' });
     // Store identity belongs to branches. Ignore legacy copies in store_settings
     // so an old sample value can never overwrite the saved branch profile.
+    const emailKey = settingsResult[0].find((row) => row.key === 'daily_email_api_key');
     const settings = Object.fromEntries(
       settingsResult[0]
-        .filter((row) => !profileKeys.has(row.key))
+        .filter((row) => !profileKeys.has(row.key) && row.key !== 'daily_email_api_key' && row.key !== 'daily_email_last_sent_date')
         .map((row) => [row.key, row.value])
     );
-    res.json({ success: true, data: { store_name: branch.name, store_address: branch.address || '', store_phone: branch.phone || '', store_email: branch.email || '', store_tax_id: branch.npwp || '', ...settings } });
+    res.json({ success: true, data: { store_name: branch.name, store_address: branch.address || '', store_phone: branch.phone || '', store_email: branch.email || '', store_tax_id: branch.npwp || '', daily_email_api_key_set: Boolean(emailKey?.value), ...settings } });
   } catch (error) { next(error); }
 });
 
@@ -343,6 +348,33 @@ router.put('/', authorize('owner','manager','admin'), async (req, res, next) => 
     const id = branchId(req);
     const entries = Object.entries(req.body).filter(([key]) => allowed.has(key));
     if (!entries.length) return res.status(400).json({ success: false, message: 'Tidak ada pengaturan valid' });
+    if (entries.some(([key]) => dailyEmailKeys.has(key)) && req.user.role !== 'owner') {
+      return res.status(403).json({ success: false, message: 'Pengaturan email otomatis hanya dapat diubah owner' });
+    }
+    const dailyTime = entries.find(([key]) => key === 'daily_email_time')?.[1];
+    if (dailyTime !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(String(dailyTime))) {
+      return res.status(400).json({ success: false, message: 'Waktu email otomatis harus berformat HH:MM' });
+    }
+    const dailyApiUrl = entries.find(([key]) => key === 'daily_email_api_url')?.[1];
+    if (dailyApiUrl !== undefined) {
+      try {
+        const parsed = new URL(String(dailyApiUrl || DEFAULT_EMAIL_API_URL));
+        if (parsed.protocol !== 'https:' || parsed.hostname !== 'api.resend.com' || parsed.pathname !== '/emails' || parsed.search || parsed.hash) throw new Error('invalid');
+      } catch {
+        return res.status(400).json({ success: false, message: 'API URL email harus endpoint Resend yang aman: https://api.resend.com/emails' });
+      }
+    }
+    const dailyEnabled = String(entries.find(([key]) => key === 'daily_email_enabled')?.[1] || '').toLowerCase() === 'true';
+    const dailyTo = String(entries.find(([key]) => key === 'daily_email_to')?.[1] || '').trim();
+    const dailyFrom = String(entries.find(([key]) => key === 'daily_email_from')?.[1] || '').trim();
+    if (dailyTo && !emailPattern.test(dailyTo)) return res.status(400).json({ success: false, message: 'Email tujuan tidak valid' });
+    if (dailyFrom && !senderPattern.test(dailyFrom)) return res.status(400).json({ success: false, message: 'Email pengirim tidak valid' });
+    if (dailyEnabled && (!dailyTo || !dailyFrom)) return res.status(400).json({ success: false, message: 'Email tujuan dan pengirim wajib diisi saat laporan diaktifkan' });
+    const dailyKeyInput = String(entries.find(([key]) => key === 'daily_email_api_key')?.[1] || '').trim();
+    if (dailyEnabled && !dailyKeyInput) {
+      const [existingKey] = await db.execute('SELECT `value` FROM store_settings WHERE branch_id=? AND `key`=? LIMIT 1', [id, 'daily_email_api_key']);
+      if (!String(existingKey[0]?.value || '').trim()) return res.status(400).json({ success: false, message: 'API key Resend wajib diisi saat laporan diaktifkan' });
+    }
     await connection.beginTransaction();
     const profile = Object.fromEntries(entries.filter(([key]) => profileKeys.has(key)));
     if (Object.keys(profile).length) {
@@ -357,6 +389,9 @@ router.put('/', authorize('owner','manager','admin'), async (req, res, next) => 
     }
     for (const [key, value] of entries.filter(([key]) => !profileKeys.has(key))) {
       if (key === 'landing_page_size' && ![12, 24, 48].includes(Number(value))) throw Object.assign(new Error('Produk per halaman landing harus 12, 24, atau 48'), { status: 400 });
+      // API key lama tetap dipakai ketika owner menyimpan pengaturan lain.
+      // GET /settings tidak pernah mengembalikan nilai rahasia ini.
+      if (key === 'daily_email_api_key' && !String(value || '').trim()) continue;
       await connection.execute('INSERT INTO store_settings (branch_id,`key`,`value`) VALUES (?,?,?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)', [id, key, String(value)]);
     }
     await connection.commit();
