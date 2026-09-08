@@ -1640,6 +1640,7 @@ html[data-theme="purple"] .sidebar {
   }
   .sidebar.sidebar-warehouse .side-nav a svg { color: #8da2c1 !important; }
   .sidebar.sidebar-warehouse .side-nav a.tone-purple svg { color: #b14be8 !important; }
+  .sidebar.sidebar-warehouse .side-nav a.tone-green svg { color: #35b779 !important; }
   .sidebar.sidebar-warehouse .side-nav a.tone-blue svg { color: #3f82ef !important; }
   .sidebar.sidebar-warehouse .side-nav a.tone-red svg { color: #e64e62 !important; }
   .sidebar.sidebar-warehouse .side-nav a.tone-cyan svg { color: #159cc4 !important; }

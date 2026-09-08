@@ -78,6 +78,12 @@ const navigation = [
 // sementara role toko/owner tetap memakai navigasi umum di atas.
 const warehouseNavigation = [
   {
+    label: 'UTAMA',
+    items: [
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['gudang'], tone: 'green' },
+    ],
+  },
+  {
     label: 'TRANSAKSI',
     items: [
       { href: '/products', label: 'Master Produk', icon: Tags, roles: ['gudang'], tone: 'purple' },
