@@ -67,8 +67,8 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                     prefixIcon: const Icon(Icons.search, size: 20),
                     filled: true,
                     fillColor: Colors.white,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
                     enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: const BorderSide(color: kTaskBorder)),
@@ -105,9 +105,8 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                             selected: _action == f.$1,
                             selectedColor: kTaskDark,
                             labelStyle: TextStyle(
-                                color: _action == f.$1
-                                    ? Colors.white
-                                    : kTaskGray),
+                                color:
+                                    _action == f.$1 ? Colors.white : kTaskGray),
                             onSelected: (_) {
                               setState(() => _action = f.$1);
                               _load();
@@ -147,10 +146,8 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                                             borderRadius:
                                                 BorderRadius.circular(12),
                                           ),
-                                          child: Icon(
-                                              Icons.history,
-                                              size: 18,
-                                              color: ink(context)),
+                                          child: Icon(Icons.history,
+                                              size: 18, color: ink(context)),
                                         ),
                                         const SizedBox(width: 10),
                                         Expanded(
@@ -159,8 +156,7 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                                                 CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                  r['action']?.toString() ??
-                                                      '',
+                                                  r['action']?.toString() ?? '',
                                                   style: TextStyle(
                                                       fontSize: 12,
                                                       fontWeight:

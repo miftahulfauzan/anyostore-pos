@@ -7,7 +7,8 @@ import 'format.dart';
 import 'task_ui.dart';
 
 class StockMovementsPage extends StatefulWidget {
-  const StockMovementsPage({super.key, required this.api, required this.branchId});
+  const StockMovementsPage(
+      {super.key, required this.api, required this.branchId});
   final ApiClient api;
   final int branchId;
 
@@ -45,8 +46,8 @@ class _StockMovementsPageState extends State<StockMovementsPage> {
     });
     try {
       final (start, end) = _range;
-      final rows = await widget.api.mutations(
-          limit: 200, dateFrom: start, dateTo: end);
+      final rows =
+          await widget.api.mutations(limit: 200, dateFrom: start, dateTo: end);
       if (!mounted) return;
       setState(() => _rows = rows.cast<Map<String, dynamic>>());
     } on ApiException catch (e) {
@@ -71,7 +72,11 @@ class _StockMovementsPageState extends State<StockMovementsPage> {
                   tabs: const [
                     (value: 'today', icon: Icons.today, label: 'Hari ini'),
                     (value: '7d', icon: Icons.date_range, label: '7 hari'),
-                    (value: '30d', icon: Icons.calendar_month, label: '30 hari'),
+                    (
+                      value: '30d',
+                      icon: Icons.calendar_month,
+                      label: '30 hari'
+                    ),
                   ],
                   selected: _preset,
                   onChanged: (v) {

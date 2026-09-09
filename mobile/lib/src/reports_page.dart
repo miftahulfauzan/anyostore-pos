@@ -149,7 +149,8 @@ class _ReportsPageState extends State<ReportsPage> {
           ? rawTxs
           : rawTxs.where((t) {
               try {
-                final p = jsonDecode(t['payload'] as String? ?? '{}') as Map<String, dynamic>;
+                final p = jsonDecode(t['payload'] as String? ?? '{}')
+                    as Map<String, dynamic>;
                 final b = int.tryParse('${p['branch_id']}');
                 return b == _branchId;
               } catch (_) {
@@ -160,8 +161,11 @@ class _ReportsPageState extends State<ReportsPage> {
           ? rawExps
           : rawExps.where((r) {
               try {
-                final p = jsonDecode(r['payload'] as String? ?? '{}') as Map<String, dynamic>;
-                final b = p['branch_id'] == null ? null : int.tryParse('${p['branch_id']}');
+                final p = jsonDecode(r['payload'] as String? ?? '{}')
+                    as Map<String, dynamic>;
+                final b = p['branch_id'] == null
+                    ? null
+                    : int.tryParse('${p['branch_id']}');
                 // legacy tanpa branch_id dianggap milik cabang aktif filter -> jangan hitung kalau filter cabang spesifik
                 if (b == null) return false;
                 return b == _branchId;

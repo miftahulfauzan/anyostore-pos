@@ -91,11 +91,11 @@ class _UsersPageState extends State<UsersPage> {
                         labelText: 'Nama *', border: OutlineInputBorder())),
                 const SizedBox(height: 8),
                 TextField(
-                    controller: username,
-                    decoration: const InputDecoration(
-                        labelText: 'Username *',
-                        border: OutlineInputBorder(),
-                        hintText: 'contoh: nining'),
+                  controller: username,
+                  decoration: const InputDecoration(
+                      labelText: 'Username *',
+                      border: OutlineInputBorder(),
+                      hintText: 'contoh: nining'),
                 ),
                 const SizedBox(height: 8),
                 TextField(
@@ -164,8 +164,8 @@ class _UsersPageState extends State<UsersPage> {
     if (name.text.trim().isEmpty ||
         username.text.trim().isEmpty ||
         email.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Nama, username, dan email wajib diisi')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Nama, username, dan email wajib diisi')));
       return;
     }
     final body = <String, dynamic>{
@@ -263,15 +263,14 @@ class _UsersPageState extends State<UsersPage> {
                 labelText: 'Toko / Gudang',
                 filled: true,
                 fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 12),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: const BorderSide(color: kTaskBorder)),
                 focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide:
-                        const BorderSide(color: kTaskDark, width: 1.4)),
+                    borderSide: const BorderSide(color: kTaskDark, width: 1.4)),
               ),
               items: [
                 for (final b in _branches)

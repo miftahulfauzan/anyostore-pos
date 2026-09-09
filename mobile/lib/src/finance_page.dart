@@ -66,8 +66,11 @@ class _FinancePageState extends State<FinancePage> {
           ? rawPending
           : rawPending.where((r) {
               try {
-                final p = jsonDecode(r['payload'] as String? ?? '{}') as Map<String, dynamic>;
-                final b = p['branch_id'] == null ? null : int.tryParse('${p['branch_id']}');
+                final p = jsonDecode(r['payload'] as String? ?? '{}')
+                    as Map<String, dynamic>;
+                final b = p['branch_id'] == null
+                    ? null
+                    : int.tryParse('${p['branch_id']}');
                 if (b == null) return false;
                 return b == activeBranch;
               } catch (_) {
@@ -92,7 +95,8 @@ class _FinancePageState extends State<FinancePage> {
           ? rawPendingTxs
           : rawPendingTxs.where((t) {
               try {
-                final p = jsonDecode(t['payload'] as String? ?? '{}') as Map<String, dynamic>;
+                final p = jsonDecode(t['payload'] as String? ?? '{}')
+                    as Map<String, dynamic>;
                 final b = int.tryParse('${p['branch_id']}');
                 return b == activeBranch;
               } catch (_) {
@@ -201,7 +205,8 @@ class _FinancePageState extends State<FinancePage> {
                     : DropdownButtonFormField<int?>(
                         initialValue: categoryId,
                         decoration: const InputDecoration(
-                            labelText: 'Kategori', border: OutlineInputBorder()),
+                            labelText: 'Kategori',
+                            border: OutlineInputBorder()),
                         items: [
                           for (final c in _categories)
                             if ((c['type'] ?? '') == type)
@@ -209,8 +214,7 @@ class _FinancePageState extends State<FinancePage> {
                                   value: int.tryParse('${c['id']}'),
                                   child: Text(c['name']?.toString() ?? '')),
                         ],
-                        onChanged: (v) =>
-                            setDialogState(() => categoryId = v),
+                        onChanged: (v) => setDialogState(() => categoryId = v),
                       ),
                 const SizedBox(height: 8),
                 TextField(
@@ -272,7 +276,8 @@ class _FinancePageState extends State<FinancePage> {
         'payment_method': method,
         'expense_date': date.text.trim(),
         'type': type,
-        if (widget.api.activeBranchId != null) 'branch_id': widget.api.activeBranchId,
+        if (widget.api.activeBranchId != null)
+          'branch_id': widget.api.activeBranchId,
       };
       if (isEdit) {
         await widget.api.updateExpense(int.parse('${existing['id']}'), body);

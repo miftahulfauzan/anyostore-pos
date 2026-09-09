@@ -87,8 +87,7 @@ class _CustomersPageState extends State<CustomersPage> {
                   _field(name, 'Nama pelanggan'),
                   const SizedBox(height: 12),
                   _label('No. HP'),
-                  _field(phone, '08xxxxxxxxxx',
-                      keyboard: TextInputType.phone),
+                  _field(phone, '08xxxxxxxxxx', keyboard: TextInputType.phone),
                   const SizedBox(height: 12),
                   _label('Email'),
                   _field(email, 'nama@email.com',
@@ -209,7 +208,6 @@ class _CustomersPageState extends State<CustomersPage> {
     }
   }
 
-
   Widget _label(String text) => Padding(
         padding: const EdgeInsets.only(bottom: 6),
         child: Text(text,
@@ -227,8 +225,7 @@ class _CustomersPageState extends State<CustomersPage> {
     return InputDecoration(
       filled: true,
       fillColor: const Color(0xfff8fafc),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       enabledBorder: border,
       focusedBorder: border.copyWith(
           borderSide: const BorderSide(color: Color(0xff1E3A5F), width: 1.4)),

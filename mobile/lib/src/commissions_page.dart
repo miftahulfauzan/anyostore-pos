@@ -35,8 +35,7 @@ class _CommissionsPageState extends State<CommissionsPage> {
   bool get _isOwner => widget.role == 'owner';
 
   /// Manager/Admin juga boleh melihat Laporan komisi semua pegawai.
-  bool get _canManage =>
-      ['owner', 'manager', 'admin'].contains(widget.role);
+  bool get _canManage => ['owner', 'manager', 'admin'].contains(widget.role);
   List<String> get _tabs {
     if (_isOwner) return ['saya', 'rules', 'records', 'report'];
     // Manager/Admin: hanya Saya + Laporan (Aturan/Catatan khusus owner).
@@ -73,9 +72,9 @@ class _CommissionsPageState extends State<CommissionsPage> {
   }
 
   Future<void> _pickDate(bool start) async {
-    final initial = DateTime.tryParse(
-            start ? (_customStart ?? '') : (_customEnd ?? '')) ??
-        DateTime.now().toUtc().add(const Duration(hours: 7));
+    final initial =
+        DateTime.tryParse(start ? (_customStart ?? '') : (_customEnd ?? '')) ??
+            DateTime.now().toUtc().add(const Duration(hours: 7));
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
@@ -121,13 +120,15 @@ class _CommissionsPageState extends State<CommissionsPage> {
       if (_tab == 'saya') {
         final data = await widget.api
             .commissionMine(start: start, end: end, branchId: _branchId);
-        debugPrint('KOMISI_MINE branch=$_branchId range=$start..$end => ${jsonEncode(data)}');
+        debugPrint(
+            'KOMISI_MINE branch=$_branchId range=$start..$end => ${jsonEncode(data)}');
         if (!mounted) return;
         setState(() => _mine = data);
       } else if (_tab == 'report') {
         final data = await widget.api
             .commissionReport(start: start, end: end, branchId: _branchId);
-        debugPrint('KOMISI_REPORT branch=$_branchId range=$start..$end => ${jsonEncode(data)}');
+        debugPrint(
+            'KOMISI_REPORT branch=$_branchId range=$start..$end => ${jsonEncode(data)}');
         if (!mounted) return;
         setState(() => _report = data);
       } else {
@@ -328,8 +329,7 @@ class _CommissionsPageState extends State<CommissionsPage> {
                         border: OutlineInputBorder()),
                     items: [
                       const DropdownMenuItem<int?>(
-                          value: null,
-                          child: Text('Cabang default saya')),
+                          value: null, child: Text('Cabang default saya')),
                       for (final b in _branches)
                         DropdownMenuItem<int?>(
                             value: int.tryParse('${b['id']}'),
@@ -398,8 +398,8 @@ class _CommissionsPageState extends State<CommissionsPage> {
                         child: TextField(
                           readOnly: true,
                           onTap: () => _pickDate(true),
-                          controller: TextEditingController(
-                              text: _customStart ?? ''),
+                          controller:
+                              TextEditingController(text: _customStart ?? ''),
                           decoration: const InputDecoration(
                               isDense: true,
                               labelText: 'Dari',
@@ -411,8 +411,8 @@ class _CommissionsPageState extends State<CommissionsPage> {
                         child: TextField(
                           readOnly: true,
                           onTap: () => _pickDate(false),
-                          controller: TextEditingController(
-                              text: _customEnd ?? ''),
+                          controller:
+                              TextEditingController(text: _customEnd ?? ''),
                           decoration: const InputDecoration(
                               isDense: true,
                               labelText: 'Sampai',
@@ -437,8 +437,7 @@ class _CommissionsPageState extends State<CommissionsPage> {
       case 'saya':
         // Backend mengembalikan data di objek `live`; fallback ke root.
         final raw = _mine ?? {};
-        final mine =
-            (raw['live'] as Map<String, dynamic>?) ?? raw;
+        final mine = (raw['live'] as Map<String, dynamic>?) ?? raw;
         return ListView(
           padding: const EdgeInsets.all(12),
           children: [
@@ -596,8 +595,8 @@ class _Row extends StatelessWidget {
             ),
             const SizedBox(width: 14),
             Text(value,
-                style: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w700)),
+                style:
+                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
           ],
         ),
       );

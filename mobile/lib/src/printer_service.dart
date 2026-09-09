@@ -48,7 +48,6 @@ class PrinterService {
     await prefs.remove('$_prefAddr-$suffix');
   }
 
-
   Future<List<BluetoothDevice>> scan() async {
     final collected = <BluetoothDevice>[];
     final sub = BluetoothPrintPlus.scanResults.listen((list) {
@@ -268,15 +267,14 @@ class PrinterService {
     await line('--------------------------------');
     await line('LAPORAN PENUTUPAN',
         alignment: Alignment.center, style: EscTextStyle.bold);
-    await line(closing['date']?.toString() ?? '',
-        alignment: Alignment.center);
+    await line(closing['date']?.toString() ?? '', alignment: Alignment.center);
     await line('--------------------------------');
     await line('Total struk'.padRight(20) +
         '${closing['receipt_count'] ?? 0}'.padLeft(28));
     await line('Total penjualan'.padRight(20) +
         fmtRp(asNum(closing['total_sales'])).padLeft(28));
-    await line('Retur'.padRight(20) +
-        '${closing['return_count'] ?? 0}'.padLeft(28));
+    await line(
+        'Retur'.padRight(20) + '${closing['return_count'] ?? 0}'.padLeft(28));
     await line('TOTAL KASIR'.padRight(20) +
         fmtRp(asNum(closing['expected_total'])).padLeft(28));
     await line('--------------------------------');
@@ -284,20 +282,18 @@ class PrinterService {
       final m = entry.value as Map<String, dynamic>;
       await line((entry.key).toString().toUpperCase(),
           style: EscTextStyle.bold);
-      await line('  Penjualan'.padRight(20) +
-          fmtRp(asNum(m['sales'])).padLeft(28));
-      await line('  Retur'.padRight(20) +
-          fmtRp(asNum(m['returns'])).padLeft(28));
+      await line(
+          '  Penjualan'.padRight(20) + fmtRp(asNum(m['sales'])).padLeft(28));
+      await line(
+          '  Retur'.padRight(20) + fmtRp(asNum(m['returns'])).padLeft(28));
       await line('  Pembatalan'.padRight(20) +
           fmtRp(asNum(m['cancellations'])).padLeft(28));
       await line('  Kas masuk/keluar'.padRight(20) +
           fmtRp(asNum(m['cash_in_out'])).padLeft(28));
-      await line('  Total'.padRight(20) +
-          fmtRp(asNum(m['total'])).padLeft(28));
+      await line('  Total'.padRight(20) + fmtRp(asNum(m['total'])).padLeft(28));
     }
     await line('--------------------------------');
-    await line('Terima kasih, sampai jumpa lagi!',
-        alignment: Alignment.center);
+    await line('Terima kasih, sampai jumpa lagi!', alignment: Alignment.center);
     await esc.newline();
     await esc.newline();
     await esc.cutPaper();

@@ -19,10 +19,12 @@ class ThemeController {
   static Future<void> set(ThemeMode m) async {
     mode.value = m;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_key, switch (m) {
-      ThemeMode.dark => 'dark',
-      ThemeMode.system => 'system',
-      _ => 'light',
-    });
+    await prefs.setString(
+        _key,
+        switch (m) {
+          ThemeMode.dark => 'dark',
+          ThemeMode.system => 'system',
+          _ => 'light',
+        });
   }
 }

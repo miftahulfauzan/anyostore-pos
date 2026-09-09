@@ -163,10 +163,10 @@ class _DashboardPageState extends State<DashboardPage> {
       final catRows = (results[2] as List?)?.cast<Map<String, dynamic>>() ?? [];
       final topRows = (results[3] as List?)?.cast<Map<String, dynamic>>() ?? [];
       if (mutSummary['daily'] is! List ||
-          ['total_in', 'total_out'].any((key) =>
-              num.tryParse('${mutSummary[key]}')?.isFinite != true) ||
-          ['total_products', 'low_stock', 'out_of_stock'].any((key) =>
-              int.tryParse('${stockSummary[key]}') == null)) {
+          ['total_in', 'total_out'].any(
+              (key) => num.tryParse('${mutSummary[key]}')?.isFinite != true) ||
+          ['total_products', 'low_stock', 'out_of_stock']
+              .any((key) => int.tryParse('${stockSummary[key]}') == null)) {
         throw const FormatException('Respons ringkasan tidak lengkap');
       }
 
@@ -189,11 +189,11 @@ class _DashboardPageState extends State<DashboardPage> {
           for (var day = startDate;
               !day.isAfter(endDate);
               day = day.add(const Duration(days: 1)))
-          (
-            label: '${day.day} ${_months[day.month - 1]}',
-            masuk: asNum(byDate[key(day)]?['in']),
-            keluar: asNum(byDate[key(day)]?['out']),
-          ),
+            (
+              label: '${day.day} ${_months[day.month - 1]}',
+              masuk: asNum(byDate[key(day)]?['in']),
+              keluar: asNum(byDate[key(day)]?['out']),
+            ),
       ];
 
       // Status stok dari summary stock-total.
@@ -216,12 +216,12 @@ class _DashboardPageState extends State<DashboardPage> {
         _kosong = kosong;
         _totalProduk = total;
         _categories = [
-            for (final c in catRows)
-              (c['name']?.toString() ?? '-', asNum(c['total']))
+          for (final c in catRows)
+            (c['name']?.toString() ?? '-', asNum(c['total']))
         ];
         _topProducts = [
-            for (final t in topRows)
-              (t['name']?.toString() ?? '-', asNum(t['total']))
+          for (final t in topRows)
+            (t['name']?.toString() ?? '-', asNum(t['total']))
         ];
       });
     } catch (e) {
@@ -273,47 +273,47 @@ class _DashboardPageState extends State<DashboardPage> {
                         onRetry: _load,
                       )
                     else ...[
-                    Row(
-                      children: [
-                        Expanded(
-                            child: _SummaryCard(
-                                label: 'Masuk',
-                                value: _fmtNum(_masuk),
-                                icon: Icons.south_west,
-                                color: _kGreen)),
-                        const SizedBox(width: 8),
-                        Expanded(
-                            child: _SummaryCard(
-                                label: 'Keluar',
-                                value: _fmtNum(_keluar),
-                                icon: Icons.north_east,
-                                color: _kRed)),
-                        const SizedBox(width: 8),
-                        Expanded(
-                            child: _SummaryCard(
-                                label: 'Selisih',
-                                value: _fmtNum(_selisih),
-                                icon: Icons.swap_vert,
-                                color: _kBlueAccent)),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    _MovementCard(
-                        daily: _daily,
-                        totalMasuk:
-                            _daily.fold<double>(0, (s, d) => s + d.masuk),
-                        totalKeluar:
-                            _daily.fold<double>(0, (s, d) => s + d.keluar)),
-                    const SizedBox(height: 12),
-                    _StatusCard(
-                        aman: _aman,
-                        hampir: _hampir,
-                        kosong: _kosong,
-                        totalProduk: _totalProduk),
-                    const SizedBox(height: 12),
-                    _CategoryCard(categories: _categories),
-                    const SizedBox(height: 12),
-                    _TopProductsCard(products: _topProducts),
+                      Row(
+                        children: [
+                          Expanded(
+                              child: _SummaryCard(
+                                  label: 'Masuk',
+                                  value: _fmtNum(_masuk),
+                                  icon: Icons.south_west,
+                                  color: _kGreen)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                              child: _SummaryCard(
+                                  label: 'Keluar',
+                                  value: _fmtNum(_keluar),
+                                  icon: Icons.north_east,
+                                  color: _kRed)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                              child: _SummaryCard(
+                                  label: 'Selisih',
+                                  value: _fmtNum(_selisih),
+                                  icon: Icons.swap_vert,
+                                  color: _kBlueAccent)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _MovementCard(
+                          daily: _daily,
+                          totalMasuk:
+                              _daily.fold<double>(0, (s, d) => s + d.masuk),
+                          totalKeluar:
+                              _daily.fold<double>(0, (s, d) => s + d.keluar)),
+                      const SizedBox(height: 12),
+                      _StatusCard(
+                          aman: _aman,
+                          hampir: _hampir,
+                          kosong: _kosong,
+                          totalProduk: _totalProduk),
+                      const SizedBox(height: 12),
+                      _CategoryCard(categories: _categories),
+                      const SizedBox(height: 12),
+                      _TopProductsCard(products: _topProducts),
                     ],
                   ],
                 ),

@@ -55,8 +55,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   void _snack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   Future<void> _saveProfile() async {
@@ -103,8 +102,8 @@ class _ProfilePageState extends State<ProfilePage> {
     }
     setState(() => _savingPin = true);
     try {
-      await widget.api.setPin(myId, _pinNext.text,
-          currentPin: _pinCurrent.text);
+      await widget.api
+          .setPin(myId, _pinNext.text, currentPin: _pinCurrent.text);
       _pinCurrent.clear();
       _pinNext.clear();
       _pinConfirm.clear();
@@ -127,8 +126,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
     setState(() => _savingPass = true);
     try {
-      await widget.api.changePassword(
-          current: _current.text, next: _next.text);
+      await widget.api.changePassword(current: _current.text, next: _next.text);
       _current.clear();
       _next.clear();
       _confirm.clear();
@@ -176,9 +174,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             fontWeight: FontWeight.w800,
                             color: ink(context))),
                     const SizedBox(height: 12),
-                    TextField(
-                        controller: _name,
-                        decoration: _dec('Nama *')),
+                    TextField(controller: _name, decoration: _dec('Nama *')),
                     const SizedBox(height: 10),
                     TextField(
                         controller: _email,
@@ -241,7 +237,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(28)),
                       ),
-                      child: Text(_savingPass ? 'Menyimpan...' : 'Ganti Password'),
+                      child:
+                          Text(_savingPass ? 'Menyimpan...' : 'Ganti Password'),
                     ),
                   ],
                 ),
@@ -261,7 +258,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         controller: _pinCurrent,
                         obscureText: true,
                         keyboardType: TextInputType.number,
-                        decoration: _dec('PIN lama (kosongkan jika belum punya)')),
+                        decoration:
+                            _dec('PIN lama (kosongkan jika belum punya)')),
                     const SizedBox(height: 10),
                     TextField(
                         controller: _pinNext,

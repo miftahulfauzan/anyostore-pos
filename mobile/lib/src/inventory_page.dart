@@ -69,9 +69,10 @@ class _InventoryPageState extends State<InventoryPage> {
                       api: widget.api,
                       branchId: widget.branchId,
                       isOwner: widget.isOwner),
-                  'opname' =>
-                    _OpnameSection(key: ValueKey(widget.branchId),
-                        api: widget.api, branchId: widget.branchId),
+                  'opname' => _OpnameSection(
+                      key: ValueKey(widget.branchId),
+                      api: widget.api,
+                      branchId: widget.branchId),
                   _ => _BarcodeSection(api: widget.api),
                 },
               ),
@@ -1405,7 +1406,10 @@ class _CatalogPickerState extends State<_CatalogPicker> {
 
 class _TransferSection extends StatefulWidget {
   const _TransferSection(
-      {super.key, required this.api, required this.branchId, this.isOwner = false});
+      {super.key,
+      required this.api,
+      required this.branchId,
+      this.isOwner = false});
   final ApiClient api;
   final int branchId;
   final bool isOwner;
@@ -1604,11 +1608,13 @@ class _TransferSectionState extends State<_TransferSection> {
                         value: '${w['id']}',
                         child: Text(w['name']?.toString() ?? '')),
                 ],
-                onChanged: _saving ? null : (v) => setState(() {
-                  _from = v ?? '';
-                  _items.clear();
-                  _error = null;
-                }),
+                onChanged: _saving
+                    ? null
+                    : (v) => setState(() {
+                          _from = v ?? '';
+                          _items.clear();
+                          _error = null;
+                        }),
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
@@ -1622,7 +1628,8 @@ class _TransferSectionState extends State<_TransferSection> {
                         value: '${t['warehouse_id']}',
                         child: Text('${t['name']} · ${t['warehouse_name']}')),
                 ],
-                onChanged: _saving ? null : (v) => setState(() => _to = v ?? ''),
+                onChanged:
+                    _saving ? null : (v) => setState(() => _to = v ?? ''),
               ),
               const SizedBox(height: 8),
               TextField(
@@ -1732,7 +1739,8 @@ class _OpnameSectionState extends State<_OpnameSection> {
       final rows = await widget.api.stockSnapshot(
           branchId: widget.branchId, warehouseId: int.parse(warehouse));
       if (!mounted || warehouse != _warehouseId) return;
-      final result = await Navigator.of(context).push<List<Map<String, dynamic>>>(
+      final result =
+          await Navigator.of(context).push<List<Map<String, dynamic>>>(
         MaterialPageRoute(
           builder: (_) =>
               _OpnamePicker(products: rows.cast<Map<String, dynamic>>()),
@@ -1842,11 +1850,13 @@ class _OpnameSectionState extends State<_OpnameSection> {
                         value: '${w['id']}',
                         child: Text(w['name']?.toString() ?? '')),
                 ],
-                onChanged: _saving ? null : (v) => setState(() {
-                  _warehouseId = v ?? '';
-                  _items.clear();
-                  _error = null;
-                }),
+                onChanged: _saving
+                    ? null
+                    : (v) => setState(() {
+                          _warehouseId = v ?? '';
+                          _items.clear();
+                          _error = null;
+                        }),
               ),
               const SizedBox(height: 12),
               FilledButton.icon(

@@ -97,8 +97,7 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
       prefixText: prefix,
       filled: true,
       fillColor: const Color(0xfff8fafc),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       enabledBorder: border,
       focusedBorder: border.copyWith(
           borderSide: const BorderSide(color: Color(0xff1E3A5F), width: 1.4)),
@@ -115,113 +114,112 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
       child: ListView(
         padding: const EdgeInsets.all(12),
         children: [
-        if (open && _drawer != null) ...[
-          _Card(
-            title: 'Laci Kas Terbuka',
-            children: [
-              _Row('Modal awal', fmtRp(asNum(_drawer?['opening_amount']))),
-              _Row('Kas yang diharapkan',
-                  fmtRp(asNum(_drawer?['expected_cash']))),
-            ],
-          ),
-          const SizedBox(height: 10),
-          _Card(
-            title: 'Kas Masuk / Keluar',
-            children: [
-              DropdownButtonFormField<String>(
-                initialValue: _moveType,
-                decoration: _dec('Jenis'),
-                items: const [
-                  DropdownMenuItem(value: 'cash-in', child: Text('Kas masuk')),
-                  DropdownMenuItem(
-                      value: 'cash-out', child: Text('Kas keluar')),
-                ],
-                onChanged: (v) => setState(() => _moveType = v ?? 'cash-in'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                  controller: _moveAmount,
-                  keyboardType: TextInputType.number,
-                  decoration: _dec('Nominal', prefix: 'Rp ')),
-              const SizedBox(height: 8),
-              TextField(
-                  controller: _moveReason,
-                  decoration: _dec('Alasan')),
-              const SizedBox(height: 10),
-              FilledButton(
-                onPressed: _saving ||
-                        _moveAmount.text.isEmpty ||
-                        _moveReason.text.trim().isEmpty
-                    ? null
-                    : () => _run(() => widget.api.cashDrawerInOut(
-                        _moveType, _num(_moveAmount), _moveReason.text.trim())),
-                style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xff1E3A5F),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(28))),
-                child: const Text('Simpan Kas Masuk'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          _Card(
-            title: 'Tutup Laci',
-            children: [
-              TextField(
-                  controller: _closeAmount,
-                  keyboardType: TextInputType.number,
-                  decoration: _dec('Kas aktual', prefix: 'Rp ')),
-              const SizedBox(height: 8),
-              TextField(
-                  controller: _closeNotes,
-                  decoration: _dec('Catatan (wajib jika ada selisih)')),
-              const SizedBox(height: 10),
-              FilledButton(
-                onPressed: _saving || _closeAmount.text.isEmpty
-                    ? null
-                    : () => _run(() => widget.api.cashDrawerClose(
-                        _num(_closeAmount), _closeNotes.text.trim())),
-                style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xff1E3A5F),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(28))),
-                child: const Text('Tutup Laci Kas'),
-              ),
-            ],
-          ),
-        ] else ...[
-          _Card(
-            title: 'Buka Laci Kas',
-            children: [
-              const Text('Belum ada laci terbuka untuk akun ini.'),
-              const SizedBox(height: 8),
-              TextField(
-                  controller: _openAmount,
-                  keyboardType: TextInputType.number,
-                  decoration: _dec('Modal awal', prefix: 'Rp ')),
-              const SizedBox(height: 10),
-              FilledButton(
-                onPressed: _saving || _openAmount.text.isEmpty
-                    ? null
-                    : () => _run(
-                        () => widget.api.cashDrawerOpen(_num(_openAmount))),
-                style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xff1E3A5F),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(28))),
-                child: const Text('Buka Laci'),
-              ),
-            ],
-          ),
-        ],
-        if (_error != null) ...[
-          const SizedBox(height: 10),
-          Text(_error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error)),
-        ],
+          if (open && _drawer != null) ...[
+            _Card(
+              title: 'Laci Kas Terbuka',
+              children: [
+                _Row('Modal awal', fmtRp(asNum(_drawer?['opening_amount']))),
+                _Row('Kas yang diharapkan',
+                    fmtRp(asNum(_drawer?['expected_cash']))),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _Card(
+              title: 'Kas Masuk / Keluar',
+              children: [
+                DropdownButtonFormField<String>(
+                  initialValue: _moveType,
+                  decoration: _dec('Jenis'),
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'cash-in', child: Text('Kas masuk')),
+                    DropdownMenuItem(
+                        value: 'cash-out', child: Text('Kas keluar')),
+                  ],
+                  onChanged: (v) => setState(() => _moveType = v ?? 'cash-in'),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                    controller: _moveAmount,
+                    keyboardType: TextInputType.number,
+                    decoration: _dec('Nominal', prefix: 'Rp ')),
+                const SizedBox(height: 8),
+                TextField(controller: _moveReason, decoration: _dec('Alasan')),
+                const SizedBox(height: 10),
+                FilledButton(
+                  onPressed: _saving ||
+                          _moveAmount.text.isEmpty ||
+                          _moveReason.text.trim().isEmpty
+                      ? null
+                      : () => _run(() => widget.api.cashDrawerInOut(_moveType,
+                          _num(_moveAmount), _moveReason.text.trim())),
+                  style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xff1E3A5F),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(28))),
+                  child: const Text('Simpan Kas Masuk'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _Card(
+              title: 'Tutup Laci',
+              children: [
+                TextField(
+                    controller: _closeAmount,
+                    keyboardType: TextInputType.number,
+                    decoration: _dec('Kas aktual', prefix: 'Rp ')),
+                const SizedBox(height: 8),
+                TextField(
+                    controller: _closeNotes,
+                    decoration: _dec('Catatan (wajib jika ada selisih)')),
+                const SizedBox(height: 10),
+                FilledButton(
+                  onPressed: _saving || _closeAmount.text.isEmpty
+                      ? null
+                      : () => _run(() => widget.api.cashDrawerClose(
+                          _num(_closeAmount), _closeNotes.text.trim())),
+                  style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xff1E3A5F),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(28))),
+                  child: const Text('Tutup Laci Kas'),
+                ),
+              ],
+            ),
+          ] else ...[
+            _Card(
+              title: 'Buka Laci Kas',
+              children: [
+                const Text('Belum ada laci terbuka untuk akun ini.'),
+                const SizedBox(height: 8),
+                TextField(
+                    controller: _openAmount,
+                    keyboardType: TextInputType.number,
+                    decoration: _dec('Modal awal', prefix: 'Rp ')),
+                const SizedBox(height: 10),
+                FilledButton(
+                  onPressed: _saving || _openAmount.text.isEmpty
+                      ? null
+                      : () => _run(
+                          () => widget.api.cashDrawerOpen(_num(_openAmount))),
+                  style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xff1E3A5F),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(28))),
+                  child: const Text('Buka Laci'),
+                ),
+              ],
+            ),
+          ],
+          if (_error != null) ...[
+            const SizedBox(height: 10),
+            Text(_error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          ],
         ],
       ),
     );

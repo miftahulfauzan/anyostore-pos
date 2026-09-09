@@ -17,11 +17,8 @@ class BackupService {
     final payload = data['download']?.toString();
     if (payload == null || payload.isEmpty) return null;
     final dir = await getApplicationDocumentsDirectory();
-    final stamp = DateTime.now()
-        .toIso8601String()
-        .replaceAll(':', '-')
-        .split('.')
-        .first;
+    final stamp =
+        DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
     final file = File('${dir.path}/anyostore-backup-$stamp.json');
     await file.writeAsString(payload);
     await _markDone();
@@ -62,7 +59,8 @@ class BackupService {
       final items = (data['low_stock'] as List?) ?? [];
       final low = items
           .map((e) => Map<String, dynamic>.from(e as Map))
-          .where((e) => (int.tryParse('${e['stock'] ?? 0}') ?? 0) <=
+          .where((e) =>
+              (int.tryParse('${e['stock'] ?? 0}') ?? 0) <=
               (int.tryParse('${e['min_stock'] ?? 0}') ?? 0))
           .toList();
       if (low.isEmpty) return;

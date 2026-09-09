@@ -10,6 +10,9 @@
   "engines": {
     "node": ">=20"
   },
+  "overrides": {
+    "qs": "$qs"
+  },
   "dependencies": {
     "bcryptjs": "3.0.3",
     "cookie-parser": "^1.4.7",
@@ -20,6 +23,7 @@
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.2.0",
-    "mysql2": "^3.11.0"
+    "mysql2": "^3.11.0",
+    "qs": "^6.16.0"
   }
 }
