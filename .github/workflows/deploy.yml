@@ -1,73 +1,77 @@
 name: Deploy
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
+    inputs:
+      sha:
+        description: Full 40-character SHA with successful push CI on main (also for retry/rollback)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+# One release at a time, including manual runs. Never cancel an in-flight SSH release.
+concurrency:
+  group: anyostore-production
+  cancel-in-progress: false
 
 jobs:
   deploy:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
-      - name: Deploy ke VPS via SSH
+      # The workflow code is from its trusted main snapshot; the target SHA is
+      # validated before any server credentials are made available to a step.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.event.inputs.sha }}
+          persist-credentials: false
+      - name: Verify successful CI for the exact requested SHA
+        id: ci
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { verifyCi } = require('./scripts/deploy/verify-ci.cjs');
+            const result = await verifyCi({ github, context });
+            core.setOutput('sha', result.sha);
+            core.setOutput('mode', result.mode);
+            core.info(`Deploy ${result.sha}, validated by CI run ${result.runId}`);
+      - name: Deploy verified release to VPS
         env:
+          DEPLOY_SHA: ${{ steps.ci.outputs.sha }}
+          DEPLOY_MODE: ${{ steps.ci.outputs.mode }}
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
           set -euo pipefail
-          mkdir -p "$HOME/.ssh"
-          printf '%s\n' "$VPS_SSH_KEY" > "$HOME/.ssh/deploy_key"
-          chmod 600 "$HOME/.ssh/deploy_key"
-          ssh -i "$HOME/.ssh/deploy_key" \
+          [[ "$DEPLOY_SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$DEPLOY_MODE" = automatic || "$DEPLOY_MODE" = manual ]]
+          deploy_ssh_dir=$(mktemp -d)
+          trap 'rm -f "$deploy_ssh_dir/key" "$deploy_ssh_dir/known_hosts"; rmdir "$deploy_ssh_dir"' EXIT
+          printf '%s\n' "$VPS_SSH_KEY" > "$deploy_ssh_dir/key"
+          chmod 600 "$deploy_ssh_dir/key"
+          ssh -i "$deploy_ssh_dir/key" \
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new \
-            -o UserKnownHostsFile=/dev/null \
+            -o UserKnownHostsFile="$deploy_ssh_dir/known_hosts" \
             -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=6 \
             -o ConnectTimeout=15 \
             -o LogLevel=ERROR \
-            "$VPS_USER@$VPS_HOST" 'bash -s' <<'REMOTE_EOF'
-          set -e
-          cd /home/ubuntu/anyostore-pos
-          BEFORE=$(git rev-parse HEAD)
-          git pull --rebase origin main
-          AFTER=$(git rev-parse HEAD)
-          echo "deploy from $BEFORE -> $AFTER"
-          if [ "$BEFORE" = "$AFTER" ]; then
-            echo "::error::Tidak ada commit baru yang ter-pull. Cek repo VPS (git status / konflik lokal)."
-            exit 1
-          fi
-          DISK_USAGE=$(df --output=pcent /home/ubuntu/anyostore-pos | tail -1 | tr -dc '0-9')
-          echo "Disk usage: ${DISK_USAGE}%"
-          if [ "${DISK_USAGE:-0}" -ge 92 ]; then
-            echo "::error::DISK HAMPIR PENUH (${DISK_USAGE}%) — bersihkan manual (docker system prune -af) sebelum deploy berikutnya!"
-            exit 1
-          fi
-          if [ "${DISK_USAGE:-0}" -ge 80 ]; then
-            echo "Disk >=80%, prune cache lama..."
-            sudo docker image prune -f
-            sudo docker builder prune -f --filter "until=168h"
-          fi
-          sudo docker compose -f docker-compose.production.yml --env-file .env.production up -d --build
-          sudo docker compose -f docker-compose.production.yml ps
-          # Deteksi kegagalan migrasi: entrypoint backend memakai `|| true`
-          # (backend tetap start supaya situs tidak down), jadi deploy wajib
-          # menandai kegagalan sendiri lewat log container. File migrasi yang
-          # gagal TIDAK dicatat selesai dan dicoba ulang di deploy berikutnya.
-          MIGRATE_FAILED=0
-          for i in $(seq 1 20); do
-            LOGS=$(sudo docker compose -f docker-compose.production.yml logs --no-color backend 2>/dev/null || true)
-            if printf '%s' "$LOGS" | grep -qE '\[migrate\] (FAILED|fatal)'; then
-              MIGRATE_FAILED=1
-              break
-            fi
-            STATUS=$(sudo docker compose -f docker-compose.production.yml ps backend --format json 2>/dev/null | grep -o '"Health":"[^"]*"' | head -1) || true
-            case "$STATUS" in *healthy*) break ;; esac
-            sleep 3
-          done
-          if [ "$MIGRATE_FAILED" = "1" ]; then
-            printf '%s' "$LOGS" | grep -E '\[migrate\] (FAILED|fatal)' | tail -20
-            echo "::error::Migrasi backend gagal — deploy dibatalkan. Periksa SQL migrasi baru (backend/migrations/) dan log container backend."
-            exit 1
-          fi
-          REMOTE_EOF
+            "$VPS_USER@$VPS_HOST" "bash -s -- $DEPLOY_SHA $DEPLOY_MODE" < scripts/deploy/release.sh
+      - name: Record verified release in the run summary
+        env:
+          DEPLOY_SHA: ${{ steps.ci.outputs.sha }}
+        run: printf 'Verified backend and frontend release `%s`\n' "$DEPLOY_SHA" >> "$GITHUB_STEP_SUMMARY"

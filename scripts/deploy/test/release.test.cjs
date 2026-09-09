@@ -28,7 +28,11 @@ const args = process.argv.slice(2);
 fs.appendFileSync(path.join(dir, 'commands.log'), JSON.stringify([name, ...args]) + '\\n');
 const output = value => { process.stdout.write(String(value) + '\\n'); };
 if (name === 'sudo') {
-  const result = require('node:child_process').spawnSync(args[0], args.slice(1), { stdio: 'inherit' });
+  const env = { ...process.env };
+  while (args[0]?.startsWith('RELEASE_SHA=')) {
+    env.RELEASE_SHA = args.shift().slice('RELEASE_SHA='.length);
+  }
+  const result = require('node:child_process').spawnSync(args[0], args.slice(1), { stdio: 'inherit', env });
   process.exit(result.status ?? 1);
 }
 if (name === 'flock') process.exit(scenario.lockFailure ? 1 : 0);
@@ -51,6 +55,7 @@ if (name === 'curl') {
   process.exit(0);
 }
 if (name === 'docker') {
+  if (args[0] === 'compose' && process.env.RELEASE_SHA !== '${sha}') process.exit(1);
   if (args[0] === 'inspect') {
     const service = args.at(-1).replace('-id', '');
     const counter = path.join(dir, service + '.count');

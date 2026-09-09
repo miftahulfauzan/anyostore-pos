@@ -55,7 +55,15 @@ const loginLimiter = rateLimit({
 });
 
 app.get('/api/health', async (_req, res, next) => {
-  try { await db.query('SELECT 1'); res.json({ success: true, data: { status: 'ok' } }); }
+  try {
+    await db.query('SELECT 1');
+    res.set('Cache-Control', 'no-store').json({
+      success: true,
+      ok: true,
+      release_sha: process.env.RELEASE_SHA || 'development',
+      data: { status: 'ok' },
+    });
+  }
   catch (error) { next(error); }
 });
 app.post('/api/auth/login', loginLimiter, loginWithPassword);

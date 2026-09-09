@@ -12,12 +12,14 @@ const {
   toTransferNumber,
   groupTransferMovements,
 } = require("../transfer-history");
+const { validateOpnameItems, assertStockSnapshot, matchingVariant, validateTransferItems } = require("../inventory-safety");
+const { beginTransferRequest, finishTransferRequest } = require("../transfer-request");
 const router = express.Router();
 router.use(authenticate);
 const fail = (s, m) => Object.assign(new Error(m), { status: s });
 async function balance(c, warehouseId, productId, variantId) {
   const [r] = await c.execute(
-    "SELECT id, quantity FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id <=> ? FOR UPDATE",
+    "SELECT id, quantity, revision FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id <=> ? FOR UPDATE",
     [warehouseId, productId, variantId],
   );
   return r[0];
@@ -79,8 +81,16 @@ router.get(
         if (!Number.isInteger(scopedBranchId) || scopedBranchId <= 0) {
           throw fail(400, "Cabang riwayat transfer tidak valid");
         }
-        where.push("(wf.branch_id = ? OR wt.branch_id = ?)");
-        params.push(scopedBranchId, scopedBranchId);
+        if (req.user.role === "gudang") {
+          // Admin gudang may create a cross-branch transfer. Keep that
+          // transfer visible in their history even when neither endpoint is
+          // their own branch; direction filters still narrow by endpoint.
+          where.push("(wf.branch_id = ? OR wt.branch_id = ? OR st.created_by = ?)");
+          params.push(scopedBranchId, scopedBranchId, req.user.id);
+        } else {
+          where.push("(wf.branch_id = ? OR wt.branch_id = ?)");
+          params.push(scopedBranchId, scopedBranchId);
+        }
       }
 
       const direction = String(req.query.direction || "");
@@ -268,34 +278,43 @@ router.post(
         notes,
         items,
       } = req.body;
+      const fromId = Number(from);
+      const toId = Number(to);
       if (
-        !Number.isInteger(Number(from)) ||
-        !Number.isInteger(Number(to)) ||
-        from === to ||
+        !Number.isSafeInteger(fromId) ||
+        !Number.isSafeInteger(toId) ||
+        fromId <= 0 || toId <= 0 ||
+        fromId === toId ||
         !Array.isArray(items) ||
         !items.length
       )
         throw fail(400, "Data transfer tidak valid");
       await c.beginTransaction();
+      const request = await beginTransferRequest(c, req.user.id, "/transfers", req.body);
+      if (request.replay) {
+        await c.commit();
+        return res.status(200).json({ success: true, data: request.replay, replayed: true });
+      }
       const sourceSql = canTransferAcrossBranches(req.user.role)
         ? "SELECT id,branch_id FROM warehouses WHERE id=? AND is_active=TRUE FOR UPDATE"
         : "SELECT id,branch_id FROM warehouses WHERE id=? AND branch_id=? AND is_active=TRUE FOR UPDATE";
       const sourceParams = canTransferAcrossBranches(req.user.role)
-        ? [from]
-        : [from, req.user.branch_id];
+        ? [fromId]
+        : [fromId, req.user.branch_id];
       const [src] = await c.execute(sourceSql, sourceParams);
       if (!src[0]) throw fail(404, "Gudang asal tidak ditemukan di toko Anda");
       const branchId = src[0].branch_id;
       const [w] = await c.execute(
         "SELECT id FROM warehouses WHERE id=? AND branch_id=? AND is_active=TRUE",
-        [to, branchId],
+        [toId, branchId],
       );
       if (!w[0])
         throw fail(404, "Gudang tujuan tidak ditemukan di cabang yang sama");
       const [t] = await c.execute(
         "INSERT INTO stock_transfers (from_warehouse_id,to_warehouse_id,branch_id,status,notes,created_by,approved_by,approved_at) VALUES (?, ?, ?, 'completed', ?, ?, ?, NOW())",
-        [from, to, branchId, notes?.trim() || null, req.user.id, req.user.id],
+        [fromId, toId, branchId, notes?.trim() || null, req.user.id, req.user.id],
       );
+      validateTransferItems(items);
       for (const item of items) {
         const q = Number(item.quantity);
         if (
@@ -323,7 +342,7 @@ router.post(
         await change(
           c,
           branchId,
-          from,
+          fromId,
           item.product_id,
           item.variant_id || null,
           -q,
@@ -335,7 +354,7 @@ router.post(
         await change(
           c,
           branchId,
-          to,
+          toId,
           item.product_id,
           item.variant_id || null,
           q,
@@ -345,14 +364,16 @@ router.post(
           t.insertId,
         );
         await c.execute(
-          "INSERT INTO stock_transfer_items (transfer_id,product_id,variant_id,quantity) VALUES (?,?,?,?)",
-          [t.insertId, item.product_id, item.variant_id || null, q],
+          "INSERT INTO stock_transfer_items (transfer_id,product_id,variant_id,destination_product_id,destination_variant_id,quantity) VALUES (?,?,?,?,?,?)",
+          [t.insertId, item.product_id, item.variant_id || null, item.product_id, item.variant_id || null, q],
         );
       }
+      const response = { id: t.insertId, status: "completed" };
+      await finishTransferRequest(c, req.user.id, request.requestId, response);
       await c.commit();
       res
         .status(201)
-        .json({ success: true, data: { id: t.insertId, status: "completed" } });
+        .json({ success: true, data: response });
     } catch (e) {
       await c.rollback();
       next(e);
@@ -384,23 +405,31 @@ router.post(
         items,
         notes,
       } = req.body;
+      const fromId = Number(from);
+      const toId = Number(to);
       if (
-        !Number.isInteger(Number(from)) ||
-        !Number.isInteger(Number(to)) ||
+        !Number.isSafeInteger(fromId) || fromId <= 0 ||
+        !Number.isSafeInteger(toId) || toId <= 0 ||
+        fromId === toId ||
         !Array.isArray(items) ||
         !items.length
       )
         throw fail(400, "Data transfer antartoko tidak valid");
       await c.beginTransaction();
+      const request = await beginTransferRequest(c, req.user.id, "/transfers/inter-store", req.body);
+      if (request.replay) {
+        await c.commit();
+        return res.status(200).json({ success: true, data: request.replay, replayed: true });
+      }
       const [source] = await c.execute(
         canTransferAcrossBranches(req.user.role)
           ? "SELECT id,branch_id FROM warehouses WHERE id=? AND is_active=TRUE FOR UPDATE"
           : "SELECT id,branch_id FROM warehouses WHERE id=? AND branch_id=? AND is_active=TRUE FOR UPDATE",
-        canTransferAcrossBranches(req.user.role) ? [from] : [from, req.user.branch_id],
+        canTransferAcrossBranches(req.user.role) ? [fromId] : [fromId, req.user.branch_id],
       );
       const [target] = await c.execute(
         "SELECT id,branch_id FROM warehouses WHERE id=? AND is_active=TRUE FOR UPDATE",
-        [to],
+        [toId],
       );
       if (
         !source[0] ||
@@ -411,8 +440,9 @@ router.post(
       const branchId = source[0].branch_id;
       const [t] = await c.execute(
         "INSERT INTO stock_transfers (from_warehouse_id,to_warehouse_id,branch_id,status,notes,created_by,approved_by,approved_at) VALUES (?, ?, ?, 'completed', ?, ?, ?, NOW())",
-        [from, to, branchId, notes?.trim() || null, req.user.id, req.user.id],
+        [fromId, toId, branchId, notes?.trim() || null, req.user.id, req.user.id],
       );
+      validateTransferItems(items);
       let createdProduct = false;
       for (const item of items) {
         const q = Number(item.quantity),
@@ -437,8 +467,8 @@ router.post(
             );
         }
         const [nameMatches] = await c.execute(
-          "SELECT id,name,sku FROM products WHERE branch_id=? AND is_active=TRUE AND LOWER(TRIM(name))=LOWER(TRIM(?)) ORDER BY id FOR UPDATE",
-          [target[0].branch_id, p[0].name],
+          "SELECT id,name,sku FROM products WHERE branch_id=? AND is_active=TRUE ORDER BY id FOR UPDATE",
+          [target[0].branch_id],
         );
         const nameMatch = selectCanonicalProductByName(nameMatches, p[0].name);
         let dest = nameMatch.product ? [{ id: nameMatch.product.id }] : [];
@@ -534,20 +564,21 @@ router.post(
         let destVariantId = null;
         if (variantId) {
           const [vv] = await c.execute(
-            "SELECT id,color,price FROM product_variants WHERE id=? AND product_id=? AND is_active=TRUE FOR UPDATE",
+            "SELECT id,color,size,price FROM product_variants WHERE id=? AND product_id=? AND is_active=TRUE FOR UPDATE",
             [variantId, productId],
           );
           if (!vv[0]) throw fail(404, "Varian warna asal tidak ditemukan");
           let [dv] = await c.execute(
-            "SELECT id FROM product_variants WHERE product_id=? AND color=? AND is_active=TRUE LIMIT 1 FOR UPDATE",
-            [dest[0].id, vv[0].color],
+            "SELECT id,color,size FROM product_variants WHERE product_id=? AND is_active=TRUE FOR UPDATE",
+            [dest[0].id],
           );
+          dv = [matchingVariant(dv, vv[0])].filter(Boolean);
           if (!dv[0]) {
             const [ins] = await c.execute(
               "INSERT INTO product_variants (product_id,size,color,sku,barcode,stock,price,is_active) VALUES (?,?,?,?,?,0,?,TRUE)",
               [
                 dest[0].id,
-                null,
+                vv[0].size || null,
                 vv[0].color,
                 null,
                 null,
@@ -561,7 +592,7 @@ router.post(
         await change(
           c,
           branchId,
-          from,
+          fromId,
           productId,
           variantId,
           -q,
@@ -573,7 +604,7 @@ router.post(
         await change(
           c,
           target[0].branch_id,
-          to,
+          toId,
           dest[0].id,
           destVariantId,
           q,
@@ -583,19 +614,23 @@ router.post(
           t.insertId,
         );
         await c.execute(
-          "INSERT INTO stock_transfer_items (transfer_id,product_id,variant_id,quantity) VALUES (?,?,?,?)",
-          [t.insertId, productId, destVariantId, q],
+          "INSERT INTO stock_transfer_items (transfer_id,product_id,variant_id,destination_product_id,destination_variant_id,quantity) VALUES (?,?,?,?,?,?)",
+          [t.insertId, productId, variantId, dest[0].id, destVariantId, q],
         );
       }
+      const response = {
+        id: t.insertId,
+        status: "completed",
+        auto_created: createdProduct,
+      };
+      await finishTransferRequest(c, req.user.id, request.requestId, response);
       await c.commit();
       res
         .status(201)
         .json({
           success: true,
           data: {
-            id: t.insertId,
-            status: "completed",
-            auto_created: createdProduct,
+            ...response,
           },
         });
     } catch (e) {
@@ -620,10 +655,14 @@ router.post(
         !items.length
       )
         throw fail(400, "Data opname tidak valid");
+      validateOpnameItems(items);
       await c.beginTransaction();
+      const requestedBranch = Number(req.body.branch_id);
+      const branchScope = req.user.role === "owner" && Number.isSafeInteger(requestedBranch) && requestedBranch > 0
+        ? requestedBranch : Number(req.user.branch_id);
       const [ws] = await c.execute(
         "SELECT id, branch_id FROM warehouses WHERE id=? AND branch_id=? AND is_active=TRUE FOR UPDATE",
-        [warehouseId, req.user.branch_id],
+        [warehouseId, branchScope],
       );
       if (!ws[0]) throw fail(404, "Gudang tidak ditemukan");
       const branchId = ws[0].branch_id;
@@ -636,7 +675,7 @@ router.post(
       const [prods] = productIds.length
         ? await c.execute(
             `SELECT id FROM products WHERE id IN (${ph}) AND branch_id=? AND is_active=TRUE`,
-            [...productIds, req.user.branch_id],
+            [...productIds, branchId],
           )
         : [[]];
       if (prods.length !== productIds.length)
@@ -661,12 +700,21 @@ router.post(
           physical < 0
         )
           throw fail(400, "Item opname tidak valid");
+        const variantId = item.variant_id == null ? null : Number(item.variant_id);
+        if (variantId) {
+          const [variants] = await c.execute(
+            "SELECT id FROM product_variants WHERE id=? AND product_id=? AND is_active=TRUE FOR UPDATE",
+            [variantId, item.product_id],
+          );
+          if (!variants[0]) throw fail(400, "Varian opname tidak cocok dengan produknya");
+        }
         const row = await balance(
           c,
           warehouseId,
           item.product_id,
-          item.variant_id || null,
+          variantId,
         );
+        assertStockSnapshot(item, row);
         const system = row?.quantity || 0;
         const delta = physical - system;
         diff += delta;
@@ -675,7 +723,7 @@ router.post(
           [
             o.insertId,
             item.product_id,
-            item.variant_id || null,
+            variantId,
             system,
             physical,
             delta,
@@ -688,7 +736,7 @@ router.post(
             branchId,
             warehouseId,
             item.product_id,
-            item.variant_id || null,
+            variantId,
             delta,
             req.user.id,
             "adjustment",
@@ -700,8 +748,7 @@ router.post(
         "UPDATE stock_opnames SET total_selisih = ? WHERE id = ?",
         [diff, o.insertId],
       );
-      await c.commit();
-      await db.execute(
+      await c.execute(
         "INSERT INTO activity_logs (user_id, action, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)",
         [
           req.user.id,
@@ -711,6 +758,7 @@ router.post(
           req.get("user-agent") || null,
         ],
       );
+      await c.commit();
       res
         .status(201)
         .json({

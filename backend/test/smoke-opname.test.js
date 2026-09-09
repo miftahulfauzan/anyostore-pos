@@ -44,7 +44,7 @@ test('opname stok memakai branchId dari gudang (bukan ReferenceError)', async ()
   const res = response();
   let nextCalled = false;
   await handle(
-    { body: { warehouse_id: 1, notes: 'cek fisik', items: [{ product_id: 10, physical_stock: 5 }] }, user: { id: 2, branch_id: 1 }, ip: '127.0.0.1', get: () => null },
+    { body: { warehouse_id: 1, notes: 'cek fisik', items: [{ product_id: 10, physical_stock: 5, expected_stock: 0, expected_revision: 0 }] }, user: { id: 2, branch_id: 1 }, ip: '127.0.0.1', get: () => null },
     res,
     (err) => { nextCalled = true; if (err) console.error(err.message); }
   );

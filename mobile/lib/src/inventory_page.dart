@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
@@ -63,11 +65,13 @@ class _InventoryPageState extends State<InventoryPage> {
                   'mutasi' =>
                     _MutasiSection(api: widget.api, branchId: widget.branchId),
                   'transfer' => _TransferSection(
+                      key: ValueKey(widget.branchId),
                       api: widget.api,
                       branchId: widget.branchId,
                       isOwner: widget.isOwner),
                   'opname' =>
-                    _OpnameSection(api: widget.api, branchId: widget.branchId),
+                    _OpnameSection(key: ValueKey(widget.branchId),
+                        api: widget.api, branchId: widget.branchId),
                   _ => _BarcodeSection(api: widget.api),
                 },
               ),
@@ -1401,7 +1405,7 @@ class _CatalogPickerState extends State<_CatalogPicker> {
 
 class _TransferSection extends StatefulWidget {
   const _TransferSection(
-      {required this.api, required this.branchId, this.isOwner = false});
+      {super.key, required this.api, required this.branchId, this.isOwner = false});
   final ApiClient api;
   final int branchId;
   final bool isOwner;
@@ -1411,6 +1415,8 @@ class _TransferSection extends StatefulWidget {
 }
 
 class _TransferSectionState extends State<_TransferSection> {
+  String? _clientTransferId;
+  String? _transferFingerprint;
   List<Map<String, dynamic>> _warehouses = [];
   List<Map<String, dynamic>> _targets = [];
   String _from = '';
@@ -1536,6 +1542,7 @@ class _TransferSectionState extends State<_TransferSection> {
   }
 
   Future<void> _submit() async {
+    if (_saving) return;
     if (_from.isEmpty || _to.isEmpty || _from == _to || _items.isEmpty) {
       setState(() => _error = 'Pilih gudang asal/tujuan dan minimal satu item');
       return;
@@ -1549,11 +1556,28 @@ class _TransferSectionState extends State<_TransferSection> {
         'from_warehouse_id': int.parse(_from),
         'to_warehouse_id': int.parse(_to),
         if (_notes.trim().isNotEmpty) 'notes': _notes.trim(),
-        'items': _items,
+        'items': [
+          for (final item in _items)
+            {
+              'product_id': item['product_id'],
+              if (item['variant_id'] != null) 'variant_id': item['variant_id'],
+              'quantity': item['quantity'],
+            },
+        ],
       };
+      final fingerprint = jsonEncode(body);
+      if (_transferFingerprint != fingerprint) {
+        _transferFingerprint = fingerprint;
+        _clientTransferId = uuidV4();
+      }
+      body['client_transfer_id'] = _clientTransferId!;
       await widget.api.createInterStoreTransfer(body);
       if (!mounted) return;
-      setState(() => _items.clear());
+      setState(() {
+        _items.clear();
+        _clientTransferId = null;
+        _transferFingerprint = null;
+      });
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Transfer diproses')));
     } on ApiException catch (e) {
@@ -1580,7 +1604,11 @@ class _TransferSectionState extends State<_TransferSection> {
                         value: '${w['id']}',
                         child: Text(w['name']?.toString() ?? '')),
                 ],
-                onChanged: (v) => setState(() => _from = v ?? ''),
+                onChanged: _saving ? null : (v) => setState(() {
+                  _from = v ?? '';
+                  _items.clear();
+                  _error = null;
+                }),
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
@@ -1594,7 +1622,7 @@ class _TransferSectionState extends State<_TransferSection> {
                         value: '${t['warehouse_id']}',
                         child: Text('${t['name']} · ${t['warehouse_name']}')),
                 ],
-                onChanged: (v) => setState(() => _to = v ?? ''),
+                onChanged: _saving ? null : (v) => setState(() => _to = v ?? ''),
               ),
               const SizedBox(height: 8),
               TextField(
@@ -1657,7 +1685,7 @@ class _TransferSectionState extends State<_TransferSection> {
 }
 
 class _OpnameSection extends StatefulWidget {
-  const _OpnameSection({required this.api, required this.branchId});
+  const _OpnameSection({super.key, required this.api, required this.branchId});
   final ApiClient api;
   final int branchId;
 
@@ -1697,17 +1725,35 @@ class _OpnameSectionState extends State<_OpnameSection> {
   }
 
   Future<void> _pickItem() async {
-    final catalog = await widget.api.incomingProducts(
-        branchId: widget.branchId, warehouseId: int.tryParse(_warehouseId));
-    if (!mounted) return;
-    final result = await Navigator.of(context).push<List<Map<String, dynamic>>>(
-      MaterialPageRoute(
-        builder: (_) =>
-            _OpnamePicker(products: catalog.cast<Map<String, dynamic>>()),
-      ),
-    );
-    if (result == null || result.isEmpty) return;
-    setState(() => _items.addAll(result));
+    final warehouse = _warehouseId;
+    if (_saving || warehouse.isEmpty) return;
+    setState(() => _error = null);
+    try {
+      final rows = await widget.api.stockSnapshot(
+          branchId: widget.branchId, warehouseId: int.parse(warehouse));
+      if (!mounted || warehouse != _warehouseId) return;
+      final result = await Navigator.of(context).push<List<Map<String, dynamic>>>(
+        MaterialPageRoute(
+          builder: (_) =>
+              _OpnamePicker(products: rows.cast<Map<String, dynamic>>()),
+        ),
+      );
+      if (!mounted || warehouse != _warehouseId || result == null) return;
+      setState(() {
+        for (final item in result) {
+          _items.removeWhere((existing) =>
+              existing['product_id'] == item['product_id'] &&
+              existing['variant_id'] == item['variant_id']);
+          _items.add(item);
+        }
+      });
+    } catch (e) {
+      if (mounted && warehouse == _warehouseId) {
+        setState(() => _error = e is ApiException
+            ? e.message
+            : 'Gagal memuat stok. Coba tambah item kembali.');
+      }
+    }
   }
 
   Future<void> _editItem(Map<String, dynamic> item) async {
@@ -1744,6 +1790,7 @@ class _OpnameSectionState extends State<_OpnameSection> {
   }
 
   Future<void> _submit() async {
+    if (_saving) return;
     if (_warehouseId.isEmpty || _items.isEmpty) {
       setState(() => _error = 'Pilih gudang dan minimal satu item');
       return;
@@ -1755,7 +1802,17 @@ class _OpnameSectionState extends State<_OpnameSection> {
     try {
       await widget.api.createOpname({
         'warehouse_id': int.parse(_warehouseId),
-        'items': _items,
+        'branch_id': widget.branchId,
+        'items': [
+          for (final item in _items)
+            {
+              'product_id': item['product_id'],
+              if (item['variant_id'] != null) 'variant_id': item['variant_id'],
+              'physical_stock': item['physical_stock'],
+              'expected_stock': item['expected_stock'],
+              'expected_revision': item['expected_revision'],
+            },
+        ],
       });
       if (!mounted) return;
       setState(() => _items.clear());
@@ -1785,7 +1842,11 @@ class _OpnameSectionState extends State<_OpnameSection> {
                         value: '${w['id']}',
                         child: Text(w['name']?.toString() ?? '')),
                 ],
-                onChanged: (v) => setState(() => _warehouseId = v ?? ''),
+                onChanged: _saving ? null : (v) => setState(() {
+                  _warehouseId = v ?? '';
+                  _items.clear();
+                  _error = null;
+                }),
               ),
               const SizedBox(height: 12),
               FilledButton.icon(
@@ -1844,10 +1905,29 @@ class _OpnamePickerState extends State<_OpnamePicker> {
   String _q = '';
 
   Future<void> _add(Map<String, dynamic> product) async {
+    if (product['stock_revision'] == null) {
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Informasi'),
+          content: const Text(
+              'Snapshot stok tidak lengkap. Muat ulang daftar item.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Tutup')),
+          ],
+        ),
+      );
+      return;
+    }
     final variants =
         ((product['variants'] as List?) ?? []).cast<Map<String, dynamic>>();
-    var variantId = variants.isEmpty ? null : variants.first['id'] as int?;
-    final physical = TextEditingController(text: '0');
+    var variantId = product['variant_id'] is num
+        ? (product['variant_id'] as num).toInt()
+        : (variants.isEmpty ? null : variants.first['id'] as int?);
+    final physical = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -1857,7 +1937,7 @@ class _OpnamePickerState extends State<_OpnamePicker> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (variants.isNotEmpty) ...[
+              if (variants.isNotEmpty && product['variant_id'] == null) ...[
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
@@ -1895,18 +1975,36 @@ class _OpnamePickerState extends State<_OpnamePicker> {
     );
     if (ok != true || !mounted) return;
     final value = int.tryParse(physical.text) ?? -1;
-    if (value < 0) return;
+    if (value < 0) {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Periksa stok fisik'),
+          content: const Text('Isi stok fisik dengan angka 0 atau lebih.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Tutup')),
+          ],
+        ),
+      );
+      return;
+    }
     final variantLabel = variants
         .where((v) => v['id'] == variantId)
         .map((v) => v['color']?.toString() ?? '')
         .join(', ');
     setState(() {
       _added.add({
-        'product_id': product['id'],
+        'product_id': product['product_id'] ?? product['id'],
         if (variantId != null) 'variant_id': variantId,
         'name': product['name'],
-        'variant_label': variantLabel,
+        'variant_label': product['variant_color'] != null
+            ? '${product['variant_color']}${product['variant_size'] == null ? '' : ' · ${product['variant_size']}'}'
+            : variantLabel,
         'physical_stock': value,
+        'expected_stock': int.tryParse('${product['quantity'] ?? 0}') ?? 0,
+        'expected_revision': product['stock_revision'],
       });
     });
   }

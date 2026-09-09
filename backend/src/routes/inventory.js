@@ -173,20 +173,26 @@ router.get('/stock', async (req, res, next) => {
     // terlihat di dropdown (warehouses/all). Role lain tetap cabang sendiri.
     const branchId = ['owner', 'gudang'].includes(req.user.role) && Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
     const [rows] = await db.execute(
-      `SELECT ws.product_id, ws.variant_id, ws.quantity, ws.reserved_quantity, p.name, p.sku, p.min_stock, pv.color AS variant_color
+      `SELECT ws.product_id, ws.variant_id, ws.quantity, ws.reserved_quantity, ws.revision AS stock_revision, p.name, p.sku, p.min_stock, pv.color AS variant_color, pv.size AS variant_size
        FROM warehouse_stocks ws
        JOIN warehouses w ON w.id = ws.warehouse_id
        JOIN products p ON p.id = ws.product_id
        LEFT JOIN product_variants pv ON pv.id = ws.variant_id
        WHERE ws.warehouse_id = ? AND w.branch_id = ?
        UNION ALL
-       SELECT p.id AS product_id, pv.id AS variant_id, 0 AS quantity, 0 AS reserved_quantity, p.name, p.sku, p.min_stock, pv.color AS variant_color
+       SELECT p.id AS product_id, pv.id AS variant_id, 0 AS quantity, 0 AS reserved_quantity, 0 AS stock_revision, p.name, p.sku, p.min_stock, pv.color AS variant_color, pv.size AS variant_size
        FROM products p
        JOIN product_variants pv ON pv.product_id = p.id AND pv.is_active = TRUE
        WHERE p.branch_id = ? AND p.is_active = TRUE
          AND NOT EXISTS (SELECT 1 FROM warehouse_stocks ws2 WHERE ws2.warehouse_id = ? AND ws2.product_id = p.id AND ws2.variant_id = pv.id)
-       ORDER BY name, variant_color`,
-      [warehouseId, branchId, branchId, warehouseId]
+       UNION ALL
+       SELECT p.id AS product_id, NULL AS variant_id, 0 AS quantity, 0 AS reserved_quantity, 0 AS stock_revision, p.name, p.sku, p.min_stock, NULL AS variant_color, NULL AS variant_size
+       FROM products p
+       WHERE p.branch_id = ? AND p.is_active = TRUE
+         AND NOT EXISTS (SELECT 1 FROM product_variants pv2 WHERE pv2.product_id = p.id AND pv2.is_active = TRUE)
+         AND NOT EXISTS (SELECT 1 FROM warehouse_stocks ws3 WHERE ws3.warehouse_id = ? AND ws3.product_id = p.id AND ws3.variant_id IS NULL)
+       ORDER BY name, variant_color, variant_size`,
+      [warehouseId, branchId, branchId, warehouseId, branchId, warehouseId]
     );
     res.json({ success: true, data: rows, branch_id: branchId });
   } catch (error) { next(error); }

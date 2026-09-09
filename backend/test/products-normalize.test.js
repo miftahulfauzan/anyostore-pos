@@ -37,7 +37,7 @@ test('admin gudang dapat menghapus produk pada cabang Riject Perbaikan yang dipi
   const originalExecute = db.execute;
   db.execute = async (sql, params) => {
     assert.match(sql, /type='gudang'/);
-    assert.match(sql, /gudang riject perbaikan/);
+    assert.match(sql, /warehouse_catalog_delete_enabled=TRUE/);
     assert.deepEqual(params, [7]);
     return [[{ id: 7 }], []];
   };
@@ -56,16 +56,15 @@ test('admin gudang dapat menghapus produk pada cabang Riject Perbaikan yang dipi
 test('admin gudang tidak dapat menghapus produk pada cabang gudang lain melalui branch_id', async () => {
   const originalExecute = db.execute;
   db.execute = async (sql) => {
-    assert.match(sql, /gudang riject perbaikan/);
+    assert.match(sql, /warehouse_catalog_delete_enabled=TRUE/);
     return [[], []];
   };
   try {
-    const branchId = await productsRouter.writableDeleteBranchId({
+    await assert.rejects(productsRouter.writableDeleteBranchId({
       user: { role: 'gudang', branch_id: 3 },
       body: {},
       query: { branch_id: '2' },
-    });
-    assert.equal(branchId, 3);
+    }), { status: 403 });
   } finally {
     db.execute = originalExecute;
   }

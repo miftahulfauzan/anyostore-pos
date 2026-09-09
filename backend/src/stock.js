@@ -18,15 +18,15 @@ async function adjustStock(connection, {
   createdAt = null,
 }) {
   const [balances] = await connection.execute(
-    'SELECT id, quantity FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id <=> ? FOR UPDATE',
+    'SELECT id, quantity, revision FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id <=> ? FOR UPDATE',
     [warehouseId, productId, variantId]
   );
   const before = Number(balances[0]?.quantity || 0);
   const after = before + delta;
   if (balances[0]) {
-    await connection.execute('UPDATE warehouse_stocks SET quantity = ? WHERE id = ?', [after, balances[0].id]);
+    await connection.execute('UPDATE warehouse_stocks SET quantity = ?, revision = revision + 1 WHERE id = ?', [after, balances[0].id]);
   } else {
-    await connection.execute('INSERT INTO warehouse_stocks (warehouse_id, product_id, variant_id, quantity) VALUES (?, ?, ?, ?)', [warehouseId, productId, variantId, after]);
+    await connection.execute('INSERT INTO warehouse_stocks (warehouse_id, product_id, variant_id, quantity, revision) VALUES (?, ?, ?, ?, 1)', [warehouseId, productId, variantId, after]);
   }
   await connection.execute('UPDATE products SET stock = stock + ? WHERE id = ?', [delta, productId]);
   if (variantId) {

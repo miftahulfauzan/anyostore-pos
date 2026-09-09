@@ -652,105 +652,52 @@ router.put('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (req,
   } catch (error) { next(error); }
 });
 
-// DELETE /api/products/:id — soft-delete (is_active=false) if has transactions, else hard-delete
+// Each product is deleted/archived in one transaction; history is never erased.
 router.post('/bulk-delete', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
-    const ids = [...new Set((Array.isArray(req.body.ids) ? req.body.ids : []).map(Number).filter(Number.isInteger))].slice(0, 200);
-    if (!ids.length) return res.status(400).json({ success: false, message: 'Pilih minimal 1 produk' });
+    const rawIds = req.body.ids;
+    if (!Array.isArray(rawIds) || !rawIds.length || rawIds.length > 200
+        || rawIds.some((id) => !Number.isSafeInteger(Number(id)) || Number(id) <= 0)) {
+      return res.status(400).json({ success: false, message: 'Pilih 1–200 ID produk yang valid.' });
+    }
+    const ids = [...new Set(rawIds.map(Number))];
     const branchId = await writableDeleteBranchId(req);
-
     let hard = 0;
     let soft = 0;
-    const failed = [];
-
+    const failures = [];
     for (const id of ids) {
       try {
-        const [product] = await db.execute('SELECT id, name, is_active FROM products WHERE id=? AND branch_id=?', [id, branchId]);
-        if (!product[0]) { failed.push(id); continue; }
-
-        const [trx] = await db.execute(
-          `SELECT (SELECT COUNT(*) FROM transaction_items WHERE product_id=?) +
-                  (SELECT COUNT(*) FROM purchase_order_items WHERE product_id=?) +
-                  (SELECT COUNT(*) FROM stock_opname_items WHERE product_id=?) +
-                  (SELECT COUNT(*) FROM stock_transfer_items WHERE product_id=?) +
-                  (SELECT COUNT(*) FROM return_items WHERE product_id=?) +
-                  (SELECT COUNT(*) FROM supplier_products WHERE product_id=?) AS cnt`,
-          [id, id, id, id, id, id]
-        );
-        const hasHistory = Number(trx[0].cnt) > 0;
-
-        if (hasHistory) {
-          await db.execute('UPDATE products SET is_active=FALSE WHERE id=?', [id]);
-          await db.execute('UPDATE product_variants SET is_active=FALSE WHERE product_id=?', [id]);
-          soft += 1;
-        } else {
-          const [photos] = await db.execute('SELECT path FROM product_photos WHERE product_id=?', [id]);
-          for (const ph of photos) { try { await removeMedia(ph.path); } catch {} }
-          await db.execute('DELETE FROM stock_mutations WHERE product_id=?', [id]);
-          await db.execute('DELETE FROM warehouse_stocks WHERE product_id=?', [id]);
-          await db.execute('DELETE FROM product_photos WHERE product_id=?', [id]);
-          await db.execute('DELETE FROM wholesale_prices WHERE product_id=?', [id]);
-          await db.execute('DELETE FROM product_variants WHERE product_id=?', [id]);
-          await db.execute('DELETE FROM supplier_products WHERE product_id=?', [id]);
-          await db.execute('DELETE FROM products WHERE id=?', [id]);
-          hard += 1;
-        }
+        const result = await deleteCatalogProduct({ pool: db, id, branchId, removeMedia });
+        if (result.soft) soft += 1;
+        else hard += 1;
       } catch (error) {
-        failed.push(id);
+        const status = Number(error.status) || 500;
+        failures.push({ id, status, message: status < 500 ? error.message : 'Gagal memproses produk. Silakan coba lagi.' });
+        if (status >= 500) console.error('[product-delete]', { id, code: error.code || error.name });
       }
     }
-
     const parts = [];
     if (hard) parts.push(`${hard} dihapus permanen`);
-    if (soft) parts.push(`${soft} dinonaktifkan (punya riwayat)`);
-    const message = parts.length ? `Selesai: ${parts.join(', ')}.` : 'Tidak ada produk yang terhapus.';
-    res.json({ success: true, data: { deleted: hard, deactivated: soft, failed, message } });
+    if (soft) parts.push(`${soft} dinonaktifkan (riwayat tetap tersimpan)`);
+    if (failures.length) parts.push(`${failures.length} gagal: ${failures[0].message}`);
+    const message = parts.join('; ');
+    const success = hard + soft > 0;
+    res.status(success ? (failures.length ? 207 : 200) : 409).json({
+      success, message,
+      data: { deleted: hard, deactivated: soft, failed: failures.map((failure) => failure.id), failures, message },
+    });
   } catch (error) { next(error); }
 });
 
 router.delete('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
-    if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID tidak valid' });
+    if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ success: false, message: 'ID tidak valid' });
     const branchId = await writableDeleteBranchId(req);
-
-    // Verify product belongs to user's branch
-    const [product] = await db.execute('SELECT id, name, is_active FROM products WHERE id=? AND branch_id=?', [id, branchId]);
-    if (!product[0]) return res.status(404).json({ success: false, message: 'Produk tidak ditemukan' });
-
-    // Check if product has any history that must keep it alive (sales, PO, opname, transfer, retur)
-    const [trx] = await db.execute(
-      `SELECT (SELECT COUNT(*) FROM transaction_items WHERE product_id=?) +
-              (SELECT COUNT(*) FROM purchase_order_items WHERE product_id=?) +
-              (SELECT COUNT(*) FROM stock_opname_items WHERE product_id=?) +
-              (SELECT COUNT(*) FROM stock_transfer_items WHERE product_id=?) +
-              (SELECT COUNT(*) FROM return_items WHERE product_id=?) +
-              (SELECT COUNT(*) FROM supplier_products WHERE product_id=?) AS cnt`,
-      [id, id, id, id, id, id]
-    );
-    const hasHistory = Number(trx[0].cnt) > 0;
-
-    if (hasHistory) {
-      // Soft-delete: product stays for historical data
-      await db.execute('UPDATE products SET is_active=FALSE WHERE id=?', [id]);
-      await db.execute('UPDATE product_variants SET is_active=FALSE WHERE product_id=?', [id]);
-      res.json({ success: true, data: { message: 'Produk dinonaktifkan (masih memiliki riwayat transaksi atau pesanan)', soft: true } });
-    } else {
-      // Hard-delete: cascade all related data
-      const [photos] = await db.execute('SELECT path FROM product_photos WHERE product_id=?', [id]);
-      for (const ph of photos) { try { await removeMedia(ph.path); } catch {} }
-      await db.execute('DELETE FROM stock_mutations WHERE product_id=?', [id]);
-      await db.execute('DELETE FROM warehouse_stocks WHERE product_id=?', [id]);
-      await db.execute('DELETE FROM product_photos WHERE product_id=?', [id]);
-      await db.execute('DELETE FROM wholesale_prices WHERE product_id=?', [id]);
-      await db.execute('DELETE FROM product_variants WHERE product_id=?', [id]);
-      await db.execute('DELETE FROM supplier_products WHERE product_id=?', [id]);
-      await db.execute('DELETE FROM products WHERE id=?', [id]);
-      res.json({ success: true, data: { message: 'Produk berhasil dihapus permanen', soft: false } });
-    }
+    const data = await deleteCatalogProduct({ pool: db, id, branchId, removeMedia });
+    res.json({ success: true, data });
   } catch (error) { next(error); }
 });
-
 router.normalizeVariants = normalizeVariants;
 router.writableDeleteBranchId = writableDeleteBranchId;
 router.writableBranchId = writableBranchId;

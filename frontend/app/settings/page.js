@@ -31,6 +31,7 @@ export default function SettingsPage() {
   const [emailKeySet, setEmailKeySet] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
   const [backupMessage, setBackupMessage] = useState('');
+  const [backupError, setBackupError] = useState(false);
 
   // new branch state
   const [newBranch, setNewBranch] = useState({ name: '', address: '', phone: '', email: '', source_branch_id: '', price_multiplier: '1', clone_photos: true, pricing_tier_enabled: true });
@@ -130,22 +131,34 @@ export default function SettingsPage() {
   async function downloadBackup() {
     setBackupLoading(true);
     setBackupMessage('');
+    setBackupError(false);
     try {
-      const response = await fetch(api + '/backup', { headers: jsonHeaders(), credentials: 'include' });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok || !body.data?.download) throw new Error(body.message || 'Backup database gagal dibuat');
-      const payload = body.data.download;
-      const blob = new Blob([payload], { type: 'application/json;charset=utf-8' });
+      const response = await fetch(api + '/backup/download', { credentials: 'include', cache: 'no-store' });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.message || 'Backup gagal dibuat');
+      }
+      if (response.headers.get('X-Backup-Complete') !== 'true') throw new Error('Server tidak memastikan backup lengkap. File tidak disimpan.');
+      const tables = Number(response.headers.get('X-Backup-Tables'));
+      const rows = Number(response.headers.get('X-Backup-Rows'));
+      const bytes = Number(response.headers.get('Content-Length'));
+      if (!Number.isSafeInteger(tables) || tables < 1 || !Number.isSafeInteger(rows) || rows < 0 || !Number.isSafeInteger(bytes) || bytes < 1) {
+        throw new Error('Metadata backup tidak valid. File tidak disimpan.');
+      }
+      const blob = await response.blob();
+      if (blob.size !== bytes) throw new Error('Unduhan backup tidak lengkap. Silakan ulangi.');
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `anyostore-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      const filename = response.headers.get('Content-Disposition')?.match(/filename="([A-Za-z0-9_.-]+)"/)?.[1];
+      anchor.download = filename || 'anyostore-backup.json';
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
-      URL.revokeObjectURL(url);
-      setBackupMessage(`Backup selesai: ${Number(body.data.tables || 0).toLocaleString('id-ID')} tabel dan ${Number(body.data.total_rows || 0).toLocaleString('id-ID')} baris.`);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setBackupMessage(`Unduhan siap: ${tables.toLocaleString('id-ID')} tabel dan ${rows.toLocaleString('id-ID')} baris beserta media. Simpan file; uji pemulihan hanya di database terisolasi.`);
     } catch (error) {
+      setBackupError(true);
       setBackupMessage(error.message || 'Backup database gagal dibuat');
     } finally {
       setBackupLoading(false);
@@ -283,17 +296,18 @@ export default function SettingsPage() {
         <section className="panel settings-feature-panel">
           <div className="section-heading">
             <div>
-              <h2>Backup Database</h2>
-              <p>Download seluruh data database dalam satu file JSON untuk disimpan dengan aman. API key email tidak ikut diunduh.</p>
+              <h2>Backup Data &amp; Media</h2>
+              <p>Unduh snapshot semua cabang tanpa batas jumlah baris, beserta foto/video tersimpan dan manifest pemeriksaan integritas. Perubahan media saat backup dapat menggagalkan proses; ulangi saat unggahan selesai.</p>
+              <p>API key email dikosongkan dan perlu diisi ulang setelah pemulihan. Rahasia konfigurasi server dan media dari URL eksternal tidak disertakan. File berisi data pelanggan dan akun; simpan secara privat. Pemulihan lewat alat administrator hanya ke database terisolasi yang kosong dengan skema yang cocok.</p>
             </div>
             <span className="tag">Owner</span>
           </div>
           <div className="form-actions">
             <button type="button" className="secondary" onClick={downloadBackup} disabled={backupLoading}>
-              {backupLoading ? 'Menyiapkan backup…' : '↓ Backup Database'}
+              {backupLoading ? 'Memeriksa dan menyiapkan backup…' : '↓ Unduh Backup Data & Media'}
             </button>
           </div>
-          {backupMessage && <p className="message success" role="status">{backupMessage}</p>}
+          {backupMessage && <p className={`message ${backupError ? 'error' : 'success'}`} role={backupError ? 'alert' : 'status'}>{backupMessage}</p>}
         </section>
       )}
 

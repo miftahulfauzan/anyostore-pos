@@ -1,5 +1,5 @@
 function productsQuery({ branchId, search, sort, page }) {
-  const params = new URLSearchParams({ limit: '48', page: String(page), sort });
+  const params = new globalThis.URLSearchParams({ limit: '48', page: String(page), sort });
   if (search.trim()) params.set('search', search.trim());
   if (branchId) params.set('branch_id', branchId);
   return params;

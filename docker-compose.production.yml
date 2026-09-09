@@ -46,11 +46,16 @@ services:
     networks: [internal]
 
   backend:
+    image: anyostore-pos-backend:${RELEASE_SHA:?Set RELEASE_SHA to the verified commit}
     build:
       context: ./backend
       dockerfile: Dockerfile.production
+      args:
+        RELEASE_SHA: ${RELEASE_SHA:?Set RELEASE_SHA to the verified commit}
     environment:
       NODE_ENV: production
+      TZ: Asia/Jakarta
+      RELEASE_SHA: ${RELEASE_SHA:?Set RELEASE_SHA to the verified commit}
       PORT: 3001
       DB_HOST: db
       DB_PORT: 3306
@@ -62,9 +67,6 @@ services:
       CORS_ORIGIN: ${APP_ORIGIN}
     volumes:
       - uploads_data:/app/uploads
-      - ./backend/migrations:/app/migrations:ro
-      - ./backend/scripts:/app/scripts:ro
-    entrypoint: ["sh","-c","node scripts/migrate.js || true; node scripts/fix-clone-paths.js || true; node src/index.js"]
     depends_on:
       db:
         condition: service_healthy
@@ -78,11 +80,16 @@ services:
     networks: [internal]
 
   frontend:
+    image: anyostore-pos-frontend:${RELEASE_SHA:?Set RELEASE_SHA to the verified commit}
     build:
       context: ./frontend
       dockerfile: Dockerfile.production
       args:
         NEXT_PUBLIC_API_URL: /api
+        RELEASE_SHA: ${RELEASE_SHA:?Set RELEASE_SHA to the verified commit}
+        NEXT_PUBLIC_RELEASE_SHA: ${RELEASE_SHA:?Set RELEASE_SHA to the verified commit}
+    environment:
+      RELEASE_SHA: ${RELEASE_SHA:?Set RELEASE_SHA to the verified commit}
     depends_on:
       db:
         condition: service_healthy

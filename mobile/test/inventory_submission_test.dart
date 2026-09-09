@@ -21,7 +21,9 @@ class InventoryApi extends ApiClient {
       return pendingStock!.future;
     }
     final Object data = switch (path) {
-      '/inventory/stock-total' => {'products': <Object>[], 'summary': {}},
+      '/inventory/stock-total' => {
+          'products': <Object>[], 'summary': <String, dynamic>{}
+        },
       '/inventory/warehouses' => [
           {'id': 1, 'name': 'Gudang A'},
           {'id': 2, 'name': 'Gudang B'},

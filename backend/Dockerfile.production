@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 
@@ -7,10 +7,15 @@ RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
 
 COPY --chown=node:node src ./src
 COPY --chown=node:node scripts ./scripts
+COPY --chown=node:node migrations ./migrations
 RUN mkdir -p /app/uploads && chown node:node /app/uploads
 
 ENV NODE_ENV=production
+ENV TZ=Asia/Jakarta
+ARG RELEASE_SHA
+ENV RELEASE_SHA=$RELEASE_SHA
+LABEL org.opencontainers.image.revision=$RELEASE_SHA
 USER node
 
 EXPOSE 3001
-CMD ["node", "src/index.js"]
+CMD ["sh", "scripts/start-production.sh"]

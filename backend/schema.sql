@@ -32,6 +32,7 @@ CREATE TABLE users (
     password VARCHAR(255) NOT NULL,
     role ENUM('owner','manager','admin','kasir','gudang') NOT NULL,
     pin_hash VARCHAR(255),
+    token_version INT UNSIGNED NOT NULL DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
     last_login TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -243,6 +244,7 @@ CREATE TABLE warehouse_stocks (
     variant_key INT AS (COALESCE(variant_id, 0)) STORED,
     quantity INT NOT NULL DEFAULT 0,
     reserved_quantity INT NOT NULL DEFAULT 0,
+    revision BIGINT UNSIGNED NOT NULL DEFAULT 0,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (warehouse_id) REFERENCES warehouses(id),
     FOREIGN KEY (product_id) REFERENCES products(id),
@@ -316,6 +318,8 @@ CREATE TABLE stock_transfer_items (
     transfer_id INT NOT NULL,
     product_id INT NOT NULL,
     variant_id INT DEFAULT NULL,
+    destination_product_id INT DEFAULT NULL,
+    destination_variant_id INT DEFAULT NULL,
     quantity INT NOT NULL,
     FOREIGN KEY (transfer_id) REFERENCES stock_transfers(id),
     FOREIGN KEY (product_id) REFERENCES products(id)
@@ -820,9 +824,22 @@ CREATE TABLE refresh_tokens (
     token_hash CHAR(64) NOT NULL UNIQUE,
     expires_at TIMESTAMP NOT NULL,
     revoked_at TIMESTAMP NULL,
+    session_id CHAR(36) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id),
     INDEX idx_refresh_tokens_user (user_id, expires_at)
+);
+
+CREATE TABLE inventory_requests (
+    user_id INT NOT NULL,
+    request_id CHAR(36) NOT NULL,
+    request_hash CHAR(64) NOT NULL,
+    endpoint VARCHAR(80) NOT NULL,
+    response_json JSON NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, request_id),
+    INDEX idx_inventory_requests_created (created_at),
+    FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
 -- ============================================

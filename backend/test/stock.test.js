@@ -8,7 +8,7 @@ function makeConnection({ existing = false } = {}) {
     calls,
     async execute(sql, params) {
       calls.push({ sql, params: params || [] });
-      if (sql.includes('SELECT id, quantity FROM warehouse_stocks')) {
+      if (sql.includes('SELECT id, quantity') && sql.includes('warehouse_stocks')) {
         return existing ? [[{ id: 9, quantity: 5 }], []] : [[], []];
       }
       if (sql.includes('INSERT INTO warehouse_stocks')) return [{ insertId: 3 }, []];
@@ -46,7 +46,7 @@ test('adjustStock mengupdate baris existing + varian', async () => {
     userId: 4, type: 'sale', referenceType: 'transaction', referenceId: 5,
   });
   assert.equal(conn.calls.length, 5);
-  assert.ok(conn.calls.some((c) => c.sql.includes('UPDATE warehouse_stocks SET quantity = ?')));
+  assert.ok(conn.calls.some((c) => c.sql.includes('UPDATE warehouse_stocks SET quantity = ?') && c.sql.includes('revision')));
   assert.ok(conn.calls.some((c) => c.sql.includes('UPDATE product_variants SET stock')));
   assert.ok(conn.calls.some((c) => c.sql.includes('channel')));
 });

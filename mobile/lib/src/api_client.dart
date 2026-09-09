@@ -544,6 +544,20 @@ class ApiClient {
     return (res['data'] as List?) ?? [];
   }
 
+  /// Warehouse balances and revisions from the same server snapshot.
+  Future<List<dynamic>> stockSnapshot({
+    required int branchId,
+    required int warehouseId,
+  }) async {
+    final res = await get('/inventory/stock', {
+      'branch_id': '$branchId',
+      'warehouse_id': '$warehouseId',
+    });
+    final rows = res['data'];
+    if (rows is! List) throw ApiException('Respons stok tidak valid');
+    return rows;
+  }
+
   Future<Map<String, dynamic>> createChannel(String name) =>
       post('/inventory/channels', {'name': name});
 

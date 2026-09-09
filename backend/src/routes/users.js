@@ -46,7 +46,9 @@ router.put('/profile/password', authenticate, async (req, res, next) => {
     if (!rows[0]) return res.status(404).json({ success: false, message: 'Pengguna tidak ditemukan' });
     const match = await bcrypt.compare(String(current_password || ''), rows[0].password);
     if (!match) return badRequest(res, 'Password lama salah');
-    await db.execute('UPDATE users SET password = ? WHERE id = ?', [await bcrypt.hash(new_password, 12), req.user.id]);
+    const [updated] = await db.execute('UPDATE users SET password = ?, token_version = token_version + 1 WHERE id = ? AND password = ?',
+      [await bcrypt.hash(new_password, 12), req.user.id, rows[0].password]);
+    if (!updated.affectedRows) return res.status(409).json({ success: false, message: 'Password sudah berubah, silakan login kembali' });
     res.json({ success: true });
   } catch (e) { next(e); }
 });
@@ -104,8 +106,11 @@ router.put('/:id', authenticate, authorize('owner'), async (req, res, next) => {
     if (dup[0]) return badRequest(res, 'Username sudah dipakai');
     // Cegah owner mengubah role dirinya sendiri menjadi non-owner (lock-out).
     if (Number(req.params.id) === req.user.id && role !== 'owner') return badRequest(res, 'Tidak dapat mengubah peran akun sendiri');
-    const fields = ['name = ?', 'username = ?', 'email = ?', 'role = ?'];
-    const values = [name.trim(), username, email.trim().toLowerCase(), role];
+    // MySQL evaluates assignments left to right: compare the OLD role before
+    // assigning the new one. A profile-only edit must preserve long sessions.
+    const fields = [pin ? 'token_version = token_version + 1' : 'token_version = token_version + IF(role <> ?, 1, 0)',
+      'name = ?', 'username = ?', 'email = ?', 'role = ?'];
+    const values = [...(pin ? [] : [role]), name.trim(), username, email.trim().toLowerCase(), role];
     if (pin) { fields.push('pin_hash = ?'); values.push(await bcrypt.hash(pin, 12)); }
     values.push(req.params.id);
     const [r] = await db.execute(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, values);
@@ -119,7 +124,7 @@ router.put('/:id/password', authenticate, authorize('owner'), async (req, res, n
   try {
     const { new_password } = req.body;
     if (typeof new_password !== 'string' || new_password.length < 8) return badRequest(res, 'Password baru minimal 8 karakter');
-    const [r] = await db.execute('UPDATE users SET password = ? WHERE id = ?', [await bcrypt.hash(new_password, 12), req.params.id]);
+    const [r] = await db.execute('UPDATE users SET password = ?, token_version = token_version + 1 WHERE id = ?', [await bcrypt.hash(new_password, 12), req.params.id]);
     if (!r.affectedRows) return res.status(404).json({ success: false, message: 'Pengguna tidak ditemukan' });
     res.json({ success: true });
   } catch (e) { next(e); }
@@ -139,7 +144,7 @@ router.put('/:id/pin', authenticate, authorize('owner', 'manager', 'admin', 'kas
     if (isSelf && rows[0].pin_hash && currentPin && !(await bcrypt.compare(String(currentPin), rows[0].pin_hash))) {
       return badRequest(res, 'PIN saat ini salah');
     }
-    await db.execute('UPDATE users SET pin_hash=? WHERE id=?', [await bcrypt.hash(pin, 12), targetId]);
+    await db.execute('UPDATE users SET pin_hash=?, token_version = token_version + 1 WHERE id=?', [await bcrypt.hash(pin, 12), targetId]);
     res.json({ success: true });
   } catch (e) { next(e); }
 });
@@ -147,7 +152,7 @@ router.put('/:id/pin', authenticate, authorize('owner', 'manager', 'admin', 'kas
 router.put('/:id/toggle-active', authenticate, authorize('owner'), async (req, res, next) => {
   try {
     if (Number(req.params.id) === req.user.id) return badRequest(res, 'Tidak dapat menonaktifkan akun sendiri');
-    const [r] = await db.execute('UPDATE users SET is_active=NOT is_active WHERE id=?', [req.params.id]);
+    const [r] = await db.execute('UPDATE users SET is_active=NOT is_active, token_version = token_version + 1 WHERE id=?', [req.params.id]);
     if (!r.affectedRows) return res.status(404).json({ success: false, message: 'Pengguna tidak ditemukan' });
     res.json({ success: true });
   } catch (e) { next(e); }
@@ -183,15 +188,17 @@ router.delete('/:id', authenticate, authorize('owner'), async (req, res, next) =
       [id, id, id, id, id, id, id, id, id, id, id, id, id, id, id, id, id]
     );
     if (Number(trx[0].cnt) > 0) {
-      await db.execute('UPDATE users SET is_active = FALSE WHERE id = ?', [id]);
+      await db.execute('UPDATE users SET is_active = FALSE, token_version = token_version + 1 WHERE id = ?', [id]);
       return res.json({ success: true, data: { soft: true, message: 'Pengguna memiliki riwayat transaksi/aktivitas — dinonaktifkan agar data tetap terjaga.' } });
     }
     await db.execute('DELETE FROM users WHERE id = ?', [id]);
     res.json({ success: true, data: { soft: false, message: 'Pengguna dihapus permanen.' } });
   } catch (e) {
     if (e?.code === 'ER_ROW_IS_REFERENCED_2') {
-      await db.execute('UPDATE users SET is_active = FALSE WHERE id = ?', [req.params.id]).catch(() => {});
-      return res.json({ success: true, data: { soft: true, message: 'Pengguna memiliki riwayat — dinonaktifkan agar data tetap terjaga.' } });
+      try {
+        await db.execute('UPDATE users SET is_active = FALSE, token_version = token_version + 1 WHERE id = ?', [req.params.id]);
+        return res.json({ success: true, data: { soft: true, message: 'Pengguna memiliki riwayat — dinonaktifkan agar data tetap terjaga.' } });
+      } catch (error) { return next(error); }
     }
     next(e);
   }
