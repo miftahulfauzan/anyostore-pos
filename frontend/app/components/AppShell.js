@@ -47,7 +47,8 @@ const navigation = [
     items: [
       { href: '/products', label: 'Daftar Produk', icon: Package, roles: ['owner', 'manager', 'admin', 'gudang'] },
       { href: '/inventory', label: 'Stok Produk', icon: Boxes },
-      { href: '/inventory/mutations', label: 'Mutasi Stok', icon: ArrowUpFromLine, roles: ['owner', 'manager', 'admin', 'gudang'] },
+      { href: '/inventory/incoming', label: 'Stok Masuk', icon: ArrowDownToLine, roles: ['owner', 'manager', 'admin', 'gudang'] },
+      { href: '/inventory/outgoing', label: 'Stok Keluar', icon: ArrowUpFromLine, roles: ['owner', 'manager', 'admin', 'gudang'] },
       { href: '/inventory/transfers', label: 'Transfer Stok', icon: ArrowRightLeft, roles: ['owner', 'manager', 'admin', 'gudang'] },
       { href: '/inventory/transfers?view=history', label: 'Riwayat Transfer', icon: History, roles: ['owner', 'manager', 'admin'] },
       { href: '/inventory/opname', label: 'Stok Opname', icon: ClipboardCheck, roles: ['owner', 'manager', 'admin', 'gudang'] },
@@ -90,8 +91,8 @@ const warehouseNavigation = [
     label: 'TRANSAKSI',
     items: [
       { href: '/products', label: 'Master Produk', icon: Tags, roles: ['gudang'], tone: 'purple' },
-      { href: '/inventory/mutations?mode=in', label: 'Stock Masuk', icon: ArrowDownToLine, roles: ['gudang'], tone: 'blue' },
-      { href: '/inventory/mutations?mode=out', label: 'Stock Keluar', icon: ArrowUpFromLine, roles: ['gudang'], tone: 'red' },
+      { href: '/inventory/incoming', label: 'Stock Masuk', icon: ArrowDownToLine, roles: ['gudang'], tone: 'blue' },
+      { href: '/inventory/outgoing', label: 'Stock Keluar', icon: ArrowUpFromLine, roles: ['gudang'], tone: 'red' },
       { href: '/inventory/opname', label: 'Stock Opname', icon: ClipboardCheck, roles: ['gudang'], tone: 'cyan' },
     ],
   },

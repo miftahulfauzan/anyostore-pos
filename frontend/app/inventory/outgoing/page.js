@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation';
+import { MutationPage } from '../mutations/page';
 
-export default function OldOutgoingRedirect() {
-  redirect('/inventory/mutations');
+export default function OutgoingPage() {
+  return <MutationPage initialMode="out" separatePage />;
 }

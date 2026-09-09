@@ -10,8 +10,8 @@ const mediaUrl = (p) => (p ? api.replace('/api', '') + p : '');
 const localToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 const { normalizeQuantity } = mutationQuantity;
 
-export default function Mutations() {
-  const [mode, setMode] = useState('in');
+export function MutationPage({ initialMode = null, separatePage = false } = {}) {
+  const [mode, setMode] = useState(initialMode || 'in');
   const [stores, setStores] = useState([]);
   const [allWarehouses, setAllWarehouses] = useState([]);
   const [products, setProducts] = useState([]);
@@ -60,8 +60,8 @@ export default function Mutations() {
 
   useEffect(() => {
     /* sesi via httpOnly cookie */
-    const initialMode = new URLSearchParams(window.location.search).get('mode');
-    if (initialMode === 'in' || initialMode === 'out') setMode(initialMode);
+    const queryMode = new URLSearchParams(window.location.search).get('mode');
+    if (!initialMode && (queryMode === 'in' || queryMode === 'out')) setMode(queryMode);
     loadChannels().catch((e) => setMessage(e.message));
     Promise.all([
       fetch(api + '/inventory/incoming/targets', { headers: h() }).then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); return b.data || []; }),
@@ -146,11 +146,11 @@ export default function Mutations() {
     } catch (e) { setMessage(e.message); } finally { setSaving(false); }
   }
 
-  return <AppShell title="Mutasi Stok" eyebrow="PRODUK & INVENTORI" actions={<a className="button-link" href="/inventory">Lihat Stok</a>}>
-    <div className="tabs">
+  return <AppShell title={separatePage ? (mode === 'in' ? 'Stok Masuk' : 'Stok Keluar') : 'Mutasi Stok'} eyebrow="PRODUK & INVENTORI" actions={<a className="button-link" href="/inventory">Lihat Stok</a>}>
+    {!separatePage && <div className="tabs">
       <button type="button" className={mode === 'in' ? 'active' : ''} onClick={() => { setMode('in'); setCart([]); setCartOpen(false); setQuantityPrompt(null); }}>Produk Masuk</button>
       <button type="button" className={mode === 'out' ? 'active' : ''} onClick={() => { setMode('out'); setCart([]); setCartOpen(false); setQuantityPrompt(null); }}>Produk Keluar</button>
-    </div>
+    </div>}
 
     <section className="panel">
       <h2>Informasi Transaksi</h2>
@@ -341,4 +341,9 @@ export default function Mutations() {
     </div>}
     
   </AppShell>;
+}
+
+export default function Mutations() {
+  // Keep old bookmarks usable without bringing back the combined tab screen.
+  return <MutationPage initialMode="in" separatePage />;
 }
