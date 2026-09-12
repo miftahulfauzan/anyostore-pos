@@ -488,12 +488,15 @@ router.get('/mutation-report', authorize('owner','manager','admin','gudang'), as
                 ELSE COALESCE(sm.notes, '')
               END) AS description,
               MIN(sm.channel) AS channel,
+              COALESCE(MAX(NULLIF(TRIM(sc.name), '')), MAX(NULLIF(TRIM(sm.channel), ''))) AS channel_name,
               MIN(sm.batch_number) AS batch_number,
               COUNT(DISTINCT sm.product_id) AS product_count,
               SUM(ABS(sm.qty)) AS total_qty
        FROM stock_mutations sm
        JOIN warehouses w ON w.id = sm.warehouse_id
        JOIN users u ON u.id = sm.user_id
+       LEFT JOIN sales_channels sc
+         ON sc.value = LOWER(REPLACE(TRIM(sm.channel), ' ', '_'))
        ${where}
       GROUP BY ${batchExpression}
       -- Batch di tanggal yang sama punya created_at sama (00:00 tanggal
@@ -504,21 +507,22 @@ router.get('/mutation-report', authorize('owner','manager','admin','gudang'), as
       params
     );
 
-    // Ambil detail produk per batch (kode + qty)
+    // Ambil detail produk per batch (nama + qty). SKU tetap tersedia di
+    // database untuk identifikasi, tetapi laporan pengguna menampilkan nama.
     const batchKeys = rows.map((r) => r.batch_key);
     let productsByBatch = {};
     if (batchKeys.length) {
       const ph = batchKeys.map(()=>'?').join(',');
       const [items] = await db.execute(
-        `SELECT ${batchExpression} AS batch_key, p.sku AS code, SUM(ABS(sm.qty)) AS qty
+        `SELECT ${batchExpression} AS batch_key, p.name AS name, p.sku AS code, SUM(ABS(sm.qty)) AS qty
          FROM stock_mutations sm JOIN products p ON p.id = sm.product_id
          WHERE sm.reference_type IN (?, ?) AND ${batchExpression} IN (${ph})
-         GROUP BY ${batchExpression}, p.id ORDER BY p.sku`,
+         GROUP BY ${batchExpression}, p.id, p.name, p.sku ORDER BY p.name, p.sku`,
         [...refTypes, ...batchKeys]
       );
       for (const it of items) {
         if (!productsByBatch[it.batch_key]) productsByBatch[it.batch_key] = [];
-        productsByBatch[it.batch_key].push({ code: it.code, qty: Number(it.qty) });
+        productsByBatch[it.batch_key].push({ name: it.name, code: it.code, qty: Number(it.qty) });
       }
     }
 
@@ -535,6 +539,7 @@ router.get('/mutation-report', authorize('owner','manager','admin','gudang'), as
       product_count: Number(r.product_count),
       description: type === 'out' ? (r.channel || r.description || '') : (r.description || ''),
       channel: r.channel || null,
+      destination: type === 'out' ? (r.channel_name || r.channel || r.description || null) : null,
       admin: r.admin_name,
       deletable: !r.reference_type.startsWith('legacy_')
     }));
@@ -554,11 +559,13 @@ router.get('/mutation-report', authorize('owner','manager','admin','gudang'), as
     // nilai yang benar-benar ada di database, tanpa membuat data contoh.
     const importedLabel = "NULLIF(TRIM(SUBSTRING_INDEX(sm.notes, ' | Import histori dari project lama', 1)), '')";
     const labelExpression = type === 'out'
-      ? `COALESCE(NULLIF(TRIM(sm.channel), ''), NULLIF(${importedLabel}, '-'), 'Lainnya')`
+      ? `COALESCE(NULLIF(TRIM(sc.name), ''), NULLIF(TRIM(sm.channel), ''), NULLIF(${importedLabel}, '-'), 'Lainnya')`
       : `COALESCE(NULLIF(${importedLabel}, '-'), 'Lainnya')`;
     const [breakdownRows] = await db.execute(
       `SELECT ${labelExpression} AS label, COALESCE(SUM(ABS(sm.qty)), 0) AS total_qty
        FROM stock_mutations sm
+       LEFT JOIN sales_channels sc
+         ON sc.value = LOWER(REPLACE(TRIM(sm.channel), ' ', '_'))
        ${where}
        GROUP BY ${labelExpression}
        ORDER BY total_qty DESC, label ASC`,

@@ -7,6 +7,7 @@ const root = resolve(__dirname, '../../..');
 const mutationPage = readFileSync(resolve(root, 'frontend/app/inventory/mutations/page.js'), 'utf8');
 const incomingPage = readFileSync(resolve(root, 'frontend/app/inventory/incoming/page.js'), 'utf8');
 const outgoingPage = readFileSync(resolve(root, 'frontend/app/inventory/outgoing/page.js'), 'utf8');
+const mutationReportPage = readFileSync(resolve(root, 'frontend/app/inventory/mutation-report/page.js'), 'utf8');
 const globalsCss = readFileSync(resolve(root, 'frontend/app/globals.css'), 'utf8');
 const inventoryRoute = readFileSync(resolve(root, 'backend/src/routes/inventory.js'), 'utf8');
 
@@ -36,4 +37,20 @@ test('deleting a manual mutation writes a valid reversal audit row', () => {
   assert.match(inventoryRoute, /referenceId: r\.id/);
   assert.match(inventoryRoute, /let transactionStarted = false/);
   assert.match(inventoryRoute, /if \(transactionStarted\) await conn\.rollback\(\)/);
+});
+
+test('mutation report returns product names and outgoing destinations', () => {
+  assert.match(inventoryRoute, /p\.name AS name/);
+  assert.match(inventoryRoute, /channel_name/);
+  assert.match(inventoryRoute, /destination:/);
+  assert.match(mutationReportPage, /p\.name/);
+  assert.match(mutationReportPage, /r\.destination/);
+  assert.doesNotMatch(mutationReportPage, /\{p\.code\}/);
+});
+
+test('mobile mutation report shows six expandable batches at a time', () => {
+  assert.match(mutationReportPage, /mobileVisibleCount/);
+  assert.match(mutationReportPage, /displayRows\.slice\(0, mobileVisibleCount\)/);
+  assert.match(mutationReportPage, /<details[^>]*mobile-mutation-batch/);
+  assert.match(mutationReportPage, /Lihat .*batch berikutnya/);
 });

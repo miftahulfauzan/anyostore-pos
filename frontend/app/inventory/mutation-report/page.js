@@ -39,6 +39,7 @@ export default function MutationReportPage() {
   const [breakdown, setBreakdown] = useState([]);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [mobileVisibleCount, setMobileVisibleCount] = useState(6);
   const loadSeq = useRef(0);
   const headers = () => ({ 'Content-Type': 'application/json'});
 
@@ -60,6 +61,7 @@ export default function MutationReportPage() {
       if (seq !== loadSeq.current) return;
       if (!r.ok) throw new Error(b.message || 'Laporan tidak dapat dimuat');
       setRows(b.data || []);
+      setMobileVisibleCount(6);
       setSummary(b.summary || { product_count: 0, total_qty: 0 });
       setBreakdown(b.breakdown || []);
     } catch (e) { if (seq === loadSeq.current) setMessage(e.message); }
@@ -88,14 +90,14 @@ export default function MutationReportPage() {
   }
 
   function exportCsv() {
-    const header = ['Tanggal', 'Nomor', 'Gudang', 'Produk (kode+qty)', 'Qty', tab === 'out' ? 'Tujuan' : 'Keterangan', 'Admin'];
+    const header = ['Tanggal', 'Nomor', 'Gudang', 'Produk (nama+qty)', 'Qty', tab === 'out' ? 'Keluar ke' : 'Keterangan', 'Admin'];
     const lines = rows.map((r) => [
       displayDate(r.date),
       r.number,
       r.warehouse,
-      r.products.map((p) => `${p.code} x${p.qty}`).join(', '),
+      r.products.map((p) => `${p.name || 'Produk tidak bernama'} x${p.qty}`).join(', '),
       r.total_qty,
-      r.description,
+      tab === 'out' ? (r.destination || '—') : r.description,
       r.admin,
     ].map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','));
     const csv = [header.join(','), ...lines].join('\n');
@@ -119,6 +121,8 @@ export default function MutationReportPage() {
   }
 
   const displayRows = useMemo(() => rows, [rows]);
+  const mobileRows = useMemo(() => displayRows.slice(0, mobileVisibleCount), [displayRows, mobileVisibleCount]);
+  const mobileRemaining = Math.max(0, displayRows.length - mobileVisibleCount);
 
   return (
     <AppShell title={`Laporan Riwayat Barang ${tab === 'out' ? 'Keluar' : 'Masuk'}`} eyebrow="PRODUK & INVENTORI" actions={<>
@@ -188,7 +192,7 @@ export default function MutationReportPage() {
           </table>
         </section>}
 
-        <section className="panel" style={{ overflowX: 'auto' }}>
+        <section className="panel mutation-report-desktop" style={{ overflowX: 'auto' }}>
           <table className="mutation-report-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
@@ -197,7 +201,7 @@ export default function MutationReportPage() {
                 <th style={{ padding: '8px 10px' }}>Gudang</th>
                 <th style={{ padding: '8px 10px' }}>Produk</th>
                 <th style={{ padding: '8px 10px', textAlign: 'right' }}>Qty</th>
-                <th style={{ padding: '8px 10px' }}>{tab === 'out' ? 'Tujuan' : 'Keterangan'}</th>
+                <th style={{ padding: '8px 10px' }}>{tab === 'out' ? 'Keluar ke' : 'Keterangan'}</th>
                 <th style={{ padding: '8px 10px' }}>Admin</th>
                 <th style={{ padding: '8px 10px' }}>Aksi</th>
               </tr>
@@ -211,14 +215,14 @@ export default function MutationReportPage() {
                   <td style={{ padding: '10px' }}><span className="warehouse-pill">{r.warehouse}</span></td>
                   <td style={{ padding: '10px', verticalAlign: 'top' }}>
                     <div className="movement-product-list">
-                      {r.products.length ? r.products.map((p, i) => <span key={`${p.code}-${i}`}>{p.code}</span>) : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
+                      {r.products.length ? r.products.map((p, i) => <span key={`${p.name || 'product'}-${i}`}>{p.name || 'Produk tidak bernama'}</span>) : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
                     </div>
                   </td>
                   <td style={{ padding: '10px', textAlign: 'right', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
-                    <div className="movement-qty-list">{r.products.map((p, i) => <span key={`${p.code}-${i}`}>×{p.qty}</span>)}</div>
+                    <div className="movement-qty-list">{r.products.map((p, i) => <span key={`${p.name || 'product'}-qty-${i}`}>×{p.qty}</span>)}</div>
                     <strong className="movement-total-qty">{r.total_qty.toLocaleString('id-ID')}</strong>
                   </td>
-                  <td style={{ padding: '8px 10px' }}>{r.description || <span style={{ color: 'var(--muted-foreground)' }}>—</span>}</td>
+                  <td style={{ padding: '8px 10px' }}>{(tab === 'out' ? r.destination : r.description) || <span style={{ color: 'var(--muted-foreground)' }}>—</span>}</td>
                   <td style={{ padding: '8px 10px' }}>{r.admin}</td>
                   <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
                     {r.deletable ? <button type="button" className="link-button danger" onClick={() => removeBatch(r)}>Hapus</button> : <span style={{ color: 'var(--muted-foreground)', fontSize: 11 }}>Import</span>}
@@ -229,9 +233,48 @@ export default function MutationReportPage() {
             </tbody>
           </table>
         </section>
+
+        <section className="panel mobile-mutation-list" aria-label={`Riwayat barang ${tab === 'out' ? 'keluar' : 'masuk'}`}>
+          {loading && <p className="mobile-report-empty">Memuat…</p>}
+          {!loading && !mobileRows.length && <p className="mobile-report-empty">Belum ada data.</p>}
+          {!loading && mobileRows.map((r) => (
+            <details key={r.id} className="mobile-mutation-batch">
+              <summary>
+                <span className="mobile-batch-summary-main">
+                  <strong>{r.number}</strong>
+                  <span>{displayDate(r.date)} · {r.warehouse}</span>
+                  {tab === 'out' && <span className="mobile-batch-destination">Keluar ke: {r.destination || '—'}</span>}
+                </span>
+                <span className="mobile-batch-total"><strong>{r.total_qty.toLocaleString('id-ID')}</strong><small>pcs</small></span>
+              </summary>
+              <div className="mobile-batch-detail">
+                <div className="mobile-batch-facts">
+                  <div><span>Tanggal</span><strong>{displayDate(r.date)}</strong></div>
+                  <div><span>Nomor batch</span><strong>{r.number}</strong></div>
+                  <div><span>{tab === 'out' ? 'Keluar dari' : 'Masuk ke'}</span><strong>{r.warehouse}</strong></div>
+                  <div><span>{tab === 'out' ? 'Keluar ke' : 'Keterangan'}</span><strong>{(tab === 'out' ? r.destination : r.description) || '—'}</strong></div>
+                  <div><span>Admin</span><strong>{r.admin || '—'}</strong></div>
+                  <div><span>Total</span><strong>{r.total_qty.toLocaleString('id-ID')} pcs</strong></div>
+                </div>
+                <div className="mobile-batch-products">
+                  <span className="mobile-batch-section-title">Detail produk</span>
+                  {r.products.length ? r.products.map((p, i) => (
+                    <div className="mobile-batch-product" key={`${p.name || 'product'}-${i}`}>
+                      <strong>{p.name || 'Produk tidak bernama'}</strong>
+                      <span>{p.qty.toLocaleString('id-ID')} pcs</span>
+                    </div>
+                  )) : <span className="mobile-report-muted">Tidak ada detail produk.</span>}
+                </div>
+                {r.deletable ? <button type="button" className="link-button danger mobile-batch-delete" onClick={() => removeBatch(r)}>Hapus batch</button> : <span className="mobile-report-muted">Data import</span>}
+              </div>
+            </details>
+          ))}
+          {!loading && mobileRemaining > 0 && <button type="button" className="mobile-batch-more" onClick={() => setMobileVisibleCount((count) => count + 6)}>Lihat {Math.min(6, mobileRemaining)} batch berikutnya</button>}
+        </section>
       </div>
       <style>{`
         .report-print-header { display: none; }
+        .mobile-mutation-list { display: none; }
         .mutation-report-table { min-width: 980px; table-layout: fixed; }
         .mutation-report-table th { color: var(--muted-foreground); font-size: 11px; text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; }
         .mutation-report-table th:nth-child(1) { width: 105px; }
@@ -248,6 +291,32 @@ export default function MutationReportPage() {
         .movement-product-list span { color: var(--foreground); font-weight: 600; }
         .movement-qty-list { justify-items: end; color: var(--foreground); font-weight: 600; }
         .movement-total-qty { display: block; margin-top: 7px; padding-top: 5px; border-top: 1px solid var(--border); }
+        @media (max-width: 700px) {
+          .mutation-report-desktop { display: none; }
+          .mobile-mutation-list { display: grid; gap: 10px; }
+          .mobile-mutation-batch { overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+          .mobile-mutation-batch > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 14px; cursor: pointer; list-style: none; }
+          .mobile-mutation-batch > summary::-webkit-details-marker { display: none; }
+          .mobile-batch-summary-main { min-width: 0; display: grid; gap: 3px; }
+          .mobile-batch-summary-main > strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+          .mobile-batch-summary-main > span { color: var(--muted-foreground); font-size: 11px; }
+          .mobile-batch-summary-main .mobile-batch-destination { color: var(--foreground); font-weight: 600; }
+          .mobile-batch-total { flex: 0 0 auto; display: grid; justify-items: end; line-height: 1.1; color: var(--primary); }
+          .mobile-batch-total strong { font-size: 18px; }
+          .mobile-batch-total small { color: var(--muted-foreground); font-size: 10px; }
+          .mobile-batch-detail { display: grid; gap: 12px; padding: 0 14px 14px; border-top: 1px solid var(--border); }
+          .mobile-batch-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding-top: 12px; }
+          .mobile-batch-facts > div { min-width: 0; display: grid; gap: 3px; padding: 8px; border-radius: 8px; background: var(--muted); }
+          .mobile-batch-facts span, .mobile-batch-section-title { color: var(--muted-foreground); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+          .mobile-batch-facts strong { overflow-wrap: anywhere; font-size: 12px; }
+          .mobile-batch-products { display: grid; gap: 6px; }
+          .mobile-batch-product { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+          .mobile-batch-product strong { min-width: 0; overflow-wrap: anywhere; font-size: 12px; }
+          .mobile-batch-product span { flex: 0 0 auto; color: var(--muted-foreground); font-size: 12px; font-weight: 700; }
+          .mobile-batch-delete { justify-self: start; }
+          .mobile-report-empty, .mobile-report-muted { color: var(--muted-foreground); text-align: center; }
+          .mobile-batch-more { width: 100%; min-height: 42px; }
+        }
         @media print {
           @page { size: A4 portrait; margin: 12mm; }
           html, body { width: auto !important; }
@@ -271,6 +340,7 @@ export default function MutationReportPage() {
           tr { break-inside: avoid; }
           .link-button { display: none !important; }
           .message { display: none !important; }
+          .mobile-mutation-list { display: none !important; }
         }
       `}</style>
     </AppShell>
