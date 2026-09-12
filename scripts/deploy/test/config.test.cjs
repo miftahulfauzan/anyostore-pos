@@ -22,6 +22,7 @@ test('workflow YAML gates exact-SHA deploy on CI and serializes releases without
   const ssh = steps.findIndex(step => (step.run || '').includes('ssh -i'));
   assert.ok(gate >= 0 && ssh > gate);
   assert.match(steps[ssh].env.DEPLOY_SHA, /steps\.ci\.outputs\.sha/);
+  assert.match(steps[ssh].run, /EXPECTED_APP_DOMAIN=anyostore\.my\.id bash -s --/);
   assert.ok(ci.jobs.frontend.steps.some(step => (step.run || '').includes('../scripts/deploy/test/*.test.cjs')));
   assert.equal(String(ci.jobs.backend.steps.find(step => step.uses?.startsWith('actions/setup-node')).with['node-version']), '22');
 });

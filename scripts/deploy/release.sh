@@ -100,6 +100,9 @@ compose up -d --no-deps caddy
 # Verify actual HTTPS responses through Caddy, including the release identity.
 domain=$(compose exec -T caddy printenv APP_DOMAIN)
 [[ "$domain" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*(:[0-9]+)?$ ]] || fail 'APP_DOMAIN must be a hostname with optional port'
+if [[ -n "${EXPECTED_APP_DOMAIN:-}" && "$domain" != "$EXPECTED_APP_DOMAIN" ]]; then
+  fail "APP_DOMAIN mismatch: expected $EXPECTED_APP_DOMAIN, got $domain"
+fi
 verify_endpoint() {
   local endpoint=$1 attempt body
   for ((attempt=1; attempt<=ENDPOINT_ATTEMPTS; attempt++)); do

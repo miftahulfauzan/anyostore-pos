@@ -70,7 +70,7 @@ jobs:
             -o ServerAliveCountMax=6 \
             -o ConnectTimeout=15 \
             -o LogLevel=ERROR \
-            "$VPS_USER@$VPS_HOST" "bash -s -- $DEPLOY_SHA $DEPLOY_MODE" < scripts/deploy/release.sh
+            "$VPS_USER@$VPS_HOST" "EXPECTED_APP_DOMAIN=anyostore.my.id bash -s -- $DEPLOY_SHA $DEPLOY_MODE" < scripts/deploy/release.sh
       - name: Record verified release in the run summary
         env:
           DEPLOY_SHA: ${{ steps.ci.outputs.sha }}
