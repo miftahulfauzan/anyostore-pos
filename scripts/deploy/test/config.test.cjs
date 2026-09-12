@@ -54,3 +54,11 @@ test('Dockerfiles preserve BuildKit caches and bake release identity into matchi
   assert.match(read('backend/Dockerfile.production'), /COPY.*migrations \.\/migrations/);
   assert.match(read('backend/Dockerfile.production'), /start-production\.sh/);
 });
+
+test('Caddy targets the long-running release containers, not ambiguous service aliases', () => {
+  const caddy = read('deploy/Caddyfile');
+  assert.match(caddy, /reverse_proxy anyostore-pos-backend-1:3001/);
+  assert.match(caddy, /reverse_proxy anyostore-pos-frontend-1:3000/);
+  assert.doesNotMatch(caddy, /reverse_proxy backend:3001/);
+  assert.doesNotMatch(caddy, /reverse_proxy frontend:3000/);
+});
