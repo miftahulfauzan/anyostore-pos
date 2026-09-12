@@ -57,6 +57,10 @@ if (name === 'curl') {
 if (name === 'docker') {
   if (args[0] === 'compose' && process.env.RELEASE_SHA !== '${sha}') process.exit(1);
   if (args[0] === 'inspect') {
+    if (args.some(arg => arg.includes('com.docker.compose.oneoff'))) {
+      output(args.at(-1).endsWith('-run-id') ? 'True' : 'False');
+      process.exit(0);
+    }
     const service = args.at(-1).replace('-id', '');
     const counter = path.join(dir, service + '.count');
     const count = fs.existsSync(counter) ? Number(fs.readFileSync(counter)) : 0;
@@ -69,7 +73,9 @@ if (name === 'docker') {
   const offset = args.indexOf('--env-file') + 2;
   const command = args.slice(offset);
   if (command[0] === 'ps') {
-    if (!scenario.missingContainer) output(command.at(-1) + '-id');
+    if (!scenario.missingContainer) {
+      output(scenario.oneOffContainer && command.at(-1) !== 'db' ? command.at(-1) + '-run-id\\n' + command.at(-1) + '-id' : command.at(-1) + '-id');
+    }
   }
   if (command[0] === 'build' && scenario.buildFailure) process.exit(1);
   if (command[0] === 'run' && scenario.migrationFailure) process.exit(1);
@@ -119,11 +125,13 @@ test('starting services are polled until both backend and frontend become health
 });
 
 test('health polling ignores one-off migration containers', t => {
-  const f = sandbox(t);
+  const f = sandbox(t, { oneOffContainer: true });
   const result = f.run();
-  assert.equal(result.status, 0, result.stderr + result.stdout);
-  const backendPs = f.commands().find(command => command[0] === 'docker' && command.includes('ps') && command.includes('backend'));
-  assert.ok(backendPs?.includes('label=com.docker.compose.oneoff=False'));
+  assert.equal(result.status, 0, result.stderr + result.stdout + '\\n' + JSON.stringify(f.commands()));
+  const oneOffChecks = f.commands().filter(command => command[0] === 'docker' && command.some(arg => arg.includes('com.docker.compose.oneoff')));
+  assert.ok(oneOffChecks.length >= 2);
+  assert.ok(oneOffChecks.some(command => command.at(-1) === 'backend-run-id'));
+  assert.ok(oneOffChecks.some(command => command.at(-1) === 'backend-id'));
 });
 
 for (const service of ['backend', 'frontend']) {

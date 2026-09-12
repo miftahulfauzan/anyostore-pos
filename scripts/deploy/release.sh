@@ -58,15 +58,24 @@ wait_healthy() {
     all_healthy=true
     for service in "$@"; do
       # `compose run --rm` can leave an old one-off container behind when the
-      # runner is interrupted. Only the long-running service container belongs
-      # in this health check.
-      container=$(compose ps --all --quiet --filter 'label=com.docker.compose.oneoff=False' "$service") || fail "Cannot inspect $service container"
-      if [[ -z "$container" ]]; then
+      # runner is interrupted. Compose's `ps --filter` does not support label
+      # filters on every installed Compose version, so inspect the candidates
+      # directly and keep only the long-running service container.
+      ps_output=$(compose ps --all --quiet "$service") || fail "Cannot inspect $service container list"
+      containers=()
+      while IFS= read -r candidate; do
+        [[ -z "$candidate" ]] && continue
+        oneoff=$(sudo docker inspect --format '{{index .Config.Labels "com.docker.compose.oneoff"}}' "$candidate") || fail "Cannot inspect $service container label"
+        [[ "$oneoff" = True ]] && continue
+        containers+=("$candidate")
+      done <<< "$ps_output"
+      if (( ${#containers[@]} == 0 )); then
         printf '%s: container missing (%s/%s)\n' "$service" "$attempt" "$HEALTH_ATTEMPTS"
         all_healthy=false
         continue
       fi
-      if [[ "$container" == *$'\n'* ]]; then fail "Expected exactly one $service container"; fi
+      if (( ${#containers[@]} != 1 )); then fail "Expected exactly one $service container"; fi
+      container=${containers[0]}
       if [[ "$service" = db ]]; then
         state=$(sudo docker inspect --format '{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$container") || fail "Cannot inspect $service health"
         expected='running healthy'
