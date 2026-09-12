@@ -56,6 +56,7 @@ if (name === 'curl') {
 }
 if (name === 'docker') {
   if (args[0] === 'compose' && process.env.RELEASE_SHA !== '${sha}') process.exit(1);
+  if (args[0] === 'rm') process.exit(0);
   if (args[0] === 'inspect') {
     if (args.some(arg => arg.includes('com.docker.compose.oneoff'))) {
       output(args.at(-1).endsWith('-run-id') ? 'True' : 'False');
@@ -133,6 +134,8 @@ test('health polling ignores one-off migration containers', t => {
   assert.ok(oneOffChecks.length >= 2);
   assert.ok(oneOffChecks.some(command => command.at(-1) === 'backend-run-id'));
   assert.ok(oneOffChecks.some(command => command.at(-1) === 'backend-id'));
+  assert.ok(f.commands().some(command => command[0] === 'docker' && command.includes('rm') && command.includes('backend-run-id')));
+  assert.ok(f.commands().some(command => command[0] === 'docker' && command.includes('rm') && command.includes('frontend-run-id')));
 });
 
 for (const service of ['backend', 'frontend']) {

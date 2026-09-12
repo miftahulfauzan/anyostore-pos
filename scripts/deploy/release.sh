@@ -104,6 +104,25 @@ compose up -d db
 wait_healthy db
 # Migration failure leaves existing app containers running and fails this release.
 compose run --rm --no-deps -T --entrypoint node backend scripts/migrate.js
+# `compose run --rm` can leave an old one-off container behind after an
+# interrupted runner. It may still advertise the service DNS alias and cause
+# Caddy to send public traffic to an outdated backend/frontend. Remove only
+# containers explicitly marked as one-off; the long-running service containers
+# are inspected and left untouched.
+remove_stale_one_offs() {
+  local service ps_output candidate oneoff
+  for service in backend frontend; do
+    ps_output=$(compose ps --all --quiet "$service") || fail "Cannot inspect $service one-off containers"
+    while IFS= read -r candidate; do
+      [[ -z "$candidate" ]] && continue
+      oneoff=$(sudo docker inspect --format '{{index .Config.Labels "com.docker.compose.oneoff"}}' "$candidate") || fail "Cannot inspect $service one-off container"
+      if [[ "$oneoff" = True ]]; then
+        sudo docker rm -f "$candidate" >/dev/null || fail "Cannot remove stale $service one-off container"
+      fi
+    done <<< "$ps_output"
+  done
+}
+remove_stale_one_offs
 # Force recreation allows a failed or unhealthy attempt at the same SHA to be retried.
 compose up -d --no-deps --force-recreate backend frontend
 wait_healthy backend frontend
