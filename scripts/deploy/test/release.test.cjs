@@ -115,6 +115,7 @@ test('same SHA redeploy builds and recreates both services, then records verifie
   const commands = f.commands().filter(command => command[0] === 'docker');
   assert.equal(commands.filter(command => command.includes('build')).length, 2);
   assert.equal(commands.filter(command => command.includes('--force-recreate') && command.includes('backend') && command.includes('frontend')).length, 2);
+  assert.ok(commands.some(command => command.includes('--force-recreate') && command.includes('caddy')));
   assert.ok(f.commands().some(command => command.includes('checkout') && command.includes(sha)));
 });
 

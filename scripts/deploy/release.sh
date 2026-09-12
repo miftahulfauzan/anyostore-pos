@@ -107,7 +107,9 @@ compose run --rm --no-deps -T --entrypoint node backend scripts/migrate.js
 # Force recreation allows a failed or unhealthy attempt at the same SHA to be retried.
 compose up -d --no-deps --force-recreate backend frontend
 wait_healthy backend frontend
-compose up -d --no-deps caddy
+# Backend/frontend mendapatkan alamat internal baru saat direcreate. Refresh
+# Caddy juga agar reverse_proxy tidak menyimpan alamat container lama.
+compose up -d --no-deps --force-recreate caddy
 
 # Verify actual HTTPS responses through Caddy, including the release identity.
 domain=$(compose exec -T caddy printenv APP_DOMAIN)
