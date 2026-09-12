@@ -118,6 +118,14 @@ test('starting services are polled until both backend and frontend become health
   assert.equal(result.status, 0, result.stderr + result.stdout);
 });
 
+test('health polling ignores one-off migration containers', t => {
+  const f = sandbox(t);
+  const result = f.run();
+  assert.equal(result.status, 0, result.stderr + result.stdout);
+  const backendPs = f.commands().find(command => command[0] === 'docker' && command.includes('ps') && command.includes('backend'));
+  assert.ok(backendPs?.includes('label=com.docker.compose.oneoff=False'));
+});
+
 for (const service of ['backend', 'frontend']) {
   for (const state of ['running unhealthy', 'running starting', 'exited healthy', 'restarting healthy', 'running missing']) {
     test(`${service} ${state} fails release without updating success marker`, t => {

@@ -57,7 +57,10 @@ wait_healthy() {
   for ((attempt=1; attempt<=HEALTH_ATTEMPTS; attempt++)); do
     all_healthy=true
     for service in "$@"; do
-      container=$(compose ps --all --quiet "$service") || fail "Cannot inspect $service container"
+      # `compose run --rm` can leave an old one-off container behind when the
+      # runner is interrupted. Only the long-running service container belongs
+      # in this health check.
+      container=$(compose ps --all --quiet --filter 'label=com.docker.compose.oneoff=False' "$service") || fail "Cannot inspect $service container"
       if [[ -z "$container" ]]; then
         printf '%s: container missing (%s/%s)\n' "$service" "$attempt" "$HEALTH_ATTEMPTS"
         all_healthy=false
