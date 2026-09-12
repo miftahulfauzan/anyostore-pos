@@ -46,6 +46,7 @@ services:
     networks: [internal]
 
   backend:
+    container_name: anyostore-backend-live
     image: anyostore-pos-backend:${RELEASE_SHA:?Set RELEASE_SHA to the verified commit}
     build:
       context: ./backend
@@ -83,6 +84,7 @@ services:
           - anyostore-backend-live
 
   frontend:
+    container_name: anyostore-frontend-live
     image: anyostore-pos-frontend:${RELEASE_SHA:?Set RELEASE_SHA to the verified commit}
     build:
       context: ./frontend

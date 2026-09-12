@@ -60,6 +60,8 @@ test('Caddy targets dedicated live network aliases, not ambiguous service aliase
   const compose = yaml.load(read('docker-compose.production.yml'));
   assert.match(caddy, /reverse_proxy anyostore-backend-live:3001/);
   assert.match(caddy, /reverse_proxy anyostore-frontend-live:3000/);
+  assert.equal(compose.services.backend.container_name, 'anyostore-backend-live');
+  assert.equal(compose.services.frontend.container_name, 'anyostore-frontend-live');
   assert.deepEqual(compose.services.backend.networks.internal.aliases, ['anyostore-backend-live']);
   assert.deepEqual(compose.services.frontend.networks.internal.aliases, ['anyostore-frontend-live']);
   assert.doesNotMatch(caddy, /reverse_proxy backend:3001/);
