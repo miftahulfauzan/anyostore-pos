@@ -127,6 +127,20 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
   }
   const totalQty = cart.reduce((s, c) => s + Number(c.quantity || 0), 0);
 
+  useEffect(() => {
+    if (!cart.length) setCartOpen(false);
+  }, [cart.length]);
+
+  useEffect(() => {
+    if (!cartOpen || !window.matchMedia('(max-width: 900px)').matches) return undefined;
+    document.body.classList.add('mobile-cart-active');
+    return () => document.body.classList.remove('mobile-cart-active');
+  }, [cartOpen]);
+
+  function openCart() {
+    if (cart.length) setCartOpen(true);
+  }
+
   async function submit() {
     if (!store || !warehouse) return setMessage('Pilih toko dan gudang terlebih dahulu.');
     const payload = cart.map((c) => ({ product_id: Number(c.product_id), variant_id: c.variant_id ? Number(c.variant_id) : undefined, quantity: Number(c.quantity) }));
@@ -269,40 +283,44 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
         </div>
       </section>
 
-      <aside className={`panel mutasi-cart${cartOpen ? ' open' : ''}`}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+      <aside id="mutation-cart" className={`panel mutasi-cart${cartOpen ? ' open' : ''}`} aria-expanded={cartOpen}>
+        <div className="mutasi-cart-header">
           <h2 style={{ margin: 0 }}>{mode === 'in' ? 'Keranjang Masuk' : 'Keranjang Keluar'}</h2>
           <button type="button" className="cart-close" onClick={() => setCartOpen(false)} aria-label="Tutup keranjang"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg></button>
         </div>
-        {cart.length === 0 && <p className="muted" style={{ margin: '2px 0 10px', textAlign: 'center' }}>Belum ada produk di keranjang.</p>}
-        {cart.map((c) => (
-          <div key={c.key} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <strong style={{ fontSize: 13, display: 'block' }}>{c.name}</strong>
-              <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>{c.sku}{c.color ? ` · ${c.color}` : ' · Stok umum'}</span>
+        <div className="mutasi-cart-list">
+          {cart.length === 0 && <p className="muted mutasi-cart-empty">Belum ada produk di keranjang.</p>}
+          {cart.map((c) => (
+            <div key={c.key} className="mutasi-cart-item">
+              <div className="mutasi-cart-item-info">
+                <strong>{c.name}</strong>
+                <span>{c.sku}{c.color ? ` · ${c.color}` : ' · Stok umum'}</span>
+              </div>
+              <input
+                className="mutasi-cart-qty"
+                type="number"
+                min="1"
+                value={c.quantity}
+                onFocus={(e) => e.currentTarget.select()}
+                onClick={(e) => e.currentTarget.select()}
+                onChange={(e) => setQty(c.key, e.target.value)}
+                aria-label={`Jumlah ${c.name}${c.color ? ` ${c.color}` : ''}`}
+              />
+              <button className="mutasi-cart-remove" type="button" onClick={() => setQty(c.key, 0)} aria-label={`Hapus ${c.name}`}>×</button>
             </div>
-            <input
-              type="number"
-              min="1"
-              value={c.quantity}
-              onFocus={(e) => e.currentTarget.select()}
-              onClick={(e) => e.currentTarget.select()}
-              onChange={(e) => setQty(c.key, e.target.value)}
-              style={{ width: 64, minHeight: 34 }}
-              aria-label={`Jumlah ${c.name}${c.color ? ` ${c.color}` : ''}`}
-            />
-            <button type="button" onClick={() => setQty(c.key, 0)} aria-label="Hapus" style={{ minWidth: 30, minHeight: 30 }}>×</button>
-          </div>
-        ))}
-        <div style={{ display: 'flex', justifyContent: 'space-between', margin: '12px 0', fontWeight: 700 }}>
-          <span>Total Qty</span><span>{totalQty}</span>
+          ))}
         </div>
-        <button type="button" disabled={saving || !cart.length} onClick={submit} style={{ width: '100%' }}>{saving ? 'Menyimpan…' : `Simpan ${mode === 'in' ? 'Stock Masuk' : 'Stock Keluar'}`}</button>
-        {message && <p className="message" role="status" style={{ marginTop: 10 }}>{message}</p>}
+        <div className="mutasi-cart-footer">
+          <div className="mutasi-cart-summary">
+            <span>Total Qty</span><strong>{totalQty}</strong>
+          </div>
+          <button className="mutasi-cart-submit" type="button" disabled={saving || !cart.length} onClick={submit}>{saving ? 'Menyimpan…' : `Simpan ${mode === 'in' ? 'Stock Masuk' : 'Stock Keluar'}`}</button>
+          {message && <p className="message" role="status">{message}</p>}
+        </div>
       </aside>
     </div>
-    {!cartOpen && <button type="button" className="cart-fab" onClick={() => setCartOpen(true)}>Keranjang · {totalQty} item</button>}
-    {cartOpen && <div className="cart-backdrop" onClick={() => setCartOpen(false)} />}
+    {!cartOpen && cart.length > 0 && <button type="button" className="cart-fab" onClick={openCart} aria-expanded={cartOpen} aria-controls="mutation-cart"><span>Keranjang</span><strong>{cart.length} produk · {totalQty} pcs</strong></button>}
+    {cartOpen && <div className="cart-backdrop" onClick={() => setCartOpen(false)} aria-hidden="true" />}
     {picker && <StockVariantPicker product={picker} onClose={() => setPicker(null)} onAdd={(p, v, q) => { addToCart(p, v, q); setPicker(null); }} />}
     {quantityPrompt && <div className="quantity-dialog-backdrop" onMouseDown={() => setQuantityPrompt(null)}>
       <section className="quantity-dialog" role="dialog" aria-modal="true" aria-labelledby="mutation-quantity-title" onMouseDown={(e) => e.stopPropagation()}>

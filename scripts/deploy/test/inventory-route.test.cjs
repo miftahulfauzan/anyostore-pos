@@ -16,10 +16,14 @@ test('stock mutation entry points use separate incoming and outgoing pages', () 
   assert.match(outgoingPage, /initialMode="out"/);
 });
 
-test('mobile mutation cart is a compact floating panel instead of a full-width overlay', () => {
-  assert.match(globalsCss, /\.mutasi-cart \{ position: fixed; right: 14px; bottom: 72px;/);
-  assert.match(globalsCss, /width: min\(360px, calc\(100vw - 24px\)\)/);
-  assert.doesNotMatch(globalsCss, /\.mutasi-cart \{ position: fixed; left: 0; right: 0; bottom: 0;/);
+test('mobile mutation cart stays collapsed until opened and uses a full-width bottom sheet', () => {
+  assert.match(globalsCss, /\.mutasi-cart:not\(\.open\) \{ display: none !important; \}/);
+  assert.match(globalsCss, /\.mutasi-cart\.open \{ display: grid; position: fixed; right: 0; bottom: 0; left: 0;/);
+  assert.match(globalsCss, /max-height: min\(78dvh, 680px\)/);
+  assert.match(globalsCss, /\.cart-fab \{[^}]*position: fixed;[^}]*left: 10px;/s);
+  assert.match(mutationPage, /aria-expanded=\{cartOpen\}/);
+  assert.match(mutationPage, /\{!cartOpen && cart\.length > 0 && <button/);
+  assert.doesNotMatch(mutationPage, /className="cart-fab"[^>]*disabled=\{!cart\.length\}/);
 });
 
 test('mutation cart exposes exactly one save action', () => {
