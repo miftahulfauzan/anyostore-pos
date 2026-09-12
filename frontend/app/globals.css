@@ -1437,7 +1437,7 @@ a, .photo-upload { color:var(--expressive-secondary); }
 .dashboard-grid > .panel,
 .commission-layout > .panel { height: 100%; }
 .catalog-panel { min-height: 0; }
-.panel { width: 100%; }
+.panel:not(.mutasi-cart) { width: 100%; }
 .panel h2,
 .panel h3 { line-height: 1.3; }
 .panel > h2:first-child,
@@ -2101,6 +2101,17 @@ button.pcard-btn { font-family: inherit; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
+/* Keranjang mutasi tetap menjadi kartu kecil saat viewport menyempit.
+   .panel sebelumnya memberi width:100% dari aturan global yang lebih akhir. */
+@media (max-width: 900px) {
+  .mutasi-cart {
+    left: auto !important;
+    right: 14px !important;
+    width: min(360px, calc(100vw - 24px)) !important;
+    max-width: calc(100vw - 24px);
+  }
 }
 
 /* Collapsed desktop sidebar is an icon rail: never let labels squeeze into

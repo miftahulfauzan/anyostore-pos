@@ -576,17 +576,19 @@ router.get('/mutation-report', authorize('owner','manager','admin','gudang'), as
 // warehouse_stocks/products/product_variants tetap sinkron (satu jalur stok).
 router.delete('/mutation-report/:type/:batchId', authorize('owner','manager','admin','gudang'), async (req,res,next)=>{
   const conn = await db.getConnection();
+  let transactionStarted = false;
   try{
     const batchId = Number(req.params.batchId);
     const type = req.params.type === 'out' ? 'out' : 'in';
     const refType = type === 'out' ? 'manual_outgoing' : 'manual_incoming';
+    if (!Number.isInteger(batchId)) return res.status(400).json({success:false,message:'ID batch tidak valid'});
+    await conn.beginTransaction();
+    transactionStarted = true;
     const [legacyRows] = await conn.execute(
       `SELECT id FROM stock_mutations WHERE reference_type=? AND reference_id=? LIMIT 1`,
       [type === 'out' ? 'legacy_stock_out' : 'legacy_stock_in', req.params.batchId]
     );
     if (legacyRows[0]) throw Object.assign(new Error('Histori import tidak dapat dihapus dari laporan ini'), { status: 400 });
-    if (!Number.isInteger(batchId)) return res.status(400).json({success:false,message:'ID batch tidak valid'});
-    await conn.beginTransaction();
     const [rows] = await conn.execute(
       'SELECT id, branch_id, warehouse_id, product_id, variant_id, qty FROM stock_mutations WHERE reference_type=? AND reference_id=?',
       [refType, batchId]
@@ -607,13 +609,19 @@ router.delete('/mutation-report/:type/:batchId', authorize('owner','manager','ad
         delta: sign * Number(r.qty),
         userId: req.user.id,
         type: 'adjustment',
+        referenceType: 'mutation_delete',
+        referenceId: r.id,
         notes: `Hapus batch ${refType} #${batchId}`,
       });
       await conn.execute('DELETE FROM stock_mutations WHERE id=?', [r.id]);
     }
     await conn.commit();
+    transactionStarted = false;
     res.json({success:true,message:'Batch dihapus dan stok dikembalikan.'});
-  }catch(e){await conn.rollback();next(e);}finally{conn.release();}
+  }catch(e){
+    if (transactionStarted) await conn.rollback();
+    next(e);
+  }finally{conn.release();}
 });
 
 router.post('/mutations', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {

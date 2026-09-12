@@ -8,6 +8,7 @@ const mutationPage = readFileSync(resolve(root, 'frontend/app/inventory/mutation
 const incomingPage = readFileSync(resolve(root, 'frontend/app/inventory/incoming/page.js'), 'utf8');
 const outgoingPage = readFileSync(resolve(root, 'frontend/app/inventory/outgoing/page.js'), 'utf8');
 const globalsCss = readFileSync(resolve(root, 'frontend/app/globals.css'), 'utf8');
+const inventoryRoute = readFileSync(resolve(root, 'backend/src/routes/inventory.js'), 'utf8');
 
 test('stock mutation entry points use separate incoming and outgoing pages', () => {
   assert.doesNotMatch(mutationPage, /Produk Masuk|Produk Keluar/);
@@ -24,4 +25,11 @@ test('mobile mutation cart is a compact floating panel instead of a full-width o
 test('mutation cart exposes exactly one save action', () => {
   const saveActions = mutationPage.match(/Simpan \$\{mode === 'in' \? 'Stock Masuk' : 'Stock Keluar'\}/g) || [];
   assert.equal(saveActions.length, 1);
+});
+
+test('deleting a manual mutation writes a valid reversal audit row', () => {
+  assert.match(inventoryRoute, /referenceType: 'mutation_delete'/);
+  assert.match(inventoryRoute, /referenceId: r\.id/);
+  assert.match(inventoryRoute, /let transactionStarted = false/);
+  assert.match(inventoryRoute, /if \(transactionStarted\) await conn\.rollback\(\)/);
 });
