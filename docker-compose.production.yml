@@ -77,7 +77,10 @@ services:
       retries: 20
       start_period: 20s
     restart: unless-stopped
-    networks: [internal]
+    networks:
+      internal:
+        aliases:
+          - anyostore-backend-live
 
   frontend:
     image: anyostore-pos-frontend:${RELEASE_SHA:?Set RELEASE_SHA to the verified commit}
@@ -100,7 +103,10 @@ services:
       retries: 12
       start_period: 30s
     restart: unless-stopped
-    networks: [internal]
+    networks:
+      internal:
+        aliases:
+          - anyostore-frontend-live
 
   caddy:
     image: caddy:2-alpine

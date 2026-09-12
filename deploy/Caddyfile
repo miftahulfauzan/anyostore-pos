@@ -2,15 +2,15 @@
 	encode zstd gzip
 
 	handle /api/* {
-		reverse_proxy anyostore-pos-backend-1:3001
+		reverse_proxy anyostore-backend-live:3001
 	}
 
 	handle /uploads/* {
-		reverse_proxy anyostore-pos-backend-1:3001
+		reverse_proxy anyostore-backend-live:3001
 	}
 
 	handle {
-		reverse_proxy anyostore-pos-frontend-1:3000
+		reverse_proxy anyostore-frontend-live:3000
 	}
 
 	header {

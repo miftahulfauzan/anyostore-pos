@@ -55,10 +55,13 @@ test('Dockerfiles preserve BuildKit caches and bake release identity into matchi
   assert.match(read('backend/Dockerfile.production'), /start-production\.sh/);
 });
 
-test('Caddy targets the long-running release containers, not ambiguous service aliases', () => {
+test('Caddy targets dedicated live network aliases, not ambiguous service aliases', () => {
   const caddy = read('deploy/Caddyfile');
-  assert.match(caddy, /reverse_proxy anyostore-pos-backend-1:3001/);
-  assert.match(caddy, /reverse_proxy anyostore-pos-frontend-1:3000/);
+  const compose = yaml.load(read('docker-compose.production.yml'));
+  assert.match(caddy, /reverse_proxy anyostore-backend-live:3001/);
+  assert.match(caddy, /reverse_proxy anyostore-frontend-live:3000/);
+  assert.deepEqual(compose.services.backend.networks.internal.aliases, ['anyostore-backend-live']);
+  assert.deepEqual(compose.services.frontend.networks.internal.aliases, ['anyostore-frontend-live']);
   assert.doesNotMatch(caddy, /reverse_proxy backend:3001/);
   assert.doesNotMatch(caddy, /reverse_proxy frontend:3000/);
 });
