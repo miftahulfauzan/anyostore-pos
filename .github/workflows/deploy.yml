@@ -71,6 +71,39 @@ jobs:
             -o ConnectTimeout=15 \
             -o LogLevel=ERROR \
             "$VPS_USER@$VPS_HOST" "EXPECTED_APP_DOMAIN=anyostore.my.id bash -s -- $DEPLOY_SHA $DEPLOY_MODE" < scripts/deploy/release.sh
+      - name: Verify public production release
+        env:
+          DEPLOY_SHA: ${{ steps.ci.outputs.sha }}
+        run: |
+          set -euo pipefail
+          verify_public_endpoint() {
+            local endpoint=$1
+            local attempt body
+            for attempt in $(seq 1 12); do
+              if body=$(curl --fail --silent --show-error --proto '=https' --connect-timeout 5 --max-time 10 \
+                -H 'Cache-Control: no-cache' "https://anyostore.my.id${endpoint}?release=${DEPLOY_SHA}"); then
+                if printf '%s' "$body" | python3 -c '
+                import json, sys
+                try:
+                    body = json.load(sys.stdin)
+                    valid = isinstance(body, dict) and body.get("release_sha") == sys.argv[1]
+                    if sys.argv[2] == "/api/health":
+                        valid = valid and body.get("ok") is True
+                    sys.exit(0 if valid else 1)
+                except (ValueError, TypeError):
+                    sys.exit(1)
+                ' "$DEPLOY_SHA" "$endpoint"; then
+                  echo "Verified public ${endpoint} at ${DEPLOY_SHA}"
+                  return 0
+                fi
+              fi
+              if (( attempt < 12 )); then sleep 5; fi
+            done
+            echo "Public ${endpoint} did not serve ${DEPLOY_SHA}" >&2
+            exit 1
+          }
+          verify_public_endpoint /api/health
+          verify_public_endpoint /version
       - name: Record verified release in the run summary
         env:
           DEPLOY_SHA: ${{ steps.ci.outputs.sha }}
