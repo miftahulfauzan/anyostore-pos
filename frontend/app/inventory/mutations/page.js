@@ -146,11 +146,7 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
     } catch (e) { setMessage(e.message); } finally { setSaving(false); }
   }
 
-  return <AppShell title={separatePage ? (mode === 'in' ? 'Stok Masuk' : 'Stok Keluar') : 'Mutasi Stok'} eyebrow="PRODUK & INVENTORI" actions={<a className="button-link" href="/inventory">Lihat Stok</a>}>
-    {!separatePage && <div className="tabs">
-      <button type="button" className={mode === 'in' ? 'active' : ''} onClick={() => { setMode('in'); setCart([]); setCartOpen(false); setQuantityPrompt(null); }}>Produk Masuk</button>
-      <button type="button" className={mode === 'out' ? 'active' : ''} onClick={() => { setMode('out'); setCart([]); setCartOpen(false); setQuantityPrompt(null); }}>Produk Keluar</button>
-    </div>}
+  return <AppShell title={mode === 'in' ? 'Stok Masuk' : 'Stok Keluar'} eyebrow="PRODUK & INVENTORI" actions={<a className="button-link" href="/inventory">Lihat Stok</a>}>
 
     <section className="panel">
       <h2>Informasi Transaksi</h2>
