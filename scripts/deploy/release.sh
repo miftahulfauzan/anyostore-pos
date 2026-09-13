@@ -106,30 +106,42 @@ wait_healthy db
 compose run --rm --no-deps -T --entrypoint node backend scripts/migrate.js
 # `compose run --rm` can leave an old one-off container behind after an
 # interrupted runner. It may still advertise the service DNS alias and cause
-# Caddy to send public traffic to an outdated backend/frontend. Remove only
-# containers explicitly marked as one-off; the long-running service containers
-# are inspected and left untouched.
-remove_stale_one_offs() {
-  local ps_output candidate labels service oneoff project
+# Caddy to send public traffic to an outdated backend/frontend. A Compose
+# service container from the old naming scheme can do the same after the
+# live containers switch to their fixed names. Remove only stale containers
+# from this project; volumes and the database are never touched.
+remove_stale_app_containers() {
+  local ps_output candidate labels name service oneoff project expected
   # `docker compose ps` may omit very old `compose run` containers depending
   # on the installed Compose version. Scan only this Compose project and only
-  # containers explicitly marked one-off; never touch the live app containers.
+  # containers that are safe to classify by their Compose labels.
   ps_output=$(sudo docker ps -aq \
-    --filter 'label=com.docker.compose.project=anyostore-pos' \
-    --filter 'label=com.docker.compose.oneoff=True') || fail 'Cannot inspect stale one-off containers'
+    --filter 'label=com.docker.compose.project=anyostore-pos') || fail 'Cannot inspect app containers'
   while IFS= read -r candidate; do
     [[ -z "$candidate" ]] && continue
-    labels=$(sudo docker inspect --format '{{index .Config.Labels "com.docker.compose.service"}} {{index .Config.Labels "com.docker.compose.oneoff"}} {{index .Config.Labels "com.docker.compose.project"}}' "$candidate") || fail 'Cannot inspect stale one-off container'
-    read -r service oneoff project <<< "$labels"
-    [[ "$project" = anyostore-pos && "$oneoff" = True ]] || continue
+    labels=$(sudo docker inspect --format '{{.Name}} {{index .Config.Labels "com.docker.compose.service"}} {{index .Config.Labels "com.docker.compose.oneoff"}} {{index .Config.Labels "com.docker.compose.project"}}' "$candidate") || fail 'Cannot inspect app container'
+    read -r name service oneoff project <<< "$labels"
+    name=${name#/}
+    [[ "$project" = anyostore-pos ]] || continue
+    if [[ "$oneoff" = True ]]; then
+      case "$service" in
+        backend|frontend)
+          sudo docker rm -f "$candidate" >/dev/null || fail "Cannot remove stale $service one-off container"
+          ;;
+      esac
+      continue
+    fi
     case "$service" in
-      backend|frontend)
-        sudo docker rm -f "$candidate" >/dev/null || fail "Cannot remove stale $service one-off container"
-        ;;
+      backend) expected=anyostore-backend-live ;;
+      frontend) expected=anyostore-frontend-live ;;
+      *) continue ;;
     esac
+    if [[ "$name" != "$expected" ]]; then
+      sudo docker rm -f "$candidate" >/dev/null || fail "Cannot remove stale $service container"
+    fi
   done <<< "$ps_output"
 }
-remove_stale_one_offs
+remove_stale_app_containers
 # Force recreation allows a failed or unhealthy attempt at the same SHA to be retried.
 compose up -d --no-deps --force-recreate backend frontend
 wait_healthy backend frontend

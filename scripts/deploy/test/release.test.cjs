@@ -58,10 +58,19 @@ if (name === 'docker') {
   if (args[0] === 'compose' && process.env.RELEASE_SHA !== '${sha}') process.exit(1);
   if (args[0] === 'rm') process.exit(0);
   if (args[0] === 'ps' && args.includes('-aq')) {
-    if (scenario.oneOffContainer) output('backend-run-id\\nfrontend-run-id');
+    if (scenario.staleServiceContainer) output('backend-old-id\\nfrontend-old-id');
+    else if (scenario.oneOffContainer) output('backend-run-id\\nfrontend-run-id');
     process.exit(0);
   }
   if (args[0] === 'inspect') {
+    if (args.some(arg => arg.includes('.Name'))) {
+      const candidate = args.at(-1);
+      const stale = candidate.endsWith('-old-id');
+      const service = candidate.startsWith('frontend') ? 'frontend' : 'backend';
+      const name = stale ? '/anyostore-pos-' + service + '-1' : '/' + candidate;
+      output(name + ' ' + service + ' ' + (stale ? 'False' : 'True') + ' anyostore-pos');
+      process.exit(0);
+    }
     if (args.some(arg => arg.includes('com.docker.compose.service'))) {
       const candidate = args.at(-1);
       const service = candidate.startsWith('frontend') ? 'frontend' : 'backend';
@@ -146,6 +155,14 @@ test('health polling ignores one-off migration containers', t => {
   assert.ok(oneOffChecks.some(command => command.at(-1) === 'backend-id'));
   assert.ok(f.commands().some(command => command[0] === 'docker' && command.includes('rm') && command.includes('backend-run-id')));
   assert.ok(f.commands().some(command => command[0] === 'docker' && command.includes('rm') && command.includes('frontend-run-id')));
+});
+
+test('stale service containers are removed before the proxy is refreshed', t => {
+  const f = sandbox(t, { staleServiceContainer: true });
+  const result = f.run();
+  assert.equal(result.status, 0, result.stderr + result.stdout + '\\n' + JSON.stringify(f.commands()));
+  assert.ok(f.commands().some(command => command[0] === 'docker' && command.includes('rm') && command.includes('backend-old-id')));
+  assert.ok(f.commands().some(command => command[0] === 'docker' && command.includes('rm') && command.includes('frontend-old-id')));
 });
 
 for (const service of ['backend', 'frontend']) {
