@@ -48,6 +48,11 @@ test('mutation report returns product names and outgoing destinations', () => {
   assert.doesNotMatch(mutationReportPage, /\{p\.code\}/);
 });
 
+test('mutation report normalizes channel collations before joining sales channels', () => {
+  assert.match(inventoryRoute, /CONVERT\(sc\.value USING utf8mb4\) COLLATE utf8mb4_unicode_ci/);
+  assert.match(inventoryRoute, /CONVERT\(LOWER\(REPLACE\(TRIM\(sm\.channel\), ' ', '_'\)\) USING utf8mb4\) COLLATE utf8mb4_unicode_ci/);
+});
+
 test('mobile mutation report shows six expandable batches at a time', () => {
   assert.match(mutationReportPage, /mobileVisibleCount/);
   assert.match(mutationReportPage, /displayRows\.slice\(0, mobileVisibleCount\)/);

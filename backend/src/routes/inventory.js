@@ -9,6 +9,12 @@ const router = express.Router();
 router.use(authenticate);
 const mutationTypes = new Set(['purchase', 'adjustment', 'sale_return', 'damage', 'loss', 'gift']);
 const historyMutationTypes = new Set(['sale', 'purchase', 'adjustment', 'transfer_in', 'transfer_out', 'sale_return', 'damage', 'loss', 'gift']);
+// Live databases can contain legacy tables with utf8mb4_unicode_ci while
+// newer tables use utf8mb4_0900_ai_ci. Normalize both operands so the report
+// remains readable without requiring a blocking table-wide collation change.
+const salesChannelJoin = `LEFT JOIN sales_channels sc
+         ON CONVERT(sc.value USING utf8mb4) COLLATE utf8mb4_unicode_ci =
+            CONVERT(LOWER(REPLACE(TRIM(sm.channel), ' ', '_')) USING utf8mb4) COLLATE utf8mb4_unicode_ci`;
 
 async function nextBatchNumber(connection, refType, date) {
   const [rows] = await connection.execute('SELECT COUNT(DISTINCT reference_id) AS cnt FROM stock_mutations WHERE reference_type = ? AND DATE(created_at) = ?', [refType, date]);
@@ -495,8 +501,7 @@ router.get('/mutation-report', authorize('owner','manager','admin','gudang'), as
        FROM stock_mutations sm
        JOIN warehouses w ON w.id = sm.warehouse_id
        JOIN users u ON u.id = sm.user_id
-       LEFT JOIN sales_channels sc
-         ON sc.value = LOWER(REPLACE(TRIM(sm.channel), ' ', '_'))
+       ${salesChannelJoin}
        ${where}
       GROUP BY ${batchExpression}
       -- Batch di tanggal yang sama punya created_at sama (00:00 tanggal
@@ -564,8 +569,7 @@ router.get('/mutation-report', authorize('owner','manager','admin','gudang'), as
     const [breakdownRows] = await db.execute(
       `SELECT ${labelExpression} AS label, COALESCE(SUM(ABS(sm.qty)), 0) AS total_qty
        FROM stock_mutations sm
-       LEFT JOIN sales_channels sc
-         ON sc.value = LOWER(REPLACE(TRIM(sm.channel), ' ', '_'))
+           ${salesChannelJoin}
        ${where}
        GROUP BY ${labelExpression}
        ORDER BY total_qty DESC, label ASC`,
