@@ -110,17 +110,24 @@ compose run --rm --no-deps -T --entrypoint node backend scripts/migrate.js
 # containers explicitly marked as one-off; the long-running service containers
 # are inspected and left untouched.
 remove_stale_one_offs() {
-  local service ps_output candidate oneoff
-  for service in backend frontend; do
-    ps_output=$(compose ps --all --quiet "$service") || fail "Cannot inspect $service one-off containers"
-    while IFS= read -r candidate; do
-      [[ -z "$candidate" ]] && continue
-      oneoff=$(sudo docker inspect --format '{{index .Config.Labels "com.docker.compose.oneoff"}}' "$candidate") || fail "Cannot inspect $service one-off container"
-      if [[ "$oneoff" = True ]]; then
+  local ps_output candidate labels service oneoff project
+  # `docker compose ps` may omit very old `compose run` containers depending
+  # on the installed Compose version. Scan only this Compose project and only
+  # containers explicitly marked one-off; never touch the live app containers.
+  ps_output=$(sudo docker ps -aq \
+    --filter 'label=com.docker.compose.project=anyostore-pos' \
+    --filter 'label=com.docker.compose.oneoff=True') || fail 'Cannot inspect stale one-off containers'
+  while IFS= read -r candidate; do
+    [[ -z "$candidate" ]] && continue
+    labels=$(sudo docker inspect --format '{{index .Config.Labels "com.docker.compose.service"}} {{index .Config.Labels "com.docker.compose.oneoff"}} {{index .Config.Labels "com.docker.compose.project"}}' "$candidate") || fail 'Cannot inspect stale one-off container'
+    read -r service oneoff project <<< "$labels"
+    [[ "$project" = anyostore-pos && "$oneoff" = True ]] || continue
+    case "$service" in
+      backend|frontend)
         sudo docker rm -f "$candidate" >/dev/null || fail "Cannot remove stale $service one-off container"
-      fi
-    done <<< "$ps_output"
-  done
+        ;;
+    esac
+  done <<< "$ps_output"
 }
 remove_stale_one_offs
 # Force recreation allows a failed or unhealthy attempt at the same SHA to be retried.

@@ -57,7 +57,17 @@ if (name === 'curl') {
 if (name === 'docker') {
   if (args[0] === 'compose' && process.env.RELEASE_SHA !== '${sha}') process.exit(1);
   if (args[0] === 'rm') process.exit(0);
+  if (args[0] === 'ps' && args.includes('-aq')) {
+    if (scenario.oneOffContainer) output('backend-run-id\\nfrontend-run-id');
+    process.exit(0);
+  }
   if (args[0] === 'inspect') {
+    if (args.some(arg => arg.includes('com.docker.compose.service'))) {
+      const candidate = args.at(-1);
+      const service = candidate.startsWith('frontend') ? 'frontend' : 'backend';
+      output(service + ' True anyostore-pos');
+      process.exit(0);
+    }
     if (args.some(arg => arg.includes('com.docker.compose.oneoff'))) {
       output(args.at(-1).endsWith('-run-id') ? 'True' : 'False');
       process.exit(0);
