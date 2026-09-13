@@ -1840,7 +1840,9 @@ html[data-theme="purple"] .sidebar {
 .warehouse-trend svg { display: block; width: 100%; height: 190px; overflow: visible; }
 .trend-grid-line { stroke: var(--border); stroke-width: 1; }
 .trend-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-.trend-line.trend-in, .trend-dot.trend-in { stroke: #2563eb; fill: #2563eb; }.trend-line.trend-out, .trend-dot.trend-out { stroke: #ef4444; fill: #ef4444; }
+.trend-line.trend-in, .trend-line.trend-out { fill: none; }
+.trend-line.trend-in { stroke: #2563eb; }.trend-line.trend-out { stroke: #ef4444; }
+.trend-dot.trend-in { stroke: #2563eb; fill: #2563eb; }.trend-dot.trend-out { stroke: #ef4444; fill: #ef4444; }
 .trend-labels { display: flex; justify-content: space-between; margin: -2px 0 0; color: var(--muted-foreground); font-size: 9px; }
 .trend-legend { display: flex; justify-content: center; gap: 16px; margin-top: 8px; color: var(--muted-foreground); font-size: 9px; }
 .trend-legend span { display: inline-flex; align-items: center; gap: 5px; }.trend-legend i { width: 8px; height: 8px; border-radius: 50%; }.legend-in { background: #2563eb; }.legend-out { background: #ef4444; }

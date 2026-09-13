@@ -39,9 +39,9 @@ function WarehouseTrend({ daily }) {
   return <div className="warehouse-trend">
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Grafik stok masuk dan keluar">
       {[0, 1, 2, 3].map((line) => <line key={line} x1="0" x2={width} y1={chartTop + line * 51} y2={chartTop + line * 51} className="trend-grid-line" />)}
-      <polyline points={inPoints} className="trend-line trend-in" />
-      <polyline points={outPoints} className="trend-line trend-out" />
-      {(daily || []).map((item, index) => <g key={item.date}><circle cx={point(item.in, index).split(',')[0]} cy={point(item.in, index).split(',')[1]} r="4" className="trend-dot trend-in" /><circle cx={point(item.out, index).split(',')[0]} cy={point(item.out, index).split(',')[1]} r="4" className="trend-dot trend-out" /></g>)}
+      <polyline points={inPoints} fill="none" className="trend-line trend-in" />
+      <polyline points={outPoints} fill="none" className="trend-line trend-out" />
+      {(daily || []).map((item, index) => <g key={item.date}><title>{`${shortDate(item.date)} · Masuk: ${Number(item.in || 0).toLocaleString('id-ID')} · Keluar: ${Number(item.out || 0).toLocaleString('id-ID')}`}</title><circle cx={point(item.in, index).split(',')[0]} cy={point(item.in, index).split(',')[1]} r="4" className="trend-dot trend-in" /><circle cx={point(item.out, index).split(',')[0]} cy={point(item.out, index).split(',')[1]} r="4" className="trend-dot trend-out" /></g>)}
     </svg>
     <div className="trend-labels">{(daily || []).map((item) => <span key={item.date}>{shortDate(item.date)}</span>)}</div>
     <div className="trend-legend"><span><i className="legend-in" />Stok Masuk</span><span><i className="legend-out" />Stok Keluar</span></div>
@@ -81,7 +81,7 @@ function WarehouseDashboard({ data, start, end }) {
     </section>
 
     <section className="warehouse-chart-grid">
-      <section className="panel"><div className="warehouse-panel-heading"><div><h2>Pergerakan Stok 7 Hari</h2><p>Mutasi aktual pada gudang aktif.</p></div></div><WarehouseTrend daily={daily} /></section>
+      <section className="panel"><div className="warehouse-panel-heading"><div><h2>Pergerakan Stok 7 Hari</h2><p>Jumlah unit masuk dan keluar pada gudang aktif, bukan saldo stok.</p></div></div><WarehouseTrend daily={daily} /></section>
       <section className="panel warehouse-status-panel"><div className="warehouse-panel-heading"><div><h2>Status Stok</h2><p>Kondisi SKU saat ini.</p></div></div>{hasStatusData ? <><div className="stock-donut" style={{ background: `conic-gradient(#2563eb 0 ${safePercent}%, #f59e0b ${safePercent}% ${safePercent + lowPercent}%, #ef4444 ${safePercent + lowPercent}% 100%)` }}><div><strong>{Number(summary.total_sku || 0).toLocaleString('id-ID')}</strong><span>SKU</span></div></div><div className="stock-status-legend"><span><i className="status-safe" />Aman <b>{safePercent}%</b></span><span><i className="status-low" />Hampir habis <b>{lowPercent}%</b></span><span><i className="status-empty" />Kosong <b>{emptyPercent}%</b></span></div></> : <div className="stock-donut-empty" role="status"><strong>Belum ada data stok</strong><span>Data status akan muncul setelah ada SKU.</span></div>}</section>
     </section>
 
