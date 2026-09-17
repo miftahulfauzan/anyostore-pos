@@ -48,8 +48,8 @@ function WarehouseTrend({ daily }) {
   </div>;
 }
 
-function WarehouseDashboard({ data, start, end }) {
-  const dashboard = data?.warehouse_dashboard || {};
+function WarehouseDashboard({ data, start, end, dashboardKey = 'warehouse_dashboard' }) {
+  const dashboard = data?.[dashboardKey] || {};
   const summary = dashboard.summary || {};
   const daily = useMemo(() => dateRangeDays(start, end, dashboard.daily), [start, end, dashboard.daily]);
   const totalStatus = Number(summary.safe_stock || 0) + Number(summary.low_stock || 0) + Number(summary.out_of_stock || 0);
@@ -146,7 +146,7 @@ export default function DashboardPage() {
     return undefined;
   }, [range]);
 
-  const isGudang = role === 'gudang' || Boolean(data?.warehouse_dashboard);
+  const isGudang = role === 'gudang' || (role !== 'owner' && Boolean(data?.warehouse_dashboard));
   const summary = data?.owner_summary || data?.summary || {};
   const peakSales = Math.max(1, ...(data?.sales_trend || []).map((item) => Number(item.sales)));
   const paymentTotal = Math.max(1, ...(data?.payment_breakdown || []).map((item) => Number(item.amount)));
@@ -172,6 +172,10 @@ export default function DashboardPage() {
         <section className="panel"><div className="section-heading"><div><h2>Penjualan 7 hari terakhir</h2><p>Nilai transaksi selesai per hari, termasuk hari tanpa penjualan.</p></div></div><div className="bar-chart">{data.sales_trend.map((item) => <div className="bar-column" key={item.date}><strong>{rupiah(item.sales)}</strong><span className="bar" style={{ height: Math.max(8, Number(item.sales) / peakSales * 150) + 'px' }} /><small>{item.label}</small></div>)}</div></section>
         <section className="panel"><div className="section-heading"><div><h2>Metode pembayaran</h2><p>Komposisi pembayaran 30 hari terakhir.</p></div></div><div className="payment-bars">{data.payment_breakdown?.length ? data.payment_breakdown.map((item) => <div key={item.payment_method}><div><span>{labelFor(paymentLabels, item.payment_method)}</span><strong>{rupiah(item.amount)}</strong></div><span className="payment-bar"><i style={{ width: Number(item.amount) / paymentTotal * 100 + '%' }} /></span></div>) : <p>Belum ada data pembayaran.</p>}</div></section>
       </section>
+      {data.owner_stock_dashboard && <>
+        <section className="warehouse-dashboard-toolbar owner-stock-dashboard-toolbar"><div><span className="eyebrow">DASHBOARD STOK OWNER</span><h2>Stok seluruh toko dan gudang · {fullDate(range.start)} – {fullDate(range.end)}</h2></div><div className="warehouse-date-filter"><label>Dari<input type="date" value={draftStart} onChange={(event) => setDraftStart(event.target.value)} /></label><span>s/d</span><label>Sampai<input type="date" value={draftEnd} onChange={(event) => setDraftEnd(event.target.value)} /></label><button type="button" onClick={() => setRange({ start: draftStart, end: draftEnd })}>Terapkan</button></div></section>
+        <WarehouseDashboard data={data} dashboardKey="owner_stock_dashboard" start={range.start} end={range.end} />
+      </>}
       {data.stores?.length > 1 && <section className="panel store-summary"><div className="section-heading"><div><h2>Ringkasan semua toko</h2><p>Perbandingan cabang untuk owner/admin utama.</p></div></div><div className="store-summary-grid">{data.stores.map((store) => <article key={store.id}><header><div><strong>{store.name}</strong><span>{store.address || 'Alamat belum diatur'}</span></div><b>{store.products} produk</b></header><dl><div><dt>Hari ini</dt><dd>{rupiah(store.today_sales)}</dd></div><div><dt>7 hari</dt><dd>{rupiah(store.seven_day_sales)}</dd></div><div><dt>Pengeluaran bulan ini</dt><dd>{rupiah(store.month_expenses)}</dd></div></dl></article>)}</div></section>}
       <section className="panel dashboard-recent"><div className="section-heading"><div><h2>Transaksi terbaru</h2><p>Aktivitas penjualan terakhir.</p></div><Link href="/history">Lihat semua</Link></div><div className="data-list">{data.recent_transactions.length ? data.recent_transactions.map((tx) => <article key={tx.id}><div><strong>{tx.invoice_no}</strong><span>{tx.cashier}{data.owner_summary ? ' · ' + tx.branch_name : ''} · {new Date(tx.created_at).toLocaleString('id-ID')}</span></div><div><strong>{rupiah(tx.grand_total)}</strong><span className="tag">{labelFor(paymentLabels, tx.payment_method)}</span></div></article>) : <p>Belum ada transaksi.</p>}</div></section>
     </>}

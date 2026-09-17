@@ -87,10 +87,16 @@ router.get('/', async (req, res, next) => {
 
     const summary = { ...salesRows[0][0], ...expenseRows[0][0] };
 
-    // Admin Gudang: ringkasan stok gudang (semua cabang tipe gudang)
+    // Ringkasan stok untuk Admin Gudang dan Owner.
+    // Admin Gudang hanya melihat cabang tipe gudang; Owner melihat seluruh
+    // cabang aktif agar dashboard penjualan dan stok sama-sama tersedia.
     let stockSummary = null;
     let warehouseDashboard = null;
-    if (req.user.role === 'gudang') {
+    let ownerStockDashboard = null;
+    const includeStockDashboard = req.user.role === 'gudang' || owner;
+    if (includeStockDashboard) {
+      const stockBranchFilter = req.user.role === 'gudang' ? " AND b.type = 'gudang'" : '';
+      const stockWarehouseBranchFilter = req.user.role === 'gudang' ? " AND wb.type = 'gudang'" : '';
       const validDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
       const dashboardEnd = validDate(req.query.end) ? req.query.end : localDateString();
       const defaultStartDate = new Date(`${dashboardEnd}T00:00:00+07:00`);
@@ -105,7 +111,7 @@ router.get('/', async (req, res, next) => {
          FROM warehouse_stocks ws
          JOIN warehouses w ON w.id = ws.warehouse_id
          JOIN branches b ON b.id = w.branch_id
-         WHERE b.type = 'gudang' AND w.is_active = TRUE AND b.is_active = TRUE`
+         WHERE w.is_active = TRUE AND b.is_active = TRUE${stockBranchFilter}`
       );
       const [recentStock] = await db.execute(
         `SELECT sm.id, p.name AS product_name, p.sku, sm.qty, sm.channel, sm.created_at
@@ -113,7 +119,7 @@ router.get('/', async (req, res, next) => {
          JOIN products p ON p.id = sm.product_id
          JOIN warehouses w ON w.id = sm.warehouse_id
          JOIN branches b ON b.id = w.branch_id
-         WHERE b.type = 'gudang'
+         WHERE b.is_active = TRUE${stockBranchFilter}
          ORDER BY sm.created_at DESC LIMIT 6`
       );
       stockSummary = { ...stockRows[0], recent_mutations: recentStock };
@@ -125,7 +131,7 @@ router.get('/', async (req, res, next) => {
                 COALESCE(stock.total_stock, 0) AS total_stock,
                 COALESCE(stock.reserved_stock, 0) AS reserved_stock
          FROM products p
-         JOIN branches b ON b.id = p.branch_id AND b.type = 'gudang' AND b.is_active = TRUE
+         JOIN branches b ON b.id = p.branch_id AND b.is_active = TRUE${stockBranchFilter}
          LEFT JOIN categories c ON c.id = p.category_id
          LEFT JOIN (
            SELECT ws.product_id,
@@ -133,7 +139,7 @@ router.get('/', async (req, res, next) => {
                   SUM(ws.reserved_quantity) AS reserved_stock
            FROM warehouse_stocks ws
            JOIN warehouses w ON w.id = ws.warehouse_id AND w.is_active = TRUE
-           JOIN branches wb ON wb.id = w.branch_id AND wb.type = 'gudang' AND wb.is_active = TRUE
+           JOIN branches wb ON wb.id = w.branch_id AND wb.is_active = TRUE${stockWarehouseBranchFilter}
            GROUP BY ws.product_id
          ) stock ON stock.product_id = p.id
          WHERE p.is_active = TRUE
@@ -173,7 +179,7 @@ router.get('/', async (req, res, next) => {
                 COALESCE(SUM(CASE WHEN sm.qty < 0 THEN -sm.qty ELSE 0 END), 0) AS total_out
          FROM stock_mutations sm
          JOIN warehouses w ON w.id = sm.warehouse_id AND w.is_active = TRUE
-         JOIN branches b ON b.id = w.branch_id AND b.type = 'gudang' AND b.is_active = TRUE
+         JOIN branches b ON b.id = w.branch_id AND b.is_active = TRUE${stockBranchFilter}
          WHERE DATE(sm.created_at) BETWEEN ? AND ?
          GROUP BY DATE(sm.created_at)
          ORDER BY date`,
@@ -184,7 +190,7 @@ router.get('/', async (req, res, next) => {
          FROM stock_mutations sm
          JOIN products p ON p.id = sm.product_id
          JOIN warehouses w ON w.id = sm.warehouse_id AND w.is_active = TRUE
-         JOIN branches b ON b.id = w.branch_id AND b.type = 'gudang' AND b.is_active = TRUE
+         JOIN branches b ON b.id = w.branch_id AND b.is_active = TRUE${stockBranchFilter}
          WHERE sm.qty < 0 AND DATE(sm.created_at) BETWEEN ? AND ?
          GROUP BY p.id, p.name, p.sku
          ORDER BY total DESC, p.name
@@ -196,7 +202,7 @@ router.get('/', async (req, res, next) => {
          FROM stock_mutations sm
          JOIN products p ON p.id = sm.product_id
          JOIN warehouses w ON w.id = sm.warehouse_id AND w.is_active = TRUE
-         JOIN branches b ON b.id = w.branch_id AND b.type = 'gudang' AND b.is_active = TRUE
+         JOIN branches b ON b.id = w.branch_id AND b.is_active = TRUE${stockBranchFilter}
          WHERE sm.qty > 0 AND DATE(sm.created_at) BETWEEN ? AND ?
          GROUP BY p.id, p.name, p.sku
          ORDER BY latest_at DESC, quantity DESC
@@ -224,6 +230,7 @@ router.get('/', async (req, res, next) => {
         low_stock: lowStock.map((row) => ({ name: row.name, sku: row.sku, total_stock: row.total_stock, min_stock: row.min_stock })),
         out_of_stock: outOfStock.map((row) => ({ name: row.name, sku: row.sku, total_stock: row.total_stock, min_stock: row.min_stock })),
       };
+      if (owner) ownerStockDashboard = warehouseDashboard;
     }
 
     res.json({
@@ -237,6 +244,7 @@ router.get('/', async (req, res, next) => {
         stores,
         stock_summary: stockSummary,
         warehouse_dashboard: warehouseDashboard,
+        owner_stock_dashboard: ownerStockDashboard,
       }
     });
   } catch (error) { next(error); }
