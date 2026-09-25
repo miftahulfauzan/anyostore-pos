@@ -59,18 +59,27 @@ jobs:
           [[ "$DEPLOY_SHA" =~ ^[a-f0-9]{40}$ ]]
           [[ "$DEPLOY_MODE" = automatic || "$DEPLOY_MODE" = manual ]]
           deploy_ssh_dir=$(mktemp -d)
-          trap 'rm -f "$deploy_ssh_dir/key" "$deploy_ssh_dir/known_hosts"; rmdir "$deploy_ssh_dir"' EXIT
+          deploy_log="$deploy_ssh_dir/release.log"
+          trap 'rm -f "$deploy_ssh_dir/key" "$deploy_ssh_dir/known_hosts" "$deploy_log"; rmdir "$deploy_ssh_dir"' EXIT
           printf '%s\n' "$VPS_SSH_KEY" > "$deploy_ssh_dir/key"
           chmod 600 "$deploy_ssh_dir/key"
+          set +e
           ssh -i "$deploy_ssh_dir/key" \
-            -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new \
-            -o UserKnownHostsFile="$deploy_ssh_dir/known_hosts" \
-            -o ServerAliveInterval=30 \
-            -o ServerAliveCountMax=6 \
-            -o ConnectTimeout=15 \
-            -o LogLevel=ERROR \
-            "$VPS_USER@$VPS_HOST" "EXPECTED_APP_DOMAIN=anyostore.my.id bash -s -- $DEPLOY_SHA $DEPLOY_MODE" < scripts/deploy/release.sh
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new \
+              -o UserKnownHostsFile="$deploy_ssh_dir/known_hosts" \
+              -o ServerAliveInterval=30 \
+              -o ServerAliveCountMax=6 \
+              -o ConnectTimeout=15 \
+              -o LogLevel=ERROR \
+              "$VPS_USER@$VPS_HOST" "EXPECTED_APP_DOMAIN=anyostore.my.id bash -s -- $DEPLOY_SHA $DEPLOY_MODE" < scripts/deploy/release.sh 2>&1 | tee "$deploy_log"
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            detail=$(tail -100 "$deploy_log" | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=VPS deployment output::$detail"
+            exit "$status"
+          fi
       - name: Verify public production release
         env:
           DEPLOY_SHA: ${{ steps.ci.outputs.sha }}
