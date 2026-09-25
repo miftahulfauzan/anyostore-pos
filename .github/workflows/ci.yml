@@ -22,7 +22,9 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
-      - run: npm test
+      # Backend tests use shared in-process DB stubs; serialize files so the
+      # release gate is deterministic on GitHub-hosted runners.
+      - run: npm test -- --test-concurrency=1
       - run: npm audit --omit=dev
 
   frontend:
