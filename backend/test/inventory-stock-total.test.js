@@ -1,6 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
+process.env.DB_HOST ||= 'test-db';
+process.env.DB_USER ||= 'test-user';
+process.env.DB_PASSWORD ||= 'test-password';
+process.env.DB_NAME ||= 'test-db';
+process.env.JWT_SECRET ||= 'test-access-secret';
+process.env.JWT_REFRESH_SECRET ||= 'test-refresh-secret';
+
 function response() {
   return {
     statusCode: 200,
