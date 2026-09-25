@@ -1,0 +1,61 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+
+function response() {
+  return {
+    statusCode: 200,
+    body: null,
+    status(code) { this.statusCode = code; return this; },
+    json(body) { this.body = body; return this; },
+  };
+}
+
+test('snapshot stok mengirim path foto untuk pemilih opname mobile', async () => {
+  const dbPath = require.resolve('../src/db');
+  const queries = [];
+  const dbStub = {
+    execute: async (sql) => {
+      queries.push(sql);
+      if (sql.includes('FROM warehouse_stocks ws')) {
+        return [[{
+          product_id: 10,
+          variant_id: null,
+          quantity: 8,
+          reserved_quantity: 0,
+          stock_revision: 4,
+          name: 'Kemeja Denim',
+          sku: 'B4-KEMEJA',
+          min_stock: 1,
+          photo_path: '/uploads/products/kemeja.jpg',
+          variant_color: null,
+          variant_size: null,
+        }], []];
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  };
+  require.cache[dbPath] = {
+    id: dbPath,
+    filename: dbPath,
+    loaded: true,
+    exports: dbStub,
+  };
+
+  const router = require('../src/routes/inventory');
+  const layer = router.stack.find(
+    (item) => item.route?.path === '/stock' && item.route.methods.get,
+  );
+  assert.ok(layer, 'route stock harus ada');
+  const handler = layer.route.stack.at(-1).handle;
+  const res = response();
+  let nextError;
+  await handler(
+    { user: { role: 'admin', branch_id: 1 }, query: { warehouse_id: '2' } },
+    res,
+    (error) => { nextError = error; },
+  );
+
+  assert.equal(nextError, undefined);
+  assert.equal(res.body.data[0].photo_path, '/uploads/products/kemeja.jpg');
+  assert.match(queries[0], /product_photos/);
+});

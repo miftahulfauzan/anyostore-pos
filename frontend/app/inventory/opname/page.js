@@ -109,7 +109,7 @@ export default function Opname() {
               <thead><tr><th>Produk</th><th>Stok sistem</th><th>Stok fisik</th><th>Selisih</th></tr></thead>
               <tbody>
                 {visibleStock.map((item) => <tr key={`${item.product_id}-${item.variant_id || 0}`}>
-                  <td><strong>{item.name}</strong><small>{item.sku}</small></td>
+                  <td><strong>{item.name}</strong><small>{item.sku}</small>{item.rack_position && <small>Posisi Rak: {item.rack_position}</small>}</td>
                   <td>{item.quantity}</td>
                   <td><input type="number" min="0" value={item.physical_stock} onChange={(event) => setStock((rows) => rows.map((row) => row === item ? { ...row, physical_stock: event.target.value } : row))} /></td>
                   <td>{Number(item.physical_stock || 0) - Number(item.quantity)}</td>

@@ -4,6 +4,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const money = (v) => Number(v || 0).toLocaleString('id-ID');
+const mediaUrl = (path) => {
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+  const base = api.replace(/\/api\/?$/, '');
+  return `${base}/${String(path).replace(/^\/+/, '')}`;
+};
 
 // Laporan stok matriks: baris produk+warna, kolom per gudang, total di ujung.
 export default function StockReportSection() {
@@ -18,6 +24,9 @@ export default function StockReportSection() {
   const [isGudang, setIsGudang] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [editingRack, setEditingRack] = useState(null);
+  const [rackDraft, setRackDraft] = useState('');
+  const [savingRack, setSavingRack] = useState(false);
   const loadSeq = useRef(0);
 
   const headers = () => ({ 'Content-Type': 'application/json'});
@@ -83,10 +92,12 @@ export default function StockReportSection() {
       const key = `${r.product_id}:${r.variant_id || 'x'}`;
       let g = map.get(key);
       if (!g) {
-        g = { key, product_id: r.product_id, name: r.product_name, sku: r.sku, color: r.variant_color || null, min_stock: Number(r.min_stock || 0), qtyByWarehouse: {}, total: 0, reserved: 0 };
+        g = { key, product_id: r.product_id, variant_id: r.variant_id ?? null, name: r.product_name, sku: r.sku, photo_path: r.photo_path || '', color: r.variant_color || null, min_stock: Number(r.min_stock || 0), qtyByWarehouse: {}, rackByWarehouse: {}, total: 0, reserved: 0 };
         map.set(key, g);
       }
+      if (!g.photo_path && r.photo_path) g.photo_path = r.photo_path;
       g.qtyByWarehouse[String(r.warehouse_id)] = Number(r.quantity || 0);
+      g.rackByWarehouse[String(r.warehouse_id)] = r.rack_position || '';
       g.total += Number(r.quantity || 0);
       g.reserved += Number(r.reserved || 0);
     }
@@ -117,6 +128,73 @@ export default function StockReportSection() {
     a.download = `laporan-stok-${localDateString()}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
+  }
+
+  function rackKey(product, warehouse) {
+    return `${product.key}:${warehouse.id}`;
+  }
+
+  function beginRackEdit(product, warehouse) {
+    setEditingRack(rackKey(product, warehouse));
+    setRackDraft(product.rackByWarehouse[String(warehouse.id)] || '');
+    setMessage('');
+  }
+
+  function cancelRackEdit() {
+    setEditingRack(null);
+    setRackDraft('');
+  }
+
+  async function saveRackPosition(product, warehouse) {
+    setSavingRack(true);
+    setMessage('');
+    try {
+      const response = await fetch(`${api}/inventory/stock-location`, {
+        method: 'PUT',
+        headers: headers(),
+        body: JSON.stringify({
+          warehouse_id: Number(warehouse.id),
+          product_id: Number(product.product_id),
+          variant_id: product.variant_id == null ? null : Number(product.variant_id),
+          rack_position: rackDraft,
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok || !body.success) throw new Error(body.message || 'Posisi rak gagal disimpan');
+      const saved = body.data?.rack_position || '';
+      setWarehouseRows((current) => current.map((row) => (
+        Number(row.product_id) === Number(product.product_id)
+        && (row.variant_id == null ? null : Number(row.variant_id)) === (product.variant_id == null ? null : Number(product.variant_id))
+        && Number(row.warehouse_id) === Number(warehouse.id)
+          ? { ...row, rack_position: saved }
+          : row
+      )));
+      cancelRackEdit();
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setSavingRack(false);
+    }
+  }
+
+  function rackControl(product, warehouse, compact = false) {
+    const key = rackKey(product, warehouse);
+    const rack = product.rackByWarehouse[String(warehouse.id)] || '';
+    if (editingRack === key) {
+      return (
+        <div className="rack-editor" onClick={(event) => event.stopPropagation()}>
+          <input aria-label={`Posisi Rak ${product.name} di ${warehouse.name}`} title="Posisi Rak" value={rackDraft} maxLength={100} onChange={(event) => setRackDraft(event.target.value)} placeholder="Contoh A-01" onKeyDown={(event) => { if (event.key === 'Enter') saveRackPosition(product, warehouse); if (event.key === 'Escape') cancelRackEdit(); }} />
+          <button type="button" className="small" disabled={savingRack} onClick={() => saveRackPosition(product, warehouse)}>{savingRack ? '…' : 'Simpan'}</button>
+          <button type="button" className="small secondary" disabled={savingRack} onClick={cancelRackEdit}>Batal</button>
+        </div>
+      );
+    }
+    return (
+      <div className={`rack-display${compact ? ' rack-display-compact' : ''}`}>
+        <span>{rack ? `Rak: ${rack}` : 'Rak belum diatur'}</span>
+        <button type="button" className="rack-edit-button" aria-label={`Edit posisi rak ${product.name} di ${warehouse.name}`} title="Edit posisi rak" onClick={() => beginRackEdit(product, warehouse)}>✎</button>
+      </div>
+    );
   }
 
   return (
@@ -194,9 +272,16 @@ export default function StockReportSection() {
               {loading && <tr><td colSpan={colSpan} style={{ padding: 10, color: 'var(--muted-foreground)' }}>Memuat…</td></tr>}
               {!loading && grouped.map((g) => (
                 <tr key={g.key} style={{ borderBottom: '1px solid var(--border)' }}>
-                  <td style={{ padding: '8px 10px', fontWeight: 600 }}>{g.name}</td>
+                  <td style={{ padding: '8px 10px', fontWeight: 600 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 150 }}>
+                      <div style={{ width: 36, height: 46, borderRadius: 6, overflow: 'hidden', flex: '0 0 auto' }}>
+                        <SafeImage src={g.photo_path ? mediaUrl(g.photo_path) : ''} alt={g.name} />
+                      </div>
+                      <span>{g.name}</span>
+                    </div>
+                  </td>
                   <td style={{ padding: '8px 10px' }}>{g.color ? <span style={{ padding: '1px 5px', borderRadius: 4, background: 'var(--muted)', fontSize: 10 }}>{g.color}</span> : <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>-</span>}</td>
-                  {whColumns.map((w) => <td key={w.id} style={{ padding: '8px 10px', textAlign: 'right' }}>{money(g.qtyByWarehouse[String(w.id)] || 0)}</td>)}
+                  {whColumns.map((w) => <td key={w.id} style={{ padding: '8px 10px', textAlign: 'right' }}><strong>{money(g.qtyByWarehouse[String(w.id)] || 0)}</strong>{rackControl(g, w)}</td>)}
                   <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>{money(g.total)}</td>
                 </tr>
               ))}
@@ -212,21 +297,27 @@ export default function StockReportSection() {
           {!loading && grouped.map((g) => (
             <article key={g.key} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 12, background: '#fff' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                <div style={{ minWidth: 0 }}>
-                  <strong style={{ fontSize: 14, display: 'block' }}>{g.name}</strong>
+                <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 42, height: 54, borderRadius: 8, overflow: 'hidden', flex: '0 0 auto' }}>
+                    <SafeImage src={g.photo_path ? mediaUrl(g.photo_path) : ''} alt={g.name} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <strong style={{ fontSize: 14, display: 'block' }}>{g.name}</strong>
+                    <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>{g.sku || ''}</span>
+                  </div>
                   <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>{g.color || 'Tanpa warna'}</span>
                 </div>
                 <strong style={{ fontSize: 16, color: '#1e3a5f', whiteSpace: 'nowrap' }}>{money(g.total)}</strong>
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-                {whColumns.map((w) => {
-                  const qty = g.qtyByWarehouse[String(w.id)] || 0;
-                  return (
-                    <span key={w.id} style={{ padding: '3px 8px', borderRadius: 999, background: qty > 0 ? '#eef2ff' : '#f1f5f9', color: qty > 0 ? '#1e3a5f' : '#94a3b8', fontSize: 11, fontWeight: 600 }}>
-                      {w.name}: {money(qty)}
-                    </span>
-                  );
-                })}
+                    {whColumns.map((w) => {
+                      const qty = g.qtyByWarehouse[String(w.id)] || 0;
+                      return (
+                        <div key={w.id} style={{ padding: '5px 8px', borderRadius: 8, background: qty > 0 ? '#eef2ff' : '#f1f5f9', color: qty > 0 ? '#1e3a5f' : '#94a3b8', fontSize: 11, fontWeight: 600 }}>
+                          {w.name}: {money(qty)}{rackControl(g, w, true)}
+                        </div>
+                      );
+                    })}
               </div>
             </article>
           ))}
@@ -236,6 +327,12 @@ export default function StockReportSection() {
       <style>{`
         .report-print-header { display: none; }
         .stock-cards-mobile { display: none; }
+        .rack-display { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 3px; color: var(--muted-foreground); font-size: 10px; font-weight: 400; white-space: nowrap; }
+        .rack-display-compact { justify-content: flex-start; margin-top: 3px; font-size: 10px; }
+        .rack-edit-button { border: 0; background: transparent; color: var(--primary); cursor: pointer; padding: 0 2px; line-height: 1; font-size: 15px; }
+        .rack-editor { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 4px; }
+        .rack-editor input { width: 100px; min-width: 0; min-height: 28px; padding: 3px 6px; border: 1px solid var(--border); border-radius: 5px; font-size: 11px; }
+        .rack-editor .small { min-height: 28px; padding: 3px 6px; font-size: 10px; }
         @media (max-width: 900px) {
           .stock-table-wrap { display: none; }
           .stock-cards-mobile { display: grid; gap: 10px; }

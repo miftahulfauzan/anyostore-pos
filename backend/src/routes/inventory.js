@@ -4,6 +4,7 @@ const { authenticate, authorize } = require('../auth');
 const { localDateString } = require('../local-date');
 const { adjustStock } = require('../stock');
 const { CHANNEL_MANAGEMENT_ROLES } = require('../permissions');
+const { normalizeRackPosition } = require('../rack-position');
 
 const router = express.Router();
 router.use(authenticate);
@@ -179,20 +180,26 @@ router.get('/stock', async (req, res, next) => {
     // terlihat di dropdown (warehouses/all). Role lain tetap cabang sendiri.
     const branchId = ['owner', 'gudang'].includes(req.user.role) && Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
     const [rows] = await db.execute(
-      `SELECT ws.product_id, ws.variant_id, ws.quantity, ws.reserved_quantity, ws.revision AS stock_revision, p.name, p.sku, p.min_stock, pv.color AS variant_color, pv.size AS variant_size
+      `SELECT ws.product_id, ws.variant_id, ws.quantity, ws.reserved_quantity, ws.rack_position, ws.revision AS stock_revision, p.name, p.sku, p.min_stock,
+              (SELECT pp.path FROM product_photos pp WHERE pp.product_id = p.id AND pp.media_type = 'image' ORDER BY (pp.variant_id IS NULL) DESC, pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
+              pv.color AS variant_color, pv.size AS variant_size
        FROM warehouse_stocks ws
        JOIN warehouses w ON w.id = ws.warehouse_id
        JOIN products p ON p.id = ws.product_id
        LEFT JOIN product_variants pv ON pv.id = ws.variant_id
        WHERE ws.warehouse_id = ? AND w.branch_id = ?
        UNION ALL
-       SELECT p.id AS product_id, pv.id AS variant_id, 0 AS quantity, 0 AS reserved_quantity, 0 AS stock_revision, p.name, p.sku, p.min_stock, pv.color AS variant_color, pv.size AS variant_size
+       SELECT p.id AS product_id, pv.id AS variant_id, 0 AS quantity, 0 AS reserved_quantity, NULL AS rack_position, 0 AS stock_revision, p.name, p.sku, p.min_stock,
+              (SELECT pp.path FROM product_photos pp WHERE pp.product_id = p.id AND pp.media_type = 'image' ORDER BY (pp.variant_id IS NULL) DESC, pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
+              pv.color AS variant_color, pv.size AS variant_size
        FROM products p
        JOIN product_variants pv ON pv.product_id = p.id AND pv.is_active = TRUE
        WHERE p.branch_id = ? AND p.is_active = TRUE
          AND NOT EXISTS (SELECT 1 FROM warehouse_stocks ws2 WHERE ws2.warehouse_id = ? AND ws2.product_id = p.id AND ws2.variant_id = pv.id)
        UNION ALL
-       SELECT p.id AS product_id, NULL AS variant_id, 0 AS quantity, 0 AS reserved_quantity, 0 AS stock_revision, p.name, p.sku, p.min_stock, NULL AS variant_color, NULL AS variant_size
+       SELECT p.id AS product_id, NULL AS variant_id, 0 AS quantity, 0 AS reserved_quantity, NULL AS rack_position, 0 AS stock_revision, p.name, p.sku, p.min_stock,
+              (SELECT pp.path FROM product_photos pp WHERE pp.product_id = p.id AND pp.media_type = 'image' ORDER BY (pp.variant_id IS NULL) DESC, pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
+              NULL AS variant_color, NULL AS variant_size
        FROM products p
        WHERE p.branch_id = ? AND p.is_active = TRUE
          AND NOT EXISTS (SELECT 1 FROM product_variants pv2 WHERE pv2.product_id = p.id AND pv2.is_active = TRUE)
@@ -275,7 +282,7 @@ router.get('/mutations-summary', authorize('owner', 'manager', 'admin', 'gudang'
     if (end) { where += ' AND DATE(sm.created_at) <= ?'; params.push(end); }
 
     const [rows] = await db.execute(
-      `SELECT DATE(sm.created_at) AS date,
+      `SELECT DATE_FORMAT(DATE(sm.created_at), '%Y-%m-%d') AS date,
               COALESCE(SUM(CASE WHEN sm.qty > 0 THEN sm.qty ELSE 0 END), 0) AS total_in,
               COALESCE(SUM(CASE WHEN sm.qty < 0 THEN -sm.qty ELSE 0 END), 0) AS total_out
        FROM stock_mutations sm ${where}
@@ -305,15 +312,30 @@ router.get('/stock-total', async (req, res, next) => {
     const branchId = showAll ? null : ((isOwner || isGudang) ? (Number(req.query.branch_id) || req.user.branch_id) : req.user.branch_id);
     const search = (req.query.search || '').trim();
     const categoryId = Number(req.query.category_id) || null;
+    const requestedWarehouse = Number(req.query.warehouse_id);
+    let warehouseId = null;
+    if (Number.isInteger(requestedWarehouse)) {
+      const [warehouseRows] = await db.execute(
+        'SELECT id, branch_id FROM warehouses WHERE id = ? AND is_active = TRUE',
+        [requestedWarehouse]
+      );
+      if (!warehouseRows[0] || (!showAll && warehouseRows[0].branch_id !== branchId)) {
+        return res.status(400).json({ success: false, message: 'Gudang tidak valid untuk lokasi yang dipilih' });
+      }
+      warehouseId = requestedWarehouse;
+    }
 
     let where = 'WHERE p.is_active = TRUE';
-    const params = [];
+    const params = warehouseId == null ? [] : [warehouseId];
     if (!showAll) { where += ' AND p.branch_id = ?'; params.push(branchId); }
     if (search) { where += ' AND (p.name LIKE ? OR p.sku LIKE ?)'; const s = `%${search}%`; params.push(s, s); }
     if (categoryId) { where += ' AND p.category_id = ?'; params.push(categoryId); }
 
     const [rows] = await db.execute(
-      `SELECT p.id, p.name, p.sku, p.stock AS product_stock, p.min_stock, c.name AS category_name, b.name AS branch_name,
+      `SELECT p.id, p.branch_id, p.name, p.sku, p.stock AS product_stock, p.min_stock, c.name AS category_name, b.name AS branch_name,
+              (SELECT pp.path FROM product_photos pp
+               WHERE pp.product_id = p.id AND pp.media_type = 'image'
+               ORDER BY (pp.variant_id IS NULL) DESC, pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
               COALESCE(SUM(ws.quantity), 0) AS total_stock,
               COALESCE(SUM(ws.reserved_quantity), 0) AS reserved,
               (SELECT COUNT(*) FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_active = TRUE) AS variant_count,
@@ -321,9 +343,9 @@ router.get('/stock-total', async (req, res, next) => {
        FROM products p
        JOIN branches b ON b.id = p.branch_id
        LEFT JOIN categories c ON c.id = p.category_id
-       LEFT JOIN warehouse_stocks ws ON ws.product_id = p.id
+       LEFT JOIN warehouse_stocks ws ON ws.product_id = p.id${warehouseId == null ? '' : ' AND ws.warehouse_id = ?'}
        ${where}
-       GROUP BY p.id, p.name, p.sku, p.stock, p.min_stock, c.name, b.name
+       GROUP BY p.id, p.branch_id, p.name, p.sku, p.stock, p.min_stock, c.name, b.name
        ORDER BY b.name, p.name ASC`,
       params
     );
@@ -364,8 +386,12 @@ router.get('/stock-by-warehouse', async (req, res, next) => {
 
     const [rows] = await db.execute(
       `SELECT b.name AS branch_name, w.id AS warehouse_id, w.name AS warehouse_name,
-              ws.product_id, p.name AS product_name, p.sku, pv.id AS variant_id, pv.color AS variant_color,
-              COALESCE(ws.quantity, 0) AS quantity, COALESCE(ws.reserved_quantity, 0) AS reserved,
+              ws.product_id, p.name AS product_name, p.sku,
+              (SELECT pp.path FROM product_photos pp
+               WHERE pp.product_id = p.id AND pp.media_type = 'image'
+               ORDER BY (pp.variant_id IS NULL) DESC, pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
+              pv.id AS variant_id, pv.color AS variant_color,
+              COALESCE(ws.quantity, 0) AS quantity, COALESCE(ws.reserved_quantity, 0) AS reserved, ws.rack_position,
               p.min_stock
        FROM warehouse_stocks ws
        JOIN warehouses w ON w.id = ws.warehouse_id
@@ -379,6 +405,74 @@ router.get('/stock-by-warehouse', async (req, res, next) => {
 
     res.json({ success: true, data: rows, branch_mode: showAll ? 'all' : 'single' });
   } catch (error) { next(error); }
+});
+
+// PUT /api/inventory/stock-location — simpan lokasi rak per produk/varian
+// pada gudang tertentu. Mengizinkan baris stok quantity=0 agar lokasi bisa
+// disiapkan sebelum barang masuk.
+router.put('/stock-location', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
+  const connection = await db.getConnection();
+  let transactionStarted = false;
+  try {
+    const warehouseId = Number(req.body.warehouse_id);
+    const productId = Number(req.body.product_id);
+    const variantId = req.body.variant_id === null || req.body.variant_id === undefined || req.body.variant_id === ''
+      ? null
+      : Number(req.body.variant_id);
+    if (!Number.isInteger(warehouseId) || !Number.isInteger(productId) || (variantId !== null && !Number.isInteger(variantId))) {
+      return res.status(400).json({ success: false, message: 'Gudang, produk, atau varian tidak valid' });
+    }
+    const rackPosition = normalizeRackPosition(req.body.rack_position);
+
+    await connection.beginTransaction();
+    transactionStarted = true;
+    const [warehouses] = await connection.execute(
+      'SELECT id, branch_id FROM warehouses WHERE id = ? AND is_active = TRUE FOR UPDATE',
+      [warehouseId]
+    );
+    const warehouse = warehouses[0];
+    if (!warehouse) throw Object.assign(new Error('Gudang tidak ditemukan'), { status: 404 });
+    if (!['owner', 'gudang'].includes(req.user.role) && Number(warehouse.branch_id) !== Number(req.user.branch_id)) {
+      throw Object.assign(new Error('Anda tidak memiliki akses ke gudang ini'), { status: 403 });
+    }
+
+    const [products] = await connection.execute(
+      'SELECT id, branch_id FROM products WHERE id = ? AND is_active = TRUE FOR UPDATE',
+      [productId]
+    );
+    const product = products[0];
+    if (!product || Number(product.branch_id) !== Number(warehouse.branch_id)) {
+      throw Object.assign(new Error('Produk tidak ditemukan di cabang gudang tersebut'), { status: 404 });
+    }
+    if (variantId !== null) {
+      const [variants] = await connection.execute(
+        'SELECT id FROM product_variants WHERE id = ? AND product_id = ? AND is_active = TRUE FOR UPDATE',
+        [variantId, productId]
+      );
+      if (!variants[0]) throw Object.assign(new Error('Varian produk tidak ditemukan'), { status: 404 });
+    }
+
+    const [balances] = await connection.execute(
+      'SELECT id FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id <=> ? FOR UPDATE',
+      [warehouseId, productId, variantId]
+    );
+    if (balances[0]) {
+      await connection.execute('UPDATE warehouse_stocks SET rack_position = ? WHERE id = ?', [rackPosition, balances[0].id]);
+    } else {
+      await connection.execute(
+        'INSERT INTO warehouse_stocks (warehouse_id, product_id, variant_id, quantity, reserved_quantity, rack_position) VALUES (?, ?, ?, 0, 0, ?)',
+        [warehouseId, productId, variantId, rackPosition]
+      );
+    }
+    await connection.commit();
+    transactionStarted = false;
+    res.json({ success: true, data: { warehouse_id: warehouseId, product_id: productId, variant_id: variantId, rack_position: rackPosition } });
+  } catch (error) {
+    if (transactionStarted) await connection.rollback();
+    next(error);
+  } finally {
+    connection.release();
+  }
 });
 
 // GET /api/inventory/channels — saluran penjualan (Keperluan/saluran)
@@ -519,7 +613,11 @@ router.get('/mutation-report', authorize('owner','manager','admin','gudang'), as
     if (batchKeys.length) {
       const ph = batchKeys.map(()=>'?').join(',');
       const [items] = await db.execute(
-        `SELECT ${batchExpression} AS batch_key, p.name AS name, p.sku AS code, SUM(ABS(sm.qty)) AS qty
+        `SELECT ${batchExpression} AS batch_key, p.name AS name, p.sku AS code,
+                (SELECT pp.path FROM product_photos pp
+                 WHERE pp.product_id = p.id AND pp.media_type = 'image'
+                 ORDER BY (pp.variant_id IS NULL) DESC, pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
+                SUM(ABS(sm.qty)) AS qty
          FROM stock_mutations sm JOIN products p ON p.id = sm.product_id
          WHERE sm.reference_type IN (?, ?) AND ${batchExpression} IN (${ph})
          GROUP BY ${batchExpression}, p.id, p.name, p.sku ORDER BY p.name, p.sku`,
@@ -527,7 +625,7 @@ router.get('/mutation-report', authorize('owner','manager','admin','gudang'), as
       );
       for (const it of items) {
         if (!productsByBatch[it.batch_key]) productsByBatch[it.batch_key] = [];
-        productsByBatch[it.batch_key].push({ name: it.name, code: it.code, qty: Number(it.qty) });
+        productsByBatch[it.batch_key].push({ name: it.name, code: it.code, photo_path: it.photo_path, qty: Number(it.qty) });
       }
     }
 
@@ -681,24 +779,27 @@ router.get('/incoming/products', authorize('owner','manager','admin','gudang'), 
   else if(req.user.role==='gudang'&&Number.isInteger(requested)){const[b]=await db.execute("SELECT id FROM branches WHERE id=? AND is_active=TRUE AND type='gudang'",[requested]);if(b[0])branchId=requested;}
   const warehouseId=Number(req.query.warehouse_id)||null;
   const[rows]=await db.execute(
-    `SELECT p.id,p.name,p.sku,p.cost,
-            (SELECT pp.path FROM product_photos pp WHERE pp.product_id=p.id AND pp.variant_id IS NULL AND pp.media_type='image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
-            COALESCE((SELECT SUM(ws.quantity) FROM warehouse_stocks ws WHERE ws.product_id=p.id AND ws.warehouse_id=?),0) AS stock
-     FROM products p WHERE p.branch_id=? AND p.is_active=TRUE ORDER BY p.name,p.id`,
-    [warehouseId,branchId]
+        `SELECT p.id,p.name,p.sku,p.cost,
+                (SELECT pp.path FROM product_photos pp WHERE pp.product_id=p.id AND pp.variant_id IS NULL AND pp.media_type='image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
+                (SELECT ws.rack_position FROM warehouse_stocks ws WHERE ws.product_id=p.id AND ws.warehouse_id=? AND ws.variant_id IS NULL LIMIT 1) AS rack_position,
+                COALESCE((SELECT SUM(ws.quantity) FROM warehouse_stocks ws WHERE ws.product_id=p.id AND ws.warehouse_id=?),0) AS stock
+         FROM products p WHERE p.branch_id=? AND p.is_active=TRUE ORDER BY p.name,p.id`,
+        [warehouseId, warehouseId, branchId]
   );
   let variants=[];
   if(warehouseId){
     [variants]=await db.execute(
-      `SELECT pv.product_id,pv.id,pv.color,COALESCE((SELECT SUM(ws.quantity) FROM warehouse_stocks ws WHERE ws.product_id=pv.product_id AND ws.variant_id=pv.id AND ws.warehouse_id=?),0) AS stock
-       FROM product_variants pv JOIN products p ON p.id=pv.product_id
-       WHERE p.branch_id=? AND p.is_active=TRUE AND pv.is_active=TRUE ORDER BY pv.color,pv.id`,
-      [warehouseId,branchId]
+          `SELECT pv.product_id,pv.id,pv.color,
+                  (SELECT ws.rack_position FROM warehouse_stocks ws WHERE ws.product_id=pv.product_id AND ws.variant_id=pv.id AND ws.warehouse_id=? LIMIT 1) AS rack_position,
+                  COALESCE((SELECT SUM(ws.quantity) FROM warehouse_stocks ws WHERE ws.product_id=pv.product_id AND ws.variant_id=pv.id AND ws.warehouse_id=?),0) AS stock
+           FROM product_variants pv JOIN products p ON p.id=pv.product_id
+           WHERE p.branch_id=? AND p.is_active=TRUE AND pv.is_active=TRUE ORDER BY pv.color,pv.id`,
+          [warehouseId, warehouseId, branchId]
     );
   }
   const byVariant={};
-  for(const v of variants){if(!byVariant[v.product_id])byVariant[v.product_id]=[];byVariant[v.product_id].push({id:v.id,color:v.color,stock:Number(v.stock||0)});}
-  const products=rows.map((r)=>({id:r.id,name:r.name,sku:r.sku,cost:r.cost,photo_path:r.photo_path,stock:Number(r.stock||0),variants:byVariant[r.id]||[]}));
+      for(const v of variants){if(!byVariant[v.product_id])byVariant[v.product_id]=[];byVariant[v.product_id].push({id:v.id,color:v.color,rack_position:v.rack_position||null,stock:Number(v.stock||0)});}
+      const products=rows.map((r)=>({id:r.id,name:r.name,sku:r.sku,cost:r.cost,photo_path:r.photo_path,rack_position:r.rack_position||null,stock:Number(r.stock||0),variants:byVariant[r.id]||[]}));
   res.json({success:true,data:products});
 }catch(e){next(e);}});
 router.post('/incoming', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
