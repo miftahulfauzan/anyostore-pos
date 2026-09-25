@@ -23,8 +23,18 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       # Backend tests use shared in-process DB stubs; serialize files so the
-      # release gate is deterministic on GitHub-hosted runners.
-      - run: npm test -- --test-concurrency=1
+      # release gate is deterministic on GitHub-hosted runners. Keep the
+      # failing tail in an annotation because public job logs are restricted.
+      - name: Run backend tests
+        run: |
+          set +e
+          npm test -- --test-concurrency=1 2>&1 | tee "$RUNNER_TEMP/backend-test.log"
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            detail=$(tail -40 "$RUNNER_TEMP/backend-test.log" | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Backend test output::$detail"
+            exit "$status"
+          fi
       - run: npm audit --omit=dev
 
   frontend:
