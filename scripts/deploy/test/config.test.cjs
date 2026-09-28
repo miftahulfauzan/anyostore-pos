@@ -9,8 +9,19 @@ const read = file => readFileSync(resolve(root, file), 'utf8');
 
 test('workflow YAML gates exact-SHA deploy on CI and serializes releases without cancellation', () => {
   const ci = yaml.load(read('.github/workflows/ci.yml'));
+  const mobile = yaml.load(read('.github/workflows/mobile.yml'));
   const deploy = yaml.load(read('.github/workflows/deploy.yml'));
   assert.equal(ci.name, 'CI');
+  assert.equal(ci.jobs.mobile, undefined, 'Mobile checks must not delay web CI/deploy');
+  assert.equal(ci.jobs['android-apk'], undefined, 'APK build must not delay web CI/deploy');
+  assert.equal(mobile.name, 'Mobile');
+  assert.ok(mobile.on.push.branches.includes('main'));
+  assert.ok(mobile.on.pull_request !== undefined);
+  assert.ok(mobile.on.workflow_dispatch !== undefined);
+  assert.ok(mobile.jobs.mobile);
+  assert.ok(mobile.jobs['android-apk']);
+  assert.match(String(mobile.jobs['android-apk'].if), /pull_request/);
+  assert.ok(mobile.jobs['android-apk'].steps.some(step => (step.run || '').includes('flutter build apk --release')));
   assert.equal(deploy.on.push, undefined);
   assert.deepEqual(deploy.on.workflow_run, { workflows: ['CI'], types: ['completed'], branches: ['main'] });
   assert.equal(deploy.on.workflow_dispatch.inputs.sha.required, true);
