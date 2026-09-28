@@ -1,5 +1,6 @@
 'use client';
 import { localDateString } from '../lib/local-date';
+import SafeImage from '../components/SafeImage';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
