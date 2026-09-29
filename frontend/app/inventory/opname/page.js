@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '../../components/AppShell';
+import { countedOpnameItems, createOpnameRows } from './opname-state.cjs';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -13,6 +14,8 @@ export default function Opname() {
   const [notes, setNotes] = useState('');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const headers = () => ({ 'Content-Type': 'application/json' });
 
@@ -20,7 +23,25 @@ export default function Opname() {
     const response = await fetch(`${api}/inventory/stock?warehouse_id=${id}`, { headers: headers() });
     const body = await response.json();
     if (!response.ok) throw Error(body.message);
-    setStock(body.data.map((item) => ({ ...item, physical_stock: item.quantity })));
+    setStock(createOpnameRows(body.data));
+  }
+
+  async function loadHistory(id = warehouse) {
+    if (!id) {
+      setHistory([]);
+      return;
+    }
+    setHistoryLoading(true);
+    try {
+      const response = await fetch(`${api}/inventory-control/opnames?warehouse_id=${id}&limit=25`, { headers: headers() });
+      const body = await response.json();
+      if (!response.ok) throw Error(body.message);
+      setHistory(body.data || []);
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setHistoryLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -36,6 +57,10 @@ export default function Opname() {
       .catch((error) => setMessage(error.message));
   }, []);
 
+  useEffect(() => {
+    if (warehouse) loadHistory(warehouse);
+  }, [warehouse]);
+
   const visibleStock = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return stock;
@@ -44,16 +69,23 @@ export default function Opname() {
 
   async function save(event) {
     event.preventDefault();
+    let items;
+    try {
+      items = countedOpnameItems(stock);
+    } catch (error) {
+      setMessage(error.message);
+      return;
+    }
+    if (!items.length) {
+      setMessage('Isi stok fisik minimal satu produk sebelum menyimpan.');
+      return;
+    }
     try {
       setSaving(true);
       const payload = {
         warehouse_id: Number(warehouse),
         notes,
-        items: stock.map((item) => ({
-          product_id: item.product_id,
-          variant_id: item.variant_id,
-          physical_stock: Number(item.physical_stock),
-        })),
+        items,
       };
       const response = await fetch(`${api}/inventory-control/opnames`, {
         method: 'POST',
@@ -63,9 +95,19 @@ export default function Opname() {
       const body = await response.json();
       if (!response.ok) throw Error(body.message);
       setMessage(`Stok opname tersimpan. Total selisih: ${body.data.total_selisih}.`);
-      load(warehouse);
+      await load(warehouse);
+      await loadHistory(warehouse);
     } catch (error) {
-      setMessage(error.message);
+      if (error?.message?.includes('Muat ulang')) {
+        try {
+          await load(warehouse);
+          setMessage(`${error.message} Daftar stok sudah dimuat ulang; periksa kembali stok fisik lalu simpan lagi.`);
+        } catch (reloadError) {
+          setMessage(reloadError.message);
+        }
+      } else {
+        setMessage(error.message);
+      }
     } finally {
       setSaving(false);
     }
@@ -75,8 +117,12 @@ export default function Opname() {
     const id = event.target.value;
     setWarehouse(id);
     setSearch('');
+    setHistory([]);
     load(id).catch((error) => setMessage(error.message));
   }
+
+  const opnameCount = stock.filter((item) => String(item.physical_stock ?? '').trim() !== '').length;
+  const statusLabels = { approved: 'Disetujui', pending_approval: 'Menunggu persetujuan', rejected: 'Ditolak', draft: 'Draft' };
 
   return (
     <AppShell title="Stok Opname" eyebrow="PRODUK & INVENTORI" actions={<a className="button-link" href="/inventory">Lihat Stok</a>}>
@@ -119,9 +165,51 @@ export default function Opname() {
             </table>
           </div>
           <label>Catatan<textarea value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
-          <button type="submit" disabled={saving || !stock.length}>{saving ? 'Menyimpan…' : 'Simpan stok opname'}</button>
+          <button type="submit" disabled={saving || !opnameCount}>{saving ? 'Menyimpan…' : 'Simpan stok opname'}</button>
         </form>
         {message && <p className="message">{message}</p>}
+      </section>
+      <section className="panel opname-history">
+        <div className="opname-history-heading">
+          <div>
+            <h2>Riwayat stok opname</h2>
+            <p className="muted">Daftar pemeriksaan fisik dan selisih stok di gudang yang dipilih.</p>
+          </div>
+          <button type="button" className="button-secondary" onClick={() => loadHistory()} disabled={historyLoading || !warehouse}>
+            {historyLoading ? 'Memuat…' : 'Muat ulang'}
+          </button>
+        </div>
+        {historyLoading && <p className="muted">Memuat riwayat…</p>}
+        {!historyLoading && !history.length && <p className="opname-history-empty">Belum ada riwayat opname untuk gudang ini.</p>}
+        {!historyLoading && history.length > 0 && <div className="opname-history-list">
+          {history.map((row) => (
+            <details key={row.id} className="opname-history-item">
+              <summary>
+                <span className="opname-history-main">
+                  <strong>{String(row.opname_date || '').slice(0, 10)}</strong>
+                  <span>{row.warehouse_name}{row.branch_name ? ` · ${row.branch_name}` : ''}</span>
+                  <small>{row.created_by_name || 'Sistem'} · {row.item_count || row.total_items} produk</small>
+                </span>
+                <span className={`opname-difference ${Number(row.total_selisih) < 0 ? 'negative' : Number(row.total_selisih) > 0 ? 'positive' : 'neutral'}`}>
+                  {Number(row.total_selisih) > 0 ? '+' : ''}{row.total_selisih || 0}
+                </span>
+              </summary>
+              <div className="opname-history-detail">
+                <div className="opname-history-meta">
+                  <span>Status: {statusLabels[row.status] || row.status}</span>
+                  <span>Total item: {row.total_items}</span>
+                  {row.notes && <span>Catatan: {row.notes}</span>}
+                </div>
+                {(row.items || []).map((item) => (
+                  <div key={`${row.id}-${item.product_id}-${item.variant_id || 0}`} className="opname-history-line">
+                    <span><strong>{item.product_name}</strong><small>{item.product_sku}{item.variant_color ? ` · ${item.variant_color}` : ''}{item.variant_size ? ` · ${item.variant_size}` : ''}</small></span>
+                    <span>{item.system_stock} → {item.physical_stock} <b className={Number(item.selisih) < 0 ? 'negative' : Number(item.selisih) > 0 ? 'positive' : ''}>({Number(item.selisih) > 0 ? '+' : ''}{item.selisih})</b></span>
+                  </div>
+                ))}
+              </div>
+            </details>
+          ))}
+        </div>}
       </section>
     </AppShell>
   );

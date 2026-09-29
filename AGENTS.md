@@ -8,8 +8,8 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 
 - **Backend**: Express (Node 20), MySQL 8.4, `backend/src/`
 - **Frontend**: Next.js 16 App Router (`output: 'standalone'`), React 18, `frontend/app/`
-- **Mobile**: Flutter (`mobile/`) — terpisah, CI `continue-on-error`
-- **Deploy**: GitHub Actions `deploy.yml` → SSH ke VPS → `docker compose up -d --build`. Build pakai BuildKit cache mount (`--mount=type=cache` di Dockerfile) supaya `npm ci`/`next build` cepat; deploy.yml hanya prune cache >7 hari (`builder prune -f --filter "until=168h"`) + `image prune -f`, BUKAN `builder prune -af` (menghapus semua cache → deploy jadi 8 menit). CI `ci.yml` menjalankan `npm test` (backend) + `npm run build` (frontend).
+- **Mobile**: Flutter (`mobile/`) — workflow terpisah di `.github/workflows/mobile.yml`. Analisis Flutter tetap `continue-on-error`; build APK berjalan sebagai job terpisah pada push ke `main`/manual (tidak pada PR) dan mengunggah artifact `anyostore-pos-apk`.
+- **Deploy**: Push ke `main` menjalankan CI web dan workflow mobile secara paralel; deploy web hanya mengikuti CI web yang sukses. `deploy.yml` memverifikasi exact full SHA, lalu mengirim `scripts/deploy/release.sh` melalui SSH ke VPS. Script memakai lock, checkout detached ke SHA target, migrasi one-off, image OCI bertag SHA, health check, refresh Caddy, dan verifikasi HTTPS publik `/api/health` + `/version`. Build memakai BuildKit cache mount (`--mount=type=cache` di Dockerfile) supaya `npm ci`/`next build` cepat; prune hanya cache >7 hari (`builder prune -f --filter "until=168h"`) + `image prune -f`, BUKAN `builder prune -af`.
 
 ## Arsitektur Backend
 
@@ -21,7 +21,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 | `src/app.js` | Express setup: helmet, cors, json 6mb, rate limit 600/min, static `/uploads`, mount 18 routers, 404 + error handler |
 | `src/config.js` | Validasi env (DB_HOST/USER/PASS/NAME, JWT_SECRET, JWT_REFRESH_SECRET). Throw kalau kurang |
 | `src/db.js` | mysql2/promise pool, connectionLimit 10 |
-| `src/auth.js` | JWT access 12h + refresh, login password (`/api/auth/login`) & PIN (`/api/auth/login-pin`), `authenticate`, `authorize(roles...)` |
+| `src/auth.js` | JWT access + refresh 365 hari, login password (`/api/auth/login`) & PIN (`/api/auth/login-pin`), `authenticate`, `authorize(roles...)` |
 | `src/media-storage.js` | Storage disk/DB (`MEDIA_STORAGE=database`), `persistUploadedFile`, `removeMedia`, `copyMediaFile`, `serveBlob` |
 | `src/pricing.js` | Satu-satunya logika tier harga (grosir seri/semi grosir/retail + harga wholesale) — dipakai checkout DAN `POST /api/transactions/preview`. JANGAN duplikasi di frontend |
 | `src/stock.js` | Satu-satunya jalur penulisan stok: `adjustStock()` mengubah `warehouse_stocks` + `products.stock` + `product_variants.stock` + `stock_mutations` sekaligus |
@@ -40,8 +40,8 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 | `public.js` | `/api/public` | Landing: settings (multi-WA), categories, products (paginasi/search/sort), products/:id (media+variants) |
 | `products.js` | `/api/products` | CRUD produk, media (max 10 img + 1 video), varian, wholesale prices, categories CRUD, transform foto; `POST /:id/copy` = salin produk (nama + " (Salinan)", SKU unik -C/-C2, barcode kosong, varian+wholesale+foto disalin via copyMediaFile, stok 0); POST `/` TIDAK boleh menyentuh req.params.id; PUT wajib deklarasi `oldProducts` (untuk log harga); route `/:id/copy` JANGAN menamai hasil query `res` (menimpa response Express -> 500) — pakai `ins` |
 | `products.js` | `/api/products/:id/media/:mediaId/image-data` | Ganti file foto dengan hasil crop 1200×1600 (modal Ubah Foto Produk) |
-| `inventory.js` | `/api/inventory` | Warehouse, mutasi, stock-total (branch/all), barcode search, incoming/outgoing per batch (`batch_number` BATCH-YYYYMMDD-NNN, `warehouse_id`, `transaction_date`) |
-| `inventory-control.js` | `/api/inventory-control` | Transfer antar gudang/cabang, opname |
+| `inventory.js` | `/api/inventory` | Warehouse, mutasi, stock-total (branch/all), stock-by-warehouse + posisi rak, barcode search, incoming/outgoing per batch (`batch_number` BATCH-YYYYMMDD-NNN, `warehouse_id`, `transaction_date`) |
+| `inventory-control.js` | `/api/inventory-control` | Transfer antar gudang/cabang, simpan opname dengan snapshot/revision stok, dan riwayat opname beserta detail item |
 | `transactions.js` | `/api/transactions` | Checkout (idempotency `client_transaction_id`), hold/resume, cancel |
 | `printer.js` | `/api/printer` | Struk thermal 58/80mm |
 | `customers.js` | `/api/customers` | CRUD pelanggan + price_tier |
@@ -85,8 +85,10 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 | `products` | branch_id, category_id, name, description, sku (UNIQUE global), barcode, price, cost, stock, min_stock, gender, is_active |
 | `product_variants` | product_id, size, color, sku, barcode, stock, price, is_active |
 | `product_photos` | product_id, variant_id, filename, path, media_type (image/video), is_primary, sort_order, `transform` (scale,x,y) |
-| `warehouse_stocks` | warehouse_id, product_id, variant_id, quantity, reserved_quantity |
+| `warehouse_stocks` | warehouse_id, product_id, variant_id, quantity, reserved_quantity, `rack_position` (VARCHAR(100), nullable) |
 | `warehouses` | branch_id, name, description, type (utama/cadangan/reject) |
+| `stock_opnames` | warehouse_id, branch_id, opname_date, total_items, total_selisih, status, notes, created_by |
+| `stock_opname_items` | opname_id, product_id, variant_id, system_stock, physical_stock, selisih, notes |
 | `transactions` | branch_id, invoice_no, client_transaction_id (UNIQUE), user_id, customer_id, subtotal, discount, grand_total, payment_method, status (completed/cancelled/refunded/pending/held/partially_cancelled/**partially_refunded**), cancelled_amount, **refunded_amount** |
 | `transaction_items` | transaction_id, product_id, variant_id, product_name, quantity, price, original_price, price_override, cost, cancelled_qty, **returned_qty** |
 | `invoice_sequences` | branch_id + business_date (PK), last_number — counter invoice atomik |
@@ -98,7 +100,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 
 ### Migrasi (`backend/migrations/`)
 
-22 file: promotions, branch_contact_tax, denim_variant_stock, product_media (variant_id, media_type), sync_variant_colours, media_files, price_tiers, customer_price_tier, transaction_cancellation, branch_pricing_tier, expense_income_type, commission_per_pcs_customer_tier, product_photo_transform, partial_cancel_purchase_received (tambah `partially_cancelled` ke ENUM status transactions + kolom `received_at` di purchase_orders untuk laporan PPN Masukan), photo_transform_percent (konversi pan px→% supaya crop konsisten lintas ukuran box), stock_mutation_channel (kolom `channel` di stock_mutations: wa/shopee/tiktok/reseller/toko untuk penjualan gudang via channel), warehouse_type (kolom `type` di warehouses: utama/cadangan/reject untuk gudang barang reject), rename_gudang_utara (rename nama gudang legacy 'Gudang Utara' → 'Gudang Utama'), branch_type (kolom `type` di branches: toko/gudang — gudang murni stok tanpa POS), sales_channels (tabel `sales_channels` + CRUD di `/api/inventory/channels` untuk saluran penjualan dinamis), branch_type_gudang_names (tandai cabang bernama 'Gudang…'/'Riject' sebagai type gudang supaya dipilih admin gudang), warehouse_names_match_branch (rename gudang mengikuti nama cabang: 'Gudang Anyostore Metro', 'Gudang Toko B', dll), stock_mutation_reference_bigint (ubah `stock_mutations.reference_id` INT → BIGINT karena dipakai menyimpan batch id Date.now() 13 digit).
+42 file saat ini: seluruh migrasi katalog, media, harga, cabang, mutasi, retur, komisi, foto, channel, dan tipe gudang yang sudah tercantum di bawah, ditambah migrasi terbaru `20260812_*` (username, transaksi offline, default commission rules), `20260909_auth_refresh_sessions.sql`, `20260909_auth_user_token_version.sql`, `20260909_inventory_safety.sql`, `20260909_transfer_destination_identity.sql`, `20260909_warehouse_catalog_permission.sql`, `20260909_warehouse_catalog_permission_seed.sql`, dan `20260924_warehouse_stock_rack_position.sql` (menambah `warehouse_stocks.rack_position` untuk posisi rak per gudang dan produk/varian). Migrasi lama mencakup promotions, branch_contact_tax, denim_variant_stock, product_media (variant_id, media_type), sync_variant_colours, media_files, price_tiers, customer_price_tier, transaction_cancellation, branch_pricing_tier, expense_income_type, commission_per_pcs_customer_tier, product_photo_transform, partial_cancel_purchase_received (tambah `partially_cancelled` ke ENUM status transactions + kolom `received_at` di purchase_orders untuk laporan PPN Masukan), photo_transform_percent (konversi pan px→% supaya crop konsisten lintas ukuran box), stock_mutation_channel (kolom `channel` di `stock_mutations`: wa/shopee/tiktok/reseller/toko untuk penjualan gudang via channel), warehouse_type (kolom `type` di `warehouses`: utama/cadangan/reject untuk gudang barang reject), rename_gudang_utara (rename nama gudang legacy 'Gudang Utara' → 'Gudang Utama'), branch_type (kolom `type` di `branches`: toko/gudang — gudang murni stok tanpa POS), sales_channels (tabel `sales_channels` + CRUD di `/api/inventory/channels` untuk saluran penjualan dinamis), branch_type_gudang_names (tandai cabang bernama 'Gudang…'/'Riject' sebagai type gudang supaya dipilih admin gudang), warehouse_names_match_branch (rename gudang mengikuti nama cabang: 'Gudang Anyostore Metro', 'Gudang Toko B', dll), stock_mutation_reference_bigint (ubah `stock_mutations.reference_id` INT → BIGINT karena dipakai menyimpan batch id Date.now() 13 digit).
 
 **Migrasi**: `migrate.js` hanya toleran terhadap error idempotent (duplicate column/entry/already exists, misalnya saat initdb sudah memasang schema lalu migrate.js menjalankan file yang sama). Error lain = kegagalan nyata: file TIDAK ditandai selesai, script exit 1, dan dicoba ulang saat restart/deploy berikutnya. Cari `[migrate] FAILED` di log container backend kalau migrasi baru tidak kelihatan terpasang.
 
@@ -146,11 +148,11 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 | `/products` | `products/page.js` | Daftar produk |
 | `/products/new` | `products/new/page.js` | Tambah produk |
 | `/products/[id]/edit` | `products/[id]/edit/page.js` | Edit produk + media + varian |
-| `/inventory` | `inventory/page.js` | Stok (tab: Stok Gudang per-gudang / Laporan Stok agregat, kelola gudang) |
+| `/inventory` | `inventory/page.js` + `stock-view.js` | Stok per produk/varian dalam matriks gudang (desktop) atau kartu (mobile), foto produk, total/agregat, filter cabang/kategori, dan edit posisi rak per gudang |
 | `/inventory/movements` | `inventory/movements/page.js` | Riwayat stok (card list) |
 | `/inventory/mutations` | `inventory/mutations/page.js` | Mutasi stok: form transaksi (tanggal, batch/nota, toko, gudang, keterangan) + katalog grid (foto, stok per gudang, warna) + keranjang; dropdown channel untuk keluar |
 | `/inventory/transfers` | `inventory/transfers/page.js` | Transfer stok antar gudang/cabang (auto-buat produk di tujuan) |
-| `/inventory/{barcodes,opname}` | ... | Cetak barcode, opname |
+| `/inventory/{barcodes,opname}` | ... | Cetak barcode, opname dengan snapshot stok/revision agar konflik terdeteksi, serta riwayat opname yang dapat dibuka untuk melihat detail per item |
 | `/finance` | `finance/page.js` | Keuangan (tab: Ringkasan Laba Rugi / Pengeluaran / Pemasukan) |
 | `/reports` | `reports/page.js` | Laporan (owner pilih toko) |
 | `/reports/tax` | `reports/tax/page.js` | PPN/Faktur/PPh23 |
@@ -170,6 +172,8 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 - `FloatingWA.js` — tombol WA mengambang multi-admin
 - `CategoryManager.js` — CRUD kategori (dipakai di settings)
 - `NotificationCenter.js`, `BarcodeLabel.js`
+
+Semua pemakaian `SafeImage` wajib mengimpor komponen tersebut secara eksplisit. `stock-view.js` pernah menyebabkan halaman stok gagal render (`ReferenceError: SafeImage is not defined`, yang dapat muncul sebagai React error #418); regression test frontend menjaga import ini tetap ada.
 
 ## Desain UI
 
@@ -191,12 +195,14 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 ## Deploy & CI/CD
 
 ### Workflow
-1. Push ke `main` → `ci.yml` (test + build) dan `deploy.yml` jalan otomatis (bisa juga dipicu manual via Actions → Run workflow)
-2. `deploy.yml`: SSH ke VPS → `git pull` → `image prune -f` + `builder prune -f --filter "until=168h"` → `docker compose up -d --build` → `docker compose ps` → cek log backend: kalau ada `[migrate] FAILED`/`[migrate] fatal`, deploy **gagal** (backend tetap start karena entrypoint pakai `|| true`, tapi error tidak disembunyikan lagi)
-3. Caddy handle HTTPS otomatis (Let's Encrypt)
+1. Push ke `main` menjalankan `.github/workflows/ci.yml` untuk web dan `.github/workflows/mobile.yml` untuk mobile secara paralel. CI web menjalankan backend test serialized (`npm test -- --test-concurrency=1`), audit, regression/release tests, dan frontend build. Workflow mobile menjalankan `flutter pub get`, format/analyze, serta build APK pada push/main atau manual; job analyzer mobile boleh `continue-on-error`, job APK tidak menjadi bagian dari gate deploy web.
+2. Setelah CI web sukses, `.github/workflows/deploy.yml` memverifikasi CI untuk exact full 40-character SHA. Deploy kemudian mengirim `scripts/deploy/release.sh` melalui SSH; script memperoleh lock, memastikan checkout VPS bersih, fetch `origin/main`, memastikan SHA ada di history, checkout detached ke SHA, menjalankan migrasi one-off, build dengan tag SHA, merecreate backend/frontend/Caddy, menunggu health `running healthy` dengan revision yang sama, lalu memverifikasi HTTPS publik `/api/health` dan `/version`. Deploy otomatis tidak menerima release lama yang sudah terlewati; retry/rollback harus memakai workflow manual dengan SHA penuh.
+3. Jika verifikasi lokal VPS berhasil tetapi verifikasi publik gagal, cek image/revision container, nama container live, dan routing Caddy sebelum retry. Jangan menganggap deploy selesai hanya karena `docker compose up` sukses.
+4. Caddy handle HTTPS otomatis (Let's Encrypt).
 
 ### Docker compose production
 - `db` (mysql:8.4, initdb.d = semua migration), `backend`, `frontend`, `caddy`
+- Backend/frontend live memakai nama tetap `anyostore-backend-live` dan `anyostore-frontend-live`; image aplikasi ditag dengan exact `RELEASE_SHA` dan label OCI `org.opencontainers.image.revision` yang sama. Jangan menyimpulkan release dari nama project Compose lama (`anyostore-pos-backend-1`/`anyostore-pos-frontend-1`) saja.
 - Backend entrypoint: `node scripts/migrate.js || true; node scripts/fix-clone-paths.js || true; node src/index.js`
 - Frontend build arg: `NEXT_PUBLIC_API_URL=/api`
 - Caddy route: `/api/*` dan `/uploads/*` → backend, sisanya → frontend
@@ -205,6 +211,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 
 - **Next.js 16**: `params` di client component pakai `useParams()` dari `next/navigation`, BUKAN `use(params)` atau `params?.id` (bisa undefined → fetch `/api/products/undefined`).
 - **Hydration error #418**: jangan pakai `new Date()` di render awal client component (server UTC vs browser WIB beda). Lazy-init state kosong, isi via `useEffect`.
+- **SafeImage crash**: setiap file yang merender `<SafeImage>` harus memiliki import `../components/SafeImage` (sesuaikan path). Missing import dapat menghentikan seluruh render halaman stok dengan `ReferenceError` dan memicu error React #418.
 - **CSS globals.css** punya banyak aturan duplikat (JANGAN tambah aturan `button`/`a` global yang menimpa — sudah diperbaiki 2026-08-16: tema blue/purple hanya ubah CSS var + `.app-main a`; sidebar punya guard keterbacaan `.sidebar a/button` sendiri) (`.app-shell`, `.sidebar`, `.app-main`) yang saling override. Saat ubah layout, cek duplikat (terutama yang di `@media`).
 - **OneDrive**: repo aktif DI /Users/anyo/Library/CloudStorage/OneDrive-Personal/pos-pakaian (workspace Codex, satu-satunya dengan commit terbaru). ~/Documents/POS_ANYOSTORE adalah salinan lama — jangan dipakai. Catatan dev: .env dev MYSQL_ROOT_PASSWORD=pos_dev_mysql_2026, JWT_SECRET=pos_dev_access_secret_change_before_production, JWT_REFRESH_SECRET=pos_dev_refresh_secret_change_before_production; .env.production hanya ada di VPS/GitHub Secrets, tidak di repo. Git: jika muncul "dubious ownership" di /opt/homebrew/share/flutter, tambahkan `git config --global --add safe.directory /opt/homebrew/share/flutter`; jika flutter "Permission denied" pada cache, perbaiki kepemilikan sekali dengan `sudo chown -R <user>:admin /opt/homebrew/share/flutter`.
 - **Sidebar AppShell**: `position: fixed`, collapsible (state `pos_sidebar_collapsed` di localStorage), margin konten via class `.app-main.sidebar-collapsed`.
@@ -279,7 +286,7 @@ Aplikasi Android (Flutter, folder mobile/) sudah melalui banyak perubahan. Dokum
 - File baru: lib/src/theme_controller.dart (ThemeMode + SharedPreferences), lib/src/notification_service.dart (notif lokal & jadwal harian), lib/src/backup_service.dart (backup JSON ke dokumen + cek jadwal + cek stok rendah). Main.dart memanggil NotificationService.init() + cek stok + auto-backup + jadwal pengingat saat app dibuka (hanya kalau sudah login).
 - ApiClient._request membungkus error jaringan (TimeoutException/SocketException/http.ClientException) menjadi ApiException(isNetwork: true) dengan pesan ramah — SEMUA halaman cukup catch `on ApiException`. 401: coba refresh dulu; kalau refresh GAGAL -> TIDAK logout otomatis (sesi tetap; logout hanya tombol Keluar). Deteksi offline di pos_page memakai `e is ApiException && e.isNetwork` (atau tipe mentah) supaya mode offline tetap jalan.
 - Dependensi baru di pubspec.yaml: share_plus, flutter_local_notifications, timezone, path_provider.
-- Build APK: JANGAN build di folder OneDrive (APK korup ZIP_BAD). Rsync mobile/ ke /private/tmp/mbuild2, build di sana, copy hasilnya. Gradle butuh ANDROID_HOME=/opt/homebrew/share/android-commandlinetools dan JAVA_HOME=/opt/homebrew/opt/openjdk@17 (di mesin ini). CI job android-apk (ci.yml) membangun APK & upload artifact.
+- Build APK: JANGAN build di folder OneDrive (APK korup ZIP_BAD). Rsync mobile/ ke `/private/tmp/mbuild2`, build di sana, copy hasilnya. Gradle butuh `ANDROID_HOME=/opt/homebrew/share/android-commandlinetools` dan `JAVA_HOME=/opt/homebrew/opt/openjdk@17` (di mesin ini). CI build APK berada di `.github/workflows/mobile.yml` (bukan `ci.yml`), berjalan pada push ke `main`/manual, dan upload artifact `anyostore-pos-apk`. Untuk build lokal, hasil utama tetap `mobile/build/app/outputs/flutter-apk/app-release.apk` setelah disalin kembali ke workspace.
 - ATURAN: SETIAP perubahan/edit aplikasi mobile WAJIB langsung produksi juga kedua artefak build: APK di `mobile/build/app/outputs/flutter-apk/app-release.apk` dan IPA (development export) di `mobile/build/ios/ipa/anyostore-app.ipa` — lalu copy ke workspace. Urutan: flutter build apk --release; flutter build ipa --release (archive; export App Store gagal utk akun gratis — wajar); xcodebuild -exportArchive ... -exportOptionsPlist /private/tmp/export_dev.plist (method development) -> ipa_dev. Instal juga ke perangkat (Android via adb, iOS via devicectl; iOS perlu uninstall dulu kalau ada error MismatchedApplicationIdentifierEntitlement, dan user harus Trust developer di iPhone).
 
 ### Backend tambahan
@@ -293,7 +300,7 @@ Aplikasi Android (Flutter, folder mobile/) sudah melalui banyak perubahan. Dokum
 - Migrasi baru: 20260812_user_username.sql, 20260812_offline_transaction_sync.sql, 20260812_default_commission_rules.sql.
 
 ### Web
-- Web sengaja tetap desain lama (hanya login web yang pernah diubah lalu di-revert; fokus pengembangan di Android). Backend yang sama membuat web otomatis mendukung login username/email dan fitur backend lainnya.
+- Web dan mobile sekarang didokumentasikan/dirilis terpisah: perubahan web mengikuti CI + deploy exact-SHA, sedangkan APK mengikuti workflow mobile. Web tetap memakai desain admin yang sudah ada, tetapi fitur operasional web aktif dipelihara; versi terbaru mencakup tampilan stok per gudang dengan foto serta edit posisi rak. Backend yang sama membuat web otomatis mendukung login username/email dan fitur backend lainnya.
 
 ## Perintah
 

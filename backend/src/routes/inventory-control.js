@@ -54,6 +54,128 @@ async function change(
 }
 
 router.get(
+  "/opnames",
+  authorize("owner", "manager", "admin", "gudang"),
+  async (req, res, next) => {
+    try {
+      const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+      const limit = Math.min(100, Math.max(10, Number.parseInt(req.query.limit, 10) || 25));
+      const offset = (page - 1) * limit;
+      const where = ["1=1"];
+      const params = [];
+      const requestedBranch = String(req.query.branch_id || "");
+      const requestedBranchId = Number(requestedBranch);
+
+      if (!(req.user.role === "owner" && requestedBranch === "all")) {
+        const branchId = req.user.role === "owner" && Number.isInteger(requestedBranchId) && requestedBranchId > 0
+          ? requestedBranchId
+          : Number(req.user.branch_id);
+        if (!Number.isInteger(branchId) || branchId <= 0) throw fail(400, "Cabang riwayat opname tidak valid");
+        where.push("so.branch_id = ?");
+        params.push(branchId);
+      }
+
+      if (req.query.warehouse_id !== undefined && req.query.warehouse_id !== "") {
+        const warehouseId = Number(req.query.warehouse_id);
+        if (!Number.isInteger(warehouseId) || warehouseId <= 0) throw fail(400, "Gudang riwayat opname tidak valid");
+        where.push("so.warehouse_id = ?");
+        params.push(warehouseId);
+      }
+
+      const validDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
+      const dateFrom = String(req.query.date_from || req.query.start || "");
+      const dateTo = String(req.query.date_to || req.query.end || "");
+      if (dateFrom && !validDate(dateFrom)) throw fail(400, "Tanggal mulai riwayat opname tidak valid");
+      if (dateTo && !validDate(dateTo)) throw fail(400, "Tanggal akhir riwayat opname tidak valid");
+      if (dateFrom) { where.push("so.opname_date >= ?"); params.push(dateFrom); }
+      if (dateTo) { where.push("so.opname_date <= ?"); params.push(dateTo); }
+
+      const whereSql = where.join(" AND ");
+      const [rows] = await db.execute(
+        `SELECT
+           so.id,
+           so.opname_date,
+           so.total_items,
+           so.total_selisih,
+           so.status,
+           so.notes,
+           so.created_at,
+           so.warehouse_id,
+           w.name AS warehouse_name,
+           so.branch_id,
+           b.name AS branch_name,
+           creator.name AS created_by_name,
+           approver.name AS approved_by_name,
+           COUNT(soi.id) AS item_count
+         FROM stock_opnames so
+         JOIN warehouses w ON w.id = so.warehouse_id
+         JOIN branches b ON b.id = so.branch_id
+         LEFT JOIN users creator ON creator.id = so.created_by
+         LEFT JOIN users approver ON approver.id = so.approved_by
+         LEFT JOIN stock_opname_items soi ON soi.opname_id = so.id
+         WHERE ${whereSql}
+         GROUP BY so.id, so.opname_date, so.total_items, so.total_selisih,
+           so.status, so.notes, so.created_at, so.warehouse_id, w.name,
+           so.branch_id, b.name, creator.name, approver.name
+         ORDER BY so.opname_date DESC, so.id DESC
+         LIMIT ${limit} OFFSET ${offset}`,
+        params,
+      );
+      const [countRows] = await db.execute(
+        `SELECT COUNT(*) AS total FROM stock_opnames so WHERE ${whereSql}`,
+        params,
+      );
+      const total = Number(countRows[0]?.total || 0);
+      const ids = rows.map((row) => row.id);
+      const itemsByOpname = new Map();
+      if (ids.length) {
+        const placeholders = ids.map(() => "?").join(",");
+        const [items] = await db.execute(
+          `SELECT
+             soi.opname_id,
+             soi.product_id,
+             soi.variant_id,
+             p.name AS product_name,
+             p.sku AS product_sku,
+             pv.color AS variant_color,
+             pv.size AS variant_size,
+             soi.system_stock,
+             soi.physical_stock,
+             soi.selisih,
+             soi.notes AS item_notes
+           FROM stock_opname_items soi
+           JOIN products p ON p.id = soi.product_id
+           LEFT JOIN product_variants pv ON pv.id = soi.variant_id
+           WHERE soi.opname_id IN (${placeholders})
+           ORDER BY soi.opname_id, soi.id`,
+          ids,
+        );
+        for (const item of items) {
+          const list = itemsByOpname.get(item.opname_id) || [];
+          list.push(item);
+          itemsByOpname.set(item.opname_id, list);
+        }
+      }
+      res.json({
+        success: true,
+        data: rows.map((row) => ({
+          ...row,
+          total_items: Number(row.total_items || 0),
+          total_selisih: Number(row.total_selisih || 0),
+          item_count: Number(row.item_count || 0),
+          items: itemsByOpname.get(row.id) || [],
+        })),
+        total,
+        page,
+        totalPages: Math.ceil(total / limit),
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.get(
   "/transfers/history",
   authorize("owner", "manager", "admin", "gudang"),
   async (req, res, next) => {
