@@ -1,7 +1,7 @@
 const fail = (status, message) => Object.assign(new Error(message), { status });
 
 function integer(value) {
-  return Number.isSafeInteger(value) || (typeof value === 'string' && /^\d+$/.test(value) && value.length <= 20);
+  return Number.isSafeInteger(value) || (typeof value === 'string' && /^-?\d+$/.test(value) && value.length <= 20);
 }
 function positiveId(value) {
   return integer(value) && Number(value) > 0;
@@ -24,7 +24,10 @@ function validateOpnameItems(items) {
         || !integer(item.physical_stock) || Number(item.physical_stock) < 0) {
       throw fail(400, 'Stok fisik wajib diisi dengan bilangan bulat 0 atau lebih.');
     }
-    if (!integer(item.expected_stock) || Number(item.expected_stock) < 0
+    // Stok sistem bisa negatif karena histori mutasi lama/over-selling. Itu
+    // tetap merupakan snapshot yang valid dan harus dikoreksi lewat opname;
+    // yang wajib >= 0 hanya stok fisik hasil hitungan.
+    if (!integer(item.expected_stock)
         || !integer(item.expected_revision) || Number(item.expected_revision) < 0) {
       throw fail(400, 'Data stok berubah. Muat ulang halaman opname sebelum menyimpan.');
     }

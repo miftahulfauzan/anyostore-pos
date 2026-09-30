@@ -19,7 +19,7 @@ router.use(authenticate);
 const fail = (s, m) => Object.assign(new Error(m), { status: s });
 async function balance(c, warehouseId, productId, variantId) {
   const [r] = await c.execute(
-    "SELECT id, quantity, revision FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id <=> ? FOR UPDATE",
+    "SELECT id, quantity, CAST(revision AS CHAR) AS revision FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id <=> ? FOR UPDATE",
     [warehouseId, productId, variantId],
   );
   return r[0];
@@ -37,7 +37,7 @@ async function change(
   refId,
 ) {
   const row = await balance(c, warehouseId, productId, variantId);
-  const before = row?.quantity || 0;
+  const before = Number(row?.quantity ?? 0);
   const after = before + qty;
   if (after < 0) throw fail(400, "Stok gudang tidak mencukupi");
   await adjustStock(c, {
@@ -837,7 +837,7 @@ router.post(
           variantId,
         );
         assertStockSnapshot(item, row);
-        const system = row?.quantity || 0;
+        const system = Number(row?.quantity ?? 0);
         const delta = physical - system;
         diff += delta;
         await c.execute(

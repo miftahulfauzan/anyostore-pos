@@ -17,6 +17,16 @@ test('opname rejects stale quantity AND ABA changes with the same quantity', () 
   assert.throws(() => assertStockSnapshot(counted, { quantity: 4, revision: 4 }), { status: 409 });
   assert.doesNotThrow(() => assertStockSnapshot({ ...counted, expected_stock: 0, expected_revision: 0 }, undefined));
 });
+test('opname menerima stok sistem negatif sebagai snapshot yang perlu dikoreksi', () => {
+  const negativeSnapshot = { ...counted, expected_stock: -1, expected_revision: '7', physical_stock: 0 };
+  assert.doesNotThrow(() => validateOpnameItems([negativeSnapshot]));
+  assert.doesNotThrow(() => assertStockSnapshot(negativeSnapshot, { quantity: -1, revision: '7' }));
+});
+test('opname menerima stok negatif yang dikembalikan MySQL sebagai string', () => {
+  const negativeSnapshot = { ...counted, expected_stock: '-1', expected_revision: '7', physical_stock: 0 };
+  assert.doesNotThrow(() => validateOpnameItems([negativeSnapshot]));
+  assert.doesNotThrow(() => assertStockSnapshot(negativeSnapshot, { quantity: '-1', revision: '7' }));
+});
 test('transfer variant identity includes color and size, supports size-only, and refuses ambiguity', () => {
   const rows = [{ id: 1, color: 'Denim', size: 'M' }, { id: 2, color: 'denim', size: 'L' }];
   assert.equal(matchingVariant(rows, { color: ' DENIM ', size: 'l' }).id, 2);
