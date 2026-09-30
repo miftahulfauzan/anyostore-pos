@@ -36,7 +36,7 @@ test('workflow YAML gates exact-SHA deploy on CI and serializes releases without
   assert.equal(steps[ssh].env.VPS_HOST, 'anyostore.my.id');
   assert.match(steps[ssh].run, /getent ahostsv4/);
   assert.match(steps[ssh].run, /api\.ipify\.org/);
-  assert.match(steps[ssh].run, /EXPECTED_APP_DOMAIN=anyostore\.my\.id bash -s --/);
+  assert.match(steps[ssh].run, /EXPECTED_APP_DOMAIN=anyostore\.my\.id DEPLOY_DIR=\/home\/ubuntu\/anyostore-pos bash -s --/);
   assert.match(steps.find(step => step.name === 'Verify public production release').run, /https:\/\/anyostore\.my\.id/);
   assert.ok(ci.jobs.frontend.steps.some(step => (step.run || '').includes('../scripts/deploy/test/*.test.cjs')));
   assert.equal(String(ci.jobs.backend.steps.find(step => step.uses?.startsWith('actions/setup-node')).with['node-version']), '22');
