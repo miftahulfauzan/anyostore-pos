@@ -19,10 +19,15 @@ test('stock mutation entry points use separate incoming and outgoing pages', () 
 
 test('mobile mutation cart stays collapsed until opened and uses a full-width bottom sheet', () => {
   assert.match(globalsCss, /\.mutasi-cart:not\(\.open\) \{ display: none !important; \}/);
-  assert.match(globalsCss, /\.mutasi-cart\.open \{ display: grid; position: fixed; right: 0; bottom: 0; left: 0;/);
-  assert.match(globalsCss, /max-height: min\(78dvh, 680px\)/);
+  assert.match(globalsCss, /\.mutasi-cart\.open \{ display: grid; position: fixed; right: 0; bottom: var\(--mutasi-cart-viewport-bottom, 0px\); left: 0;/);
+  assert.match(globalsCss, /height: var\(--mutasi-cart-drawer-height, min\(78dvh, 680px\)\)/);
+  assert.match(globalsCss, /max-height: var\(--mutasi-cart-viewport-height, calc\(100dvh - env\(safe-area-inset-top, 0px\) - 8px\)\)/);
+  assert.match(globalsCss, /grid-template-rows: auto minmax\(0, 1fr\) auto/);
+  assert.match(globalsCss, /\.mutasi-cart-list \{[^}]*overflow-y: auto;[^}]*overscroll-behavior-y: contain;[^}]*touch-action: pan-y;/s);
   assert.match(globalsCss, /\.cart-fab \{[^}]*position: fixed;[^}]*left: 10px;/s);
   assert.match(mutationPage, /aria-expanded=\{cartOpen\}/);
+  assert.match(mutationPage, /window\.visualViewport\?\.addEventListener\('resize', syncCartViewport\)/);
+  assert.match(mutationPage, /keepFocusedQuantityVisible/);
   assert.match(mutationPage, /\{!cartOpen && cart\.length > 0 && <button/);
   assert.doesNotMatch(mutationPage, /className="cart-fab"[^>]*disabled=\{!cart\.length\}/);
 });
