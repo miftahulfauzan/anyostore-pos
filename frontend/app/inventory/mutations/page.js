@@ -134,7 +134,51 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
   useEffect(() => {
     if (!cartOpen || !window.matchMedia('(max-width: 900px)').matches) return undefined;
     document.body.classList.add('mobile-cart-active');
-    return () => document.body.classList.remove('mobile-cart-active');
+    const root = document.documentElement;
+    const viewportProperties = [
+      '--mutasi-cart-viewport-height',
+      '--mutasi-cart-viewport-bottom',
+      '--mutasi-cart-drawer-height',
+    ];
+    const previousProperties = viewportProperties.map((property) => root.style.getPropertyValue(property));
+
+    function keepFocusedQuantityVisible() {
+      const input = document.activeElement;
+      if (!input?.classList?.contains('mutasi-cart-qty')) return;
+      const list = input.closest('.mutasi-cart-list');
+      const row = input.closest('.mutasi-cart-item');
+      if (!list || !row) return;
+      const listBounds = list.getBoundingClientRect();
+      const rowBounds = row.getBoundingClientRect();
+      if (rowBounds.bottom > listBounds.bottom) list.scrollTop += rowBounds.bottom - listBounds.bottom + 8;
+      else if (rowBounds.top < listBounds.top) list.scrollTop -= listBounds.top - rowBounds.top + 8;
+    }
+
+    function syncCartViewport() {
+      const viewport = window.visualViewport;
+      const height = Math.max(1, Math.round(viewport?.height || window.innerHeight));
+      const top = Math.max(0, Math.round(viewport?.offsetTop || 0));
+      const bottom = Math.max(0, Math.round(window.innerHeight - height - top));
+      root.style.setProperty('--mutasi-cart-viewport-height', `${height}px`);
+      root.style.setProperty('--mutasi-cart-viewport-bottom', `${bottom}px`);
+      root.style.setProperty('--mutasi-cart-drawer-height', `${Math.min(height * 0.78, 680)}px`);
+      window.requestAnimationFrame(keepFocusedQuantityVisible);
+    }
+
+    syncCartViewport();
+    window.addEventListener('resize', syncCartViewport);
+    window.visualViewport?.addEventListener('resize', syncCartViewport);
+    window.visualViewport?.addEventListener('scroll', syncCartViewport);
+    return () => {
+      document.body.classList.remove('mobile-cart-active');
+      window.removeEventListener('resize', syncCartViewport);
+      window.visualViewport?.removeEventListener('resize', syncCartViewport);
+      window.visualViewport?.removeEventListener('scroll', syncCartViewport);
+      viewportProperties.forEach((property, index) => {
+        if (previousProperties[index]) root.style.setProperty(property, previousProperties[index]);
+        else root.style.removeProperty(property);
+      });
+    };
   }, [cartOpen]);
 
   function openCart() {
@@ -302,7 +346,19 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
                 type="number"
                 min="1"
                 value={c.quantity}
-                onFocus={(e) => e.currentTarget.select()}
+                onFocus={(e) => {
+                  const input = e.currentTarget;
+                  input.select();
+                  window.setTimeout(() => {
+                    const list = input.closest('.mutasi-cart-list');
+                    const row = input.closest('.mutasi-cart-item');
+                    if (!list || !row) return;
+                    const listBounds = list.getBoundingClientRect();
+                    const rowBounds = row.getBoundingClientRect();
+                    if (rowBounds.bottom > listBounds.bottom) list.scrollTop += rowBounds.bottom - listBounds.bottom + 8;
+                    else if (rowBounds.top < listBounds.top) list.scrollTop -= listBounds.top - rowBounds.top + 8;
+                  }, 100);
+                }}
                 onClick={(e) => e.currentTarget.select()}
                 onChange={(e) => setQty(c.key, e.target.value)}
                 aria-label={`Jumlah ${c.name}${c.color ? ` ${c.color}` : ''}`}

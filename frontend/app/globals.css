@@ -2202,12 +2202,14 @@ button.pcard-btn { font-family: inherit; }
     pointer-events: auto;
   }
   .mutasi-cart:not(.open) { display: none !important; }
-  .mutasi-cart.open { display: grid; position: fixed; right: 0; bottom: 0; left: 0;
+  .mutasi-cart.open { display: grid; position: fixed; right: 0; bottom: var(--mutasi-cart-viewport-bottom, 0px); left: 0;
     z-index: 100;
     width: 100% !important;
     max-width: none;
-    max-height: min(78dvh, 680px);
+    height: var(--mutasi-cart-drawer-height, min(78dvh, 680px));
+    max-height: var(--mutasi-cart-viewport-height, calc(100dvh - env(safe-area-inset-top, 0px) - 8px));
     min-height: 0;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     margin: 0;
     padding: 0;
     overflow: hidden;
@@ -2239,7 +2241,9 @@ button.pcard-btn { font-family: inherit; }
   .mutasi-cart-list {
     min-height: 0;
     overflow-y: auto;
+    overscroll-behavior-y: contain;
     padding: 0 16px;
+    touch-action: pan-y;
     -webkit-overflow-scrolling: touch;
   }
   .mutasi-cart-item { gap: 10px; padding: 12px 0; }
@@ -2253,6 +2257,13 @@ button.pcard-btn { font-family: inherit; }
     border-top: 1px solid var(--border);
     background: var(--card);
   }
+  .mutasi-cart-footer .message {
+    max-height: 56px;
+    overflow-y: auto;
+    overflow-wrap: anywhere;
+    overscroll-behavior-y: contain;
+  }
+  .mutasi-cart-header .cart-close { width: 44px; min-height: 44px; }
   .mutasi-cart-summary { font-size: 15px; }
   .mutasi-cart-submit { min-height: 48px; }
 }
