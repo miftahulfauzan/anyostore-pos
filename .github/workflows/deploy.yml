@@ -100,7 +100,7 @@ jobs:
           runtime=$(ssh "${ssh_opts[@]}" "$VPS_USER@$VPS_HOST" '
             backend=$(sudo docker inspect -f "{{.Config.Image}}" anyostore-backend-live 2>/dev/null || echo missing)
             frontend=$(sudo docker inspect -f "{{.Config.Image}}" anyostore-frontend-live 2>/dev/null || echo missing)
-            backend_local=$(sudo docker exec anyostore-backend-live wget -qO- http://127.0.0.1:3001/version 2>/dev/null || echo unavailable)
+            backend_local=$(sudo docker exec anyostore-backend-live wget -qO- http://127.0.0.1:3001/api/health 2>/dev/null || echo unavailable)
             frontend_local=$(sudo docker exec anyostore-frontend-live wget -qO- http://127.0.0.1:3000/version 2>/dev/null || echo unavailable)
             containers=$(sudo docker ps --format "{{.Names}}={{.Image}}" | tr "\\n" ";")
             all_containers=$(sudo docker ps -a --format "{{.Names}}={{.Image}}={{.Status}}" | grep -E "anyostore|pos-" | tr "\\n" ";")
@@ -121,17 +121,8 @@ jobs:
               if body=$(curl --fail --silent --show-error --proto '=https' --connect-timeout 3 --max-time 5 \
                 -H 'Cache-Control: no-cache' "https://anyostore.my.id${endpoint}?release=${DEPLOY_SHA}"); then
                 last_body=$body
-                if printf '%s' "$body" | python3 -c '
-                import json, sys
-                try:
-                    body = json.load(sys.stdin)
-                    valid = isinstance(body, dict) and body.get("release_sha") == sys.argv[1]
-                    if sys.argv[2] == "/api/health":
-                        valid = valid and body.get("ok") is True
-                    sys.exit(0 if valid else 1)
-                except (ValueError, TypeError):
-                    sys.exit(1)
-                ' "$DEPLOY_SHA" "$endpoint"; then
+                if printf '%s' "$body" | jq -e --arg sha "$DEPLOY_SHA" --arg endpoint "$endpoint" \
+                  '(.release_sha == $sha) and ($endpoint != "/api/health" or .ok == true)' >/dev/null; then
                   echo "Verified public ${endpoint} at ${DEPLOY_SHA}"
                   return 0
                 fi
