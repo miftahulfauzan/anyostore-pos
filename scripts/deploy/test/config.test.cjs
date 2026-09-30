@@ -30,9 +30,12 @@ test('workflow YAML gates exact-SHA deploy on CI and serializes releases without
   assert.equal(deploy.permissions.actions, 'read');
   const steps = deploy.jobs.deploy.steps;
   const gate = steps.findIndex(step => step.id === 'ci');
-  const ssh = steps.findIndex(step => (step.run || '').includes('ssh -i'));
+  const ssh = steps.findIndex(step => (step.run || '').includes('ssh_opts'));
   assert.ok(gate >= 0 && ssh > gate);
   assert.match(steps[ssh].env.DEPLOY_SHA, /steps\.ci\.outputs\.sha/);
+  assert.equal(steps[ssh].env.VPS_HOST, 'anyostore.my.id');
+  assert.match(steps[ssh].run, /getent ahostsv4/);
+  assert.match(steps[ssh].run, /api\.ipify\.org/);
   assert.match(steps[ssh].run, /EXPECTED_APP_DOMAIN=anyostore\.my\.id bash -s --/);
   assert.match(steps.find(step => step.name === 'Verify public production release').run, /https:\/\/anyostore\.my\.id/);
   assert.ok(ci.jobs.frontend.steps.some(step => (step.run || '').includes('../scripts/deploy/test/*.test.cjs')));

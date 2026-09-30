@@ -51,7 +51,10 @@ jobs:
         env:
           DEPLOY_SHA: ${{ steps.ci.outputs.sha }}
           DEPLOY_MODE: ${{ steps.ci.outputs.mode }}
-          VPS_HOST: ${{ secrets.VPS_HOST }}
+          # The production hostname is authoritative. Using a separate host
+          # secret previously allowed SSH to succeed on the wrong VPS while
+          # anyostore.my.id kept serving the old release.
+          VPS_HOST: anyostore.my.id
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
@@ -63,15 +66,26 @@ jobs:
           trap 'rm -f "$deploy_ssh_dir/key" "$deploy_ssh_dir/known_hosts" "$deploy_log"; rmdir "$deploy_ssh_dir"' EXIT
           printf '%s\n' "$VPS_SSH_KEY" > "$deploy_ssh_dir/key"
           chmod 600 "$deploy_ssh_dir/key"
+          ssh_opts=(
+            -i "$deploy_ssh_dir/key"
+            -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=accept-new
+            -o UserKnownHostsFile="$deploy_ssh_dir/known_hosts"
+            -o ServerAliveInterval=30
+            -o ServerAliveCountMax=6
+            -o ConnectTimeout=15
+            -o LogLevel=ERROR
+          )
+          expected_ips=$(getent ahostsv4 "$VPS_HOST" | awk '{print $1}' | sort -u)
+          [[ -n "$expected_ips" ]] || { echo "::error::Production hostname did not resolve: $VPS_HOST"; exit 1; }
+          remote_ip=$(ssh "${ssh_opts[@]}" "$VPS_USER@$VPS_HOST" 'curl -4fsS --max-time 10 https://api.ipify.org')
+          if ! grep -Fxq "$remote_ip" <<< "$expected_ips"; then
+            echo "::error title=Production SSH target mismatch::SSH host $VPS_HOST resolved to [$expected_ips], but the connected server reports public IP $remote_ip"
+            exit 1
+          fi
+          echo "Verified SSH target $VPS_HOST -> $remote_ip"
           set +e
-          ssh -i "$deploy_ssh_dir/key" \
-              -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new \
-              -o UserKnownHostsFile="$deploy_ssh_dir/known_hosts" \
-              -o ServerAliveInterval=30 \
-              -o ServerAliveCountMax=6 \
-              -o ConnectTimeout=15 \
-              -o LogLevel=ERROR \
+          ssh "${ssh_opts[@]}" \
               "$VPS_USER@$VPS_HOST" "EXPECTED_APP_DOMAIN=anyostore.my.id bash -s -- $DEPLOY_SHA $DEPLOY_MODE" < scripts/deploy/release.sh 2>&1 | tee "$deploy_log"
           status=${PIPESTATUS[0]}
           set -e
