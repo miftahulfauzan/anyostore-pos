@@ -197,19 +197,23 @@ compose up -d --no-deps caddy
 compose exec --interactive=false -T caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 assert_live_images
 verify_local_endpoint() {
-  local endpoint=$1
-  local expected_url=$2
-  local body
-  body=$(curl --fail --silent --show-error --connect-timeout 3 --max-time 5 "$expected_url$endpoint?release=$RELEASE_SHA") || fail "Local endpoint unavailable: $expected_url$endpoint"
-  printf '%s' "$body" | python3 -c '
+  local endpoint=$1 expected_url=$2 attempt body
+  for ((attempt=1; attempt<=ENDPOINT_ATTEMPTS; attempt++)); do
+    if body=$(curl --fail --silent --show-error --connect-timeout 3 --max-time 5 "$expected_url$endpoint?release=$RELEASE_SHA") \
+      && printf '%s' "$body" | python3 -c '
 import json, sys
 try:
     body = json.load(sys.stdin)
     sys.exit(0 if isinstance(body, dict) and body.get("release_sha") == sys.argv[1] else 1)
 except (ValueError, TypeError):
     sys.exit(1)
-' "$RELEASE_SHA" || fail "Local endpoint served the wrong release: $expected_url$endpoint"
-  printf 'Verified local %s at %s\n' "$expected_url$endpoint" "$RELEASE_SHA"
+' "$RELEASE_SHA"; then
+      printf 'Verified local %s at %s\n' "$expected_url$endpoint" "$RELEASE_SHA"
+      return 0
+    fi
+    if (( attempt < ENDPOINT_ATTEMPTS )); then sleep "$HEALTH_INTERVAL"; fi
+  done
+  fail "Local endpoint unavailable or served the wrong release: $expected_url$endpoint"
 }
 verify_local_endpoint /version http://127.0.0.1:3001
 verify_local_endpoint /version http://127.0.0.1:3000

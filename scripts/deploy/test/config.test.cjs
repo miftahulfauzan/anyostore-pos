@@ -87,6 +87,7 @@ test('deploy build and endpoint retries are bounded for fast feedback', () => {
   assert.match(release, /compose build --parallel backend frontend/);
   assert.match(release, /compose run --rm --no-deps -T --interactive=false/);
   assert.match(release, /compose exec --interactive=false -T caddy/);
+  assert.match(release, /for \(\(attempt=1; attempt<=ENDPOINT_ATTEMPTS; attempt\+\+\)\)/);
   assert.match(release, /ENDPOINT_ATTEMPTS:-6/);
   assert.match(deploy.jobs.deploy.steps.find(step => step.name === 'Verify public production release').run, /seq 1 4/);
 });
