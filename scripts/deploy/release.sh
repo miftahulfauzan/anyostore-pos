@@ -142,6 +142,19 @@ remove_stale_app_containers() {
   done <<< "$ps_output"
 }
 remove_stale_app_containers
+# Older releases used fixed live names without the current Compose project
+# labels. Remove only those known app containers so they cannot keep serving
+# an older image after the new project containers are started.
+remove_legacy_named_app_containers() {
+  local name candidate
+  for name in anyostore-backend-live anyostore-frontend-live anyostore-pos-backend-1 anyostore-pos-frontend-1; do
+    candidate=$(sudo docker ps -aq --filter "name=^/${name}$" | head -n 1)
+    if [[ -n "$candidate" ]]; then
+      sudo docker rm -f "$candidate" >/dev/null || fail "Cannot remove legacy $name container"
+    fi
+  done
+}
+remove_legacy_named_app_containers
 # Force recreation allows a failed or unhealthy attempt at the same SHA to be retried.
 compose up -d --no-deps --force-recreate backend frontend
 wait_healthy backend frontend
