@@ -33,7 +33,7 @@ test('workflow YAML gates exact-SHA deploy on CI and serializes releases without
   const ssh = steps.findIndex(step => (step.run || '').includes('ssh_opts'));
   assert.ok(gate >= 0 && ssh > gate);
   assert.match(steps[ssh].env.DEPLOY_SHA, /steps\.ci\.outputs\.sha/);
-  assert.equal(steps[ssh].env.VPS_HOST, '${{ secrets.VPS_HOST }}');
+  assert.equal(steps[ssh].env.VPS_HOST, 'anyostore.my.id');
   assert.match(steps[ssh].run, /getent ahostsv4/);
   assert.match(steps[ssh].run, /api\.ipify\.org/);
   assert.match(steps[ssh].run, /EXPECTED_APP_DOMAIN=anyostore\.my\.id DEPLOY_DIR=\/home\/ubuntu\/anyostore-pos bash -s --/);

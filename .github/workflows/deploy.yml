@@ -51,9 +51,9 @@ jobs:
         env:
           DEPLOY_SHA: ${{ steps.ci.outputs.sha }}
           DEPLOY_MODE: ${{ steps.ci.outputs.mode }}
-          # VPS_HOST may be an IP or hostname, but the preflight below requires
-          # it to resolve to the same public IP that serves anyostore.my.id.
-          VPS_HOST: ${{ secrets.VPS_HOST }}
+          # Use the production hostname as the SSH target so the server being
+          # deployed is always the same server verified by the public endpoint.
+          VPS_HOST: anyostore.my.id
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
