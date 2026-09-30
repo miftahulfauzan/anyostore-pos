@@ -83,7 +83,8 @@ jobs:
             echo "::error title=Production SSH target mismatch::SSH host $VPS_HOST resolved to [$expected_ips], but the connected server reports public IP $remote_ip"
             exit 1
           fi
-          echo "Verified SSH target $VPS_HOST -> $remote_ip"
+          app_ips=$(getent ahostsv4 anyostore.my.id | awk '{print $1}' | sort -u | paste -sd, -)
+          echo "::notice title=Production target::SSH target $VPS_HOST -> $remote_ip; app DNS IPv4 [$app_ips]"
           set +e
           ssh "${ssh_opts[@]}" \
               "$VPS_USER@$VPS_HOST" "EXPECTED_APP_DOMAIN=anyostore.my.id DEPLOY_DIR=/home/ubuntu/anyostore-pos bash -s -- $DEPLOY_SHA $DEPLOY_MODE" < scripts/deploy/release.sh 2>&1 | tee "$deploy_log"
@@ -100,11 +101,11 @@ jobs:
         run: |
           set -euo pipefail
           verify_public_endpoint() {
-            local endpoint=$1
-            local attempt body
+            local endpoint=$1 attempt body last_body='' public_ips
             for attempt in $(seq 1 4); do
               if body=$(curl --fail --silent --show-error --proto '=https' --connect-timeout 3 --max-time 5 \
                 -H 'Cache-Control: no-cache' "https://anyostore.my.id${endpoint}?release=${DEPLOY_SHA}"); then
+                last_body=$body
                 if printf '%s' "$body" | python3 -c '
                 import json, sys
                 try:
@@ -122,6 +123,8 @@ jobs:
               fi
               if (( attempt < 4 )); then sleep 2; fi
             done
+            public_ips=$(getent ahostsv4 anyostore.my.id | awk '{print $1}' | sort -u | paste -sd, -)
+            echo "::error title=Public release mismatch::${endpoint} expected ${DEPLOY_SHA}, observed ${last_body:-unreachable}; public DNS IPv4 [${public_ips}]"
             echo "Public ${endpoint} did not serve ${DEPLOY_SHA}" >&2
             exit 1
           }
