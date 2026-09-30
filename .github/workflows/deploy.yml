@@ -51,16 +51,16 @@ jobs:
         env:
           DEPLOY_SHA: ${{ steps.ci.outputs.sha }}
           DEPLOY_MODE: ${{ steps.ci.outputs.mode }}
-          # The production hostname is authoritative. Using a separate host
-          # secret previously allowed SSH to succeed on the wrong VPS while
-          # anyostore.my.id kept serving the old release.
-          VPS_HOST: anyostore.my.id
+          # VPS_HOST may be an IP or hostname, but the preflight below requires
+          # it to resolve to the same public IP that serves anyostore.my.id.
+          VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
           set -euo pipefail
           [[ "$DEPLOY_SHA" =~ ^[a-f0-9]{40}$ ]]
           [[ "$DEPLOY_MODE" = automatic || "$DEPLOY_MODE" = manual ]]
+          [[ -n "$VPS_HOST" ]] || { echo "::error::VPS_HOST secret is empty"; exit 1; }
           deploy_ssh_dir=$(mktemp -d)
           deploy_log="$deploy_ssh_dir/release.log"
           trap 'rm -f "$deploy_ssh_dir/key" "$deploy_ssh_dir/known_hosts" "$deploy_log"; rmdir "$deploy_ssh_dir"' EXIT
