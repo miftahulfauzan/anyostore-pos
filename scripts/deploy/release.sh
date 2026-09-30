@@ -147,7 +147,30 @@ compose up -d --no-deps --force-recreate backend frontend
 wait_healthy backend frontend
 # Backend/frontend mendapatkan alamat internal baru saat direcreate. Refresh
 # Caddy juga agar reverse_proxy tidak menyimpan alamat container lama.
-compose up -d --no-deps --force-recreate caddy
+compose rm -sf caddy
+compose up -d --no-deps caddy
+
+# Validate the exact proxy configuration and verify both stable loopback
+# upstreams before testing the public hostname. This distinguishes a bad
+# Caddy/container switch from a DNS or external network problem.
+compose exec -T caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+verify_local_endpoint() {
+  local endpoint=$1
+  local expected_url=$2
+  local body
+  body=$(curl --fail --silent --show-error --connect-timeout 3 --max-time 5 "$expected_url$endpoint?release=$RELEASE_SHA") || fail "Local endpoint unavailable: $expected_url$endpoint"
+  printf '%s' "$body" | python3 -c '
+import json, sys
+try:
+    body = json.load(sys.stdin)
+    sys.exit(0 if isinstance(body, dict) and body.get("release_sha") == sys.argv[1] else 1)
+except (ValueError, TypeError):
+    sys.exit(1)
+' "$RELEASE_SHA" || fail "Local endpoint served the wrong release: $expected_url$endpoint"
+  printf 'Verified local %s at %s\n' "$expected_url$endpoint" "$RELEASE_SHA"
+}
+verify_local_endpoint /version http://127.0.0.1:3001
+verify_local_endpoint /version http://127.0.0.1:3000
 
 # Verify actual HTTPS responses through Caddy, including the release identity.
 domain=$(compose exec -T caddy printenv APP_DOMAIN)
