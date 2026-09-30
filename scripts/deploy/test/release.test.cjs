@@ -63,6 +63,10 @@ if (name === 'curl') {
 }
 if (name === 'docker') {
   if (args[0] === 'compose' && process.env.RELEASE_SHA !== '${sha}') process.exit(1);
+  if (args[0] === 'exec') {
+    output(JSON.stringify({ok: true, release_sha: scenario.wrongEndpointSha ? '${oldSha}' : '${sha}'}));
+    process.exit(scenario.endpointFailure ? 1 : 0);
+  }
   if (args[0] === 'rm') process.exit(0);
   if (args[0] === 'image' && args[1] === 'inspect') {
     output('${sha}');

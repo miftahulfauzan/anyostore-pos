@@ -191,15 +191,16 @@ assert_live_images
 compose rm -sf caddy
 compose up -d --no-deps caddy
 
-# Validate the exact proxy configuration and verify both stable loopback
-# upstreams before testing the public hostname. This distinguishes a bad
-# Caddy/container switch from a DNS or external network problem.
+# Validate the exact proxy configuration before testing the public hostname.
+# The release script runs from an SSH session whose network namespace is not
+# guaranteed to expose Docker-published loopback ports, so verify the app
+# endpoints from inside each live container instead of probing host 127.0.0.1.
 compose exec --interactive=false -T caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 assert_live_images
-verify_local_endpoint() {
-  local endpoint=$1 expected_url=$2 attempt body
+verify_container_endpoint() {
+  local container=$1 expected_url=$2 attempt body
   for ((attempt=1; attempt<=ENDPOINT_ATTEMPTS; attempt++)); do
-    if body=$(curl --fail --silent --show-error --connect-timeout 3 --max-time 5 "$expected_url$endpoint?release=$RELEASE_SHA") \
+    if body=$(sudo docker exec "$container" wget -qO- "$expected_url?release=$RELEASE_SHA") \
       && printf '%s' "$body" | python3 -c '
 import json, sys
 try:
@@ -208,15 +209,15 @@ try:
 except (ValueError, TypeError):
     sys.exit(1)
 ' "$RELEASE_SHA"; then
-      printf 'Verified local %s at %s\n' "$expected_url$endpoint" "$RELEASE_SHA"
+      printf 'Verified container %s at %s\n' "$container" "$RELEASE_SHA"
       return 0
     fi
     if (( attempt < ENDPOINT_ATTEMPTS )); then sleep "$HEALTH_INTERVAL"; fi
   done
-  fail "Local endpoint unavailable or served the wrong release: $expected_url$endpoint"
+  fail "Container endpoint unavailable or served the wrong release: $container"
 }
-verify_local_endpoint /version http://127.0.0.1:3001
-verify_local_endpoint /version http://127.0.0.1:3000
+verify_container_endpoint anyostore-backend-live http://127.0.0.1:3001/version
+verify_container_endpoint anyostore-frontend-live http://127.0.0.1:3000/version
 
 # Verify actual HTTPS responses through Caddy, including the release identity.
 domain=$(compose exec -T caddy printenv APP_DOMAIN)
