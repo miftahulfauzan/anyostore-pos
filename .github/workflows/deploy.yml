@@ -95,6 +95,14 @@ jobs:
             echo "::error title=VPS deployment output::$detail"
             exit "$status"
           fi
+          runtime=$(ssh "${ssh_opts[@]}" "$VPS_USER@$VPS_HOST" '
+            backend=$(sudo docker inspect -f "{{.Config.Image}}" anyostore-backend-live 2>/dev/null || echo missing)
+            frontend=$(sudo docker inspect -f "{{.Config.Image}}" anyostore-frontend-live 2>/dev/null || echo missing)
+            backend_local=$(sudo docker exec anyostore-backend-live wget -qO- http://127.0.0.1:3001/version 2>/dev/null || echo unavailable)
+            frontend_local=$(sudo docker exec anyostore-frontend-live wget -qO- http://127.0.0.1:3000/version 2>/dev/null || echo unavailable)
+            printf "backend=%s frontend=%s backend_local=%s frontend_local=%s" "$backend" "$frontend" "$backend_local" "$frontend_local"
+          ' | tr '\n' ' ')
+          echo "::notice title=VPS runtime::$runtime"
       - name: Verify public production release
         env:
           DEPLOY_SHA: ${{ steps.ci.outputs.sha }}
