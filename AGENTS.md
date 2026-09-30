@@ -196,7 +196,7 @@ Semua pemakaian `SafeImage` wajib mengimpor komponen tersebut secara eksplisit. 
 
 ### Workflow
 1. Push ke `main` menjalankan `.github/workflows/ci.yml` untuk web dan `.github/workflows/mobile.yml` untuk mobile secara paralel. CI web menjalankan backend test serialized (`npm test -- --test-concurrency=1`), audit, regression/release tests, dan frontend build. Workflow mobile menjalankan `flutter pub get`, format/analyze, serta build APK pada push/main atau manual; job analyzer mobile boleh `continue-on-error`, job APK tidak menjadi bagian dari gate deploy web.
-2. Setelah CI web sukses, `.github/workflows/deploy.yml` memverifikasi CI untuk exact full 40-character SHA. Deploy kemudian mengirim `scripts/deploy/release.sh` melalui SSH; script memperoleh lock, memastikan checkout VPS bersih, fetch `origin/main`, memastikan SHA ada di history, checkout detached ke SHA, menjalankan migrasi one-off, build dengan tag SHA, merecreate backend/frontend/Caddy, menunggu health `running healthy` dengan revision yang sama, lalu memverifikasi HTTPS publik `/api/health` dan `/version`. Deploy otomatis tidak menerima release lama yang sudah terlewati; retry/rollback harus memakai workflow manual dengan SHA penuh.
+2. Setelah CI web sukses, `.github/workflows/deploy.yml` memverifikasi CI untuk exact full 40-character SHA. Deploy kemudian mengirim `scripts/deploy/release.sh` melalui SSH; script memperoleh lock, memastikan checkout VPS bersih, fetch `origin/main`, memastikan SHA ada di history, checkout detached ke SHA, menjalankan migrasi one-off, build dengan tag SHA, merecreate backend/frontend/Caddy, menunggu health `running healthy` dengan revision yang sama, lalu memverifikasi HTTPS publik `/api/health` dan `/version`. Deploy otomatis tidak menerima release lama yang sudah terlewati; retry/rollback harus memakai workflow manual dengan SHA penuh. Caddy produksi berjalan dengan host network dan meneruskan ke port loopback stabil `127.0.0.1:3001` (backend) serta `127.0.0.1:3000` (frontend); kedua port hanya bind ke loopback host agar routing tidak bergantung pada alias DNS Docker yang bisa stale setelah container diganti.
 3. Jika verifikasi lokal VPS berhasil tetapi verifikasi publik gagal, cek image/revision container, nama container live, dan routing Caddy sebelum retry. Jangan menganggap deploy selesai hanya karena `docker compose up` sukses.
 4. Caddy handle HTTPS otomatis (Let's Encrypt).
 
@@ -205,7 +205,7 @@ Semua pemakaian `SafeImage` wajib mengimpor komponen tersebut secara eksplisit. 
 - Backend/frontend live memakai nama tetap `anyostore-backend-live` dan `anyostore-frontend-live`; image aplikasi ditag dengan exact `RELEASE_SHA` dan label OCI `org.opencontainers.image.revision` yang sama. Jangan menyimpulkan release dari nama project Compose lama (`anyostore-pos-backend-1`/`anyostore-pos-frontend-1`) saja.
 - Backend entrypoint: `node scripts/migrate.js || true; node scripts/fix-clone-paths.js || true; node src/index.js`
 - Frontend build arg: `NEXT_PUBLIC_API_URL=/api`
-- Caddy route: `/api/*` dan `/uploads/*` → backend, sisanya → frontend
+- Caddy route: `/api/*` dan `/uploads/*` → `127.0.0.1:3001`, sisanya → `127.0.0.1:3000`; Caddy memakai `network_mode: host`, sedangkan backend/frontend hanya bind ke loopback host.
 
 ## Pola penting / jebakan
 

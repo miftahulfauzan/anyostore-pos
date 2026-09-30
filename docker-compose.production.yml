@@ -68,6 +68,8 @@ services:
       CORS_ORIGIN: ${APP_ORIGIN}
     volumes:
       - uploads_data:/app/uploads
+    ports:
+      - "127.0.0.1:3001:3001"
     depends_on:
       db:
         condition: service_healthy
@@ -104,6 +106,8 @@ services:
       retries: 12
       start_period: 30s
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
     networks:
       internal:
         aliases:
@@ -111,12 +115,9 @@ services:
 
   caddy:
     image: caddy:2-alpine
+    network_mode: host
     environment:
       APP_DOMAIN: ${APP_DOMAIN}
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -127,7 +128,6 @@ services:
       backend:
         condition: service_healthy
     restart: unless-stopped
-    networks: [internal]
 
 networks:
   internal:

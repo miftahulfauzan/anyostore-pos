@@ -89,15 +89,14 @@ test('deploy build and endpoint retries are bounded for fast feedback', () => {
   assert.match(deploy.jobs.deploy.steps.find(step => step.name === 'Verify public production release').run, /seq 1 4/);
 });
 
-test('Caddy targets dedicated live network aliases, not ambiguous service aliases', () => {
+test('Caddy uses stable host loopback ports, not stale Docker DNS aliases', () => {
   const caddy = read('deploy/Caddyfile');
   const compose = yaml.load(read('docker-compose.production.yml'));
-  assert.match(caddy, /reverse_proxy anyostore-backend-live:3001/);
-  assert.match(caddy, /reverse_proxy anyostore-frontend-live:3000/);
-  assert.equal(compose.services.backend.container_name, 'anyostore-backend-live');
-  assert.equal(compose.services.frontend.container_name, 'anyostore-frontend-live');
-  assert.deepEqual(compose.services.backend.networks.internal.aliases, ['anyostore-backend-live']);
-  assert.deepEqual(compose.services.frontend.networks.internal.aliases, ['anyostore-frontend-live']);
-  assert.doesNotMatch(caddy, /reverse_proxy backend:3001/);
-  assert.doesNotMatch(caddy, /reverse_proxy frontend:3000/);
+  assert.match(caddy, /reverse_proxy 127\.0\.0\.1:3001/);
+  assert.match(caddy, /reverse_proxy 127\.0\.0\.1:3000/);
+  assert.equal(compose.services.caddy.network_mode, 'host');
+  assert.deepEqual(compose.services.backend.ports, ['127.0.0.1:3001:3001']);
+  assert.deepEqual(compose.services.frontend.ports, ['127.0.0.1:3000:3000']);
+  assert.equal(compose.services.caddy.ports, undefined);
+  assert.equal(compose.services.caddy.networks, undefined);
 });
