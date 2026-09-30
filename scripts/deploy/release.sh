@@ -49,7 +49,33 @@ fi
 
 # Pass RELEASE_SHA explicitly through sudo (sudo commonly drops exported variables).
 compose() {
-  sudo RELEASE_SHA="$RELEASE_SHA" docker compose -f docker-compose.production.yml --env-file .env.production "$@"
+  sudo env RELEASE_SHA="$RELEASE_SHA" docker compose -f docker-compose.production.yml --env-file .env.production "$@"
+}
+
+assert_built_images() {
+  local service image revision
+  for service in backend frontend; do
+    image="anyostore-pos-${service}:$RELEASE_SHA"
+    revision=$(sudo docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image") \
+      || fail "Built $service image is missing: $image"
+    [[ "$revision" = "$RELEASE_SHA" ]] \
+      || fail "Built $service image has revision $revision, expected $RELEASE_SHA"
+    printf 'Verified built %s image %s\n' "$service" "$image"
+  done
+}
+
+assert_live_images() {
+  local service container image revision
+  for service in backend frontend; do
+    container="anyostore-${service}-live"
+    image=$(sudo docker inspect --format '{{.Config.Image}}' "$container") \
+      || fail "Live $service container is missing: $container"
+    revision=$(sudo docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$container") \
+      || fail "Cannot inspect live $service revision"
+    [[ "$image" = "anyostore-pos-${service}:$RELEASE_SHA" && "$revision" = "$RELEASE_SHA" ]] \
+      || fail "Live $service is not release $RELEASE_SHA: image=$image revision=$revision"
+    printf 'Verified live %s container %s (%s)\n' "$service" "$container" "$RELEASE_SHA"
+  done
 }
 
 wait_healthy() {
@@ -101,6 +127,7 @@ wait_healthy() {
 # Start the database while the app images build. Image tags retain rollback candidates.
 compose up -d db
 compose build --parallel backend frontend
+assert_built_images
 wait_healthy db
 # Migration failure leaves existing app containers running and fails this release.
 compose run --rm --no-deps -T --entrypoint node backend scripts/migrate.js
@@ -156,8 +183,9 @@ remove_legacy_named_app_containers() {
 }
 remove_legacy_named_app_containers
 # Force recreation allows a failed or unhealthy attempt at the same SHA to be retried.
-compose up -d --no-deps --force-recreate backend frontend
+compose up -d --no-deps --build --force-recreate backend frontend
 wait_healthy backend frontend
+assert_live_images
 # Backend/frontend mendapatkan alamat internal baru saat direcreate. Refresh
 # Caddy juga agar reverse_proxy tidak menyimpan alamat container lama.
 compose rm -sf caddy
@@ -167,6 +195,7 @@ compose up -d --no-deps caddy
 # upstreams before testing the public hostname. This distinguishes a bad
 # Caddy/container switch from a DNS or external network problem.
 compose exec -T caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+assert_live_images
 verify_local_endpoint() {
   local endpoint=$1
   local expected_url=$2

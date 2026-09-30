@@ -32,6 +32,13 @@ if (name === 'sudo') {
   while (args[0]?.startsWith('RELEASE_SHA=')) {
     env.RELEASE_SHA = args.shift().slice('RELEASE_SHA='.length);
   }
+  if (args[0] === 'env') {
+    args.shift();
+    while (args[0]?.includes('=') && !args[0].startsWith('-')) {
+      const [key, ...value] = args.shift().split('=');
+      env[key] = value.join('=');
+    }
+  }
   const result = require('node:child_process').spawnSync(args[0], args.slice(1), { stdio: 'inherit', env });
   process.exit(result.status ?? 1);
 }
@@ -57,12 +64,35 @@ if (name === 'curl') {
 if (name === 'docker') {
   if (args[0] === 'compose' && process.env.RELEASE_SHA !== '${sha}') process.exit(1);
   if (args[0] === 'rm') process.exit(0);
+  if (args[0] === 'image' && args[1] === 'inspect') {
+    output('${sha}');
+    process.exit(0);
+  }
   if (args[0] === 'ps' && args.includes('-aq')) {
     if (scenario.staleServiceContainer) output('backend-old-id\\nfrontend-old-id');
     else if (scenario.oneOffContainer) output('backend-run-id\\nfrontend-run-id');
     process.exit(0);
   }
   if (args[0] === 'inspect') {
+    if (args.some(arg => arg.includes('.State.Status'))) {
+      const service = args.at(-1).replace('-id', '');
+      const counter = path.join(dir, service + '.count');
+      const count = fs.existsSync(counter) ? Number(fs.readFileSync(counter)) : 0;
+      fs.writeFileSync(counter, String(count + 1));
+      const states = (scenario.health || {})[service] || ['running healthy'];
+      const state = states[Math.min(count, states.length - 1)];
+      output(state + (service === 'db' ? '' : ' ' + (scenario.wrongContainerSha ? '${oldSha}' : '${sha}')));
+      process.exit(scenario.inspectFailure ? 1 : 0);
+    }
+    if (args.some(arg => arg.includes('.Config.Image'))) {
+      const candidate = args.at(-1);
+      output('anyostore-pos-' + (candidate.includes('frontend') ? 'frontend' : 'backend') + ':${sha}');
+      process.exit(0);
+    }
+    if (args.some(arg => arg.includes('org.opencontainers.image.revision'))) {
+      output('${sha}');
+      process.exit(0);
+    }
     if (args.some(arg => arg.includes('.Name'))) {
       const candidate = args.at(-1);
       const stale = candidate.endsWith('-old-id');
