@@ -85,6 +85,8 @@ test('deploy build and endpoint retries are bounded for fast feedback', () => {
   const release = read('scripts/deploy/release.sh');
   const deploy = yaml.load(read('.github/workflows/deploy.yml'));
   assert.match(release, /compose build --parallel backend frontend/);
+  assert.match(release, /compose run --rm --no-deps -T --interactive=false/);
+  assert.match(release, /compose exec --interactive=false -T caddy/);
   assert.match(release, /ENDPOINT_ATTEMPTS:-6/);
   assert.match(deploy.jobs.deploy.steps.find(step => step.name === 'Verify public production release').run, /seq 1 4/);
 });

@@ -130,7 +130,7 @@ compose build --parallel backend frontend
 assert_built_images
 wait_healthy db
 # Migration failure leaves existing app containers running and fails this release.
-compose run --rm --no-deps -T --entrypoint node backend scripts/migrate.js
+compose run --rm --no-deps -T --interactive=false --entrypoint node backend scripts/migrate.js
 # `compose run --rm` can leave an old one-off container behind after an
 # interrupted runner. It may still advertise the service DNS alias and cause
 # Caddy to send public traffic to an outdated backend/frontend. A Compose
@@ -194,7 +194,7 @@ compose up -d --no-deps caddy
 # Validate the exact proxy configuration and verify both stable loopback
 # upstreams before testing the public hostname. This distinguishes a bad
 # Caddy/container switch from a DNS or external network problem.
-compose exec -T caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+compose exec --interactive=false -T caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 assert_live_images
 verify_local_endpoint() {
   local endpoint=$1
