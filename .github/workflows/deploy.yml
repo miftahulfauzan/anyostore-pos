@@ -100,7 +100,8 @@ jobs:
             frontend=$(sudo docker inspect -f "{{.Config.Image}}" anyostore-frontend-live 2>/dev/null || echo missing)
             backend_local=$(sudo docker exec anyostore-backend-live wget -qO- http://127.0.0.1:3001/version 2>/dev/null || echo unavailable)
             frontend_local=$(sudo docker exec anyostore-frontend-live wget -qO- http://127.0.0.1:3000/version 2>/dev/null || echo unavailable)
-            printf "backend=%s frontend=%s backend_local=%s frontend_local=%s" "$backend" "$frontend" "$backend_local" "$frontend_local"
+            containers=$(sudo docker ps --format "{{.Names}}={{.Image}}" | tr "\\n" ";")
+            printf "backend=%s frontend=%s backend_local=%s frontend_local=%s containers=%s" "$backend" "$frontend" "$backend_local" "$frontend_local" "$containers"
           ' | tr '\n' ' ')
           echo "::notice title=VPS runtime::$runtime"
       - name: Verify public production release
