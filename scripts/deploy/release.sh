@@ -216,7 +216,7 @@ except (ValueError, TypeError):
   done
   fail "Container endpoint unavailable or served the wrong release: $container"
 }
-verify_container_endpoint anyostore-backend-live http://127.0.0.1:3001/version
+verify_container_endpoint anyostore-backend-live http://127.0.0.1:3001/api/health
 verify_container_endpoint anyostore-frontend-live http://127.0.0.1:3000/version
 
 # Verify actual HTTPS responses through Caddy, including the release identity.
