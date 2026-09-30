@@ -95,6 +95,8 @@ jobs:
             echo "::error title=VPS deployment output::$detail"
             exit "$status"
           fi
+          detail=$(tail -100 "$deploy_log" | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+          echo "::notice title=VPS release output::$detail"
           runtime=$(ssh "${ssh_opts[@]}" "$VPS_USER@$VPS_HOST" '
             backend=$(sudo docker inspect -f "{{.Config.Image}}" anyostore-backend-live 2>/dev/null || echo missing)
             frontend=$(sudo docker inspect -f "{{.Config.Image}}" anyostore-frontend-live 2>/dev/null || echo missing)
