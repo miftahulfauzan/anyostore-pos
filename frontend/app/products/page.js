@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Barcode, Copy, Pencil, Trash2 } from 'lucide-react';
+import { Barcode, Copy, History, Pencil, Trash2 } from 'lucide-react';
 import AppShell from '../components/AppShell';
 import BarcodeLabel from '../components/BarcodeLabel';
 import { getProductSelectionPlacement } from './view-utils.cjs';
@@ -215,6 +215,7 @@ export default function ProductsPage() {
             <button type="button" className="icon-action" aria-label={`Salin ${product.name}`} disabled={mutating || !product.capabilities?.copy} title={product.capabilities?.copy ? 'Salin produk' : 'Tidak memiliki izin salin di cabang produk ini'} onClick={() => copyProduct(product)}><Copy size={15} /></button>
             <button type="button" className="icon-action" title="Cetak barcode" aria-label={`Cetak barcode ${product.name}`} onClick={() => { setBarcodeProduct(product); setBarcodeCopies(1); }}><Barcode size={15} /></button>
             {product.capabilities?.edit && !mutating ? <a className="icon-action" title="Kelola produk" aria-label={`Kelola ${product.name}`} href={`/products/${product.id}/edit${productBranchQuery(product)}`}><Pencil size={15} /></a> : <button type="button" className="icon-action" disabled aria-label={`Kelola ${product.name}`} title="Tidak memiliki izin edit di cabang produk ini"><Pencil size={15} /></button>}
+            <a className="icon-action" title="Riwayat perubahan stok" aria-label={`Riwayat stok ${product.name}`} href={`/products/${product.id}/history${productBranchQuery(product)}`}><History size={15} /></a>
             <button type="button" className="icon-action danger" aria-label={`Hapus ${product.name}`} disabled={mutating || !product.capabilities?.delete} title={product.capabilities?.delete ? 'Hapus produk' : 'Tidak memiliki izin hapus di cabang produk ini'} onClick={() => deleteProduct(product)}><Trash2 size={15} /></button>
           </div>
           {(!product.capabilities?.edit || !product.capabilities?.copy || !product.capabilities?.delete) && <small className="product-permissions">Aksi yang redup tidak diizinkan untuk akun Anda di cabang produk ini.</small>}
