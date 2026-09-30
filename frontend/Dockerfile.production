@@ -9,10 +9,6 @@ COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 ARG NEXT_PUBLIC_API_URL=/api
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-ARG RELEASE_SHA
-ARG NEXT_PUBLIC_RELEASE_SHA
-ENV RELEASE_SHA=$RELEASE_SHA
-ENV NEXT_PUBLIC_RELEASE_SHA=$NEXT_PUBLIC_RELEASE_SHA
 RUN mkdir -p public
 RUN --mount=type=cache,target=/root/.npm --mount=type=cache,target=/app/.next/cache npm run build
 

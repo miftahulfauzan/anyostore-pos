@@ -49,7 +49,7 @@ test('production compose requires release identity, consistent WIB timezone and 
     assert.match(compose.services[service].environment.RELEASE_SHA, /RELEASE_SHA:\?/);
     assert.ok(compose.services[service].healthcheck.test);
   }
-  assert.match(compose.services.frontend.build.args.NEXT_PUBLIC_RELEASE_SHA, /RELEASE_SHA:\?/);
+  assert.equal(compose.services.frontend.build.args.NEXT_PUBLIC_RELEASE_SHA, undefined);
   assert.ok(!compose.services.backend.volumes.some(volume => /backend\/(scripts|migrations)/.test(volume)), 'Release code must come from the image');
 });
 
@@ -64,6 +64,26 @@ test('Dockerfiles preserve BuildKit caches and bake release identity into matchi
   assert.match(read('frontend/Dockerfile.production'), /--mount=type=cache,target=\/app\/\.next\/cache/);
   assert.match(read('backend/Dockerfile.production'), /COPY.*migrations \.\/migrations/);
   assert.match(read('backend/Dockerfile.production'), /start-production\.sh/);
+});
+
+test('frontend release identity does not invalidate the expensive build stage', () => {
+  const dockerfile = read('frontend/Dockerfile.production');
+  const runnerStart = dockerfile.indexOf('FROM node:22-alpine AS runner');
+  assert.ok(runnerStart > 0, 'frontend must have a separate runner stage');
+  const builder = dockerfile.slice(0, runnerStart);
+  const runner = dockerfile.slice(runnerStart);
+  assert.doesNotMatch(builder, /ENV RELEASE_SHA=/);
+  assert.doesNotMatch(builder, /ENV NEXT_PUBLIC_RELEASE_SHA=/);
+  assert.match(runner, /ARG RELEASE_SHA/);
+  assert.match(runner, /ENV RELEASE_SHA=\$RELEASE_SHA/);
+});
+
+test('deploy build and endpoint retries are bounded for fast feedback', () => {
+  const release = read('scripts/deploy/release.sh');
+  const deploy = yaml.load(read('.github/workflows/deploy.yml'));
+  assert.match(release, /compose build --parallel backend frontend/);
+  assert.match(release, /ENDPOINT_ATTEMPTS:-6/);
+  assert.match(deploy.jobs.deploy.steps.find(step => step.name === 'Verify public production release').run, /seq 1 4/);
 });
 
 test('Caddy targets dedicated live network aliases, not ambiguous service aliases', () => {

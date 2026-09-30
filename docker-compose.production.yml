@@ -92,7 +92,6 @@ services:
       args:
         NEXT_PUBLIC_API_URL: /api
         RELEASE_SHA: ${RELEASE_SHA:?Set RELEASE_SHA to the verified commit}
-        NEXT_PUBLIC_RELEASE_SHA: ${RELEASE_SHA:?Set RELEASE_SHA to the verified commit}
     environment:
       RELEASE_SHA: ${RELEASE_SHA:?Set RELEASE_SHA to the verified commit}
     depends_on:

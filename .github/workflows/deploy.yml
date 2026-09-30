@@ -88,8 +88,8 @@ jobs:
           verify_public_endpoint() {
             local endpoint=$1
             local attempt body
-            for attempt in $(seq 1 12); do
-              if body=$(curl --fail --silent --show-error --proto '=https' --connect-timeout 5 --max-time 10 \
+            for attempt in $(seq 1 4); do
+              if body=$(curl --fail --silent --show-error --proto '=https' --connect-timeout 3 --max-time 5 \
                 -H 'Cache-Control: no-cache' "https://anyostore.my.id${endpoint}?release=${DEPLOY_SHA}"); then
                 if printf '%s' "$body" | python3 -c '
                 import json, sys
@@ -106,7 +106,7 @@ jobs:
                   return 0
                 fi
               fi
-              if (( attempt < 12 )); then sleep 5; fi
+              if (( attempt < 4 )); then sleep 2; fi
             done
             echo "Public ${endpoint} did not serve ${DEPLOY_SHA}" >&2
             exit 1

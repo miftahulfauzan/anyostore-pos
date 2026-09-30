@@ -10,8 +10,8 @@ DEPLOY_MODE=${2:-}
 export RELEASE_SHA
 DEPLOY_DIR=${DEPLOY_DIR:-/home/ubuntu/anyostore-pos}
 HEALTH_ATTEMPTS=${HEALTH_ATTEMPTS:-60}
-HEALTH_INTERVAL=${HEALTH_INTERVAL:-5}
-ENDPOINT_ATTEMPTS=${ENDPOINT_ATTEMPTS:-12}
+HEALTH_INTERVAL=${HEALTH_INTERVAL:-3}
+ENDPOINT_ATTEMPTS=${ENDPOINT_ATTEMPTS:-6}
 [[ "$HEALTH_ATTEMPTS" =~ ^[1-9][0-9]*$ && "$HEALTH_INTERVAL" =~ ^[0-9]+$ && "$ENDPOINT_ATTEMPTS" =~ ^[1-9][0-9]*$ ]] || fail 'Invalid health retry configuration'
 cd "$DEPLOY_DIR"
 git_dir=$(git rev-parse --git-dir)
@@ -98,9 +98,9 @@ wait_healthy() {
   fail "Health timeout waiting for: $*"
 }
 
-# Finish both builds before replacing either live app. Image tags retain rollback candidates.
-compose build backend frontend
+# Start the database while the app images build. Image tags retain rollback candidates.
 compose up -d db
+compose build --parallel backend frontend
 wait_healthy db
 # Migration failure leaves existing app containers running and fails this release.
 compose run --rm --no-deps -T --entrypoint node backend scripts/migrate.js
@@ -158,7 +158,7 @@ fi
 verify_endpoint() {
   local endpoint=$1 attempt body
   for ((attempt=1; attempt<=ENDPOINT_ATTEMPTS; attempt++)); do
-    if body=$(curl --fail --silent --show-error --proto '=https' --connect-timeout 5 --max-time 10 \
+    if body=$(curl --fail --silent --show-error --proto '=https' --connect-timeout 3 --max-time 5 \
       -H 'Cache-Control: no-cache' "https://$domain$endpoint?release=$RELEASE_SHA") \
       && printf '%s' "$body" | python3 -c '
 import json, sys
