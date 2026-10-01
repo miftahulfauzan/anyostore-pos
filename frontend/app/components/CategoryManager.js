@@ -89,7 +89,7 @@ export default function CategoryManager({ api, headers }) {
   return (
     <section className="panel">
       <h2>Kategori Produk</h2>
-      <p className="muted" style={{ fontSize: '.85rem' }}>Tarik baris untuk mengatur urutan — urutan ini dipakai di landing page. Kategori baru otomatis di urutan terakhir.</p>
+      <p className="muted" style={{ fontSize: '.85rem' }}>Tarik baris untuk mengatur urutan. Urutan ini dipakai di landing page. Kategori baru otomatis berada di urutan terakhir.</p>
 
       <form onSubmit={addCategory} style={{ display: 'flex', gap: '.5rem', marginTop: '.75rem', flexWrap: 'wrap' }}>
         <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nama kategori" required style={{ flex: 1, minWidth: 180 }} />

@@ -25,4 +25,4 @@ export const cashMovementLabels = {
   closing: 'Penutupan kas',
 };
 
-export const labelFor = (labels, value, fallback = '—') => labels[value] || (value ? String(value) : fallback);
+export const labelFor = (labels, value, fallback = '-') => labels[value] || (value ? String(value) : fallback);

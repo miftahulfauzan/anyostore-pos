@@ -1,55 +1,40 @@
 ---
-name: Expressive
+name: Anyostore Denim Operations
 colors:
-  primary: "#db2777"
-  secondary: "#2563eb"
-  success: "#16A34A"
-  warning: "#D97706"
-  danger: "#DC2626"
+  primary: "#1E3A5F"
+  denim-700: "#2E5D8F"
+  denim-500: "#5A8BBF"
+  denim-300: "#7FA8CF"
+  mobile-background: "#F5F1EA"
+  web-background: "#F8FAFC"
   surface: "#FFFFFF"
-  text: "#111827"
-  neutral: "#FFFFFF"
+  text: "#1E3A5F"
+  muted-text: "#475569"
+  border: "#E7E0D6"
 typography:
-  h1:
-    fontFamily: "IBM Plex Mono"
-    fontSize: 2.5rem
-  body-md:
-    fontFamily: "IBM Plex Mono"
-    fontSize: 1rem
-  label-caps:
-    fontFamily: "IBM Plex Mono"
-    fontSize: 0.875rem
-  sourceScale: "14/16/18/24/32/40"
-  weights: "100, 200, 300, 400, 500, 600, 700, 800, 900"
+  web: "DM Sans"
+  mobile: "Platform sans-serif"
 rounded:
-  sm: 4px
-  md: 8px
+  controls: 10-14px
+  surfaces: 12-16px
 spacing:
-  sm: 4px
-  md: 8px
-  sourceScale: "4/8/12/16/24/32"
+  scale: "4/8/12/16/24/32"
 ---
 
-## Overview
+## Product direction
 
-Vibrant, personality-driven design with bold colors, playful graphics, and dynamic layouts that balance creativity with structure.
+Anyostore is a practical stock and point-of-sale tool for apparel teams. Keep dense operational screens calm, legible, and efficient. Use the same denim identity on web and mobile, with a warm cream canvas on mobile and a cool neutral canvas on web.
 
-## Style Foundations
+## Color and type
 
-- **Visual style:** modern, playful
-- **Typography scale:** 14/16/18/24/32/40
-- **Typography fonts:** primary=IBM Plex Mono, display=IBM Plex Mono, mono=IBM Plex Mono
-- **Typography weights:** 100, 200, 300, 400, 500, 600, 700, 800, 900
-- **Color palette:** primary, secondary, neutral, success, warning, danger
-- **Spacing scale:** 4/8/12/16/24/32
+- Denim `#1E3A5F` is the primary action and navigation color. Use `#2E5D8F`, `#5A8BBF`, and `#7FA8CF` as restrained supporting blues.
+- Use white surfaces, readable navy text, muted slate text, and thin neutral borders. Do not use pink or monospaced display/body typography as brand styling.
+- Functional stock/transaction states and destructive actions may use semantic green, orange, or red. These are not brand accents, and normal-size text must maintain at least 4.5:1 contrast against its surface.
+- Web uses DM Sans. Mobile uses the native platform sans-serif. Keep hierarchy and spacing consistent across platforms.
 
-## Colors
+## Surfaces and elevation
 
-- **Primary (#db2777):** Token from style foundations.
-- **Secondary (#2563eb):** Token from style foundations.
-- **Success (#16A34A):** Token from style foundations.
-- **Warning (#D97706):** Token from style foundations.
-- **Danger (#DC2626):** Token from style foundations.
-- **Surface (#FFFFFF):** Token from style foundations.
-- **Text (#111827):** Token from style foundations.
-- **Neutral (#FFFFFF):** Derived from the surface token for official format compatibility.
+- Use borders and tonal separation for ordinary cards and data panels; do not give every surface the same shadow.
+- Reserve shadows for genuine overlays and floating controls where depth communicates layering.
+- Mobile data cards are solid and lightweight. Keep blur optional and avoid per-card backdrop filters.
+- Preserve clear focus indicators, accessible touch targets, keyboard access, and distinct loading, empty, and error states.

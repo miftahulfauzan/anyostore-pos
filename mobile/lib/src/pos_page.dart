@@ -917,7 +917,7 @@ class _PosPageState extends State<PosPage> {
                   ? const Padding(
                       padding: EdgeInsets.only(top: 6),
                       child: Tooltip(
-                        message: 'Offline — memakai data tersimpan',
+                        message: 'Offline. Memakai data tersimpan',
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,

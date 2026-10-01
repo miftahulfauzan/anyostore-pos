@@ -660,7 +660,7 @@ class _HistoryTabState extends State<HistoryTab> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text(
-              'Retur berhasil dibuat & disetujui — stok kembali otomatis')));
+              'Retur berhasil dibuat dan disetujui. Stok kembali otomatis')));
       _load();
     } on ApiException catch (e) {
       if (mounted) {
@@ -915,7 +915,7 @@ class _HistoryTabState extends State<HistoryTab> {
                 ? () {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                         content: Text(
-                            'Transaksi offline belum tersinkron — akan tampil lengkap setelah internet kembali.')));
+                            'Transaksi offline belum tersinkron. Data lengkap tampil setelah internet kembali.')));
                   }
                 : () => _openDetail(row),
           );

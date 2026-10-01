@@ -293,7 +293,7 @@ export default function HistoryPage() {
                           </div>
                         );
                       })}
-                      <label style={{ fontSize: 13 }}>Alasan batal<input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Opsional — misal salah input" style={{ marginTop: 4 }} /></label>
+                      <label style={{ fontSize: 13 }}>Alasan batal<input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Opsional, misalnya salah input" style={{ marginTop: 4 }} /></label>
                       <button type="button" className="secondary" disabled={saving} onClick={cancelItems} style={{ minHeight: 44 }}>{saving ? '…' : 'Batalkan item'}</button>
                     </>}
                   </div>

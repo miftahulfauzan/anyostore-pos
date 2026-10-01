@@ -168,7 +168,7 @@ class _FinancePageState extends State<FinancePage> {
     if (existing?['offline'] == true) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text(
-              'Data offline belum bisa diedit — tunggu sampai tersinkron.')));
+              'Data offline belum bisa diedit. Tunggu sampai tersinkron.')));
       return;
     }
     final name =
@@ -198,9 +198,9 @@ class _FinancePageState extends State<FinancePage> {
                     ? const Padding(
                         padding: EdgeInsets.only(bottom: 8),
                         child: Text(
-                            'Kategori: Umum (otomatis) — kategori belum tersedia offline',
-                            style: TextStyle(
-                                fontSize: 12, color: Color(0xff8A857C))),
+                            'Kategori: Umum (otomatis). Kategori belum tersedia offline',
+                            style:
+                                TextStyle(fontSize: 12, color: kTaskSecondary)),
                       )
                     : DropdownButtonFormField<int?>(
                         initialValue: categoryId,
@@ -291,7 +291,7 @@ class _FinancePageState extends State<FinancePage> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                 content: Text(
-                    'Disimpan offline — otomatis sync saat internet kembali.')));
+                    'Disimpan offline. Data akan tersinkron saat internet kembali.')));
           }
         }
       }

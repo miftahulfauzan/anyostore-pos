@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import AppShell from '../components/AppShell';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -7,19 +7,33 @@ const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 export default function CustomersPage() {
   const [customers, setCustomers] = useState([]);
   const [message, setMessage] = useState('');
+  const [listLoading, setListLoading] = useState(true);
+  const [listError, setListError] = useState('');
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: '', phone: '', email: '', price_tier: 'reguler' });
+  const listRequest = useRef(0);
   const h = () => ({ 'Content-Type': 'application/json'});
 
   async function load(q = '') {
-    const r = await fetch(api + '/customers?search=' + encodeURIComponent(q), { headers: h() });
-    const b = await r.json();
-    if (!r.ok) throw new Error(b.message);
-    setCustomers(b.data);
+    const requestId = ++listRequest.current;
+    setListLoading(true);
+    setListError('');
+    try {
+      const r = await fetch(api + '/customers?search=' + encodeURIComponent(q), { headers: h() });
+      const b = await r.json();
+      if (!r.ok) throw new Error(b.message || 'Permintaan tidak berhasil.');
+      if (requestId === listRequest.current) setCustomers(Array.isArray(b.data) ? b.data : []);
+    } catch (error) {
+      if (requestId === listRequest.current) {
+        setListError(error.message || 'Periksa koneksi lalu coba lagi.');
+      }
+    } finally {
+      if (requestId === listRequest.current) setListLoading(false);
+    }
   }
   useEffect(() => {
-    load().catch((e) => setMessage(e.message));
+    load();
   }, []);
 
   function startEdit(c) {
@@ -40,7 +54,7 @@ export default function CustomersPage() {
       if (!r.ok) throw new Error(b.message);
       setMessage(editing ? 'Pelanggan diperbarui.' : 'Pelanggan tersimpan.');
       reset();
-      load(search);
+      await load(search);
     } catch (e) { setMessage(e.message); }
   }
   async function remove(id) {
@@ -50,7 +64,7 @@ export default function CustomersPage() {
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
       setMessage('Pelanggan dihapus.');
-      load(search);
+      await load(search);
     } catch (e) { setMessage(e.message); }
   }
 
@@ -78,8 +92,13 @@ export default function CustomersPage() {
         <section className="panel">
           <h2>Daftar Pelanggan</h2>
           <input type="text" placeholder="Cari nama / telepon…" value={search} onChange={(e) => { setSearch(e.target.value); load(e.target.value); }} />
-          <div className="product-list customer-list">
-            {customers.map((c) => (
+          <div className="product-list customer-list" aria-live="polite" aria-busy={listLoading}>
+            {listLoading ? <p role="status">Memuat daftar pelanggan…</p> : listError ? (
+              <div className="empty-state" role="alert">
+                <p>Gagal memuat daftar pelanggan. {listError}</p>
+                <button type="button" className="secondary" onClick={() => load(search)}>Coba lagi</button>
+              </div>
+            ) : !customers.length ? <p className="empty-state">Belum ada pelanggan.</p> : customers.map((c) => (
               <article key={c.id}>
                 <div>
                   <strong>{c.name}</strong>
@@ -94,7 +113,6 @@ export default function CustomersPage() {
                 </div>
               </article>
             ))}
-            {!customers.length && <p>Belum ada pelanggan.</p>}
           </div>
         </section>
       </section>

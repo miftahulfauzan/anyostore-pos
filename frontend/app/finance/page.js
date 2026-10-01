@@ -158,7 +158,7 @@ export default function Finance() {
                       <td>{labelFor(paymentLabels, row.payment_method)}</td>
                       <td>{rupiah(row.amount)}</td>
                       <td>{labelFor(statusLabels, row.status)}</td>
-                      <td>{row.status === 'pending' ? <button type="button" onClick={() => approve(row.id)}>Setujui</button> : '—'}</td>
+                      <td>{row.status === 'pending' ? <button type="button" onClick={() => approve(row.id)}>Setujui</button> : '-'}</td>
                     </tr>
                   ))}
                   {(active === 'income' ? income : expenses).length === 0 && <tr><td colSpan={7}>Belum ada data.</td></tr>}

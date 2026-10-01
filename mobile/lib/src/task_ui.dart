@@ -5,25 +5,62 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_client.dart';
 
+// Anyostore cream and denim design system.
+// Green and orange remain reserved for semantic stock and transaction states.
 const kTaskBg = Color(0xffF5F1EA);
+const kTaskDarkBg = Color(0xff12151B);
+const kTaskDarkSurface = Color(0xff1F2937);
+const kTaskSurface = Color(0xffffffff);
+const kTaskInk = Color(0xff1E3A5F);
 const kTaskDark = Color(0xff1E3A5F);
-const kTaskOrange = Color(0xff2E5D8F);
-const kTaskOrangeLight = Color(0xff5A8BBF);
-const kTaskPurple = Color(0xff3B6EA5);
-const kTaskGray = Color(0xff8A857C);
+const kTaskSecondary = Color(0xff2E5D8F);
+const kTaskBlueLight = Color(0xff5A8BBF);
+const kTaskTeal = Color(0xff246B45);
+const kTaskTerracotta = Color(0xff9A3412);
+const kTaskSand = Color(0xffE7E0D6);
+const kTaskGray = Color(0xff475569);
 const kTaskBorder = Color(0xffE7E0D6);
+
+// Status stok mengikuti mockup mobile: tersedia (teal), menipis (oranye),
+// dan habis (merah). Teks status tetap ditampilkan sehingga warna bukan satu-
+// satunya penanda kondisi.
+const kTaskStockGood = Color(0xff246B45);
+const kTaskStockGoodSurface = Color(0xffDDF2E5);
+const kTaskStockLow = Color(0xff9A3412);
+const kTaskStockLowSurface = Color(0xffFCE4D6);
+const kTaskStockEmpty = Color(0xffB42318);
+const kTaskStockEmptySurface = Color(0xffFBE4E4);
+
+// Compatibility aliases for feature pages that still use the old semantic
+// names. New UI should prefer the explicit tokens above.
+const kTaskOrange = kTaskDark;
+const kTaskOrangeLight = kTaskSecondary;
+const kTaskPurple = kTaskTeal;
 
 /// Warna latar halaman yang ikut mode terang/gelap.
 Color pageBg(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xff12151B)
-        : kTaskBg;
+    Theme.of(context).brightness == Brightness.dark ? kTaskDarkBg : kTaskBg;
 
 /// Warna teks/ikon utama yang ikut mode terang/gelap.
 Color ink(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xffE7ECF4)
-        : kTaskDark;
+        ? const Color(0xffF1F5F9)
+        : kTaskInk;
+
+Color taskSurface(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? kTaskDarkSurface
+        : kTaskSurface;
+
+Color taskMuted(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xffCBD5E1)
+        : kTaskSecondary;
+
+Color taskBorder(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xff334155)
+        : kTaskBorder;
 
 /// Entrance: fade + slide-up halus (Corporate motion). Delay untuk stagger.
 class Entrance extends StatelessWidget {
@@ -42,7 +79,7 @@ class Entrance extends StatelessWidget {
   Widget build(BuildContext context) => child;
 }
 
-/// Tab pil: aktif biru denim, nonaktif putih.
+/// Tab pil: aktif denim, nonaktif surface netral.
 class PillTabs extends StatelessWidget {
   const PillTabs(
       {super.key,
@@ -65,7 +102,7 @@ class PillTabs extends StatelessWidget {
             children: [
               for (var i = 0; i < tabs.length; i++) ...[
                 if (i > 0) const SizedBox(width: 8),
-                Expanded(child: _pill(tabs[i], true)),
+                Expanded(child: _pill(context, tabs[i], true)),
               ],
             ],
           ),
@@ -80,12 +117,13 @@ class PillTabs extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         itemCount: tabs.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (_, i) => _pill(tabs[i], false),
+        itemBuilder: (_, i) => _pill(context, tabs[i], false),
       ),
     );
   }
 
-  Widget _pill(({String value, IconData icon, String label}) t, bool centered) {
+  Widget _pill(BuildContext context,
+      ({String value, IconData icon, String label}) t, bool centered) {
     final active = t.value == selected;
     return AnimatedScale(
       scale: active ? 1.02 : 1.0,
@@ -95,15 +133,15 @@ class PillTabs extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeInOutCubic,
         decoration: BoxDecoration(
-          color: active ? kTaskOrange : Colors.white,
+          color: active ? kTaskDark : taskSurface(context),
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
                 color: active
-                    ? kTaskOrange.withValues(alpha: .45)
-                    : const Color(0x14000000),
-                blurRadius: active ? 6 : 1,
-                offset: const Offset(0, 1)),
+                    ? kTaskDark.withValues(alpha: .18)
+                    : const Color(0x120F172A),
+                blurRadius: active ? 4 : 2,
+                offset: const Offset(0, 2)),
           ],
         ),
         child: Material(
@@ -118,7 +156,8 @@ class PillTabs extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(t.icon,
-                        size: 16, color: active ? Colors.white : kTaskGray),
+                        size: 16,
+                        color: active ? Colors.white : taskMuted(context)),
                     const SizedBox(width: 6),
                     Flexible(
                       child: Text(t.label,
@@ -128,7 +167,8 @@ class PillTabs extends StatelessWidget {
                           style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: active ? Colors.white : kTaskGray)),
+                              color:
+                                  active ? Colors.white : taskMuted(context))),
                     ),
                   ],
                 ),
@@ -141,7 +181,7 @@ class PillTabs extends StatelessWidget {
   }
 }
 
-/// Blob dekoratif lembut di latar (biru denim) dengan gerakan ambient pelan.
+/// Blob dekoratif sangat lembut agar halaman tetap fokus pada data.
 class SoftBlobs extends StatefulWidget {
   const SoftBlobs({super.key});
 
@@ -165,8 +205,8 @@ class _SoftBlobsState extends State<SoftBlobs> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    kTaskPurple.withValues(alpha: .22),
-                    kTaskPurple.withValues(alpha: 0),
+                    kTaskSecondary.withValues(alpha: .10),
+                    kTaskSecondary.withValues(alpha: 0),
                   ],
                 ),
               ),
@@ -182,8 +222,8 @@ class _SoftBlobsState extends State<SoftBlobs> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    kTaskOrange.withValues(alpha: .18),
-                    kTaskOrange.withValues(alpha: 0),
+                    kTaskBlueLight.withValues(alpha: .08),
+                    kTaskBlueLight.withValues(alpha: 0),
                   ],
                 ),
               ),
@@ -249,9 +289,9 @@ class _BrandLogoState extends State<BrandLogo> {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: const Color(0x141E3A5F),
+        color: kTaskSand,
         borderRadius: BorderRadius.circular(widget.radius),
-        border: Border.all(color: kTaskBorder),
+        border: Border.all(color: taskBorder(context)),
       ),
       child: Icon(Icons.shopping_bag_outlined,
           size: size * 0.52, color: kTaskDark),
@@ -273,7 +313,7 @@ class _BrandLogoState extends State<BrandLogo> {
   }
 }
 
-/// Kartu liquid glass: frosted translucent dengan blur dan border tipis.
+/// Kartu data solid dengan border; elevation disimpan untuk lapisan overlay.
 class GlassCard extends StatelessWidget {
   const GlassCard(
       {super.key,
@@ -312,27 +352,9 @@ class GlassCard extends StatelessWidget {
     final card = Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
-        gradient: LinearGradient(
-          colors: isDark
-              ? [
-                  const Color(0xFF262F3D),
-                  const Color(0xFF1D2430),
-                ]
-              : [
-                  Colors.white.withValues(alpha: .78),
-                  Colors.white.withValues(alpha: .42),
-                ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(
-            color: isDark
-                ? Colors.white.withValues(alpha: .16)
-                : Colors.white.withValues(alpha: .55)),
-        boxShadow: const [
-          BoxShadow(
-              color: Color(0x1A1E3A5F), blurRadius: 20, offset: Offset(0, 8)),
-        ],
+        color: isDark ? kTaskDarkSurface : kTaskSurface,
+        border:
+            Border.all(color: isDark ? const Color(0xff334155) : kTaskBorder),
       ),
       child: height == null ? inner : SizedBox(height: height, child: inner),
     );
@@ -352,8 +374,8 @@ class GlassCard extends StatelessWidget {
   }
 }
 
-/// Bottom nav Liquid Glass MELAYANG (statis, tanpa animasi): pil kaca
-/// mengambang dengan 5 item sebaris — POS (keranjang) paling kiri, lalu
+/// Bottom nav melayang (statis): panel solid yang mudah dibaca
+/// dengan 5 item sebaris — POS (keranjang) paling kiri, lalu
 /// Riwayat, Stok, Laporan, Lainnya. Kontras teks dinaikkan supaya jelas.
 class GlassNavBar extends StatelessWidget {
   const GlassNavBar(
@@ -379,68 +401,27 @@ class GlassNavBar extends StatelessWidget {
             left: 14,
             right: 14,
             bottom: 14 + bottomPad,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(28),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                child: ColorFiltered(
-                  colorFilter: const ColorFilter.matrix([
-                    1.25,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    1.25,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    1.25,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    1,
-                    0,
-                  ]),
-                  child: Container(
-                    height: 62,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: dark
-                            ? const [
-                                Color(0x3DFFFFFF),
-                                Color(0x1FFFFFFF),
-                                Color(0x0AFFFFFF),
-                              ]
-                            : const [
-                                Color(0xB3FFFFFF),
-                                Color(0x73FFFFFF),
-                                Color(0x2EFFFFFF),
-                              ],
-                      ),
-                    ),
-                    child: Stack(
-                      children: [
-                        _LiquidRim(dark: dark),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            for (var i = 0; i < items.length; i++)
-                              _navIcon(i, dark: dark),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+            child: Container(
+              height: 62,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: dark ? kTaskDarkSurface : kTaskSurface,
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                    color: dark ? const Color(0xff334155) : kTaskBorder),
+                boxShadow: const [
+                  BoxShadow(
+                      color: Color(0x1A0F172A),
+                      blurRadius: 16,
+                      offset: Offset(0, 6)),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  for (var i = 0; i < items.length; i++)
+                    _navIcon(i, dark: dark),
+                ],
               ),
             ),
           ),
@@ -452,7 +433,7 @@ class GlassNavBar extends StatelessWidget {
   Widget _navIcon(int i, {required bool dark}) {
     final item = items[i];
     final active = current == i;
-    final idleColor = dark ? const Color(0xffF1F5FB) : const Color(0xff403C36);
+    final idleColor = dark ? const Color(0xffE2E8F0) : kTaskSecondary;
     const activeColor = Colors.white;
     return Semantics(
       label: item.label,
@@ -463,23 +444,22 @@ class GlassNavBar extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: Container(
           width: 62,
-          height: 54,
-          margin: const EdgeInsets.symmetric(vertical: 1),
+          height: 48,
           decoration: BoxDecoration(
-            color: active
-                ? (dark ? const Color(0xff1E3A5F) : kTaskDark)
-                : Colors.transparent,
+            color: active ? kTaskDark : Colors.transparent,
             borderRadius: BorderRadius.circular(18),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(active ? item.activeIcon : item.icon,
-                  size: 21, color: active ? activeColor : idleColor),
-              const SizedBox(height: 2),
+                  size: 20, color: active ? activeColor : idleColor),
+              const SizedBox(height: 1),
               Text(item.label,
                   style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 9.5,
+                      height: 1.0,
                       fontWeight: active ? FontWeight.w800 : FontWeight.w700,
                       color: active ? activeColor : idleColor)),
             ],
@@ -488,81 +468,4 @@ class GlassNavBar extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Rim atas navbar (statis): garis terang (refraction ring) + chromatic
-/// dispersion tipis merah/sian, memudar di kedua ujung.
-class _LiquidRim extends StatelessWidget {
-  const _LiquidRim({required this.dark});
-  final bool dark;
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      top: 0,
-      left: 0,
-      right: 0,
-      child: IgnorePointer(
-        child: CustomPaint(
-          size: Size(MediaQuery.of(context).size.width, 6),
-          painter: _LiquidRimPainter(dark: dark),
-        ),
-      ),
-    );
-  }
-}
-
-class _LiquidRimPainter extends CustomPainter {
-  _LiquidRimPainter({required this.dark});
-  final bool dark;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    // Fade horizontal: transparan di ujung, terang di tengah.
-    LinearGradient fade(double alpha) => LinearGradient(
-          colors: [
-            Colors.white.withValues(alpha: 0),
-            Colors.white.withValues(alpha: alpha),
-            Colors.white.withValues(alpha: 0),
-          ],
-          stops: const [0, .5, 1],
-        );
-
-    final core = Paint()
-      ..shader = fade(dark ? .45 : .8).createShader(Offset.zero & size)
-      ..strokeWidth = 1.4
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(const Offset(0, 2.6), Offset(w, 2.6), core);
-
-    // Chromatic dispersion: garis merah bergeser sedikit + biru/sian.
-    final red = Paint()
-      ..shader = LinearGradient(
-        colors: [
-          Colors.transparent,
-          const Color(0xFFFF7A6B).withValues(alpha: .34),
-          const Color(0xFFFF7A6B).withValues(alpha: .34),
-          Colors.transparent,
-        ],
-        stops: const [0, .35, .65, 1],
-      ).createShader(Offset.zero & size)
-      ..strokeWidth = 1;
-    canvas.drawLine(const Offset(0, 1.2), Offset(w, 1.2), red);
-
-    final cyan = Paint()
-      ..shader = LinearGradient(
-        colors: [
-          Colors.transparent,
-          const Color(0xFF6BD8FF).withValues(alpha: .30),
-          const Color(0xFF6BD8FF).withValues(alpha: .30),
-          Colors.transparent,
-        ],
-        stops: const [0, .35, .65, 1],
-      ).createShader(Offset.zero & size)
-      ..strokeWidth = 1;
-    canvas.drawLine(const Offset(0, 4.0), Offset(w, 4.0), cyan);
-  }
-
-  @override
-  bool shouldRepaint(_LiquidRimPainter old) => old.dark != dark;
 }
