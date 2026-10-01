@@ -310,6 +310,65 @@ export default function TransferPage() {
   }
   const totalQty = cart.reduce((s, c) => s + Number(c.quantity || 0), 0);
 
+  useEffect(() => {
+    if (!cart.length) setCartOpen(false);
+  }, [cart.length]);
+
+  useEffect(() => {
+    if (!cartOpen || !window.matchMedia('(max-width: 900px)').matches) return undefined;
+    document.body.classList.add('mobile-cart-active');
+    window.requestAnimationFrame(() => {
+      const list = document.querySelector('#transfer-cart .mutasi-cart-list');
+      if (list) list.scrollTop = 0;
+    });
+
+    const root = document.documentElement;
+    const viewportProperties = [
+      '--mutasi-cart-viewport-height',
+      '--mutasi-cart-viewport-bottom',
+      '--mutasi-cart-drawer-height',
+    ];
+    const previousProperties = viewportProperties.map((property) => root.style.getPropertyValue(property));
+
+    function keepFocusedQuantityVisible() {
+      const input = document.activeElement;
+      if (!input?.classList?.contains('mutasi-cart-qty')) return;
+      const list = input.closest('.mutasi-cart-list');
+      const row = input.closest('.mutasi-cart-item');
+      if (!list || !row) return;
+      const listBounds = list.getBoundingClientRect();
+      const rowBounds = row.getBoundingClientRect();
+      if (rowBounds.bottom > listBounds.bottom) list.scrollTop += rowBounds.bottom - listBounds.bottom + 8;
+      else if (rowBounds.top < listBounds.top) list.scrollTop -= listBounds.top - rowBounds.top + 8;
+    }
+
+    function syncCartViewport() {
+      const viewport = window.visualViewport;
+      const height = Math.max(1, Math.round(viewport?.height || window.innerHeight));
+      const top = Math.max(0, Math.round(viewport?.offsetTop || 0));
+      const bottom = Math.max(0, Math.round(window.innerHeight - height - top));
+      root.style.setProperty('--mutasi-cart-viewport-height', `${height}px`);
+      root.style.setProperty('--mutasi-cart-viewport-bottom', `${bottom}px`);
+      root.style.setProperty('--mutasi-cart-drawer-height', `${Math.min(height * 0.78, 680)}px`);
+      window.requestAnimationFrame(keepFocusedQuantityVisible);
+    }
+
+    syncCartViewport();
+    window.addEventListener('resize', syncCartViewport);
+    window.visualViewport?.addEventListener('resize', syncCartViewport);
+    window.visualViewport?.addEventListener('scroll', syncCartViewport);
+    return () => {
+      document.body.classList.remove('mobile-cart-active');
+      window.removeEventListener('resize', syncCartViewport);
+      window.visualViewport?.removeEventListener('resize', syncCartViewport);
+      window.visualViewport?.removeEventListener('scroll', syncCartViewport);
+      viewportProperties.forEach((property, index) => {
+        if (previousProperties[index]) root.style.setProperty(property, previousProperties[index]);
+        else root.style.removeProperty(property);
+      });
+    };
+  }, [cartOpen]);
+
   async function submit() {
     if (!from || !to || from === to) return setMessage('Pilih gudang asal dan tujuan yang berbeda.');
     const payload = cart.map((c) => ({ product_id: Number(c.product_id), variant_id: c.variant_id ? Number(c.variant_id) : undefined, quantity: Number(c.quantity) }));
@@ -404,31 +463,56 @@ export default function TransferPage() {
         </div>
       </section>
 
-      <aside className={`panel mutasi-cart${cartOpen ? ' open' : ''}`}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+      <aside id="transfer-cart" className={`panel mutasi-cart${cartOpen ? ' open' : ''}`} aria-expanded={cartOpen}>
+        <div className="mutasi-cart-header">
           <h2 style={{ margin: 0 }}>Keranjang Transfer</h2>
           <button type="button" className="cart-close" onClick={() => setCartOpen(false)} aria-label="Tutup keranjang"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg></button>
         </div>
-        {cart.length === 0 && <p className="muted" style={{ margin: '2px 0 10px', textAlign: 'center' }}>Belum ada produk di keranjang.</p>}
-        {cart.map((c) => (
-          <div key={c.key} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <strong style={{ fontSize: 13, display: 'block' }}>{c.name}</strong>
-              <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>{c.sku}{c.color ? ` · ${c.color}` : ' · Stok umum'}</span>
+        <div className="mutasi-cart-list">
+          {cart.length === 0 && <p className="muted mutasi-cart-empty">Belum ada produk di keranjang.</p>}
+          {cart.map((c) => (
+            <div key={c.key} className="mutasi-cart-item">
+              <div className="mutasi-cart-item-info">
+                <strong>{c.name}</strong>
+                <span>{c.sku}{c.color ? ` · ${c.color}` : ' · Stok umum'}</span>
+              </div>
+              <input
+                className="mutasi-cart-qty"
+                type="number"
+                min="1"
+                value={c.quantity}
+                onFocus={(e) => {
+                  const input = e.currentTarget;
+                  input.select();
+                  window.setTimeout(() => {
+                    const list = input.closest('.mutasi-cart-list');
+                    const row = input.closest('.mutasi-cart-item');
+                    if (!list || !row) return;
+                    const listBounds = list.getBoundingClientRect();
+                    const rowBounds = row.getBoundingClientRect();
+                    if (rowBounds.bottom > listBounds.bottom) list.scrollTop += rowBounds.bottom - listBounds.bottom + 8;
+                    else if (rowBounds.top < listBounds.top) list.scrollTop -= listBounds.top - rowBounds.top + 8;
+                  }, 100);
+                }}
+                onClick={(e) => e.currentTarget.select()}
+                onChange={(e) => setQty(c.key, e.target.value)}
+                aria-label={`Jumlah ${c.name}${c.color ? ` ${c.color}` : ''}`}
+              />
+              <button className="mutasi-cart-remove" type="button" onClick={() => setQty(c.key, 0)} aria-label={`Hapus ${c.name}`}>×</button>
             </div>
-            <input type="number" min="1" value={c.quantity} onChange={(e) => setQty(c.key, e.target.value)} style={{ width: 64, minHeight: 34 }} />
-            <button type="button" onClick={() => setQty(c.key, 0)} aria-label="Hapus" style={{ minWidth: 30, minHeight: 30 }}>×</button>
-          </div>
-        ))}
-        <div style={{ display: 'flex', justifyContent: 'space-between', margin: '12px 0', fontWeight: 700 }}>
-          <span>Total Qty</span><span>{totalQty}</span>
+          ))}
         </div>
-        <button type="button" disabled={saving || !cart.length} onClick={submit} style={{ width: '100%' }}>{saving ? 'Memproses…' : 'Transfer Stok'}</button>
-        {message && <p className="message" role="status" style={{ marginTop: 10 }}>{message}</p>}
+        <div className="mutasi-cart-footer">
+          <div className="mutasi-cart-summary">
+            <span>Total Qty</span><strong>{totalQty}</strong>
+          </div>
+          <button className="mutasi-cart-submit" type="button" disabled={saving || !cart.length} onClick={submit}>{saving ? 'Memproses…' : 'Transfer Stok'}</button>
+          {message && <p className="message" role="status">{message}</p>}
+        </div>
       </aside>
     </div>
-    {!cartOpen && <button type="button" className="cart-fab" onClick={() => setCartOpen(true)}>Keranjang · {totalQty} item</button>}
-    {cartOpen && <div className="cart-backdrop" onClick={() => setCartOpen(false)} />}
+    {!cartOpen && cart.length > 0 && <button type="button" className="cart-fab" onClick={() => setCartOpen(true)} aria-expanded={cartOpen} aria-controls="transfer-cart"><span>Keranjang</span><strong>{cart.length} produk · {totalQty} pcs</strong></button>}
+    {cartOpen && <div className="cart-backdrop" onClick={() => setCartOpen(false)} aria-hidden="true" />}
     {picker && <StockVariantPicker product={picker} onClose={() => setPicker(null)} onAdd={(p, v, q) => { addToCart(p, v, q); setPicker(null); }} />}
     </> : <TransferHistory
       rows={historyRows}

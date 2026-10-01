@@ -2502,6 +2502,22 @@ html.dark body {
     grid-template-columns: 1fr;
     gap: .1rem;
     font-size: .68rem;
+    justify-items: stretch;
+    width: 100%;
+    text-align: left !important;
   }
-  .product-list.grid-view .product-rack-locations > strong { font-size: .68rem; }
+  .product-list.grid-view .product-rack-locations > strong {
+    font-size: .68rem;
+    text-align: left !important;
+  }
+  .product-list.grid-view .product-rack-location-list {
+    justify-items: start;
+    width: 100%;
+    text-align: left !important;
+  }
+  .product-list.grid-view .product-rack-location {
+    width: 100%;
+    overflow-wrap: anywhere;
+    text-align: left !important;
+  }
 }
