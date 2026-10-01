@@ -134,6 +134,12 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
   useEffect(() => {
     if (!cartOpen || !window.matchMedia('(max-width: 900px)').matches) return undefined;
     document.body.classList.add('mobile-cart-active');
+    // Always open at the first line item. A remembered scroll offset can leave
+    // the summary visible while making a populated cart look empty.
+    window.requestAnimationFrame(() => {
+      const list = document.querySelector('#mutation-cart .mutasi-cart-list');
+      if (list) list.scrollTop = 0;
+    });
     const root = document.documentElement;
     const viewportProperties = [
       '--mutasi-cart-viewport-height',
@@ -180,6 +186,54 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
       });
     };
   }, [cartOpen]);
+
+  useEffect(() => {
+    if (!quantityPrompt || !window.matchMedia('(max-width: 600px)').matches) return undefined;
+    const root = document.documentElement;
+    const viewportProperties = [
+      '--quantity-viewport-top',
+      '--quantity-viewport-bottom',
+      '--quantity-viewport-height',
+    ];
+    const previousProperties = viewportProperties.map((property) => root.style.getPropertyValue(property));
+    document.body.classList.add('quantity-dialog-active');
+
+    function keepInputVisible() {
+      const dialog = document.querySelector('.quantity-dialog');
+      const input = document.activeElement;
+      if (!dialog || !input || !dialog.contains(input)) return;
+      const dialogBounds = dialog.getBoundingClientRect();
+      const inputBounds = input.getBoundingClientRect();
+      if (inputBounds.bottom > dialogBounds.bottom) dialog.scrollTop += inputBounds.bottom - dialogBounds.bottom + 12;
+      else if (inputBounds.top < dialogBounds.top) dialog.scrollTop -= dialogBounds.top - inputBounds.top + 12;
+    }
+
+    function syncQuantityViewport() {
+      const viewport = window.visualViewport;
+      const height = Math.max(1, Math.round(viewport?.height || window.innerHeight));
+      const top = Math.max(0, Math.round(viewport?.offsetTop || 0));
+      const bottom = Math.max(0, Math.round(window.innerHeight - height - top));
+      root.style.setProperty('--quantity-viewport-top', `${top}px`);
+      root.style.setProperty('--quantity-viewport-bottom', `${bottom}px`);
+      root.style.setProperty('--quantity-viewport-height', `${height}px`);
+      window.requestAnimationFrame(keepInputVisible);
+    }
+
+    syncQuantityViewport();
+    window.addEventListener('resize', syncQuantityViewport);
+    window.visualViewport?.addEventListener('resize', syncQuantityViewport);
+    window.visualViewport?.addEventListener('scroll', syncQuantityViewport);
+    return () => {
+      document.body.classList.remove('quantity-dialog-active');
+      window.removeEventListener('resize', syncQuantityViewport);
+      window.visualViewport?.removeEventListener('resize', syncQuantityViewport);
+      window.visualViewport?.removeEventListener('scroll', syncQuantityViewport);
+      viewportProperties.forEach((property, index) => {
+        if (previousProperties[index]) root.style.setProperty(property, previousProperties[index]);
+        else root.style.removeProperty(property);
+      });
+    };
+  }, [quantityPrompt]);
 
   function openCart() {
     if (cart.length) setCartOpen(true);
