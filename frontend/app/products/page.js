@@ -15,7 +15,7 @@ function ProductRackLocations({ product, includeBranchName }) {
   const labels = formatRackLocationLabels(product.rack_locations, { includeBranchName });
   if (!labels.length) return null;
 
-  return <div className="product-rack-locations" role="group" aria-label={`Posisi rak ${product.name}`}>
+  return <div className="product-rack-locations product-card__locations" role="group" aria-label={`Posisi rak ${product.name}`}>
     <strong>Posisi rak</strong>
     <div className="product-rack-location-list">
       {labels.map((label, index) => {
@@ -215,7 +215,7 @@ export default function ProductsPage() {
       </div>
       {message && <p className="message" role="status">{message}</p>}
       {failures.length > 0 && <div className="catalog-failures" role="alert"><strong>Produk gagal tetap dipilih untuk dicoba lagi.</strong><ul>{failures.map((failure) => <li key={failure.id}>{failure.name}: {failure.message}{failure.status ? ` (${failure.status})` : ''}</li>)}</ul></div>}
-      {loading ? <p>Memuat produk…</p> : <div className={`product-list ${view === 'grid' ? 'grid-view' : ''}`}>{products.map((product) => <article key={product.id} className="product-row" style={selected.has(product.id) ? { outline: '2px solid var(--primary)', outlineOffset: 2, borderRadius: 10 } : undefined}>
+      {loading ? <p>Memuat produk…</p> : <div className={`product-list ${view === 'grid' ? 'grid-view' : ''}`}>{products.map((product) => <article key={product.id} className="product-row product-card" style={selected.has(product.id) ? { outline: '2px solid var(--primary)', outlineOffset: 2, borderRadius: 12 } : undefined}>
         {selectionPlacement === 'column' && <label className="product-select-control product-select-control--list" title="Pilih produk">
           <input type="checkbox" disabled={mutating || !product.capabilities?.delete} checked={selected.has(product.id)} onChange={() => toggleSelect(product.id)} aria-label={`Pilih ${product.name}`} />
         </label>}
@@ -223,9 +223,11 @@ export default function ProductsPage() {
           {selectionPlacement === 'thumbnail' && <label className="product-select-control" title="Pilih produk">
             <input type="checkbox" disabled={mutating || !product.capabilities?.delete} checked={selected.has(product.id)} onChange={() => toggleSelect(product.id)} aria-label={`Pilih ${product.name}`} />
           </label>}</div>
-        <div className="product-description">
-          <strong>{product.name}</strong>
-          <span>{product.category_name} · {product.sku || 'Tanpa SKU'}</span>
+        <div className="product-description product-card__content">
+          <div className="product-card__identity">
+            <strong>{product.name}</strong>
+            <span>{product.category_name} · {product.sku || 'Tanpa SKU'}</span>
+          </div>
           <ProductRackLocations product={product} includeBranchName={branchId === 'all'} />
           {Number(product.variant_count) > 0 && <div className="variant-summary"><span>{product.variant_count} varian</span>{String(product.variant_colors || '').split('|').filter(Boolean).slice(0, 4).map((color) => <i key={color} title={color}>{color}</i>)}</div>}
           <div className="product-actions">
@@ -237,7 +239,7 @@ export default function ProductsPage() {
           </div>
           {(!product.capabilities?.edit || !product.capabilities?.copy || !product.capabilities?.delete) && <small className="product-permissions">Aksi yang redup tidak diizinkan untuk akun Anda di cabang produk ini.</small>}
         </div>
-        <div><strong>Rp{Number(product.price).toLocaleString('id-ID')}</strong><span>Stok {product.stock}</span></div>
+        <div className="product-card__inventory"><strong>Rp{Number(product.price).toLocaleString('id-ID')}</strong><span>Stok {product.stock}</span></div>
       </article>)}{!products.length && <div className="empty-state"><strong>Produk tidak ditemukan.</strong><span>Coba kata kunci lain atau tambahkan produk baru.</span><a href="/products/new">Tambah produk</a></div>}</div>}
       <nav className="catalog-pagination" aria-label="Paginasi produk">
         <button type="button" className="secondary" disabled={loading || mutating || page <= 1} onClick={() => changeFilter('page', page - 1)}>Sebelumnya</button>

@@ -2521,3 +2521,150 @@ html.dark body {
     text-align: left !important;
   }
 }
+
+/* Product catalog cards: one 8px rhythm, with the photo and each data block
+   aligned to the same card edge. Grid tracks grow only when the viewport fits. */
+.product-list.grid-view {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 292px), 1fr));
+  gap: 16px;
+}
+.product-list.grid-view .product-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  align-items: start;
+  gap: 12px;
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, .045);
+}
+.product-list.grid-view .product-card .product-photo {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 4;
+  border-radius: 8px;
+}
+.product-list.grid-view .product-card__content {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+.product-card__identity {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.product-list.grid-view .product-card__identity > strong {
+  color: var(--foreground);
+  font-size: 1.1rem;
+  font-weight: 750;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.product-list.grid-view .product-card__identity > span {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: .9rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.product-list.grid-view .product-card__locations {
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  font-size: .85rem;
+  line-height: 1.35;
+}
+.product-list.grid-view .product-card__locations > strong {
+  font-size: .82rem;
+}
+.product-list.grid-view .product-card__locations .product-rack-location-list {
+  justify-items: end;
+  gap: 4px;
+  width: 100%;
+  text-align: right;
+}
+.product-list.grid-view .product-card__locations .product-rack-location {
+  width: auto;
+  max-width: 100%;
+  text-align: right;
+}
+.product-list.grid-view .product-card .product-actions {
+  display: grid;
+  grid-template-columns: repeat(5, 44px);
+  justify-content: start;
+  gap: 6px;
+  width: max-content;
+  max-width: 100%;
+  margin: 0;
+}
+.product-list.grid-view .product-card .icon-action {
+  box-sizing: border-box;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-color: var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--primary);
+}
+.product-list.grid-view .product-card .icon-action.danger:hover {
+  border-color: var(--destructive);
+  background: color-mix(in srgb, var(--destructive) 7%, var(--card));
+  color: var(--destructive);
+}
+.product-list.grid-view .product-card__inventory {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  text-align: left;
+}
+.product-list.grid-view .product-card__inventory > strong {
+  color: var(--foreground);
+  font-size: 1.15rem;
+  font-weight: 750;
+  line-height: 1.25;
+}
+.product-list.grid-view .product-card__inventory > span {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: .9rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 700px) {
+  .product-list.grid-view {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .product-list.grid-view .product-card {
+    gap: 12px;
+    padding: 20px;
+  }
+  .product-list.grid-view .product-card__identity > strong { font-size: 1rem; }
+  .product-list.grid-view .product-card__identity > span,
+  .product-list.grid-view .product-card__inventory > span { font-size: .85rem; }
+}
+
+@media (max-width: 360px) {
+  .catalog-panel:has(.product-list.grid-view) { padding: 8px; }
+  .product-list.grid-view .product-card { padding: 12px; }
+  .product-list.grid-view .product-card .product-actions { gap: 4px; }
+}
+
+@media (max-width: 320px) {
+  .app-main:has(.catalog-panel .product-list.grid-view) { padding-inline: 8px; }
+  .catalog-panel:has(.product-list.grid-view) { padding: 4px; }
+  .product-list.grid-view .product-card { padding: 8px; }
+}
