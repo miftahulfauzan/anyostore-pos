@@ -4,6 +4,7 @@ const { authenticate, authorize } = require('../auth');
 const { assertValidUpload, createMediaUpload, decodeDataUpload, discardUploadedFile, persistUploadedFile, removeMedia, copyMediaFile } = require('../media-storage');
 const { money } = require('../money');
 const { deleteCatalogProduct, productCapabilities } = require('../product-lifecycle');
+const { loadProductRackLocations } = require('../product-rack-locations');
 
 const router = express.Router();
 router.use(authenticate);
@@ -273,8 +274,12 @@ router.get('/', async (req, res, next) => {
        FROM products p JOIN categories c ON c.id = p.category_id JOIN branches b ON b.id=p.branch_id
        ${where} ORDER BY ${orderBy}, p.id LIMIT ${limit} OFFSET ${offset}`, params
     );
+    const rackLocationsByProduct = req.query.include_rack_locations === '1'
+      ? await loadProductRackLocations(db, rows)
+      : new Map();
     for (const row of rows) {
       row.capabilities = productCapabilities(req.user, row);
+      row.rack_locations = rackLocationsByProduct.get(Number(row.id)) || [];
       delete row.warehouse_catalog_delete_enabled;
     }
     if (includeWholesale) {

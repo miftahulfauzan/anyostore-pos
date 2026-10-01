@@ -6,9 +6,25 @@ import AppShell from '../components/AppShell';
 import BarcodeLabel from '../components/BarcodeLabel';
 import { getProductSelectionPlacement } from './view-utils.cjs';
 import { productsQuery, productBranchQuery, bulkDeleteProducts } from './catalog-state.cjs';
+import { formatRackLocationLabels } from './rack-location-labels.cjs';
 import { useAppSession } from '../components/AppStateProvider';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+
+function ProductRackLocations({ product, includeBranchName }) {
+  const labels = formatRackLocationLabels(product.rack_locations, { includeBranchName });
+  if (!labels.length) return null;
+
+  return <div className="product-rack-locations" role="group" aria-label={`Posisi rak ${product.name}`}>
+    <strong>Posisi rak</strong>
+    <div className="product-rack-location-list">
+      {labels.map((label, index) => {
+        const location = product.rack_locations[index];
+        return <span className="product-rack-location" key={`${location?.warehouse_id || 'warehouse'}-${location?.variant_id || 'product'}-${index}`}>{label}</span>;
+      })}
+    </div>
+  </div>;
+}
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([]);
@@ -50,7 +66,7 @@ export default function ProductsPage() {
     setProducts([]);
     const timer = window.setTimeout(async () => {
       try {
-        const response = await fetch(`${apiUrl}/products?${productsQuery(filters)}`, { signal: controller.signal });
+        const response = await fetch(`${apiUrl}/products?${productsQuery(filters, { includeRackLocations: true })}`, { signal: controller.signal });
         const body = await response.json();
         if (seq !== loadSeq.current) return;
         if (!response.ok) throw new Error(body.message || 'Gagal memuat produk');
@@ -210,6 +226,7 @@ export default function ProductsPage() {
         <div className="product-description">
           <strong>{product.name}</strong>
           <span>{product.category_name} · {product.sku || 'Tanpa SKU'}</span>
+          <ProductRackLocations product={product} includeBranchName={branchId === 'all'} />
           {Number(product.variant_count) > 0 && <div className="variant-summary"><span>{product.variant_count} varian</span>{String(product.variant_colors || '').split('|').filter(Boolean).slice(0, 4).map((color) => <i key={color} title={color}>{color}</i>)}</div>}
           <div className="product-actions">
             <button type="button" className="icon-action" aria-label={`Salin ${product.name}`} disabled={mutating || !product.capabilities?.copy} title={product.capabilities?.copy ? 'Salin produk' : 'Tidak memiliki izin salin di cabang produk ini'} onClick={() => copyProduct(product)}><Copy size={15} /></button>
