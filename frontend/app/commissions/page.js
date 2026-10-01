@@ -250,7 +250,7 @@ export default function CommissionsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '1rem', alignItems: 'start' }}>
           <section className="panel">
             <h2>Aturan Komisi Baru</h2>
-            <p className="muted" style={{ marginTop: 0, fontSize: '.9rem' }}>Untuk manager: pakai tipe <strong>Per pcs by customer tier</strong> — isi 3000/3000/1000 per pcs.</p>
+            <p className="muted" style={{ marginTop: 0, fontSize: '.9rem' }}>Untuk manager: pakai tipe <strong>Per pcs by customer tier</strong>, isi 3000/3000/1000 per pcs.</p>
             <form onSubmit={createRule} style={{ display: 'grid', gap: '.75rem', marginTop: '.75rem' }}>
               <label>Toko
                 <select value={selectedBranch} onChange={(e) => { setSelectedBranch(e.target.value); load(e.target.value); loadReport(e.target.value); }}>
@@ -272,7 +272,7 @@ export default function CommissionsPage() {
                   <label>Staf
                     <select value={form.user_id} onChange={(e) => setForm({ ...form, user_id: e.target.value })} required>
                       <option value="">Pilih staf</option>
-                      {staff.map((p) => <option key={p.id} value={p.id}>{p.name} — {p.role}</option>)}
+                      {staff.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.role})</option>)}
                     </select>
                   </label>
                 ) : (
@@ -346,7 +346,7 @@ export default function CommissionsPage() {
 
         <section className="panel">
           <h2>Generate Komisi (arsip)</h2>
-          <p className="muted">Opsional — untuk history pembayarannya. Komisi live di Akun Saya & Laporan sudah otomatis tanpa generate.</p>
+          <p className="muted">Opsional, untuk riwayat pembayaran. Komisi live di Akun Saya & Laporan sudah otomatis tanpa generate.</p>
           <form onSubmit={generate} style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', alignItems: 'end', marginTop: '.5rem' }}>
             <label>Dari<input type="date" value={period.period_start} onChange={(e) => setPeriod({ ...period, period_start: e.target.value })} /></label>
             <label>Sampai<input type="date" value={period.period_end} onChange={(e) => setPeriod({ ...period, period_end: e.target.value })} /></label>
@@ -359,7 +359,7 @@ export default function CommissionsPage() {
                 {records.map((rec) => (
                   <tr key={rec.id}>
                     <td>{rec.staff_name}</td>
-                    <td>{rec.period_start} — {rec.period_end}</td>
+                    <td>{rec.period_start} s/d {rec.period_end}</td>
                     <td>{rupiah(rec.total_sales)}</td>
                     <td>{rec.total_transactions}</td>
                     <td>{rec.qty_reguler || 0}</td>

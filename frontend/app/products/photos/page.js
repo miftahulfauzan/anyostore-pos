@@ -201,7 +201,7 @@ export default function BulkPhotoUploadPage() {
           >
             <ImagePlus size={28} style={{ color: '#1e3a5f', margin: '0 auto 8px', display: 'block' }} />
             <strong style={{ fontSize: 14, color: '#1e293b' }}>{dragOver ? 'Lepaskan foto di sini' : 'Klik atau seret banyak foto ke sini'}</strong>
-            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>JPG, PNG, WebP — bisa puluhan file sekaligus</p>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>JPG, PNG, WebP. Bisa mengunggah puluhan file sekaligus.</p>
             <input id="bulk-photo-input" type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display: 'none' }} onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
             <input ref={folderInputRef} id="bulk-folder-input" type="file" multiple style={{ display: 'none' }} onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
           </div>

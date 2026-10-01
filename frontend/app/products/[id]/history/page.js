@@ -17,7 +17,7 @@ const typeOptions = [
 ];
 
 function formatDate(value) {
-  if (!value) return '—';
+  if (!value) return '-';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
 }
@@ -156,7 +156,7 @@ export default function ProductHistoryPage() {
                 </div>
                 <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
                   <strong>{row.warehouse_name || 'Gudang tidak tercatat'}{row.variant_color ? ` · ${row.variant_color}` : ''}</strong>
-                  <small className="muted">Stok {row.stock_before == null ? '—' : formatNumber(row.stock_before)} → {row.stock_after == null ? '—' : formatNumber(row.stock_after)} · {row.reference_type || 'tanpa referensi'}{row.reference_id ? ` #${row.reference_id}` : ''}</small>
+                  <small className="muted">Stok {row.stock_before == null ? '-' : formatNumber(row.stock_before)} → {row.stock_after == null ? '-' : formatNumber(row.stock_after)} · {row.reference_type || 'tanpa referensi'}{row.reference_id ? ` #${row.reference_id}` : ''}</small>
                   {row.notes && <small className="muted" style={{ overflowWrap: 'anywhere' }}>{row.notes}</small>}
                 </div>
                 <strong style={{ whiteSpace: 'nowrap', color: qty >= 0 ? '#047857' : '#be123c', fontSize: 17 }}>{qty > 0 ? '+' : ''}{formatNumber(qty)} pcs</strong>

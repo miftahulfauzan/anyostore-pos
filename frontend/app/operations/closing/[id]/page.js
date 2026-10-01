@@ -36,7 +36,7 @@ export default function ClosingPrintPage() {
         <p>{data.branch_name}</p>
         <p>Kasir: {data.cashier}</p>
         <p>Dibuka: {new Date(data.opened_at).toLocaleString('id-ID')}</p>
-        <p>Ditutup: {data.closed_at ? new Date(data.closed_at).toLocaleString('id-ID') : '—'}</p>
+        <p>Ditutup: {data.closed_at ? new Date(data.closed_at).toLocaleString('id-ID') : '-'}</p>
       </header>
       <section>
         <h2>Ringkasan</h2>

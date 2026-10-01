@@ -124,10 +124,10 @@ export default function Users() {
           <label>Password<input required minLength="8" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>
           <label>Peran
             <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-              <option value="manager">Manager — operasional & laporan toko</option>
-              <option value="admin">Admin — produk, stok & pengaturan toko</option>
-              <option value="kasir">Kasir — POS, pelanggan & retur</option>
-              <option value="gudang">Admin Gudang — stok, opname, transfer & kelola gudang</option>
+              <option value="manager">Manager: operasional & laporan toko</option>
+              <option value="admin">Admin: produk, stok & pengaturan toko</option>
+              <option value="kasir">Kasir: POS, pelanggan & retur</option>
+              <option value="gudang">Admin Gudang: stok, opname, transfer & kelola gudang</option>
             </select>
           </label>
           <label>PIN (opsional)<input pattern="[0-9]{6}" value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} /></label>
@@ -186,7 +186,7 @@ export default function Users() {
       {pwTarget && (
         <div className="modal-backdrop" onClick={() => setPwTarget(null)}>
           <form className="panel modal-card" onSubmit={savePassword} onClick={(e) => e.stopPropagation()}>
-            <h2>Ganti Password — {pwTarget.name}</h2>
+            <h2>Ganti Password: {pwTarget.name}</h2>
             <label>Password baru<input required minLength="8" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} /></label>
             <div className="modal-actions">
               <button type="submit">Simpan</button>

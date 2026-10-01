@@ -93,7 +93,7 @@ export default function StockMovementsPage() {
           </div>
           <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: row.qty >= 0 ? '#16a34a' : '#dc2626' }}>{row.qty >= 0 ? '+' : ''}{row.qty}</div>
-            <div style={{ fontSize: 11, color: '#94a3b8' }}>{row.stock_before ?? '—'} → {row.stock_after ?? '—'}</div>
+            <div style={{ fontSize: 11, color: '#94a3b8' }}>{row.stock_before ?? '-'} → {row.stock_after ?? '-'}</div>
           </div>
         </article>
       ))}

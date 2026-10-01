@@ -97,7 +97,7 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
 
   function addToCart(product, variant = null, qty = 1) {
     if (!variant && product.variants && product.variants.length > 0) {
-      setMessage(`Produk ${product.name} punya varian — pilih warnanya dulu.`);
+      setMessage(`Produk ${product.name} punya varian. Pilih warnanya dulu.`);
       return;
     }
     const key = `${product.id}:${variant?.id || 'umum'}`;

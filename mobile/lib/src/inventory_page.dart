@@ -1285,7 +1285,7 @@ class _CatalogPickerState extends State<_CatalogPicker> {
         titleTextStyle: const TextStyle(
             color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
         flexibleSpace: Container(color: widget.accent),
-        title: Text('Pilih Produk — ${widget.title}'),
+        title: Text('Pilih Produk: ${widget.title}'),
         actions: [
           TextButton(
             onPressed:

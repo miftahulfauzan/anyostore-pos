@@ -186,7 +186,7 @@ export default function SettingsPage() {
       const response = await fetch(api + '/settings/branches', { method: 'POST', headers: jsonHeaders(), body: JSON.stringify(payload) });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.message || `Gagal buat toko (${response.status})`);
-      setCreateMessage(`Toko "${payload.name}" berhasil dibuat (ID ${body.data.id}) — ${body.data.cloned_products} produk dicloning. Stok awal 0, harga jual bisa beda.`);
+      setCreateMessage(`Toko "${payload.name}" berhasil dibuat (ID ${body.data.id}). ${body.data.cloned_products} produk disalin. Stok awal 0, harga jual bisa berbeda.`);
       // reload list
       const fresh = await loadBranches();
       const id = String(body.data.id);
@@ -397,7 +397,7 @@ export default function SettingsPage() {
               type="password"
               value={form.daily_email_api_key}
               onChange={(event) => setForm({ ...form, daily_email_api_key: event.target.value })}
-              placeholder={emailKeySet ? 'API key tersimpan — kosongkan jika tidak diubah' : 're_...'}
+              placeholder={emailKeySet ? 'API key tersimpan. Kosongkan jika tidak diubah' : 're_...'}
               autoComplete="new-password"
             />
           </label>

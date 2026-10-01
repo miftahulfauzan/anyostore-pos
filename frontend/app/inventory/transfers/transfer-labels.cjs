@@ -9,7 +9,7 @@ function formatTransferLocationLabel(location = {}) {
   // Nama cabang menjadi label kanonis agar tidak tampil seperti "X — X".
   if (location.branch_type === 'gudang') return branchName || warehouseName;
   if (!branchName || branchName === warehouseName) return branchName || warehouseName;
-  return `${branchName} — ${warehouseName}${type}`;
+  return `${branchName} / ${warehouseName}${type}`;
 }
 
 function formatHistoryLocationLabel(location = {}) {

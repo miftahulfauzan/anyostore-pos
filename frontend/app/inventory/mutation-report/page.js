@@ -23,7 +23,7 @@ function presetDate(days) {
 }
 function displayDate(value) {
   const [year, month, day] = String(value || '').split('-');
-  return year && month && day ? `${day}-${month}-${year}` : value || '—';
+  return year && month && day ? `${day}-${month}-${year}` : value || '-';
 }
 
 export default function MutationReportPage() {
@@ -97,7 +97,7 @@ export default function MutationReportPage() {
       r.warehouse,
       r.products.map((p) => `${p.name || 'Produk tidak bernama'} x${p.qty}`).join(', '),
       r.total_qty,
-      tab === 'out' ? (r.destination || '—') : r.description,
+      tab === 'out' ? (r.destination || '-') : r.description,
       r.admin,
     ].map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','));
     const csv = [header.join(','), ...lines].join('\n');
@@ -215,14 +215,14 @@ export default function MutationReportPage() {
                   <td style={{ padding: '10px' }}><span className="warehouse-pill">{r.warehouse}</span></td>
                   <td style={{ padding: '10px', verticalAlign: 'top' }}>
                     <div className="movement-product-list">
-                      {r.products.length ? r.products.map((p, i) => <span key={`${p.name || 'product'}-${i}`}>{p.name || 'Produk tidak bernama'}</span>) : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
+                      {r.products.length ? r.products.map((p, i) => <span key={`${p.name || 'product'}-${i}`}>{p.name || 'Produk tidak bernama'}</span>) : <span style={{ color: 'var(--muted-foreground)' }}>-</span>}
                     </div>
                   </td>
                   <td style={{ padding: '10px', textAlign: 'right', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
                     <div className="movement-qty-list">{r.products.map((p, i) => <span key={`${p.name || 'product'}-qty-${i}`}>×{p.qty}</span>)}</div>
                     <strong className="movement-total-qty">{r.total_qty.toLocaleString('id-ID')}</strong>
                   </td>
-                  <td style={{ padding: '8px 10px' }}>{(tab === 'out' ? r.destination : r.description) || <span style={{ color: 'var(--muted-foreground)' }}>—</span>}</td>
+                  <td style={{ padding: '8px 10px' }}>{(tab === 'out' ? r.destination : r.description) || <span style={{ color: 'var(--muted-foreground)' }}>-</span>}</td>
                   <td style={{ padding: '8px 10px' }}>{r.admin}</td>
                   <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
                     {r.deletable ? <button type="button" className="link-button danger" onClick={() => removeBatch(r)}>Hapus</button> : <span style={{ color: 'var(--muted-foreground)', fontSize: 11 }}>Import</span>}
@@ -243,7 +243,7 @@ export default function MutationReportPage() {
                 <span className="mobile-batch-summary-main">
                   <strong>{r.number}</strong>
                   <span>{displayDate(r.date)} · {r.warehouse}</span>
-                  {tab === 'out' && <span className="mobile-batch-destination">Keluar ke: {r.destination || '—'}</span>}
+                  {tab === 'out' && <span className="mobile-batch-destination">Keluar ke: {r.destination || '-'}</span>}
                 </span>
                 <span className="mobile-batch-total"><strong>{r.total_qty.toLocaleString('id-ID')}</strong><small>pcs</small></span>
               </summary>
@@ -252,8 +252,8 @@ export default function MutationReportPage() {
                   <div><span>Tanggal</span><strong>{displayDate(r.date)}</strong></div>
                   <div><span>Nomor batch</span><strong>{r.number}</strong></div>
                   <div><span>{tab === 'out' ? 'Keluar dari' : 'Masuk ke'}</span><strong>{r.warehouse}</strong></div>
-                  <div><span>{tab === 'out' ? 'Keluar ke' : 'Keterangan'}</span><strong>{(tab === 'out' ? r.destination : r.description) || '—'}</strong></div>
-                  <div><span>Admin</span><strong>{r.admin || '—'}</strong></div>
+                  <div><span>{tab === 'out' ? 'Keluar ke' : 'Keterangan'}</span><strong>{(tab === 'out' ? r.destination : r.description) || '-'}</strong></div>
+                  <div><span>Admin</span><strong>{r.admin || '-'}</strong></div>
                   <div><span>Total</span><strong>{r.total_qty.toLocaleString('id-ID')} pcs</strong></div>
                 </div>
                 <div className="mobile-batch-products">

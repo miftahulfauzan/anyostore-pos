@@ -3,15 +3,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowDown, ArrowDownToLine, ArrowRightLeft, ArrowUp, ArrowUpFromLine, ArrowUpRight, Banknote, Boxes, CalendarDays, ChartNoAxesCombined, ClipboardCheck, CreditCard, Package, ReceiptText, Sparkles, TriangleAlert } from 'lucide-react';
+import { ArrowDown, ArrowDownToLine, ArrowRightLeft, ArrowUp, ArrowUpFromLine, ArrowUpRight, Banknote, Boxes, CalendarDays, ChartNoAxesCombined, ClipboardCheck, CreditCard, Package, ReceiptText, Store, TriangleAlert } from 'lucide-react';
 import AppShell from '../components/AppShell';
 import { labelFor, paymentLabels } from '../lib/ui-labels';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rupiah = (value) => 'Rp' + Number(value || 0).toLocaleString('id-ID');
 const localDate = (date = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
-const shortDate = (value) => { const [year, month, day] = String(value || '').split('-'); return year ? `${day}/${month}` : '—'; };
-const fullDate = (value) => { const [year, month, day] = String(value || '').split('-'); return year ? `${day}/${month}/${year}` : '—'; };
+const shortDate = (value) => { const [year, month, day] = String(value || '').split('-'); return year ? `${day}/${month}` : '-'; };
+const fullDate = (value) => { const [year, month, day] = String(value || '').split('-'); return year ? `${day}/${month}/${year}` : '-'; };
 
 function dateRangeDays(start, end, daily) {
   const byDate = new Map((daily || []).map((item) => [String(item.date).slice(0, 10), item]));
@@ -159,7 +159,7 @@ export default function DashboardPage() {
         <WarehouseDashboard data={data} start={range.start} end={range.end} />
       </>
     ) : <>
-      {data.owner_summary && <p className="dashboard-note"><Sparkles aria-hidden="true" size={15} /> Menampilkan gabungan seluruh toko.</p>}
+      {data.owner_summary && <p className="dashboard-note"><Store aria-hidden="true" size={15} /> Menampilkan gabungan seluruh toko.</p>}
       <section className="metrics-grid dashboard-metrics" aria-label="Ringkasan penjualan dan pengeluaran">
         <article className="metric-card sales-metric"><span className="metric-icon"><Banknote aria-hidden="true" size={17} /></span><div><span>Penjualan hari ini</span><strong>{rupiah(summary.today_sales)}</strong><small>{summary.today_transactions || 0} transaksi selesai</small></div></article>
         <article className="metric-card sales-metric"><span className="metric-icon"><CalendarDays aria-hidden="true" size={17} /></span><div><span>Penjualan 7 hari</span><strong>{rupiah(summary.seven_day_sales)}</strong><small>Termasuk hari ini</small></div></article>

@@ -118,7 +118,7 @@ class _ProductsPageState extends State<ProductsPage> {
           .copyProduct(int.parse('${r['id']}'), branchId: _effectiveBranch);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Produk disalin — cek daftar untuk edit SKU/barcode')));
+          content: Text('Produk disalin. Periksa daftar untuk mengedit SKU/barcode')));
       _load();
     } on ApiException catch (e) {
       if (mounted) {

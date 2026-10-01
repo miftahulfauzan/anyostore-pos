@@ -184,17 +184,17 @@ export default function ProdukDetail() {
             </button>
             {added && (
               <p style={{ margin: 0, fontSize: 12, color: '#16a34a', textAlign: 'center' }}>
-                Masuk keranjang — <a href="/" style={{ color: C.accent, fontWeight: 700 }}>Lihat Keranjang ({cartCount})</a>
+                Masuk keranjang. <a href="/" style={{ color: C.accent, fontWeight: 700 }}>Lihat Keranjang ({cartCount})</a>
               </p>
             )}
-            <p style={{ margin: 0, fontSize: 11, color: C.muted, textAlign: 'center' }}>Min. 4 pcs per model — varian boleh dicampur.</p>
+            <p style={{ margin: 0, fontSize: 11, color: C.muted, textAlign: 'center' }}>Minimal 4 pcs per model. Varian boleh dicampur.</p>
           </div>
 
           {/* CTA */}
           <div style={{ display: 'grid', gap: 8 }}>
             {waPhones.map((ph, idx) => (
               <a key={idx} href={waLink(ph, `Saya tertarik dengan ${product.name}. Link: /produk/${product.id}. Harga grosir, stok, warna ready?`)} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44, borderRadius: 8, background: C.accent, color: C.white, fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
-                <I.chat style={{ width: 16, height: 16 }} /> WA Admin {waPhones.length > 1 ? `${idx + 1}` : ''} — {ph}
+                <I.chat style={{ width: 16, height: 16 }} /> WA Admin {waPhones.length > 1 ? `${idx + 1}: ` : ''}{ph}
               </a>
             ))}
           </div>

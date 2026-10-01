@@ -195,7 +195,7 @@ export default function LandingPage() {
     }
     const lines = Object.values(groups).map((g, gi) => {
       const detail = g.items.map((it) => `    ${it.variantLabel ? `${it.variantLabel}: ` : ''}${it.qty} pcs × ${fmtRp(it.price)} = ${fmtRp(it.qty * it.price)}`).join('\n');
-      return `${gi + 1}. ${g.name} — ${g.qty} pcs · ${fmtRp(g.total)}\n${detail}`;
+      return `${gi + 1}. ${g.name}: ${g.qty} pcs · ${fmtRp(g.total)}\n${detail}`;
     });
     return `Halo Anyostore, saya mau order grosir:\n\n${lines.join('\n')}\n\nTotal: ${cartPcs} pcs · ${fmtRp(cartTotal)}\nMin. pembelian 4 pcs per model (varian boleh dicampur).`;
   }
@@ -333,7 +333,7 @@ export default function LandingPage() {
             </div>
             <div style={{ display: 'grid', gap: 10 }}>
               {waPhones.map((ph, idx) => (
-                <a key={idx} href={waLink(ph, waMsg)} target="_blank" rel="noopener noreferrer" onClick={() => setWaPicker(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 46, borderRadius: 8, background: T.blue, color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none', boxShadow: '0 2px 8px rgba(30,58,95,.2)', transition: 'all .2s' }}><I.chat style={{ width: 16, height: 16 }} /> Admin {idx + 1} — {ph}</a>
+                <a key={idx} href={waLink(ph, waMsg)} target="_blank" rel="noopener noreferrer" onClick={() => setWaPicker(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 46, borderRadius: 8, background: T.blue, color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none', boxShadow: '0 2px 8px rgba(30,58,95,.2)', transition: 'all .2s' }}><I.chat style={{ width: 16, height: 16 }} /> Admin {idx + 1}: {ph}</a>
               ))}
             </div>
             <p style={{ margin: '16px 0 0', fontSize: 12, color: T.muted, textAlign: 'center' }}>Pilih admin untuk chat harga grosir & stok.</p>
@@ -385,10 +385,10 @@ export default function LandingPage() {
               </div>
               {cartWarnings.length > 0 && (
                 <div style={{ display: 'grid', gap: 3 }}>
-                  {cartWarnings.map((w) => <p key={w.name} style={{ margin: 0, fontSize: 11, color: '#b45309' }}>{w.name} masih {w.qty} pcs — min. 4 pcs per model.</p>)}
+                  {cartWarnings.map((w) => <p key={w.name} style={{ margin: 0, fontSize: 11, color: '#b45309' }}>{w.name} masih {w.qty} pcs. Minimal 4 pcs per model.</p>)}
                 </div>
               )}
-              <p style={{ margin: 0, fontSize: 11, color: T.muted }}>Min. pembelian 4 pcs per model — varian boleh dicampur.</p>
+              <p style={{ margin: 0, fontSize: 11, color: T.muted }}>Minimal pembelian 4 pcs per model. Varian boleh dicampur.</p>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button type="button" onClick={clearCart} disabled={!cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', minWidth: 110 }}>Kosongkan</button>
                 <button type="button" onClick={sendOrder} disabled={!cart.length} className="pcard-btn primary" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44 }}><I.chat style={{ width: 15, height: 15 }} /> Chat Pesanan via WhatsApp</button>
@@ -434,7 +434,7 @@ export default function LandingPage() {
               <button type="button" className="qty-btn" onClick={() => setPickQty((q) => q + 1)} aria-label="Tambah jumlah"><I.plus style={{ width: 18, height: 18, color: '#fff' }} /></button>
             </div>
             <button type="button" onClick={addFromPicker} className="pcard-btn primary" style={{ width: '100%', minHeight: 46, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 14 }}><I.cart style={{ width: 16, height: 16 }} /> Tambah ke Keranjang</button>
-            <p style={{ margin: '12px 0 0', fontSize: 12, color: T.muted, textAlign: 'center' }}>Min. 4 pcs per model — varian boleh dicampur.</p>
+            <p style={{ margin: '12px 0 0', fontSize: 12, color: T.muted, textAlign: 'center' }}>Minimal 4 pcs per model. Varian boleh dicampur.</p>
           </div>
         </div>
       )}

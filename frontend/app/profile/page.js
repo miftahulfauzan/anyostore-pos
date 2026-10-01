@@ -138,7 +138,7 @@ export default function MyAccount() {
             <div className="section-heading">
               <div>
                 <h2>Komisi Saya</h2>
-                <p>Live dari transaksi — pilih rentang tanggal.</p>
+                <p>Data langsung dari transaksi. Pilih rentang tanggal.</p>
               </div>
             </div>
 
