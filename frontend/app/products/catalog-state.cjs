@@ -1,7 +1,8 @@
-function productsQuery({ branchId, search, sort, page }) {
+function productsQuery({ branchId, search, sort, page }, { includeRackLocations = false } = {}) {
   const params = new globalThis.URLSearchParams({ limit: '48', page: String(page), sort });
   if (search.trim()) params.set('search', search.trim());
   if (branchId) params.set('branch_id', branchId);
+  if (includeRackLocations) params.set('include_rack_locations', '1');
   return params;
 }
 

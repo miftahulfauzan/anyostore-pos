@@ -2476,3 +2476,32 @@ html.dark body {
   background: linear-gradient(90deg, #1e293b 25%, #26364b 37%, #1e293b 63%);
   background-size: 400% 100%;
 }
+
+.product-rack-locations {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: .2rem .4rem;
+  margin-top: .3rem;
+  min-width: 0;
+  color: var(--muted-foreground);
+  font-size: .74rem;
+  line-height: 1.35;
+  text-align: left;
+}
+.product-rack-locations > strong {
+  color: var(--primary);
+  font-size: .72rem;
+  white-space: nowrap;
+}
+.product-rack-location-list { display: grid; gap: .12rem; min-width: 0; text-align: left; }
+.product-rack-location { display: block; margin-top: 0 !important; overflow-wrap: anywhere; }
+
+@media (max-width: 600px) {
+  .product-list.grid-view .product-rack-locations {
+    grid-template-columns: 1fr;
+    gap: .1rem;
+    font-size: .68rem;
+  }
+  .product-list.grid-view .product-rack-locations > strong { font-size: .68rem; }
+}
