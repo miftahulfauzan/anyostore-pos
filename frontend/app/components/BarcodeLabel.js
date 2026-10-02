@@ -28,7 +28,6 @@ export default function BarcodeLabel({ item }) {
       <strong>{item.name}</strong>
       <span>{item.variant_color ? 'Warna: ' + item.variant_color : 'Produk standar'}</span>
       <svg ref={svgRef} role="img" aria-label={'Barcode ' + item.barcode_value} />
-      <small>{item.barcode_value}</small>
       <b>Rp{Number(item.price || 0).toLocaleString('id-ID')}</b>
     </article>
   );

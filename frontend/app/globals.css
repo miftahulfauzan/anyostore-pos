@@ -434,12 +434,9 @@ a, .photo-upload { color:var(--expressive-secondary); }
   .transfer-history-filter-actions { grid-column: auto; }
 }
 @media print {
-  @page { margin: 8mm; }
   body { background: #fff !important; }
   .sidebar, .app-header, .barcode-picker { display: none !important; }
   .app-shell, .app-main { display: block !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
-  .barcode-print-area { grid-template-columns: repeat(3, 1fr); gap: 4mm; max-width: none; margin: 0; }
-  .barcode-label { min-height: 31mm; break-inside: avoid; border-color: #64748b; border-radius: 0; box-shadow: none; }
 }
 
 @theme inline { --font-heading: var(--font-sans); --font-sans: var(--font-sans); --color-sidebar-ring: var(--sidebar-ring); --color-sidebar-border: var(--sidebar-border); --color-sidebar-accent-foreground: var(--sidebar-accent-foreground); --color-sidebar-accent: var(--sidebar-accent); --color-sidebar-primary-foreground: var(--sidebar-primary-foreground); --color-sidebar-primary: var(--sidebar-primary); --color-sidebar-foreground: var(--sidebar-foreground); --color-sidebar: var(--sidebar); --color-chart-5: var(--chart-5); --color-chart-4: var(--chart-4); --color-chart-3: var(--chart-3); --color-chart-2: var(--chart-2); --color-chart-1: var(--chart-1); --color-ring: var(--ring); --color-input: var(--input); --color-border: var(--border); --color-destructive: var(--destructive); --color-accent-foreground: var(--accent-foreground); --color-accent: var(--accent); --color-muted-foreground: var(--muted-foreground); --color-muted: var(--muted); --color-secondary-foreground: var(--secondary-foreground); --color-secondary: var(--secondary); --color-primary-foreground: var(--primary-foreground); --color-primary: var(--primary); --color-popover-foreground: var(--popover-foreground); --color-popover: var(--popover); --color-card-foreground: var(--card-foreground); --color-card: var(--card); --color-foreground: var(--foreground); --color-background: var(--background); --radius-sm: calc(var(--radius) * 0.6); --radius-md: calc(var(--radius) * 0.8); --radius-lg: var(--radius); --radius-xl: calc(var(--radius) * 1.4); --radius-2xl: calc(var(--radius) * 1.8); --radius-3xl: calc(var(--radius) * 2.2); --radius-4xl: calc(var(--radius) * 2.6); }
@@ -1710,7 +1707,12 @@ svg { max-width: 100%; }
   .catalog-grid,
   .product-list.grid-view { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
-@media print { body:has(.barcode-print-area) * { visibility: hidden; } body:has(.barcode-print-area) .barcode-print-area, body:has(.barcode-print-area) .barcode-print-area * { visibility: visible; } body:has(.barcode-print-area) .barcode-print-area { position: fixed; inset: 0; } }
+@media print {
+  body:has(.barcode-print-area) * { visibility: hidden; }
+  body:has(.barcode-print-area) .barcode-print-area,
+  body:has(.barcode-print-area) .barcode-print-area * { visibility: visible; }
+  body:has(.barcode-print-area) .barcode-print-area { position: static; inset: auto; }
+}
 
 /* Pilihan tema/layout halaman link: focus ring + hover tanpa geser layout */
 .link-option:focus-within { outline: 2px solid var(--accent, #1e3a5f); outline-offset: 2px; }
@@ -2915,4 +2917,101 @@ html.dark body {
   .branch-switcher-heading strong { font-size: 16px; }
   .branch-switcher-close { display: grid; width: 44px; height: 44px; place-items: center; padding: 0; border: 1px solid var(--border); background: var(--card); color: var(--foreground); }
   .branch-switcher-options > button { min-height: 60px; }
+}
+
+/* Three-column thermal roll: 33 × 19mm stickers on a nominal 100mm web. */
+@page thermal-barcode {
+  size: 100mm 19mm;
+  margin: 0;
+}
+
+@media print {
+  html:has(.barcode-print-area),
+  body:has(.barcode-print-area) {
+    width: 100mm !important;
+    min-width: 100mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  body:has(.barcode-print-area) .sidebar,
+  body:has(.barcode-print-area) .app-header,
+  body:has(.barcode-print-area) .barcode-picker { display: none !important; }
+  body:has(.barcode-print-area) .app-shell,
+  body:has(.barcode-print-area) .app-main,
+  body:has(.barcode-print-area) .app-content,
+  body:has(.barcode-print-area) .app-content > div {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  body:has(.barcode-print-area) .barcode-print-area {
+    page: thermal-barcode;
+    display: grid !important;
+    position: static !important;
+    inset: auto !important;
+    width: 100mm;
+    max-width: none;
+    grid-template-columns: repeat(3, 33mm);
+    grid-auto-rows: 19mm;
+    justify-content: center;
+    align-content: start;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+  }
+  body:has(.barcode-print-area) .barcode-label {
+    box-sizing: border-box;
+    display: grid !important;
+    width: 33mm;
+    height: 19mm;
+    min-height: 0;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    align-content: stretch;
+    gap: .25mm;
+    overflow: hidden;
+    padding: .55mm .8mm;
+    border: 0;
+    border-radius: 0;
+    background: #fff;
+    color: #111827;
+    box-shadow: none;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  body:has(.barcode-print-area) .barcode-label strong {
+    min-width: 0;
+    overflow: hidden;
+    color: #111827;
+    font-size: 6.5pt;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  body:has(.barcode-print-area) .barcode-label span {
+    min-width: 0;
+    overflow: hidden;
+    color: #334155;
+    font-size: 5.5pt;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  body:has(.barcode-print-area) .barcode-label svg {
+    display: block;
+    width: 100%;
+    max-width: none;
+    height: 8mm;
+    min-height: 0;
+    align-self: center;
+  }
+  body:has(.barcode-print-area) .barcode-label b {
+    justify-self: end;
+    color: #111827;
+    font-size: 6pt;
+    line-height: 1;
+  }
 }
