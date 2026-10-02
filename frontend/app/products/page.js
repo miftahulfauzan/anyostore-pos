@@ -177,7 +177,7 @@ export default function ProductsPage() {
   const selectionPlacement = getProductSelectionPlacement(view);
   const deletableProducts = products.filter((product) => product.capabilities?.delete);
 
-  return <AppShell title="Produk & Inventori" eyebrow="KATALOG PRODUK" actions={<><a className="button-link" href="/products/photos">Upload Foto Massal</a><a className="button-link" href="/products/new">Tambah Produk</a></>}>
+  return <AppShell title="Produk & Inventori" eyebrow="KATALOG PRODUK" actions={<><a className="button-link" href="/inventory/barcodes">Cetak Barcode</a><a className="button-link" href="/products/photos">Upload Foto Massal</a><a className="button-link" href="/products/new">Tambah Produk</a></>}>
     <section className="panel catalog-panel">
       <div className="section-heading" style={{ alignItems: 'center', marginBottom: 14 }}>
         <div><h2>Daftar Produk</h2><p>Cari nama, SKU, atau barcode. Kelola foto, video, varian, dan cetak barcode dari daftar ini.</p></div>
