@@ -405,6 +405,7 @@ a, .photo-upload { color:var(--expressive-secondary); }
 .barcode-label span, .barcode-label small { overflow: hidden; color: #475569; font-size: .65rem; text-overflow: ellipsis; white-space: nowrap; }
 .barcode-label svg { width: 100%; max-width: 190px; height: 48px; }
 .barcode-label b { justify-self: end; font-size: .75rem; }
+.barcode-print-sheet { display: contents; }
 @media (max-width: 700px) { .barcode-print-area { grid-template-columns: 1fr; }.movement-table td:last-child { min-width: 120px; } }
 @media (max-width: 1100px) {
   .transfer-history-filter-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -2926,19 +2927,15 @@ html.dark body {
   .branch-switcher-options > button { min-height: 60px; }
 }
 
-/* Three-column thermal roll: 33 × 19mm stickers on a nominal 100mm web. */
-@page thermal-barcode {
-  size: 100mm 19mm;
-  margin: 0;
-}
-
+/* A6 sheet holds 24 labels: three 33mm columns by eight 18.5mm rows. */
 @media print {
   html:has(.barcode-print-area),
   body:has(.barcode-print-area) {
-    width: 100mm !important;
-    min-width: 100mm !important;
+    width: 105mm !important;
+    min-width: 105mm !important;
     margin: 0 !important;
     padding: 0 !important;
+    background: #fff !important;
   }
   body:has(.barcode-print-area) .sidebar,
   body:has(.barcode-print-area) .app-header,
@@ -2956,25 +2953,40 @@ html.dark body {
     background: #fff !important;
   }
   body:has(.barcode-print-area) .barcode-print-area {
-    page: thermal-barcode;
-    display: grid !important;
+    display: block !important;
     position: static !important;
     inset: auto !important;
-    width: 100mm;
+    width: 105mm;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+  body:has(.barcode-print-area) .barcode-print-sheet {
+    box-sizing: border-box;
+    display: grid !important;
+    position: relative !important;
+    width: 105mm;
+    height: 148mm;
     max-width: none;
     grid-template-columns: repeat(3, 33mm);
-    grid-auto-rows: 19mm;
+    grid-template-rows: repeat(8, 18.5mm);
     justify-content: center;
     align-content: start;
     gap: 0;
     margin: 0;
     padding: 0;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  body:has(.barcode-print-area) .barcode-print-sheet:not(:last-child) {
+    break-after: page;
+    page-break-after: always;
   }
   body:has(.barcode-print-area) .barcode-label {
     box-sizing: border-box;
     display: grid !important;
     width: 33mm;
-    height: 19mm;
+    height: 18.5mm;
     min-height: 0;
     grid-template-rows: auto auto minmax(0, 1fr) auto;
     align-content: stretch;
@@ -3020,5 +3032,35 @@ html.dark body {
     color: #111827;
     font-size: 6pt;
     line-height: 1;
+  }
+  body:has(.barcode-print-area) .barcode-print-dialog-overlay {
+    visibility: visible !important;
+    position: static !important;
+    inset: auto !important;
+    display: block !important;
+    width: 105mm !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+    backdrop-filter: none !important;
+    z-index: auto !important;
+  }
+  body:has(.barcode-print-area) .barcode-print-dialog {
+    visibility: visible !important;
+    width: 105mm !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+  }
+  body:has(.barcode-print-area) .barcode-print-dialog-heading,
+  body:has(.barcode-print-area) .barcode-print-dialog-actions {
+    display: none !important;
   }
 }
