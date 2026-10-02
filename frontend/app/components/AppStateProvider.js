@@ -31,6 +31,8 @@ export default function AppStateProvider({ children }) {
     return body.data || null;
   });
   const settingsLoaded = useRef(false);
+  const registerUnsavedWork = useCallback((key, isDirty) => unsavedWork.current.register(key, isDirty), []);
+  const hasUnsavedWork = useCallback(() => unsavedWork.current.hasUnsavedWork(), []);
 
   useEffect(() => {
     const user = session.user;
@@ -110,8 +112,6 @@ export default function AppStateProvider({ children }) {
     }
   }, []);
 
-  const registerUnsavedWork = useCallback((key, isDirty) => unsavedWork.current.register(key, isDirty), []);
-  const hasUnsavedWork = useCallback(() => unsavedWork.current.hasUnsavedWork(), []);
   const requestActiveBranchChange = useCallback((value) => {
     if (session.user?.role !== 'owner') return false;
     const next = normalizeActiveBranchId(value, activeBranchId || 'all');

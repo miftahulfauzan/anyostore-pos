@@ -20,6 +20,14 @@ test('Owner gets one shared store switcher in the app header with desktop and mo
   assert.match(provider, /event\.key !== 'pos_active_branch_id'/);
 });
 
+test('unsaved-work callback is initialized before the cross-tab storage effect uses it', () => {
+  const provider = read('components/AppStateProvider.js');
+  const callbackDeclaration = provider.indexOf('const hasUnsavedWork = useCallback');
+  const storageEffect = provider.indexOf("window.addEventListener('storage', syncActiveBranch)");
+  assert.notEqual(callbackDeclaration, -1);
+  assert.ok(callbackDeclaration < storageEffect, 'hasUnsavedWork must initialize before the effect dependency array is evaluated');
+});
+
 test('latest store or warehouse selection wins when earlier data requests finish late', () => {
   const pos = read('pos/page.js');
   const mutations = read('inventory/mutations/page.js');
