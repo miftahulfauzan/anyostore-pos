@@ -54,7 +54,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 | `finance.js` | `/api/finance` | Expenses, income, journals, profit-loss |
 | `users.js` | `/api/users` | CRUD pegawai, role, PIN, password |
 | `settings.js` | `/api/settings` | Branch CRUD (clone katalog), store settings, WA dinamis, logo |
-| `dashboard.js` | `/api/dashboard` | Ringkasan harian/mingguan/bulanan |
+| `dashboard.js` | `/api/dashboard` | Ringkasan penjualan; data Dashboard Stok terpisah, Owner dapat mengirim `branch_id` untuk satu cabang (tanpa filter = semua cabang), manager/admin tetap cabangnya sendiri, role gudang dibatasi ke cabang tipe gudang |
 | `commissions.js` | `/api/commissions` | Komisi staf (per_pcs_customer_tier dll), rules, report, generate |
 | `promotions.js` | `/api/promotions` | Promo/diskon + validate |
 | `tax.js` | `/api/tax` | Laporan pajak: PPN, Faktur Pajak, PPh23 |
@@ -152,7 +152,8 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 | `/inventory/movements` | `inventory/movements/page.js` | Riwayat stok (card list) |
 | `/inventory/mutations` | `inventory/mutations/page.js` | Mutasi stok: form transaksi (tanggal, batch/nota, toko, gudang, keterangan) + katalog grid (foto, stok per gudang, warna) + keranjang; dropdown channel untuk keluar |
 | `/inventory/transfers` | `inventory/transfers/page.js` | Transfer stok antar gudang/cabang (auto-buat produk di tujuan) |
-| `/inventory/{barcodes,opname}` | ... | Cetak barcode, opname dengan snapshot stok/revision agar konflik terdeteksi, serta riwayat opname yang dapat dibuka untuk melihat detail per item |
+| `/inventory/{barcodes,opname}` | ... | Cetak barcode, opname dengan snapshot stok/revision agar konflik terdeteksi, serta riwayat opname yang dapat dibuka untuk melihat detail per item; Owner dapat memilih gudang lintas cabang, sementara role lain tetap cabang akun |
+| `/inventory/dashboard` | `inventory/dashboard/page.js` + `dashboard/WarehouseDashboard.js` | Dashboard stok terpisah dari dasbor penjualan; Owner dapat melihat agregat atau memilih satu toko/gudang, manager/admin melihat cabang akunnya |
 | `/finance` | `finance/page.js` | Keuangan (tab: Ringkasan Laba Rugi / Pengeluaran / Pemasukan) |
 | `/reports` | `reports/page.js` | Laporan (owner pilih toko) |
 | `/reports/tax` | `reports/tax/page.js` | PPN/Faktur/PPh23 |
@@ -160,7 +161,7 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 | `/settings` | `settings/page.js` | Pengaturan + cabang + kategori |
 | `/commissions` | `commissions/page.js` | Komisi staf (owner) |
 | `/users` | `users/page.js` | Pegawai (owner) |
-| `/dashboard` | `dashboard/page.js` | Dasbor |
+| `/dashboard` | `dashboard/page.js` | Dasbor penjualan; role gudang tetap melihat dashboard operasional gudang |
 | `/profile` | `profile/page.js` | Akun |
 | `/receipt/[id]` | `receipt/[id]/page.js` | Resi |
 | `/operations`, `/customers`, `/promotions` | ... | Operasional, pelanggan, promo |

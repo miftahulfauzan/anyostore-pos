@@ -45,6 +45,7 @@ const navigation = [
   {
     label: 'PRODUK & INVENTORI',
     items: [
+      { href: '/inventory/dashboard', label: 'Dashboard Stok', icon: LayoutDashboard, roles: ['owner', 'manager', 'admin'] },
       { href: '/products', label: 'Daftar Produk', icon: Package, roles: ['owner', 'manager', 'admin', 'gudang'] },
       { href: '/inventory', label: 'Stok Produk', icon: Boxes },
       { href: '/inventory/incoming', label: 'Stok Masuk', icon: ArrowDownToLine, roles: ['owner', 'manager', 'admin', 'gudang'] },

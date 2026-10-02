@@ -2523,6 +2523,58 @@ html.dark body {
   line-height: 1.35;
   text-align: left;
 }
+
+/* Stock dashboard branch selector shares the date toolbar without crowding it. */
+.stock-dashboard-controls {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.stock-dashboard-branch {
+  display: grid;
+  gap: 4px;
+  min-width: 190px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.stock-dashboard-branch select { min-height: 38px; padding: 7px 10px; }
+
+/* Keep operational copy readable when legacy page rules still specify ink colors. */
+.dark {
+  --ui-bg: var(--background);
+  --ui-surface: var(--card);
+  --ui-ink: var(--foreground);
+  --ui-muted: var(--muted-foreground);
+  --ui-border: var(--border);
+}
+.dark .app-main :where(h1, h2, h3, h4, p, span, strong, small, label, th, td, li, dt, dd, legend, summary) {
+  color: #e2e8f0;
+}
+.dark .app-main :where(h1, h2, h3, h4, strong, th) { color: #f8fafc; }
+.dark .app-main :where(.muted, .field-hint, .opname-search-meta, .opname-empty, .opname-history-empty, .opname-history-main span, .opname-history-main small, .opname-history-line small, .warehouse-panel-heading p, .warehouse-stat small, .warehouse-range-note, .trend-labels, .warehouse-bar-row > span, .stock-dashboard-branch) {
+  color: #a8b4c7;
+}
+.dark .app-main :where(a:not(.button-link):not(.warehouse-action)) { color: #93c5fd; }
+.dark .app-main .negative,
+.dark .app-main .list-danger { color: #fca5a5; }
+.dark .app-main .positive,
+.dark .app-main .list-positive { color: #86efac; }
+.dark .app-main .list-warning { color: #fdba74; }
+.dark .app-main .summary-in { color: #6ee7b7; }
+.dark .app-main .summary-out { color: #fca5a5; }
+.dark .app-main .summary-net { color: #93c5fd; }
+.dark :is(button, a, input, select, textarea):focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+  .stock-dashboard-controls { width: 100%; justify-content: stretch; }
+  .stock-dashboard-branch { width: 100%; }
+  .stock-dashboard-controls .warehouse-date-filter { width: 100%; }
+}
 .product-rack-locations > strong {
   color: var(--primary);
   font-size: .72rem;
