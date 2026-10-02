@@ -35,6 +35,12 @@ test('barcode sheets fit 3 columns and 8 rows of 33 by 18.5mm labels', () => {
   assert.equal(8 * 18.5, 148);
 });
 
+test('single-product print modal is isolated from the long catalog print flow', () => {
+  assert.ok(productsPage.includes("import { createPortal } from 'react-dom';"));
+  assert.ok(productsPage.includes('barcodePortalTarget && createPortal('));
+  assert.ok(css.includes('body:has(.barcode-print-dialog-overlay) .app-shell { display: none !important; }'));
+});
+
 test('both barcode entry points split selected labels into 24-label sheets', () => {
   const labels = Array.from({ length: 51 }, (_, index) => index);
   const sheets = splitBarcodeLabels(labels);

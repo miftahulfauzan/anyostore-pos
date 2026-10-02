@@ -3067,4 +3067,5 @@ html.dark body {
   body:has(.barcode-print-area) .barcode-print-dialog-actions {
     display: none !important;
   }
+  body:has(.barcode-print-dialog-overlay) .app-shell { display: none !important; }
 }

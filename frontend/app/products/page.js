@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Barcode, Copy, History, Pencil, Trash2 } from 'lucide-react';
 import AppShell from '../components/AppShell';
 import BarcodeLabel from '../components/BarcodeLabel';
@@ -40,6 +41,7 @@ export default function ProductsPage() {
   const isGudang = user?.role === 'gudang';
   const [barcodeProduct, setBarcodeProduct] = useState(null);
   const [barcodeCopies, setBarcodeCopies] = useState(1);
+  const [barcodePortalTarget, setBarcodePortalTarget] = useState(null);
   const [selected, setSelected] = useState(new Set());
   const loadSeq = useRef(0);
   const [reload, setReload] = useState(0);
@@ -48,6 +50,10 @@ export default function ProductsPage() {
   const [mutating, setMutating] = useState(false);
   const mutationLock = useRef(false);
   const [failures, setFailures] = useState([]);
+
+  useEffect(() => {
+    setBarcodePortalTarget(document.body);
+  }, []);
 
   function changeFilter(key, value) {
     ++loadSeq.current;
@@ -253,7 +259,7 @@ export default function ProductsPage() {
       </nav>
     </section>
 
-    {barcodeProduct && (
+    {barcodeProduct && barcodePortalTarget && createPortal((
       <div onClick={() => setBarcodeProduct(null)} className="barcode-print-dialog-overlay" role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.55)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', zIndex: 100, padding: 20 }}>
         <div onClick={(e) => e.stopPropagation()} className="barcode-print-dialog" style={{ background: '#fff', borderRadius: 14, padding: 20, maxWidth: 420, width: '100%', boxShadow: '0 24px 60px rgba(15,23,42,.3)' }}>
           <div className="barcode-print-dialog-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -269,6 +275,6 @@ export default function ProductsPage() {
           </div>
         </div>
       </div>
-    )}
+    ), barcodePortalTarget)}
   </AppShell>;
 }
