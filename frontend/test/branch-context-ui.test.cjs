@@ -20,6 +20,12 @@ test('Owner gets one shared store switcher in the app header with desktop and mo
   assert.match(provider, /event\.key !== 'pos_active_branch_id'/);
 });
 
+test('desktop store-switcher backdrop stays transparent on hover instead of inheriting the global blue button state', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'app', 'globals.css'), 'utf8');
+  assert.match(css, /\.branch-switcher-backdrop:hover:not\(:disabled\)\s*\{[^}]*background:\s*transparent/s);
+  assert.match(css, /\.branch-switcher-backdrop,\s*\.branch-switcher-backdrop:hover:not\(:disabled\)\s*\{[^}]*background:\s*rgba\(15, 23, 42, \.46\)/s);
+});
+
 test('unsaved-work callback is initialized before the cross-tab storage effect uses it', () => {
   const provider = read('components/AppStateProvider.js');
   const callbackDeclaration = provider.indexOf('const hasUnsavedWork = useCallback');
