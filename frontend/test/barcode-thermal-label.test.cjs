@@ -41,6 +41,15 @@ test('single-product print modal is isolated from the long catalog print flow', 
   assert.ok(css.includes('body:has(.barcode-print-dialog-overlay) .app-shell { display: none !important; }'));
 });
 
+test('single-product barcode modal keeps print controls reachable for long copy lists', () => {
+  assert.ok(css.includes('.barcode-print-dialog {\n  display: flex;'));
+  assert.ok(css.includes('max-height: calc(100dvh - 24px);'));
+  assert.ok(css.includes('.barcode-print-dialog .barcode-print-area {'));
+  assert.ok(css.includes('overflow-y: auto;'));
+  assert.ok(css.includes('.barcode-print-dialog-actions {\n  position: sticky;'));
+  assert.ok(css.includes('bottom: 0;'));
+});
+
 test('both barcode entry points split selected labels into 24-label sheets', () => {
   const labels = Array.from({ length: 51 }, (_, index) => index);
   const sheets = splitBarcodeLabels(labels);

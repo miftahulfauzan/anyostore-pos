@@ -2931,6 +2931,48 @@ html.dark body {
   .branch-switcher-options > button { min-height: 60px; }
 }
 
+.barcode-print-dialog {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
+  overflow: hidden;
+}
+.barcode-print-dialog-heading { flex: 0 0 auto; }
+.barcode-print-dialog .barcode-print-area {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+  min-height: 0;
+  align-content: flex-start;
+  margin: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.barcode-print-dialog .barcode-print-area:focus-visible {
+  outline: 2px solid #1e3a5f;
+  outline-offset: 2px;
+}
+.barcode-print-dialog-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  flex: 0 0 auto;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+  background: #fff;
+}
+@media (max-width: 700px) {
+  .barcode-print-dialog-overlay {
+    padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)) !important;
+  }
+  .barcode-print-dialog {
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
+    padding: 16px !important;
+  }
+}
+
 /* A6 sheet holds 24 labels: three 33mm columns by eight 18.5mm rows. */
 @media print {
   html:has(.barcode-print-area),
@@ -3054,7 +3096,9 @@ html.dark body {
   }
   body:has(.barcode-print-area) .barcode-print-dialog {
     visibility: visible !important;
+    display: block !important;
     width: 105mm !important;
+    max-height: none !important;
     max-width: none !important;
     margin: 0 !important;
     padding: 0 !important;
@@ -3062,6 +3106,12 @@ html.dark body {
     border-radius: 0 !important;
     background: #fff !important;
     box-shadow: none !important;
+    overflow: visible !important;
+  }
+  body:has(.barcode-print-area) .barcode-print-dialog .barcode-print-area {
+    flex: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
   }
   body:has(.barcode-print-area) .barcode-print-dialog-heading,
   body:has(.barcode-print-area) .barcode-print-dialog-actions {

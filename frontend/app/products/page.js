@@ -260,13 +260,13 @@ export default function ProductsPage() {
     </section>
 
     {barcodeProduct && barcodePortalTarget && createPortal((
-      <div onClick={() => setBarcodeProduct(null)} className="barcode-print-dialog-overlay" role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.55)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', zIndex: 100, padding: 20 }}>
+      <div onClick={() => setBarcodeProduct(null)} className="barcode-print-dialog-overlay" role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflowY: 'auto', overscrollBehavior: 'contain', zIndex: 100, padding: 20 }}>
         <div onClick={(e) => e.stopPropagation()} className="barcode-print-dialog" style={{ background: '#fff', borderRadius: 14, padding: 20, maxWidth: 420, width: '100%', boxShadow: '0 24px 60px rgba(15,23,42,.3)' }}>
           <div className="barcode-print-dialog-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <strong style={{ fontSize: 15 }}>Cetak Barcode: {barcodeProduct.name}</strong>
             <button type="button" onClick={() => setBarcodeProduct(null)} aria-label="Tutup" style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: '#f1f5f9', fontSize: 16, cursor: 'pointer', color: '#475569' }}>×</button>
           </div>
-          <div className="barcode-print-area" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <div className="barcode-print-area" aria-label="Pratinjau label barcode" tabIndex={0} style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {barcodeSheets.map((sheet, sheetIndex) => <div className="barcode-print-sheet" key={`sheet-${sheetIndex}`}>{sheet.map((item, index) => <BarcodeLabel key={sheetIndex * 24 + index} item={{ ...item, barcode_value: item.barcode || item.sku || item.name, variant_color: '' }} />)}</div>)}
           </div>
           <div className="barcode-print-dialog-actions" style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 14 }}>
