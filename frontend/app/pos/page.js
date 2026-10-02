@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowUpRight, LayoutDashboard, LogOut, ShoppingCart, Store as StoreIcon, X } from 'lucide-react';
 import { useAppSession, useUnsavedWork } from '../components/AppStateProvider';
 import BranchSwitcher from '../components/BranchSwitcher';
+import { createRequestSequence } from '../components/app-state.cjs';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rupiah = (amount) => `Rp${Number(amount || 0).toLocaleString('id-ID')}`;
@@ -37,6 +38,7 @@ export default function PosPage() {
   const headers = () => ({ 'Content-Type': 'application/json'});
   const mediaUrl = (photoPath) => photoPath ? `${apiUrl.replace('/api', '')}${photoPath}` : '';
   const pendingTransactionId = useRef(null);
+  const storeLoadSequence = useRef(createRequestSequence());
   useUnsavedWork('pos-cart', cart.length > 0);
   const newClientTransactionId = () => (typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
@@ -56,6 +58,7 @@ export default function PosPage() {
 
   useEffect(() => {
     if (!storesLoaded) return;
+    storeLoadSequence.current.next();
     const selected = activeBranchId && activeBranchId !== 'all'
       ? stores.find((store) => String(store.id) === String(activeBranchId))
       : null;
@@ -83,7 +86,7 @@ export default function PosPage() {
     pendingTransactionId.current = null;
     setStoreId(String(selected.id));
     try { localStorage.setItem('pos_branch_id', String(selected.id)); } catch { /* Compatibility preference only. */ }
-    loadStore(selected.id).then(() => setMessage('')).catch((error) => setMessage(error.message));
+    loadStore(selected.id);
   }, [storesLoaded, stores, activeBranchId]);
   useEffect(() => {
     if (!variantProduct) return undefined;
@@ -139,6 +142,7 @@ export default function PosPage() {
   }, [products, search]);
 
   async function loadStore(branchId) {
+    const requestId = storeLoadSequence.current.next();
     setLoadingStore(true);
     try {
       const query = new URLSearchParams({ branch_id: String(branchId) });
@@ -151,12 +155,20 @@ export default function PosPage() {
       const warehousesBody = await warehousesResponse.json();
       const customersBody = await customersResponse.json();
       if (!productsResponse.ok || !warehousesResponse.ok) throw new Error(productsBody.message || warehousesBody.message || 'Gagal memuat data toko');
+      if (!storeLoadSequence.current.isCurrent(requestId)) return false;
       setProducts(productsBody.data || []);
       setWarehouses(warehousesBody.data || []);
       setWarehouseId(warehousesBody.data?.[0] ? String(warehousesBody.data[0].id) : '');
       const activeCustomers = customersResponse.ok ? (customersBody.data || []) : [];
       setCustomers(activeCustomers);
-    } finally { setLoadingStore(false); }
+      setMessage('');
+      return true;
+    } catch (error) {
+      if (storeLoadSequence.current.isCurrent(requestId)) setMessage(error.message);
+      return false;
+    } finally {
+      if (storeLoadSequence.current.isCurrent(requestId)) setLoadingStore(false);
+    }
   }
 
   async function changeStore(event) {
@@ -166,7 +178,8 @@ export default function PosPage() {
     else {
       const nextStore = stores.find((store) => String(store.id) === nextId);
       try {
-        await loadStore(nextId);
+        const loaded = await loadStore(nextId);
+        if (!loaded) return;
         setStoreId(nextId);
         setMessage(`POS aktif untuk ${nextStore?.name || 'toko terpilih'}.`);
       } catch (error) { setMessage(error.message); }

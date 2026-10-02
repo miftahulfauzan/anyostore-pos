@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowUpRight, Banknote, CalendarDays, CreditCard, ReceiptText, Store } from 'lucide-react';
 import AppShell from '../components/AppShell';
 import { useAppSession } from '../components/AppStateProvider';
+import { createRequestSequence } from '../components/app-state.cjs';
 import WarehouseDashboard from './WarehouseDashboard';
 import { labelFor, paymentLabels } from '../lib/ui-labels';
 
@@ -22,6 +23,7 @@ export default function DashboardPage() {
   const [range, setRange] = useState({ start: '', end: '' });
   const [draftStart, setDraftStart] = useState('');
   const [draftEnd, setDraftEnd] = useState('');
+  const dashboardLoadSequence = useRef(createRequestSequence());
 
   useEffect(() => {
     const end = localDate();
@@ -35,6 +37,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!range.start || !range.end) return undefined;
+    const requestId = dashboardLoadSequence.current.next();
+    setData(null);
+    setMessage('');
     async function loadDashboard() {
       const query = new URLSearchParams({ start: range.start, end: range.end });
       if (user?.role === 'owner' && activeBranchId) query.set('branch_id', activeBranchId);
@@ -50,10 +55,12 @@ export default function DashboardPage() {
     loadDashboard()
       .then(async (response) => {
         const body = await response.json();
+        if (!dashboardLoadSequence.current.isCurrent(requestId)) return;
         if (!response.ok) throw new Error(body.message);
         setData(body.data);
       })
       .catch((error) => {
+        if (!dashboardLoadSequence.current.isCurrent(requestId)) return;
         if (/token|401/i.test(error.message || '')) {
           localStorage.removeItem('pos_access_token');
           localStorage.removeItem('pos_refresh_token');
@@ -62,7 +69,7 @@ export default function DashboardPage() {
         }
         setMessage(error.message || 'Dasbor tidak dapat dimuat');
       });
-    return undefined;
+    return () => { dashboardLoadSequence.current.next(); };
   }, [range, activeBranchId, user?.role]);
 
   const role = user?.role || null;

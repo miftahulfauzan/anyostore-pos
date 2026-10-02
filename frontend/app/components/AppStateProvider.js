@@ -58,6 +58,24 @@ export default function AppStateProvider({ children }) {
     return () => window.removeEventListener('storage', syncPreferences);
   }, []);
 
+  useEffect(() => {
+    if (session.user?.role !== 'owner') return undefined;
+    function syncActiveBranch(event) {
+      if (event.key !== 'pos_active_branch_id' && event.key !== null) return;
+      const fallback = session.user.branch_id ? String(session.user.branch_id) : 'all';
+      let next = fallback;
+      try { next = readActiveBranchId(window.localStorage, fallback); } catch { /* Keep a safe branch context. */ }
+      if (next === activeBranchId) return;
+      if (hasUnsavedWork() && !window.confirm('Toko aktif berubah di tab lain. Pekerjaan yang belum disimpan akan dikosongkan. Lanjutkan?')) {
+        try { window.localStorage.setItem('pos_active_branch_id', activeBranchId || fallback); } catch { /* Keep this tab's current context. */ }
+        return;
+      }
+      setActiveBranchId(next);
+    }
+    window.addEventListener('storage', syncActiveBranch);
+    return () => window.removeEventListener('storage', syncActiveBranch);
+  }, [activeBranchId, hasUnsavedWork, session.user]);
+
   const clearSession = useCallback(() => {
     generation.current += 1;
     loader.current.reset();

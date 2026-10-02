@@ -1,10 +1,11 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '../../components/AppShell';
 import SafeImage from '../../components/SafeImage';
 import StockVariantPicker from '../../components/StockVariantPicker';
 import { useAppSession, useUnsavedWork } from '../../components/AppStateProvider';
 import mutationQuantity from './mutation-quantity.cjs';
+import { createRequestSequence } from '../../components/app-state.cjs';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const mediaUrl = (p) => (p ? api.replace('/api', '') + p : '');
@@ -37,6 +38,7 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
   const [quantityPrompt, setQuantityPrompt] = useState(null);
   const [quantityPromptQty, setQuantityPromptQty] = useState('1');
   const [quantityPromptError, setQuantityPromptError] = useState('');
+  const productsLoadSequence = useRef(createRequestSequence());
   const h = () => ({ 'Content-Type': 'application/json'});
   useUnsavedWork('stock-mutation', cart.length > 0);
 
@@ -53,13 +55,15 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
     setChannel((c) => (b.data || []).some((x) => x.value === c) ? c : ((b.data || [])[0]?.value || 'toko'));
   }
   async function loadProducts(storeId, warehouseId) {
+    const requestId = productsLoadSequence.current.next();
     if (!storeId || !warehouseId) { setProducts([]); return; }
     try {
       const r = await fetch(`${api}/inventory/incoming/products?branch_id=${storeId}&warehouse_id=${warehouseId}`, { headers: h() });
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
+      if (!productsLoadSequence.current.isCurrent(requestId)) return;
       setProducts(b.data || []);
-    } catch (e) { setMessage(e.message); }
+    } catch (e) { if (productsLoadSequence.current.isCurrent(requestId)) setMessage(e.message); }
   }
 
   useEffect(() => {
@@ -79,6 +83,7 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
 
   useEffect(() => {
     if (!locationsLoaded || !user?.role) return;
+    productsLoadSequence.current.next();
     const id = user.role === 'owner'
       ? (activeBranchId && activeBranchId !== 'all' ? String(activeBranchId) : '')
       : String(user.branch_id || '');

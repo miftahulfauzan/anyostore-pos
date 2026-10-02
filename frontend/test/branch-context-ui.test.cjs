@@ -17,6 +17,22 @@ test('Owner gets one shared store switcher in the app header with desktop and mo
   assert.match(switcher, /aria-modal="true"/);
   assert.match(switcher, /requestActiveBranchChange/);
   assert.match(provider, /hasUnsavedWork\(\) && !window\.confirm/);
+  assert.match(provider, /event\.key !== 'pos_active_branch_id'/);
+});
+
+test('latest store or warehouse selection wins when earlier data requests finish late', () => {
+  const pos = read('pos/page.js');
+  const mutations = read('inventory/mutations/page.js');
+  const transfers = read('inventory/transfers/page.js');
+  const opname = read('inventory/opname/page.js');
+  const dashboard = read('dashboard/page.js');
+  const reports = read('reports/page.js');
+  for (const source of [pos, mutations, transfers, opname, dashboard, reports]) {
+    assert.match(source, /createRequestSequence/);
+    assert.match(source, /\.isCurrent\(/);
+  }
+  assert.match(opname, /historyRequestSequence/);
+  assert.match(transfers, /historyLoadSequence/);
 });
 
 test('business dashboard and stock dashboard both fetch using the shared branch context', () => {

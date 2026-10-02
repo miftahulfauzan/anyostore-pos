@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '../../components/AppShell';
 import { useAppSession, useUnsavedWork } from '../../components/AppStateProvider';
+import { createRequestSequence } from '../../components/app-state.cjs';
 import { countedOpnameItems, createOpnameRows, mergeOpnameRows } from './opname-state.cjs';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -21,6 +22,7 @@ export default function Opname() {
   const [saving, setSaving] = useState(false);
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const historyRequestSequence = useRef(createRequestSequence());
   const isOwner = role === 'owner';
   const branchOptions = useMemo(() => {
     const unique = new Map();
@@ -56,8 +58,10 @@ export default function Opname() {
   }
 
   async function loadHistory(id = warehouse) {
+    const requestId = historyRequestSequence.current.next();
     if (!id) {
       setHistory([]);
+      setHistoryLoading(false);
       return;
     }
     setHistoryLoading(true);
@@ -68,11 +72,12 @@ export default function Opname() {
       const response = await fetch(`${api}/inventory-control/opnames?${query}`, { headers: headers() });
       const body = await response.json();
       if (!response.ok) throw Error(body.message);
+      if (!historyRequestSequence.current.isCurrent(requestId)) return;
       setHistory(body.data || []);
     } catch (error) {
-      setMessage(error.message);
+      if (historyRequestSequence.current.isCurrent(requestId)) setMessage(error.message);
     } finally {
-      setHistoryLoading(false);
+      if (historyRequestSequence.current.isCurrent(requestId)) setHistoryLoading(false);
     }
   }
 
@@ -100,11 +105,13 @@ export default function Opname() {
 
   useEffect(() => {
     if (!isOwner) return;
+    historyRequestSequence.current.next();
     const selected = activeBranchId === 'all' ? '' : String(activeBranchId || '');
     setBranchId(selected);
     setWarehouse('');
     setStock([]);
     setHistory([]);
+    setHistoryLoading(false);
     setSearch('');
   }, [activeBranchId, isOwner]);
 

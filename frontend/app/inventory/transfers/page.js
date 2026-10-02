@@ -1,11 +1,12 @@
 'use client';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '../../components/AppShell';
 import { useAppSession, useUnsavedWork } from '../../components/AppStateProvider';
 import SafeImage from '../../components/SafeImage';
 import StockVariantPicker from '../../components/StockVariantPicker';
 import transferDefaults from './transfer-defaults.cjs';
 import transferLabels from './transfer-labels.cjs';
+import { createRequestSequence } from '../../components/app-state.cjs';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const mediaUrl = (p) => (p ? api.replace('/api', '') + p : '');
@@ -197,6 +198,8 @@ export default function TransferPage() {
   const [historyMessage, setHistoryMessage] = useState('');
   const [historyFilters, setHistoryFilters] = useState({ start: '', end: '', direction: '', status: '', search: '' });
   const [historyAppliedFilters, setHistoryAppliedFilters] = useState({ start: '', end: '', direction: '', status: '', search: '' });
+  const productsLoadSequence = useRef(createRequestSequence());
+  const historyLoadSequence = useRef(createRequestSequence());
   const h = () => ({ 'Content-Type': 'application/json'});
   useUnsavedWork('stock-transfer', cart.length > 0);
 
@@ -209,17 +212,20 @@ export default function TransferPage() {
   const whLabel = formatTransferLocationLabel;
 
   async function loadProducts(warehouseId, warehouseList = warehouses) {
+    const requestId = productsLoadSequence.current.next();
     if (!warehouseId) { setProducts([]); return; }
     try {
       const wh = warehouseList.find((w) => String(w.id) === String(warehouseId));
       const r = await fetch(`${api}/inventory/incoming/products?branch_id=${wh?.branch_id || ''}&warehouse_id=${warehouseId}`, { headers: h() });
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
+      if (!productsLoadSequence.current.isCurrent(requestId)) return;
       setProducts(b.data || []);
-    } catch (e) { setMessage(e.message); }
+    } catch (e) { if (productsLoadSequence.current.isCurrent(requestId)) setMessage(e.message); }
   }
 
   const loadHistory = useCallback(async (filters, page) => {
+    const requestId = historyLoadSequence.current.next();
     setHistoryLoading(true);
     setHistoryMessage('');
     try {
@@ -231,14 +237,16 @@ export default function TransferPage() {
       const r = await fetch(`${api}/inventory-control/transfers/history?${params.toString()}`, { headers: { 'Content-Type': 'application/json' } });
       const body = await r.json();
       if (!r.ok) throw new Error(body.message || 'Riwayat transfer tidak dapat dimuat.');
+      if (!historyLoadSequence.current.isCurrent(requestId)) return;
       setHistoryRows(body.data || []);
       setHistoryTotal(Number(body.total || 0));
     } catch (error) {
+      if (!historyLoadSequence.current.isCurrent(requestId)) return;
       setHistoryRows([]);
       setHistoryTotal(0);
       setHistoryMessage(error.message);
     } finally {
-      setHistoryLoading(false);
+      if (historyLoadSequence.current.isCurrent(requestId)) setHistoryLoading(false);
     }
   }, [user?.role, activeBranchId]);
 
@@ -270,6 +278,7 @@ export default function TransferPage() {
 
   useEffect(() => {
     if (!warehousesLoaded || !user?.role) return;
+    productsLoadSequence.current.next();
     const isOwnerAll = user.role === 'owner' && (!activeBranchId || activeBranchId === 'all');
     const defaults = isOwnerAll
       ? { sourceId: '', targetId: '' }

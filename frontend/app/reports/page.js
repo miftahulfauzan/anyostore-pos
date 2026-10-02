@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AppShell from "../components/AppShell";
 import DateRangePresets from "../components/DateRangePresets";
 import { localDateString, localMonthStartString } from "../lib/local-date";
 import { labelFor, paymentLabels, statusLabels } from "../lib/ui-labels";
 import { useAppSession } from "../components/AppStateProvider";
+import { createRequestSequence } from "../components/app-state.cjs";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 const todayStr = () => localDateString();
@@ -77,9 +78,12 @@ export default function ReportsPage() {
   const [store, setStore] = useState(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const reportLoadSequence = useRef(createRequestSequence());
   async function load(nextPeriod = period) {
+    const requestId = reportLoadSequence.current.next();
     setLoading(true);
     setMessage("");
+    setReport(null);
     try {
       const qs = new URLSearchParams({ start: nextPeriod.start, end: nextPeriod.end });
       if (user?.role === 'owner' && activeBranchId) qs.set('branch_id', activeBranchId);
@@ -88,13 +92,14 @@ export default function ReportsPage() {
         { headers: {} },
       );
       const body = await response.json();
+      if (!reportLoadSequence.current.isCurrent(requestId)) return;
       if (!response.ok)
         throw new Error(body.message || "Laporan tidak dapat dimuat");
       setReport(body.data);
     } catch (error) {
-      setMessage(error.message);
+      if (reportLoadSequence.current.isCurrent(requestId)) setMessage(error.message);
     } finally {
-      setLoading(false);
+      if (reportLoadSequence.current.isCurrent(requestId)) setLoading(false);
     }
   }
   useEffect(() => {
@@ -102,7 +107,9 @@ export default function ReportsPage() {
   }, []);
 
   useEffect(() => {
-    if (period.start) load(period);
+    if (!period.start) return undefined;
+    load(period);
+    return () => { reportLoadSequence.current.next(); };
   }, [period.start, period.end, activeBranchId, user?.role]);
 
   useEffect(() => { if (!period.start) setPeriod({ start: firstOfMonthStr(), end: todayStr() }); }, []);

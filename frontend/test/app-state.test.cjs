@@ -5,6 +5,7 @@ const {
   preferencesScript,
   readPreferences,
   createSessionLoader,
+  createRequestSequence,
   normalizeActiveBranchId,
   createBranchQuery,
   createUnsavedWorkRegistry,
@@ -51,6 +52,17 @@ test('session failures can retry and a reset during load cannot cache the old ac
   resolve({ id: 1 });
   await old;
   assert.deepEqual(await loader.load(), { id: 2 });
+});
+
+test('request sequence rejects stale responses after a newer selection or explicit invalidation', () => {
+  const requests = createRequestSequence();
+  const first = requests.next();
+  const second = requests.next();
+  assert.equal(requests.isCurrent(first), false);
+  assert.equal(requests.isCurrent(second), true);
+  const invalidated = requests.next();
+  assert.equal(requests.isCurrent(second), false);
+  assert.equal(requests.isCurrent(invalidated), true);
 });
 
 test('branch context accepts all or a positive branch id and falls back safely', () => {
