@@ -2,6 +2,7 @@
 import { localDateString } from '../lib/local-date';
 import SafeImage from '../components/SafeImage';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useAppSession } from '../components/AppStateProvider';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const money = (v) => Number(v || 0).toLocaleString('id-ID');
@@ -14,6 +15,7 @@ const mediaUrl = (path) => {
 
 // Laporan stok matriks: baris produk+warna, kolom per gudang, total di ujung.
 export default function StockReportSection() {
+  const { activeBranchId } = useAppSession();
   const [warehouseRows, setWarehouseRows] = useState([]);
   const [allWarehouses, setAllWarehouses] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -58,8 +60,8 @@ export default function StockReportSection() {
     if (cat) params.category_id = cat;
     if (q) params.search = q;
     if (isOwner || isGudang) {
-      if (branchId) params.branch_id = branchId;
-      else params.branch_id = 'all';
+      if (isOwner) params.branch_id = activeBranchId || 'all';
+      else params.branch_id = branchId || 'all';
     }
     const qs = new URLSearchParams(params).toString();
     fetch(`${api}/inventory/stock-by-warehouse?${qs}`, { headers: headers() })
@@ -71,12 +73,16 @@ export default function StockReportSection() {
       })
       .catch((e) => { if (seq === loadSeq.current) setMessage(e.message); })
       .finally(() => { if (seq === loadSeq.current) setLoading(false); });
-  }, [cat, q, branchId, isOwner, isGudang]);
+  }, [cat, q, branchId, activeBranchId, isOwner, isGudang]);
+
+  const effectiveBranchId = isOwner
+    ? (activeBranchId === 'all' ? '' : activeBranchId)
+    : branchId;
 
   // Kolom gudang: dari daftar gudang aktif (lingkup pilihan) + gudang yang
   // muncul di data. Urut gudang utama dulu, sisanya abjad.
   const whColumns = useMemo(() => {
-    const scoped = allWarehouses.filter((w) => !branchId || String(w.branch_id) === String(branchId));
+    const scoped = allWarehouses.filter((w) => !effectiveBranchId || String(w.branch_id) === String(effectiveBranchId));
     const byId = new Map(scoped.map((w) => [String(w.id), w]));
     for (const r of warehouseRows) {
       if (r.warehouse_id != null && !byId.has(String(r.warehouse_id))) {
@@ -84,7 +90,7 @@ export default function StockReportSection() {
       }
     }
     return Array.from(byId.values()).sort((a, b) => (a.type === 'utama' ? 0 : 1) - (b.type === 'utama' ? 0 : 1) || String(a.name || '').localeCompare(String(b.name || '')));
-  }, [allWarehouses, branchId, warehouseRows]);
+  }, [allWarehouses, effectiveBranchId, warehouseRows]);
 
   // Baris: satu per produk+warna, qty per gudang + total.
   const grouped = useMemo(() => {
@@ -210,7 +216,7 @@ export default function StockReportSection() {
             <span>Dicetak: {new Date().toLocaleString('id-ID')}</span>
             <span>Total Produk: {summary.total_products}</span>
             <span>Total Stok: {money(summary.total_stock)}</span>
-            <span>Mode: {branchId ? 'Satu Toko' : 'Semua Toko'}</span>
+            <span>Mode: {isOwner ? (activeBranchId === 'all' ? 'Semua Toko/Gudang' : 'Satu Toko/Gudang') : (branchId ? 'Satu Toko' : 'Semua Toko')}</span>
           </div>
         </div>
 
@@ -225,7 +231,7 @@ export default function StockReportSection() {
             <div style={{ padding: 16, borderRadius: 8, background: 'var(--muted)', textAlign: 'center' }}>
               <p style={{ margin: 0, fontSize: 11, color: 'var(--muted-foreground)' }}>Total Produk</p>
               <strong style={{ fontSize: 24 }}>{money(summary.total_products)}</strong>
-              {(isOwner || isGudang) && !branchId && <p style={{ margin: '2px 0 0', fontSize: 10, color: 'var(--muted-foreground)' }}>{summary.total_branches} toko</p>}
+              {(isOwner && activeBranchId === 'all' || isGudang && !branchId) && <p style={{ margin: '2px 0 0', fontSize: 10, color: 'var(--muted-foreground)' }}>{summary.total_branches} toko/gudang</p>}
             </div>
             <div style={{ padding: 16, borderRadius: 8, background: 'var(--muted)', textAlign: 'center' }}>
               <p style={{ margin: 0, fontSize: 11, color: 'var(--muted-foreground)' }}>Total Stok</p>
@@ -248,7 +254,7 @@ export default function StockReportSection() {
             <option value="">Semua kategori</option>
             {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          {(isOwner || isGudang) && (
+          {isGudang && (
             <select aria-label={isGudang ? 'Filter gudang' : 'Filter toko'} value={branchId} onChange={(e) => setBranchId(e.target.value)} style={{ minWidth: 160, minHeight: 40 }}>
               <option value="">{isGudang ? 'Semua Gudang' : 'Semua Toko'}</option>
               {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}

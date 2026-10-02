@@ -1,6 +1,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { stockDashboardScope } = require('../src/dashboard-stock-scope');
+const { stockDashboardScope, parseOwnerBranchId } = require('../src/dashboard-stock-scope');
+
+test('Owner dashboard accepts all or a positive branch id and rejects malformed scopes', () => {
+  assert.equal(parseOwnerBranchId(undefined), null);
+  assert.equal(parseOwnerBranchId('all'), null);
+  assert.equal(parseOwnerBranchId('12'), 12);
+  assert.throws(() => parseOwnerBranchId('12x'), { status: 400 });
+  assert.throws(() => parseOwnerBranchId('0'), { status: 400 });
+});
 
 test('Owner tanpa filter melihat agregat semua cabang aktif', () => {
   assert.deepEqual(stockDashboardScope({ role: 'owner', branchId: 4 }), {

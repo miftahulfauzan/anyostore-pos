@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AppShell from '../../components/AppShell';
+import { useAppSession, useUnsavedWork } from '../../components/AppStateProvider';
 import SafeImage from '../../components/SafeImage';
 import StockVariantPicker from '../../components/StockVariantPicker';
 import transferDefaults from './transfer-defaults.cjs';
@@ -174,8 +175,10 @@ function TransferDetailColumn({ title, lines }) {
 }
 
 export default function TransferPage() {
+  const { user, activeBranchId } = useAppSession();
   const [view, setView] = useState('create');
   const [warehouses, setWarehouses] = useState([]);
+  const [warehousesLoaded, setWarehousesLoaded] = useState(false);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [products, setProducts] = useState([]);
@@ -195,8 +198,14 @@ export default function TransferPage() {
   const [historyFilters, setHistoryFilters] = useState({ start: '', end: '', direction: '', status: '', search: '' });
   const [historyAppliedFilters, setHistoryAppliedFilters] = useState({ start: '', end: '', direction: '', status: '', search: '' });
   const h = () => ({ 'Content-Type': 'application/json'});
+  useUnsavedWork('stock-transfer', cart.length > 0);
 
   const targets = useMemo(() => warehouses.filter((w) => String(w.id) !== String(from)), [warehouses, from]);
+  const sourceWarehouses = useMemo(() => user?.role === 'owner' && activeBranchId && activeBranchId !== 'all'
+    ? warehouses.filter((warehouse) => String(warehouse.branch_id) === String(activeBranchId))
+    : user?.role === 'gudang'
+      ? warehouses.filter((warehouse) => String(warehouse.branch_id) === String(user.branch_id))
+      : warehouses, [warehouses, user?.role, user?.branch_id, activeBranchId]);
   const whLabel = formatTransferLocationLabel;
 
   async function loadProducts(warehouseId, warehouseList = warehouses) {
@@ -215,6 +224,7 @@ export default function TransferPage() {
     setHistoryMessage('');
     try {
       const params = new URLSearchParams({ page: String(page), limit: '25' });
+      if (user?.role === 'owner' && activeBranchId) params.set('branch_id', activeBranchId);
       Object.entries(filters).forEach(([key, value]) => {
         if (value) params.set(key, value);
       });
@@ -230,7 +240,7 @@ export default function TransferPage() {
     } finally {
       setHistoryLoading(false);
     }
-  }, []);
+  }, [user?.role, activeBranchId]);
 
   function changeView(nextView) {
     setView(nextView);
@@ -252,26 +262,32 @@ export default function TransferPage() {
         if (!r.ok) throw new Error(b.message);
         return b.data || [];
       }),
-      fetch(api + '/auth/me', { headers: h() }).then(async (r) => {
-        const b = await r.json();
-        if (!r.ok) throw new Error(b.message);
-        return b.data || null;
-      }),
-    ]).then(([list, user]) => {
+    ]).then(([list]) => {
       setWarehouses(list);
-      const defaults = selectTransferDefaults({
-        role: user?.role,
-        branchId: user?.branch_id,
-        warehouses: list,
-      });
-      setFrom(defaults.sourceId);
-      setTo(defaults.targetId);
-      if (defaults.sourceId) loadProducts(defaults.sourceId, list);
-      else setMessage(user?.role === 'gudang'
-        ? 'Cabang akun gudang belum memiliki gudang aktif.'
-        : 'Belum ada gudang aktif.');
+      setWarehousesLoaded(true);
     }).catch((e) => setMessage(e.message));
   }, []);
+
+  useEffect(() => {
+    if (!warehousesLoaded || !user?.role) return;
+    const isOwnerAll = user.role === 'owner' && (!activeBranchId || activeBranchId === 'all');
+    const defaults = isOwnerAll
+      ? { sourceId: '', targetId: '' }
+      : selectTransferDefaults({
+        role: user.role,
+        branchId: user.role === 'owner' ? activeBranchId : user.branch_id,
+        warehouses: sourceWarehouses,
+      });
+    setFrom(defaults.sourceId);
+    setTo(defaults.targetId);
+    setCart([]);
+    setCartOpen(false);
+    setProducts([]);
+    if (defaults.sourceId) loadProducts(defaults.sourceId, warehouses);
+    else setMessage(isOwnerAll
+      ? 'Pilih toko/gudang di header, atau tentukan lokasi asal untuk transfer.'
+      : 'Belum ada gudang aktif untuk transfer.');
+  }, [warehousesLoaded, user?.role, user?.branch_id, activeBranchId, sourceWarehouses, warehouses]);
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get('view') === 'history') setView('history');
@@ -404,6 +420,7 @@ export default function TransferPage() {
         <label>Dari (lokasi asal)
           <select required value={from} onChange={(e) => {
             const id = e.target.value;
+            if (cart.length && !window.confirm('Keranjang transfer akan dikosongkan karena lokasi asal berubah. Lanjutkan?')) return;
             setFrom(id);
             setCart([]);
             setCartOpen(false);
@@ -413,7 +430,8 @@ export default function TransferPage() {
             }
             loadProducts(id);
           }}>
-            {warehouses.map((w) => <option key={w.id} value={w.id}>{whLabel(w)}</option>)}
+            <option value="">Pilih lokasi asal…</option>
+            {sourceWarehouses.map((w) => <option key={w.id} value={w.id}>{whLabel(w)}</option>)}
           </select>
         </label>
         <label>Ke (lokasi tujuan)

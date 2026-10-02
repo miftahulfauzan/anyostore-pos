@@ -2,7 +2,14 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { applyPreferences, createSessionLoader, readPreferences } from './app-state.cjs';
+import {
+  applyPreferences,
+  createSessionLoader,
+  createUnsavedWorkRegistry,
+  normalizeActiveBranchId,
+  readActiveBranchId,
+  readPreferences,
+} from './app-state.cjs';
 
 const AppStateContext = createContext(null);
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -11,9 +18,12 @@ export default function AppStateProvider({ children }) {
   const pathname = usePathname();
   const [preferences, setPreferences] = useState({ collapsed: false, theme: 'light', brandTheme: '' });
   const [session, setSession] = useState({ user: null, resolved: false });
+  const [activeBranchId, setActiveBranchId] = useState('');
   const [openGroups, setOpenGroups] = useState({});
   const generation = useRef(0);
   const loader = useRef(null);
+  const unsavedWork = useRef(null);
+  if (!unsavedWork.current) unsavedWork.current = createUnsavedWorkRegistry();
   if (!loader.current) loader.current = createSessionLoader(async () => {
     const response = await fetch(`${api}/auth/me`);
     if (!response.ok) throw new Error('Sesi tidak tersedia');
@@ -21,6 +31,20 @@ export default function AppStateProvider({ children }) {
     return body.data || null;
   });
   const settingsLoaded = useRef(false);
+
+  useEffect(() => {
+    const user = session.user;
+    if (!user) return;
+    if (user.role !== 'owner') {
+      setActiveBranchId(user.branch_id ? String(user.branch_id) : '');
+      return;
+    }
+    const fallback = user.branch_id ? String(user.branch_id) : 'all';
+    let next = fallback;
+    try { next = readActiveBranchId(window.localStorage, fallback); } catch { /* The account branch is a safe default. */ }
+    setActiveBranchId(next);
+    try { window.localStorage.setItem('pos_active_branch_id', next); } catch { /* Context remains available for this session. */ }
+  }, [session.user]);
 
   useEffect(() => {
     function syncPreferences() {
@@ -68,6 +92,18 @@ export default function AppStateProvider({ children }) {
     }
   }, []);
 
+  const registerUnsavedWork = useCallback((key, isDirty) => unsavedWork.current.register(key, isDirty), []);
+  const hasUnsavedWork = useCallback(() => unsavedWork.current.hasUnsavedWork(), []);
+  const requestActiveBranchChange = useCallback((value) => {
+    if (session.user?.role !== 'owner') return false;
+    const next = normalizeActiveBranchId(value, activeBranchId || 'all');
+    if (next === activeBranchId) return true;
+    if (hasUnsavedWork() && !window.confirm('Ada transaksi atau keranjang yang belum disimpan. Berpindah toko akan mengosongkan pekerjaan tersebut. Lanjutkan?')) return false;
+    setActiveBranchId(next);
+    try { window.localStorage.setItem('pos_active_branch_id', next); } catch { /* Context remains available for this session. */ }
+    return true;
+  }, [activeBranchId, hasUnsavedWork, session.user]);
+
   function updatePreference(key, value) {
     const next = { ...preferences, [key]: value };
     applyPreferences(next, document.documentElement);
@@ -76,7 +112,8 @@ export default function AppStateProvider({ children }) {
   }
 
   return <AppStateContext.Provider value={{
-    ...preferences, ...session, ensureSession, clearSession, openGroups, setOpenGroups,
+    ...preferences, ...session, activeBranchId, requestActiveBranchChange,
+    registerUnsavedWork, hasUnsavedWork, ensureSession, clearSession, openGroups, setOpenGroups,
     toggleCollapse: () => updatePreference('collapsed', !preferences.collapsed),
     toggleTheme: () => updatePreference('theme', preferences.theme === 'dark' ? 'light' : 'dark'),
   }}>{children}</AppStateContext.Provider>;
@@ -88,4 +125,11 @@ export function useAppSession() {
   const { ensureSession } = state;
   useEffect(() => { ensureSession(); }, [ensureSession]);
   return state;
+}
+
+export function useUnsavedWork(key, isDirty) {
+  const { registerUnsavedWork } = useAppSession();
+  const dirtyRef = useRef(Boolean(isDirty));
+  dirtyRef.current = Boolean(isDirty);
+  useEffect(() => registerUnsavedWork(key, () => dirtyRef.current), [key, registerUnsavedWork]);
 }

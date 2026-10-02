@@ -34,7 +34,7 @@ export default function ProductsPage() {
   const { search, sort, branchId, page } = filters;
   const [view, setView] = useState('grid');
   const [branches, setBranches] = useState([]);
-  const { user, resolved } = useAppSession();
+  const { user, resolved, activeBranchId } = useAppSession();
   const isOwner = user?.role === 'owner';
   const isGudang = user?.role === 'gudang';
   const [barcodeProduct, setBarcodeProduct] = useState(null);
@@ -66,7 +66,8 @@ export default function ProductsPage() {
     setProducts([]);
     const timer = window.setTimeout(async () => {
       try {
-        const response = await fetch(`${apiUrl}/products?${productsQuery(filters, { includeRackLocations: true })}`, { signal: controller.signal });
+        const queryFilters = { ...filters, branchId: isOwner ? activeBranchId || 'all' : branchId };
+        const response = await fetch(`${apiUrl}/products?${productsQuery(queryFilters, { includeRackLocations: true })}`, { signal: controller.signal });
         const body = await response.json();
         if (seq !== loadSeq.current) return;
         if (!response.ok) throw new Error(body.message || 'Gagal memuat produk');
@@ -82,20 +83,22 @@ export default function ProductsPage() {
       }
     }, 260);
     return () => { ++loadSeq.current; window.clearTimeout(timer); controller.abort(); };
-  }, [filters, reload, resolved]);
+  }, [filters, reload, resolved, isOwner, activeBranchId, branchId]);
 
   useEffect(() => {
-    if (!isOwner && !isGudang) return;
+    if (!isGudang) return;
     const controller = new AbortController();
     fetch(`${apiUrl}/settings/branches`, { signal: controller.signal })
       .then((r) => r.json())
       .then((b) => {
         const list = (b.data || []).filter((br) => br.is_active);
-        setBranches(isGudang ? list.filter((br) => br.type === 'gudang') : list);
+        setBranches(list.filter((br) => br.type === 'gudang'));
       })
       .catch(() => {});
     return () => controller.abort();
-  }, [isOwner, isGudang]);
+  }, [isGudang]);
+
+  const effectiveBranchId = isOwner ? activeBranchId : branchId;
 
   const mediaUrl = (photoPath) => photoPath ? `${apiUrl.replace('/api', '')}${photoPath}` : '';
 
@@ -189,10 +192,10 @@ export default function ProductsPage() {
       </div>
       <div className="catalog-toolbar">
         <label>Cari produk<input type="search" value={search} disabled={mutating} onChange={(event) => changeFilter('search', event.target.value)} placeholder="Nama, SKU, atau barcode" autoComplete="off" /></label>
-        {(isOwner || isGudang) && (
-          <label style={{ minWidth: 220 }}>{isGudang ? 'Gudang / Cabang' : 'Toko / Cabang'}<select value={branchId} disabled={mutating} onChange={(event) => changeFilter('branchId', event.target.value)}>
+        {isGudang && (
+          <label style={{ minWidth: 220 }}>Gudang / Cabang<select value={branchId} disabled={mutating} onChange={(event) => changeFilter('branchId', event.target.value)}>
             <option value="">{isGudang ? 'Gudang saya' : 'Toko saya'}</option>
-            <option value="all">{isGudang ? 'Semua Gudang' : 'Semua Toko / Gudang'}</option>
+            <option value="all">Semua Gudang</option>
             {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select></label>
         )}
@@ -228,7 +231,7 @@ export default function ProductsPage() {
             <strong>{product.name}</strong>
             <span>{product.category_name} · {product.sku || 'Tanpa SKU'}</span>
           </div>
-          <ProductRackLocations product={product} includeBranchName={branchId === 'all'} />
+          <ProductRackLocations product={product} includeBranchName={effectiveBranchId === 'all'} />
           {Number(product.variant_count) > 0 && <div className="variant-summary"><span>{product.variant_count} varian</span>{String(product.variant_colors || '').split('|').filter(Boolean).slice(0, 4).map((color) => <i key={color} title={color}>{color}</i>)}</div>}
           <div className="product-actions">
             <button type="button" className="icon-action" aria-label={`Salin ${product.name}`} disabled={mutating || !product.capabilities?.copy} title={product.capabilities?.copy ? 'Salin produk' : 'Tidak memiliki izin salin di cabang produk ini'} onClick={() => copyProduct(product)}><Copy size={15} /></button>

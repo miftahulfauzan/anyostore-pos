@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '../../components/AppShell';
 import DateRangePresets from '../../components/DateRangePresets';
+import { useAppSession } from '../../components/AppStateProvider';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -27,6 +28,7 @@ function displayDate(value) {
 }
 
 export default function MutationReportPage() {
+  const { user, activeBranchId } = useAppSession();
   const [tab, setTab] = useState('in');
   const [preset, setPreset] = useState('');
   const [start, setStart] = useState(presetDate(7));
@@ -54,7 +56,10 @@ export default function MutationReportPage() {
         end: next.end ?? end,
         limit: '500',
       });
-      if (next.store ?? store) params.set('branch_id', next.store ?? store);
+      const selectedStore = user?.role === 'owner'
+        ? activeBranchId
+        : (next.store !== undefined ? next.store : store);
+      if (selectedStore) params.set('branch_id', selectedStore);
       if (next.desc ?? desc) params.set('description', next.desc ?? desc);
       const r = await fetch(`${api}/inventory/mutation-report?${params}`, { headers: headers() });
       const b = await r.json();
@@ -75,8 +80,9 @@ export default function MutationReportPage() {
     fetch(`${api}/inventory/incoming/targets?all=1`, { headers: headers() })
       .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setStores(b.data || []); })
       .catch((e) => setMessage(e.message));
-    load();
-  }, [tab]);
+  }, []);
+
+  useEffect(() => { load(); }, [tab, activeBranchId, user?.role]);
 
   function applyFilter() { load(); }
   function resetFilter() {
@@ -158,12 +164,12 @@ export default function MutationReportPage() {
                 load({ start: range.start, end: range.end });
               }
             }} />
-            <label style={{ minWidth: 180 }}>Toko / Gudang
+            {user?.role !== 'owner' && <label style={{ minWidth: 180 }}>Toko / Gudang
               <select value={store} onChange={(e) => { const v = e.target.value; setStore(v); load({ store: v }); }}>
                 <option value="">Semua</option>
                 {stores.map((s) => <option key={s.id} value={s.id}>{s.name}{s.type === 'gudang' ? ' (Gudang)' : ''}</option>)}
               </select>
-            </label>
+            </label>}
             <label style={{ minWidth: 150 }}>Dari<input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
             <label style={{ minWidth: 150 }}>Sampai<input type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
             <label style={{ minWidth: 200, flex: 1 }}>Deskripsi / Filter<input placeholder="Cari deskripsi…" value={desc} onChange={(e) => setDesc(e.target.value)} /></label>
