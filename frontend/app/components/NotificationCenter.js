@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle2, Info, LoaderCircle, X, XCircle } from 'lucide-react';
+import { isExpectedRequestAbort } from './fetch-error-policy.cjs';
 
 const ERROR_WORDS = /gagal|error|kesalahan|tidak dapat|tidak valid|wajib|pilih minimal|maksimal|ditolak|habis|kurang|token/i;
 const SUCCESS_WORDS = /berhasil|tersimpan|disimpan|dibuat|diperbarui|ditambahkan|dibuka|ditutup|disetujui|dibayar|selesai/i;
@@ -107,9 +108,19 @@ export default function NotificationCenter() {
         }
         return response;
       } catch (error) {
-        show('error', error?.message === 'Failed to fetch'
-          ? 'Tidak dapat terhubung ke server. Periksa koneksi lalu coba lagi.'
-          : error?.message || 'Terjadi kesalahan. Silakan coba lagi.');
+        const requestSignal = init.signal || (
+          typeof Request !== 'undefined' && input instanceof Request ? input.signal : undefined
+        );
+        const expectedAbort = isExpectedRequestAbort(error, requestSignal);
+        if (expectedAbort) {
+          if (isMutation && pendingRequests.current.size === 1) {
+            setNotice((current) => current?.type === 'loading' ? null : current);
+          }
+        } else {
+          show('error', error?.message === 'Failed to fetch'
+            ? 'Tidak dapat terhubung ke server. Periksa koneksi lalu coba lagi.'
+            : error?.message || 'Terjadi kesalahan. Silakan coba lagi.');
+        }
         throw error;
       } finally {
         if (isMutation) {
