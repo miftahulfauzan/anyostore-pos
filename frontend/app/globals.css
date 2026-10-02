@@ -2754,3 +2754,165 @@ html.dark body {
   .catalog-panel:has(.product-list.grid-view) { padding: 4px; }
   .product-list.grid-view .product-card { padding: 8px; }
 }
+
+/* Shared owner store switcher: anchored popover on desktop, touch sheet on phones. */
+.branch-switcher { position: relative; z-index: 60; }
+.branch-switcher-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  max-width: min(320px, 36vw);
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--foreground);
+  white-space: nowrap;
+}
+.branch-switcher-trigger > span { overflow: hidden; text-overflow: ellipsis; }
+.branch-switcher-trigger:hover { background: var(--muted); }
+.branch-switcher-backdrop {
+  position: fixed;
+  z-index: 61;
+  inset: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.branch-switcher-panel {
+  position: absolute;
+  z-index: 62;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(70vh, 560px);
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 18px 55px rgba(15, 23, 42, .2);
+}
+.branch-switcher-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 4px 12px; }
+.branch-switcher-heading > div { display: grid; gap: 4px; }
+.branch-switcher-heading strong { color: var(--foreground); font-size: 14px; }
+.branch-switcher-heading small { color: var(--muted-foreground); font-size: 12px; line-height: 1.4; }
+.branch-switcher-close { display: none; }
+.branch-switcher-options { display: grid; gap: 4px; }
+.branch-switcher-options > button {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 54px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--foreground);
+  text-align: left;
+}
+.branch-switcher-options > button:hover,
+.branch-switcher-options > button.selected { border-color: color-mix(in srgb, var(--primary) 28%, var(--border)); background: color-mix(in srgb, var(--primary) 8%, var(--card)); }
+.branch-switcher-option-icon { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 9px; background: var(--muted); color: var(--primary); }
+.branch-switcher-options > button > span:nth-child(2) { display: grid; min-width: 0; gap: 3px; }
+.branch-switcher-options strong { overflow: hidden; color: var(--foreground); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.branch-switcher-options small { overflow: hidden; color: var(--muted-foreground); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.branch-switcher-options > button > svg:last-child { color: var(--primary); }
+.branch-switcher-error { margin: 0 4px 8px; color: var(--destructive); font-size: 12px; }
+.branch-switcher-loading { margin: 8px; color: var(--muted-foreground); font-size: 13px; }
+
+/* Semantic theme tokens for legacy inline styles and shared application surfaces. */
+:root {
+  --surface-primary: #ffffff;
+  --surface-secondary: #f1f5f9;
+  --text-primary: #111827;
+  --text-muted: #64748b;
+}
+.dark {
+  --surface-primary: #1e293b;
+  --surface-secondary: #182135;
+  --text-primary: #e2e8f0;
+  --text-muted: #a8b4c7;
+}
+.dark .app-shell,
+.dark .app-main { background-color: var(--background); color: var(--foreground); }
+.dark .app-main :where(.panel, .metric-card, .store-summary-grid article, .inventory-product, .catalog-grid article, .product-card, .cart, .data-list article, .customer-list article, .transfer-history-card, .opname-history-item, .filter-panel, .report-panel) {
+  border-color: var(--border);
+  background-color: var(--surface-primary);
+  color: var(--text-primary);
+}
+.dark .app-main :where(h1, h2, h3, h4, p, span, strong, small, label, th, td, li, dt, dd, legend, summary) { color: var(--text-primary); }
+.dark .app-main :where(.muted, .field-hint, .section-heading p, .dashboard-note, .opname-search-meta, .opname-empty, .opname-history-empty, .opname-history-main span, .opname-history-main small, .opname-history-line small, .warehouse-panel-heading p, .warehouse-stat small, .warehouse-range-note, .trend-labels, .stock-dashboard-branch, .branch-switcher-heading small, .branch-switcher-options small) { color: var(--text-muted); }
+.dark .app-main :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { border-color: var(--input); background-color: var(--surface-secondary); color: var(--text-primary); }
+.dark .app-main :where(input, select, textarea)::placeholder { color: var(--text-muted); opacity: 1; }
+.dark .app-main :where(th, td, .opname-history-item, .data-list article, .history-item, .transfer-history-card) { border-color: var(--border); }
+.dark .app-main :where(a:not(.button-link):not(.warehouse-action)) { color: #93c5fd; }
+.dark .app-main :where(a.button-link, button span, .button-link span) { color: inherit; }
+.dark .app-main :where(.negative, .list-danger) { color: #fca5a5; }
+.dark .app-main :where(.positive, .list-positive) { color: #86efac; }
+.dark .app-main :where(.list-warning) { color: #fdba74; }
+.dark .app-main :where(.summary-in) { color: #6ee7b7; }
+.dark .app-main :where(.summary-out) { color: #fca5a5; }
+.dark .app-main :where(.summary-net) { color: #93c5fd; }
+.dark .app-main [style*="color: #111827"],
+.dark .app-main [style*="color:#111827"],
+.dark .app-main [style*="color: rgb(17, 24, 39)"],
+.dark .app-main [style*="color: #0f172a"],
+.dark .app-main [style*="color:#0f172a"],
+.dark .app-main [style*="color: #172033"],
+.dark .app-main [style*="color: #1e293b"],
+.dark .app-main [style*="color:#1e293b"],
+.dark .app-main [style*="color: #1f2937"],
+.dark .app-main [style*="color: rgb(15, 23, 42)"],
+.dark .app-main [style*="color: rgb(30, 41, 59)"],
+.dark .app-main [style*="color: black"] { color: var(--text-primary) !important; }
+.dark .app-main [style*="color: #1a1a1a"],
+.dark .app-main [style*="color: #18181b"],
+.dark .app-main [style*="color: #1c2418"],
+.dark .app-main [style*="color: #1e3a5f"],
+.dark .app-main [style*="color: #334155"],
+.dark .app-main [style*="color: #39424f"],
+.dark .app-main [style*="color: #41523a"],
+.dark .app-main [style*="color: #475569"],
+.dark .app-main [style*="color: #52525b"] { color: var(--text-primary) !important; }
+.dark .app-main [style*="color: #64748b"],
+.dark .app-main [style*="color: #71717a"] { color: var(--text-muted) !important; }
+.dark .app-main [style*="color: #2563eb"],
+.dark .app-main [style*="color: #1d4ed8"] { color: #93c5fd !important; }
+.dark .app-main [style*="color: #991b1b"],
+.dark .app-main [style*="color: #b91c1c"],
+.dark .app-main [style*="color: #7f1d1d"] { color: #fca5a5 !important; }
+.dark .app-main [style*="color: #047857"],
+.dark .app-main [style*="color: #15803d"],
+.dark .app-main [style*="color: #0f766e"] { color: #6ee7b7 !important; }
+.dark .app-main [style*="background: #fff"],
+.dark .app-main [style*="background:#fff"],
+.dark .app-main [style*="background: #ffffff"],
+.dark .app-main [style*="background: rgb(255, 255, 255)"] { background-color: var(--surface-primary) !important; }
+.dark .branch-switcher-trigger,
+.dark .branch-switcher-panel { border-color: var(--border); background-color: var(--surface-primary); color: var(--text-primary); }
+
+@media (max-width: 700px) {
+  .branch-switcher { position: static; }
+  .branch-switcher-trigger { max-width: min(54vw, 250px); }
+  .branch-switcher-trigger > span { font-size: 12px; }
+  .branch-switcher-panel {
+    position: fixed;
+    z-index: 62;
+    inset: auto 0 0;
+    width: 100%;
+    max-height: min(78dvh, 680px);
+    padding: 16px 16px max(18px, env(safe-area-inset-bottom));
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -18px 55px rgba(15, 23, 42, .22);
+  }
+  .branch-switcher-backdrop { z-index: 61; background: rgba(15, 23, 42, .46); }
+  .branch-switcher-heading { padding: 4px 2px 14px; }
+  .branch-switcher-heading strong { font-size: 16px; }
+  .branch-switcher-close { display: grid; width: 44px; height: 44px; place-items: center; padding: 0; border: 1px solid var(--border); background: var(--card); color: var(--foreground); }
+  .branch-switcher-options > button { min-height: 60px; }
+}

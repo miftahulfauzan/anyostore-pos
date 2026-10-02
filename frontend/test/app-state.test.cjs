@@ -1,7 +1,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
-const { preferencesScript, readPreferences, createSessionLoader } = require('../app/components/app-state.cjs');
+const {
+  preferencesScript,
+  readPreferences,
+  createSessionLoader,
+  normalizeActiveBranchId,
+  createBranchQuery,
+  createUnsavedWorkRegistry,
+} = require('../app/components/app-state.cjs');
 
 test('preload and hydrated preferences agree, and blocked storage falls back safely', () => {
   const storage = { getItem: (key) => ({ pos_theme: 'dark', pos_sidebar_collapsed: 'true', pos_brand_theme: 'blue' })[key] };
@@ -44,4 +51,26 @@ test('session failures can retry and a reset during load cannot cache the old ac
   resolve({ id: 1 });
   await old;
   assert.deepEqual(await loader.load(), { id: 2 });
+});
+
+test('branch context accepts all or a positive branch id and falls back safely', () => {
+  assert.equal(normalizeActiveBranchId('all'), 'all');
+  assert.equal(normalizeActiveBranchId('17'), '17');
+  assert.equal(normalizeActiveBranchId('0'), 'all');
+  assert.equal(normalizeActiveBranchId('12x'), 'all');
+  assert.equal(normalizeActiveBranchId(null, 4), '4');
+  assert.deepEqual(createBranchQuery('owner', 'all'), { branch_id: 'all' });
+  assert.deepEqual(createBranchQuery('owner', '17'), { branch_id: '17' });
+  assert.deepEqual(createBranchQuery('manager', 'all'), {});
+});
+
+test('unsaved-work registry reflects active carts and releases them on cleanup', () => {
+  const registry = createUnsavedWorkRegistry();
+  let dirty = false;
+  const unregister = registry.register('pos', () => dirty);
+  assert.equal(registry.hasUnsavedWork(), false);
+  dirty = true;
+  assert.equal(registry.hasUnsavedWork(), true);
+  unregister();
+  assert.equal(registry.hasUnsavedWork(), false);
 });

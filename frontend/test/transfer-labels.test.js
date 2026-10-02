@@ -24,7 +24,7 @@ test('cabang toko tetap membedakan gudang internal', () => {
       name: 'Gudang Anyostore Metro',
       type: 'utama',
     }),
-    'Anyostore Metro — Gudang Anyostore Metro (Utama)',
+    'Anyostore Metro / Gudang Anyostore Metro (Utama)',
   );
 });
 

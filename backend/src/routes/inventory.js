@@ -180,7 +180,7 @@ router.get('/stock', async (req, res, next) => {
     // terlihat di dropdown (warehouses/all). Role lain tetap cabang sendiri.
     const branchId = ['owner', 'gudang'].includes(req.user.role) && Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
     const [rows] = await db.execute(
-      `SELECT ws.product_id, ws.variant_id, ws.quantity, ws.reserved_quantity, ws.rack_position, ws.revision AS stock_revision, p.name, p.sku, p.min_stock,
+      `SELECT ws.product_id, ws.variant_id, ws.quantity, ws.reserved_quantity, ws.rack_position, CAST(ws.revision AS CHAR) AS stock_revision, p.name, p.sku, p.min_stock,
               (SELECT pp.path FROM product_photos pp WHERE pp.product_id = p.id AND pp.media_type = 'image' ORDER BY (pp.variant_id IS NULL) DESC, pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
               pv.color AS variant_color, pv.size AS variant_size
        FROM warehouse_stocks ws
@@ -189,7 +189,7 @@ router.get('/stock', async (req, res, next) => {
        LEFT JOIN product_variants pv ON pv.id = ws.variant_id
        WHERE ws.warehouse_id = ? AND w.branch_id = ?
        UNION ALL
-       SELECT p.id AS product_id, pv.id AS variant_id, 0 AS quantity, 0 AS reserved_quantity, NULL AS rack_position, 0 AS stock_revision, p.name, p.sku, p.min_stock,
+       SELECT p.id AS product_id, pv.id AS variant_id, 0 AS quantity, 0 AS reserved_quantity, NULL AS rack_position, CAST(0 AS CHAR) AS stock_revision, p.name, p.sku, p.min_stock,
               (SELECT pp.path FROM product_photos pp WHERE pp.product_id = p.id AND pp.media_type = 'image' ORDER BY (pp.variant_id IS NULL) DESC, pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
               pv.color AS variant_color, pv.size AS variant_size
        FROM products p
@@ -197,7 +197,7 @@ router.get('/stock', async (req, res, next) => {
        WHERE p.branch_id = ? AND p.is_active = TRUE
          AND NOT EXISTS (SELECT 1 FROM warehouse_stocks ws2 WHERE ws2.warehouse_id = ? AND ws2.product_id = p.id AND ws2.variant_id = pv.id)
        UNION ALL
-       SELECT p.id AS product_id, NULL AS variant_id, 0 AS quantity, 0 AS reserved_quantity, NULL AS rack_position, 0 AS stock_revision, p.name, p.sku, p.min_stock,
+       SELECT p.id AS product_id, NULL AS variant_id, 0 AS quantity, 0 AS reserved_quantity, NULL AS rack_position, CAST(0 AS CHAR) AS stock_revision, p.name, p.sku, p.min_stock,
               (SELECT pp.path FROM product_photos pp WHERE pp.product_id = p.id AND pp.media_type = 'image' ORDER BY (pp.variant_id IS NULL) DESC, pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
               NULL AS variant_color, NULL AS variant_size
        FROM products p
@@ -207,7 +207,16 @@ router.get('/stock', async (req, res, next) => {
        ORDER BY name, variant_color, variant_size`,
       [warehouseId, branchId, branchId, warehouseId, branchId, warehouseId]
     );
-    res.json({ success: true, data: rows, branch_id: branchId });
+    // BIGINT revision harus dikirim sebagai string agar frontend tidak
+    // membulatkan nilainya saat melewati batas aman Number JavaScript.
+    res.json({
+      success: true,
+      data: rows.map((row) => ({
+        ...row,
+        stock_revision: row.stock_revision == null ? null : String(row.stock_revision),
+      })),
+      branch_id: branchId,
+    });
   } catch (error) { next(error); }
 });
 

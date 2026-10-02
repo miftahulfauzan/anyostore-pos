@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import AppShell from '../../components/AppShell';
 import SafeImage from '../../components/SafeImage';
 import StockVariantPicker from '../../components/StockVariantPicker';
+import { useAppSession, useUnsavedWork } from '../../components/AppStateProvider';
 import mutationQuantity from './mutation-quantity.cjs';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -11,6 +12,7 @@ const localToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jaka
 const { normalizeQuantity } = mutationQuantity;
 
 export function MutationPage({ initialMode = null, separatePage = false } = {}) {
+  const { user, activeBranchId } = useAppSession();
   const [mode, setMode] = useState(initialMode || 'in');
   const [stores, setStores] = useState([]);
   const [allWarehouses, setAllWarehouses] = useState([]);
@@ -29,12 +31,14 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
   const [newChannel, setNewChannel] = useState({ value: '', name: '' });
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const [locationsLoaded, setLocationsLoaded] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [picker, setPicker] = useState(null);
   const [quantityPrompt, setQuantityPrompt] = useState(null);
   const [quantityPromptQty, setQuantityPromptQty] = useState('1');
   const [quantityPromptError, setQuantityPromptError] = useState('');
   const h = () => ({ 'Content-Type': 'application/json'});
+  useUnsavedWork('stock-mutation', cart.length > 0);
 
   // Gudang tipe utama selalu paling depan, sisanya abjad.
   const storeWarehouses = useMemo(() => allWarehouses
@@ -66,23 +70,38 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
     Promise.all([
       fetch(api + '/inventory/incoming/targets', { headers: h() }).then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); return b.data || []; }),
       fetch(api + '/inventory/warehouses/all', { headers: h() }).then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); return b.data || []; }),
-      fetch(api + '/auth/me', { headers: h() }).then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); return b.data || null; }),
-    ]).then(([brs, whs, user]) => {
+    ]).then(([brs, whs]) => {
       setStores(brs);
       setAllWarehouses(whs);
-      // Default harus mengikuti cabang akun yang login, bukan urutan nama
-      // cabang (yang bisa membuat Gudang Riject terpilih lebih dulu).
-      const ownBranch = brs.find((branch) => String(branch.id) === String(user?.branch_id));
-      const id = String(ownBranch?.id || brs[0]?.id || '');
-      setStore(id);
-      const list = whs.filter((w) => String(w.branch_id) === String(id));
-      const preferred = list.find((w) => w.type === 'utama') || list[0];
-      const wid = preferred ? String(preferred.id) : '';
-      setWarehouse(wid);
-      if (wid) loadProducts(id, wid);
-      else if (id) setMessage('Cabang ini belum punya gudang aktif.');
+      setLocationsLoaded(true);
     }).catch((e) => setMessage(e.message));
   }, []);
+
+  useEffect(() => {
+    if (!locationsLoaded || !user?.role) return;
+    const id = user.role === 'owner'
+      ? (activeBranchId && activeBranchId !== 'all' ? String(activeBranchId) : '')
+      : String(user.branch_id || '');
+    const selectedStore = stores.find((branch) => String(branch.id) === id);
+    if (!selectedStore) {
+      setStore('');
+      setWarehouse('');
+      setProducts([]);
+      setCart([]);
+      setCartOpen(false);
+      setMessage(user.role === 'owner' ? 'Pilih satu toko/gudang melalui pemilih di header untuk memulai mutasi.' : 'Cabang akun belum tersedia.');
+      return;
+    }
+    setStore(id);
+    setCart([]);
+    setCartOpen(false);
+    const list = allWarehouses.filter((item) => String(item.branch_id) === id);
+    const preferred = list.find((item) => item.type === 'utama') || list[0];
+    const warehouseId = String(preferred?.id || '');
+    setWarehouse(warehouseId);
+    if (warehouseId) loadProducts(id, warehouseId);
+    else { setProducts([]); setMessage('Cabang ini belum punya gudang aktif.'); }
+  }, [locationsLoaded, user?.role, user?.branch_id, activeBranchId, stores, allWarehouses]);
 
   const visibleProducts = useMemo(() => {
     let list = products;
@@ -265,7 +284,7 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
         <label>Tanggal<input type="date" value={transactionDate} onChange={(e) => setTransactionDate(e.target.value)} required /></label>
         <label>Batch / Nota<input value={batchNumber} onChange={(e) => setBatchNumber(e.target.value)} placeholder={`Otomatis: BATCH-${transactionDate.replaceAll('-', '')}-001`} /></label>
-        <label>Toko / Cabang<select value={store} required onChange={(e) => {
+        {user?.role === 'owner' ? <label>Toko / Cabang<input value={stores.find((item) => String(item.id) === String(store))?.name || 'Pilih melalui pemilih toko di header'} readOnly /></label> : <label>Toko / Cabang<select value={store} required onChange={(e) => {
           const id = e.target.value;
           setStore(id);
           setCart([]);
@@ -277,7 +296,7 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
           if (wid) loadProducts(id, wid); else setProducts([]);
         }}>
           {stores.map((s) => <option key={s.id} value={s.id}>{s.name}{s.type === 'gudang' ? ' (Gudang)' : ''}</option>)}
-        </select></label>
+        </select></label>}
         <label>Keterangan / Supplier<input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Contoh: Supplier denim, retur, produksi…" /></label>
         {mode === 'out' && (
           <label>Keperluan / Saluran

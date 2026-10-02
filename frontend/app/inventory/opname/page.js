@@ -2,14 +2,17 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '../../components/AppShell';
-import { countedOpnameItems, createOpnameRows } from './opname-state.cjs';
+import { useAppSession, useUnsavedWork } from '../../components/AppStateProvider';
+import { countedOpnameItems, createOpnameRows, mergeOpnameRows } from './opname-state.cjs';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 export default function Opname() {
+  const { user, activeBranchId, requestActiveBranchChange } = useAppSession();
   const [warehouses, setWarehouses] = useState([]);
   const [warehouse, setWarehouse] = useState('');
-  const [role, setRole] = useState('');
+  const [branchId, setBranchId] = useState('');
+  const role = user?.role || '';
   const [stock, setStock] = useState([]);
   const [stockLoading, setStockLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -18,8 +21,26 @@ export default function Opname() {
   const [saving, setSaving] = useState(false);
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const isOwner = role === 'owner';
+  const branchOptions = useMemo(() => {
+    const unique = new Map();
+    for (const item of warehouses) {
+      if (item.branch_id != null && !unique.has(String(item.branch_id))) {
+        unique.set(String(item.branch_id), {
+          id: String(item.branch_id),
+          name: item.branch_name || 'Toko/gudang',
+          type: item.branch_type,
+        });
+      }
+    }
+    return [...unique.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [warehouses]);
+  const visibleWarehouses = useMemo(() => isOwner
+    ? warehouses.filter((item) => String(item.branch_id) === String(branchId))
+    : warehouses, [warehouses, branchId, isOwner]);
 
   const headers = () => ({ 'Content-Type': 'application/json' });
+  useUnsavedWork('stock-opname', stock.some((item) => String(item.physical_stock ?? '').trim() !== ''));
 
   async function load(id, { preservePhysical = false, signal } = {}) {
     const selectedWarehouse = warehouses.find((item) => String(item.id) === String(id));
@@ -28,7 +49,10 @@ export default function Opname() {
     const response = await fetch(`${api}/inventory/stock?${query}`, { headers: headers(), signal });
     const body = await response.json();
     if (!response.ok) throw Error(body.message);
-    setStock(createOpnameRows(body.data));
+    if (signal?.aborted) return;
+    setStock((previous) => preservePhysical
+      ? mergeOpnameRows(previous, body.data)
+      : createOpnameRows(body.data));
   }
 
   async function loadHistory(id = warehouse) {
@@ -53,31 +77,39 @@ export default function Opname() {
   }
 
   useEffect(() => {
-    fetch(`${api}/auth/me`, { headers: headers() }).then(async (response) => {
+    if (!role) return undefined;
+    let active = true;
+    const endpoint = isOwner ? '/inventory/warehouses/all' : '/inventory/warehouses';
+    fetch(`${api}${endpoint}`, { headers: headers() })
+      .then(async (response) => {
         const body = await response.json();
         if (!response.ok) throw Error(body.message);
-        return body.data || {};
+        return body.data || [];
       })
-      .then(async (user) => {
-        const isOwner = user.role === 'owner';
-        setRole(user.role || '');
-        const endpoint = isOwner ? '/inventory/warehouses/all' : '/inventory/warehouses';
-        const response = await fetch(`${api}${endpoint}`, { headers: headers() });
-        const body = await response.json();
-        if (!response.ok) throw Error(body.message);
-        const list = body.data || [];
+      .then((list) => {
+        if (!active) return;
         setWarehouses(list);
-        const ownBranchWarehouses = list.filter((item) => Number(item.branch_id) === Number(user.branch_id));
-        const preferred = ownBranchWarehouses.find((item) => item.type === 'utama') || ownBranchWarehouses[0];
-        const firstWarehouse = preferred || list.find((item) => item.type === 'utama') || list[0];
-        const id = String(firstWarehouse?.id || '');
-        setWarehouse(id);
+        if (!isOwner) {
+          const preferred = list.find((item) => item.type === 'utama') || list[0];
+          setWarehouse(String(preferred?.id || ''));
+        }
       })
-      .catch((error) => setMessage(error.message));
-  }, []);
+      .catch((error) => { if (active) setMessage(error.message); });
+    return () => { active = false; };
+  }, [role, isOwner]);
 
   useEffect(() => {
-    if (!warehouse || !warehouses.length) return undefined;
+    if (!isOwner) return;
+    const selected = activeBranchId === 'all' ? '' : String(activeBranchId || '');
+    setBranchId(selected);
+    setWarehouse('');
+    setStock([]);
+    setHistory([]);
+    setSearch('');
+  }, [activeBranchId, isOwner]);
+
+  useEffect(() => {
+    if (!warehouse || !warehouses.length || (isOwner && !branchId)) return undefined;
     const controller = new AbortController();
     setStock([]);
     setStockLoading(true);
@@ -85,11 +117,11 @@ export default function Opname() {
       .catch((error) => { if (error.name !== 'AbortError') setMessage(error.message); })
       .finally(() => { if (!controller.signal.aborted) setStockLoading(false); });
     return () => controller.abort();
-  }, [warehouse, warehouses, role]);
+  }, [warehouse, warehouses, role, branchId, isOwner]);
 
   useEffect(() => {
     if (warehouse) loadHistory(warehouse);
-  }, [warehouse]);
+  }, [warehouse, warehouses, role]);
 
   const visibleStock = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -132,8 +164,8 @@ export default function Opname() {
     } catch (error) {
       if (error?.message?.includes('Muat ulang')) {
         try {
-          await load(warehouse);
-          setMessage(`${error.message} Daftar stok sudah dimuat ulang; periksa kembali stok fisik lalu simpan lagi.`);
+          await load(warehouse, { preservePhysical: true });
+          setMessage(`${error.message} Snapshot sudah diperbarui tanpa menghapus isian stok fisik; periksa kembali lalu simpan lagi.`);
         } catch (reloadError) {
           setMessage(reloadError.message);
         }
@@ -143,6 +175,16 @@ export default function Opname() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function changeBranch(event) {
+    const id = event.target.value;
+    if (!id || !requestActiveBranchChange(id)) return;
+    setBranchId(id === 'all' ? '' : id);
+    setWarehouse('');
+    setSearch('');
+    setStock([]);
+    setHistory([]);
   }
 
   function changeWarehouse(event) {
@@ -162,24 +204,24 @@ export default function Opname() {
         <p className="muted">Masukkan stok fisik yang dihitung. Sistem otomatis mencatat selisih dan menyesuaikan stok.</p>
         <form onSubmit={save}>
           <div className="opname-controls">
-            <label>
-              {role === 'owner' ? 'Toko / gudang' : 'Gudang / toko'}
-              <select value={warehouse} onChange={changeWarehouse}>
-                {warehouses.map((item) => <option key={item.id} value={item.id}>{role === 'owner' && item.branch_name ? `${item.branch_type === 'gudang' ? 'Gudang' : 'Toko'} · ${item.branch_name} · ${item.name}` : item.name}</option>)}
+            {isOwner && <label>Toko / gudang
+              <select value={branchId || (activeBranchId === 'all' ? 'all' : '')} onChange={changeBranch} aria-label="Pilih toko atau gudang untuk opname">
+                <option value="" disabled>Pilih toko/gudang</option>
+                <option value="all">Semua toko/gudang (pilih satu lokasi untuk opname)</option>
+                {branchOptions.map((branch) => <option key={branch.id} value={branch.id}>{branch.type === 'gudang' ? 'Gudang' : 'Toko'} · {branch.name}</option>)}
+              </select>
+            </label>}
+            <label>Gudang
+              <select value={warehouse} onChange={changeWarehouse} disabled={isOwner && !branchId} aria-label="Pilih gudang untuk opname">
+                <option value="">{isOwner && !branchId ? 'Pilih toko terlebih dahulu' : 'Pilih gudang'}</option>
+                {visibleWarehouses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
               </select>
             </label>
-            <label>
-              Cari produk
-              <input
-                type="search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Cari nama atau SKU..."
-                aria-label="Cari produk berdasarkan nama atau SKU"
-              />
+            <label>Cari produk
+              <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari nama atau SKU..." aria-label="Cari produk berdasarkan nama atau SKU" disabled={!warehouse} />
             </label>
           </div>
-          <div className="opname-search-meta" aria-live="polite">
+          {warehouse && <><div className="opname-search-meta" aria-live="polite">
             {search.trim() ? `${visibleStock.length} dari ${stock.length} produk` : `${stock.length} produk`}
           </div>
           <div className="table-wrap">
@@ -198,6 +240,7 @@ export default function Opname() {
           </div>
           <label>Catatan<textarea value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
           <button type="submit" disabled={saving || stockLoading || !opnameCount}>{saving ? 'Menyimpan…' : stockLoading ? 'Memuat stok…' : 'Simpan stok opname'}</button>
+          </>}
         </form>
         {message && <p className="message">{message}</p>}
       </section>
@@ -212,7 +255,8 @@ export default function Opname() {
           </button>
         </div>
         {historyLoading && <p className="muted">Memuat riwayat…</p>}
-        {!historyLoading && !history.length && <p className="opname-history-empty">Belum ada riwayat opname untuk gudang ini.</p>}
+        {!warehouse && <p className="opname-history-empty">Pilih toko dan gudang untuk melihat riwayat opname.</p>}
+        {warehouse && !historyLoading && !history.length && <p className="opname-history-empty">Belum ada riwayat opname untuk gudang ini.</p>}
         {!historyLoading && history.length > 0 && <div className="opname-history-list">
           {history.map((row) => (
             <details key={row.id} className="opname-history-item">
