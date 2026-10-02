@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { roleLabel } from '../lib/roles';
 import { useAppSession } from './AppStateProvider';
+import BranchSwitcher from './BranchSwitcher';
 
 // Roles per item: owner/manajer/admin/kasir/gudang.
 // Jika field `roles` tidak ada → tampil untuk semua role login.
@@ -279,6 +280,7 @@ export default function AppShell({ title, eyebrow, actions, children }) {
             </div>
           </div>
           <div className="header-actions">
+            <BranchSwitcher />
             <button type="button" className="theme-toggle" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Ganti ke mode terang' : 'Ganti ke mode gelap'}>
               {theme === 'dark' ? <Sun aria-hidden="true" size={18} /> : <Moon aria-hidden="true" size={18} />}
             </button>

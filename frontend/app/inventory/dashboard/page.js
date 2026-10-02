@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AppShell from '../../components/AppShell';
+import { useAppSession } from '../../components/AppStateProvider';
 import WarehouseDashboard from '../../dashboard/WarehouseDashboard';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -20,42 +21,23 @@ async function requestJson(path, options) {
 }
 
 export default function StockDashboardPage() {
-  const [role, setRole] = useState('');
-  const [branches, setBranches] = useState([]);
-  const [branch, setBranch] = useState('all');
+  const { user, activeBranchId } = useAppSession();
   const [range, setRange] = useState({ start: '', end: '' });
   const [draftStart, setDraftStart] = useState('');
   const [draftEnd, setDraftEnd] = useState('');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const role = user?.role || '';
 
   useEffect(() => {
-    let active = true;
-    async function initialize() {
-      try {
-        const userBody = await requestJson('/auth/me');
-        const currentRole = userBody.data?.role || '';
-        if (!active) return;
-        setRole(currentRole);
-        if (currentRole === 'owner') {
-          const branchBody = await requestJson('/settings/branches');
-          if (!active) return;
-          setBranches((branchBody.data || []).filter((item) => item.is_active === undefined || Boolean(Number(item.is_active))));
-        }
-        const end = localDate(new Date());
-        const startDate = new Date(`${end}T00:00:00+07:00`);
-        startDate.setDate(startDate.getDate() - 6);
-        const start = localDate(startDate);
-        setRange({ start, end });
-        setDraftStart(start);
-        setDraftEnd(end);
-      } catch (error) {
-        if (active) setMessage(error.message);
-      }
-    }
-    initialize();
-    return () => { active = false; };
+    const end = localDate(new Date());
+    const startDate = new Date(`${end}T00:00:00+07:00`);
+    startDate.setDate(startDate.getDate() - 6);
+    const start = localDate(startDate);
+    setRange({ start, end });
+    setDraftStart(start);
+    setDraftEnd(end);
   }, []);
 
   useEffect(() => {
@@ -66,7 +48,7 @@ export default function StockDashboardPage() {
       setMessage('');
       setData(null);
       const query = new URLSearchParams({ start: range.start, end: range.end });
-      if (role === 'owner' && branch !== 'all') query.set('branch_id', branch);
+      if (role === 'owner' && activeBranchId) query.set('branch_id', activeBranchId);
       try {
         const body = await requestJson(`/dashboard?${query}`, { signal: controller.signal });
         setData(body.data);
@@ -78,13 +60,12 @@ export default function StockDashboardPage() {
     }
     load();
     return () => controller.abort();
-  }, [role, branch, range]);
+  }, [role, activeBranchId, range]);
 
   const dashboardKey = role === 'owner' ? 'owner_stock_dashboard' : 'warehouse_dashboard';
-  const selectedBranch = branches.find((item) => String(item.id) === String(branch));
-  const dashboardLabel = role === 'owner' && branch !== 'all'
-    ? `${selectedBranch?.type === 'gudang' ? 'Gudang' : 'Toko'} · ${selectedBranch?.name || 'terpilih'}`
-    : 'Semua toko dan gudang';
+  const dashboardLabel = role === 'owner' && activeBranchId === 'all'
+    ? 'Semua toko dan gudang'
+    : 'Mengikuti toko/gudang aktif';
 
   return <AppShell title="Dashboard Stok" eyebrow="PRODUK & INVENTORI" actions={<a className="button-link" href="/inventory">Lihat Stok</a>}>
     <section className="warehouse-dashboard-toolbar stock-dashboard-toolbar">
@@ -93,12 +74,6 @@ export default function StockDashboardPage() {
         <p className="muted">Periode {fullDate(range.start)} – {fullDate(range.end)}</p>
       </div>
       <div className="stock-dashboard-controls">
-        {role === 'owner' && <label className="stock-dashboard-branch">Toko / gudang
-          <select value={branch} onChange={(event) => setBranch(event.target.value)} aria-label="Pilih toko atau gudang untuk dashboard stok">
-            <option value="all">Semua toko dan gudang</option>
-            {branches.map((item) => <option key={item.id} value={item.id}>{item.type === 'gudang' ? 'Gudang' : 'Toko'} · {item.name}</option>)}
-          </select>
-        </label>}
         <div className="warehouse-date-filter">
           <label>Dari<input type="date" value={draftStart} onChange={(event) => setDraftStart(event.target.value)} /></label>
           <span>s/d</span>

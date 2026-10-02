@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createOpnameRows, countedOpnameItems } = require('../app/inventory/opname/opname-state.cjs');
+const { createOpnameRows, countedOpnameItems, mergeOpnameRows } = require('../app/inventory/opname/opname-state.cjs');
+const { stockHistoryLabel, stockHistoryQuery } = require('../app/products/history/history-state.cjs');
 const { updateTransferQuantity, transferItems, createTransferAttempt } = require('../app/inventory/transfers/transfer-state.cjs');
 const { productsQuery, productBranchQuery, bulkDeleteProducts } = require('../app/products/catalog-state.cjs');
 
@@ -26,6 +27,45 @@ test('opname rejects negative, fractional and invalid counts and missing revisio
     assert.throws(() => countedOpnameItems([{ physical_stock: value, expected_stock: 1, expected_revision: '2' }]), /bilangan bulat/);
   }
   assert.throws(() => countedOpnameItems([{ physical_stock: '1', expected_stock: 1 }]), /Muat ulang/);
+});
+
+test('opname refresh preserves physical counts while replacing the stock snapshot', () => {
+  const previous = createOpnameRows([
+    { product_id: 1, variant_id: null, quantity: 10, stock_revision: '21' },
+    { product_id: 2, variant_id: 4, quantity: 8, stock_revision: '22' },
+  ]);
+  previous[0].physical_stock = '9';
+  previous[1].physical_stock = '7';
+
+  const refreshed = mergeOpnameRows(previous, [
+    { product_id: 1, variant_id: null, quantity: 11, stock_revision: '23' },
+    { product_id: 2, variant_id: 4, quantity: 8, stock_revision: '22' },
+    { product_id: 3, variant_id: null, quantity: 2, stock_revision: '0' },
+  ]);
+
+  assert.deepEqual(refreshed.map((row) => ({
+    product_id: row.product_id,
+    physical_stock: row.physical_stock,
+    expected_stock: row.expected_stock,
+    expected_revision: row.expected_revision,
+  })), [
+    { product_id: 1, physical_stock: '9', expected_stock: 11, expected_revision: '23' },
+    { product_id: 2, physical_stock: '7', expected_stock: 8, expected_revision: '22' },
+    { product_id: 3, physical_stock: '', expected_stock: 2, expected_revision: '0' },
+  ]);
+});
+
+test('riwayat produk melabeli stok masuk, keluar, opname, dan transfer', () => {
+  assert.equal(stockHistoryLabel({ reference_type: 'manual_incoming', type: 'purchase' }), 'Stok masuk');
+  assert.equal(stockHistoryLabel({ reference_type: 'manual_outgoing', type: 'adjustment' }), 'Stok keluar');
+  assert.equal(stockHistoryLabel({ reference_type: 'stock_opname', type: 'adjustment' }), 'Opname');
+  assert.equal(stockHistoryLabel({ reference_type: 'inter_store_transfer', type: 'transfer_out' }), 'Transfer keluar');
+  assert.equal(stockHistoryLabel({ reference_type: 'transaction', type: 'sale' }), 'Penjualan');
+});
+
+test('riwayat produk selalu memfilter product_id dan dapat membawa cabang', () => {
+  assert.equal(stockHistoryQuery(17, 4).toString(), 'product_id=17&limit=200&branch_id=4');
+  assert.equal(stockHistoryQuery(17, 4, 2).toString(), 'product_id=17&limit=200&branch_id=4&page=2');
 });
 
 test('clearing transfer quantity keeps its row; submit rejects blanks and non-positive integers', () => {

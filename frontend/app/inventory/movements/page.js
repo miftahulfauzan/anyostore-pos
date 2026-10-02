@@ -3,11 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import AppShell from '../../components/AppShell';
 import DateRangePresets from '../../components/DateRangePresets';
+import { useAppSession } from '../../components/AppStateProvider';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const typeLabels = { sale: 'Penjualan', purchase: 'Produk masuk', adjustment: 'Penyesuaian', transfer_in: 'Transfer masuk', transfer_out: 'Transfer keluar', sale_return: 'Retur penjualan', damage: 'Barang rusak', loss: 'Kehilangan', gift: 'Hadiah' };
 
 export default function StockMovementsPage() {
+  const { user, activeBranchId } = useAppSession();
   const [rows, setRows] = useState([]);
   const [channels, setChannels] = useState({});
   const [message, setMessage] = useState('');
@@ -24,6 +26,7 @@ export default function StockMovementsPage() {
     try {
       const query = new URLSearchParams({ limit: '100' });
       Object.entries(activeFilters).forEach(([key, value]) => { if (value) query.set(key, value); });
+      if (user?.role === 'owner' && activeBranchId) query.set('branch_id', activeBranchId);
       const response = await fetch(api + '/inventory/mutations?' + query, { headers: headers() });
       const body = await response.json();
       if (seq !== loadSeq.current) return;
@@ -35,12 +38,15 @@ export default function StockMovementsPage() {
 
   useEffect(() => {
     /* sesi via httpOnly cookie */
-    load().catch(() => {});
     fetch(api + '/inventory/channels', { headers: headers() })
       .then((r) => r.json())
       .then((b) => { if (b?.data) setChannels(Object.fromEntries(b.data.map((c) => [c.value, c.name]))); })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (user?.role) load().catch(() => {});
+  }, [user?.role, activeBranchId]);
 
   function apply(event) {
     event.preventDefault();

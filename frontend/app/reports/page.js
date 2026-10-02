@@ -5,6 +5,7 @@ import AppShell from "../components/AppShell";
 import DateRangePresets from "../components/DateRangePresets";
 import { localDateString, localMonthStartString } from "../lib/local-date";
 import { labelFor, paymentLabels, statusLabels } from "../lib/ui-labels";
+import { useAppSession } from "../components/AppStateProvider";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 const todayStr = () => localDateString();
@@ -69,21 +70,19 @@ function ReportTable({
 }
 
 export default function ReportsPage() {
+  const { user, activeBranchId } = useAppSession();
   const [period, setPeriod] = useState({ start: '', end: '' });
   const [preset, setPreset] = useState("");
   const [report, setReport] = useState(null);
   const [store, setStore] = useState(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isOwner, setIsOwner] = useState(false);
-  const [branches, setBranches] = useState([]);
-  const [branchId, setBranchId] = useState("");
   async function load(nextPeriod = period) {
     setLoading(true);
     setMessage("");
     try {
       const qs = new URLSearchParams({ start: nextPeriod.start, end: nextPeriod.end });
-      if (isOwner && branchId) qs.set('branch_id', branchId);
+      if (user?.role === 'owner' && activeBranchId) qs.set('branch_id', activeBranchId);
       const response = await fetch(
         `${apiUrl}/reports/overview?${qs}`,
         { headers: {} },
@@ -99,25 +98,12 @@ export default function ReportsPage() {
     }
   }
   useEffect(() => {
-    load();
-    Promise.all([
-      fetch(apiUrl + "/settings", { headers: {} }).then((r) => r.ok ? r.json() : null).catch(() => null),
-      fetch(apiUrl + "/auth/me", { headers: {} }).then((r) => r.ok ? r.json() : null).catch(() => null),
-      fetch(apiUrl + "/settings/branches", { headers: {} }).then((r) => r.ok ? r.json() : null).catch(() => null),
-    ]).then(([storeData, meData, branchesData]) => {
-      setStore(storeData?.data || null);
-      if (meData?.data?.role === 'owner') {
-        setIsOwner(true);
-        const brs = branchesData?.data?.filter((b) => b.is_active) || [];
-        setBranches(brs);
-        if (brs.length) setBranchId(String(brs[0].id));
-      }
-    });
+    fetch(apiUrl + "/settings", { headers: {} }).then((r) => r.ok ? r.json() : null).then((body) => setStore(body?.data || null)).catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (period.start) load();
-  }, [period.start, period.end, branchId]);
+    if (period.start) load(period);
+  }, [period.start, period.end, activeBranchId, user?.role]);
 
   useEffect(() => { if (!period.start) setPeriod({ start: firstOfMonthStr(), end: todayStr() }); }, []);
 
@@ -163,14 +149,6 @@ export default function ReportsPage() {
         <div style={{ gridColumn: "1 / -1" }}>
           <DateRangePresets active={preset} onPick={(key, range) => { setPreset(key); if (range) setPeriod(range); }} />
         </div>
-        {isOwner && branches.length > 0 && (
-          <label>
-            Toko
-            <select value={branchId} onChange={(e) => setBranchId(e.target.value)}>
-              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
-          </label>
-        )}
         <label>
           Mulai
           <input

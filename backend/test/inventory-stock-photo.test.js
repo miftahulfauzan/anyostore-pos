@@ -64,5 +64,6 @@ test('snapshot stok mengirim path foto untuk pemilih opname mobile', async () =>
 
   assert.equal(nextError, undefined);
   assert.equal(res.body.data[0].photo_path, '/uploads/products/kemeja.jpg');
+  assert.equal(res.body.data[0].stock_revision, '4');
   assert.match(queries[0], /product_photos/);
 });

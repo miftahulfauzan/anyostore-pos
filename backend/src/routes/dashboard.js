@@ -3,7 +3,7 @@ const db = require('../db');
 const { SALES_STATUSES_SQL } = require('../sales-status');
 const { authenticate } = require('../auth');
 const { localDateString } = require('../local-date');
-const { stockDashboardScope } = require('../dashboard-stock-scope');
+const { parseOwnerBranchId, stockDashboardScope } = require('../dashboard-stock-scope');
 
 const router = express.Router();
 router.use(authenticate);
@@ -11,10 +11,19 @@ router.use(authenticate);
 router.get('/', async (req, res, next) => {
   try {
     const owner = req.user.role === 'owner';
-    const transactionScope = owner ? '' : ' AND t.branch_id = ?';
-    const expenseScope = owner ? '' : ' AND e.branch_id = ?';
-    const transactionParams = owner ? [] : [req.user.branch_id];
-    const expenseParams = owner ? [] : [req.user.branch_id];
+    const selectedBranchId = owner ? parseOwnerBranchId(req.query.branch_id) : null;
+    if (owner && selectedBranchId !== null) {
+      const [activeBranches] = await db.execute('SELECT id FROM branches WHERE id = ? AND is_active = TRUE LIMIT 1', [selectedBranchId]);
+      if (!activeBranches.length) return res.status(404).json({ success: false, message: 'Toko tidak ditemukan atau sudah tidak aktif.' });
+    }
+    const transactionScope = owner
+      ? (selectedBranchId === null ? '' : ' AND t.branch_id = ?')
+      : ' AND t.branch_id = ?';
+    const expenseScope = owner
+      ? (selectedBranchId === null ? '' : ' AND e.branch_id = ?')
+      : ' AND e.branch_id = ?';
+    const transactionParams = owner ? (selectedBranchId === null ? [] : [selectedBranchId]) : [req.user.branch_id];
+    const expenseParams = owner ? (selectedBranchId === null ? [] : [selectedBranchId]) : [req.user.branch_id];
 
     const salesSql =
       'SELECT ' +
@@ -71,6 +80,7 @@ router.get('/', async (req, res, next) => {
       };
     });
 
+    const storeScope = selectedBranchId === null ? '' : ' AND b.id = ?';
     const stores = owner ? (await db.execute(
       `SELECT b.id, b.name, b.address,
         COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount - t.refunded_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) = CURDATE()), 0) AS today_sales,
@@ -83,7 +93,8 @@ router.get('/', async (req, res, next) => {
         COALESCE((SELECT COUNT(*) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)), 0) AS seven_day_transactions,
         COALESCE((SELECT COUNT(*) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)), 0) AS month_transactions,
         (SELECT COUNT(*) FROM products p WHERE p.branch_id = b.id AND p.is_active = TRUE) AS products
-       FROM branches b WHERE b.is_active = TRUE ORDER BY b.id`
+       FROM branches b WHERE b.is_active = TRUE${storeScope} ORDER BY b.id`,
+      selectedBranchId === null ? [] : [selectedBranchId]
     ))[0] : [];
 
     const summary = { ...salesRows[0][0], ...expenseRows[0][0] };
@@ -249,6 +260,7 @@ router.get('/', async (req, res, next) => {
         sales_trend: sevenDayTrend,
         payment_breakdown: payments[0],
         stores,
+        branch_context_id: owner ? (selectedBranchId === null ? 'all' : selectedBranchId) : req.user.branch_id,
         stock_summary: stockSummary,
         warehouse_dashboard: warehouseDashboard,
         owner_stock_dashboard: ownerStockDashboard,

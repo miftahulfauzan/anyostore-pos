@@ -3,12 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowUpRight, LayoutDashboard, LogOut, ShoppingCart, Store as StoreIcon, X } from 'lucide-react';
+import { useAppSession, useUnsavedWork } from '../components/AppStateProvider';
+import BranchSwitcher from '../components/BranchSwitcher';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rupiah = (amount) => `Rp${Number(amount || 0).toLocaleString('id-ID')}`;
 
 export default function PosPage() {
   const router = useRouter();
+  const { user, activeBranchId, requestActiveBranchChange } = useAppSession();
   const [products, setProducts] = useState([]);
   const [stores, setStores] = useState([]);
   const [storeId, setStoreId] = useState('');
@@ -25,6 +28,7 @@ export default function PosPage() {
   const [variantProduct, setVariantProduct] = useState(null);
   const [printPrompt, setPrintPrompt] = useState(null);
   const [loadingStore, setLoadingStore] = useState(true);
+  const [storesLoaded, setStoresLoaded] = useState(false);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [customers, setCustomers] = useState([]);
   const [customerId, setCustomerId] = useState('');
@@ -33,6 +37,7 @@ export default function PosPage() {
   const headers = () => ({ 'Content-Type': 'application/json'});
   const mediaUrl = (photoPath) => photoPath ? `${apiUrl.replace('/api', '')}${photoPath}` : '';
   const pendingTransactionId = useRef(null);
+  useUnsavedWork('pos-cart', cart.length > 0);
   const newClientTransactionId = () => (typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
     : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); }));
@@ -44,15 +49,42 @@ export default function PosPage() {
         const body = await response.json();
         if (!response.ok) throw new Error(body.message || 'Gagal memuat daftar toko');
         const availableStores = (body.data || []).filter((store) => store.is_active !== false && store.type !== 'gudang');
-        if (!availableStores.length) throw new Error('Tidak ada toko aktif yang dapat dipakai untuk POS');
         setStores(availableStores);
-        const remembered = localStorage.getItem('pos_branch_id');
-        const selected = availableStores.find((store) => String(store.id) === remembered) || availableStores[0];
-        setStoreId(String(selected.id));
-        localStorage.setItem('pos_branch_id', String(selected.id));
-        await loadStore(selected.id);
-      }).catch((error) => setMessage(error.message));
+        setStoresLoaded(true);
+      }).catch((error) => { setMessage(error.message); setLoadingStore(false); });
   }, []);
+
+  useEffect(() => {
+    if (!storesLoaded) return;
+    const selected = activeBranchId && activeBranchId !== 'all'
+      ? stores.find((store) => String(store.id) === String(activeBranchId))
+      : null;
+    if (!selected) {
+      setStoreId('');
+      setProducts([]);
+      setWarehouses([]);
+      setWarehouseId('');
+      setCustomers([]);
+      setCart([]);
+      setPromo(null);
+      setPromoCode('');
+      setCustomerId('');
+      setLoadingStore(false);
+      setMessage(activeBranchId === 'all' ? 'Pilih satu toko dari pemilih di header untuk memulai transaksi POS.' : 'Toko aktif tidak tersedia untuk POS. Pilih toko, bukan gudang.');
+      return;
+    }
+    setCart([]);
+    setPromo(null);
+    setPromoCode('');
+    setCash('');
+    setVariantProduct(null);
+    setCustomerId('');
+    setPriceTier('retail');
+    pendingTransactionId.current = null;
+    setStoreId(String(selected.id));
+    try { localStorage.setItem('pos_branch_id', String(selected.id)); } catch { /* Compatibility preference only. */ }
+    loadStore(selected.id).then(() => setMessage('')).catch((error) => setMessage(error.message));
+  }, [storesLoaded, stores, activeBranchId]);
   useEffect(() => {
     if (!variantProduct) return undefined;
     const closeOnEscape = (event) => { if (event.key === 'Escape') setVariantProduct(null); };
@@ -130,15 +162,15 @@ export default function PosPage() {
   async function changeStore(event) {
     const nextId = event.target.value;
     if (!nextId || nextId === storeId) return;
-    const nextStore = stores.find((store) => String(store.id) === nextId);
-    setCart([]); setPromo(null); setPromoCode(''); setCash(''); setVariantProduct(null); setCustomerId(''); setPriceTier('retail');
-    pendingTransactionId.current = null;
-    try {
-      await loadStore(nextId);
-      setStoreId(nextId);
-      localStorage.setItem('pos_branch_id', nextId);
-      setMessage(`POS aktif untuk ${nextStore?.name || 'toko terpilih'}. Keranjang telah dikosongkan.`);
-    } catch (error) { setMessage(error.message); }
+    if (user?.role === 'owner') requestActiveBranchChange(nextId);
+    else {
+      const nextStore = stores.find((store) => String(store.id) === nextId);
+      try {
+        await loadStore(nextId);
+        setStoreId(nextId);
+        setMessage(`POS aktif untuk ${nextStore?.name || 'toko terpilih'}.`);
+      } catch (error) { setMessage(error.message); }
+    }
   }
 
   async function chooseProduct(product) {
@@ -240,11 +272,11 @@ export default function PosPage() {
 
   return (
     <div className="pos-standalone">
-      <header className="pos-standalone-header"><a className="pos-standalone-brand" href="/dashboard"><span>A</span><div><strong>Anyostore POS</strong><small>Kasir toko</small></div></a><nav><a href="/dashboard"><LayoutDashboard aria-hidden="true" size={15} /> Dasbor</a><a href="/history">Riwayat <ArrowUpRight aria-hidden="true" size={15} /></a><a href="/" target="_blank" rel="noopener noreferrer">Landing Page</a><button type="button" onClick={logout}><LogOut aria-hidden="true" size={15} /> Keluar</button></nav></header>
+      <header className="pos-standalone-header"><a className="pos-standalone-brand" href="/dashboard"><span>A</span><div><strong>Anyostore POS</strong><small>Kasir toko</small></div></a><nav><BranchSwitcher /><a href="/dashboard"><LayoutDashboard aria-hidden="true" size={15} /> Dasbor</a><a href="/history">Riwayat <ArrowUpRight aria-hidden="true" size={15} /></a><a href="/" target="_blank" rel="noopener noreferrer">Landing Page</a><button type="button" onClick={logout}><LogOut aria-hidden="true" size={15} /> Keluar</button></nav></header>
       <div className="pos-workspace">
         <section className="pos-store-bar" aria-label="Toko aktif untuk transaksi">
-          <div className="pos-store-context"><span><StoreIcon aria-hidden="true" size={18} /></span><div><strong>{selectedStore?.name || 'Memuat toko…'}</strong><small>{stores.length > 1 ? 'Owner dapat memilih toko transaksi' : 'POS mengikuti toko akun ini'}</small></div></div>
-          <label htmlFor="pos-store-select"><span>Toko transaksi</span><select id="pos-store-select" value={storeId} onChange={changeStore} disabled={loadingStore || stores.length <= 1}>{stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}</select></label>
+          <div className="pos-store-context"><span><StoreIcon aria-hidden="true" size={18} /></span><div><strong>{selectedStore?.name || (loadingStore ? 'Memuat toko…' : 'Pilih toko aktif')}</strong><small>{stores.length > 1 ? 'Mengikuti pilihan toko di header' : 'POS mengikuti toko akun ini'}</small></div></div>
+          {user?.role !== 'owner' && <label htmlFor="pos-store-select"><span>Toko transaksi</span><select id="pos-store-select" value={storeId} onChange={changeStore} disabled={loadingStore || stores.length <= 1}>{stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}</select></label>}
         </section>
         <button type="button" className="mobile-cart-toggle" onClick={() => setMobileCartOpen(true)} aria-expanded={mobileCartOpen}>
           <ShoppingCart aria-hidden="true" size={19} />

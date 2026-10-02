@@ -41,4 +41,47 @@ function createSessionLoader(fetchSession) {
   };
 }
 
-module.exports = { readPreferences, applyPreferences, preferencesScript, createSessionLoader };
+function normalizeActiveBranchId(value, fallback = 'all') {
+  const normalize = (candidate) => {
+    if (candidate === 'all') return 'all';
+    const numeric = Number(candidate);
+    return Number.isSafeInteger(numeric) && numeric > 0 ? String(numeric) : null;
+  };
+  return normalize(value) || normalize(fallback) || 'all';
+}
+
+function createBranchQuery(role, activeBranchId) {
+  return role === 'owner' ? { branch_id: normalizeActiveBranchId(activeBranchId) } : {};
+}
+
+function createUnsavedWorkRegistry() {
+  const sources = new Map();
+  return {
+    register(key, isDirty) {
+      sources.set(key, isDirty);
+      return () => { if (sources.get(key) === isDirty) sources.delete(key); };
+    },
+    hasUnsavedWork() {
+      for (const isDirty of sources.values()) {
+        try { if (isDirty()) return true; } catch { /* A broken observer must not block switching. */ }
+      }
+      return false;
+    },
+  };
+}
+
+function readActiveBranchId(storage, fallback = 'all') {
+  try { return normalizeActiveBranchId(storage.getItem('pos_active_branch_id'), fallback); }
+  catch { return normalizeActiveBranchId(fallback); }
+}
+
+module.exports = {
+  readPreferences,
+  applyPreferences,
+  preferencesScript,
+  createSessionLoader,
+  normalizeActiveBranchId,
+  createBranchQuery,
+  createUnsavedWorkRegistry,
+  readActiveBranchId,
+};
