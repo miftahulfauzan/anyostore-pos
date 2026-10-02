@@ -9,7 +9,9 @@ const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 export default function Opname() {
   const [warehouses, setWarehouses] = useState([]);
   const [warehouse, setWarehouse] = useState('');
+  const [role, setRole] = useState('');
   const [stock, setStock] = useState([]);
+  const [stockLoading, setStockLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [notes, setNotes] = useState('');
   const [message, setMessage] = useState('');
@@ -19,8 +21,11 @@ export default function Opname() {
 
   const headers = () => ({ 'Content-Type': 'application/json' });
 
-  async function load(id) {
-    const response = await fetch(`${api}/inventory/stock?warehouse_id=${id}`, { headers: headers() });
+  async function load(id, { preservePhysical = false, signal } = {}) {
+    const selectedWarehouse = warehouses.find((item) => String(item.id) === String(id));
+    const query = new URLSearchParams({ warehouse_id: String(id) });
+    if (role === 'owner' && selectedWarehouse?.branch_id) query.set('branch_id', String(selectedWarehouse.branch_id));
+    const response = await fetch(`${api}/inventory/stock?${query}`, { headers: headers(), signal });
     const body = await response.json();
     if (!response.ok) throw Error(body.message);
     setStock(createOpnameRows(body.data));
@@ -33,7 +38,10 @@ export default function Opname() {
     }
     setHistoryLoading(true);
     try {
-      const response = await fetch(`${api}/inventory-control/opnames?warehouse_id=${id}&limit=25`, { headers: headers() });
+      const selectedWarehouse = warehouses.find((item) => String(item.id) === String(id));
+      const query = new URLSearchParams({ warehouse_id: String(id), limit: '25' });
+      if (role === 'owner' && selectedWarehouse?.branch_id) query.set('branch_id', String(selectedWarehouse.branch_id));
+      const response = await fetch(`${api}/inventory-control/opnames?${query}`, { headers: headers() });
       const body = await response.json();
       if (!response.ok) throw Error(body.message);
       setHistory(body.data || []);
@@ -45,17 +53,39 @@ export default function Opname() {
   }
 
   useEffect(() => {
-    fetch(`${api}/inventory/warehouses`, { headers: headers() })
-      .then(async (response) => {
+    fetch(`${api}/auth/me`, { headers: headers() }).then(async (response) => {
         const body = await response.json();
         if (!response.ok) throw Error(body.message);
-        setWarehouses(body.data);
-        const id = String(body.data[0]?.id || '');
+        return body.data || {};
+      })
+      .then(async (user) => {
+        const isOwner = user.role === 'owner';
+        setRole(user.role || '');
+        const endpoint = isOwner ? '/inventory/warehouses/all' : '/inventory/warehouses';
+        const response = await fetch(`${api}${endpoint}`, { headers: headers() });
+        const body = await response.json();
+        if (!response.ok) throw Error(body.message);
+        const list = body.data || [];
+        setWarehouses(list);
+        const ownBranchWarehouses = list.filter((item) => Number(item.branch_id) === Number(user.branch_id));
+        const preferred = ownBranchWarehouses.find((item) => item.type === 'utama') || ownBranchWarehouses[0];
+        const firstWarehouse = preferred || list.find((item) => item.type === 'utama') || list[0];
+        const id = String(firstWarehouse?.id || '');
         setWarehouse(id);
-        if (id) load(id);
       })
       .catch((error) => setMessage(error.message));
   }, []);
+
+  useEffect(() => {
+    if (!warehouse || !warehouses.length) return undefined;
+    const controller = new AbortController();
+    setStock([]);
+    setStockLoading(true);
+    load(warehouse, { signal: controller.signal })
+      .catch((error) => { if (error.name !== 'AbortError') setMessage(error.message); })
+      .finally(() => { if (!controller.signal.aborted) setStockLoading(false); });
+    return () => controller.abort();
+  }, [warehouse, warehouses, role]);
 
   useEffect(() => {
     if (warehouse) loadHistory(warehouse);
@@ -87,6 +117,8 @@ export default function Opname() {
         notes,
         items,
       };
+      const selectedWarehouse = warehouses.find((item) => String(item.id) === String(warehouse));
+      if (role === 'owner' && selectedWarehouse?.branch_id) payload.branch_id = Number(selectedWarehouse.branch_id);
       const response = await fetch(`${api}/inventory-control/opnames`, {
         method: 'POST',
         headers: headers(),
@@ -117,8 +149,8 @@ export default function Opname() {
     const id = event.target.value;
     setWarehouse(id);
     setSearch('');
+    setStock([]);
     setHistory([]);
-    load(id).catch((error) => setMessage(error.message));
   }
 
   const opnameCount = stock.filter((item) => String(item.physical_stock ?? '').trim() !== '').length;
@@ -131,9 +163,9 @@ export default function Opname() {
         <form onSubmit={save}>
           <div className="opname-controls">
             <label>
-              Gudang / toko
+              {role === 'owner' ? 'Toko / gudang' : 'Gudang / toko'}
               <select value={warehouse} onChange={changeWarehouse}>
-                {warehouses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                {warehouses.map((item) => <option key={item.id} value={item.id}>{role === 'owner' && item.branch_name ? `${item.branch_type === 'gudang' ? 'Gudang' : 'Toko'} · ${item.branch_name} · ${item.name}` : item.name}</option>)}
               </select>
             </label>
             <label>
@@ -165,7 +197,7 @@ export default function Opname() {
             </table>
           </div>
           <label>Catatan<textarea value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
-          <button type="submit" disabled={saving || !opnameCount}>{saving ? 'Menyimpan…' : 'Simpan stok opname'}</button>
+          <button type="submit" disabled={saving || stockLoading || !opnameCount}>{saving ? 'Menyimpan…' : stockLoading ? 'Memuat stok…' : 'Simpan stok opname'}</button>
         </form>
         {message && <p className="message">{message}</p>}
       </section>

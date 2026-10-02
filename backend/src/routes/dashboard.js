@@ -3,6 +3,7 @@ const db = require('../db');
 const { SALES_STATUSES_SQL } = require('../sales-status');
 const { authenticate } = require('../auth');
 const { localDateString } = require('../local-date');
+const { stockDashboardScope } = require('../dashboard-stock-scope');
 
 const router = express.Router();
 router.use(authenticate);
@@ -87,16 +88,19 @@ router.get('/', async (req, res, next) => {
 
     const summary = { ...salesRows[0][0], ...expenseRows[0][0] };
 
-    // Ringkasan stok untuk Admin Gudang dan Owner.
-    // Admin Gudang hanya melihat cabang tipe gudang; Owner melihat seluruh
-    // cabang aktif agar dashboard penjualan dan stok sama-sama tersedia.
+    // Ringkasan stok tersedia terpisah untuk Owner dan petugas toko/gudang.
     let stockSummary = null;
     let warehouseDashboard = null;
     let ownerStockDashboard = null;
-    const includeStockDashboard = req.user.role === 'gudang' || owner;
+    const includeStockDashboard = ['gudang', 'owner', 'manager', 'admin'].includes(req.user.role);
     if (includeStockDashboard) {
-      const stockBranchFilter = req.user.role === 'gudang' ? " AND b.type = 'gudang'" : '';
-      const stockWarehouseBranchFilter = req.user.role === 'gudang' ? " AND wb.type = 'gudang'" : '';
+      const stockScope = stockDashboardScope({
+        role: req.user.role,
+        branchId: req.user.branch_id,
+        queryBranchId: req.query.branch_id,
+      });
+      const stockBranchFilter = stockScope.branchFilter;
+      const stockWarehouseBranchFilter = stockScope.warehouseBranchFilter;
       const validDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
       const dashboardEnd = validDate(req.query.end) ? req.query.end : localDateString();
       const defaultStartDate = new Date(`${dashboardEnd}T00:00:00+07:00`);
@@ -111,7 +115,8 @@ router.get('/', async (req, res, next) => {
          FROM warehouse_stocks ws
          JOIN warehouses w ON w.id = ws.warehouse_id
          JOIN branches b ON b.id = w.branch_id
-         WHERE w.is_active = TRUE AND b.is_active = TRUE${stockBranchFilter}`
+         WHERE w.is_active = TRUE AND b.is_active = TRUE${stockBranchFilter}`,
+        stockScope.branchParams
       );
       const [recentStock] = await db.execute(
         `SELECT sm.id, p.name AS product_name, p.sku, sm.qty, sm.channel, sm.created_at
@@ -120,7 +125,8 @@ router.get('/', async (req, res, next) => {
          JOIN warehouses w ON w.id = sm.warehouse_id
          JOIN branches b ON b.id = w.branch_id
          WHERE b.is_active = TRUE${stockBranchFilter}
-         ORDER BY sm.created_at DESC LIMIT 6`
+         ORDER BY sm.created_at DESC LIMIT 6`,
+        stockScope.branchParams
       );
       stockSummary = { ...stockRows[0], recent_mutations: recentStock };
 
@@ -143,7 +149,8 @@ router.get('/', async (req, res, next) => {
            GROUP BY ws.product_id
          ) stock ON stock.product_id = p.id
          WHERE p.is_active = TRUE
-         ORDER BY p.name`
+         ORDER BY p.name`,
+        [...stockScope.branchParams, ...stockScope.warehouseBranchParams]
       );
       const productRows = warehouseProducts.map((row) => ({
         id: row.id,
@@ -183,7 +190,7 @@ router.get('/', async (req, res, next) => {
          WHERE DATE(sm.created_at) BETWEEN ? AND ?
          GROUP BY DATE(sm.created_at)
          ORDER BY date`,
-        [dashboardStart, dashboardEnd]
+        [...stockScope.branchParams, dashboardStart, dashboardEnd]
       );
       const [topOutRows] = await db.execute(
         `SELECT p.name, p.sku, COALESCE(SUM(ABS(sm.qty)), 0) AS total
@@ -195,7 +202,7 @@ router.get('/', async (req, res, next) => {
          GROUP BY p.id, p.name, p.sku
          ORDER BY total DESC, p.name
          LIMIT 6`,
-        [dashboardStart, dashboardEnd]
+        [...stockScope.branchParams, dashboardStart, dashboardEnd]
       );
       const [incomingRows] = await db.execute(
         `SELECT p.name, p.sku, COALESCE(SUM(sm.qty), 0) AS quantity, MAX(sm.created_at) AS latest_at
@@ -207,7 +214,7 @@ router.get('/', async (req, res, next) => {
          GROUP BY p.id, p.name, p.sku
          ORDER BY latest_at DESC, quantity DESC
          LIMIT 8`,
-        [dashboardStart, dashboardEnd]
+        [...stockScope.branchParams, dashboardStart, dashboardEnd]
       );
       const lowCount = productRows.filter((product) => product.total_stock > 0 && product.total_stock <= product.min_stock).length;
       const emptyCount = productRows.filter((product) => product.total_stock <= 0).length;
