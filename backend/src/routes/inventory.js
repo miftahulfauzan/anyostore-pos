@@ -150,11 +150,15 @@ router.get('/mutations', async (req, res, next) => {
 
 router.get('/barcode-items', async (req, res, next) => {
   try {
+    const allBranches = req.user.role === 'owner' && req.query.branch_id === 'all';
     const requestedBranch = Number(req.query.branch_id);
-    const branchId = req.user.role === 'owner' && Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
+    const branchId = req.user.role === 'owner' && Number.isSafeInteger(requestedBranch) && requestedBranch > 0 ? requestedBranch : req.user.branch_id;
     const term = String(req.query.search || '').trim();
-    const params = [branchId];
-    let where = 'WHERE p.branch_id = ? AND p.is_active = TRUE';
+    const params = [];
+    let where = allBranches
+      ? 'WHERE p.is_active = TRUE AND p.branch_id IN (SELECT id FROM branches WHERE is_active = TRUE)'
+      : 'WHERE p.branch_id = ? AND p.is_active = TRUE';
+    if (!allBranches) params.push(branchId);
     if (term) {
       where += ' AND (p.name LIKE ? OR p.sku LIKE ? OR p.barcode LIKE ? OR pv.sku LIKE ? OR pv.barcode LIKE ? OR pv.color LIKE ?)';
       const like = '%' + term + '%';
