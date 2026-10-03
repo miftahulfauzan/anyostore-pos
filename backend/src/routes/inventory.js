@@ -185,9 +185,9 @@ router.get('/stock', async (req, res, next) => {
               pv.color AS variant_color, pv.size AS variant_size
        FROM warehouse_stocks ws
        JOIN warehouses w ON w.id = ws.warehouse_id
-       JOIN products p ON p.id = ws.product_id
-       LEFT JOIN product_variants pv ON pv.id = ws.variant_id
-       WHERE ws.warehouse_id = ? AND w.branch_id = ?
+       JOIN products p ON p.id = ws.product_id AND p.branch_id = w.branch_id AND p.is_active = TRUE
+       LEFT JOIN product_variants pv ON pv.id = ws.variant_id AND pv.product_id = p.id AND pv.is_active = TRUE
+       WHERE ws.warehouse_id = ? AND w.branch_id = ? AND (ws.variant_id IS NULL OR pv.id IS NOT NULL)
        UNION ALL
        SELECT p.id AS product_id, pv.id AS variant_id, 0 AS quantity, 0 AS reserved_quantity, NULL AS rack_position, CAST(0 AS CHAR) AS stock_revision, p.name, p.sku, p.min_stock,
               (SELECT pp.path FROM product_photos pp WHERE pp.product_id = p.id AND pp.media_type = 'image' ORDER BY (pp.variant_id IS NULL) DESC, pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
