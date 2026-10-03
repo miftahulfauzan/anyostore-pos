@@ -1,0 +1,144 @@
+.previewHeading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  width: min(100%, 105mm);
+  margin-inline: auto;
+}
+
+.previewHeading h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.previewHeading p {
+  margin: 4px 0 0;
+  color: var(--muted-foreground);
+  font-size: .85rem;
+}
+
+.sheet {
+  width: min(105mm, 100%);
+  aspect-ratio: 105 / 148;
+  margin-inline: auto;
+  outline: 1px solid #d1d1d1;
+  background: #fff;
+  container-type: size;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(8, minmax(0, 1fr));
+  column-gap: 3.8095cqw;
+  row-gap: 2.7027cqh;
+  width: 100%;
+  height: 100%;
+  padding: 2.027cqh 10.8333cqw;
+}
+
+.grid :global(.barcode-label) {
+  display: grid;
+  grid-template-rows: 2.8mm minmax(0, 1fr) 2.1mm;
+  gap: .25mm;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: .55mm .7mm;
+  border: .15mm solid #d1d1d1;
+  border-radius: 1mm;
+  background: #fff;
+  color: #000;
+}
+
+.grid :global(.barcode-label__heading) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) .15mm auto;
+  gap: .6mm;
+  align-items: center;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.grid :global(.barcode-label__product) {
+  display: flex;
+  align-items: baseline;
+  gap: .6mm;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.grid :global(.barcode-label__name),
+.grid :global(.barcode-label__variant),
+.grid :global(.barcode-label__price) {
+  overflow: hidden;
+  color: #000;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grid :global(.barcode-label__name) {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 6pt;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.grid :global(.barcode-label__variant) {
+  flex: 0 1 auto;
+  font-size: 4.2pt;
+  line-height: 1;
+}
+
+.grid :global(.barcode-label__divider) {
+  width: .15mm;
+  height: 72%;
+  background: #777;
+}
+
+.grid :global(.barcode-label__price) {
+  max-width: 11.5mm;
+  font-size: 4.8pt;
+  font-weight: 700;
+  line-height: 1;
+  text-align: right;
+}
+
+.grid :global(.barcode-label__barcode) {
+  display: block;
+  align-self: center;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  max-height: 7.4mm;
+  overflow: visible;
+  shape-rendering: crispEdges;
+}
+
+.grid :global(.barcode-label__value) {
+  display: block;
+  overflow: hidden;
+  color: #000;
+  font-size: 5.1pt;
+  line-height: 1;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.emptyPreview {
+  width: min(100%, 105mm);
+  margin: 0 auto;
+  padding: 20px 0;
+  color: var(--muted-foreground);
+}
+
+@media (max-width: 560px) {
+  .previewHeading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+}

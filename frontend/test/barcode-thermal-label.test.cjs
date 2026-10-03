@@ -5,127 +5,57 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const appRoot = path.join(__dirname, '..', 'app');
-const css = fs.readFileSync(path.join(appRoot, 'globals.css'), 'utf8');
 const label = fs.readFileSync(path.join(appRoot, 'components/BarcodeLabel.js'), 'utf8');
-const sheetsSource = fs.readFileSync(path.join(appRoot, 'components/barcodeSheets.js'), 'utf8');
 const inventoryPage = fs.readFileSync(path.join(appRoot, 'inventory/barcodes/page.js'), 'utf8');
 const productsPage = fs.readFileSync(path.join(appRoot, 'products/page.js'), 'utf8');
 const {
-  getBarcodeCopies,
-  selectedBarcodeLabels,
-  splitBarcodeLabels,
-  summarizeBarcodeSelection,
-  updateBarcodeSelection,
-} = require(path.join(appRoot, 'components/barcodeSheets.js'));
+  A6_LAYOUT,
+  createA6PrintCss,
+  getLabelPages,
+} = require(path.join(appRoot, 'components/barcode-print.cjs'));
 
-test('barcode print applies A6 only when printing barcode labels', () => {
-  assert.ok(sheetsSource.includes("pageStyle.textContent = '@page { size: A6 portrait; margin: 0; }';"));
-  assert.ok(sheetsSource.includes("window.addEventListener('afterprint', cleanup, { once: true });"));
-  assert.ok(css.includes('body:has(.barcode-print-area) .barcode-print-sheet {'));
-  assert.ok(css.includes('width: 105mm;'));
-  assert.ok(css.includes('height: 148mm;'));
+test('A6 barcode output owns its physical page rules instead of global report print styles', () => {
+  const printCss = createA6PrintCss();
+  assert.match(printCss, /@page\s*\{\s*size:\s*105mm\s+148mm;\s*margin:\s*0;/);
+  assert.match(printCss, /grid-template-columns:\s*repeat\(3,\s*24\.75mm\)/);
+  assert.match(printCss, /grid-template-rows:\s*repeat\(8,\s*14\.25mm\)/);
+  assert.match(inventoryPage, /printBarcodeItems\(/);
+  assert.match(productsPage, /printBarcodeItems\(/);
+  assert.doesNotMatch(inventoryPage, /window\.print\(\)/);
+  assert.doesNotMatch(productsPage, /window\.print\(\)/);
 });
 
-test('barcode sheets fit 3 columns and 8 rows of 33 by 18.5mm labels', () => {
-  assert.ok(css.includes('grid-template-columns: repeat(3, 33mm);'));
-  assert.ok(css.includes('grid-template-rows: repeat(8, 18.5mm);'));
-  assert.ok(css.includes('.barcode-print-sheet:not(:last-child) {'));
-  assert.ok(css.includes('break-after: page;'));
-  assert.equal(3 * 33, 99);
-  assert.equal(8 * 18.5, 148);
+test('A6 sheet dimensions include 24 labels, exact gaps, and the calculated label size', () => {
+  assert.equal(A6_LAYOUT.labelsPerPage, 24);
+  assert.equal(A6_LAYOUT.columns, 3);
+  assert.equal(A6_LAYOUT.rows, 8);
+  assert.equal(A6_LAYOUT.gapMm, 4);
+  assert.equal(A6_LAYOUT.labelWidthMm, 24.75);
+  assert.equal(A6_LAYOUT.labelHeightMm, 14.25);
+  assert.match(inventoryPage, /Ukuran label aktual/);
 });
 
-test('printed barcode artwork leaves a visible gutter inside each fixed label pitch', () => {
-  const printLabelRule = css.match(/body:has\(\.barcode-print-area\) \.barcode-label \{([\s\S]*?)\n  \}/);
-  assert.ok(printLabelRule, 'print label styles must remain scoped to barcode output');
-  assert.match(printLabelRule[1], /width:\s*33mm;/);
-  assert.match(printLabelRule[1], /height:\s*18\.5mm;/);
-  assert.match(printLabelRule[1], /padding:\s*1\.2mm 1\.2mm;/);
-  assert.match(printLabelRule[1], /gap:\s*\.4mm;/);
-  assert.ok(css.includes('grid-template-columns: repeat(3, 33mm);'));
-  assert.ok(css.includes('grid-template-rows: repeat(8, 18.5mm);'));
-});
-
-test('single-product print modal is isolated from the long catalog print flow', () => {
+test('product-detail barcode modal stays portal-isolated and previews one label, not a long copy stack', () => {
   assert.ok(productsPage.includes("import { createPortal } from 'react-dom';"));
   assert.ok(productsPage.includes('barcodePortalTarget && createPortal('));
-  assert.ok(css.includes('body:has(.barcode-print-dialog-overlay) .app-shell { display: none !important; }'));
+  assert.ok(productsPage.includes('barcodePreview?.barcode_value'));
+  assert.ok(productsPage.includes('Pratinjau satu label'));
+  assert.ok(!productsPage.includes('chosenBarcodes'));
 });
 
-test('single-product barcode modal keeps print controls reachable for long copy lists', () => {
-  assert.ok(css.includes('.barcode-print-dialog {\n  display: flex;'));
-  assert.ok(css.includes('max-height: calc(100dvh - 24px);'));
-  assert.ok(css.includes('.barcode-print-dialog .barcode-print-area {'));
-  assert.ok(css.includes('overflow-y: auto;'));
-  assert.ok(css.includes('.barcode-print-dialog-actions {\n  position: sticky;'));
-  assert.ok(css.includes('bottom: 0;'));
+test('one copy prints on one A6 sheet; more copies paginate in groups of 24', () => {
+  const one = getLabelPages([{ name: 'A106', sku: 'B4-A106-2', copies: 1 }]);
+  const thirtyTwo = getLabelPages([{ name: 'A106', sku: 'B4-A106-2', copies: 32 }]);
+  assert.deepEqual(one.map((page) => page.length), [1]);
+  assert.deepEqual(thirtyTwo.map((page) => page.length), [24, 8]);
 });
 
-test('both barcode entry points split selected labels into 24-label sheets', () => {
-  const labels = Array.from({ length: 51 }, (_, index) => index);
-  const sheets = splitBarcodeLabels(labels);
-  assert.deepEqual(sheets.map((sheet) => sheet.length), [24, 24, 3]);
-  assert.ok(inventoryPage.includes('splitBarcodeLabels(chosen)'));
-  assert.ok(productsPage.includes('splitBarcodeLabels(chosenBarcodes)'));
-  assert.ok(inventoryPage.includes('className="barcode-print-sheet"'));
-  assert.ok(productsPage.includes('className="barcode-print-sheet"'));
-  assert.ok(inventoryPage.includes('onClick={printBarcodeLabels}'));
-  assert.ok(productsPage.includes('onClick={printBarcodeLabels}'));
-});
-
-test('mixed product quantities survive searching and fill A6 sheets in selection order', () => {
-  const a100 = { product_id: 100, variant_id: null, name: 'A100', barcode_value: '100' };
-  const a101 = { product_id: 101, variant_id: 3, name: 'A101', variant_color: 'Denim', barcode_value: '101-D' };
-  let selection = updateBarcodeSelection([], a100, '23');
-
-  // Searching for A101 replaces the visible product list, not the print selection.
-  selection = updateBarcodeSelection(selection, a101, '4');
-  assert.equal(getBarcodeCopies(selection, a100), 23);
-  assert.equal(getBarcodeCopies(selection, a101), 4);
-
-  const labels = selectedBarcodeLabels(selection);
-  assert.equal(labels.length, 27);
-  assert.deepEqual(splitBarcodeLabels(labels).map((sheet) => sheet.length), [24, 3]);
-  assert.deepEqual(summarizeBarcodeSelection(selection), {
-    productCount: 2,
-    totalLabels: 27,
-    sheetCount: 2,
-  });
-  assert.deepEqual(labels.slice(22).map((item) => item.name), ['A100', 'A101', 'A101', 'A101', 'A101']);
-  assert.ok(inventoryPage.includes('selectedBarcodeLabels(selection)'));
-  assert.ok(!inventoryPage.includes('items.flatMap('), 'print labels must not be derived from the currently filtered list');
-  assert.ok(inventoryPage.includes('{selectionSummary.sheetCount} lembar A6'));
-  assert.ok(inventoryPage.includes('Pilihan tetap tersimpan saat Anda mencari produk lain.'));
-  assert.ok(productsPage.includes('href="/inventory/barcodes"'), 'Master Produk must link to the mixed-product barcode workflow');
-  assert.ok(css.includes('.barcode-selection-summary {'));
-});
-
-test('barcode quantity can be cleared and re-entered without losing its row', () => {
-  const a100 = { product_id: 100, variant_id: null, name: 'A100' };
-  const cleared = updateBarcodeSelection(updateBarcodeSelection([], a100, '12'), a100, '');
-  assert.equal(getBarcodeCopies(cleared, a100), '');
-  assert.deepEqual(selectedBarcodeLabels(cleared), []);
-
-  const reentered = updateBarcodeSelection(cleared, a100, '7');
-  assert.equal(getBarcodeCopies(reentered, a100), 7);
-  assert.equal(selectedBarcodeLabels(reentered).length, 7);
-});
-
-test('each label fits physical dimensions and retains barcode, product, variant, and price', () => {
-  assert.ok(css.includes('width: 33mm;\n    height: 18.5mm;'));
-  assert.ok(css.includes('box-sizing: border-box;'));
-  assert.ok(css.includes('break-inside: avoid;'));
-  assert.ok(label.includes('displayValue: true'));
-  assert.ok(label.includes('<strong>{item.name}</strong>'));
-  assert.ok(label.includes('{item.variant_color && <span>Warna: {item.variant_color}</span>}'));
-  assert.ok(label.includes('<b>Rp{Number(item.price'));
-  assert.ok(!label.includes('<small>{item.barcode_value}</small>'));
-});
-
-test('standard barcode labels omit the generic subtitle and use the recovered row for the barcode', () => {
-  assert.ok(label.includes("className={item.variant_color ? 'barcode-label' : 'barcode-label barcode-label--standard'}"));
-  assert.ok(label.includes('{item.variant_color && <span>Warna: {item.variant_color}</span>}'));
-  assert.ok(!label.includes('Produk standar'));
-  assert.match(css, /\.barcode-label--standard \{ grid-template-rows: auto 48px auto; \}/);
-  assert.match(css, /body:has\(\.barcode-print-area\) \.barcode-label--standard \{\s*grid-template-rows: auto minmax\(0, 1fr\) auto;/);
+test('barcode label keeps the retail hierarchy and encodes the real SKU', () => {
+  assert.match(label, /className="barcode-label__heading"/);
+  assert.match(label, /className="barcode-label__name"/);
+  assert.match(label, /className="barcode-label__price"/);
+  assert.match(label, /className="barcode-label__barcode"/);
+  assert.match(label, /className="barcode-label__value"/);
+  assert.match(label, /format:\s*'CODE128'/);
+  assert.doesNotMatch(productsPage, /barcodeProduct\.name,\s*variant_color/);
 });

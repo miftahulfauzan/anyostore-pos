@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { Barcode, Copy, History, Pencil, Trash2 } from 'lucide-react';
 import AppShell from '../components/AppShell';
 import BarcodeLabel from '../components/BarcodeLabel';
-import { printBarcodeLabels, splitBarcodeLabels } from '../components/barcodeSheets';
+import { getBarcodeValue, printBarcodeItems } from '../components/barcode-print.cjs';
 import { getProductSelectionPlacement } from './view-utils.cjs';
 import { productsQuery, productBranchQuery, bulkDeleteProducts } from './catalog-state.cjs';
 import { formatRackLocationLabels } from './rack-location-labels.cjs';
@@ -178,8 +178,25 @@ export default function ProductsPage() {
     finally { mutationLock.current = false; setMutating(false); }
   }
 
-  const chosenBarcodes = Array.from({ length: Math.min(99, Number(barcodeCopies) || 1) }, () => barcodeProduct);
-  const barcodeSheets = barcodeProduct ? splitBarcodeLabels(chosenBarcodes) : [];
+  function printProductBarcode() {
+    if (!barcodeProduct) return;
+    try {
+      printBarcodeItems([{
+        ...barcodeProduct,
+        barcode_value: getBarcodeValue(barcodeProduct),
+        variant_color: '',
+        copies: Math.max(1, Math.min(99, Number.parseInt(barcodeCopies, 10) || 1)),
+      }]);
+    } catch (error) {
+      setMessage(error.message || 'Lembar barcode gagal disiapkan.');
+    }
+  }
+
+  const barcodePreview = barcodeProduct ? {
+    ...barcodeProduct,
+    barcode_value: getBarcodeValue(barcodeProduct),
+    variant_color: '',
+  } : null;
   const selectionPlacement = getProductSelectionPlacement(view);
   const deletableProducts = products.filter((product) => product.capabilities?.delete);
 
@@ -266,12 +283,13 @@ export default function ProductsPage() {
             <strong style={{ fontSize: 15 }}>Cetak Barcode: {barcodeProduct.name}</strong>
             <button type="button" onClick={() => setBarcodeProduct(null)} aria-label="Tutup" style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: '#f1f5f9', fontSize: 16, cursor: 'pointer', color: '#475569' }}>×</button>
           </div>
-          <div className="barcode-print-area" aria-label="Pratinjau label barcode" tabIndex={0} style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {barcodeSheets.map((sheet, sheetIndex) => <div className="barcode-print-sheet" key={`sheet-${sheetIndex}`}>{sheet.map((item, index) => <BarcodeLabel key={sheetIndex * 24 + index} item={{ ...item, barcode_value: item.barcode || item.sku || item.name, variant_color: '' }} />)}</div>)}
-          </div>
+          <p style={{ margin: '0 0 8px', color: '#475569', fontSize: 12 }}>Pratinjau satu label. Cetak akan mengulang salinan pada lembar A6, 24 label per halaman.</p>
+          {barcodePreview?.barcode_value ? <div className="barcode-print-area" aria-label="Pratinjau label barcode" style={{ display: 'flex', justifyContent: 'center' }}>
+            <BarcodeLabel item={barcodePreview} />
+          </div> : <p role="status" style={{ margin: '12px 0', color: '#475569' }}>Produk ini belum memiliki barcode atau SKU. Tambahkan salah satunya sebelum mencetak.</p>}
           <div className="barcode-print-dialog-actions" style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 14 }}>
             <label style={{ flex: 1 }}>Jumlah salinan<input type="number" min="1" max="99" value={barcodeCopies} onChange={(e) => setBarcodeCopies(e.target.value)} /></label>
-            <button type="button" onClick={printBarcodeLabels} style={{ flex: 1, minHeight: 42, borderRadius: 8, border: 'none', background: '#1e3a5f', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Cetak</button>
+            <button type="button" onClick={printProductBarcode} disabled={!barcodePreview?.barcode_value} style={{ flex: 1, minHeight: 42, borderRadius: 8, border: 'none', background: '#1e3a5f', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Cetak {Math.max(1, Math.min(99, Number.parseInt(barcodeCopies, 10) || 1))} label</button>
           </div>
         </div>
       </div>
