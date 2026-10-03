@@ -13,6 +13,13 @@ function opnameRowKey(row) {
   return `${row.product_id}:${row.variant_id == null ? 'null' : row.variant_id}`;
 }
 
+function opnameProductSubLabel(row) {
+  return [row.sku, row.variant_color, row.variant_size]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .join(' · ');
+}
+
 function mergeOpnameRows(previousRows, freshRows) {
   const previousCounts = new Map(
     previousRows.map((row) => [opnameRowKey(row), row.physical_stock]),
@@ -44,4 +51,4 @@ function countedOpnameItems(rows) {
   });
 }
 
-module.exports = { createOpnameRows, countedOpnameItems, mergeOpnameRows };
+module.exports = { createOpnameRows, countedOpnameItems, mergeOpnameRows, opnameProductSubLabel };
