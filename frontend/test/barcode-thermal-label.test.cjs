@@ -117,7 +117,15 @@ test('each label fits physical dimensions and retains barcode, product, variant,
   assert.ok(css.includes('break-inside: avoid;'));
   assert.ok(label.includes('displayValue: true'));
   assert.ok(label.includes('<strong>{item.name}</strong>'));
-  assert.ok(label.includes('<span>{item.variant_color'));
+  assert.ok(label.includes('{item.variant_color && <span>Warna: {item.variant_color}</span>}'));
   assert.ok(label.includes('<b>Rp{Number(item.price'));
   assert.ok(!label.includes('<small>{item.barcode_value}</small>'));
+});
+
+test('standard barcode labels omit the generic subtitle and use the recovered row for the barcode', () => {
+  assert.ok(label.includes("className={item.variant_color ? 'barcode-label' : 'barcode-label barcode-label--standard'}"));
+  assert.ok(label.includes('{item.variant_color && <span>Warna: {item.variant_color}</span>}'));
+  assert.ok(!label.includes('Produk standar'));
+  assert.match(css, /\.barcode-label--standard \{ grid-template-rows: auto 48px auto; \}/);
+  assert.match(css, /body:has\(\.barcode-print-area\) \.barcode-label--standard \{\s*grid-template-rows: auto minmax\(0, 1fr\) auto;/);
 });

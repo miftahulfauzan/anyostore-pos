@@ -405,6 +405,7 @@ a, .photo-upload { color:var(--expressive-secondary); }
 .copies-input { width: 88px; min-height: 44px; padding: .45rem .55rem; font-variant-numeric: tabular-nums; }
 .barcode-print-area { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .85rem; max-width: 1440px; margin: 1rem auto; }
 .barcode-label { display: grid; grid-template-rows: auto auto 48px auto auto; align-content: start; gap: .16rem; min-height: 138px; padding: .75rem; border: 1px dashed #94a3b8; border-radius: .4rem; background: #fff; color: #111827; overflow: hidden; }
+.barcode-label--standard { grid-template-rows: auto 48px auto; }
 .barcode-label strong { overflow: hidden; font-size: .8rem; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
 .barcode-label span, .barcode-label small { overflow: hidden; color: #475569; font-size: .65rem; text-overflow: ellipsis; white-space: nowrap; }
 .barcode-label svg { width: 100%; max-width: 190px; height: 48px; }
@@ -3046,6 +3047,9 @@ html.dark body {
     box-shadow: none;
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+  body:has(.barcode-print-area) .barcode-label--standard {
+    grid-template-rows: auto minmax(0, 1fr) auto;
   }
   body:has(.barcode-print-area) .barcode-label strong {
     min-width: 0;
