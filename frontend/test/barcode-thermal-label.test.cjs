@@ -35,6 +35,17 @@ test('barcode sheets fit 3 columns and 8 rows of 33 by 18.5mm labels', () => {
   assert.equal(8 * 18.5, 148);
 });
 
+test('printed barcode artwork leaves a visible gutter inside each fixed label pitch', () => {
+  const printLabelRule = css.match(/body:has\(\.barcode-print-area\) \.barcode-label \{([\s\S]*?)\n  \}/);
+  assert.ok(printLabelRule, 'print label styles must remain scoped to barcode output');
+  assert.match(printLabelRule[1], /width:\s*33mm;/);
+  assert.match(printLabelRule[1], /height:\s*18\.5mm;/);
+  assert.match(printLabelRule[1], /padding:\s*1\.2mm 1\.2mm;/);
+  assert.match(printLabelRule[1], /gap:\s*\.4mm;/);
+  assert.ok(css.includes('grid-template-columns: repeat(3, 33mm);'));
+  assert.ok(css.includes('grid-template-rows: repeat(8, 18.5mm);'));
+});
+
 test('single-product print modal is isolated from the long catalog print flow', () => {
   assert.ok(productsPage.includes("import { createPortal } from 'react-dom';"));
   assert.ok(productsPage.includes('barcodePortalTarget && createPortal('));

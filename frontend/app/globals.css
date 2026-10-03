@@ -3036,9 +3036,9 @@ html.dark body {
     min-height: 0;
     grid-template-rows: auto auto minmax(0, 1fr) auto;
     align-content: stretch;
-    gap: .25mm;
+    gap: .4mm;
     overflow: hidden;
-    padding: .55mm .8mm;
+    padding: 1.2mm 1.2mm;
     border: 0;
     border-radius: 0;
     background: #fff;
