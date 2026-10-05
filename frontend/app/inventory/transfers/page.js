@@ -10,7 +10,7 @@ import { createRequestSequence } from '../../components/app-state.cjs';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const mediaUrl = (p) => (p ? api.replace('/api', '') + p : '');
-const { selectTransferDefaults } = transferDefaults;
+const { selectTransferDefaults, selectTransferSourceWarehouses } = transferDefaults;
 const { formatHistoryLocationLabel, formatTransferLocationLabel } = transferLabels;
 
 const transferStatusLabels = {
@@ -204,11 +204,11 @@ export default function TransferPage() {
   useUnsavedWork('stock-transfer', cart.length > 0);
 
   const targets = useMemo(() => warehouses.filter((w) => String(w.id) !== String(from)), [warehouses, from]);
-  const sourceWarehouses = useMemo(() => user?.role === 'owner' && activeBranchId && activeBranchId !== 'all'
-    ? warehouses.filter((warehouse) => String(warehouse.branch_id) === String(activeBranchId))
-    : user?.role === 'gudang'
-      ? warehouses.filter((warehouse) => String(warehouse.branch_id) === String(user.branch_id))
-      : warehouses, [warehouses, user?.role, user?.branch_id, activeBranchId]);
+  const sourceWarehouses = useMemo(() => selectTransferSourceWarehouses({
+    role: user?.role,
+    activeBranchId,
+    warehouses,
+  }), [warehouses, user?.role, activeBranchId]);
   const whLabel = formatTransferLocationLabel;
 
   async function loadProducts(warehouseId, warehouseList = warehouses) {

@@ -15,4 +15,12 @@ function selectTransferDefaults({ role, branchId, warehouses }) {
   };
 }
 
-module.exports = { selectTransferDefaults };
+function selectTransferSourceWarehouses({ role, activeBranchId, warehouses }) {
+  const list = Array.isArray(warehouses) ? warehouses : [];
+  if (role === 'owner' && activeBranchId && activeBranchId !== 'all') {
+    return list.filter((warehouse) => String(warehouse.branch_id) === String(activeBranchId));
+  }
+  return list;
+}
+
+module.exports = { selectTransferDefaults, selectTransferSourceWarehouses };
