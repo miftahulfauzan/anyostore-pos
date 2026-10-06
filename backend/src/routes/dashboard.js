@@ -241,7 +241,12 @@ router.get('/', async (req, res, next) => {
           out_of_stock: emptyCount,
           safe_stock: safeCount,
         },
-        daily: dailyRows.map((row) => ({ date: row.date, in: Number(row.total_in || 0), out: Number(row.total_out || 0) })),
+        daily: dailyRows.map((row) => ({
+          // MySQL DATE is midnight WIB; JSON would serialize it as the previous UTC day.
+          date: row.date instanceof Date ? localDateString(row.date) : row.date,
+          in: Number(row.total_in || 0),
+          out: Number(row.total_out || 0),
+        })),
         categories,
         top_products_out: topOutRows.map((row) => ({ name: row.name, sku: row.sku, total: Number(row.total || 0) })),
         recent_incoming: incomingRows.map((row) => ({ name: row.name, sku: row.sku, quantity: Number(row.quantity || 0), latest_at: row.latest_at })),

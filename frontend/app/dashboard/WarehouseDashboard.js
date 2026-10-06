@@ -2,24 +2,10 @@
 
 import { useMemo } from 'react';
 import { ArrowDown, ArrowDownToLine, ArrowRightLeft, ArrowUp, ArrowUpFromLine, Boxes, ChartNoAxesCombined, ClipboardCheck, Package, TriangleAlert } from 'lucide-react';
+import { dateRangeDays } from './stock-movement.cjs';
 
-const localDate = (date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
 const shortDate = (value) => { const [year, month, day] = String(value || '').split('-'); return year ? `${day}/${month}` : '-'; };
 const fullDate = (value) => { const [year, month, day] = String(value || '').split('-'); return year ? `${day}/${month}/${year}` : '-'; };
-
-function dateRangeDays(start, end, daily) {
-  const byDate = new Map((daily || []).map((item) => [String(item.date).slice(0, 10), item]));
-  if (!start || !end) return daily || [];
-  const rows = [];
-  const cursor = new Date(`${start}T00:00:00+07:00`);
-  const last = new Date(`${end}T00:00:00+07:00`);
-  for (let index = 0; cursor <= last && index < 62; index += 1) {
-    const key = localDate(cursor);
-    rows.push({ date: key, in: Number(byDate.get(key)?.in || 0), out: Number(byDate.get(key)?.out || 0) });
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return rows;
-}
 
 function WarehouseTrend({ daily }) {
   const max = Math.max(1, ...(daily || []).flatMap((item) => [Number(item.in || 0), Number(item.out || 0)]));
@@ -30,6 +16,7 @@ function WarehouseTrend({ daily }) {
   const point = (value, index) => `${daily.length > 1 ? (index / (daily.length - 1)) * width : width / 2},${chartBottom - (Number(value || 0) / max) * (chartBottom - chartTop)}`;
   const inPoints = (daily || []).map((item, index) => point(item.in, index)).join(' ');
   const outPoints = (daily || []).map((item, index) => point(item.out, index)).join(' ');
+  const labelStep = Math.max(1, Math.ceil((daily.length - 1) / 6));
   return <div className="warehouse-trend">
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Grafik stok masuk dan keluar">
       {[0, 1, 2, 3].map((line) => <line key={line} x1="0" x2={width} y1={chartTop + line * 51} y2={chartTop + line * 51} className="trend-grid-line" />)}
@@ -37,7 +24,7 @@ function WarehouseTrend({ daily }) {
       <polyline points={outPoints} fill="none" className="trend-line trend-out" />
       {(daily || []).map((item, index) => <g key={item.date}><title>{`${shortDate(item.date)} · Masuk: ${Number(item.in || 0).toLocaleString('id-ID')} · Keluar: ${Number(item.out || 0).toLocaleString('id-ID')}`}</title><circle cx={point(item.in, index).split(',')[0]} cy={point(item.in, index).split(',')[1]} r="4" className="trend-dot trend-in" /><circle cx={point(item.out, index).split(',')[0]} cy={point(item.out, index).split(',')[1]} r="4" className="trend-dot trend-out" /></g>)}
     </svg>
-    <div className="trend-labels">{(daily || []).map((item) => <span key={item.date}>{shortDate(item.date)}</span>)}</div>
+    <div className="trend-labels" style={{ position: 'relative', minHeight: '1.5em' }}>{(daily || []).map((item, index) => index % labelStep === 0 || index === daily.length - 1 ? <span key={item.date} style={{ position: 'absolute', left: `${daily.length > 1 ? index / (daily.length - 1) * 100 : 50}%`, transform: index === 0 ? undefined : index === daily.length - 1 ? 'translateX(-100%)' : 'translateX(-50%)' }}>{shortDate(item.date)}</span> : null)}</div>
     <div className="trend-legend"><span><i className="legend-in" />Stok Masuk</span><span><i className="legend-out" />Stok Keluar</span></div>
   </div>;
 }

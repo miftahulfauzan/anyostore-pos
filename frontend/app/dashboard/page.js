@@ -8,6 +8,7 @@ import AppShell from '../components/AppShell';
 import { useAppSession } from '../components/AppStateProvider';
 import { createRequestSequence } from '../components/app-state.cjs';
 import WarehouseDashboard from './WarehouseDashboard';
+import useDashboardRefresh from './useDashboardRefresh';
 import { labelFor, paymentLabels } from '../lib/ui-labels';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -24,6 +25,7 @@ export default function DashboardPage() {
   const [draftStart, setDraftStart] = useState('');
   const [draftEnd, setDraftEnd] = useState('');
   const dashboardLoadSequence = useRef(createRequestSequence());
+  const refreshVersion = useDashboardRefresh(user?.role === 'gudang');
 
   useEffect(() => {
     const end = localDate();
@@ -35,19 +37,20 @@ export default function DashboardPage() {
     setDraftEnd(end);
   }, []);
 
+  useEffect(() => { setData(null); }, [range, activeBranchId, user?.role]);
+
   useEffect(() => {
     if (!range.start || !range.end) return undefined;
     const requestId = dashboardLoadSequence.current.next();
-    setData(null);
     setMessage('');
     async function loadDashboard() {
       const query = new URLSearchParams({ start: range.start, end: range.end });
       if (user?.role === 'owner' && activeBranchId) query.set('branch_id', activeBranchId);
-      let response = await fetch(apiUrl + '/dashboard?' + query, { headers: {} });
+      let response = await fetch(apiUrl + '/dashboard?' + query, { cache: 'no-store' });
       if (response.status === 401) {
         const refreshResponse = await fetch(apiUrl + '/auth/refresh', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
         if (refreshResponse.ok) {
-          response = await fetch(apiUrl + '/dashboard?' + query, { headers: {} });
+          response = await fetch(apiUrl + '/dashboard?' + query, { cache: 'no-store' });
         }
       }
       return response;
@@ -70,7 +73,7 @@ export default function DashboardPage() {
         setMessage(error.message || 'Dasbor tidak dapat dimuat');
       });
     return () => { dashboardLoadSequence.current.next(); };
-  }, [range, activeBranchId, user?.role]);
+  }, [range, activeBranchId, user?.role, refreshVersion]);
 
   const role = user?.role || null;
   const isGudang = role === 'gudang';

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import AppShell from '../../components/AppShell';
 import { useAppSession } from '../../components/AppStateProvider';
 import WarehouseDashboard from '../../dashboard/WarehouseDashboard';
+import useDashboardRefresh from '../../dashboard/useDashboardRefresh';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const localDate = (date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
@@ -29,6 +30,7 @@ export default function StockDashboardPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const role = user?.role || '';
+  const refreshVersion = useDashboardRefresh(Boolean(role));
 
   useEffect(() => {
     const end = localDate(new Date());
@@ -40,27 +42,28 @@ export default function StockDashboardPage() {
     setDraftEnd(end);
   }, []);
 
+  useEffect(() => { setData(null); }, [role, activeBranchId, range]);
+
   useEffect(() => {
     if (!role || !range.start || !range.end) return undefined;
     const controller = new AbortController();
     async function load() {
       setLoading(true);
       setMessage('');
-      setData(null);
       const query = new URLSearchParams({ start: range.start, end: range.end });
       if (role === 'owner' && activeBranchId) query.set('branch_id', activeBranchId);
       try {
-        const body = await requestJson(`/dashboard?${query}`, { signal: controller.signal });
-        setData(body.data);
+        const body = await requestJson(`/dashboard?${query}`, { signal: controller.signal, cache: 'no-store' });
+        if (!controller.signal.aborted) setData(body.data);
       } catch (error) {
-        if (error.name !== 'AbortError') setMessage(error.message);
+        if (!controller.signal.aborted) setMessage(error.message);
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
     }
     load();
     return () => controller.abort();
-  }, [role, activeBranchId, range]);
+  }, [role, activeBranchId, range, refreshVersion]);
 
   const dashboardKey = role === 'owner' ? 'owner_stock_dashboard' : 'warehouse_dashboard';
   const dashboardLabel = role === 'owner' && activeBranchId === 'all'
