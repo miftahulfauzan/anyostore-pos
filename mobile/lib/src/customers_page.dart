@@ -65,7 +65,7 @@ class _CustomersPageState extends State<CustomersPage> {
           backgroundColor: const Color(0xF2FFFFFF),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: Color(0xffeceae4)),
+            side: const BorderSide(color: kTaskBorder),
           ),
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -81,7 +81,7 @@ class _CustomersPageState extends State<CustomersPage> {
                           color: ink(context))),
                   const SizedBox(height: 4),
                   const Text('Lengkapi data pelanggan di bawah ini.',
-                      style: TextStyle(fontSize: 12, color: Color(0xff5f5f5d))),
+                      style: TextStyle(fontSize: 12, color: kTaskSecondary)),
                   const SizedBox(height: 18),
                   _label('Nama *'),
                   _field(name, 'Nama pelanggan'),
@@ -119,8 +119,8 @@ class _CustomersPageState extends State<CustomersPage> {
                           onPressed: () => Navigator.pop(ctx, false),
                           style: OutlinedButton.styleFrom(
                             minimumSize: const Size(0, 46),
-                            foregroundColor: const Color(0xff5f5f5d),
-                            side: const BorderSide(color: Color(0xffeceae4)),
+                            foregroundColor: kTaskSecondary,
+                            side: const BorderSide(color: kTaskBorder),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
                           ),
@@ -133,7 +133,7 @@ class _CustomersPageState extends State<CustomersPage> {
                           onPressed: () => Navigator.pop(ctx, true),
                           style: FilledButton.styleFrom(
                             minimumSize: const Size(0, 46),
-                            backgroundColor: const Color(0xff1E3A5F),
+                            backgroundColor: kTaskDark,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
@@ -190,7 +190,7 @@ class _CustomersPageState extends State<CustomersPage> {
               child: const Text('Batal')),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: kTaskTerracotta),
             child: const Text('Hapus'),
           ),
         ],
@@ -220,15 +220,15 @@ class _CustomersPageState extends State<CustomersPage> {
   InputDecoration _decoration() {
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: Color(0xffe2e8f0)),
+      borderSide: const BorderSide(color: kTaskBorder),
     );
     return InputDecoration(
       filled: true,
-      fillColor: const Color(0xfff8fafc),
+      fillColor: kTaskBg,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       enabledBorder: border,
       focusedBorder: border.copyWith(
-          borderSide: const BorderSide(color: Color(0xff1E3A5F), width: 1.4)),
+          borderSide: const BorderSide(color: kTaskDark, width: 1.4)),
     );
   }
 

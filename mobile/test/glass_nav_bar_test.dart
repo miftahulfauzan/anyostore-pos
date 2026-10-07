@@ -12,11 +12,31 @@ void main() {
           current: selected,
           onSelect: (i) => selected = i,
           items: const [
-            (icon: Icons.shopping_bag_outlined, activeIcon: Icons.shopping_bag, label: 'POS'),
-            (icon: Icons.receipt_long_outlined, activeIcon: Icons.receipt_long, label: 'Riwayat'),
-            (icon: Icons.inventory_2_outlined, activeIcon: Icons.inventory_2, label: 'Stok'),
-            (icon: Icons.bar_chart_outlined, activeIcon: Icons.bar_chart, label: 'Laporan'),
-            (icon: Icons.more_horiz, activeIcon: Icons.more_horiz, label: 'Lainnya'),
+            (
+              icon: Icons.shopping_bag_outlined,
+              activeIcon: Icons.shopping_bag,
+              label: 'POS'
+            ),
+            (
+              icon: Icons.receipt_long_outlined,
+              activeIcon: Icons.receipt_long,
+              label: 'Riwayat'
+            ),
+            (
+              icon: Icons.inventory_2_outlined,
+              activeIcon: Icons.inventory_2,
+              label: 'Stok'
+            ),
+            (
+              icon: Icons.bar_chart_outlined,
+              activeIcon: Icons.bar_chart,
+              label: 'Laporan'
+            ),
+            (
+              icon: Icons.more_horiz,
+              activeIcon: Icons.more_horiz,
+              label: 'Lainnya'
+            ),
           ],
         ),
       ),

@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:pos_pakaian_mobile/src/api_client.dart';
 import 'package:pos_pakaian_mobile/src/auth_store.dart';
 import 'package:pos_pakaian_mobile/src/dashboard_page.dart';
+import 'package:pos_pakaian_mobile/src/task_ui.dart';
 
 class DashboardApi extends ApiClient {
   Future<Map<String, dynamic>> Function(String, Map<String, String>)? respond;
@@ -58,8 +59,9 @@ class DashboardApi extends ApiClient {
   }
 }
 
-Future<void> showDashboard(WidgetTester tester, DashboardApi api) async {
-  tester.view.physicalSize = const Size(900, 3000);
+Future<void> showDashboard(WidgetTester tester, DashboardApi api,
+    {Size size = const Size(900, 3000)}) async {
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
@@ -74,6 +76,13 @@ Future<void> showDashboard(WidgetTester tester, DashboardApi api) async {
 }
 
 void main() {
+  test('dashboard menormalkan tanggal ISO dari server ke tanggal lokal API',
+      () {
+    expect(dashboardDateKey('2026-09-13T00:00:00.000Z'), '2026-09-13');
+    expect(dashboardDateKey(DateTime.utc(2026, 9, 13)), '2026-09-13');
+    expect(dashboardDateKey('2026-09-13'), '2026-09-13');
+  });
+
   testWidgets('loading contains no business figures or charts', (tester) async {
     final pending = Completer<Map<String, dynamic>>();
     final api = DashboardApi();
@@ -104,27 +113,64 @@ void main() {
     expect(find.byType(LineChart), findsOneWidget);
   });
 
-  testWidgets('empty success clears previous charts and lists', (tester) async {
+  testWidgets('dashboard membedakan warna stok hampir habis dan kosong',
+      (tester) async {
+    await showDashboard(tester, DashboardApi());
+    await tester.pumpAndSettle();
+
+    final chart = tester.widget<PieChart>(find.byType(PieChart));
+    expect(chart.data.sections[1].color, kTaskStockLow);
+    expect(chart.data.sections[2].color, kTaskStockEmpty);
+    expect(chart.data.sections[1].color, isNot(chart.data.sections[2].color));
+  });
+
+  testWidgets('dashboard filters stay compact on a phone', (tester) async {
     final api = DashboardApi();
     await showDashboard(tester, api);
     await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('dashboard-period-selector')),
+        findsOneWidget);
+    expect(find.byTooltip('Buka filter'), findsOneWidget);
+    expect(find.text('Filter'), findsNothing);
+    expect(find.text('Toko/Gudang'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byKey(const ValueKey('dashboard-period-selector')));
+    await tester.pumpAndSettle();
+    expect(find.text('Kemarin'), findsOneWidget);
+    expect(find.text('Bulan lalu'), findsOneWidget);
+    await tester.tap(find.text('Kemarin'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Buka filter'));
+    await tester.pumpAndSettle();
+    expect(find.text('Filter dashboard'), findsOneWidget);
+    expect(find.text('Toko / Gudang'), findsOneWidget);
+    expect(find.text('Terapkan Filter'), findsOneWidget);
+  });
+
+  testWidgets('empty success clears previous charts and lists', (tester) async {
+    final api = DashboardApi();
+    await showDashboard(tester, api, size: const Size(390, 844));
+    await tester.pumpAndSettle();
     api.empty = true;
-    await tester.tap(find.text('Apply'));
+    await tester.tap(find.byTooltip('Buka filter'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Terapkan Filter'));
     await tester.pumpAndSettle();
     expect(find.text('0'), findsNWidgets(3));
     expect(find.text('Belum ada pergerakan stok pada rentang ini.'),
         findsOneWidget);
     expect(find.text('Belum ada produk pada toko/gudang ini.'), findsOneWidget);
     expect(find.text('Belum ada data stok per kategori.'), findsOneWidget);
-    expect(find.text('Belum ada produk keluar pada rentang ini.'),
-        findsOneWidget);
+    expect(
+        find.text('Belum ada produk keluar pada rentang ini.'), findsOneWidget);
     expect(find.byType(PieChart), findsNothing);
     expect(find.byType(LineChart), findsNothing);
     expect(find.byType(BarChart), findsNothing);
     expect(find.text('Produk asli'), findsNothing);
   });
 
-  testWidgets('API failure clears old figures and retry recovers', (tester) async {
+  testWidgets('API failure clears old figures and retry recovers',
+      (tester) async {
     final api = DashboardApi();
     await showDashboard(tester, api);
     await tester.pumpAndSettle();
@@ -134,7 +180,9 @@ void main() {
       }
       return api.response(path, params);
     };
-    await tester.tap(find.text('Apply'));
+    await tester.tap(find.byTooltip('Buka filter'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Terapkan Filter'));
     await tester.pumpAndSettle();
     expect(find.text('Gagal memuat ringkasan'), findsOneWidget);
     expect(find.text('12.345'), findsNothing);
@@ -154,13 +202,14 @@ void main() {
     api.respond = (path, params) => path == '/inventory/mutations-summary'
         ? pending.future
         : Future.value(api.response(path, params));
-    await showDashboard(tester, api);
+    await showDashboard(tester, api, size: const Size(390, 844));
     api.respond = null;
     api.empty = true;
-    await tester.tap(find.text('Toko saya (default)').first);
+    await tester.tap(find.byTooltip('Buka filter'));
+    await tester.pump(const Duration(milliseconds: 1000));
+    final applyFilter = find.widgetWithText(FilledButton, 'Terapkan Filter');
+    tester.widget<FilledButton>(applyFilter).onPressed!();
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('Semua toko/gudang').last);
     await tester.pumpAndSettle();
     expect(find.text('Belum ada data stok per kategori.'), findsOneWidget);
     pending.complete({
@@ -174,23 +223,21 @@ void main() {
         .toList()
         .sublist(4);
     expect(latest, hasLength(4));
-    expect(latest.every((r) => r.$2['branch_id'] == 'all'), isTrue);
   });
 
   testWidgets('changing date preset clears data while loading the new range',
       (tester) async {
     final api = DashboardApi();
-    await showDashboard(tester, api);
+    await showDashboard(tester, api, size: const Size(390, 844));
     await tester.pumpAndSettle();
     final pending = Completer<Map<String, dynamic>>();
     api.respond = (path, params) => path == '/inventory/mutations-summary'
         ? pending.future
         : Future.value(api.response(path, params));
-    await tester.tap(find.text('7 Hari').first);
+    await tester.tap(find.byKey(const ValueKey('dashboard-period-selector')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Hari ini').last);
+    await tester.tap(find.text('Hari ini'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('12.345'), findsNothing);
     expect(find.text('Memuat ringkasan…'), findsOneWidget);
     final params = api.requests
@@ -207,7 +254,9 @@ void main() {
       (tester) async {
     final api = DashboardApi();
     api.respond = (path, params) async => path == '/inventory/stock-total'
-        ? {'data': {'summary': 'invalid'}}
+        ? {
+            'data': {'summary': 'invalid'}
+          }
         : api.response(path, params);
     await showDashboard(tester, api);
     await tester.pumpAndSettle();

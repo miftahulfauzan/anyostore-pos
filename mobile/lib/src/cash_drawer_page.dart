@@ -90,17 +90,17 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
   InputDecoration _dec(String label, {String? prefix}) {
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: Color(0xffE7E0D6)),
+      borderSide: const BorderSide(color: kTaskBorder),
     );
     return InputDecoration(
       labelText: label,
       prefixText: prefix,
       filled: true,
-      fillColor: const Color(0xfff8fafc),
+      fillColor: kTaskBg,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       enabledBorder: border,
       focusedBorder: border.copyWith(
-          borderSide: const BorderSide(color: Color(0xff1E3A5F), width: 1.4)),
+          borderSide: const BorderSide(color: kTaskDark, width: 1.4)),
     );
   }
 
@@ -154,7 +154,7 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
                       : () => _run(() => widget.api.cashDrawerInOut(_moveType,
                           _num(_moveAmount), _moveReason.text.trim())),
                   style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xff1E3A5F),
+                      backgroundColor: kTaskDark,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(28))),
@@ -181,7 +181,7 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
                       : () => _run(() => widget.api.cashDrawerClose(
                           _num(_closeAmount), _closeNotes.text.trim())),
                   style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xff1E3A5F),
+                      backgroundColor: kTaskDark,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(28))),
@@ -206,7 +206,7 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
                       : () => _run(
                           () => widget.api.cashDrawerOpen(_num(_openAmount))),
                   style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xff1E3A5F),
+                      backgroundColor: kTaskDark,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(28))),
@@ -259,8 +259,7 @@ class _Row extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label,
-                style: TextStyle(fontSize: 12, color: Color(0xff8A857C))),
+            Text(label, style: TextStyle(fontSize: 12, color: kTaskSecondary)),
             Text(value,
                 style: TextStyle(
                     fontSize: 12,

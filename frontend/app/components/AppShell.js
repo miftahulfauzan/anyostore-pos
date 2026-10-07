@@ -55,7 +55,7 @@ const navigation = [
       { href: '/inventory/transfers?view=history', label: 'Riwayat Transfer', icon: History, roles: ['owner', 'manager', 'admin'] },
       { href: '/inventory/opname', label: 'Stok Opname', icon: ClipboardCheck, roles: ['owner', 'manager', 'admin', 'gudang'] },
       { href: '/inventory/movements', label: 'Riwayat Stok', icon: History },
-      { href: '/inventory/mutation-report', label: 'Laporan Masuk/Keluar', icon: History, roles: ['owner', 'manager', 'admin', 'gudang'] },
+      { href: '/inventory/mutation-report', label: 'Riwayat Mutasi', icon: History, roles: ['owner', 'manager', 'admin', 'gudang'] },
     ],
   },
   {
@@ -109,7 +109,7 @@ const warehouseNavigation = [
   {
     label: 'LAINNYA',
     items: [
-      { href: '/inventory/mutation-report', label: 'Keluar Masuk', icon: ArrowDownToLine, roles: ['gudang'], tone: 'blue' },
+      { href: '/inventory/mutation-report', label: 'Riwayat Mutasi', icon: History, roles: ['gudang'], tone: 'blue' },
       { href: '/inventory/movements', label: 'Laporan Lainnya', icon: ChartNoAxesCombined, roles: ['gudang'], tone: 'pink' },
       { href: '/settings', label: 'Pengaturan', icon: Settings, roles: ['gudang'], tone: 'slate' },
     ],

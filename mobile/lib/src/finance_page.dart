@@ -348,7 +348,7 @@ class _FinancePageState extends State<FinancePage> {
                 color: Colors.white)),
         const SizedBox(height: 2),
         Text(label,
-            style: const TextStyle(fontSize: 9, color: Color(0xffB9C9DC))),
+            style: const TextStyle(fontSize: 9, color: Color(0xffCBD5E1))),
       ],
     );
   }
@@ -390,7 +390,7 @@ class _FinancePageState extends State<FinancePage> {
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1,
-                          color: Color(0xffB9C9DC))),
+                          color: Color(0xffCBD5E1))),
                   const SizedBox(height: 8),
                   FittedBox(
                     fit: BoxFit.scaleDown,
@@ -447,9 +447,8 @@ class _FinancePageState extends State<FinancePage> {
                             return GlassCard(
                               padding: EdgeInsets.zero,
                               child: ListTile(
-                                tileColor: row['offline'] == true
-                                    ? const Color(0xFFFFF3CD)
-                                    : null,
+                                tileColor:
+                                    row['offline'] == true ? kTaskSand : null,
                                 title: Text(row['name']?.toString() ?? '',
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w700)),
@@ -467,7 +466,7 @@ class _FinancePageState extends State<FinancePage> {
                                     IconButton(
                                       onPressed: () => _delete(row),
                                       icon: const Icon(Icons.delete_outline,
-                                          size: 18, color: Color(0xFFC2410C)),
+                                          size: 18, color: kTaskTerracotta),
                                       tooltip: 'Hapus',
                                     ),
                                   ],

@@ -566,7 +566,7 @@ class _Card extends StatelessWidget {
               for (var i = 0; i < rows.length; i++) ...[
                 if (i > 0)
                   const Divider(
-                      height: 14, thickness: 1, color: Color(0x14E7E0D6)),
+                      height: 14, thickness: 1, color: Color(0x14E2E8F0)),
                 rows[i],
               ],
             ],

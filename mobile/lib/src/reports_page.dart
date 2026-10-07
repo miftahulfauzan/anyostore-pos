@@ -12,6 +12,7 @@ import 'offline_status.dart';
 import 'offline_store.dart';
 import 'format.dart';
 import 'printer_setup.dart';
+import 'report_filter.dart';
 import 'task_ui.dart';
 
 class ReportsPage extends StatefulWidget {
@@ -26,7 +27,9 @@ class ReportsPage extends StatefulWidget {
 
 class _ReportsPageState extends State<ReportsPage> {
   String _section = 'ringkasan';
-  String _preset = 'today';
+  String _preset = '7d';
+  DateTime? _from;
+  DateTime? _to;
   Map<String, dynamic>? _data;
   bool _loading = true;
   String? _error;
@@ -38,19 +41,13 @@ class _ReportsPageState extends State<ReportsPage> {
     final now = DateTime.now().toUtc().add(const Duration(hours: 7));
     String d(DateTime x) =>
         '${x.year.toString().padLeft(4, '0')}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
-    switch (_preset) {
-      case '7d':
-        return (d(now.subtract(const Duration(days: 6))), d(now));
-      case '30d':
-        return (d(now.subtract(const Duration(days: 29))), d(now));
-      case 'bulan':
-        return (
-          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-01',
-          d(now)
-        );
-      default:
-        return (d(now), d(now));
-    }
+    final range = mobileDateFilterRange(
+      preset: _preset,
+      now: now,
+      customStart: _from,
+      customEnd: _to,
+    );
+    return (d(range.start), d(range.end));
   }
 
   @override
@@ -86,7 +83,7 @@ class _ReportsPageState extends State<ReportsPage> {
       });
     }
     final (start, end) = _range;
-    final cacheKey = 'report-$_section-$_preset-$_branchId';
+    final cacheKey = 'report-$_section-${_range.$1}-${_range.$2}-$_branchId';
     try {
       if (_isOwner && _branches.isEmpty) {
         try {
@@ -115,7 +112,12 @@ class _ReportsPageState extends State<ReportsPage> {
       if (!mounted) return;
       setState(() => _data = merged);
       // Simpan cache laporan (data server asli) untuk offline.
-      await OfflineStore.cacheSet(cacheKey, jsonEncode(data));
+      try {
+        await OfflineStore.cacheSet(cacheKey, jsonEncode(data));
+      } catch (_) {
+        // Cache lokal bersifat tambahan; kegagalannya tidak boleh membuat
+        // laporan server terlihat gagal.
+      }
     } on ApiException catch (e) {
       if (e.isNetwork) {
         try {
@@ -278,117 +280,183 @@ class _ReportsPageState extends State<ReportsPage> {
                   },
                 ),
               ),
-              if (_isOwner && _branches.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                  child: DropdownButtonFormField<int?>(
-                    initialValue: _branchId,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                        labelText: 'Toko',
-                        filled: true,
-                        fillColor:
-                            Theme.of(context).brightness == Brightness.dark
-                                ? const Color(0xff1F2530)
-                                : Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 14),
-                        enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(
-                                color: Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? const Color(0xff2A3140)
-                                    : const Color(0xffE7E0D6))),
-                        focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(
-                                color: Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? const Color(0xff7FA8CF)
-                                    : const Color(0xff1E3A5F),
-                                width: 1.4))),
-                    items: [
-                      const DropdownMenuItem<int?>(
-                          value: null,
-                          child: Text('Semua cabang saya (default)')),
-                      for (final b in _branches)
-                        DropdownMenuItem<int?>(
-                            value: int.tryParse('${b['id']}'),
-                            child: Text(b['name']?.toString() ?? '')),
-                    ],
-                    onChanged: (v) {
-                      setState(() => _branchId = v);
-                      _load();
-                    },
-                  ),
-                ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _preset,
-                        decoration: InputDecoration(
-                            labelText: 'Rentang',
-                            filled: true,
-                            fillColor:
-                                Theme.of(context).brightness == Brightness.dark
-                                    ? const Color(0xff1F2530)
-                                    : Colors.white,
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 14),
-                            enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                borderSide: BorderSide(
-                                    color: Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? const Color(0xff2A3140)
-                                        : const Color(0xffE7E0D6))),
-                            focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                borderSide: BorderSide(
-                                    color: Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? const Color(0xff7FA8CF)
-                                        : const Color(0xff1E3A5F),
-                                    width: 1.4))),
-                        items: const [
-                          DropdownMenuItem(
-                              value: 'today', child: Text('Hari ini')),
-                          DropdownMenuItem(value: '7d', child: Text('7 hari')),
-                          DropdownMenuItem(
-                              value: '30d', child: Text('30 hari')),
-                          DropdownMenuItem(
-                              value: 'bulan', child: Text('Bulan ini')),
-                        ],
-                        onChanged: (v) {
-                          setState(() => _preset = v ?? 'today');
-                          _load();
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        '${_range.$1} s.d. ${_range.$2}',
-                        style: TextStyle(
-                            color: Theme.of(context).colorScheme.outline),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: _export,
-                      icon: const Icon(Icons.ios_share, size: 20),
-                      tooltip: 'Export CSV',
-                    ),
-                  ],
-                ),
-              ),
+              _buildFilterBar(context),
               Expanded(child: _buildBody()),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  String _presetLabel(String preset) {
+    return mobileDateFilterLabel(preset);
+  }
+
+  String _branchLabel(int? id) {
+    if (id == null) return 'Toko saya (default)';
+    final branch = _branches.firstWhere(
+      (item) => item['id']?.toString() == id.toString(),
+      orElse: () => <String, dynamic>{},
+    );
+    return branch['name']?.toString() ?? 'Cabang dipilih';
+  }
+
+  Widget _buildFilterBar(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: GlassCard(
+        padding: const EdgeInsets.all(12),
+        radius: 20,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _buildPeriodSelector(context),
+                ),
+                const SizedBox(width: 8),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: taskSurface(context),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: taskBorder(context)),
+                  ),
+                  child: IconButton(
+                    key: const ValueKey('reports-filter-button'),
+                    onPressed: _openFilterSheet,
+                    icon: const Icon(Icons.tune_outlined),
+                    tooltip: 'Buka filter',
+                    color: ink(context),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: _export,
+                  icon: const Icon(Icons.ios_share, size: 20),
+                  tooltip: 'Export CSV',
+                ),
+              ],
+            ),
+            if (_isOwner && _branchId != null) ...[
+              const SizedBox(height: 4),
+              SizedBox(
+                height: 48,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: InputChip(
+                    label: Text('Lokasi: ${_branchLabel(_branchId)}'),
+                    onDeleted: () {
+                      setState(() => _branchId = null);
+                      _load();
+                    },
+                    materialTapTargetSize: MaterialTapTargetSize.padded,
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 4),
+            Text(
+                'Periode: ${_presetLabel(_preset)} · ${_range.$1} s.d. ${_range.$2}',
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.outline)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _selectPreset(String? value) async {
+    if (value == null) return;
+    if (value == 'custom') {
+      final now = DateTime.now();
+      final picked = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(2020),
+        lastDate: now,
+        initialDateRange: _from != null && _to != null
+            ? DateTimeRange(start: _from!, end: _to!)
+            : DateTimeRange(
+                start: now.subtract(const Duration(days: 6)), end: now),
+        helpText: 'Pilih rentang tanggal',
+      );
+      if (picked == null || !mounted) return;
+      setState(() {
+        _preset = value;
+        _from = picked.start;
+        _to = picked.end;
+      });
+    } else {
+      setState(() {
+        _preset = value;
+        _from = null;
+        _to = null;
+      });
+    }
+    _load();
+  }
+
+  Widget _buildPeriodSelector(BuildContext context) {
+    return Container(
+      key: const ValueKey('reports-period-selector'),
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: taskSurface(context),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: taskBorder(context)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _preset,
+          isExpanded: true,
+          icon: const Icon(Icons.keyboard_arrow_down),
+          selectedItemBuilder: (_) => [
+            for (final _ in kMobileDateFilterOptions)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                    '${_presetLabel(_preset)} · ${_range.$1} s.d. ${_range.$2}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: ink(context))),
+              ),
+          ],
+          items: [
+            for (final option in kMobileDateFilterOptions)
+              DropdownMenuItem<String>(
+                value: option.value,
+                child: Text(option.label),
+              ),
+          ],
+          onChanged: _selectPreset,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openFilterSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (_) => _ReportFilterSheet(
+        isOwner: _isOwner,
+        initialBranchId: _branchId,
+        branches: _branches,
+        onApply: (branchId) {
+          setState(() {
+            _branchId = branchId;
+          });
+          _load();
+        },
       ),
     );
   }
@@ -579,7 +647,7 @@ class _ReportsPageState extends State<ReportsPage> {
       FilledButton.icon(
         onPressed: _printClosing,
         style: FilledButton.styleFrom(
-          backgroundColor: const Color(0xff1E3A5F),
+          backgroundColor: kTaskDark,
           foregroundColor: Colors.white,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
@@ -642,6 +710,120 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 }
 
+typedef _ReportFilterApply = void Function(int? branchId);
+
+class _ReportFilterSheet extends StatefulWidget {
+  const _ReportFilterSheet({
+    required this.isOwner,
+    required this.initialBranchId,
+    required this.branches,
+    required this.onApply,
+  });
+
+  final bool isOwner;
+  final int? initialBranchId;
+  final List<Map<String, dynamic>> branches;
+  final _ReportFilterApply onApply;
+
+  @override
+  State<_ReportFilterSheet> createState() => _ReportFilterSheetState();
+}
+
+class _ReportFilterSheetState extends State<_ReportFilterSheet> {
+  late int? _branchId;
+
+  @override
+  void initState() {
+    super.initState();
+    _branchId = widget.initialBranchId;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(16, 4, 16, bottomInset + 16),
+        child: ConstrainedBox(
+          constraints:
+              BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * .9),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text('Filter laporan',
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: ink(context))),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                      tooltip: 'Tutup',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (widget.isOwner) ...[
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<int?>(
+                    initialValue: _branchId,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Toko / Gudang',
+                      prefixIcon: Icon(Icons.store_outlined),
+                    ),
+                    items: [
+                      const DropdownMenuItem<int?>(
+                        value: null,
+                        child: Text('Toko saya (default)'),
+                      ),
+                      for (final branch in widget.branches)
+                        DropdownMenuItem<int?>(
+                          value: int.tryParse('${branch['id']}'),
+                          child: Text(branch['name']?.toString() ?? ''),
+                        ),
+                    ],
+                    onChanged: (value) => setState(() => _branchId = value),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => setState(() {
+                          _branchId = null;
+                        }),
+                        child: const Text('Reset'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 2,
+                      child: FilledButton(
+                        onPressed: () {
+                          widget.onApply(_branchId);
+                          Navigator.pop(context);
+                        },
+                        child: const Text('Terapkan Filter'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _Card extends StatelessWidget {
   const _Card(this.title, this.rows);
   final String title;
@@ -661,7 +843,7 @@ class _Card extends StatelessWidget {
             for (var i = 0; i < rows.length; i++) ...[
               if (i > 0)
                 const Divider(
-                    height: 14, thickness: 1, color: Color(0x14E7E0D6)),
+                    height: 14, thickness: 1, color: Color(0x14E2E8F0)),
               rows[i],
             ],
           ],
@@ -686,8 +868,8 @@ class _Row extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 12,
                       color: Theme.of(context).brightness == Brightness.dark
-                          ? const Color(0xffB8C2CF)
-                          : const Color(0xff5f5f5d))),
+                          ? const Color(0xffCBD5E1)
+                          : kTaskSecondary)),
             ),
             const SizedBox(width: 14),
             Text(value,

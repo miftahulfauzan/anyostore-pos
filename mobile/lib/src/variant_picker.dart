@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import 'format.dart';
+import 'task_ui.dart';
 
 class VariantPicker extends StatefulWidget {
   const VariantPicker(
@@ -167,14 +168,13 @@ class _QtyFieldState extends State<_QtyField> {
         decoration: InputDecoration(
           isDense: true,
           filled: true,
-          fillColor: const Color(0xFFF0F4F9),
+          fillColor: kTaskSand,
           border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xffB9C9DC))),
+              borderSide: const BorderSide(color: kTaskBorder)),
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide:
-                  const BorderSide(color: Color(0xff1E3A5F), width: 1.4)),
+              borderSide: const BorderSide(color: kTaskDark, width: 1.4)),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
         ),

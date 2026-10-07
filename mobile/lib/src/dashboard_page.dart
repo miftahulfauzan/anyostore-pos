@@ -8,16 +8,18 @@ import 'package:provider/provider.dart';
 
 import 'api_client.dart';
 import 'auth_store.dart';
+import 'report_filter.dart';
 import 'format.dart';
 import 'task_ui.dart';
 
-const _kBlueAccent = Color(0xff2E5D8F);
-const _kGreen = Color(0xff2E7D4F);
-const _kRed = Color(0xffC2410C);
-const _kMagenta = Color(0xffB5265E);
-const _kOrange = Color(0xffF2A33C);
-const _kMuted = Color(0xff8A857C);
-const _kBorder = Color(0xffE7E0D6);
+// Dashboard memakai token yang sama dengan halaman mobile lainnya.
+const _kBlueAccent = kTaskDark;
+const _kGreen = kTaskTeal;
+const _kRed = kTaskStockEmpty;
+const _kMagenta = kTaskSecondary;
+const _kOrange = kTaskStockLow;
+const _kMuted = kTaskGray;
+const _kBorder = kTaskBorder;
 
 const _months = [
   'Jan',
@@ -34,6 +36,14 @@ const _months = [
   'Des'
 ];
 
+/// Server MySQL dapat mengirim DATE sebagai string ISO lengkap atau tanggal
+/// biasa. Grafik memakai kunci tanggal YYYY-MM-DD agar titik harian tidak
+/// hilang hanya karena perbedaan format serialisasi.
+String dashboardDateKey(Object? value) {
+  final raw = value?.toString().trim() ?? '';
+  return raw.length >= 10 ? raw.substring(0, 10) : raw;
+}
+
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key, required this.api});
   final ApiClient api;
@@ -43,7 +53,7 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  String _preset = '7d'; // today | 7d | 30d | bulan
+  String _preset = '7d'; // today | yesterday | 7d | 30d | month | lastmonth
   DateTime? _from;
   DateTime? _to;
   bool _loading = true;
@@ -106,23 +116,13 @@ class _DashboardPageState extends State<DashboardPage> {
     final now = DateTime.now().toUtc().add(const Duration(hours: 7));
     String d(DateTime x) =>
         '${x.year.toString().padLeft(4, '0')}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
-    switch (_preset) {
-      case 'today':
-        return (d(now), d(now));
-      case '30d':
-        return (d(now.subtract(const Duration(days: 29))), d(now));
-      case 'bulan':
-        return (
-          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-01',
-          d(now)
-        );
-      case 'custom':
-        final a = _from ?? now;
-        final b = _to ?? now;
-        return (d(a), d(b));
-      default:
-        return (d(now.subtract(const Duration(days: 6))), d(now));
-    }
+    final range = mobileDateFilterRange(
+      preset: _preset,
+      now: now,
+      customStart: _from,
+      customEnd: _to,
+    );
+    return (d(range.start), d(range.end));
   }
 
   String get _activeLabel {
@@ -178,7 +178,7 @@ class _DashboardPageState extends State<DashboardPage> {
       final dailyList =
           ((mutSummary['daily'] as List?) ?? []).cast<Map<String, dynamic>>();
       final byDate = <String, Map<String, dynamic>>{
-        for (final d in dailyList) (d['date']?.toString() ?? ''): d,
+        for (final d in dailyList) dashboardDateKey(d['date']): d,
       };
       final startDate = DateTime.parse(start);
       final endDate = DateTime.parse(end);
@@ -326,14 +326,11 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildHeader() {
-    String fmt(DateTime? d) => d == null
-        ? 'Pilih'
-        : '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
     return GlassCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       radius: 22,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
@@ -341,7 +338,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: const Color(0x141E3A5F),
+                  color: kTaskSand,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.calendar_month,
@@ -350,167 +347,302 @@ class _DashboardPageState extends State<DashboardPage> {
               const SizedBox(width: 10),
               Text('Ringkasan',
                   style: TextStyle(
-                      fontSize: 20,
+                      fontSize: 18,
                       fontWeight: FontWeight.w800,
                       color: ink(context))),
             ],
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: _dateBox('Date From', fmt(_from), () async {
-                  final now = DateTime.now();
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _from ?? now,
-                    firstDate: DateTime(2020),
-                    lastDate: now,
-                  );
-                  if (picked != null && mounted) {
-                    setState(() {
-                      _from = picked;
-                      if (_to == null || _to!.isBefore(picked)) _to = picked;
-                      _preset = 'custom';
-                    });
-                    _load();
-                  }
-                }),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Text('s/d', style: TextStyle(fontSize: 12)),
-              ),
-              Expanded(
-                child: _dateBox('Date To', fmt(_to), () async {
-                  final now = DateTime.now();
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _to ?? now,
-                    firstDate: DateTime(2020),
-                    lastDate: now,
-                  );
-                  if (picked != null && mounted) {
-                    setState(() {
-                      _to = picked;
-                      if (_from == null || _from!.isAfter(picked)) {
-                        _from = picked;
-                      }
-                      _preset = 'custom';
-                    });
-                    _load();
-                  }
-                }),
-              ),
-            ],
-          ),
           const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
-                child: DropdownButtonFormField<String>(
-                  initialValue: _preset,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                      isDense: true,
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      border: OutlineInputBorder()),
-                  items: const [
-                    DropdownMenuItem(value: 'today', child: Text('Hari ini')),
-                    DropdownMenuItem(value: '7d', child: Text('7 Hari')),
-                    DropdownMenuItem(value: '30d', child: Text('30 Hari')),
-                    DropdownMenuItem(value: 'bulan', child: Text('Bulan ini')),
-                    DropdownMenuItem(
-                        value: 'custom', child: Text('Rentang kustom')),
-                  ],
-                  onChanged: (v) {
-                    setState(() => _preset = v ?? '7d');
-                    _load();
-                  },
-                ),
+                child: _buildPeriodSelector(context),
               ),
               const SizedBox(width: 8),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(0, 46),
-                  backgroundColor: _kBlueAccent,
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: taskSurface(context),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: taskBorder(context)),
                 ),
+                child: IconButton(
+                  key: const ValueKey('dashboard-filter-button'),
+                  onPressed: _openFilterSheet,
+                  icon: const Icon(Icons.tune_outlined),
+                  tooltip: 'Buka filter',
+                  color: ink(context),
+                ),
+              ),
+              IconButton(
                 onPressed: _load,
-                icon: const Icon(Icons.check, size: 18),
-                label: const Text('Apply'),
+                icon: const Icon(Icons.refresh),
+                tooltip: 'Muat ulang',
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          if (_isOwner) ...[
-            const SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              initialValue: _branchMode,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                  isDense: true,
-                  labelText: 'Toko/Gudang',
-                  border: OutlineInputBorder()),
-              items: [
-                const DropdownMenuItem(
-                    value: 'own', child: Text('Toko saya (default)')),
-                const DropdownMenuItem(
-                    value: 'all', child: Text('Semua toko/gudang')),
-                for (final b in _branches)
-                  DropdownMenuItem(
-                      value: 'branch-${b['id']}',
-                      child: Text(b['name']?.toString() ?? '')),
-              ],
-              onChanged: (v) {
-                setState(() => _branchMode = v ?? 'own');
-                _load();
-              },
-            ),
-            if (_branchError != null) ...[
-              Text(_branchError!),
-              TextButton(
-                onPressed: _loadBranches,
-                child: const Text('Muat ulang pilihan toko/gudang'),
+          if (_isOwner && _branchMode != 'own') ...[
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: InputChip(
+                label: Text('Lokasi: $_selectedBranchLabel'),
+                onDeleted: () {
+                  setState(() => _branchMode = 'own');
+                  _load();
+                },
+                materialTapTargetSize: MaterialTapTargetSize.padded,
               ),
-            ],
+            ),
           ],
           const SizedBox(height: 10),
-          Text(_activeLabel,
-              style: TextStyle(
-                  fontSize: 12.5, fontWeight: FontWeight.w600, color: _kMuted)),
+          Text('Periode: $_presetLabel · $_activeLabel',
+              style: const TextStyle(
+                  fontSize: 11.5, fontWeight: FontWeight.w600, color: _kMuted)),
+          if (_branchError != null) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Expanded(child: Text(_branchError!)),
+                TextButton(
+                  onPressed: _loadBranches,
+                  child: const Text('Muat ulang'),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _dateBox(String label, String value, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        height: 46,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? const Color(0xff1F2530)
-              : Colors.white,
-          border: Border.all(color: _kBorder),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label,
-                style: const TextStyle(
-                    fontSize: 9, fontWeight: FontWeight.w600, color: _kMuted)),
-            Text(value,
-                style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    color: ink(context))),
+  String get _presetLabel {
+    return mobileDateFilterLabel(_preset);
+  }
+
+  String get _selectedBranchLabel {
+    if (_branchMode == 'all') return 'Semua toko/gudang';
+    final id = _branchMode.replaceFirst('branch-', '');
+    final branch = _branches.firstWhere(
+      (item) => item['id']?.toString() == id,
+      orElse: () => <String, dynamic>{},
+    );
+    return branch['name']?.toString() ?? 'Toko/gudang dipilih';
+  }
+
+  Future<void> _selectPreset(String? value) async {
+    if (value == null) return;
+    if (value == 'custom') {
+      final now = DateTime.now();
+      final picked = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(2020),
+        lastDate: now,
+        initialDateRange: _from != null && _to != null
+            ? DateTimeRange(start: _from!, end: _to!)
+            : DateTimeRange(
+                start: now.subtract(const Duration(days: 6)), end: now),
+        helpText: 'Pilih rentang tanggal',
+      );
+      if (picked == null || !mounted) return;
+      setState(() {
+        _preset = value;
+        _from = picked.start;
+        _to = picked.end;
+      });
+    } else {
+      setState(() {
+        _preset = value;
+        _from = null;
+        _to = null;
+      });
+    }
+    _load();
+  }
+
+  Widget _buildPeriodSelector(BuildContext context) {
+    return Container(
+      key: const ValueKey('dashboard-period-selector'),
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: taskSurface(context),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: taskBorder(context)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _preset,
+          isExpanded: true,
+          icon: const Icon(Icons.keyboard_arrow_down),
+          selectedItemBuilder: (_) => [
+            for (final _ in kMobileDateFilterOptions)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('$_presetLabel · $_activeLabel',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: ink(context))),
+              ),
           ],
+          items: [
+            for (final option in kMobileDateFilterOptions)
+              DropdownMenuItem<String>(
+                value: option.value,
+                child: Text(option.label),
+              ),
+          ],
+          onChanged: _selectPreset,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openFilterSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (_) => _DashboardFilterSheet(
+        isOwner: _isOwner,
+        initialBranchMode: _branchMode,
+        branches: _branches,
+        branchError: _branchError,
+        onRetryBranches: _loadBranches,
+        onApply: (branchMode) {
+          setState(() {
+            _branchMode = branchMode;
+          });
+          _load();
+        },
+      ),
+    );
+  }
+}
+
+typedef _DashboardFilterApply = void Function(String branchMode);
+
+class _DashboardFilterSheet extends StatefulWidget {
+  const _DashboardFilterSheet({
+    required this.isOwner,
+    required this.initialBranchMode,
+    required this.branches,
+    required this.branchError,
+    required this.onRetryBranches,
+    required this.onApply,
+  });
+
+  final bool isOwner;
+  final String initialBranchMode;
+  final List<Map<String, dynamic>> branches;
+  final String? branchError;
+  final Future<void> Function() onRetryBranches;
+  final _DashboardFilterApply onApply;
+
+  @override
+  State<_DashboardFilterSheet> createState() => _DashboardFilterSheetState();
+}
+
+class _DashboardFilterSheetState extends State<_DashboardFilterSheet> {
+  late String _branchMode;
+
+  @override
+  void initState() {
+    super.initState();
+    _branchMode = widget.initialBranchMode;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+            16, 4, 16, MediaQuery.viewInsetsOf(context).bottom + 16),
+        child: ConstrainedBox(
+          constraints:
+              BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * .9),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text('Filter dashboard',
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: ink(context))),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                      tooltip: 'Tutup',
+                    ),
+                  ],
+                ),
+                if (widget.isOwner) ...[
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: _branchMode,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Toko / Gudang',
+                      prefixIcon: Icon(Icons.store_outlined),
+                    ),
+                    items: [
+                      const DropdownMenuItem(
+                          value: 'own', child: Text('Toko saya (default)')),
+                      const DropdownMenuItem(
+                          value: 'all', child: Text('Semua toko/gudang')),
+                      for (final branch in widget.branches)
+                        DropdownMenuItem(
+                          value: 'branch-${branch['id']}',
+                          child: Text(branch['name']?.toString() ?? ''),
+                        ),
+                    ],
+                    onChanged: (value) =>
+                        setState(() => _branchMode = value ?? 'own'),
+                  ),
+                  if (widget.branchError != null)
+                    Row(
+                      children: [
+                        Expanded(child: Text(widget.branchError!)),
+                        TextButton(
+                          onPressed: widget.onRetryBranches,
+                          child: const Text('Muat ulang'),
+                        ),
+                      ],
+                    ),
+                ],
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => setState(() => _branchMode = 'own'),
+                        child: const Text('Reset'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 2,
+                      child: FilledButton(
+                        onPressed: () {
+                          widget.onApply(_branchMode);
+                          Navigator.pop(context);
+                        },
+                        child: const Text('Terapkan Filter'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -664,7 +796,7 @@ class _MovementCard extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: const Color(0x141E3A5F),
+                  color: kTaskSand,
                   borderRadius: BorderRadius.circular(99),
                 ),
                 child: Text(
@@ -807,9 +939,9 @@ class _MovementCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: const [
-              _LegendDot(color: _kBlueAccent, label: 'Stock Masuk'),
+              _LegendDot(color: _kBlueAccent, label: 'Stok Masuk'),
               SizedBox(width: 16),
-              _LegendDot(color: _kRed, label: 'Stock Keluar'),
+              _LegendDot(color: _kRed, label: 'Stok Keluar'),
             ],
           ),
         ],
@@ -1102,8 +1234,8 @@ class _TopProductsCard extends StatelessWidget {
                       height: 14,
                       decoration: BoxDecoration(
                         color: Theme.of(context).brightness == Brightness.dark
-                            ? const Color(0xff1F2530)
-                            : const Color(0xffF0EEE8),
+                            ? kTaskDarkSurface
+                            : kTaskSand,
                         borderRadius: BorderRadius.circular(7),
                       ),
                       alignment: Alignment.centerLeft,
@@ -1186,7 +1318,7 @@ class _RingIndicator extends StatelessWidget {
                   strokeWidth: 5,
                   backgroundColor:
                       Theme.of(context).brightness == Brightness.dark
-                          ? const Color(0xff2A3140)
+                          ? const Color(0xff334155)
                           : const Color(0xffEFEBE3),
                   valueColor: AlwaysStoppedAnimation(color),
                 ),

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +12,8 @@ import 'src/login_page.dart';
 import 'src/notification_service.dart';
 import 'src/pos_page.dart';
 import 'src/theme_controller.dart';
+import 'src/task_ui.dart';
+import 'src/ui_kit.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -88,11 +89,19 @@ class _FadeSlideTransitionsBuilder extends PageTransitionsBuilder {
 
 ThemeData _buildTheme({Brightness brightness = Brightness.light}) {
   final dark = brightness == Brightness.dark;
-  const seed = Color(0xff1E3A5F);
+  const seed = kTaskDark;
   final scheme = ColorScheme.fromSeed(
     seedColor: seed,
     brightness: brightness,
-    surface: dark ? const Color(0xff1A1F27) : const Color(0xffffffff),
+    surface: dark ? kTaskDarkSurface : kTaskSurface,
+  ).copyWith(
+    primary: dark ? const Color(0xff5A8BBF) : kTaskDark,
+    onPrimary: Colors.white,
+    secondary: dark ? const Color(0xff45B6A2) : kTaskTeal,
+    onSecondary: Colors.white,
+    tertiary: dark ? const Color(0xffF2B8A5) : kTaskTerracotta,
+    error: dark ? const Color(0xffF2B8A5) : kTaskTerracotta,
+    outline: dark ? const Color(0xff475569) : kTaskBorder,
   );
   return ThemeData(
     useMaterial3: true,
@@ -106,11 +115,32 @@ ThemeData _buildTheme({Brightness brightness = Brightness.light}) {
         TargetPlatform.linux: _FadeSlideTransitionsBuilder(),
       },
     ),
-    scaffoldBackgroundColor:
-        dark ? const Color(0xff12151B) : const Color(0xffF5F1EA),
+    scaffoldBackgroundColor: dark ? kTaskDarkBg : kTaskBg,
     fontFamily: 'sans-serif',
+    textTheme: TextTheme(
+      bodyLarge: TextStyle(
+          fontSize: 16,
+          height: 1.35,
+          color: dark ? const Color(0xffE7ECF4) : kTaskInk),
+      bodyMedium: TextStyle(
+          fontSize: 14,
+          height: 1.35,
+          color: dark ? const Color(0xffCBD5E1) : kTaskInk),
+      bodySmall: TextStyle(
+          fontSize: 12,
+          height: 1.35,
+          color: dark ? const Color(0xffA7B4C7) : kTaskGray),
+      labelLarge: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          color: dark ? const Color(0xffF1F5FB) : kTaskInk),
+      titleMedium: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w800,
+          color: dark ? const Color(0xffF1F5FB) : kTaskInk),
+    ),
     appBarTheme: AppBarTheme(
-      backgroundColor: dark ? const Color(0xff1A1F27) : Colors.white,
+      backgroundColor: dark ? kTaskDarkSurface : kTaskSurface,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
@@ -118,23 +148,35 @@ ThemeData _buildTheme({Brightness brightness = Brightness.light}) {
       titleTextStyle: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w700,
-          color: dark ? const Color(0xffE7ECF4) : const Color(0xff1E3A5F)),
+          color: dark ? const Color(0xffF1F5F9) : kTaskInk),
     ),
     cardTheme: CardThemeData(
       elevation: 0,
-      color: dark ? const Color(0xff1A1F27) : Colors.white,
+      color: dark ? kTaskDarkSurface : kTaskSurface,
       surfaceTintColor: Colors.transparent,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-            color: dark ? const Color(0xff2A3140) : const Color(0xffE7E0D6)),
+        side: BorderSide(color: dark ? const Color(0xff334155) : kTaskBorder),
       ),
     ),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(
+        minimumSize: const Size(48, 48),
+        tapTargetSize: MaterialTapTargetSize.padded,
+        padding: const EdgeInsets.all(12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
+    listTileTheme: ListTileThemeData(
+      minVerticalPadding: 8,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    ),
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: dark ? const Color(0xff1A1F27) : Colors.white,
+      backgroundColor: dark ? kTaskDarkSurface : kTaskSurface,
       surfaceTintColor: Colors.transparent,
-      indicatorColor: dark ? const Color(0xff26303F) : const Color(0xffF5E8DC),
+      indicatorColor: dark ? kTaskDark : kTaskSand,
       elevation: 0,
       height: 68,
       labelTextStyle: const WidgetStatePropertyAll(
@@ -162,35 +204,47 @@ ThemeData _buildTheme({Brightness brightness = Brightness.light}) {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: dark ? const Color(0xff1F2530) : Colors.white,
+      fillColor: dark ? const Color(0xff263241) : kTaskSurface,
       border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-              color: dark ? const Color(0xff2A3140) : const Color(0xffE7E0D6))),
+          borderSide:
+              BorderSide(color: dark ? const Color(0xff334155) : kTaskBorder)),
       enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-              color: dark ? const Color(0xff2A3140) : const Color(0xffE7E0D6))),
+          borderSide:
+              BorderSide(color: dark ? const Color(0xff334155) : kTaskBorder)),
       focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: seed, width: 1.5)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     ),
     bottomSheetTheme: BottomSheetThemeData(
-      backgroundColor: dark ? const Color(0xF21A1F27) : const Color(0xEEFFFFFF),
+      backgroundColor: dark ? const Color(0xF21F2937) : const Color(0xEEFFFFFF),
       surfaceTintColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     ),
     dialogTheme: DialogThemeData(
-      backgroundColor: dark ? const Color(0xF21A1F27) : const Color(0xF2FFFFFF),
+      backgroundColor: dark ? const Color(0xF21F2937) : const Color(0xF2FFFFFF),
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: const Color(0xff1E3A5F),
+      backgroundColor: kTaskDark,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+    tooltipTheme: TooltipThemeData(
+      waitDuration: const Duration(milliseconds: 450),
+      showDuration: const Duration(seconds: 3),
+      decoration: BoxDecoration(
+        color: dark ? const Color(0xffE7ECF4) : kTaskInk,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      textStyle: TextStyle(
+          color: dark ? kTaskInk : Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w600),
     ),
   );
 }
@@ -209,17 +263,15 @@ class PosMobileApp extends StatelessWidget {
       builder: (context, themeMode, _) {
         // Area di luar area desain diisi warna tema (bukan hitam) supaya
         // tidak ada garis hitam di HP dengan rasio layar lebih tinggi.
-        final band = themeMode == ThemeMode.dark
-            ? const Color(0xff12151B)
-            : const Color(0xffF5F1EA);
+        final band = themeMode == ThemeMode.dark ? kTaskDarkBg : kTaskBg;
         return ColoredBox(
             color: band,
             child: LayoutBuilder(builder: (context, constraints) {
               final mq = MediaQuery.of(context);
-              final scale = math
-                  .min(constraints.maxWidth / designW,
-                      constraints.maxHeight / designH)
-                  .clamp(0.8, 1.35);
+              final scale = responsiveLayoutScale(
+                  Size(constraints.maxWidth, constraints.maxHeight));
+              final textScale = mobileTextScale(
+                  Size(constraints.maxWidth, constraints.maxHeight));
               // Rata ke ATAS: warna AppBar/halaman bisa memenuhi area status bar
               // (dulu Center menyisakan pita atas yang warnanya beda -> status
               // bar setengah warna lain di halaman beraksen hijau/oranye).
@@ -239,6 +291,8 @@ class PosMobileApp extends StatelessWidget {
                       data: mq.copyWith(
                         size: Size(designW, childHeight),
                         devicePixelRatio: mq.devicePixelRatio / scale,
+                        textScaler: TextScaler.linear(
+                            mq.textScaler.scale(1) * textScale),
                       ),
                       child: MaterialApp(
                         title: 'Anyostore App',

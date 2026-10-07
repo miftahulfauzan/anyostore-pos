@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -27,6 +26,7 @@ import 'dashboard_page.dart';
 import 'mutation_report_page.dart';
 import 'variant_picker.dart';
 import 'task_ui.dart';
+import 'ui_kit.dart';
 
 class CartItem {
   CartItem({
@@ -921,7 +921,7 @@ class _PosPageState extends State<PosPage> {
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Color(0xFFF2C230),
+                            color: kTaskSand,
                           ),
                           child: SizedBox(width: 10, height: 10),
                         ),
@@ -968,7 +968,7 @@ class _PosPageState extends State<PosPage> {
                               (
                                 icon: Icons.swap_vert,
                                 activeIcon: Icons.swap_vert,
-                                label: 'M/K Stok'
+                                label: 'Mutasi'
                               ),
                               (
                                 icon: Icons.more_horiz,
@@ -1152,7 +1152,7 @@ class _ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = product['name']?.toString() ?? '';
+    final name = productDisplayName(product);
     final price = asNum(product['price']);
     final stock = int.tryParse('${product['stock'] ?? 0}') ?? 0;
     final variantCount = int.tryParse('${product['variant_count'] ?? 0}') ?? 0;
@@ -1167,32 +1167,12 @@ class _ProductCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: photo.isEmpty
-                ? Container(
-                    color: Colors.grey.shade200,
-                    alignment: Alignment.center,
-                    child: const Icon(Icons.image_not_supported,
-                        color: Colors.grey),
-                  )
-                : CachedNetworkImage(
-                    imageUrl: photo,
-                    fit: BoxFit.cover,
-                    memCacheWidth: 420,
-                    fadeInDuration: Duration.zero,
-                    fadeOutDuration: Duration.zero,
-                    placeholder: (_, __) => Container(
-                      color: Colors.grey.shade200,
-                      alignment: Alignment.center,
-                      child: const Icon(Icons.image_not_supported,
-                          color: Colors.grey),
-                    ),
-                    errorWidget: (_, __, ___) => Container(
-                      color: Colors.grey.shade200,
-                      alignment: Alignment.center,
-                      child: const Icon(Icons.image_not_supported,
-                          color: Colors.grey),
-                    ),
-                  ),
+            child: UiProductPhoto(
+              path: photo,
+              baseUrl: '',
+              fit: BoxFit.cover,
+              label: 'Foto $name',
+            ),
           ),
           Padding(
             padding: const EdgeInsets.all(8),
@@ -1317,12 +1297,11 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
           children: [
             DropdownButtonFormField<int?>(
               initialValue: widget.posBranchId,
-              style: const TextStyle(fontSize: 12.5, color: Color(0xff1E3A5F)),
+              style: const TextStyle(fontSize: 12.5, color: kTaskDark),
               decoration: const InputDecoration(
                   labelText: 'Toko / Gudang',
-                  labelStyle: TextStyle(color: Color(0xff8A857C)),
-                  prefixIcon:
-                      Icon(Icons.store, size: 18, color: Color(0xff1E3A5F)),
+                  labelStyle: TextStyle(color: kTaskSecondary),
+                  prefixIcon: Icon(Icons.store, size: 18, color: kTaskDark),
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(),
@@ -1344,11 +1323,10 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
               DropdownButtonFormField<String>(
                 initialValue:
                     widget.warehouseId.isEmpty ? null : widget.warehouseId,
-                style:
-                    const TextStyle(fontSize: 12.5, color: Color(0xff1E3A5F)),
+                style: const TextStyle(fontSize: 12.5, color: kTaskDark),
                 decoration: const InputDecoration(
                     labelText: 'Gudang',
-                    labelStyle: TextStyle(color: Color(0xff8A857C)),
+                    labelStyle: TextStyle(color: kTaskSecondary),
                     filled: true,
                     fillColor: Colors.white,
                     border: OutlineInputBorder(),
@@ -1376,22 +1354,22 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
               height: 48,
               padding: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xffE7E0D6)),
+                border: Border.all(color: kTaskBorder),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.store, size: 17, color: Color(0xff1E3A5F)),
+                  const Icon(Icons.store, size: 17, color: kTaskDark),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(branchName ?? 'Toko / Gudang',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 12.5, color: Color(0xff1E3A5F))),
+                        style:
+                            const TextStyle(fontSize: 12.5, color: kTaskDark)),
                   ),
                   const Icon(Icons.expand_more,
-                      size: 18, color: Color(0xff8A857C)),
+                      size: 18, color: kTaskSecondary),
                 ],
               ),
             ),
@@ -1500,20 +1478,20 @@ class _QtyInputState extends State<_QtyInput> {
           isDense: true,
           filled: true,
           fillColor: Theme.of(context).brightness == Brightness.dark
-              ? const Color(0xff1F2530)
-              : const Color(0xFFF0F4F9),
+              ? kTaskDarkSurface
+              : kTaskSand,
           border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(
                   color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xff2A3140)
-                      : const Color(0xffB9C9DC))),
+                      ? const Color(0xff334155)
+                      : kTaskBorder)),
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(
                   color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xff7FA8CF)
-                      : const Color(0xff1E3A5F),
+                      ? const Color(0xffCBD5E1)
+                      : kTaskDark,
                   width: 1.4)),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
@@ -1715,113 +1693,12 @@ class _CartSheetState extends State<_CartSheet> {
                   controller: widget.scrollController,
                   children: [
                     for (final item in cart)
-                      GlassCard(
-                        padding: EdgeInsets.zero,
-                        frosted: false,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
-                          child: Row(
-                            children: [
-                              // Setengah kiri: nama (penuh), harga, varian.
-                              Expanded(
-                                flex: 3,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(item.name,
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            height: 1.2)),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                        fmtRp(item.priceOverride ?? item.price),
-                                        style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w800,
-                                            color: ink(context))),
-                                    if (item.variantLabel != null)
-                                      Text(item.variantLabel!,
-                                          style: TextStyle(
-                                              fontSize: 10,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .outline)),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              // Setengah kanan: kontrol - qty + edit hapus.
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    onPressed: () =>
-                                        widget.onQtyChanged(item, -1),
-                                    visualDensity: VisualDensity.compact,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints.tightFor(
-                                        width: 26, height: 34),
-                                    icon: const Icon(
-                                        Icons.remove_circle_outline,
-                                        size: 18),
-                                  ),
-                                  _QtyInput(
-                                    value: item.qty,
-                                    onChanged: (v) => widget.onQtySet(item, v),
-                                  ),
-                                  IconButton(
-                                    onPressed: () =>
-                                        widget.onQtyChanged(item, 1),
-                                    visualDensity: VisualDensity.compact,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints.tightFor(
-                                        width: 26, height: 34),
-                                    icon: const Icon(Icons.add_circle_outline,
-                                        size: 18),
-                                  ),
-                                  const SizedBox(width: 2),
-                                  SizedBox(
-                                    width: 72,
-                                    child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      alignment: Alignment.centerRight,
-                                      child: Text(
-                                        fmtRp(
-                                            (item.priceOverride ?? item.price) *
-                                                item.qty),
-                                        style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w800,
-                                            color: ink(context)),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 2),
-                                  IconButton(
-                                    onPressed: () => widget.onEditPrice(item),
-                                    visualDensity: VisualDensity.compact,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints.tightFor(
-                                        width: 26, height: 34),
-                                    icon: const Icon(Icons.edit_outlined,
-                                        size: 16),
-                                    tooltip: 'Ubah harga',
-                                  ),
-                                  IconButton(
-                                    onPressed: () => widget.onRemove(item),
-                                    visualDensity: VisualDensity.compact,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints.tightFor(
-                                        width: 26, height: 34),
-                                    icon: const Icon(Icons.delete_outline,
-                                        size: 17),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
+                      _CartLine(
+                        item: item,
+                        onQtyChanged: widget.onQtyChanged,
+                        onQtySet: widget.onQtySet,
+                        onRemove: widget.onRemove,
+                        onEditPrice: widget.onEditPrice,
                       ),
                   ],
                 ),
@@ -1855,6 +1732,136 @@ class _CartSheetState extends State<_CartSheet> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _CartLine extends StatelessWidget {
+  const _CartLine({
+    required this.item,
+    required this.onQtyChanged,
+    required this.onQtySet,
+    required this.onRemove,
+    required this.onEditPrice,
+  });
+
+  final CartItem item;
+  final void Function(CartItem, int) onQtyChanged;
+  final void Function(CartItem, int) onQtySet;
+  final ValueChanged<CartItem> onRemove;
+  final ValueChanged<CartItem> onEditPrice;
+
+  Widget _action({
+    required BuildContext context,
+    required String label,
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: IconButton(
+        onPressed: onPressed,
+        tooltip: label,
+        icon: Icon(icon, size: 19),
+      ),
+    );
+  }
+
+  Widget _info(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(item.name,
+              softWrap: true,
+              style: const TextStyle(fontWeight: FontWeight.w700, height: 1.2)),
+          const SizedBox(height: 2),
+          Text(fmtRp(item.priceOverride ?? item.price),
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: ink(context))),
+          if (item.variantLabel != null && item.variantLabel!.isNotEmpty)
+            Text(item.variantLabel!,
+                style: TextStyle(
+                    fontSize: 10,
+                    color: Theme.of(context).colorScheme.outline)),
+        ],
+      );
+
+  Widget _controls(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _action(
+            context: context,
+            label: 'Kurangi jumlah ${item.name}',
+            icon: Icons.remove_circle_outline,
+            onPressed: () => onQtyChanged(item, -1),
+          ),
+          _QtyInput(value: item.qty, onChanged: (v) => onQtySet(item, v)),
+          _action(
+            context: context,
+            label: 'Tambah jumlah ${item.name}',
+            icon: Icons.add_circle_outline,
+            onPressed: () => onQtyChanged(item, 1),
+          ),
+          const SizedBox(width: 4),
+          SizedBox(
+            width: 72,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Text(
+                fmtRp((item.priceOverride ?? item.price) * item.qty),
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: ink(context)),
+              ),
+            ),
+          ),
+          _action(
+            context: context,
+            label: 'Ubah harga ${item.name}',
+            icon: Icons.edit_outlined,
+            onPressed: () => onEditPrice(item),
+          ),
+          _action(
+            context: context,
+            label: 'Hapus ${item.name} dari keranjang',
+            icon: Icons.delete_outline,
+            onPressed: () => onRemove(item),
+          ),
+        ],
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 360;
+        return GlassCard(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          frosted: false,
+          child: narrow
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _info(context),
+                    const SizedBox(height: 4),
+                    Align(
+                        alignment: Alignment.centerRight,
+                        child: _controls(context)),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(child: _info(context)),
+                    const SizedBox(width: 6),
+                    _controls(context),
+                  ],
+                ),
+        );
+      },
     );
   }
 }
