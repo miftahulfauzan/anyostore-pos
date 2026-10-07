@@ -159,7 +159,7 @@ class _OfflineQueuePageState extends State<OfflineQueuePage> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: const Color(0x141E3A5F),
+                  color: kTaskSand,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(

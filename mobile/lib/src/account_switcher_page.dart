@@ -150,15 +150,6 @@ class _AccountSwitcherPageState extends State<AccountSwitcherPage> {
           label: const Text('Tambah Akun'),
         ),
         const SizedBox(height: 16),
-        Text(
-          'Akun tersimpan hanya di HP ini. Kalau HP hilang, hapus akses lewat pengaturan akun di web.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-              fontSize: 11,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xff9AA5B1)
-                  : const Color(0xff8A857C)),
-        ),
       ],
     );
   }
@@ -198,14 +189,14 @@ class _AccountTile extends StatelessWidget {
               height: 42,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: dark ? const Color(0xff26303F) : const Color(0xffE3EAF2),
+                color: dark ? const Color(0xff334155) : kTaskSand,
               ),
               alignment: Alignment.center,
               child: Text(name.isEmpty ? '?' : name[0].toUpperCase(),
                   style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xff1E3A5F))),
+                      color: kTaskDark)),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -229,7 +220,7 @@ class _AccountTile extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(
-                            color: const Color(0xff1E3A5F),
+                            color: kTaskDark,
                             borderRadius: BorderRadius.circular(99),
                           ),
                           child: const Text('AKTIF',
@@ -248,9 +239,7 @@ class _AccountTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                         fontSize: 11,
-                        color: dark
-                            ? const Color(0xff9AA5B1)
-                            : const Color(0xff8A857C)),
+                        color: dark ? const Color(0xffCBD5E1) : kTaskSecondary),
                   ),
                 ],
               ),
@@ -260,7 +249,7 @@ class _AccountTile extends StatelessWidget {
                 onPressed: onDelete,
                 visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.delete_outline,
-                    size: 18, color: Color(0xffB0563A)),
+                    size: 18, color: kTaskTerracotta),
                 tooltip: 'Hapus akun',
               ),
           ],

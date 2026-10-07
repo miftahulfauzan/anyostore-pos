@@ -27,9 +27,12 @@ void main() {
       return (lighter + 0.05) / (darker + 0.05);
     }
 
-    expect(contrast(kTaskStockGood, kTaskStockGoodSurface), greaterThanOrEqualTo(4.5));
-    expect(contrast(kTaskStockLow, kTaskStockLowSurface), greaterThanOrEqualTo(4.5));
-    expect(contrast(kTaskStockEmpty, kTaskStockEmptySurface), greaterThanOrEqualTo(4.5));
+    expect(contrast(kTaskStockGood, kTaskStockGoodSurface),
+        greaterThanOrEqualTo(4.5));
+    expect(contrast(kTaskStockLow, kTaskStockLowSurface),
+        greaterThanOrEqualTo(4.5));
+    expect(contrast(kTaskStockEmpty, kTaskStockEmptySurface),
+        greaterThanOrEqualTo(4.5));
   });
 
   testWidgets('GlassCard is solid by default for reliable mobile rendering',
@@ -43,7 +46,8 @@ void main() {
     expect(find.text('Isi kartu'), findsOneWidget);
     expect(find.byType(BackdropFilter), findsNothing);
     expect(find.byType(ShaderMask), findsNothing);
-    final card = tester.widgetList<DecoratedBox>(find.byType(DecoratedBox)).first;
+    final card =
+        tester.widgetList<DecoratedBox>(find.byType(DecoratedBox)).first;
     expect((card.decoration as BoxDecoration).boxShadow, isNull);
   });
 }

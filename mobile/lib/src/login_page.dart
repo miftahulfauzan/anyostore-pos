@@ -4,12 +4,12 @@ import 'package:provider/provider.dart';
 import 'auth_store.dart';
 import 'task_ui.dart';
 
-const _kInk = Color(0xff1E3A5F);
-const _kMuted = Color(0xff5f5f5d);
-const _kBorder = Color(0xffeceae4);
-const _kField = Color(0xfff8fafc);
-const _kFieldBorder = Color(0xffe2e8f0);
-const _kError = Color(0xffe11d48);
+const _kInk = kTaskInk;
+const _kMuted = kTaskSecondary;
+const _kBorder = kTaskBorder;
+const _kField = kTaskBg;
+const _kFieldBorder = kTaskBorder;
+const _kError = Color(0xffB42318);
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -71,7 +71,7 @@ class _LoginPageState extends State<LoginPage> {
         borderSide: const BorderSide(color: _kInk, width: 1.4),
       ),
       suffixIcon: suffix,
-      hintStyle: const TextStyle(color: Color(0xff94a3b8), fontSize: 14),
+      hintStyle: const TextStyle(color: kTaskGray, fontSize: 14),
     );
   }
 
@@ -119,11 +119,6 @@ class _LoginPageState extends State<LoginPage> {
                                       fontSize: 24,
                                       fontWeight: FontWeight.w700,
                                       color: _kInk)),
-                              const SizedBox(height: 4),
-                              const Text(
-                                  'Masuk untuk mengakses kasir, stok, dan laporan toko.',
-                                  style:
-                                      TextStyle(fontSize: 12, color: _kMuted)),
                               const SizedBox(height: 18),
                               Container(
                                 padding: const EdgeInsets.all(4),

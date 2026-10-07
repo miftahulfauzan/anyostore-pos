@@ -24,9 +24,9 @@ import 'settings_page.dart';
 import 'users_page.dart';
 import 'task_ui.dart';
 
-const _kInk = Color(0xff1E3A5F);
-const _kMuted = Color(0xff5f5f5d);
-const _kBorder = Color(0xffeceae4);
+const _kInk = kTaskInk;
+const _kMuted = kTaskSecondary;
+const _kBorder = kTaskBorder;
 
 class MorePage extends StatelessWidget {
   const MorePage(
@@ -57,8 +57,8 @@ class MorePage extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.2,
                   color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xff9AA5B1)
-                      : const Color(0xff8A857C))),
+                      ? const Color(0xffCBD5E1)
+                      : kTaskSecondary)),
         ),
         GlassCard(
           padding: EdgeInsets.zero,
@@ -133,7 +133,7 @@ class MorePage extends StatelessWidget {
                               fontSize: 12,
                               color: Theme.of(context).brightness ==
                                       Brightness.dark
-                                  ? const Color(0xff9AA5B1)
+                                  ? const Color(0xffCBD5E1)
                                   : _kMuted)),
                     ],
                   ],
@@ -150,37 +150,17 @@ class MorePage extends StatelessWidget {
         _OfflineTile(api: api),
         const SizedBox(height: 12),
         _group(context, 'UTAMA', [
-          _row(
-              context,
-              Icons.dashboard,
-              'Dashboard',
-              const Color(0xffE3EAF2),
-              _kInk,
+          _row(context, Icons.dashboard, 'Dashboard', kTaskSand, _kInk,
               () => _open(context, 'Dashboard', DashboardPage(api: api))),
         ]),
         _group(context, 'AKUN & TOKO', [
-          _row(
-              context,
-              Icons.person_outline,
-              'Akun Saya',
-              const Color(0xffE3EAF2),
-              const Color(0xff1E3A5F),
+          _row(context, Icons.person_outline, 'Akun Saya', kTaskSand, kTaskDark,
               () => _open(context, 'Akun Saya', ProfilePage(api: api))),
           _divider(context),
-          _row(
-              context,
-              Icons.swap_horiz,
-              'Ganti Akun',
-              const Color(0xffE3EAF2),
-              const Color(0xff1E3A5F),
+          _row(context, Icons.swap_horiz, 'Ganti Akun', kTaskSand, kTaskDark,
               () => _open(context, 'Ganti Akun', const AccountSwitcherPage())),
           _divider(context),
-          _row(
-              context,
-              Icons.settings,
-              'Pengaturan',
-              const Color(0xffE3EAF2),
-              _kInk,
+          _row(context, Icons.settings, 'Pengaturan', kTaskSand, _kInk,
               () => _open(context, 'Pengaturan', SettingsPage(api: api))),
         ]),
         _group(context, 'PRODUK & INVENTORI', [
@@ -188,8 +168,8 @@ class MorePage extends StatelessWidget {
               context,
               Icons.inventory_2_outlined,
               'Daftar Produk',
-              const Color(0xffE3EAF2),
-              const Color(0xff1E3A5F),
+              kTaskSand,
+              kTaskDark,
               () => _open(context, 'Daftar Produk',
                   ProductsPage(api: api, branchId: activeBranch))),
           _divider(context),
@@ -197,51 +177,41 @@ class MorePage extends StatelessWidget {
               context,
               Icons.history,
               'Riwayat Stok',
-              const Color(0xffE3EAF2),
-              const Color(0xff1E3A5F),
+              kTaskSand,
+              kTaskDark,
               () => _open(context, 'Riwayat Stok',
                   StockMovementsPage(api: api, branchId: activeBranch))),
           _divider(context),
           _row(
               context,
               Icons.swap_vert,
-              'Laporan Masuk/Keluar',
-              const Color(0xffE3EAF2),
-              const Color(0xff1E3A5F),
-              () => _open(context, 'Laporan Masuk/Keluar',
-                  MutationReportPage(api: api))),
+              'Mutasi',
+              kTaskSand,
+              kTaskDark,
+              () => _open(context, 'Mutasi',
+                  MutationReportPage(api: api, showPageTitle: false))),
         ]),
         _group(context, 'TRANSAKSI & KEUANGAN', [
-          _row(
-              context,
-              Icons.people,
-              'Jenis Pelanggan',
-              const Color(0xffE3EAF2),
-              const Color(0xff1E3A5F),
+          _row(context, Icons.people, 'Jenis Pelanggan', kTaskSand, kTaskDark,
               () => _open(context, 'Jenis Pelanggan', CustomersPage(api: api))),
           _divider(context),
-          _row(
-              context,
-              Icons.payments,
-              'Laci Kas',
-              const Color(0xffE3EAF2),
-              const Color(0xff1E3A5F),
+          _row(context, Icons.payments, 'Laci Kas', kTaskSand, kTaskDark,
               () => _open(context, 'Laci Kas', CashDrawerPage(api: api))),
           _divider(context),
           _row(
               context,
               Icons.account_balance_wallet,
               'Keuangan',
-              const Color(0xffE3EAF2),
-              const Color(0xff1E3A5F),
+              kTaskSand,
+              kTaskDark,
               () => _open(context, 'Keuangan', FinancePage(api: api))),
           _divider(context),
           _row(
               context,
               Icons.payments_outlined,
               'Komisi',
-              const Color(0xffE3EAF2),
-              const Color(0xff1E3A5F),
+              kTaskSand,
+              kTaskDark,
               () => _open(
                   context,
                   'Komisi',
@@ -253,20 +223,20 @@ class MorePage extends StatelessWidget {
               context,
               Icons.badge,
               'Pegawai',
-              const Color(0xffE3EAF2),
-              const Color(0xff1E3A5F),
+              kTaskSand,
+              kTaskDark,
               () => _open(context, 'Pegawai',
                   UsersPage(api: api, branchId: activeBranch, role: role))),
           _divider(context),
-          _row(context, Icons.local_offer, 'Promo', const Color(0xffE3EAF2),
-              _kInk, () => _open(context, 'Promo', PromotionsPage(api: api))),
+          _row(context, Icons.local_offer, 'Promo', kTaskSand, kTaskDark,
+              () => _open(context, 'Promo', PromotionsPage(api: api))),
           _divider(context),
           _row(
               context,
               Icons.receipt_long_outlined,
               'Riwayat Aktivitas',
-              const Color(0xffE3EAF2),
-              const Color(0xff1E3A5F),
+              kTaskSand,
+              kTaskDark,
               () => _open(
                   context, 'Riwayat Aktivitas', ActivityLogPage(api: api))),
         ]),
@@ -286,15 +256,15 @@ class MorePage extends StatelessWidget {
                     height: 34,
                     decoration: BoxDecoration(
                       color: Theme.of(context).brightness == Brightness.dark
-                          ? const Color(0xFF3A2422)
-                          : const Color(0xFFFCE8E6),
+                          ? const Color(0xff4A2F2A)
+                          : const Color(0xffF8E9E4),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(Icons.logout,
                         size: 17,
                         color: Theme.of(context).brightness == Brightness.dark
-                            ? const Color(0xFFF2B8A5)
-                            : const Color(0xFFC2410C)),
+                            ? const Color(0xffF2B8A5)
+                            : kTaskTerracotta),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -304,11 +274,10 @@ class MorePage extends StatelessWidget {
                             fontWeight: FontWeight.w600,
                             color:
                                 Theme.of(context).brightness == Brightness.dark
-                                    ? const Color(0xFFF2B8A5)
-                                    : const Color(0xFFC2410C))),
+                                    ? const Color(0xffF2B8A5)
+                                    : kTaskTerracotta)),
                   ),
-                  const Icon(Icons.chevron_right,
-                      size: 18, color: Color(0xff94a3b8)),
+                  const Icon(Icons.chevron_right, size: 18, color: kTaskGray),
                 ],
               ),
             ),
@@ -332,7 +301,7 @@ class MorePage extends StatelessWidget {
         height: 1,
         thickness: 1,
         color: Theme.of(context).brightness == Brightness.dark
-            ? const Color(0xff2A3140)
+            ? const Color(0xff334155)
             : _kBorder,
         indent: 16,
         endIndent: 16,
@@ -341,8 +310,8 @@ class MorePage extends StatelessWidget {
   Widget _row(BuildContext context, IconData icon, String title, Color chipBg,
       Color chipFg, VoidCallback onTap) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final bg = dark ? const Color(0xff26303F) : chipBg;
-    final fg = dark ? const Color(0xffDDE6F2) : chipFg;
+    final bg = dark ? const Color(0xff334155) : chipBg;
+    final fg = dark ? const Color(0xffE2E8F0) : chipFg;
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -366,7 +335,7 @@ class MorePage extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                       color: ink(context))),
             ),
-            const Icon(Icons.chevron_right, size: 18, color: Color(0xff94a3b8)),
+            const Icon(Icons.chevron_right, size: 18, color: kTaskGray),
           ],
         ),
       ),
@@ -421,10 +390,10 @@ class _OfflineTileState extends State<_OfflineTile> {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: const Color(0xffF7E8DD),
+              color: const Color(0xffF8E9E4),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(Icons.cloud_off, size: 17, color: Color(0xffD47E4D)),
+            child: Icon(Icons.cloud_off, size: 17, color: kTaskTerracotta),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -438,7 +407,7 @@ class _OfflineTileState extends State<_OfflineTile> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: const Color(0xff1E3A5F),
+                color: kTaskDark,
                 borderRadius: BorderRadius.circular(99),
               ),
               child: Text('$_count',
@@ -448,7 +417,7 @@ class _OfflineTileState extends State<_OfflineTile> {
                       color: Colors.white)),
             )
           else
-            const Icon(Icons.chevron_right, size: 18, color: Color(0xff94a3b8)),
+            const Icon(Icons.chevron_right, size: 18, color: kTaskGray),
         ],
       ),
     );
@@ -499,14 +468,14 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
       radius: 18,
       child: Row(
         children: [
-          const Icon(Icons.storefront, size: 18, color: Color(0xff1E3A5F)),
+          const Icon(Icons.storefront, size: 18, color: kTaskDark),
           const SizedBox(width: 10),
           const Expanded(
             child: Text('Toko/Gudang aktif',
                 style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xff8A857C))),
+                    color: kTaskSecondary)),
           ),
           const SizedBox(width: 8),
           DropdownButton<int?>(

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'api_client.dart';
 import 'format.dart';
 import 'task_ui.dart';
+import 'ui_kit.dart';
 
 class StockMovementsPage extends StatefulWidget {
   const StockMovementsPage(
@@ -87,11 +88,15 @@ class _StockMovementsPageState extends State<StockMovementsPage> {
               ),
               Expanded(
                 child: _loading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const UiLoadingState(label: 'Memuat riwayat…')
                     : _error != null
-                        ? Center(child: Text(_error!))
+                        ? UiErrorState(message: _error!, onRetry: _load)
                         : _rows.isEmpty
-                            ? const Center(child: Text('Belum ada mutasi'))
+                            ? const UiEmptyState(
+                                title: 'Belum ada riwayat mutasi',
+                                message:
+                                    'Perubahan stok pada periode ini akan tampil di sini.',
+                                icon: Icons.history)
                             : ListView.separated(
                                 padding: const EdgeInsets.all(12),
                                 itemCount: _rows.length,
@@ -111,8 +116,8 @@ class _StockMovementsPageState extends State<StockMovementsPage> {
                                           height: 40,
                                           decoration: BoxDecoration(
                                             color: positive
-                                                ? const Color(0xffE3EAF2)
-                                                : const Color(0xffF7E4DE),
+                                                ? const Color(0xffE7F4F1)
+                                                : const Color(0xffF8E9E4),
                                             borderRadius:
                                                 BorderRadius.circular(13),
                                           ),
@@ -122,8 +127,8 @@ class _StockMovementsPageState extends State<StockMovementsPage> {
                                                   : Icons.north_east,
                                               size: 18,
                                               color: positive
-                                                  ? const Color(0xff1E3A5F)
-                                                  : const Color(0xffC2410C)),
+                                                  ? kTaskTeal
+                                                  : kTaskTerracotta),
                                         ),
                                         const SizedBox(width: 10),
                                         Expanded(
@@ -162,8 +167,8 @@ class _StockMovementsPageState extends State<StockMovementsPage> {
                                               fontSize: 15,
                                               fontWeight: FontWeight.w800,
                                               color: positive
-                                                  ? const Color(0xff1E6B3F)
-                                                  : const Color(0xffC2410C)),
+                                                  ? kTaskTeal
+                                                  : kTaskTerracotta),
                                         ),
                                       ],
                                     ),

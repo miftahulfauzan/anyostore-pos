@@ -66,7 +66,7 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                     hintText: 'Cari aktivitas / petugas',
                     prefixIcon: const Icon(Icons.search, size: 20),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: kTaskSurface,
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 12),
                     enabledBorder: OutlineInputBorder(
@@ -142,7 +142,7 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                                           width: 38,
                                           height: 38,
                                           decoration: BoxDecoration(
-                                            color: Color(0xffE3EAF2),
+                                            color: kTaskSand,
                                             borderRadius:
                                                 BorderRadius.circular(12),
                                           ),

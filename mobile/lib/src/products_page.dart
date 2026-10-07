@@ -9,6 +9,7 @@ import 'format.dart';
 import 'printer_setup.dart';
 import 'product_form_page.dart';
 import 'task_ui.dart';
+import 'ui_kit.dart';
 
 class ProductsPage extends StatefulWidget {
   const ProductsPage({super.key, required this.api, required this.branchId});
@@ -118,7 +119,8 @@ class _ProductsPageState extends State<ProductsPage> {
           .copyProduct(int.parse('${r['id']}'), branchId: _effectiveBranch);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Produk disalin. Periksa daftar untuk mengedit SKU/barcode')));
+          content: Text(
+              'Produk disalin. Periksa daftar untuk mengedit SKU/barcode')));
       _load();
     } on ApiException catch (e) {
       if (mounted) {
@@ -196,7 +198,7 @@ class _ProductsPageState extends State<ProductsPage> {
                     hintText: 'Cari nama / SKU / barcode',
                     prefixIcon: const Icon(Icons.search, size: 20),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: kTaskSurface,
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 12),
                     enabledBorder: OutlineInputBorder(
@@ -212,13 +214,13 @@ class _ProductsPageState extends State<ProductsPage> {
               ),
               Expanded(
                 child: _loading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const UiLoadingState(label: 'Memuat produk…')
                     : _error != null
-                        ? Center(child: Text(_error!))
+                        ? UiErrorState(message: _error!, onRetry: _load)
                         : _rows.isEmpty
-                            ? const Center(
-                                child: Text(
-                                    'Belum ada produk. Ketuk Tambah Produk.'))
+                            ? const UiEmptyState(
+                                title: 'Belum ada produk',
+                                message: 'Ketuk Tambah Produk untuk mulai.')
                             : ListView.separated(
                                 padding: const EdgeInsets.all(12),
                                 itemCount: _rows.length,
@@ -240,26 +242,15 @@ class _ProductsPageState extends State<ProductsPage> {
                                           child: SizedBox(
                                             width: 48,
                                             height: 48,
-                                            child: photo.isEmpty
-                                                ? ColoredBox(
-                                                    color: Color(0xffE6ECF3),
-                                                    child: Icon(
-                                                        Icons.inventory_2,
-                                                        color: ink(context)),
-                                                  )
-                                                : Image.network(
-                                                    photo,
-                                                    fit: BoxFit.cover,
-                                                    cacheWidth: 160,
-                                                    errorBuilder:
-                                                        (_, __, ___) =>
-                                                            ColoredBox(
-                                                      color: Color(0xffE6ECF3),
-                                                      child: Icon(
-                                                          Icons.inventory_2,
-                                                          color: ink(context)),
-                                                    ),
-                                                  ),
+                                            child: UiProductPhoto(
+                                              path: photo,
+                                              baseUrl: '',
+                                              width: 48,
+                                              height: 48,
+                                              fit: BoxFit.cover,
+                                              label:
+                                                  'Foto ${productDisplayName(r)}',
+                                            ),
                                           ),
                                         ),
                                         const SizedBox(width: 10),
@@ -268,7 +259,7 @@ class _ProductsPageState extends State<ProductsPage> {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              Text(r['name']?.toString() ?? '',
+                                              Text(productDisplayName(r),
                                                   maxLines: 1,
                                                   overflow:
                                                       TextOverflow.ellipsis,
@@ -324,7 +315,7 @@ class _ProductsPageState extends State<ProductsPage> {
                                                   icon: const Icon(
                                                       Icons.delete_outline,
                                                       size: 18,
-                                                      color: Color(0xffC2410C)),
+                                                      color: kTaskTerracotta),
                                                 ),
                                               ],
                                             ),

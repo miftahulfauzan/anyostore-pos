@@ -194,7 +194,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
       prefixText: prefix,
       suffixIcon: suffix,
       filled: true,
-      fillColor: Colors.white,
+      fillColor: kTaskSurface,
       contentPadding:
           EdgeInsets.symmetric(horizontal: 14, vertical: multi ? 18 : 14),
       enabledBorder: border,
@@ -546,8 +546,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                                               fit: BoxFit.cover,
                                               errorBuilder: (_, __, ___) =>
                                                   const ColoredBox(
-                                                      color:
-                                                          Color(0xffE6ECF3))),
+                                                      color: kTaskSand)),
                                     ),
                                   ),
                                   Positioned(
@@ -559,7 +558,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                                         width: 20,
                                         height: 20,
                                         decoration: const BoxDecoration(
-                                          color: Color(0xffC2410C),
+                                          color: kTaskTerracotta,
                                           shape: BoxShape.circle,
                                         ),
                                         child: const Icon(Icons.close,
@@ -615,7 +614,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0x0F1E3A5F),
+        color: kTaskSand,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -632,7 +631,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
               IconButton(
                 onPressed: () => setState(() => _variants.removeAt(i)),
                 icon: const Icon(Icons.delete_outline,
-                    size: 18, color: Color(0xffC2410C)),
+                    size: 18, color: kTaskTerracotta),
               ),
             ],
           ),
@@ -667,9 +666,9 @@ class _ProductFormPageState extends State<ProductFormPage> {
                           ? Image.network(v.existingUrl!,
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) =>
-                                  const ColoredBox(color: Color(0xffE6ECF3)))
+                                  const ColoredBox(color: kTaskSand))
                           : const ColoredBox(
-                              color: Color(0xffE6ECF3),
+                              color: kTaskSand,
                               child: Icon(Icons.photo_outlined,
                                   size: 18, color: kTaskGray)),
                 ),
@@ -687,7 +686,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                     v.photoBase64 = null;
                   }),
                   child: const Text('Batal',
-                      style: TextStyle(color: Color(0xffC2410C))),
+                      style: TextStyle(color: kTaskTerracotta)),
                 ),
             ],
           ),
@@ -701,7 +700,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0x0F1E3A5F),
+        color: kTaskSand,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -726,7 +725,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
           IconButton(
             onPressed: () => setState(() => _tiers.removeAt(i)),
             icon: const Icon(Icons.delete_outline,
-                size: 18, color: Color(0xffC2410C)),
+                size: 18, color: kTaskTerracotta),
           ),
         ],
       ),

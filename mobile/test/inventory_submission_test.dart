@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_pakaian_mobile/src/api_client.dart';
@@ -11,6 +12,8 @@ class InventoryApi extends ApiClient {
   final gets = <(String, Map<String, String>)>[];
   bool failTransfer = false;
   bool missingRevision = false;
+  bool missingStockPhoto = false;
+  List<dynamic>? fallbackProducts;
   Completer<Map<String, dynamic>>? pendingStock;
 
   @override
@@ -22,7 +25,22 @@ class InventoryApi extends ApiClient {
     }
     final Object data = switch (path) {
       '/inventory/stock-total' => {
-          'products': <Object>[], 'summary': <String, dynamic>{}
+          'products': <Object>[
+            {
+              'id': 10,
+              'name': 'Denim',
+              'sku': 'D10',
+              if (!missingStockPhoto) 'photo_path': '/uploads/denim.jpg',
+              'total_stock': 8,
+              'min_stock': 1,
+            }
+          ],
+          'summary': <String, dynamic>{
+            'total_products': 1,
+            'total_stock': 8,
+            'low_stock': 0,
+            'out_of_stock': 0,
+          }
         },
       '/inventory/warehouses' => [
           {'id': 1, 'name': 'Gudang A'},
@@ -51,6 +69,9 @@ class InventoryApi extends ApiClient {
             'stock_revision': '0',
           },
         ],
+      '/inventory/incoming/targets' => <Object>[],
+      '/inventory/mutations' => <Object>[],
+      '/inventory/mutation-report' => <Object>[],
       '/inventory/incoming/products' => [
           {
             'id': 10,
@@ -66,7 +87,15 @@ class InventoryApi extends ApiClient {
   }
 
   @override
-  Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body) async {
+  Future<List<dynamic>> products({
+    required int branchId,
+    String search = '',
+  }) async =>
+      fallbackProducts ?? const [];
+
+  @override
+  Future<Map<String, dynamic>> post(
+      String path, Map<String, dynamic> body) async {
     posts.add((path, jsonDecode(jsonEncode(body)) as Map<String, dynamic>));
     if (failTransfer && path.contains('/transfers')) {
       throw ApiException('Respons terputus', isNetwork: true);
@@ -82,18 +111,22 @@ Future<void> openSection(
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
   await tester.pumpWidget(MaterialApp(
-      home: Scaffold(body: InventoryPage(api: api, branchId: 4, role: 'admin'))));
+      home:
+          Scaffold(body: InventoryPage(api: api, branchId: 4, role: 'admin'))));
   await tester.pumpAndSettle();
-  await tester.tap(find.text(section));
+  await tester.tap(find.byKey(const ValueKey('inventory-section-selector')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(section).last);
   await tester.pumpAndSettle();
 }
 
 Future<void> addOpname(WidgetTester tester, {String count = '0'}) async {
-  await tester.tap(find.text('Tambah Item (stok fisik)'));
+  await tester.tap(find.text('Tambah Produk'));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Denim').first);
   await tester.pumpAndSettle();
-  await tester.enterText(find.widgetWithText(TextField, 'Stok fisik (dihitung)'), count);
+  await tester.enterText(
+      find.widgetWithText(TextField, 'Stok fisik (dihitung)'), count);
   await tester.tap(find.text('Tambah'));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Selesai (1)'));
@@ -101,6 +134,158 @@ Future<void> addOpname(WidgetTester tester, {String count = '0'}) async {
 }
 
 void main() {
+  testWidgets('inventory title selector opens every stock operation',
+      (tester) async {
+    final api = InventoryApi();
+    tester.view.physicalSize = const Size(900, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: InventoryPage(api: api, branchId: 4, role: 'admin'))));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('inventory-section-selector')));
+    await tester.pumpAndSettle();
+    expect(find.text('Stok'), findsWidgets);
+    expect(find.text('Mutasi'), findsOneWidget);
+    expect(find.text('Transfer'), findsOneWidget);
+    expect(find.text('Opname'), findsOneWidget);
+    expect(find.text('Barcode'), findsOneWidget);
+
+    await tester.tap(find.text('Transfer').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Dari lokasi'), findsOneWidget);
+  });
+
+  testWidgets('inventory pages show the same compact visual header',
+      (tester) async {
+    final api = InventoryApi();
+    tester.view.physicalSize = const Size(900, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: InventoryPage(api: api, branchId: 4, role: 'admin'))));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Data stok dan produk'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('inventory-section-selector')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Mutasi').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Input stok masuk dan keluar'), findsOneWidget);
+    expect(find.text('Mutasi Stok'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('inventory-section-selector')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Transfer').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Kirim stok ke cabang lain'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('inventory-section-selector')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Opname').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Stok opname / stok fisik'), findsOneWidget);
+  });
+
+  testWidgets('kartu stok menampilkan ikon pensil sebagai affordance edit',
+      (tester) async {
+    final api = InventoryApi();
+    tester.view.physicalSize = const Size(900, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: InventoryPage(api: api, branchId: 4, role: 'admin'))));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+  });
+
+  testWidgets('stok dapat difilter berdasarkan gudang aktif', (tester) async {
+    final api = InventoryApi();
+    await openSection(tester, api, 'Stok');
+
+    expect(find.text('Gudang A'), findsOneWidget);
+    await tester.tap(find.text('Gudang A'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Gudang B').last);
+    await tester.pumpAndSettle();
+
+    final request =
+        api.gets.lastWhere((item) => item.$1 == '/inventory/stock-total');
+    expect(request.$2['warehouse_id'], '2');
+  });
+
+  testWidgets('kontrol gudang dan cari tetap satu baris saat pencarian aktif',
+      (tester) async {
+    final api = InventoryApi();
+    await openSection(tester, api, 'Stok');
+
+    expect(
+        find.byKey(const ValueKey('inventory-stock-controls')), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('inventory-warehouse-menu')), findsOneWidget);
+    expect(find.byKey(const ValueKey('inventory-view-mode-button')),
+        findsOneWidget);
+    expect(find.text('Cari produk'), findsOneWidget);
+
+    await tester.tap(find.text('Cari produk'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('inventory-stock-search-field')),
+        findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('inventory-warehouse-menu')), findsNothing);
+    expect(find.text('Cari produk / SKU'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Gudang A'));
+    await tester.pumpAndSettle();
+    expect(find.text('Gudang B'), findsOneWidget);
+  });
+
+  testWidgets('urut memakai tombol ikon dan pilihan tetap tersedia di menu',
+      (tester) async {
+    final api = InventoryApi();
+    await openSection(tester, api, 'Stok');
+
+    expect(find.byKey(const ValueKey('inventory-sort-button')), findsOneWidget);
+    expect(find.byIcon(Icons.sort), findsOneWidget);
+    expect(find.text('Urut: Nama A–Z'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('inventory-sort-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Nama A–Z'), findsOneWidget);
+    expect(find.text('Stok terendah'), findsOneWidget);
+  });
+
+  testWidgets(
+      'stok memakai foto katalog saat ringkasan stok belum mengirim foto',
+      (tester) async {
+    final api = InventoryApi()
+      ..missingStockPhoto = true
+      ..fallbackProducts = [
+        {
+          'id': 10,
+          'name': 'Denim',
+          'photo_path': '/uploads/denim-from-catalog.jpg',
+        },
+      ];
+    await openSection(tester, api, 'Stok');
+
+    expect(find.byType(CachedNetworkImage), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.grid_view_outlined));
+    await tester.pumpAndSettle();
+    expect(find.byType(CachedNetworkImage), findsOneWidget);
+  });
+
   testWidgets('opname sends only counted item with unchanged stock snapshot',
       (tester) async {
     final api = InventoryApi();
@@ -121,10 +306,11 @@ void main() {
     ]);
   });
 
-  testWidgets('opname blank count stays in dialog with an error', (tester) async {
+  testWidgets('opname blank count stays in dialog with an error',
+      (tester) async {
     final api = InventoryApi();
     await openSection(tester, api, 'Opname');
-    await tester.tap(find.text('Tambah Item (stok fisik)'));
+    await tester.tap(find.text('Tambah Produk'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Denim').first);
     await tester.pumpAndSettle();
@@ -133,7 +319,8 @@ void main() {
     await tester.tap(find.text('Tambah'));
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsOneWidget);
-    expect(find.text('Isi stok fisik dengan angka 0 atau lebih.'), findsOneWidget);
+    expect(
+        find.text('Isi stok fisik dengan angka 0 atau lebih.'), findsOneWidget);
     expect(api.posts, isEmpty);
   });
 
@@ -155,7 +342,7 @@ void main() {
       (tester) async {
     final api = InventoryApi()..missingRevision = true;
     await openSection(tester, api, 'Opname');
-    await tester.tap(find.text('Tambah Item (stok fisik)'));
+    await tester.tap(find.text('Tambah Produk'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Denim').first);
     await tester.pumpAndSettle();
@@ -168,7 +355,7 @@ void main() {
       (tester) async {
     final api = InventoryApi()..failTransfer = true;
     await openSection(tester, api, 'Transfer');
-    await tester.tap(find.text('Tambah Item'));
+    await tester.tap(find.text('Tambah Produk'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Denim').first);
     await tester.pumpAndSettle();
@@ -176,16 +363,19 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Selesai (1)'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Proses Transfer'));
+    await tester.tap(find.text('Buat Transfer'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Proses Transfer'));
+    await tester.tap(find.text('Buat Transfer'));
     await tester.pumpAndSettle();
     final firstId = api.posts[0].$2['client_transfer_id'];
-    expect(firstId, matches(RegExp(
-        r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')));
+    expect(
+        firstId,
+        matches(RegExp(
+            r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')));
     expect(api.posts[1].$2['client_transfer_id'], firstId);
-    await tester.enterText(find.widgetWithText(TextField, 'Keterangan'), 'Revisi');
-    await tester.tap(find.text('Proses Transfer'));
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Keterangan'), 'Revisi');
+    await tester.tap(find.text('Buat Transfer'));
     await tester.pumpAndSettle();
     expect(api.posts[2].$2['client_transfer_id'], isNot(firstId));
   });

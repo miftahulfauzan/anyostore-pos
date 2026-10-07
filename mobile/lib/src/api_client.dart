@@ -18,12 +18,14 @@ class ApiException implements Exception {
 }
 
 class ApiClient {
-  ApiClient({String? baseUrl})
+  ApiClient({String? baseUrl, http.Client? httpClient})
       : baseUrl = baseUrl ??
             const String.fromEnvironment('API_URL',
-                defaultValue: 'https://anyostore.my.id/api');
+                defaultValue: 'https://anyostore.my.id/api'),
+        _httpClient = httpClient ?? http.Client();
 
   final String baseUrl;
+  final http.Client _httpClient;
   String? _token;
 
   /// Toko/gudang aktif (owner memilih di Lainnya). Semua request otomatis
@@ -32,6 +34,12 @@ class ApiClient {
 
   /// Dipanggil saat API mengembalikan 401 untuk mencoba refresh token.
   Future<bool> Function()? refreshHandler;
+
+  /// Dipanggil setelah access token dan refresh token sama-sama tidak valid.
+  /// AuthStore menggunakannya untuk mengembalikan aplikasi ke halaman login.
+  Future<void> Function()? sessionExpiredHandler;
+
+  Future<bool>? _refreshFuture;
 
   void setToken(String? token) => _token = token;
   String? get token => _token;
@@ -56,31 +64,55 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body) =>
-      _request(() => http.post(_uri(path),
+      _request(() => _httpClient.post(_uri(path),
           headers: _headers, body: jsonEncode(_withBranch(body))));
 
+  /// Dipakai untuk endpoint autentikasi refresh. Respons 401 dari endpoint
+  /// ini harus berhenti di sini, bukan memicu refresh token lagi.
+  Future<Map<String, dynamic>> postNoRefresh(
+          String path, Map<String, dynamic> body) =>
+      _request(
+          () => _httpClient.post(_uri(path),
+              headers: _headers, body: jsonEncode(_withBranch(body))),
+          allowRefresh: false);
+
   Future<Map<String, dynamic>> put(String path, Map<String, dynamic> body) =>
-      _request(() => http.put(_uri(path),
+      _request(() => _httpClient.put(_uri(path),
           headers: _headers, body: jsonEncode(_withBranch(body))));
 
   Future<Map<String, dynamic>> delete(String path) =>
-      _request(() => http.delete(_uri(path), headers: _headers));
+      _request(() => _httpClient.delete(_uri(path), headers: _headers));
 
   Future<Map<String, dynamic>> get(String path, [Map<String, String>? query]) =>
-      _request(() => http.get(_uri(path, query), headers: _headers));
+      _request(() => _httpClient.get(_uri(path, query), headers: _headers));
 
   Future<Map<String, dynamic>> _request(
     Future<http.Response> Function() run, {
     bool retried = false,
+    bool allowRefresh = true,
   }) async {
     try {
       final res = await run().timeout(const Duration(seconds: 30));
-      if (res.statusCode == 401 && !retried && refreshHandler != null) {
-        final ok = await refreshHandler!();
-        if (ok) return _request(run, retried: true);
+      if (res.statusCode == 401 &&
+          allowRefresh &&
+          !retried &&
+          refreshHandler != null) {
+        var ok = false;
+        try {
+          ok = await _tryRefresh();
+        } catch (_) {
+          // Callback refresh yang gagal tetap diperlakukan sebagai sesi habis.
+        }
+        if (ok) {
+          return _request(run, retried: true, allowRefresh: allowRefresh);
+        }
         // Refresh gagal (token lama sudah tidak valid/kedaluwarsa).
-        throw ApiException('Sesi berakhir. Silakan login ulang.',
-            statusCode: 401);
+        await _notifySessionExpired();
+        throw _expiredException;
+      }
+      if (res.statusCode == 401 && allowRefresh) {
+        await _notifySessionExpired();
+        throw _expiredException;
       }
       OfflineStatus.offline.value = false;
       return _decode(res);
@@ -103,6 +135,29 @@ class ApiClient {
     }
   }
 
+  static final ApiException _expiredException =
+      ApiException('Sesi berakhir. Silakan login ulang.', statusCode: 401);
+
+  Future<bool> _tryRefresh() {
+    final running = _refreshFuture;
+    if (running != null) return running;
+    final future = refreshHandler!();
+    _refreshFuture = future;
+    return future.whenComplete(() {
+      if (identical(_refreshFuture, future)) _refreshFuture = null;
+    });
+  }
+
+  Future<void> _notifySessionExpired() async {
+    final handler = sessionExpiredHandler;
+    try {
+      if (handler != null) await handler();
+    } catch (_) {
+      // Jangan mengganti error sesi dengan error jaringan hanya karena proses
+      // pembersihan token gagal sebagian.
+    }
+  }
+
   Map<String, dynamic> _decode(http.Response res) {
     Map<String, dynamic> data;
     try {
@@ -121,10 +176,11 @@ class ApiClient {
 
   // ===== Auth =====
   Future<Map<String, dynamic>> loginPassword(String email, String password) =>
-      post('/auth/login?mobile=1', {'email': email, 'password': password});
+      postNoRefresh(
+          '/auth/login?mobile=1', {'email': email, 'password': password});
 
   Future<Map<String, dynamic>> loginPin(String email, String pin) =>
-      post('/auth/login-pin?mobile=1', {'email': email, 'pin': pin});
+      postNoRefresh('/auth/login-pin?mobile=1', {'email': email, 'pin': pin});
 
   Future<Map<String, dynamic>> me() => get('/auth/me');
 
@@ -398,13 +454,31 @@ class ApiClient {
     String? start,
     String? end,
     String? branchId,
+    String? description,
+    int limit = 500,
   }) =>
       get('/inventory/mutation-report', {
         'type': type,
         if (start != null) 'start': start,
         if (end != null) 'end': end,
         if (branchId != null) 'branch_id': branchId,
+        if (description != null && description.isNotEmpty)
+          'description': description,
+        'limit': '$limit',
       });
+
+  Future<List<dynamic>> mutationReportTargets({bool all = false}) async {
+    final res = await get('/inventory/incoming/targets', {
+      if (all) 'all': '1',
+    });
+    return (res['data'] as List?) ?? [];
+  }
+
+  Future<Map<String, dynamic>> deleteMutationBatch({
+    required String type,
+    required String batchId,
+  }) =>
+      delete('/inventory/mutation-report/$type/$batchId');
 
   Future<Map<String, dynamic>> updateProfile(
           {required String name, required String email, String? username}) =>
@@ -520,10 +594,12 @@ class ApiClient {
     required int branchId,
     String search = '',
     bool allBranches = false,
+    int? warehouseId,
   }) async {
     final res = await get('/inventory/stock-total', {
       'branch_id': allBranches ? 'all' : '$branchId',
       if (search.isNotEmpty) 'search': search,
+      if (warehouseId != null) 'warehouse_id': '$warehouseId',
     });
     return (res['data'] as Map<String, dynamic>?) ?? {};
   }

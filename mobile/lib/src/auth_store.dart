@@ -10,6 +10,7 @@ import 'branch_scope.dart';
 class AuthStore extends ChangeNotifier {
   AuthStore(this._api) {
     _api.refreshHandler = _refresh;
+    _api.sessionExpiredHandler = _handleSessionExpired;
   }
 
   final ApiClient _api;
@@ -37,6 +38,7 @@ class AuthStore extends ChangeNotifier {
 
   /// Daftar akun tersimpan untuk fitur Ganti Akun (Level 2).
   List<Map<String, dynamic>> savedAccounts = [];
+  bool _handlingSessionExpired = false;
 
   Future<void> restore() async {
     try {
@@ -130,8 +132,8 @@ class AuthStore extends ChangeNotifier {
     final rt = refreshToken;
     if (rt == null) return false;
     try {
-      final result =
-          await _api.post('/auth/mobile-refresh', {'refresh_token': rt});
+      final result = await _api
+          .postNoRefresh('/auth/mobile-refresh', {'refresh_token': rt});
       final data = result['data'] as Map<String, dynamic>? ?? {};
       final access = data['accessToken']?.toString();
       final newRt = data['refreshToken']?.toString();
@@ -153,8 +155,17 @@ class AuthStore extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (_) {
-      // Tanpa auto-logout: sesi disimpan; logout hanya lewat tombol Keluar.
       return false;
+    }
+  }
+
+  Future<void> _handleSessionExpired() async {
+    if (_handlingSessionExpired || !isAuthenticated) return;
+    _handlingSessionExpired = true;
+    try {
+      await logout();
+    } finally {
+      _handlingSessionExpired = false;
     }
   }
 
@@ -255,10 +266,15 @@ class AuthStore extends ChangeNotifier {
       await _persistAccounts();
     }
     _api.setToken(null);
+    _api.activeBranchId = null;
+    BranchScope.set(null);
     token = null;
     refreshToken = null;
     isAuthenticated = false;
+    userId = null;
     userName = null;
+    username = null;
+    email = null;
     role = null;
     branchId = null;
     await _secure.delete(key: _tokenKey);

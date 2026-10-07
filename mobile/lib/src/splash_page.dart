@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'login_page.dart';
 import 'task_ui.dart';
 
-const _kInk = Color(0xff1E3A5F);
+const _kInk = kTaskInk;
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});

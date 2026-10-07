@@ -290,8 +290,7 @@ class _HistoryTabState extends State<HistoryTab> {
                 const SizedBox(height: 4),
                 Text(
                   '${detail['created_at'] ?? ''}${detail['cashier'] != null && (detail['cashier'] as String).isNotEmpty ? ' · Kasir: ${detail['cashier']}' : ''}',
-                  style:
-                      const TextStyle(fontSize: 11, color: Color(0xff8A857C)),
+                  style: const TextStyle(fontSize: 11, color: kTaskSecondary),
                 ),
                 const Divider(),
                 for (final item in items) ...[
@@ -301,7 +300,7 @@ class _HistoryTabState extends State<HistoryTab> {
                   if ((item['variant_detail'] ?? '').toString().isNotEmpty)
                     Text((item['variant_detail'] ?? '').toString(),
                         style: const TextStyle(
-                            fontSize: 10.5, color: Color(0xff8A857C))),
+                            fontSize: 10.5, color: kTaskSecondary)),
                   _StrukRow(
                     '${item['quantity']} x ${fmtRp(asNum(item['price']))}'
                     '${asNum(item['cancelled_qty']) > 0 ? '  (batal ${item['cancelled_qty']})' : ''}'
@@ -314,7 +313,7 @@ class _HistoryTabState extends State<HistoryTab> {
                 _StrukRow('Subtotal', fmtRp(asNum(detail['subtotal'] ?? 0))),
                 if (asNum(detail['discount'] ?? 0) > 0)
                   _StrukRow('Diskon', '-${fmtRp(asNum(detail['discount']))}',
-                      valueColor: const Color(0xffB0563A)),
+                      valueColor: kTaskTerracotta),
                 _StrukRow('Total', fmtRp(asNum(detail['grand_total'])),
                     bold: true),
                 const Divider(),
@@ -327,7 +326,7 @@ class _HistoryTabState extends State<HistoryTab> {
                     asNum(detail['cancelled_amount']) > 0)
                   _StrukRow('Dibatalkan',
                       '-${fmtRp(asNum(detail['cancelled_amount']))}',
-                      valueColor: const Color(0xffB0563A)),
+                      valueColor: kTaskTerracotta),
               ],
             ),
           ),
@@ -400,8 +399,7 @@ class _HistoryTabState extends State<HistoryTab> {
                     'Invoice: ${detail['invoice_no'] ?? ''}\n'
                     '${detail['created_at'] ?? ''}${detail['created_by_name'] != null && (detail['created_by_name'] as String).isNotEmpty ? ' · Oleh: ${detail['created_by_name']}' : ''}'
                     '${detail['reason'] != null && (detail['reason'] as String).isNotEmpty ? '\nAlasan: ${detail['reason']}' : ''}',
-                    style:
-                        const TextStyle(fontSize: 11, color: Color(0xff8A857C)),
+                    style: const TextStyle(fontSize: 11, color: kTaskSecondary),
                   ),
                   const Divider(),
                   for (final item in items) ...[
@@ -411,7 +409,7 @@ class _HistoryTabState extends State<HistoryTab> {
                     if ((item['variant_detail'] ?? '').toString().isNotEmpty)
                       Text((item['variant_detail'] ?? '').toString(),
                           style: const TextStyle(
-                              fontSize: 10.5, color: Color(0xff8A857C))),
+                              fontSize: 10.5, color: kTaskSecondary)),
                     _StrukRow(
                       '${item['quantity']} x ${fmtRp(asNum(item['unit_price']))}',
                       fmtRp(asNum(item['subtotal'])),
@@ -674,20 +672,19 @@ class _HistoryTabState extends State<HistoryTab> {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(16),
-      borderSide: BorderSide(
-          color: dark ? const Color(0xff2A3140) : const Color(0xffE7E0D6)),
+      borderSide:
+          BorderSide(color: dark ? const Color(0xff334155) : kTaskBorder),
     );
     return InputDecoration(
       labelText: hint ? null : label,
       hintText: hint ? label : null,
       filled: true,
-      fillColor: dark ? const Color(0xff1F2530) : Colors.white,
+      fillColor: dark ? const Color(0xff263241) : kTaskSurface,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       enabledBorder: border,
       focusedBorder: border.copyWith(
           borderSide: BorderSide(
-              color: dark ? const Color(0xff7FA8CF) : const Color(0xff1E3A5F),
-              width: 1.4)),
+              color: dark ? const Color(0xffCBD5E1) : kTaskDark, width: 1.4)),
     );
   }
 
@@ -846,8 +843,8 @@ class _HistoryTabState extends State<HistoryTab> {
           final status = row['status']?.toString() ?? '';
           return _TxCard(
             icon: Icons.assignment_return,
-            iconBg: const Color(0xffE3EAF2),
-            iconFg: const Color(0xff2E5D8F),
+            iconBg: kTaskSand,
+            iconFg: kTaskDark,
             title: row['return_no']?.toString() ?? '-',
             subtitle: '${row['invoice_no'] ?? ''} · ${row['created_at'] ?? ''}',
             trailing: fmtRp(asNum(row['refund_amount'])),
@@ -900,10 +897,8 @@ class _HistoryTabState extends State<HistoryTab> {
           final status = (row['status'] ?? '').toString();
           return _TxCard(
             icon: isOffline ? Icons.cloud_off : Icons.receipt,
-            iconBg:
-                isOffline ? const Color(0xFFF5E1A8) : const Color(0xffE3EAF2),
-            iconFg:
-                isOffline ? const Color(0xFF8A6D1A) : const Color(0xff1E3A5F),
+            iconBg: isOffline ? kTaskSand : kTaskSand,
+            iconFg: isOffline ? kTaskTerracotta : kTaskDark,
             title: row['invoice_no']?.toString() ?? '-',
             subtitle:
                 '${row['created_at'] ?? ''} · ${isOffline ? 'Belum tersinkron' : (row['payment_method'] ?? '').toString().toUpperCase()}'
@@ -951,8 +946,8 @@ class _TxCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final chipBg = dark ? const Color(0xff26303F) : iconBg;
-    final chipFg = dark ? const Color(0xffDDE6F2) : iconFg;
+    final chipBg = dark ? const Color(0xff334155) : iconBg;
+    final chipFg = dark ? const Color(0xffE2E8F0) : iconFg;
     // Transaksi offline ditandai latar kuning.
     const offlineBg = Color(0xFFFFF3CD);
     return GlassCard(
@@ -988,8 +983,8 @@ class _TxCard extends StatelessWidget {
                   Text(subtitle,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 10, color: Color(0xff8A857C))),
+                      style:
+                          const TextStyle(fontSize: 10, color: kTaskSecondary)),
                 ],
               ),
             ),
@@ -1034,7 +1029,7 @@ class _StrukRow extends StatelessWidget {
             child: Text(label,
                 style: TextStyle(
                     fontSize: 12,
-                    color: const Color(0xff5f5f5d),
+                    color: kTaskSecondary,
                     fontWeight: bold ? FontWeight.w800 : FontWeight.w400)),
           ),
           Text(value,
@@ -1058,48 +1053,48 @@ class _StatusChip extends StatelessWidget {
     final (label, bg, fg) = switch (status) {
       'completed' => (
           'Selesai',
-          dark ? const Color(0xff243047) : const Color(0xffE3EAF2),
-          dark ? const Color(0xffA9C4E8) : const Color(0xff1E3A5F)
+          dark ? kTaskDark : kTaskSand,
+          dark ? const Color(0xffE2E8F0) : kTaskDark
         ),
       'pending' => (
           'Menunggu',
-          dark ? const Color(0xff243047) : const Color(0xffE3EAF2),
-          dark ? const Color(0xffA9C4E8) : const Color(0xff2E5D8F)
+          dark ? kTaskDark : kTaskSand,
+          dark ? const Color(0xffE2E8F0) : kTaskDark
         ),
       'partially_cancelled' => (
           'Sebagian dibatalkan',
-          dark ? const Color(0xff2A2C31) : const Color(0xffE6ECF3),
-          dark ? const Color(0xffC3C9D2) : const Color(0xff8A857C)
+          dark ? kTaskDarkSurface : const Color(0xffF1F5F9),
+          dark ? const Color(0xffCBD5E1) : kTaskSecondary
         ),
       'cancelled' => (
           'Dibatalkan',
-          dark ? const Color(0xff3A2622) : const Color(0xffF3DDD8),
-          dark ? const Color(0xffF2B8A5) : const Color(0xffB0563A)
+          dark ? const Color(0xff4A2F2A) : const Color(0xffF8E9E4),
+          dark ? const Color(0xffF2B8A5) : kTaskTerracotta
         ),
       'offline' => (
           'OFFLINE',
-          dark ? const Color(0xff3A3320) : const Color(0xFFF5E1A8),
-          dark ? const Color(0xffE8C96A) : const Color(0xFF8A6D1A)
+          dark ? const Color(0xff4A3E2A) : kTaskSand,
+          dark ? const Color(0xffF1D08A) : kTaskTerracotta
         ),
       'approved' => (
           'Disetujui',
-          dark ? const Color(0xff243047) : const Color(0xffE3EAF2),
-          dark ? const Color(0xffA9C4E8) : const Color(0xff2E5D8F)
+          dark ? kTaskDark : kTaskSand,
+          dark ? const Color(0xffE2E8F0) : kTaskDark
         ),
       'partially_refunded' => (
           'Retur sebagian',
-          dark ? const Color(0xff243047) : const Color(0xffE3EAF2),
-          dark ? const Color(0xffA9C4E8) : const Color(0xff2E5D8F)
+          dark ? kTaskDark : kTaskSand,
+          dark ? const Color(0xffE2E8F0) : kTaskDark
         ),
       'refunded' => (
           'Retur penuh',
-          dark ? const Color(0xff243047) : const Color(0xffE3EAF2),
-          dark ? const Color(0xffA9C4E8) : const Color(0xff1E3A5F)
+          dark ? kTaskDark : kTaskSand,
+          dark ? const Color(0xffE2E8F0) : kTaskDark
         ),
       _ => (
           status,
-          dark ? const Color(0xff2A2C31) : const Color(0xffE6ECF3),
-          dark ? const Color(0xffC3C9D2) : const Color(0xff8A857C)
+          dark ? kTaskDarkSurface : const Color(0xffF1F5F9),
+          dark ? const Color(0xffCBD5E1) : kTaskSecondary
         ),
     };
     return Container(

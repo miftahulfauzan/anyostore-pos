@@ -5,9 +5,9 @@ import AppShell from '../../components/AppShell';
 import { useAppSession } from '../../components/AppStateProvider';
 import WarehouseDashboard from '../../dashboard/WarehouseDashboard';
 import useDashboardRefresh from '../../dashboard/useDashboardRefresh';
+import { getWarehousePeriodRange, WAREHOUSE_PERIOD_OPTIONS } from '../../dashboard/warehouse-periods.mjs';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-const localDate = (date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
 const fullDate = (value) => { const [year, month, day] = String(value || '').split('-'); return year ? `${day}/${month}/${year}` : '-'; };
 
 async function requestJson(path, options) {
@@ -29,20 +29,32 @@ export default function StockDashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [selectedPeriod, setSelectedPeriod] = useState('last7');
   const role = user?.role || '';
   const refreshVersion = useDashboardRefresh(Boolean(role));
 
   useEffect(() => {
-    const end = localDate(new Date());
-    const startDate = new Date(`${end}T00:00:00+07:00`);
-    startDate.setDate(startDate.getDate() - 6);
-    const start = localDate(startDate);
-    setRange({ start, end });
-    setDraftStart(start);
-    setDraftEnd(end);
+    const initialRange = getWarehousePeriodRange('last7');
+    setRange(initialRange);
+    setDraftStart(initialRange.start);
+    setDraftEnd(initialRange.end);
   }, []);
 
   useEffect(() => { setData(null); }, [role, activeBranchId, range]);
+
+  const applyPeriod = (period) => {
+    const nextRange = getWarehousePeriodRange(period);
+    setSelectedPeriod(period);
+    setRange(nextRange);
+    setDraftStart(nextRange.start);
+    setDraftEnd(nextRange.end);
+  };
+
+  const applyCustomRange = () => {
+    if (!draftStart || !draftEnd || draftStart > draftEnd) return;
+    setSelectedPeriod('custom');
+    setRange({ start: draftStart, end: draftEnd });
+  };
 
   useEffect(() => {
     if (!role || !range.start || !range.end) return undefined;
@@ -77,11 +89,18 @@ export default function StockDashboardPage() {
         <p className="muted">Periode {fullDate(range.start)} – {fullDate(range.end)}</p>
       </div>
       <div className="stock-dashboard-controls">
-        <div className="warehouse-date-filter">
-          <label>Dari<input type="date" value={draftStart} onChange={(event) => setDraftStart(event.target.value)} /></label>
+        <div className="warehouse-dashboard-periods stock-dashboard-periods" role="group" aria-label="Pilih periode dashboard stok">
+          {WAREHOUSE_PERIOD_OPTIONS.map(({ key, label }) => (
+            <button type="button" key={key} aria-pressed={selectedPeriod === key} onClick={() => applyPeriod(key)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="warehouse-date-filter stock-dashboard-date-filter">
+          <label>Dari<input type="date" value={draftStart} onChange={(event) => { setDraftStart(event.target.value); setSelectedPeriod('custom'); }} /></label>
           <span>s/d</span>
-          <label>Sampai<input type="date" value={draftEnd} onChange={(event) => setDraftEnd(event.target.value)} /></label>
-          <button type="button" onClick={() => setRange({ start: draftStart, end: draftEnd })} disabled={!draftStart || !draftEnd || draftStart > draftEnd}>Terapkan</button>
+          <label>Sampai<input type="date" value={draftEnd} onChange={(event) => { setDraftEnd(event.target.value); setSelectedPeriod('custom'); }} /></label>
+          <button type="button" onClick={applyCustomRange} disabled={!draftStart || !draftEnd || draftStart > draftEnd}>Terapkan</button>
         </div>
       </div>
     </section>
