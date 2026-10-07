@@ -9,11 +9,11 @@ import { useAppSession } from '../components/AppStateProvider';
 import { createRequestSequence } from '../components/app-state.cjs';
 import WarehouseDashboard from './WarehouseDashboard';
 import useDashboardRefresh from './useDashboardRefresh';
+import { getWarehousePeriodRange, WAREHOUSE_PERIOD_OPTIONS } from './warehouse-periods.mjs';
 import { labelFor, paymentLabels } from '../lib/ui-labels';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rupiah = (value) => 'Rp' + Number(value || 0).toLocaleString('id-ID');
-const localDate = (date = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
 const fullDate = (value) => { const [year, month, day] = String(value || '').split('-'); return year ? `${day}/${month}/${year}` : '-'; };
 
 export default function DashboardPage() {
@@ -26,18 +26,30 @@ export default function DashboardPage() {
   const [draftEnd, setDraftEnd] = useState('');
   const dashboardLoadSequence = useRef(createRequestSequence());
   const refreshVersion = useDashboardRefresh(user?.role === 'gudang');
+  const [selectedPeriod, setSelectedPeriod] = useState('last7');
 
   useEffect(() => {
-    const end = localDate();
-    const startDate = new Date(`${end}T00:00:00+07:00`);
-    startDate.setDate(startDate.getDate() - 6);
-    const start = localDate(startDate);
-    setRange({ start, end });
-    setDraftStart(start);
-    setDraftEnd(end);
+    const initialRange = getWarehousePeriodRange('last7');
+    setRange(initialRange);
+    setDraftStart(initialRange.start);
+    setDraftEnd(initialRange.end);
   }, []);
 
   useEffect(() => { setData(null); }, [range, activeBranchId, user?.role]);
+
+  const applyPeriod = (period) => {
+    const nextRange = getWarehousePeriodRange(period);
+    setSelectedPeriod(period);
+    setRange(nextRange);
+    setDraftStart(nextRange.start);
+    setDraftEnd(nextRange.end);
+  };
+
+  const applyCustomRange = () => {
+    if (!draftStart || !draftEnd || draftStart > draftEnd) return;
+    setSelectedPeriod('custom');
+    setRange({ start: draftStart, end: draftEnd });
+  };
 
   useEffect(() => {
     if (!range.start || !range.end) return undefined;
@@ -85,7 +97,32 @@ export default function DashboardPage() {
     {message && <p className="message" role="status">{message}</p>}
     {!data ? <section className="panel"><p>Memuat ringkasan toko…</p></section> : isGudang ? (
       <>
-        <section className="warehouse-dashboard-toolbar"><div><span className="eyebrow">DASHBOARD GUDANG</span><h2>Periode {fullDate(range.start)} – {fullDate(range.end)}</h2></div><div className="warehouse-date-filter"><label>Dari<input type="date" value={draftStart} onChange={(event) => setDraftStart(event.target.value)} /></label><span>s/d</span><label>Sampai<input type="date" value={draftEnd} onChange={(event) => setDraftEnd(event.target.value)} /></label><button type="button" onClick={() => setRange({ start: draftStart, end: draftEnd })}>Terapkan</button></div></section>
+        <section className="warehouse-dashboard-toolbar">
+          <div>
+            <span className="eyebrow">DASHBOARD GUDANG</span>
+            <h2>Periode {fullDate(range.start)} – {fullDate(range.end)}</h2>
+          </div>
+          <div className="warehouse-dashboard-range-controls">
+            <div className="warehouse-dashboard-periods" role="group" aria-label="Pilih periode dashboard gudang">
+              {WAREHOUSE_PERIOD_OPTIONS.map(({ key, label }) => (
+                <button
+                  type="button"
+                  key={key}
+                  aria-pressed={selectedPeriod === key}
+                  onClick={() => applyPeriod(key)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="warehouse-date-filter">
+              <label>Dari<input type="date" value={draftStart} onChange={(event) => { setDraftStart(event.target.value); setSelectedPeriod('custom'); }} /></label>
+              <span>s/d</span>
+              <label>Sampai<input type="date" value={draftEnd} onChange={(event) => { setDraftEnd(event.target.value); setSelectedPeriod('custom'); }} /></label>
+              <button type="button" onClick={applyCustomRange} disabled={!draftStart || !draftEnd || draftStart > draftEnd}>Terapkan</button>
+            </div>
+          </div>
+        </section>
         <WarehouseDashboard data={data} start={range.start} end={range.end} />
       </>
     ) : <>
