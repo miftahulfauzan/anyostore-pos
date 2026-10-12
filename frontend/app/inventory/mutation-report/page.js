@@ -1,16 +1,10 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '../../components/AppShell';
-import DateRangePresets from '../../components/DateRangePresets';
 import { useAppSession } from '../../components/AppStateProvider';
+import { getWarehousePeriodRange, WAREHOUSE_PERIOD_OPTIONS } from '../../dashboard/warehouse-periods.mjs';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-
-const PRESETS = [
-  { label: 'Hari ini', days: 0 },
-  { label: '7 hari', days: 7 },
-  { label: '30 hari', days: 30 },
-];
 
 // Tanggal lokal WIB — jangan pakai toISOString().slice(0,10) (UTC) untuk
 // "hari ini", karena di pagi hari WIB hasilnya bisa salah sehari.
@@ -30,7 +24,7 @@ function displayDate(value) {
 export default function MutationReportPage() {
   const { user, activeBranchId } = useAppSession();
   const [tab, setTab] = useState('in');
-  const [preset, setPreset] = useState('');
+  const [preset, setPreset] = useState('last7');
   const [start, setStart] = useState(presetDate(7));
   const [end, setEnd] = useState(localDate());
   const [stores, setStores] = useState([]);
@@ -86,13 +80,14 @@ export default function MutationReportPage() {
 
   function applyFilter() { load(); }
   function resetFilter() {
-    setStart(presetDate(7)); setEnd(localDate()); setDesc(''); setStore('');
-    load({ start: presetDate(7), end: localDate(), desc: '', store: '' });
+    const range = getWarehousePeriodRange('last7');
+    setPreset('last7'); setStart(range.start); setEnd(range.end); setDesc(''); setStore('');
+    load({ start: range.start, end: range.end, desc: '', store: '' });
   }
-  function applyPreset(days) {
-    const s = presetDate(days), e = localDate();
-    setStart(s); setEnd(e);
-    load({ start: s, end: e });
+  function applyPreset(key) {
+    const range = getWarehousePeriodRange(key);
+    setPreset(key); setStart(range.start); setEnd(range.end);
+    load({ start: range.start, end: range.end });
   }
 
   function exportCsv() {
@@ -155,23 +150,20 @@ export default function MutationReportPage() {
         </div>
 
         <section className="panel no-print">
+          <div className="warehouse-dashboard-periods stock-dashboard-periods mutation-report-periods" role="group" aria-label="Pilih periode laporan barang">
+            {WAREHOUSE_PERIOD_OPTIONS.map(({ key, label }) => (
+              <button type="button" key={key} aria-pressed={preset === key} onClick={() => applyPreset(key)}>{label}</button>
+            ))}
+          </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'end' }}>
-            <DateRangePresets active={preset} onPick={(key, range) => {
-              setPreset(key);
-              if (range) {
-                setStart(range.start);
-                setEnd(range.end);
-                load({ start: range.start, end: range.end });
-              }
-            }} />
             {user?.role !== 'owner' && <label style={{ minWidth: 180 }}>Toko / Gudang
               <select value={store} onChange={(e) => { const v = e.target.value; setStore(v); load({ store: v }); }}>
                 <option value="">Semua</option>
                 {stores.map((s) => <option key={s.id} value={s.id}>{s.name}{s.type === 'gudang' ? ' (Gudang)' : ''}</option>)}
               </select>
             </label>}
-            <label style={{ minWidth: 150 }}>Dari<input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
-            <label style={{ minWidth: 150 }}>Sampai<input type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
+            <label style={{ minWidth: 150 }}>Dari<input type="date" value={start} onChange={(e) => { setStart(e.target.value); setPreset('custom'); }} /></label>
+            <label style={{ minWidth: 150 }}>Sampai<input type="date" value={end} onChange={(e) => { setEnd(e.target.value); setPreset('custom'); }} /></label>
             <label style={{ minWidth: 200, flex: 1 }}>Deskripsi / Filter<input placeholder="Cari deskripsi…" value={desc} onChange={(e) => setDesc(e.target.value)} /></label>
             <button type="button" onClick={applyFilter} disabled={loading} style={{ minHeight: 40 }}>{loading ? 'Memuat…' : 'Terapkan Filter'}</button>
             <button type="button" className="small secondary" onClick={resetFilter} style={{ minHeight: 40 }}>Reset</button>
