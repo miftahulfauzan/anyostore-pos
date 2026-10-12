@@ -1844,6 +1844,7 @@ html[data-theme="purple"] .sidebar {
 .warehouse-dashboard-periods { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
 .warehouse-dashboard-periods button { min-height: 32px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 5px; background: var(--card); color: var(--muted-foreground); font-size: 11px; font-weight: 600; }
 .warehouse-dashboard-periods button[aria-pressed="true"] { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); }
+.mutation-report-periods { justify-content: flex-start; width: 100%; margin-bottom: 12px; }
 .warehouse-date-filter { display: flex; align-items: end; gap: 7px; }
 .warehouse-date-filter label { min-width: 132px; gap: 4px; font-size: 10px; color: var(--muted-foreground); }
 .warehouse-date-filter input { min-height: 35px; padding: 6px 8px; font-size: 11px; }

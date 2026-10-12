@@ -5,6 +5,7 @@ const path = require('node:path');
 
 const dashboardPage = fs.readFileSync(path.join(__dirname, '..', 'app', 'dashboard', 'page.js'), 'utf8');
 const stockDashboardPage = fs.readFileSync(path.join(__dirname, '..', 'app', 'inventory', 'dashboard', 'page.js'), 'utf8');
+const mutationReportPage = fs.readFileSync(path.join(__dirname, '..', 'app', 'inventory', 'mutation-report', 'page.js'), 'utf8');
 const globalStyles = fs.readFileSync(path.join(__dirname, '..', 'app', 'globals.css'), 'utf8');
 
 let periodsModule;
@@ -28,6 +29,16 @@ test('stock dashboard exposes quick periods alongside its custom date range', ()
   assert.match(stockDashboardPage, /aria-pressed=/);
   assert.match(stockDashboardPage, /type="date"/);
   assert.match(stockDashboardPage, /Terapkan/);
+});
+
+test('barang masuk/keluar report applies quick periods in one click and keeps custom dates', () => {
+  assert.match(mutationReportPage, /WAREHOUSE_PERIOD_OPTIONS\.map/);
+  assert.match(mutationReportPage, /aria-label="Pilih periode laporan barang"/);
+  assert.match(mutationReportPage, /aria-pressed=\{preset === key\}/);
+  assert.match(mutationReportPage, /onClick=\{\(\) => applyPreset\(key\)\}/);
+  assert.match(mutationReportPage, /load\(\{ start: range\.start, end: range\.end \}\)/);
+  assert.match(mutationReportPage, /type="date"/);
+  assert.doesNotMatch(mutationReportPage, /<DateRangePresets/);
 });
 
 test('stock dashboard date controls reflow on mobile without an inline separator', () => {
