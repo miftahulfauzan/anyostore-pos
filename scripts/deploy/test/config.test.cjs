@@ -15,7 +15,8 @@ test('workflow YAML gates exact-SHA deploy on CI and serializes releases without
   assert.equal(ci.jobs.mobile, undefined, 'Mobile checks must not delay web CI/deploy');
   assert.equal(ci.jobs['android-apk'], undefined, 'APK build must not delay web CI/deploy');
   assert.equal(mobile.name, 'Mobile');
-  assert.ok(mobile.on.push.branches.includes('main'));
+  assert.deepEqual(mobile.on.push, { branches: ['main'], paths: ['mobile/**'] },
+    'automatic mobile workflows should run only for main pushes that change mobile files');
   assert.ok(mobile.on.pull_request !== undefined);
   assert.ok(mobile.on.workflow_dispatch !== undefined);
   assert.ok(mobile.jobs.mobile);
