@@ -684,7 +684,38 @@ router.get('/mutation-report', authorize('owner','manager','admin','gudang'), as
     );
     const breakdown = breakdownRows.map((row) => ({ label: row.label, total_qty: Number(row.total_qty) }));
 
-    res.json({ success:true, data: data, summary, breakdown, type, total: data.length });
+    const [dailyRows] = await db.execute(
+      `SELECT DATE(sm.created_at) AS movement_date, COALESCE(SUM(ABS(sm.qty)), 0) AS total_qty
+       FROM stock_mutations sm
+       ${where}
+       GROUP BY DATE(sm.created_at)
+       ORDER BY movement_date ASC`,
+      params
+    );
+    const daily = dailyRows.map((row) => ({
+      date: row.movement_date instanceof Date ? localDateString(row.movement_date) : String(row.movement_date).slice(0, 10),
+      total_qty: Number(row.total_qty),
+    }));
+
+    const [topProductRows] = await db.execute(
+      `SELECT sm.product_id, MIN(p.name) AS product_name, MIN(p.sku) AS sku,
+              COALESCE(SUM(ABS(sm.qty)), 0) AS total_qty
+       FROM stock_mutations sm
+       JOIN products p ON p.id = sm.product_id
+       ${where}
+       GROUP BY sm.product_id
+       ORDER BY total_qty DESC, product_name ASC, sm.product_id ASC
+       LIMIT 3`,
+      params
+    );
+    const top_products = topProductRows.map((row) => ({
+      product_id: Number(row.product_id),
+      name: row.product_name,
+      sku: row.sku,
+      total_qty: Number(row.total_qty),
+    }));
+
+    res.json({ success:true, data: data, summary, breakdown, daily, top_products, type, total: data.length });
   }catch(e){ next(e); }
 });
 
