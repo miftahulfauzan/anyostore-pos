@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '../../components/AppShell';
 import { useAppSession } from '../../components/AppStateProvider';
 import { getWarehousePeriodRange, WAREHOUSE_PERIOD_OPTIONS } from '../../dashboard/warehouse-periods.mjs';
+import MutationReportInsights from './MutationReportInsights';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -33,6 +34,9 @@ export default function MutationReportPage() {
   const [rows, setRows] = useState([]);
   const [summary, setSummary] = useState({ product_count: 0, total_qty: 0 });
   const [breakdown, setBreakdown] = useState([]);
+  const [daily, setDaily] = useState([]);
+  const [topProducts, setTopProducts] = useState([]);
+  const [loadError, setLoadError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [mobileVisibleCount, setMobileVisibleCount] = useState(6);
@@ -42,6 +46,7 @@ export default function MutationReportPage() {
   async function load(next = {}) {
     /* sesi via httpOnly cookie */
     setLoading(true);
+    setLoadError('');
     const seq = ++loadSeq.current;
     try {
       const params = new URLSearchParams({
@@ -63,7 +68,19 @@ export default function MutationReportPage() {
       setMobileVisibleCount(6);
       setSummary(b.summary || { product_count: 0, total_qty: 0 });
       setBreakdown(b.breakdown || []);
-    } catch (e) { if (seq === loadSeq.current) setMessage(e.message); }
+      setDaily(b.daily || []);
+      setTopProducts(b.top_products || []);
+    } catch (e) {
+      if (seq === loadSeq.current) {
+        setMessage(e.message);
+        setLoadError(e.message);
+        setRows([]);
+        setSummary({ product_count: 0, total_qty: 0 });
+        setBreakdown([]);
+        setDaily([]);
+        setTopProducts([]);
+      }
+    }
     finally { if (seq === loadSeq.current) setLoading(false); }
   }
 
@@ -171,10 +188,16 @@ export default function MutationReportPage() {
           {message && <p className="message" role="status">{message}</p>}
         </section>
 
-        <section className="metrics-grid no-print" style={{ gridTemplateColumns: 'repeat(2, 1fr)', maxWidth: 480 }}>
-          <article className="metric-card"><div><span>Jumlah Produk</span><strong>{summary.product_count.toLocaleString('id-ID')}</strong></div></article>
-          <article className="metric-card"><div><span>Total Qty</span><strong>{summary.total_qty.toLocaleString('id-ID')}</strong></div></article>
-        </section>
+        <MutationReportInsights
+          type={tab}
+          summary={summary}
+          daily={daily}
+          topProducts={topProducts}
+          start={start}
+          end={end}
+          loading={loading}
+          error={loadError}
+        />
 
         {!!breakdown.length && <section className="panel no-print">
           <h2 style={{ margin: 0, fontSize: 18 }}>{tab === 'out' ? 'Ringkasan Tujuan' : 'Ringkasan Keterangan'}</h2>

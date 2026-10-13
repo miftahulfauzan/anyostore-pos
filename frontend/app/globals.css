@@ -1845,6 +1845,53 @@ html[data-theme="purple"] .sidebar {
 .warehouse-dashboard-periods button { min-height: 32px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 5px; background: var(--card); color: var(--muted-foreground); font-size: 11px; font-weight: 600; }
 .warehouse-dashboard-periods button[aria-pressed="true"] { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); }
 .mutation-report-periods { justify-content: flex-start; width: 100%; margin-bottom: 12px; }
+.mutation-insights { display: grid; gap: 12px; min-width: 0; }
+.mutation-insights-heading h2 { margin: 0; color: var(--foreground); font-size: clamp(18px, 1.5vw, 22px); line-height: 1.2; }
+.mutation-insights-heading p { margin: 4px 0 0; color: var(--muted-foreground); font-size: 12px; }
+.mutation-insights-grid { display: grid; grid-template-columns: minmax(160px, .65fr) minmax(0, 1.8fr) minmax(230px, 1.05fr); gap: 12px; align-items: stretch; min-width: 0; }
+.mutation-insights-metrics, .mutation-insights-panel { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+.mutation-insights-metrics { display: grid; grid-template-rows: repeat(2, minmax(0, 1fr)); }
+.mutation-insights-metrics > div { display: grid; align-content: center; gap: 6px; min-width: 0; padding: 18px 20px; }
+.mutation-insights-metrics > div + div { border-top: 1px solid var(--border); }
+.mutation-insights-metrics span { color: var(--muted-foreground); font-size: 13px; }
+.mutation-insights-metrics strong { color: var(--foreground); font-size: clamp(24px, 2.5vw, 34px); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.mutation-insights-panel { display: flex; flex-direction: column; min-height: 290px; padding: 18px 20px; }
+.mutation-insights-panel-heading h3 { margin: 0; color: var(--foreground); font-size: 15px; line-height: 1.3; }
+.mutation-insights-panel-heading p { margin: 4px 0 0; color: var(--muted-foreground); font-size: 11px; }
+.mutation-insights-state { display: grid; flex: 1; place-items: center; margin: 0; padding: 24px 10px; color: var(--muted-foreground); font-size: 12px; text-align: center; }
+.mutation-chart-plot { display: flex; flex: 1; flex-direction: column; justify-content: flex-end; min-width: 0; }
+.mutation-chart-plot svg { display: block; width: 100%; height: auto; min-height: 180px; overflow: visible; }
+.mutation-chart-gridline { stroke: var(--border); stroke-width: 1; }
+.mutation-chart-line { fill: none; stroke: var(--primary); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.mutation-chart-point { fill: var(--primary); }
+.mutation-chart-labels { display: flex; justify-content: space-between; gap: 8px; padding: 0 5px; color: var(--muted-foreground); font-size: 10px; font-variant-numeric: tabular-nums; }
+.mutation-top-products { display: grid; align-content: center; flex: 1; gap: 0; margin: 8px 0 0; padding: 0; list-style: none; }
+.mutation-top-products li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: center; min-width: 0; padding: 10px 0; }
+.mutation-top-products li + li { border-top: 1px solid var(--border); }
+.mutation-top-rank { color: var(--muted-foreground); font-size: 13px; font-weight: 700; }
+.mutation-top-detail { display: grid; gap: 4px; min-width: 0; }
+.mutation-top-detail > div { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.mutation-top-detail strong { min-width: 0; overflow: hidden; color: var(--foreground); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.mutation-top-detail b { flex: 0 0 auto; color: var(--foreground); font-size: 11px; font-variant-numeric: tabular-nums; }
+.mutation-top-detail small { overflow: hidden; color: var(--muted-foreground); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.mutation-top-bar { display: block; width: 100%; height: 5px; overflow: hidden; border-radius: 3px; background: var(--muted); }
+.mutation-top-bar i { display: block; height: 100%; border-radius: inherit; background: var(--primary); }
+@media (max-width: 1050px) {
+  .mutation-insights-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mutation-insights-metrics { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; }
+  .mutation-insights-metrics > div + div { border-top: 0; border-left: 1px solid var(--border); }
+  .mutation-insights-panel { min-height: 270px; }
+}
+@media (max-width: 700px) {
+  .mutation-insights-grid { grid-template-columns: minmax(0, 1fr); }
+  .mutation-insights-metrics { grid-column: auto; }
+  .mutation-insights-metrics > div { padding: 14px; }
+  .mutation-insights-metrics span { font-size: 11px; }
+  .mutation-insights-metrics strong { font-size: 25px; }
+  .mutation-insights-panel { min-height: 0; padding: 16px; }
+  .mutation-chart-plot svg { min-height: 140px; }
+  .mutation-top-products { margin-top: 10px; }
+}
 .warehouse-date-filter { display: flex; align-items: end; gap: 7px; }
 .warehouse-date-filter label { min-width: 132px; gap: 4px; font-size: 10px; color: var(--muted-foreground); }
 .warehouse-date-filter input { min-height: 35px; padding: 6px 8px; font-size: 11px; }
