@@ -5,6 +5,7 @@
 //   node scripts/audit-payments.js
 
 const db = require('../src/db');
+const { SALES_STATUSES_SQL } = require('../src/sales-status');
 
 async function main() {
   const [rows] = await db.execute(
@@ -15,7 +16,7 @@ async function main() {
             GROUP_CONCAT(DISTINCT tp.payment_method ORDER BY tp.payment_method SEPARATOR ',') AS payment_methods
      FROM transactions t
      LEFT JOIN transaction_payments tp ON tp.transaction_id = t.id
-     WHERE t.status IN ('completed','partially_cancelled','refunded')
+     WHERE t.status IN (${SALES_STATUSES_SQL})
      GROUP BY t.id
      ORDER BY t.id`
   );

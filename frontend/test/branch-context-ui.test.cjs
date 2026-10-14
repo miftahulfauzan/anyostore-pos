@@ -87,8 +87,8 @@ test('dark mode uses shared readable semantic tokens across app surfaces and con
   assert.match(css, /\.dark \.app-main/);
   assert.match(css, /\.dark \.app-main :where\(input/);
   assert.match(css, /\.dark \.app-main :where\(\.panel/);
-  assert.match(css, /\[style\*="color: #0f172a"\]/);
-  assert.match(css, /\[style\*="color: #64748b"\]/);
-  assert.match(css, /\[style\*="color: #1e3a5f"\]/);
+  assert.match(css, /color: var\(--text-primary\) !important/);
+  assert.match(css, /color: var\(--text-muted\) !important/);
+  assert.doesNotMatch(css, /\[style\*="color:/);
   assert.match(css, /\[style\*="background: #ffffff"\]/);
 });

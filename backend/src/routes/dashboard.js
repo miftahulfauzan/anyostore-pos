@@ -85,13 +85,13 @@ router.get('/', async (req, res, next) => {
       `SELECT b.id, b.name, b.address,
         COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount - t.refunded_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) = CURDATE()), 0) AS today_sales,
         COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount - t.refunded_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)), 0) AS seven_day_sales,
-        COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount - t.refunded_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)), 0) AS month_sales,
+        COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount - t.refunded_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')), 0) AS month_sales,
         COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id AND e.status = 'approved' AND e.expense_date = CURDATE()), 0) AS today_expenses,
         COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id AND e.status = 'approved' AND e.expense_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)), 0) AS seven_day_expenses,
         COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id AND e.status = 'approved' AND YEAR(e.expense_date) = YEAR(CURDATE()) AND MONTH(e.expense_date) = MONTH(CURDATE())), 0) AS month_expenses,
         COALESCE((SELECT COUNT(*) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) = CURDATE()), 0) AS today_transactions,
         COALESCE((SELECT COUNT(*) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)), 0) AS seven_day_transactions,
-        COALESCE((SELECT COUNT(*) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)), 0) AS month_transactions,
+        COALESCE((SELECT COUNT(*) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')), 0) AS month_transactions,
         (SELECT COUNT(*) FROM products p WHERE p.branch_id = b.id AND p.is_active = TRUE) AS products
        FROM branches b WHERE b.is_active = TRUE${storeScope} ORDER BY b.id`,
       selectedBranchId === null ? [] : [selectedBranchId]
