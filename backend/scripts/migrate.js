@@ -24,6 +24,61 @@ function isIdempotentError(message) {
   return IDEMPOTENT_ERROR_PATTERNS.some((pattern) => pattern.test(message || ''));
 }
 
+function splitStatements(sql) {
+  const statements = [];
+  let current = '';
+  let quote = null;
+  let lineComment = false;
+  let blockComment = false;
+  for (let index = 0; index < sql.length; index += 1) {
+    const char = sql[index];
+    const next = sql[index + 1];
+    if (lineComment) {
+      current += char;
+      if (char === '\n') lineComment = false;
+      continue;
+    }
+    if (blockComment) {
+      current += char;
+      if (char === '*' && next === '/') { current += next; index += 1; blockComment = false; }
+      continue;
+    }
+    if (quote) {
+      current += char;
+      if (char === '\\' && next) { current += next; index += 1; }
+      else if (char === quote && next === quote) { current += next; index += 1; }
+      else if (char === quote) quote = null;
+      continue;
+    }
+    if (char === '-' && next === '-' && /\s/.test(sql[index + 2] || '')) { lineComment = true; current += char; continue; }
+    if (char === '#') { lineComment = true; current += char; continue; }
+    if (char === '/' && next === '*') { blockComment = true; current += char + next; index += 1; continue; }
+    if (char === "'" || char === '"' || char === '`') { quote = char; current += char; continue; }
+    if (char === ';') {
+      if (current.replace(/\/\*[\s\S]*?\*\/|--[^\n]*|#[^\n]*/g, '').trim()) statements.push(current.trim());
+      current = '';
+      continue;
+    }
+    current += char;
+  }
+  if (quote || blockComment) throw new Error('SQL migration contains an unclosed quote or comment');
+  if (current.replace(/\/\*[\s\S]*?\*\/|--[^\n]*|#[^\n]*/g, '').trim()) statements.push(current.trim());
+  return statements;
+}
+
+async function executeStatements(connection, sql) {
+  let idempotent = false;
+  for (const statement of splitStatements(sql)) {
+    try {
+      await connection.query(statement);
+    } catch (error) {
+      if (!isIdempotentError(firstLine(error))) throw error;
+      idempotent = true;
+    }
+  }
+  return idempotent;
+}
+
 async function run() {
   const dir = path.join(__dirname, '..', 'migrations');
   if (!fs.existsSync(dir)) { console.log('No migrations dir'); return; }
@@ -69,28 +124,17 @@ async function run() {
       stats.skipped += 1;
       continue;
     }
-    // split by statements loosely, run as multi-statement but catch errors per file
     console.log(`[migrate] applying ${file}`);
     try {
-      await conn.query(sql);
+      const idempotent = await executeStatements(conn, sql);
       await conn.query('INSERT INTO _migrations (filename, content_hash) VALUES (?, ?)', [file, hash]);
       console.log(`[migrate] done ${file}`);
-      stats.applied += 1;
+      if (idempotent) stats.idempotent += 1;
+      else stats.applied += 1;
     } catch (e) {
       const msg = firstLine(e);
-      if (isIdempotentError(msg)) {
-        // Tujuan migrasi sudah terpenuhi (kolom/entry/tabel sudah ada) — aman
-        // ditandai selesai supaya tidak gagal lagi di restart berikutnya.
-        await conn.query('INSERT IGNORE INTO _migrations (filename, content_hash) VALUES (?, ?)', [file, hash]);
-        console.log(`[migrate] marked ${file} as done (idempotent): ${msg}`);
-        stats.idempotent += 1;
-      } else {
-        // Kegagalan nyata: jangan tandai selesai. File akan dicoba ulang pada
-        // restart/deploy berikutnya. Lanjutkan memeriksa file lain supaya satu
-        // laporan memuat semua kegagalan, lalu keluar non-zero di akhir.
-        console.error(`[migrate] FAILED ${file}: ${msg}`);
-        stats.failed.push({ file, message: msg });
-      }
+      console.error(`[migrate] FAILED ${file}: ${msg}`);
+      stats.failed.push({ file, message: msg });
     }
   }
 
@@ -103,4 +147,6 @@ async function run() {
   if (stats.failed.length) process.exit(1);
 }
 
-run().catch((e) => { console.error('[migrate] fatal:', firstLine(e)); process.exit(1); });
+if (require.main === module) run().catch((e) => { console.error('[migrate] fatal:', firstLine(e)); process.exit(1); });
+
+module.exports = { splitStatements, executeStatements };

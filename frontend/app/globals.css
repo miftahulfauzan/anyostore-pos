@@ -2941,50 +2941,23 @@ html.dark body {
   background-color: var(--surface-primary);
   color: var(--text-primary);
 }
-.dark .app-main :where(h1, h2, h3, h4, p, span, strong, small, label, th, td, li, dt, dd, legend, summary) { color: var(--text-primary); }
-.dark .app-main :where(.muted, .field-hint, .section-heading p, .dashboard-note, .opname-search-meta, .opname-empty, .opname-history-empty, .opname-history-main span, .opname-history-main small, .opname-history-line small, .warehouse-panel-heading p, .warehouse-stat small, .warehouse-range-note, .trend-labels, .stock-dashboard-branch, .branch-switcher-heading small, .branch-switcher-options small) { color: var(--text-muted); }
+.dark .app-main :where(h1, h2, h3, h4, p, span, strong, small, label, th, td, li, dt, dd, legend, summary) { color: var(--text-primary) !important; }
+.dark .app-main :where(.muted, .field-hint, .section-heading p, .dashboard-note, .opname-search-meta, .opname-empty, .opname-history-empty, .opname-history-main span, .opname-history-main small, .opname-history-line small, .warehouse-panel-heading p, .warehouse-stat small, .warehouse-range-note, .trend-labels, .stock-dashboard-branch, .branch-switcher-heading small, .branch-switcher-options small) { color: var(--text-muted) !important; }
 .dark .app-main :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { border-color: var(--input); background-color: var(--surface-secondary); color: var(--text-primary); }
 .dark .app-main :where(input, select, textarea)::placeholder { color: var(--text-muted); opacity: 1; }
 .dark .app-main :where(th, td, .opname-history-item, .data-list article, .history-item, .transfer-history-card) { border-color: var(--border); }
 .dark .app-main :where(a:not(.button-link):not(.warehouse-action)) { color: #93c5fd; }
-.dark .app-main :where(a.button-link, button span, .button-link span) { color: inherit; }
-.dark .app-main :where(.negative, .list-danger) { color: #fca5a5; }
-.dark .app-main :where(.positive, .list-positive) { color: #86efac; }
-.dark .app-main :where(.list-warning) { color: #fdba74; }
-.dark .app-main :where(.summary-in) { color: #6ee7b7; }
-.dark .app-main :where(.summary-out) { color: #fca5a5; }
-.dark .app-main :where(.summary-net) { color: #93c5fd; }
-.dark .app-main [style*="color: #111827"],
-.dark .app-main [style*="color:#111827"],
-.dark .app-main [style*="color: rgb(17, 24, 39)"],
-.dark .app-main [style*="color: #0f172a"],
-.dark .app-main [style*="color:#0f172a"],
-.dark .app-main [style*="color: #172033"],
-.dark .app-main [style*="color: #1e293b"],
-.dark .app-main [style*="color:#1e293b"],
-.dark .app-main [style*="color: #1f2937"],
-.dark .app-main [style*="color: rgb(15, 23, 42)"],
-.dark .app-main [style*="color: rgb(30, 41, 59)"],
-.dark .app-main [style*="color: black"] { color: var(--text-primary) !important; }
-.dark .app-main [style*="color: #1a1a1a"],
-.dark .app-main [style*="color: #18181b"],
-.dark .app-main [style*="color: #1c2418"],
-.dark .app-main [style*="color: #1e3a5f"],
-.dark .app-main [style*="color: #334155"],
-.dark .app-main [style*="color: #39424f"],
-.dark .app-main [style*="color: #41523a"],
-.dark .app-main [style*="color: #475569"],
-.dark .app-main [style*="color: #52525b"] { color: var(--text-primary) !important; }
-.dark .app-main [style*="color: #64748b"],
-.dark .app-main [style*="color: #71717a"] { color: var(--text-muted) !important; }
-.dark .app-main [style*="color: #2563eb"],
-.dark .app-main [style*="color: #1d4ed8"] { color: #93c5fd !important; }
-.dark .app-main [style*="color: #991b1b"],
-.dark .app-main [style*="color: #b91c1c"],
-.dark .app-main [style*="color: #7f1d1d"] { color: #fca5a5 !important; }
-.dark .app-main [style*="color: #047857"],
-.dark .app-main [style*="color: #15803d"],
-.dark .app-main [style*="color: #0f766e"] { color: #6ee7b7 !important; }
+.dark .app-main :where(button span, button strong, button small, a span, a strong, a small, .button-link span) { color: inherit !important; }
+.dark .app-main :where(.negative, .list-danger) { color: #fca5a5 !important; }
+.dark .app-main :where(.positive, .list-positive) { color: #86efac !important; }
+.dark .app-main :where(.list-warning) { color: #fdba74 !important; }
+.dark .app-main :where(.summary-in) { color: #6ee7b7 !important; }
+.dark .app-main :where(.summary-out) { color: #fca5a5 !important; }
+.dark .app-main :where(.summary-net) { color: #93c5fd !important; }
+.dark .app-main :where(.status.pending) { color: #fcd34d !important; }
+.dark .app-main :where(.status.approved) { color: #93c5fd !important; }
+.dark .app-main :where(.status.paid) { color: #86efac !important; }
+.dark .app-main :where(th) { color: var(--text-muted) !important; }
 .dark .app-main [style*="background: #fff"],
 .dark .app-main [style*="background:#fff"],
 .dark .app-main [style*="background: #ffffff"],

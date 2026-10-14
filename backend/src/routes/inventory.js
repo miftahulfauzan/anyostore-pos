@@ -778,13 +778,17 @@ router.post('/mutations', authorize('owner', 'manager', 'admin', 'gudang'), asyn
   try {
     const { warehouse_id: warehouseId, product_id: productId, variant_id: variantId = null, qty, type, notes } = req.body;
     const quantity = Number(qty);
-    if (!Number.isInteger(Number(warehouseId)) || !Number.isInteger(Number(productId)) || !Number.isInteger(quantity) || quantity === 0 || !mutationTypes.has(type)) {
+    if (!Number.isInteger(Number(warehouseId)) || !Number.isInteger(Number(productId)) || (variantId != null && (!Number.isSafeInteger(Number(variantId)) || Number(variantId) <= 0)) || !Number.isInteger(quantity) || quantity === 0 || !mutationTypes.has(type)) {
       return res.status(400).json({ success: false, message: 'Data mutasi tidak valid' });
     }
     await connection.beginTransaction();
     const [warehouses] = await connection.execute('SELECT id FROM warehouses WHERE id = ? AND branch_id = ? AND is_active = TRUE FOR UPDATE', [warehouseId, req.user.branch_id]);
     const [products] = await connection.execute('SELECT id, stock FROM products WHERE id = ? AND branch_id = ? AND is_active = TRUE FOR UPDATE', [productId, req.user.branch_id]);
     if (!warehouses[0] || !products[0]) throw Object.assign(new Error('Gudang atau produk tidak ditemukan'), { status: 404 });
+    if (variantId != null) {
+      const [variants] = await connection.execute('SELECT id FROM product_variants WHERE id = ? AND product_id = ? AND is_active = TRUE FOR UPDATE', [variantId, productId]);
+      if (!variants[0]) throw Object.assign(new Error('Varian tidak sesuai produk'), { status: 400 });
+    }
     const [balances] = await connection.execute('SELECT id, quantity FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id <=> ? FOR UPDATE', [warehouseId, productId, variantId]);
     const before = balances[0]?.quantity || 0;
     const after = before + quantity;
