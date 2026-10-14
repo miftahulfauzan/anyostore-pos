@@ -2685,20 +2685,19 @@ html.dark body {
   }
 }
 
-/* Product catalog cards: one 8px rhythm, with the photo and each data block
-   aligned to the same card edge. Grid tracks grow only when the viewport fits. */
+/* Product catalog cards: compact fixed desktop tracks keep photo sizes stable. */
 .product-list.grid-view {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 292px), 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, 230px);
+  gap: 12px;
 }
 .product-list.grid-view .product-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-content: start;
   align-items: start;
-  gap: 12px;
+  gap: 8px;
   min-width: 0;
-  padding: 22px;
+  padding: 12px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--card);
@@ -2712,7 +2711,7 @@ html.dark body {
 }
 .product-list.grid-view .product-card__content {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
   min-width: 0;
 }
@@ -2723,7 +2722,7 @@ html.dark body {
 }
 .product-list.grid-view .product-card__identity > strong {
   color: var(--foreground);
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 750;
   line-height: 1.25;
   overflow-wrap: anywhere;
@@ -2731,7 +2730,7 @@ html.dark body {
 .product-list.grid-view .product-card__identity > span {
   margin: 0;
   color: var(--muted-foreground);
-  font-size: .9rem;
+  font-size: .82rem;
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
@@ -2741,11 +2740,11 @@ html.dark body {
   gap: 8px;
   width: 100%;
   margin: 0;
-  font-size: .85rem;
+  font-size: .78rem;
   line-height: 1.35;
 }
 .product-list.grid-view .product-card__locations > strong {
-  font-size: .82rem;
+  font-size: .78rem;
 }
 .product-list.grid-view .product-card__locations .product-rack-location-list {
   justify-items: end;
@@ -2760,9 +2759,9 @@ html.dark body {
 }
 .product-list.grid-view .product-card .product-actions {
   display: grid;
-  grid-template-columns: repeat(5, 44px);
+  grid-template-columns: repeat(5, 38px);
   justify-content: start;
-  gap: 6px;
+  gap: 3px;
   width: max-content;
   max-width: 100%;
   margin: 0;
@@ -2782,11 +2781,11 @@ html.dark body {
 }
 .product-list.grid-view .product-card .icon-action {
   box-sizing: border-box;
-  flex: 0 0 44px;
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  min-height: 38px;
   padding: 0;
   border-color: var(--border);
   border-radius: 10px;
@@ -2802,20 +2801,20 @@ html.dark body {
   display: grid;
   gap: 4px;
   min-width: 0;
-  padding-top: 12px;
+  padding-top: 8px;
   border-top: 1px solid var(--border);
   text-align: left;
 }
 .product-list.grid-view .product-card__inventory > strong {
   color: var(--foreground);
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   font-weight: 750;
   line-height: 1.25;
 }
 .product-list.grid-view .product-card__inventory > span {
   margin: 0;
   color: var(--muted-foreground);
-  font-size: .9rem;
+  font-size: .82rem;
   line-height: 1.35;
 }
 
@@ -2828,9 +2827,35 @@ html.dark body {
     gap: 12px;
     padding: 20px;
   }
+  .product-list.grid-view .product-card .product-actions {
+    grid-template-columns: repeat(5, 44px);
+    gap: 6px;
+  }
+  .product-list.grid-view .product-card .icon-action {
+    flex-basis: 44px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
   .product-list.grid-view .product-card__identity > strong { font-size: 1rem; }
   .product-list.grid-view .product-card__identity > span,
   .product-list.grid-view .product-card__inventory > span { font-size: .85rem; }
+}
+
+@media (pointer: coarse) and (min-width: 701px) {
+  .product-list.grid-view { grid-template-columns: repeat(auto-fill, 260px); }
+  .product-list.grid-view .product-card .product-actions {
+    grid-template-columns: repeat(5, 44px);
+    gap: 3px;
+  }
+  .product-list.grid-view .product-card .icon-action {
+    flex-basis: 44px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 
 @media (max-width: 360px) {
