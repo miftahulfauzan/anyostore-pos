@@ -1845,6 +1845,12 @@ html[data-theme="purple"] .sidebar {
 .warehouse-dashboard-periods button { min-height: 32px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 5px; background: var(--card); color: var(--muted-foreground); font-size: 11px; font-weight: 600; }
 .warehouse-dashboard-periods button[aria-pressed="true"] { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); }
 .mutation-report-periods { justify-content: flex-start; width: 100%; margin-bottom: 12px; }
+.date-range-presets { justify-content: flex-start; gap: 8px; width: 100%; }
+.date-range-presets button { min-height: 40px; padding: 7px 12px; font-size: 13px; white-space: nowrap; }
+@media (max-width: 760px) {
+  .date-range-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .date-range-presets button { min-width: 0; min-height: 44px; padding-inline: 4px; font-size: 11px; }
+}
 .mutation-insights { display: grid; gap: 12px; min-width: 0; }
 .mutation-insights-heading h2 { margin: 0; color: var(--foreground); font-size: clamp(18px, 1.5vw, 22px); line-height: 1.2; }
 .mutation-insights-heading p { margin: 4px 0 0; color: var(--muted-foreground); font-size: 12px; }

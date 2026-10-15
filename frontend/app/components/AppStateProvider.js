@@ -35,6 +35,16 @@ export default function AppStateProvider({ children }) {
   const hasUnsavedWork = useCallback(() => unsavedWork.current.hasUnsavedWork(), []);
 
   useEffect(() => {
+    const warnBeforeLeaving = (event) => {
+      if (!hasUnsavedWork()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeLeaving);
+    return () => window.removeEventListener('beforeunload', warnBeforeLeaving);
+  }, [hasUnsavedWork]);
+
+  useEffect(() => {
     const user = session.user;
     if (!user) return;
     if (user.role !== 'owner') {

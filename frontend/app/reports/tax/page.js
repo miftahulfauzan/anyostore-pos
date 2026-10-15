@@ -29,30 +29,30 @@ export default function TaxReportPage() {
     setEnd(localDateString(d));
   }, [start, end]);
 
-  async function fetchPpn() {
+  async function fetchPpn(range = { start, end }) {
     setLoading(true); setMessage('');
     try {
-      const r = await fetch(`${api}/tax/report?start=${start}&end=${end}`, { headers: headers() });
+      const r = await fetch(`${api}/tax/report?start=${range.start}&end=${range.end}`, { headers: headers() });
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
       setPpn(b.data);
     } catch (e) { setMessage(e.message); } finally { setLoading(false); }
   }
 
-  async function fetchFaktur() {
+  async function fetchFaktur(range = { start, end }) {
     setLoading(true); setMessage('');
     try {
-      const r = await fetch(`${api}/tax/faktur-pajak?start=${start}&end=${end}`, { headers: headers() });
+      const r = await fetch(`${api}/tax/faktur-pajak?start=${range.start}&end=${range.end}`, { headers: headers() });
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
       setFaktur(b.data);
     } catch (e) { setMessage(e.message); } finally { setLoading(false); }
   }
 
-  async function fetchPph23() {
+  async function fetchPph23(range = { start, end }) {
     setLoading(true); setMessage('');
     try {
-      const r = await fetch(`${api}/tax/pph23?start=${start}&end=${end}`, { headers: headers() });
+      const r = await fetch(`${api}/tax/pph23?start=${range.start}&end=${range.end}`, { headers: headers() });
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
       setPph23(b.data);
@@ -66,10 +66,10 @@ export default function TaxReportPage() {
     else if (t === 'pph23' && !pph23) fetchPph23();
   }
 
-  function refresh() {
-    if (tab === 'ppn') fetchPpn();
-    else if (tab === 'faktur') fetchFaktur();
-    else if (tab === 'pph23') fetchPph23();
+  function refresh(range = { start, end }) {
+    if (tab === 'ppn') fetchPpn(range);
+    else if (tab === 'faktur') fetchFaktur(range);
+    else if (tab === 'pph23') fetchPph23(range);
   }
 
   return (
@@ -83,19 +83,22 @@ export default function TaxReportPage() {
                 if (range) {
                   setStart(range.start);
                   setEnd(range.end);
-                  setTimeout(refresh, 0);
+                  setPpn(null);
+                  setFaktur(null);
+                  setPph23(null);
+                  refresh(range);
                 }
               }} />
             </div>
             <label style={{ flex: 1, minWidth: 140 }}>
               Dari
-              <input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+              <input type="date" value={start} onChange={(e) => { setPreset('custom'); setStart(e.target.value); setPpn(null); setFaktur(null); setPph23(null); }} />
             </label>
             <label style={{ flex: 1, minWidth: 140 }}>
               Sampai
-              <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
+              <input type="date" value={end} onChange={(e) => { setPreset('custom'); setEnd(e.target.value); setPpn(null); setFaktur(null); setPph23(null); }} />
             </label>
-            <button type="button" onClick={refresh} disabled={loading} style={{ minWidth: 100 }}>{loading ? 'Memuat…' : 'Muat'}</button>
+            <button type="button" onClick={() => refresh()} disabled={loading} style={{ minWidth: 100 }}>{loading ? 'Memuat…' : 'Muat'}</button>
           </div>
 
           <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>

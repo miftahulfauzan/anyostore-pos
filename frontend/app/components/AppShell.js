@@ -119,7 +119,7 @@ const warehouseNavigation = [
 export default function AppShell({ title, eyebrow, actions, children }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, resolved: roleResolved, collapsed, theme, toggleTheme, toggleCollapse, clearSession, openGroups, setOpenGroups } = useAppSession();
+  const { user, resolved: roleResolved, collapsed, theme, toggleTheme, toggleCollapse, clearSession, hasUnsavedWork, openGroups, setOpenGroups } = useAppSession();
   const role = user?.role || null;
   const userName = user?.name || '';
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -128,6 +128,14 @@ export default function AppShell({ title, eyebrow, actions, children }) {
   const sidebarRef = useRef(null);
   const [tooltip, setTooltip] = useState(null);
   const groupIsOpen = (group) => role === 'gudang' || (openGroups[group.label] ?? group.items.some((item) => pathname === item.href.split('?')[0]));
+
+  function confirmNavigation(event, href) {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return true;
+    if (event.defaultPrevented || (pathname === href.split('?')[0] && window.location.search === (href.includes('?') ? href.slice(href.indexOf('?')) : ''))) return true;
+    if (!hasUnsavedWork() || window.confirm('Ada input atau keranjang stok yang belum disimpan. Jika pindah halaman, data tersebut akan hilang. Tetap keluar?')) return true;
+    event.preventDefault();
+    return false;
+  }
 
   function showTooltip(event, label) {
     if (!collapsed || !window.matchMedia('(min-width: 821px)').matches) return;
@@ -185,6 +193,7 @@ export default function AppShell({ title, eyebrow, actions, children }) {
   }, [mobileNavOpen]);
 
   function logout() {
+    if (hasUnsavedWork() && !window.confirm('Ada input atau keranjang stok yang belum disimpan. Jika keluar, data tersebut akan hilang. Tetap keluar?')) return;
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
     fetch(`${baseUrl}/auth/logout`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
       .catch(() => {})
@@ -214,7 +223,7 @@ export default function AppShell({ title, eyebrow, actions, children }) {
         <button type="button" className="sidebar-close" onClick={() => setMobileNavOpen(false)} aria-label="Tutup menu">
           <X aria-hidden="true" size={20} />
         </button>
-        <Link className="brand" href={role === 'gudang' ? '/dashboard' : '/pos'} {...tooltipProps('Anyostore')}>
+        <Link className="brand" href={role === 'gudang' ? '/dashboard' : '/pos'} onClick={(event) => confirmNavigation(event, role === 'gudang' ? '/dashboard' : '/pos')} {...tooltipProps('Anyostore')}>
           <span className="brand-mark">A</span>
           <span>Anyostore<small>{role === 'gudang' ? 'Operasional gudang' : 'Retail operations'}</small></span>
         </Link>
@@ -240,7 +249,7 @@ export default function AppShell({ title, eyebrow, actions, children }) {
                 const itemQuery = item.href.includes('?') ? item.href.slice(item.href.indexOf('?')) : '';
                 const active = item.active !== false && pathname === itemPath && (itemQuery ? search === itemQuery : !search);
                 return (
-                  <Link key={item.href} href={item.href} onClick={() => { setSearch(itemQuery); setTooltip(null); setMobileNavOpen(false); }} className={`${active ? 'active' : ''}${item.tone ? ` tone-${item.tone}` : ''}`} aria-current={active ? 'page' : undefined} {...tooltipProps(item.label)}>
+                  <Link key={item.href} href={item.href} onClick={(event) => { if (!confirmNavigation(event, item.href)) return; setSearch(itemQuery); setTooltip(null); setMobileNavOpen(false); }} className={`${active ? 'active' : ''}${item.tone ? ` tone-${item.tone}` : ''}`} aria-current={active ? 'page' : undefined} {...tooltipProps(item.label)}>
                     <Icon aria-hidden="true" size={15} strokeWidth={active ? 2.4 : 1.9} />
                     <span>{item.label}</span>
                   </Link>

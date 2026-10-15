@@ -21,6 +21,7 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
   const [store, setStore] = useState('');
   const [warehouse, setWarehouse] = useState('');
   const [transactionDate, setTransactionDate] = useState(localToday());
+  const initialDate = useRef(transactionDate);
   const [batchNumber, setBatchNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [cart, setCart] = useState([]);
@@ -40,7 +41,7 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
   const [quantityPromptError, setQuantityPromptError] = useState('');
   const productsLoadSequence = useRef(createRequestSequence());
   const h = () => ({ 'Content-Type': 'application/json'});
-  useUnsavedWork('stock-mutation', cart.length > 0);
+  useUnsavedWork('stock-mutation', cart.length > 0 || Boolean(batchNumber.trim() || notes.trim()) || transactionDate !== initialDate.current);
 
   // Gudang tipe utama selalu paling depan, sisanya abjad.
   const storeWarehouses = useMemo(() => allWarehouses
@@ -93,12 +94,16 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
       setWarehouse('');
       setProducts([]);
       setCart([]);
+      setBatchNumber('');
+      setNotes('');
       setCartOpen(false);
       setMessage(user.role === 'owner' ? 'Pilih satu toko/gudang melalui pemilih di header untuk memulai mutasi.' : 'Cabang akun belum tersedia.');
       return;
     }
     setStore(id);
     setCart([]);
+    setBatchNumber('');
+    setNotes('');
     setCartOpen(false);
     const list = allWarehouses.filter((item) => String(item.branch_id) === id);
     const preferred = list.find((item) => item.type === 'utama') || list[0];
@@ -277,6 +282,9 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
       if (!r.ok) throw new Error(b.message);
       setMessage(b.data.items + ' produk ' + (mode === 'in' ? 'masuk' : 'keluar') + ' berhasil dicatat. Batch/Nota: ' + b.data.batch_number);
       setCart([]);
+      setBatchNumber('');
+      setNotes('');
+      initialDate.current = transactionDate;
       setCartOpen(false);
       loadProducts(store, warehouse);
     } catch (e) { setMessage(e.message); } finally { setSaving(false); }
@@ -291,6 +299,8 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
         <label>Batch / Nota<input value={batchNumber} onChange={(e) => setBatchNumber(e.target.value)} placeholder={`Otomatis: BATCH-${transactionDate.replaceAll('-', '')}-001`} /></label>
         {user?.role === 'owner' ? <label>Toko / Cabang<input value={stores.find((item) => String(item.id) === String(store))?.name || 'Pilih melalui pemilih toko di header'} readOnly /></label> : <label>Toko / Cabang<select value={store} required onChange={(e) => {
           const id = e.target.value;
+          if (id === store) return;
+          if (cart.length && !window.confirm('Keranjang stok akan dikosongkan karena toko berubah. Lanjutkan?')) return;
           setStore(id);
           setCart([]);
           setCartOpen(false);
