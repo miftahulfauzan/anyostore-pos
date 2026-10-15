@@ -3,6 +3,7 @@ import { localDateString, localMonthStartString } from '../lib/local-date';
 
 import { useEffect, useState } from 'react';
 import AppShell from '../components/AppShell';
+import DateRangePresets from '../components/DateRangePresets';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rp = (n) => `Rp${Number(n || 0).toLocaleString('id-ID')}`;
@@ -22,6 +23,7 @@ export default function MyAccount() {
   const [loading, setLoading] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [range, setRange] = useState({ start: '', end: '' });
+  const [preset, setPreset] = useState('');
   const [loadingComm, setLoadingComm] = useState(false);
 
   const headers = () => ({ 'Content-Type': 'application/json'});
@@ -143,8 +145,9 @@ export default function MyAccount() {
             </div>
 
             <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', alignItems: 'end', marginBottom: '1rem' }}>
-              <label style={{ minWidth: 160 }}>Dari<input type="date" value={range.start} onChange={(e) => setRange({ ...range, start: e.target.value })} /></label>
-              <label style={{ minWidth: 160 }}>Sampai<input type="date" value={range.end} onChange={(e) => setRange({ ...range, end: e.target.value })} /></label>
+              <DateRangePresets active={preset} onPick={(key, nextRange) => { setPreset(key); setRange(nextRange); }} label="Pilih rentang komisi saya" />
+              <label style={{ minWidth: 160 }}>Dari<input type="date" value={range.start} onChange={(e) => { setPreset('custom'); setRange({ ...range, start: e.target.value }); }} /></label>
+              <label style={{ minWidth: 160 }}>Sampai<input type="date" value={range.end} onChange={(e) => { setPreset('custom'); setRange({ ...range, end: e.target.value }); }} /></label>
               <button type="button" onClick={applyRange} disabled={loadingComm} style={{ minHeight: 40 }}>{loadingComm ? 'Memuat…' : 'Tampilkan'}</button>
               <span className="muted" style={{ alignSelf: 'center', fontSize: '.85rem' }}>{live?.period_start} → {live?.period_end}</span>
             </div>

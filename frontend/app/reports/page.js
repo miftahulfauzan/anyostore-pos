@@ -161,9 +161,7 @@ export default function ReportsPage() {
           <input
             type="date"
             value={period.start}
-            onChange={(event) =>
-              setPeriod({ ...period, start: event.target.value })
-            }
+            onChange={(event) => { setPreset('custom'); setPeriod({ ...period, start: event.target.value }); }}
           />
         </label>
         <label>
@@ -171,9 +169,7 @@ export default function ReportsPage() {
           <input
             type="date"
             value={period.end}
-            onChange={(event) =>
-              setPeriod({ ...period, end: event.target.value })
-            }
+            onChange={(event) => { setPreset('custom'); setPeriod({ ...period, end: event.target.value }); }}
           />
         </label>
         <button type="button" onClick={() => load()} disabled={loading}>

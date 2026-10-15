@@ -4,6 +4,7 @@ import AppShell from '../../components/AppShell';
 import { useAppSession, useUnsavedWork } from '../../components/AppStateProvider';
 import SafeImage from '../../components/SafeImage';
 import StockVariantPicker from '../../components/StockVariantPicker';
+import DateRangePresets from '../../components/DateRangePresets';
 import transferDefaults from './transfer-defaults.cjs';
 import transferLabels from './transfer-labels.cjs';
 import { createRequestSequence } from '../../components/app-state.cjs';
@@ -47,6 +48,7 @@ function TransferHistory({
   onPage,
 }) {
   const totalPages = Math.max(1, Math.ceil(total / limit));
+  const [period, setPeriod] = useState('');
 
   return (
     <section className="transfer-history-page">
@@ -58,12 +60,18 @@ function TransferHistory({
           </div>
           <button type="button" className="secondary" onClick={onRefresh} disabled={loading}>Muat ulang</button>
         </div>
+        <DateRangePresets active={period} onPick={(key, range) => {
+          const next = { ...filters, start: range.start, end: range.end };
+          setPeriod(key);
+          setFilters(next);
+          onApply(next);
+        }} label="Pilih rentang riwayat transfer" />
         <div className="transfer-history-filter-grid">
           <label>Tanggal mulai
-            <input type="date" value={filters.start} onChange={(event) => setFilters((current) => ({ ...current, start: event.target.value }))} />
+            <input type="date" value={filters.start} onChange={(event) => { setPeriod('custom'); setFilters((current) => ({ ...current, start: event.target.value })); }} />
           </label>
           <label>Tanggal akhir
-            <input type="date" value={filters.end} onChange={(event) => setFilters((current) => ({ ...current, end: event.target.value }))} />
+            <input type="date" value={filters.end} onChange={(event) => { setPeriod('custom'); setFilters((current) => ({ ...current, end: event.target.value })); }} />
           </label>
           <label>Arah transfer
             <select value={filters.direction} onChange={(event) => setFilters((current) => ({ ...current, direction: event.target.value }))}>
@@ -201,7 +209,7 @@ export default function TransferPage() {
   const productsLoadSequence = useRef(createRequestSequence());
   const historyLoadSequence = useRef(createRequestSequence());
   const h = () => ({ 'Content-Type': 'application/json'});
-  useUnsavedWork('stock-transfer', cart.length > 0);
+  useUnsavedWork('stock-transfer', cart.length > 0 || Boolean(notes.trim()));
 
   const targets = useMemo(() => warehouses.filter((w) => String(w.id) !== String(from)), [warehouses, from]);
   const sourceWarehouses = useMemo(() => selectTransferSourceWarehouses({
@@ -290,6 +298,7 @@ export default function TransferPage() {
     setFrom(defaults.sourceId);
     setTo(defaults.targetId);
     setCart([]);
+    setNotes('');
     setCartOpen(false);
     setProducts([]);
     if (defaults.sourceId) loadProducts(defaults.sourceId, warehouses);
@@ -410,6 +419,7 @@ export default function TransferPage() {
       if (!r.ok) throw new Error(b.message);
       setMessage('Transfer stok berhasil (' + b.data.status + ').' + (b.data.auto_created ? ' Produk yang belum ada di tujuan dibuat otomatis.' : ''));
       setCart([]);
+      setNotes('');
       setCartOpen(false);
       loadProducts(from);
     } catch (e) { setMessage(e.message); } finally { setSaving(false); }
@@ -550,7 +560,7 @@ export default function TransferPage() {
       page={historyPage}
       filters={historyFilters}
       setFilters={setHistoryFilters}
-      onApply={() => { setHistoryAppliedFilters(historyFilters); setHistoryPage(1); }}
+      onApply={(next = historyFilters) => { setHistoryAppliedFilters(next); setHistoryPage(1); }}
       onRefresh={() => loadHistory(historyAppliedFilters, historyPage)}
       onPage={setHistoryPage}
     />}

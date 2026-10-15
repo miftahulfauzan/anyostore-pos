@@ -145,8 +145,8 @@ export default function HistoryPage() {
                 <button type="button" onClick={applyFilter} disabled={loading} style={{ minHeight: 40 }}>{loading ? '...' : 'Cari'}</button>
               </div>
               <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
-                <label style={{ minWidth: 140 }}>Dari<input type="date" value={filters.date_from} onChange={(e) => setFilters({ ...filters, date_from: e.target.value })} /></label>
-                <label style={{ minWidth: 140 }}>Sampai<input type="date" value={filters.date_to} onChange={(e) => setFilters({ ...filters, date_to: e.target.value })} /></label>
+                <label style={{ minWidth: 140 }}>Dari<input type="date" value={filters.date_from} onChange={(e) => { setPreset('custom'); setFilters({ ...filters, date_from: e.target.value }); }} /></label>
+                <label style={{ minWidth: 140 }}>Sampai<input type="date" value={filters.date_to} onChange={(e) => { setPreset('custom'); setFilters({ ...filters, date_to: e.target.value }); }} /></label>
                 <div style={{ width: '100%' }}>
                   <DateRangePresets active={preset} onPick={(key, range) => {
                     setPreset(key);

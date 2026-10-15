@@ -38,6 +38,7 @@ export default function CommissionsPage() {
   const [period, setPeriod] = useState({ period_start: '', period_end: '' });
   const [reportPeriod, setReportPeriod] = useState({ start: '', end: '' });
   const [reportPreset, setReportPreset] = useState('');
+  const [generationPreset, setGenerationPreset] = useState('');
 
   const headers = () => ({ 'Content-Type': 'application/json'});
 
@@ -211,8 +212,8 @@ export default function CommissionsPage() {
                 {branches.map((b) => <option key={b.id} value={b.id}>{b.name} (ID {b.id})</option>)}
               </select>
             </label>
-            <label style={{ minWidth: 150 }}>Dari<input type="date" value={reportPeriod.start} onChange={(e) => setReportPeriod({ ...reportPeriod, start: e.target.value })} /></label>
-            <label style={{ minWidth: 150 }}>Sampai<input type="date" value={reportPeriod.end} onChange={(e) => setReportPeriod({ ...reportPeriod, end: e.target.value })} /></label>
+            <label style={{ minWidth: 150 }}>Dari<input type="date" value={reportPeriod.start} onChange={(e) => { setReportPreset('custom'); setReportPeriod({ ...reportPeriod, start: e.target.value }); }} /></label>
+            <label style={{ minWidth: 150 }}>Sampai<input type="date" value={reportPeriod.end} onChange={(e) => { setReportPreset('custom'); setReportPeriod({ ...reportPeriod, end: e.target.value }); }} /></label>
             <button type="button" onClick={() => loadReport()} style={{ minHeight: 40 }}>Tampilkan</button>
             <span className="muted" style={{ fontSize: '.85rem', alignSelf: 'center' }}>{report?.period_start} → {report?.period_end} {report?.branch_id ? `• Cabang ${report.branch_id}` : ''}</span>
           </div>
@@ -347,9 +348,13 @@ export default function CommissionsPage() {
         <section className="panel">
           <h2>Generate Komisi (arsip)</h2>
           <p className="muted">Opsional, untuk riwayat pembayaran. Komisi live di Akun Saya & Laporan sudah otomatis tanpa generate.</p>
+          <DateRangePresets active={generationPreset} onPick={(key, range) => {
+            setGenerationPreset(key);
+            setPeriod({ period_start: range.start, period_end: range.end });
+          }} label="Pilih rentang generate komisi" />
           <form onSubmit={generate} style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', alignItems: 'end', marginTop: '.5rem' }}>
-            <label>Dari<input type="date" value={period.period_start} onChange={(e) => setPeriod({ ...period, period_start: e.target.value })} /></label>
-            <label>Sampai<input type="date" value={period.period_end} onChange={(e) => setPeriod({ ...period, period_end: e.target.value })} /></label>
+            <label>Dari<input type="date" value={period.period_start} onChange={(e) => { setGenerationPreset('custom'); setPeriod({ ...period, period_start: e.target.value }); }} /></label>
+            <label>Sampai<input type="date" value={period.period_end} onChange={(e) => { setGenerationPreset('custom'); setPeriod({ ...period, period_end: e.target.value }); }} /></label>
             <button type="submit">Generate</button>
           </form>
           <div className="table-wrap" style={{ marginTop: '1rem' }}>
