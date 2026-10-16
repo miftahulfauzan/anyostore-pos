@@ -75,6 +75,30 @@ async function main() {
   try {
     await connection.beginTransaction();
 
+    // Keep writers for selected targets from interleaving with a catalog
+    // replacement. Branch-scoped inserts take a shared FK lock and resume as
+    // soon as this transaction commits or rolls back; the source stays writable.
+    const lockedBranchIds = targetBranches.map((branch) => Number(branch.id));
+    const branchMarks = lockedBranchIds.map(() => '?').join(',');
+    const [lockedBranches] = await connection.execute(
+      `SELECT id FROM branches WHERE id IN (${branchMarks}) FOR UPDATE`,
+      lockedBranchIds
+    );
+    if (lockedBranches.length !== lockedBranchIds.length) {
+      throw new Error('Target branch disappeared before catalog replacement');
+    }
+    const targetMarks = lockedBranchIds.map(() => '?').join(',');
+    await connection.execute(`SELECT id FROM warehouses WHERE branch_id IN (${targetMarks}) FOR UPDATE`, lockedBranchIds);
+    await connection.execute(`SELECT id FROM products WHERE branch_id IN (${targetMarks}) FOR UPDATE`, lockedBranchIds);
+    await connection.execute(
+      `SELECT v.id FROM product_variants v JOIN products p ON p.id=v.product_id WHERE p.branch_id IN (${targetMarks}) FOR UPDATE`,
+      lockedBranchIds
+    );
+    await connection.execute(
+      `SELECT ws.id FROM warehouse_stocks ws JOIN warehouses w ON w.id=ws.warehouse_id WHERE w.branch_id IN (${targetMarks}) FOR UPDATE`,
+      lockedBranchIds
+    );
+
     // Katalog sumber
     const [srcProducts] = await connection.execute(
       `SELECT id, category_id, name, description, sku, barcode, price, cost, stock, min_stock, gender
