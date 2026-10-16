@@ -57,10 +57,11 @@ export default function StockMovementsPage() {
   return <AppShell title="Riwayat Pergerakan Stok" eyebrow="PRODUK & INVENTORI" actions={<a className="button-link" href="/inventory">Lihat Stok</a>}>
     <div className="movement-page">
     <section className="panel movement-filter">
-      <div><h2>Jejak audit stok</h2><p className="muted">Setiap stok masuk, keluar, transaksi, retur, transfer, dan opname tercatat bersama petugas serta saldo sebelum/sesudah.</p></div>
+      <div className="movement-intro"><h2>Jejak audit stok</h2><p className="muted">Setiap stok masuk, keluar, transaksi, retur, transfer, dan opname tercatat bersama petugas serta saldo sebelum/sesudah.</p></div>
       <form onSubmit={apply} className="movement-form">
         <div className="movement-controls">
-          <div className="movement-field">
+          <div className="movement-field movement-field--presets">
+            <span>Rentang cepat</span>
             <DateRangePresets active={preset} onPick={(key, range) => {
               setPreset(key);
               if (range) {
@@ -70,9 +71,9 @@ export default function StockMovementsPage() {
               }
             }} />
           </div>
-          <label className="movement-field"><span>Dari tanggal</span><input type="date" value={filters.date_from} onChange={(event) => { setPreset('custom'); setFilters({ ...filters, date_from: event.target.value }); }} /></label>
-          <label className="movement-field"><span>Sampai tanggal</span><input type="date" value={filters.date_to} onChange={(event) => { setPreset('custom'); setFilters({ ...filters, date_to: event.target.value }); }} /></label>
-          <label className="movement-field"><span>Jenis perubahan</span><select value={filters.type} onChange={(event) => setFilters({ ...filters, type: event.target.value })}><option value="">Semua aktivitas</option>{Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label className="movement-field movement-field--date"><span>Dari tanggal</span><input type="date" value={filters.date_from} onChange={(event) => { setPreset('custom'); setFilters({ ...filters, date_from: event.target.value }); }} /></label>
+          <label className="movement-field movement-field--date"><span>Sampai tanggal</span><input type="date" value={filters.date_to} onChange={(event) => { setPreset('custom'); setFilters({ ...filters, date_to: event.target.value }); }} /></label>
+          <label className="movement-field movement-field--type"><span>Jenis perubahan</span><select value={filters.type} onChange={(event) => setFilters({ ...filters, type: event.target.value })}><option value="">Semua aktivitas</option>{Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <div className="movement-actions">
             <button type="submit" disabled={loading}>{loading ? 'Memuat…' : 'Terapkan filter'}</button>
           </div>

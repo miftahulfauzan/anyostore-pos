@@ -215,7 +215,7 @@ a, .photo-upload { color:var(--expressive-secondary); }
 .edit-link { border-color:#bfdbfe; color:var(--expressive-secondary); }
 .catalog-search input, input, select, textarea { border-color:#cbd5e1; }
 
-/* Inventory audit trail: section compact 2-kolom (40% info / 60% filter) */
+/* Inventory audit trail */
 .movement-filter, .barcode-picker { max-width: 1440px; margin: 0 auto 1rem; }
 /* Satu parent untuk filter + list audit: lebar & edge kiri/kanan PASTI sejajar. */
 .app-content > .movement-page {
@@ -238,35 +238,32 @@ a, .photo-upload { color:var(--expressive-secondary); }
 }
 .movement-filter {
   display: grid;
-  grid-template-columns: 38fr 62fr;
-  gap: 28px;
-  padding: 30px;
-  align-items: start;
-  height: auto;
+  grid-template-columns: minmax(0, 1fr);
+  container-type: inline-size;
+  gap: 20px;
+  padding: 24px;
 }
-.movement-filter > div:first-child h2, .barcode-picker h2 { margin: 0; font-size: 1.08rem; }
-.movement-filter > div:first-child p { margin: 10px 0 0; max-width: 42rem; }
+.movement-intro h2, .barcode-picker h2 { margin: 0; font-size: 1.08rem; }
+.movement-intro p { margin: 6px 0 0; max-width: 65rem; }
 .movement-form { min-width: 0; }
-/* Baris 1: Rentang, Dari, Sampai — Baris 2: Jenis perubahan + Terapkan.
-   Field berukuran nyaman (180-220px), tinggi seragam 50px, label di atas field. */
 .movement-controls {
   display: grid;
-  grid-template-columns: repeat(3, minmax(180px, 220px));
-  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
   align-items: end;
 }
-.movement-field { display: grid; gap: 8px; align-content: start; min-width: 0; }
-.movement-field > span { white-space: nowrap; font-size: 12px; }
+.movement-field { display: grid; gap: 7px; align-content: start; min-width: 0; }
+.movement-field > span { color: var(--foreground); font-size: 12px; font-weight: 600; }
 .movement-field input,
 .movement-field select,
 .movement-field > div { width: 100%; box-sizing: border-box; }
 .movement-field input,
-.movement-field select { height: 50px; }
-.movement-field > div { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
-.movement-field > div .small { white-space: nowrap; }
-.movement-field:nth-child(4) { grid-column: 1 / 2; }
-.movement-actions { grid-column: 2 / 3; display: flex; }
-.movement-actions button { height: 50px; width: 230px; padding: 0 20px; white-space: nowrap; }
+.movement-field select { height: 46px; }
+.movement-field--presets { grid-column: 1 / -1; }
+.movement-field--presets .date-range-presets { display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px; }
+.movement-filter .date-range-presets button { min-height: 44px; min-width: 0; padding: 8px 14px; font-size: 13px; }
+.movement-actions { display: flex; min-width: 0; }
+.movement-actions button { min-height: 46px; width: 100%; padding: 0 16px; white-space: nowrap; }
 /* ===== Mutasi Stok & Transfer Stok: layout 2 kolom (produk + keranjang) ===== */
 .mutasi-layout { display: grid; grid-template-columns: 1fr 380px; gap: 22px; align-items: start; }
 .mutasi-layout > * { min-width: 0; }
@@ -316,25 +313,15 @@ a, .photo-upload { color:var(--expressive-secondary); }
   .stock-picker-card > div:last-child span { font-size: 10px !important; }
 }
 
-@media (max-width: 1200px) {
-  .movement-filter { gap: 22px; padding: 24px; }
-  .movement-controls { grid-template-columns: repeat(3, minmax(170px, 1fr)); }
-  .movement-actions button { width: 210px; }
-}
-@media (max-width: 1100px) {
-  .movement-filter { grid-template-columns: 1fr; gap: 18px; }
-  .movement-controls { grid-template-columns: repeat(3, minmax(160px, 1fr)); }
-}
-@media (max-width: 860px) {
-  .movement-controls { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
-  .movement-field:nth-child(4), .movement-actions { grid-column: auto; }
-  .movement-actions button { width: 100%; }
+@container (min-width: 940px) {
+  .movement-controls { grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(180px, .85fr); }
 }
 @media (max-width: 600px) {
-  .movement-controls { grid-template-columns: 1fr; }
-}
-@media (max-width: 420px) {
-  .movement-field > span { white-space: normal; }
+  .movement-filter { padding: 16px; gap: 16px; }
+  .movement-controls { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .movement-field--date { grid-column: auto; }
+  .movement-field--presets .date-range-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .movement-filter .date-range-presets button { padding-inline: 4px; font-size: 11px; }
 }
 .movement-table td { max-width: 240px; }
 .movement-table td:last-child { min-width: 180px; white-space: normal; }
