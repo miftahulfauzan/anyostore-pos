@@ -41,8 +41,8 @@ jobs:
           OPERATION: ${{ inputs.operation }}
           AUDIT_FINGERPRINT: ${{ inputs.audit_fingerprint }}
           CONFIRMATION: ${{ inputs.confirmation }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          GITHUB_ACTOR: ${{ github.actor }}
+          RESET_RUN_ID: ${{ github.run_id }}
+          RESET_ACTOR: ${{ github.actor }}
           EXPECTED_RELEASE: ${{ github.sha }}
           VPS_HOST: anyostore.my.id
           VPS_USER: ${{ secrets.VPS_USER }}
@@ -65,8 +65,10 @@ jobs:
           ssh_opts=(-i "$key_dir/key" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$key_dir/known_hosts" -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -o ConnectTimeout=15 -o LogLevel=ERROR)
           remote_ip=$(ssh "${ssh_opts[@]}" "$VPS_USER@$VPS_HOST" 'curl -4fsS --max-time 10 https://api.ipify.org')
           grep -Fxq "$remote_ip" <<< "$expected_ips" || { echo 'SSH target does not match production hostname'; exit 1; }
+          printf -v remote_args '%q ' "$OPERATION" "$AUDIT_FINGERPRINT" "$RESET_RUN_ID" "$RESET_ACTOR" "$EXPECTED_RELEASE"
+          remote_command="bash -s -- $remote_args"
           set +e
-          ssh "${ssh_opts[@]}" "$VPS_USER@$VPS_HOST" 'bash -s --' "$OPERATION" "$AUDIT_FINGERPRINT" "$GITHUB_RUN_ID" "$GITHUB_ACTOR" "$EXPECTED_RELEASE" < scripts/maintenance/reset-target-branches.sh > "$RUNNER_TEMP/reset-result.json" 2> "$RUNNER_TEMP/reset-stderr.log"
+          ssh "${ssh_opts[@]}" "$VPS_USER@$VPS_HOST" "$remote_command" < scripts/maintenance/reset-target-branches.sh > "$RUNNER_TEMP/reset-result.json" 2> "$RUNNER_TEMP/reset-stderr.log"
           status=$?
           set -e
           if [[ $status -ne 0 ]]; then
