@@ -28,7 +28,7 @@ show_lock_holders() {
   fi
   command -v sudo >/dev/null 2>&1 || { printf 'sudo is unavailable; cannot inspect lock holders\n'; return 0; }
   if command -v fuser >/dev/null 2>&1; then
-    if pids=$(sudo -n fuser -- "$lock_file" 2>&1); then status=0; else status=$?; fi
+    if pids=$(sudo -n fuser "$lock_file" 2>&1); then status=0; else status=$?; fi
     printf 'FUSER_EXIT_STATUS: %s\n' "$status"
     if [[ "$status" -eq 0 ]]; then
       for pid in $pids; do
