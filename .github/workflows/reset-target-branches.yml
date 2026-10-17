@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: Audit is read-only; apply requires the fingerprint from a fresh audit
+        description: Audit and lock diagnostics are read-only; apply requires the fingerprint from a fresh audit
         required: true
         type: choice
-        options: [audit, apply]
+        options: [audit, apply, diagnose_lock]
       audit_fingerprint:
         description: Required for apply; exact SHA-256 fingerprint returned by audit
         required: false
@@ -75,7 +75,12 @@ jobs:
             exit "$status"
           fi
           cat "$RUNNER_TEMP/reset-result.json"
-          if [[ "$OPERATION" = audit ]]; then
+          if [[ "$OPERATION" = diagnose_lock ]]; then
+            {
+              echo '## Production lock diagnostics (read-only)'
+              sed 's/^/- `/' "$RUNNER_TEMP/reset-result.json" | sed 's/$/`/'
+            } >> "$GITHUB_STEP_SUMMARY"
+          elif [[ "$OPERATION" = audit ]]; then
             node - "$RUNNER_TEMP/reset-result.json" >> "$GITHUB_STEP_SUMMARY" <<'NODE'
           const fs = require('node:fs');
           const result = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));

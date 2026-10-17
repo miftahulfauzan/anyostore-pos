@@ -11,10 +11,35 @@ backup_root=/home/ubuntu/anyostore-backups/branch-resets
 backend_container=anyostore-backend-live
 
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
-[[ "$operation" = audit || "$operation" = apply ]] || fail 'Expected audit or apply operation'
+[[ "$operation" = audit || "$operation" = apply || "$operation" = diagnose_lock ]] || fail 'Expected audit, apply, or diagnose_lock operation'
 cd "$deploy_dir"
-exec 9>"$(git rev-parse --git-dir)/deploy.lock"
-flock -n 9 || fail 'Production deployment/maintenance lock is held; retry after it completes'
+lock_file="$(git rev-parse --git-dir)/deploy.lock"
+show_lock_holders() {
+  local pids pid process found=0
+  command -v sudo >/dev/null 2>&1 || { printf 'sudo is unavailable; cannot inspect lock holders\n'; return 0; }
+  pids=$(sudo fuser -- "$lock_file" 2>/dev/null || true)
+  for pid in $pids; do
+    [[ "$pid" =~ ^[0-9]+$ ]] || continue
+    [[ "$pid" = "$$" ]] && continue
+    process=$(sudo ps -ww -p "$pid" -o pid=,ppid=,stat=,etime=,args= 2>/dev/null || true)
+    [[ -n "$process" ]] || continue
+    process=$(printf '%s\n' "$process" | sed -E 's/(MYSQL_PWD|password|token)([=:][^[:space:]]+|[[:space:]]+[^[:space:]]+)/\1=[REDACTED]/Ig')
+    printf 'PID/PPID/STATE/ELAPSED/COMMAND: %s\n' "$process"
+    found=1
+  done
+  if [[ "$found" -eq 0 ]]; then
+    printf 'No external lock-holder process could be identified.\n'
+  fi
+}
+if [[ "$operation" = diagnose_lock ]]; then
+  show_lock_holders
+  exit 0
+fi
+exec 9>"$lock_file"
+if ! flock -n 9; then
+  show_lock_holders >&2 || true
+  fail 'Production deployment/maintenance lock is held; retry after it completes'
+fi
 
 live_release=$(sudo docker exec "$backend_container" node -p 'process.env.RELEASE_SHA || ""')
 [[ -n "$live_release" && "$live_release" = "$expected_release" ]] || fail "Live backend release is $live_release, expected $expected_release; wait for deployment"
