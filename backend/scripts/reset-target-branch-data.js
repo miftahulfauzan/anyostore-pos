@@ -5,6 +5,7 @@
 const crypto = require('crypto');
 const db = require('../src/db');
 const { TARGET_NAME_GROUPS, pickUniqueBranch } = require('../src/reset-branch-targets');
+const { executeAuditQuery, countAuditRows } = require('../src/reset-audit-query');
 
 const OPERATION = 'reset-store-catalog-v1';
 const SOURCE_NAMES = ['Gudang Utama'];
@@ -57,14 +58,14 @@ async function resolveBranches(connection) {
 }
 
 async function count(connection, sql, params = []) {
-  const [rows] = await connection.execute(sql, params);
-  return Number(rows[0]?.count || 0);
+  const sourceTable = sql.match(/\bFROM\s+`?([\w]+)`?/i)?.[1] || 'query';
+  return countAuditRows(connection, sourceTable, sql, params);
 }
 
 async function makeAudit(connection) {
   const { source, targets, targetIds } = await resolveBranches(connection);
   const targetMarks = placeholders(targetIds);
-  const [sourceCatalog] = await connection.execute(
+  const sourceCatalog = await executeAuditQuery(connection, 'source catalog counts',
     `SELECT COUNT(*) AS products,
        (SELECT COUNT(*) FROM product_variants v JOIN products p2 ON p2.id=v.product_id WHERE p2.branch_id=? AND p2.is_active=TRUE AND v.is_active=TRUE) AS variants,
        (SELECT COUNT(*) FROM product_photos ph JOIN products p3 ON p3.id=ph.product_id WHERE p3.branch_id=? AND p3.is_active=TRUE) AS photos,
@@ -77,14 +78,14 @@ async function makeAudit(connection) {
   const targetWarehouses = {};
   const targetCatalog = {};
   for (const target of targets) {
-    const [warehouses] = await connection.execute(
+    const warehouses = await executeAuditQuery(connection, `warehouses for ${target.name}`,
       'SELECT id, name, type, is_active FROM warehouses WHERE branch_id=? ORDER BY id',
       [target.id]
     );
     const activeWarehouses = warehouses.filter((warehouse) => Number(warehouse.is_active) === 1);
     if (!activeWarehouses.length) throw new Error(`Target ${target.name} has no active warehouse`);
     targetWarehouses[target.name] = warehouses.map((warehouse) => Number(warehouse.id));
-    const [catalog] = await connection.execute(
+    const catalog = await executeAuditQuery(connection, `catalog counts for ${target.name}`,
       `SELECT COUNT(*) AS products,
          (SELECT COUNT(*) FROM product_variants v JOIN products p2 ON p2.id=v.product_id WHERE p2.branch_id=? AND p2.is_active=TRUE AND v.is_active=TRUE) AS variants,
          (SELECT COUNT(*) FROM product_photos ph JOIN products p3 ON p3.id=ph.product_id WHERE p3.branch_id=? AND p3.is_active=TRUE) AS photos,
@@ -97,13 +98,13 @@ async function makeAudit(connection) {
     );
   }
 
-  const [customerRows] = await connection.execute(
+  const customerRows = await executeAuditQuery(connection, 'target customer counts',
     `SELECT COUNT(*) AS count FROM customers WHERE branch_id IN (${targetMarks})`, targetIds
   );
-  const [userRows] = await connection.execute(
+  const userRows = await executeAuditQuery(connection, 'target user counts',
     `SELECT COUNT(*) AS count FROM users WHERE branch_id IN (${targetMarks})`, targetIds
   );
-  const [transferRows] = await connection.execute(
+  const transferRows = await executeAuditQuery(connection, 'target transfer counts',
     `SELECT COUNT(*) AS count FROM stock_transfers st
        JOIN warehouses fw ON fw.id=st.from_warehouse_id
        JOIN warehouses tw ON tw.id=st.to_warehouse_id
@@ -146,7 +147,7 @@ async function makeAudit(connection) {
     crossBranchCommissionItems: await count(connection, `SELECT COUNT(*) AS count FROM commission_items i JOIN commission_records c ON c.id=i.record_id JOIN transactions t ON t.id=i.transaction_id WHERE (c.branch_id IN (${targetMarks}) OR t.branch_id IN (${targetMarks})) AND (c.branch_id NOT IN (${targetMarks}) OR t.branch_id NOT IN (${targetMarks}))`, [...targetIds, ...targetIds, ...targetIds, ...targetIds]),
   };
 
-  const [branchColumns] = await connection.execute(
+  const branchColumns = await executeAuditQuery(connection, 'branch-scoped table discovery',
     `SELECT DISTINCT TABLE_NAME AS tableName FROM information_schema.COLUMNS
      WHERE TABLE_SCHEMA=DATABASE() AND COLUMN_NAME='branch_id' ORDER BY TABLE_NAME`
   );
@@ -155,7 +156,12 @@ async function makeAudit(connection) {
   const known = new Set([...HANDLED_BRANCH_TABLES, ...PRESERVED_BRANCH_TABLES]);
   for (const { tableName } of branchColumns) {
     const escaped = `\`${String(tableName).replace(/`/g, '``')}\``;
-    const tableCount = await count(connection, `SELECT COUNT(*) AS count FROM ${escaped} WHERE branch_id IN (${targetMarks})`, targetIds);
+    const tableCount = await countAuditRows(
+      connection,
+      `branch table ${tableName}`,
+      `SELECT COUNT(*) AS count FROM ${escaped} WHERE branch_id IN (${targetMarks})`,
+      targetIds
+    );
     if (tableCount) {
       branchTableCounts[tableName] = tableCount;
       if (!known.has(tableName)) unclassifiedBranchTables.push({ table: tableName, rows: tableCount });
@@ -163,11 +169,11 @@ async function makeAudit(connection) {
   }
 
   const branchKey = `${OPERATION}:${source.id}:${targetIds.join(',')}`;
-  const [runRows] = await connection.execute(
+  const runRows = await executeAuditQuery(connection, 'previous reset marker lookup',
     'SELECT id, completed_at FROM branch_maintenance_runs WHERE branch_key=? LIMIT 1',
     [branchKey]
   );
-  const [stockSummary] = await connection.execute(
+  const stockSummary = await executeAuditQuery(connection, 'target stock totals',
     `SELECT COALESCE(SUM(ws.quantity),0) AS quantity, COALESCE(SUM(ws.reserved_quantity),0) AS reserved
      FROM warehouse_stocks ws JOIN warehouses w ON w.id=ws.warehouse_id WHERE w.branch_id IN (${targetMarks})`, targetIds
   );

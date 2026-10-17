@@ -68,14 +68,12 @@ jobs:
           printf -v remote_args '%q ' "$OPERATION" "$AUDIT_FINGERPRINT" "$RESET_RUN_ID" "$RESET_ACTOR" "$EXPECTED_RELEASE"
           remote_command="bash -s -- $remote_args"
           set +e
-          ssh "${ssh_opts[@]}" "$VPS_USER@$VPS_HOST" "$remote_command" < scripts/maintenance/reset-target-branches.sh > "$RUNNER_TEMP/reset-result.json" 2> "$RUNNER_TEMP/reset-stderr.log"
+          ssh "${ssh_opts[@]}" "$VPS_USER@$VPS_HOST" "$remote_command" < scripts/maintenance/reset-target-branches.sh > "$RUNNER_TEMP/reset-result.json" 2> >(sed -u -E 's/(MYSQL_PWD|password|token)[=:][^[:space:]]+/\1=[REDACTED]/Ig' >&2)
           status=$?
           set -e
           if [[ $status -ne 0 ]]; then
-            sed -E 's/(MYSQL_PWD|password|token)[=:][^[:space:]]+/\1=[REDACTED]/Ig' "$RUNNER_TEMP/reset-stderr.log" | tail -80
             exit "$status"
           fi
-          cat "$RUNNER_TEMP/reset-stderr.log"
           cat "$RUNNER_TEMP/reset-result.json"
           if [[ "$OPERATION" = audit ]]; then
             node - "$RUNNER_TEMP/reset-result.json" >> "$GITHUB_STEP_SUMMARY" <<'NODE'
