@@ -13,7 +13,7 @@ on:
         required: false
         type: string
       confirmation:
-        description: For apply, enter RESET Toko B + Anystore Metro from Gudang Utama
+        description: For apply, enter RESET Toko B + Anyostore Metro from Gudang Utama
         required: false
         type: string
 
@@ -52,7 +52,7 @@ jobs:
           [[ "$OPERATION" = audit || "$OPERATION" = apply ]]
           [[ -n "$VPS_USER" && -n "$VPS_SSH_KEY" ]] || { echo 'Production SSH credentials are unavailable'; exit 1; }
           if [[ "$OPERATION" = apply ]]; then
-            [[ "$CONFIRMATION" = 'RESET Toko B + Anystore Metro from Gudang Utama' ]] || { echo 'Exact reset confirmation phrase is required'; exit 1; }
+            [[ "$CONFIRMATION" = 'RESET Toko B + Anyostore Metro from Gudang Utama' ]] || { echo 'Exact reset confirmation phrase is required'; exit 1; }
             [[ "$AUDIT_FINGERPRINT" =~ ^[a-f0-9]{64}$ ]] || { echo 'A current 64-character audit fingerprint is required'; exit 1; }
           fi
           key_dir=$(mktemp -d)
