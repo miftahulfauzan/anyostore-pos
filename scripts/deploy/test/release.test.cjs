@@ -42,7 +42,7 @@ if (name === 'sudo') {
   const result = require('node:child_process').spawnSync(args[0], args.slice(1), { stdio: 'inherit', env });
   process.exit(result.status ?? 1);
 }
-if (name === 'flock') process.exit(scenario.lockFailure ? 1 : 0);
+if (name === 'flock') process.exit(scenario.lockFailure ? 75 : scenario.lockError ? 65 : 0);
 if (name === 'sleep') process.exit(0);
 if (name === 'df') { output('Use%\\n' + (scenario.disk || 20) + '%'); process.exit(0); }
 if (name === 'git') {
@@ -214,13 +214,24 @@ for (const service of ['backend', 'frontend']) {
 for (const flag of ['buildFailure', 'migrationFailure', 'upFailure', 'fetchFailure', 'checkoutFailure', 'inspectFailure', 'missingContainer', 'wrongContainerSha', 'endpointFailure', 'wrongEndpointSha', 'notOk', 'dirty', 'unreachable', 'lockFailure']) {
   test(`${flag} blocks success`, t => {
     const f = sandbox(t, { [flag]: true });
-    assert.notEqual(f.run().status, 0);
+    const result = f.run();
+    assert.notEqual(result.status, 0);
     assert.equal(f.success(), null);
+    if (flag === 'lockFailure') assert.match(result.stderr, /Another production release holds the server lock/);
     if (['migrationFailure', 'buildFailure'].includes(flag)) {
       assert.ok(!f.commands().some(command => command.includes('--force-recreate')));
     }
   });
 }
+
+test('unexpected flock errors are not reported as an active production release', t => {
+  const f = sandbox(t, { lockError: true });
+  const result = f.run();
+  assert.notEqual(result.status, 0);
+  assert.equal(f.success(), null);
+  assert.match(result.stderr, /Unable to acquire production deploy lock \(flock exit 65\)/);
+  assert.doesNotMatch(result.stderr, /Another production release holds the server lock/);
+});
 
 test('failed build can be retried at the same SHA', t => {
   const f = sandbox(t, { buildFailure: true });

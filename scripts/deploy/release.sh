@@ -17,7 +17,15 @@ cd "$DEPLOY_DIR"
 git_dir=$(git rev-parse --git-dir)
 # A host lock also protects against overlapping SSH sessions after a runner disconnects.
 exec 9>"$git_dir/deploy.lock"
-flock -n 9 || fail 'Another production release holds the server lock; retry after it finishes'
+set +e
+flock -n -E 75 9
+lock_status=$?
+set -e
+if [[ "$lock_status" -eq 75 ]]; then
+  fail 'Another production release holds the server lock; retry after it finishes'
+elif [[ "$lock_status" -ne 0 ]]; then
+  fail "Unable to acquire production deploy lock (flock exit $lock_status)"
+fi
 [[ -z "$(git status --porcelain --untracked-files=no)" ]] || fail 'VPS checkout has tracked local changes; preserve and reconcile them before release'
 [[ -f .env.production ]] || fail 'Missing .env.production'
 git fetch --no-tags origin main

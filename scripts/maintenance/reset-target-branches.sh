@@ -15,7 +15,7 @@ fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 cd "$deploy_dir"
 lock_file="$(git rev-parse --git-dir)/deploy.lock"
 show_lock_holders() {
-  local pids pid process found=0 lock_stat lock_major lock_minor lock_inode lock_identity lock_entries lock_type
+  local pids pid process found=0 lock_stat lock_major lock_minor lock_inode lock_identity lock_entries lock_type status
   printf 'LOCK_FILE: %s\n' "$lock_file"
   lock_stat=$(stat -Lc '%t %T %i' "$lock_file" 2>/dev/null || true)
   if [[ -n "$lock_stat" ]]; then
@@ -28,31 +28,47 @@ show_lock_holders() {
   fi
   command -v sudo >/dev/null 2>&1 || { printf 'sudo is unavailable; cannot inspect lock holders\n'; return 0; }
   if command -v fuser >/dev/null 2>&1; then
-    pids=$(sudo fuser -- "$lock_file" 2>/dev/null || true)
-    for pid in $pids; do
-      [[ "$pid" =~ ^[0-9]+$ ]] || continue
-      [[ "$pid" = "$$" ]] && continue
-      # Do not log argv: maintenance command lines can contain credentials. The
-      # executable name plus PID/PPID/state/elapsed time is enough to identify a
-      # stale holder without exposing process arguments to workflow logs.
-      process=$(sudo ps -p "$pid" -o pid=,ppid=,stat=,etime=,comm= 2>/dev/null || true)
-      [[ -n "$process" ]] || continue
-      printf 'OPEN_FILE_PID/PPID/STATE/ELAPSED/EXECUTABLE: %s\n' "$process"
-      found=1
-    done
-    [[ "$found" -eq 1 ]] || printf 'OPEN_FILE_PROCESSES: none reported by fuser\n'
+    if pids=$(sudo -n fuser -- "$lock_file" 2>&1); then status=0; else status=$?; fi
+    printf 'FUSER_EXIT_STATUS: %s\n' "$status"
+    if [[ "$status" -eq 0 ]]; then
+      for pid in $pids; do
+        [[ "$pid" =~ ^[0-9]+$ ]] || continue
+        [[ "$pid" = "$$" ]] && continue
+        # Do not log argv: maintenance command lines can contain credentials. The
+        # executable name plus PID/PPID/state/elapsed time is enough to identify a
+        # stale holder without exposing process arguments to workflow logs.
+        if process=$(sudo -n ps -p "$pid" -o pid=,ppid=,stat=,etime=,comm= 2>&1); then
+          [[ -n "$process" ]] || continue
+          printf 'OPEN_FILE_PID/PPID/STATE/ELAPSED/EXECUTABLE: %s\n' "$process"
+          found=1
+        else
+          printf 'PROCESS_INSPECTION_ERROR: %s\n' "$process"
+        fi
+      done
+      [[ "$found" -eq 1 ]] || printf 'FUSER_RETURNED_NO_PID: %s\n' "$pids"
+    elif [[ "$status" -eq 1 && -z "${pids//[[:space:]]/}" ]]; then
+      printf 'OPEN_FILE_PROCESSES: none reported by fuser\n'
+    else
+      printf 'FUSER_ERROR: %s\n' "$pids"
+    fi
   else
     printf 'FUSER: unavailable\n'
   fi
 
   if [[ -n "$lock_identity" ]] && [[ -r /proc/locks ]]; then
-    lock_entries=$(sudo awk -v identity="$lock_identity" '$6 == identity { print $2, $5 }' /proc/locks 2>/dev/null || true)
-    if [[ -n "$lock_entries" ]]; then
+    if lock_entries=$(sudo -n awk -v identity="$lock_identity" '$6 == identity { print $2, $5 }' /proc/locks 2>&1); then status=0; else status=$?; fi
+    printf 'KERNEL_LOCKS_EXIT_STATUS: %s\n' "$status"
+    if [[ "$status" -ne 0 ]]; then
+      printf 'KERNEL_LOCKS_ERROR: %s\n' "$lock_entries"
+    elif [[ -n "$lock_entries" ]]; then
       while read -r lock_type pid; do
         printf 'KERNEL_LOCK_TYPE/PID: %s %s\n' "$lock_type" "$pid"
         if [[ "$pid" =~ ^[0-9]+$ ]]; then
-          process=$(sudo ps -p "$pid" -o pid=,ppid=,stat=,etime=,comm= 2>/dev/null || true)
-          [[ -n "$process" ]] && printf 'PID/PPID/STATE/ELAPSED/EXECUTABLE: %s\n' "$process"
+          if process=$(sudo -n ps -p "$pid" -o pid=,ppid=,stat=,etime=,comm= 2>&1); then
+            [[ -n "$process" ]] && printf 'PID/PPID/STATE/ELAPSED/EXECUTABLE: %s\n' "$process"
+          else
+            printf 'PROCESS_INSPECTION_ERROR: %s\n' "$process"
+          fi
         fi
       done <<< "$lock_entries"
     else
@@ -64,12 +80,19 @@ show_lock_holders() {
 
   if [[ -e "$lock_file" ]]; then
     exec 9>>"$lock_file"
-    if flock -n 9; then
-      printf 'LOCK_PROBE: free\n'
-      flock -u 9
-    else
-      printf 'LOCK_PROBE: held\n'
-    fi
+    set +e
+    flock -n -E 75 9
+    status=$?
+    set -e
+    printf 'LOCK_PROBE_EXIT_STATUS: %s\n' "$status"
+    case "$status" in
+      0)
+        printf 'LOCK_PROBE: free\n'
+        flock -u 9
+        ;;
+      75) printf 'LOCK_PROBE: held\n' ;;
+      *) printf 'LOCK_PROBE: error (flock exit %s)\n' "$status" ;;
+    esac
   else
     printf 'LOCK_PROBE: lock file is missing\n'
   fi
@@ -79,9 +102,15 @@ if [[ "$operation" = diagnose_lock ]]; then
   exit 0
 fi
 exec 9>"$lock_file"
-if ! flock -n 9; then
+set +e
+flock -n -E 75 9
+lock_status=$?
+set -e
+if [[ "$lock_status" -eq 75 ]]; then
   show_lock_holders >&2 || true
   fail 'Production deployment/maintenance lock is held; retry after it completes'
+elif [[ "$lock_status" -ne 0 ]]; then
+  fail "Could not acquire production maintenance lock (flock exit $lock_status)"
 fi
 
 live_release=$(sudo docker exec "$backend_container" node -p 'process.env.RELEASE_SHA || ""')
