@@ -15,22 +15,63 @@ fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 cd "$deploy_dir"
 lock_file="$(git rev-parse --git-dir)/deploy.lock"
 show_lock_holders() {
-  local pids pid process found=0
+  local pids pid process found=0 lock_stat lock_major lock_minor lock_inode lock_identity lock_entries lock_type
+  printf 'LOCK_FILE: %s\n' "$lock_file"
+  lock_stat=$(stat -Lc '%t %T %i' "$lock_file" 2>/dev/null || true)
+  if [[ -n "$lock_stat" ]]; then
+    read -r lock_major lock_minor lock_inode <<< "$lock_stat"
+    printf -v lock_identity '%02x:%02x:%s' "$((16#$lock_major))" "$((16#$lock_minor))" "$lock_inode"
+    printf 'LOCK_FILE_IDENTITY: %s\n' "$lock_identity"
+  else
+    printf 'LOCK_FILE_IDENTITY: unavailable\n'
+    lock_identity=''
+  fi
   command -v sudo >/dev/null 2>&1 || { printf 'sudo is unavailable; cannot inspect lock holders\n'; return 0; }
-  pids=$(sudo fuser -- "$lock_file" 2>/dev/null || true)
-  for pid in $pids; do
-    [[ "$pid" =~ ^[0-9]+$ ]] || continue
-    [[ "$pid" = "$$" ]] && continue
-    # Do not log argv: maintenance command lines can contain credentials. The
-    # executable name plus PID/PPID/state/elapsed time is enough to identify a
-    # stale holder without exposing process arguments to workflow logs.
-    process=$(sudo ps -p "$pid" -o pid=,ppid=,stat=,etime=,comm= 2>/dev/null || true)
-    [[ -n "$process" ]] || continue
-    printf 'PID/PPID/STATE/ELAPSED/EXECUTABLE: %s\n' "$process"
-    found=1
-  done
-  if [[ "$found" -eq 0 ]]; then
-    printf 'No external lock-holder process could be identified.\n'
+  if command -v fuser >/dev/null 2>&1; then
+    pids=$(sudo fuser -- "$lock_file" 2>/dev/null || true)
+    for pid in $pids; do
+      [[ "$pid" =~ ^[0-9]+$ ]] || continue
+      [[ "$pid" = "$$" ]] && continue
+      # Do not log argv: maintenance command lines can contain credentials. The
+      # executable name plus PID/PPID/state/elapsed time is enough to identify a
+      # stale holder without exposing process arguments to workflow logs.
+      process=$(sudo ps -p "$pid" -o pid=,ppid=,stat=,etime=,comm= 2>/dev/null || true)
+      [[ -n "$process" ]] || continue
+      printf 'OPEN_FILE_PID/PPID/STATE/ELAPSED/EXECUTABLE: %s\n' "$process"
+      found=1
+    done
+    [[ "$found" -eq 1 ]] || printf 'OPEN_FILE_PROCESSES: none reported by fuser\n'
+  else
+    printf 'FUSER: unavailable\n'
+  fi
+
+  if [[ -n "$lock_identity" ]] && [[ -r /proc/locks ]]; then
+    lock_entries=$(sudo awk -v identity="$lock_identity" '$6 == identity { print $2, $5 }' /proc/locks 2>/dev/null || true)
+    if [[ -n "$lock_entries" ]]; then
+      while read -r lock_type pid; do
+        printf 'KERNEL_LOCK_TYPE/PID: %s %s\n' "$lock_type" "$pid"
+        if [[ "$pid" =~ ^[0-9]+$ ]]; then
+          process=$(sudo ps -p "$pid" -o pid=,ppid=,stat=,etime=,comm= 2>/dev/null || true)
+          [[ -n "$process" ]] && printf 'PID/PPID/STATE/ELAPSED/EXECUTABLE: %s\n' "$process"
+        fi
+      done <<< "$lock_entries"
+    else
+      printf 'KERNEL_LOCKS: no entry matches this file identity\n'
+    fi
+  else
+    printf 'KERNEL_LOCKS: unavailable\n'
+  fi
+
+  if [[ -e "$lock_file" ]]; then
+    exec 9>>"$lock_file"
+    if flock -n 9; then
+      printf 'LOCK_PROBE: free\n'
+      flock -u 9
+    else
+      printf 'LOCK_PROBE: held\n'
+    fi
+  else
+    printf 'LOCK_PROBE: lock file is missing\n'
   fi
 }
 if [[ "$operation" = diagnose_lock ]]; then

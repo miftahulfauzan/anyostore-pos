@@ -13,10 +13,14 @@ test('provides read-only lock diagnostics before trying to acquire the productio
   assert.match(workflow, /if \[\[ "\$OPERATION" = diagnose_lock \]\]; then[\s\S]*?Production lock diagnostics \(read-only\)/);
 
   const diagnosticBranch = remoteScript.indexOf('if [[ "$operation" = diagnose_lock ]]; then');
-  const lockAcquire = remoteScript.indexOf('flock -n 9');
+  const lockAcquire = remoteScript.indexOf('if ! flock -n 9; then', diagnosticBranch);
   assert.ok(diagnosticBranch >= 0 && lockAcquire > diagnosticBranch);
   assert.match(remoteScript.slice(diagnosticBranch, lockAcquire), /show_lock_holders/);
+  assert.match(remoteScript, /stat -Lc '%t %T %i' "\$lock_file"/);
+  assert.match(remoteScript, /\/proc\/locks/);
+  assert.match(remoteScript, /flock -n 9/);
   assert.match(remoteScript, /sudo fuser -- "\$lock_file"/);
+  assert.match(remoteScript, /command -v fuser/);
   assert.match(remoteScript, /sudo ps -p "\$pid" -o pid=,ppid=,stat=,etime=,comm=/);
   assert.doesNotMatch(remoteScript, /-o pid=,ppid=,stat=,etime=,args=/);
 });
