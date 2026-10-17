@@ -19,7 +19,8 @@ test('provides read-only lock diagnostics before trying to acquire the productio
   assert.match(remoteScript, /stat -Lc '%t %T %i' "\$lock_file"/);
   assert.match(remoteScript, /\/proc\/locks/);
   assert.match(remoteScript, /flock -n -E 75 9/);
-  assert.match(remoteScript, /sudo -n fuser -- "\$lock_file"/);
+  assert.match(remoteScript, /sudo -n fuser "\$lock_file"/);
+  assert.doesNotMatch(remoteScript, /sudo -n fuser -- "\$lock_file"/);
   assert.match(remoteScript, /command -v fuser/);
   assert.match(remoteScript, /sudo -n ps -p "\$pid" -o pid=,ppid=,stat=,etime=,comm=/);
   assert.doesNotMatch(remoteScript, /-o pid=,ppid=,stat=,etime=,args=/);
