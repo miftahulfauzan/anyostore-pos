@@ -9,6 +9,7 @@ const remoteScript = fs.readFileSync(path.join(repoRoot, 'scripts/maintenance/re
 
 test('provides read-only lock diagnostics before trying to acquire the production lock', () => {
   assert.match(workflow, /options:\s*\[audit, apply, diagnose_lock\]/);
+  assert.match(workflow, /\[\[ "\$OPERATION" = audit \|\| "\$OPERATION" = apply \|\| "\$OPERATION" = diagnose_lock \]\]/);
   assert.match(workflow, /if \[\[ "\$OPERATION" = diagnose_lock \]\]; then[\s\S]*?Production lock diagnostics \(read-only\)/);
 
   const diagnosticBranch = remoteScript.indexOf('if [[ "$operation" = diagnose_lock ]]; then');

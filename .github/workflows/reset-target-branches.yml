@@ -49,7 +49,7 @@ jobs:
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
           set -euo pipefail
-          [[ "$OPERATION" = audit || "$OPERATION" = apply ]]
+          [[ "$OPERATION" = audit || "$OPERATION" = apply || "$OPERATION" = diagnose_lock ]]
           [[ -n "$VPS_USER" && -n "$VPS_SSH_KEY" ]] || { echo 'Production SSH credentials are unavailable'; exit 1; }
           if [[ "$OPERATION" = apply ]]; then
             [[ "$CONFIRMATION" = 'RESET Toko B + Anyostore Metro from Gudang Utama' ]] || { echo 'Exact reset confirmation phrase is required'; exit 1; }
