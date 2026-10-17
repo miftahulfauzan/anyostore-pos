@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const db = require('../src/db');
 const { TARGET_NAME_GROUPS, pickUniqueBranch } = require('../src/reset-branch-targets');
 const { executeAuditQuery, countAuditRows } = require('../src/reset-audit-query');
+const { withClosedPool } = require('../src/with-closed-pool');
 
 const OPERATION = 'reset-store-catalog-v1';
 const SOURCE_NAMES = ['Gudang Utama'];
@@ -302,31 +303,29 @@ async function applyReset(expectedFingerprint, backupLocation, initiatedBy) {
 
 async function main() {
   const [mode, fingerprint, backupLocation, initiatedBy] = process.argv.slice(2);
-  if (!['audit', 'verify', 'apply'].includes(mode)) {
-    throw new Error('Usage: reset-target-branch-data.js <audit|verify|apply> [fingerprint] [backup-location] [actor]');
-  }
-  if (mode === 'apply') {
-    const result = await applyReset(fingerprint, backupLocation, initiatedBy);
-    process.stdout.write(`${JSON.stringify(result)}\n`);
-    return;
-  }
-  const connection = await db.getConnection();
-  try {
-    const audit = await makeAudit(connection);
-    if (mode === 'verify') {
-      if (audit.fingerprint !== fingerprint) throw new Error(`Fingerprint mismatch: current=${audit.fingerprint}`);
-      if (audit.blockers.length) throw new Error(`Reset blocked: ${audit.blockers.join('; ')}`);
-      process.stdout.write(`${JSON.stringify({ valid: true, fingerprint: audit.fingerprint })}\n`);
-      return;
+  const result = await withClosedPool(db, async () => {
+    if (!['audit', 'verify', 'apply'].includes(mode)) {
+      throw new Error('Usage: reset-target-branch-data.js <audit|verify|apply> [fingerprint] [backup-location] [actor]');
     }
-    process.stdout.write(`${JSON.stringify(audit)}\n`);
-  } finally {
-    connection.release();
-  }
+    if (mode === 'apply') return applyReset(fingerprint, backupLocation, initiatedBy);
+
+    const connection = await db.getConnection();
+    try {
+      const audit = await makeAudit(connection);
+      if (mode === 'verify') {
+        if (audit.fingerprint !== fingerprint) throw new Error(`Fingerprint mismatch: current=${audit.fingerprint}`);
+        if (audit.blockers.length) throw new Error(`Reset blocked: ${audit.blockers.join('; ')}`);
+        return { valid: true, fingerprint: audit.fingerprint };
+      }
+      return audit;
+    } finally {
+      connection.release();
+    }
+  });
+  process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 
-main().catch(async (error) => {
+main().catch((error) => {
   console.error(error.message || error);
-  await db.end().catch(() => {});
   process.exitCode = 1;
 });
