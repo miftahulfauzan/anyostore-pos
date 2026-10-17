@@ -59,9 +59,10 @@ jobs:
           trap 'rm -f "$key_dir/key" "$key_dir/known_hosts"; rmdir "$key_dir"' EXIT
           printf '%s\n' "$VPS_SSH_KEY" > "$key_dir/key"
           chmod 600 "$key_dir/key"
+          printf '%s\n' 'anyostore.my.id ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIl6nYINyMsb4ibTswS+CNbAkZdM6oJY1p6gry49DXKX' > "$key_dir/known_hosts"
           expected_ips=$(getent ahostsv4 "$VPS_HOST" | awk '{print $1}' | sort -u)
           [[ -n "$expected_ips" ]] || { echo 'Production hostname did not resolve'; exit 1; }
-          ssh_opts=(-i "$key_dir/key" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$key_dir/known_hosts" -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -o ConnectTimeout=15 -o LogLevel=ERROR)
+          ssh_opts=(-i "$key_dir/key" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$key_dir/known_hosts" -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -o ConnectTimeout=15 -o LogLevel=ERROR)
           remote_ip=$(ssh "${ssh_opts[@]}" "$VPS_USER@$VPS_HOST" 'curl -4fsS --max-time 10 https://api.ipify.org')
           grep -Fxq "$remote_ip" <<< "$expected_ips" || { echo 'SSH target does not match production hostname'; exit 1; }
           set +e
