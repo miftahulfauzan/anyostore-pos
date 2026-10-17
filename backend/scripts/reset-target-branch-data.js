@@ -1,16 +1,13 @@
 #!/usr/bin/env node
-// One-time, guarded reset of operational data for Toko B and Anystore Metro.
+// One-time, guarded reset of operational data for Toko B and Anyostore Metro.
 // Audit and apply are deliberately separate. Apply requires the exact audit
 // fingerprint, an on-server backup location, and records a durable run marker.
 const crypto = require('crypto');
 const db = require('../src/db');
+const { TARGET_NAME_GROUPS, pickUniqueBranch } = require('../src/reset-branch-targets');
 
 const OPERATION = 'reset-store-catalog-v1';
 const SOURCE_NAMES = ['Gudang Utama'];
-const TARGET_NAME_GROUPS = [
-  ['Toko B', 'Toko Blok B', 'Blok B'],
-  ['Anystore Metro', 'Metro'],
-];
 const HANDLED_BRANCH_TABLES = new Set([
   'transactions', 'stock_mutations', 'stock_opnames', 'stock_transfers',
   'expenses', 'journal_entries', 'purchase_orders', 'cash_drawers',
@@ -34,12 +31,16 @@ async function findExactBranch(connection, names, description) {
     `SELECT id, name, type, is_active FROM branches WHERE name IN (${marks}) ORDER BY id`,
     names
   );
+  let candidates = rows;
+  let available = rows;
   if (rows.length !== 1) {
-    const [available] = await connection.execute('SELECT id, name, type, is_active FROM branches ORDER BY id');
-    throw new Error(`${description}: expected exactly one match for ${names.join(' / ')}; found ${rows.length}. Branches=${JSON.stringify(available)}`);
+    const [allBranches] = await connection.execute('SELECT id, name, type, is_active FROM branches ORDER BY id');
+    candidates = allBranches;
+    available = allBranches;
   }
-  if (Number(rows[0].is_active) !== 1) throw new Error(`${description} is inactive: ${rows[0].name} (id ${rows[0].id})`);
-  return rows[0];
+  const branch = pickUniqueBranch(candidates, names, description, available);
+  if (Number(branch.is_active) !== 1) throw new Error(`${description} is inactive: ${branch.name} (id ${branch.id})`);
+  return branch;
 }
 
 async function resolveBranches(connection) {
