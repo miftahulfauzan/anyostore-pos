@@ -6,21 +6,11 @@ const crypto = require('crypto');
 const db = require('../src/db');
 const { TARGET_NAME_GROUPS, pickUniqueBranch } = require('../src/reset-branch-targets');
 const { executeAuditQuery, countAuditRows } = require('../src/reset-audit-query');
+const { findUnclassifiedBranchTables } = require('../src/reset-branch-table-policy');
 const { withClosedPool } = require('../src/with-closed-pool');
 
 const OPERATION = 'reset-store-catalog-v1';
 const SOURCE_NAMES = ['Gudang Utama'];
-const HANDLED_BRANCH_TABLES = new Set([
-  'transactions', 'stock_mutations', 'stock_opnames', 'stock_transfers',
-  'expenses', 'journal_entries', 'purchase_orders', 'cash_drawers',
-  'shifts', 'commission_records', 'pending_transactions',
-]);
-const PRESERVED_BRANCH_TABLES = new Set([
-  'products', 'warehouses', 'store_settings', 'customers', 'suppliers',
-  'periods', 'shift_templates', 'employee_schedules', 'commission_rules',
-  'expense_budgets', 'promotions', 'link_page_views', 'link_page_clicks',
-  'invoice_sequences',
-]);
 
 function placeholders(values) {
   if (!values.length) throw new Error('Expected a non-empty ID list');
@@ -153,8 +143,6 @@ async function makeAudit(connection) {
      WHERE TABLE_SCHEMA=DATABASE() AND COLUMN_NAME='branch_id' ORDER BY TABLE_NAME`
   );
   const branchTableCounts = {};
-  const unclassifiedBranchTables = [];
-  const known = new Set([...HANDLED_BRANCH_TABLES, ...PRESERVED_BRANCH_TABLES]);
   for (const { tableName } of branchColumns) {
     const escaped = `\`${String(tableName).replace(/`/g, '``')}\``;
     const tableCount = await countAuditRows(
@@ -165,9 +153,11 @@ async function makeAudit(connection) {
     );
     if (tableCount) {
       branchTableCounts[tableName] = tableCount;
-      if (!known.has(tableName)) unclassifiedBranchTables.push({ table: tableName, rows: tableCount });
     }
   }
+  const unclassifiedBranchTables = findUnclassifiedBranchTables(
+    Object.entries(branchTableCounts).map(([table, rows]) => ({ table, rows }))
+  );
 
   const branchKey = `${OPERATION}:${source.id}:${targetIds.join(',')}`;
   const runRows = await executeAuditQuery(connection, 'previous reset marker lookup',
