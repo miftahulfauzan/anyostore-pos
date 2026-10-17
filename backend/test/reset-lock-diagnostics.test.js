@@ -16,10 +16,11 @@ test('provides read-only lock diagnostics before trying to acquire the productio
   assert.ok(diagnosticBranch >= 0 && lockAcquire > diagnosticBranch);
   assert.match(remoteScript.slice(diagnosticBranch, lockAcquire), /show_lock_holders/);
   assert.match(remoteScript, /sudo fuser -- "\$lock_file"/);
-  assert.match(remoteScript, /sudo ps -ww -p "\$pid"/);
+  assert.match(remoteScript, /sudo ps -p "\$pid" -o pid=,ppid=,stat=,etime=,comm=/);
+  assert.doesNotMatch(remoteScript, /-o pid=,ppid=,stat=,etime=,args=/);
 });
 
-test('redacts credential-like process arguments in lock diagnostics', () => {
-  assert.match(remoteScript, /MYSQL_PWD\|password\|token/);
-  assert.match(remoteScript, /\[REDACTED\]/);
+test('lock diagnostics never log process arguments', () => {
+  assert.match(remoteScript, /Do not log argv/);
+  assert.match(remoteScript, /EXECUTABLE:/);
 });

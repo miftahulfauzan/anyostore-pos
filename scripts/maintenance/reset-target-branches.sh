@@ -21,10 +21,12 @@ show_lock_holders() {
   for pid in $pids; do
     [[ "$pid" =~ ^[0-9]+$ ]] || continue
     [[ "$pid" = "$$" ]] && continue
-    process=$(sudo ps -ww -p "$pid" -o pid=,ppid=,stat=,etime=,args= 2>/dev/null || true)
+    # Do not log argv: maintenance command lines can contain credentials. The
+    # executable name plus PID/PPID/state/elapsed time is enough to identify a
+    # stale holder without exposing process arguments to workflow logs.
+    process=$(sudo ps -p "$pid" -o pid=,ppid=,stat=,etime=,comm= 2>/dev/null || true)
     [[ -n "$process" ]] || continue
-    process=$(printf '%s\n' "$process" | sed -E 's/(MYSQL_PWD|password|token)([=:][^[:space:]]+|[[:space:]]+[^[:space:]]+)/\1=[REDACTED]/Ig')
-    printf 'PID/PPID/STATE/ELAPSED/COMMAND: %s\n' "$process"
+    printf 'PID/PPID/STATE/ELAPSED/EXECUTABLE: %s\n' "$process"
     found=1
   done
   if [[ "$found" -eq 0 ]]; then
