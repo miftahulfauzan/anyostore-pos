@@ -1,0 +1,93 @@
+name: Reset Blok B and Metro data
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Audit is read-only; apply requires the fingerprint from a fresh audit
+        required: true
+        type: choice
+        options: [audit, apply]
+      audit_fingerprint:
+        description: Required for apply; exact SHA-256 fingerprint returned by audit
+        required: false
+        type: string
+      confirmation:
+        description: For apply, enter RESET Toko B + Anystore Metro from Gudang Utama
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: anyostore-target-branch-reset
+  cancel-in-progress: false
+
+jobs:
+  reset:
+    if: github.ref == 'refs/heads/main' && github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out the deployed main release
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Audit or apply the explicitly scoped reset
+        env:
+          OPERATION: ${{ inputs.operation }}
+          AUDIT_FINGERPRINT: ${{ inputs.audit_fingerprint }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          EXPECTED_RELEASE: ${{ github.sha }}
+          VPS_HOST: anyostore.my.id
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          [[ "$OPERATION" = audit || "$OPERATION" = apply ]]
+          [[ -n "$VPS_USER" && -n "$VPS_SSH_KEY" ]] || { echo 'Production SSH credentials are unavailable'; exit 1; }
+          if [[ "$OPERATION" = apply ]]; then
+            [[ "$CONFIRMATION" = 'RESET Toko B + Anystore Metro from Gudang Utama' ]] || { echo 'Exact reset confirmation phrase is required'; exit 1; }
+            [[ "$AUDIT_FINGERPRINT" =~ ^[a-f0-9]{64}$ ]] || { echo 'A current 64-character audit fingerprint is required'; exit 1; }
+          fi
+          key_dir=$(mktemp -d)
+          trap 'rm -f "$key_dir/key" "$key_dir/known_hosts"; rmdir "$key_dir"' EXIT
+          printf '%s\n' "$VPS_SSH_KEY" > "$key_dir/key"
+          chmod 600 "$key_dir/key"
+          printf '%s\n' 'anyostore.my.id ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIl6nYINyMsb4ibTswS+CNbAkZdM6oJY1p6gry49DXKX' > "$key_dir/known_hosts"
+          expected_ips=$(getent ahostsv4 "$VPS_HOST" | awk '{print $1}' | sort -u)
+          [[ -n "$expected_ips" ]] || { echo 'Production hostname did not resolve'; exit 1; }
+          ssh_opts=(-i "$key_dir/key" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$key_dir/known_hosts" -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -o ConnectTimeout=15 -o LogLevel=ERROR)
+          remote_ip=$(ssh "${ssh_opts[@]}" "$VPS_USER@$VPS_HOST" 'curl -4fsS --max-time 10 https://api.ipify.org')
+          grep -Fxq "$remote_ip" <<< "$expected_ips" || { echo 'SSH target does not match production hostname'; exit 1; }
+          set +e
+          ssh "${ssh_opts[@]}" "$VPS_USER@$VPS_HOST" 'bash -s --' "$OPERATION" "$AUDIT_FINGERPRINT" "$GITHUB_RUN_ID" "$GITHUB_ACTOR" "$EXPECTED_RELEASE" < scripts/maintenance/reset-target-branches.sh > "$RUNNER_TEMP/reset-result.json" 2> "$RUNNER_TEMP/reset-stderr.log"
+          status=$?
+          set -e
+          if [[ $status -ne 0 ]]; then
+            sed -E 's/(MYSQL_PWD|password|token)[=:][^[:space:]]+/\1=[REDACTED]/Ig' "$RUNNER_TEMP/reset-stderr.log" | tail -80
+            exit "$status"
+          fi
+          cat "$RUNNER_TEMP/reset-stderr.log"
+          cat "$RUNNER_TEMP/reset-result.json"
+          if [[ "$OPERATION" = audit ]]; then
+            node - "$RUNNER_TEMP/reset-result.json" >> "$GITHUB_STEP_SUMMARY" <<'NODE'
+          const fs = require('node:fs');
+          const result = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const rows = Object.entries(result.counts).map(([name, count]) => `| ${name} | ${count} |`).join('\n');
+          const targets = result.targets.map((target) => `${target.name} (id ${target.id})`).join(', ');
+          const blockers = result.blockers.length ? result.blockers.map((item) => `- ${item}`).join('\n') : 'Tidak ada';
+          console.log(`## Audit baca-saja reset cabang\n\n- Sumber: ${result.source.name} (id ${result.source.id})\n- Target: ${targets}\n- Fingerprint untuk apply: \`${result.fingerprint}\`\n- Stok saat ini target: ${result.stockBeforeReset.quantity} unit (+ ${result.stockBeforeReset.reserved} reserved)\n- Reset sebelumnya: ${result.resetAlreadyCompleted ? 'sudah' : 'belum'}\n\n### Data operasional yang akan dihapus\n\n| Data | Baris |\n|---|---:|\n${rows}\n\n### Hal yang menghalangi eksekusi\n\n${blockers}\n\nKatalog/master, pengguna, gudang, pemasok, pelanggan, konfigurasi, budget, statistik halaman, dan nomor urut invoice dipertahankan.\n`);
+          NODE
+          else
+            node - "$RUNNER_TEMP/reset-result.json" >> "$GITHUB_STEP_SUMMARY" <<'NODE'
+          const fs = require('node:fs');
+          const result = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          console.log(`## Reset produksi selesai\n\n- Sumber katalog: ${result.source}\n- Target: ${result.targets.map((b) => `${b.name} (id ${b.id})`).join(', ')}\n- Produk/varian/foto/harga grosir cocok dengan sumber: ya\n- Stok setelah reset: ${result.stockAfterReset.quantity} unit, reserved ${result.stockAfterReset.reserved}\n- Lokasi backup terverifikasi di VPS: \`${result.backupLocation}\`\n- Penanda reset sekali jalan tersimpan di database.\n`);
+          NODE
+          fi
