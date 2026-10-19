@@ -125,7 +125,12 @@ fi
 [[ "$run_id" =~ ^[0-9]+$ ]] || fail 'Invalid GitHub run id'
 [[ "$actor" =~ ^[A-Za-z0-9-]{1,100}$ ]] || fail 'Invalid GitHub actor'
 audit_json=$(sudo docker exec "$backend_container" node scripts/reset-target-branch-data.js audit)
-printf '%s' "$audit_json" | node -e 'const fs=require("fs"); const a=JSON.parse(fs.readFileSync(0,"utf8")); process.stdout.write(a.source.name)' | grep -Fxq 'Gudang Utama' || fail 'Resolved source is not exactly Gudang Utama'
+extract_audit_value() {
+  local expression=$1
+  printf '%s' "$audit_json" | sudo docker exec -i "$backend_container" node -e "$expression"
+}
+audit_source=$(extract_audit_value 'const fs=require("fs"); const a=JSON.parse(fs.readFileSync(0,"utf8")); process.stdout.write(a.source.name)')
+[[ "$audit_source" = 'Gudang Utama' ]] || fail 'Resolved source is not exactly Gudang Utama'
 sudo docker exec "$backend_container" node scripts/reset-target-branch-data.js verify "$expected_fingerprint" >&2
 
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
@@ -154,8 +159,8 @@ sha256sum "$backup_dir/database.sql.gz" "$backup_dir/uploads.tar.gz" > "$backup_
 chmod 600 "$backup_dir"/*
 (cd "$backup_dir" && sha256sum -c SHA256SUMS) >&2
 
-source_name=$(printf '%s' "$audit_json" | node -e 'const fs=require("fs"); const a=JSON.parse(fs.readFileSync(0,"utf8")); process.stdout.write(a.source.name)')
-mapfile -t target_names < <(printf '%s' "$audit_json" | node -e 'const fs=require("fs"); const a=JSON.parse(fs.readFileSync(0,"utf8")); for (const t of a.targets) console.log(t.name)')
+source_name=$audit_source
+mapfile -t target_names < <(extract_audit_value 'const fs=require("fs"); const a=JSON.parse(fs.readFileSync(0,"utf8")); for (const t of a.targets) console.log(t.name)')
 [[ ${#target_names[@]} -eq 2 ]] || fail 'Audit did not resolve exactly two target branches'
 printf 'Replacing active target catalog from %s; copied balances will be reset to zero.\n' "$source_name" >&2
 sudo docker exec "$backend_container" node scripts/sync-catalog-to-branches.js --apply "$source_name" "${target_names[@]}" >&2
