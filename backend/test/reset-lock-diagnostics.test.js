@@ -39,3 +39,10 @@ test('lock diagnostics never log process arguments', () => {
   assert.match(remoteScript, /Do not log argv/);
   assert.match(remoteScript, /EXECUTABLE:/);
 });
+
+test('reset apply parses audit JSON inside the backend container, not on the VPS host', () => {
+  assert.match(remoteScript, /extract_audit_value\(\)[\s\S]*?sudo docker exec -i "\$backend_container" node -e "\$expression"/);
+  assert.match(remoteScript, /audit_source=\$\(extract_audit_value /);
+  assert.match(remoteScript, /mapfile -t target_names < <\(extract_audit_value /);
+  assert.doesNotMatch(remoteScript, /\|\s*node -e\b/);
+});
