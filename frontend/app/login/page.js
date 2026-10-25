@@ -12,17 +12,6 @@ export default function LoginPage() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const modeButton = (active) => ({
-    flex: 1,
-    minHeight: 40,
-    borderRadius: '.55rem',
-    border: active ? '1.5px solid #1e3a5f' : '1px solid var(--border, #e5e7eb)',
-    background: active ? '#1e3a5f' : '#fff',
-    color: active ? '#fff' : '#52525b',
-    fontWeight: 700,
-    cursor: 'pointer',
-  });
-
   function homeFor(role) {
     return role === 'gudang' ? '/dashboard' : '/pos';
   }
@@ -52,9 +41,9 @@ export default function LoginPage() {
       <form className="login" onSubmit={submit}>
         <div className="login-logo"><span>A</span> Anyostore</div>
         <div><p className="eyebrow">SELAMAT DATANG</p><h2>Masuk ke akun Anda</h2><p className="muted">Gunakan akun pegawai atau owner yang terdaftar.</p></div>
-        <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-          <button type="button" style={modeButton(mode === 'password')} onClick={() => setMode('password')}>Password</button>
-          <button type="button" style={modeButton(mode === 'pin')} onClick={() => setMode('pin')}>PIN</button>
+        <div className="login-mode-switch">
+          <button type="button" className={`login-mode-button${mode === 'password' ? ' selected' : ''}`} onClick={() => setMode('password')}>Password</button>
+          <button type="button" className={`login-mode-button${mode === 'pin' ? ' selected' : ''}`} onClick={() => setMode('pin')}>PIN</button>
         </div>
         <label>Email / Username<input name="username" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="email atau username" required /></label>
         {mode === 'pin' ? (

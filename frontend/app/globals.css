@@ -3263,3 +3263,64 @@ html.dark body {
     font-size: 12px;
   }
 }
+
+/* Dark mode: POS and login use the same solid denim workbench. */
+.login-mode-switch { display: flex; gap: 6px; margin-bottom: 6px; }
+.login-mode-button { flex: 1; min-height: 44px; border: 1px solid var(--border); border-radius: .55rem; background: var(--card); color: var(--foreground); cursor: pointer; }
+.login-mode-button.selected { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); }
+
+.dark .pos-standalone {
+  background: var(--background);
+  color: var(--foreground);
+}
+.dark .pos-workspace { background: transparent; color: var(--foreground); }
+.dark .pos-standalone .product-tile {
+  border-color: #5a8bbf;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+}
+.dark .pos-standalone .product-tile:hover:not(:disabled) {
+  border-color: #5a8bbf;
+  background: #253247;
+  box-shadow: 3px 4px 0 #172a45;
+}
+.dark .pos-standalone .product-tile img,
+.dark .pos-standalone .pos-photo-placeholder { background: var(--surface-secondary); }
+.dark .pos-standalone .product-tile strong { color: var(--text-primary); }
+.dark .pos-standalone .product-tile span,
+.dark .pos-standalone .product-tile small,
+.dark .pos-standalone .pos-photo-placeholder { color: var(--text-muted); }
+
+.dark .login-page {
+  background: var(--background);
+  color: var(--foreground);
+}
+.dark .login {
+  background: var(--surface-primary);
+  color: var(--text-primary);
+}
+.dark .login-logo,
+.dark .login h2,
+.dark .login label { color: var(--text-primary); }
+.dark .login .eyebrow { color: #7fa8cf; }
+.dark .login .muted { color: var(--text-muted); }
+.dark .login a { color: #93c5fd; }
+.dark .login input {
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+.dark .login input::placeholder { color: var(--text-muted); opacity: 1; }
+.dark .login-mode-button:not(.selected) {
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  border-color: #5a8bbf;
+}
+.dark .login-mode-button.selected,
+.dark .login > button[type="submit"] {
+  background: #2e5d8f;
+  color: #ffffff;
+  border-color: #5a8bbf;
+}
+.dark .login .message:not(.success) { background: #3a1d1d; color: #fecaca; border-color: #7f1d1d; }
+.dark .login .message.success { background: #173b2a; color: #bbf7d0; border-color: #2f855a; }
