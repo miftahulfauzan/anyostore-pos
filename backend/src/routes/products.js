@@ -1,10 +1,13 @@
 const express = require('express');
+const multer = require('multer');
 const db = require('../db');
 const { authenticate, authorize } = require('../auth');
 const { assertValidUpload, createMediaUpload, decodeDataUpload, discardUploadedFile, persistUploadedFile, removeMedia, copyMediaFile } = require('../media-storage');
 const { money } = require('../money');
 const { deleteCatalogProduct, productCapabilities } = require('../product-lifecycle');
 const { loadProductRackLocations } = require('../product-rack-locations');
+const { createProductWorkbook, parseProductWorkbook, XLSX_MIME, MAX_ROWS_PER_SHEET } = require('../product-excel');
+const { validateProductWorkbook, applyProductWorkbook } = require('../product-excel-import');
 
 const router = express.Router();
 router.use(authenticate);
@@ -17,6 +20,25 @@ const dataUploadOptions = {
   fileSize: 3 * 1024 * 1024,
   mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/webm'],
 };
+const excelUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024, files: 1, fields: 4 },
+  fileFilter: (_req, file, callback) => {
+    if (!file.originalname.toLowerCase().endsWith('.xlsx')) {
+      callback(Object.assign(new Error('Unggah file .xlsx dari menu Ekspor Excel Produk.'), { status: 400 }));
+      return;
+    }
+    callback(null, true);
+  },
+});
+function receiveProductExcel(req, res, next) {
+  excelUpload.single('file')(req, res, (error) => {
+    if (!error) return next();
+    if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ success: false, message: 'Ukuran file maksimal 8 MB.' });
+    if (error instanceof multer.MulterError) return res.status(400).json({ success: false, message: 'File Excel berisi upload yang tidak valid.' });
+    next(error);
+  });
+}
 
 const positiveNumber = (value) => Number.isFinite(Number(value)) && Number(value) >= 0;
 // Tentukan cabang yang bisa dibaca: owner = bebas; Admin Gudang = hanya cabang
@@ -99,8 +121,8 @@ function normalizeVariants(input) {
 // Stores use separate product and stock records. Matching SKUs (e.g. A100 and
 // B-A100) represent the same catalogue item, so a new color is copied to the
 // matching store with zero stock. Quantities are never shared or transferred.
-async function syncVariantColorsAcrossStores(productId, branchId) {
-  const [sourceRows] = await db.execute(
+async function syncVariantColorsAcrossStores(productId, branchId, executor = db) {
+  const [sourceRows] = await executor.execute(
     'SELECT id, sku FROM products WHERE id = ? AND branch_id = ? AND is_active = TRUE',
     [productId, branchId]
   );
@@ -108,7 +130,7 @@ async function syncVariantColorsAcrossStores(productId, branchId) {
   if (!source?.sku?.trim()) return;
 
   const catalogueSku = source.sku.trim().replace(/^B\d*-/i, '');
-  const [sourceVariants] = await db.execute(
+  const [sourceVariants] = await executor.execute(
     `SELECT TRIM(color) AS color, MAX(price) AS price
      FROM product_variants
      WHERE product_id = ? AND is_active = TRUE AND TRIM(COALESCE(color, '')) <> ''
@@ -118,7 +140,7 @@ async function syncVariantColorsAcrossStores(productId, branchId) {
   if (!sourceVariants.length) return;
 
   const catalogueSkuUpper = catalogueSku.toUpperCase();
-  const [targetProducts] = await db.execute(
+  const [targetProducts] = await executor.execute(
     `SELECT id
      FROM products
      WHERE id <> ? AND is_active = TRUE
@@ -129,7 +151,7 @@ async function syncVariantColorsAcrossStores(productId, branchId) {
   );
 
   for (const target of targetProducts) {
-    const [existingVariants] = await db.execute(
+    const [existingVariants] = await executor.execute(
       `SELECT UPPER(TRIM(color)) AS color
        FROM product_variants
        WHERE product_id = ? AND is_active = TRUE AND TRIM(COALESCE(color, '')) <> ''`,
@@ -139,7 +161,7 @@ async function syncVariantColorsAcrossStores(productId, branchId) {
     for (const variant of sourceVariants) {
       const color = variant.color.trim();
       if (!existingColors.has(color.toUpperCase())) {
-        await db.execute(
+        await executor.execute(
           'INSERT INTO product_variants (product_id, size, color, stock, price) VALUES (?, NULL, ?, 0, ?)',
           [target.id, color, variant.price]
         );
@@ -206,6 +228,123 @@ router.patch('/categories/reorder', authorize('owner', 'manager', 'admin', 'guda
     }
     res.json({ success: true });
   } catch (error) { next(error); }
+});
+
+function productExcelBranchId(req) {
+  const requested = req.user.role === 'owner'
+    ? Number(req.body?.branch_id ?? req.query.branch_id)
+    : Number(req.user.branch_id);
+  if (!Number.isInteger(requested) || requested < 1) {
+    throw Object.assign(new Error('Pilih satu cabang sebelum mengunduh atau mengimpor Excel.'), { status: 400 });
+  }
+  return requested;
+}
+
+async function assertProductExcelBranch(executor, branchId) {
+  const [rows] = await executor.execute('SELECT id, is_active FROM branches WHERE id = ?', [branchId]);
+  if (!rows[0] || Number(rows[0].is_active) !== 1) throw Object.assign(new Error('Cabang tidak ditemukan atau sudah nonaktif.'), { status: 404 });
+}
+
+function productExcelPreview(plan) {
+  return {
+    valid: plan.valid,
+    counts: plan.counts,
+    error_count: plan.errors.length,
+    errors: plan.errors,
+    changed_count: plan.changedRows.length,
+    changed_rows: plan.changedRows.slice(0, 200),
+  };
+}
+
+router.get('/excel/export', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
+  try {
+    const branchId = productExcelBranchId(req);
+    await assertProductExcelBranch(db, branchId);
+    const [[productCount]] = await db.execute('SELECT COUNT(*) AS total FROM products WHERE branch_id = ?', [branchId]);
+    const [[variantCount]] = await db.execute('SELECT COUNT(*) AS total FROM product_variants pv JOIN products p ON p.id = pv.product_id WHERE p.branch_id = ?', [branchId]);
+    const [[wholesaleCount]] = await db.execute('SELECT COUNT(*) AS total FROM wholesale_prices wp JOIN products p ON p.id = wp.product_id WHERE p.branch_id = ?', [branchId]);
+    if ([productCount, variantCount, wholesaleCount].some((count) => Number(count.total) > MAX_ROWS_PER_SHEET)) {
+      return res.status(400).json({ success: false, message: `File maksimal ${MAX_ROWS_PER_SHEET} baris per sheet. Pilih cabang dengan katalog lebih kecil.` });
+    }
+
+    const [products] = await db.execute(
+      `SELECT p.id, p.branch_id, p.category_id, p.name, p.description, p.sku, p.barcode, p.price, p.cost, p.min_stock, p.gender, p.is_active, c.name AS category_name
+       FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE p.branch_id = ? ORDER BY p.id`,
+      [branchId],
+    );
+    const productIds = products.map((product) => Number(product.id));
+    let variants = [];
+    let wholesale = [];
+    if (productIds.length) {
+      const placeholders = productIds.map(() => '?').join(',');
+      [variants] = await db.execute(
+        `SELECT pv.id, pv.product_id, pv.color, pv.size, pv.sku, pv.barcode, pv.price, pv.is_active
+         FROM product_variants pv WHERE pv.product_id IN (${placeholders}) ORDER BY pv.product_id, pv.id`,
+        productIds,
+      );
+      [wholesale] = await db.execute(
+        `SELECT wp.id, wp.product_id, wp.variant_id, wp.min_qty, wp.max_qty, wp.price, wp.is_active
+         FROM wholesale_prices wp WHERE wp.product_id IN (${placeholders}) ORDER BY wp.product_id, wp.variant_id, wp.min_qty, wp.id`,
+        productIds,
+      );
+    }
+    const [categories] = await db.execute('SELECT id, name FROM categories ORDER BY name');
+    const workbook = await createProductWorkbook({ products, variants, wholesale, categories });
+    const bytes = Buffer.from(await workbook.xlsx.writeBuffer());
+    res.set({
+      'Content-Type': XLSX_MIME,
+      'Content-Disposition': `attachment; filename="anyostore-produk-cabang-${branchId}.xlsx"`,
+      'Content-Length': String(bytes.length),
+      'Cache-Control': 'no-store',
+    });
+    res.send(bytes);
+  } catch (error) { next(error); }
+});
+
+router.post('/excel/preview', authorize('owner', 'manager', 'admin', 'gudang'), receiveProductExcel, async (req, res, next) => {
+  try {
+    if (!req.file?.buffer) return res.status(400).json({ success: false, message: 'Pilih file Excel .xlsx terlebih dulu.' });
+    const branchId = productExcelBranchId(req);
+    await assertProductExcelBranch(db, branchId);
+    const data = await parseProductWorkbook(req.file.buffer);
+    const plan = await validateProductWorkbook({ data, branchId, executor: db });
+    res.json({ success: true, data: productExcelPreview(plan) });
+  } catch (error) { next(error); }
+});
+
+router.post('/excel/apply', authorize('owner', 'manager', 'admin', 'gudang'), receiveProductExcel, async (req, res, next) => {
+  const connection = await db.getConnection();
+  let transactionOpen = false;
+  try {
+    if (!req.file?.buffer) return res.status(400).json({ success: false, message: 'Pilih file Excel .xlsx terlebih dulu.' });
+    const branchId = productExcelBranchId(req);
+    await assertProductExcelBranch(connection, branchId);
+    await connection.beginTransaction();
+    transactionOpen = true;
+    const data = await parseProductWorkbook(req.file.buffer);
+    const plan = await validateProductWorkbook({ data, branchId, executor: connection, lockRows: true });
+    if (!plan.valid) {
+      await connection.rollback();
+      transactionOpen = false;
+      return res.status(422).json({ success: false, message: 'File berubah atau memiliki error. Tidak ada perubahan yang diterapkan.', data: productExcelPreview(plan) });
+    }
+    const result = await applyProductWorkbook({
+      connection,
+      plan,
+      branchId,
+      user: { id: req.user.id, ip: req.ip, userAgent: req.get('user-agent') || null },
+      syncVariantColors: syncVariantColorsAcrossStores,
+    });
+    await connection.commit();
+    transactionOpen = false;
+    res.json({ success: true, data: { ...result, counts: plan.counts } });
+  } catch (error) {
+    if (transactionOpen) await connection.rollback();
+    if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ success: false, message: 'SKU produk atau varian bentrok dengan data yang baru disimpan. Unduh ulang file lalu coba lagi.' });
+    next(error);
+  } finally {
+    connection.release();
+  }
 });
 
 // Versi produk per cabang — untuk cek perubahan ringan (tanpa unduh ulang daftar & gambar).

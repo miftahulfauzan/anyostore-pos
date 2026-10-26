@@ -3324,3 +3324,49 @@ html.dark body {
 }
 .dark .login .message:not(.success) { background: #3a1d1d; color: #fecaca; border-color: #7f1d1d; }
 .dark .login .message.success { background: #173b2a; color: #bbf7d0; border-color: #2f855a; }
+
+.product-excel-page { display: grid; gap: 1rem; max-width: 1120px; margin: 0 auto; padding-bottom: 2rem; }
+.product-excel-heading { display: flex; align-items: center; gap: .85rem; color: var(--primary); }
+.product-excel-heading h1 { margin: 0; color: var(--foreground); font-size: clamp(1.25rem, 2.5vw, 1.7rem); }
+.product-excel-heading p, .product-excel-step-title p { margin: .25rem 0 0; color: var(--muted-foreground); font-size: .9rem; }
+.product-excel-step { align-content: start; }
+.product-excel-step-title { display: flex; align-items: flex-start; gap: .8rem; }
+.product-excel-step-title > span { display: grid; flex: 0 0 30px; width: 30px; height: 30px; place-items: center; border-radius: 7px; background: var(--primary); color: var(--primary-foreground); font-weight: 800; }
+.product-excel-step-title h2, .product-excel-result h2 { margin: 0; font-size: 1.05rem; }
+.product-excel-branch { margin: 0; color: var(--muted-foreground); }
+.product-excel-step > label { max-width: 460px; }
+.product-excel-download { justify-self: start; display: inline-flex; align-items: center; gap: .55rem; }
+.product-excel-file-label { max-width: 620px; }
+.product-excel-file-label input { width: 100%; min-height: 46px; padding: .55rem; }
+.product-excel-filename { margin: -.35rem 0 0; color: var(--muted-foreground); font-size: .85rem; overflow-wrap: anywhere; }
+.product-excel-safety { display: grid; gap: .2rem; max-width: 780px; padding: .8rem .9rem; border: 1px solid var(--border); border-radius: .5rem; background: var(--muted); font-size: .86rem; }
+.product-excel-safety span { color: var(--muted-foreground); }
+.product-excel-counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .7rem; }
+.product-excel-counts > div { display: grid; gap: .2rem; min-width: 0; padding: .8rem; border: 1px solid var(--border); border-radius: .5rem; }
+.product-excel-counts span, .product-excel-counts small { color: var(--muted-foreground); }
+.product-excel-counts strong { color: var(--foreground); }
+.product-excel-errors, .product-excel-changes { display: grid; gap: .7rem; min-width: 0; }
+.product-excel-errors { color: var(--destructive); }
+.product-excel-errors .product-excel-table-wrap { color: var(--foreground); }
+.product-excel-result-heading, .product-excel-apply-row { display: flex; align-items: center; justify-content: space-between; gap: .8rem; flex-wrap: wrap; }
+.product-excel-table-wrap { width: 100%; max-height: 460px; overflow: auto; border: 1px solid var(--border); border-radius: .5rem; }
+.product-excel-table-wrap table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+.product-excel-table-wrap th, .product-excel-table-wrap td { padding: .65rem .7rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+.product-excel-table-wrap th { position: sticky; top: 0; z-index: 1; background: var(--muted); color: var(--foreground); white-space: nowrap; }
+.product-excel-table-wrap td { overflow-wrap: anywhere; }
+.product-excel-changes h3 { margin: 0; font-size: .98rem; }
+.product-excel-no-changes { margin: 0; color: var(--muted-foreground); }
+.product-excel-apply-row > span, .product-excel-errors > small, .product-excel-changes > small { color: var(--muted-foreground); font-size: .82rem; }
+.product-excel-result p { margin: 0; color: var(--muted-foreground); }
+.dark .product-excel-safety, .dark .product-excel-counts > div { background: #182135; border-color: #334155; }
+.dark .product-excel-page .message:not(.success) { background: #3a1d1d; color: #fecaca; border-color: #7f1d1d; }
+.dark .product-excel-page .message.success { background: #173b2a; color: #bbf7d0; border-color: #2f855a; }
+.dark .product-excel-errors { color: #fca5a5; }
+
+@media (max-width: 700px) {
+  .product-excel-counts { grid-template-columns: 1fr; }
+  .product-excel-page { gap: .75rem; }
+  .product-excel-page > .panel { padding: .9rem; }
+  .product-excel-heading { align-items: flex-start; }
+  .product-excel-table-wrap { max-height: 380px; }
+}
