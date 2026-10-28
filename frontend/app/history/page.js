@@ -2,6 +2,7 @@
 import { localDateString, localMonthStartString } from '../lib/local-date';
 import { useEffect, useRef, useState } from 'react';
 import AppShell from '../components/AppShell';
+import { useAppSession } from '../components/AppStateProvider';
 import DateRangePresets from '../components/DateRangePresets';
 import { labelFor, paymentLabels, statusLabels } from '../lib/ui-labels';
 
@@ -11,6 +12,7 @@ const todayStr = () => localDateString();
 const firstOfMonthStr = () => localMonthStartString();
 
 export default function HistoryPage() {
+  const { user, activeBranchId } = useAppSession();
   const [transactions, setTransactions] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -22,13 +24,13 @@ export default function HistoryPage() {
   const [refundMethod, setRefundMethod] = useState('');
   const [cancelReason, setCancelReason] = useState('');
   const [saving, setSaving] = useState(false);
-  const [role, setRole] = useState(null);
   const [filters, setFilters] = useState({ search: '', date_from: '', date_to: '', status: '' });
   const [preset, setPreset] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('retur'); // retur | cancel | info
   const [isMobile, setIsMobile] = useState(false);
   const loadSeq = useRef(0);
+  const detailSeq = useRef(0);
   const detailRef = useRef(null);
 
   useEffect(() => {
@@ -39,15 +41,16 @@ export default function HistoryPage() {
   }, []);
 
   const h = () => ({});
-  const canCancel = ['owner', 'manager', 'admin'].includes(role);
+  const canCancel = ['owner', 'manager', 'admin'].includes(user?.role);
 
   async function load(p = page, override = null) {
     setLoading(true);
     const seq = ++loadSeq.current;
     try {
       const f = override || filters;
-      const qs = new URLSearchParams({ page: String(p), limit: '20', search: f.search, date_from: f.date_from, date_to: f.date_to, status: f.status }).toString();
-      const r = await fetch(api + '/transactions?' + qs, { headers: h() });
+      const qs = new URLSearchParams({ page: String(p), limit: '20', search: f.search, date_from: f.date_from, date_to: f.date_to, status: f.status });
+      if (user?.role === 'owner' && activeBranchId) qs.set('branch_id', activeBranchId);
+      const r = await fetch(api + '/transactions?' + qs.toString(), { headers: h() });
       const b = await r.json();
       if (seq !== loadSeq.current) return;
       if (!r.ok) throw Error(b.message);
@@ -62,17 +65,18 @@ export default function HistoryPage() {
     }
   }
 
-  useEffect(() => {
-    /* sesi via httpOnly cookie */
-    fetch(api + '/auth/me', { headers: h() })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((b) => { if (b?.data?.role) setRole(b.data.role); })
-      .catch(() => {});
-  }, []);
-
   useEffect(() => { if (!filters.date_from || !filters.date_to) setFilters((f) => ({ ...f, date_from: f.date_from || firstOfMonthStr(), date_to: f.date_to || todayStr() })); }, []);
 
-  useEffect(() => { load(1); }, []);
+  useEffect(() => {
+    if (!user?.role || !activeBranchId) return;
+    detailSeq.current += 1;
+    setSelected(null);
+    setTransactions([]);
+    setTotal(0);
+    setMessage('');
+    load(1, { ...filters, date_from: filters.date_from || firstOfMonthStr(), date_to: filters.date_to || todayStr() });
+    return () => { loadSeq.current += 1; detailSeq.current += 1; };
+  }, [user?.role, activeBranchId]);
 
   useEffect(() => {
     if (!selected || !isMobile) return undefined;
@@ -87,10 +91,14 @@ export default function HistoryPage() {
     await load(1);
   }
 
-  async function inspect(id) {
+  async function inspect(transaction) {
+    const seq = ++detailSeq.current;
     try {
-      const r = await fetch(api + '/transactions/' + id, { headers: h() });
+      const qs = new URLSearchParams();
+      if (user?.role === 'owner') qs.set('branch_id', String(transaction.branch_id));
+      const r = await fetch(api + '/transactions/' + transaction.id + '?' + qs.toString(), { headers: h() });
       const b = await r.json();
+      if (seq !== detailSeq.current) return;
       if (!r.ok) throw Error(b.message);
       setSelected(b.data);
       const maxQty = (i) => i.quantity - (i.cancelled_qty || 0) - (i.returned_qty || 0);
@@ -99,34 +107,39 @@ export default function HistoryPage() {
       setRefundMethod('');
       setCancelReason('');
       setActiveTab('retur');
-    } catch (e) { setMessage(e.message); }
+    } catch (e) { if (seq === detailSeq.current) setMessage(e.message); }
   }
 
   async function createReturn() {
+    const seq = detailSeq.current;
     const items = selected.items.map((i) => ({ transaction_item_id: i.transaction_item_id, quantity: Number(quantities[i.transaction_item_id] || 0) })).filter((i) => i.quantity > 0);
     if (!items.length) return setMessage('Pilih minimal satu item untuk diretur.');
     try {
       setSaving(true);
-      const r = await fetch(api + '/returns', { method: 'POST', headers: { ...h(), 'Content-Type': 'application/json' }, body: JSON.stringify({ transaction_id: selected.id, items, reason: 'Retur dari riwayat transaksi', refund_method: refundMethod || null }) });
+      const r = await fetch(api + '/returns', { method: 'POST', headers: { ...h(), 'Content-Type': 'application/json' }, body: JSON.stringify({ transaction_id: selected.id, branch_id: selected.branch_id, items, reason: 'Retur dari riwayat transaksi', refund_method: refundMethod || null }) });
       const b = await r.json();
+      if (seq !== detailSeq.current) return;
       if (!r.ok) throw Error(b.message);
       setMessage('Retur ' + b.data.return_no + ' dibuat.');
       setSelected(null);
-    } catch (e) { setMessage(e.message); } finally { setSaving(false); }
+      load();
+    } catch (e) { if (seq === detailSeq.current) setMessage(e.message); } finally { setSaving(false); }
   }
 
   async function cancelItems() {
+    const seq = detailSeq.current;
     const items = selected.items.map((i) => ({ transaction_item_id: i.transaction_item_id, qty: Number(cancelQuantities[i.transaction_item_id] || 0), reason: cancelReason })).filter((i) => i.qty > 0);
     if (!items.length) return setMessage('Pilih minimal satu item untuk dibatalkan.');
     try {
       setSaving(true);
-      const r = await fetch(api + '/transactions/' + selected.id + '/cancel', { method: 'PUT', headers: { ...h(), 'Content-Type': 'application/json' }, body: JSON.stringify({ items, reason: cancelReason }) });
+      const r = await fetch(api + '/transactions/' + selected.id + '/cancel', { method: 'PUT', headers: { ...h(), 'Content-Type': 'application/json' }, body: JSON.stringify({ branch_id: selected.branch_id, items, reason: cancelReason }) });
       const b = await r.json();
+      if (seq !== detailSeq.current) return;
       if (!r.ok) throw Error(b.message);
       setMessage('Transaksi dibatalkan. Refund: ' + rp(b.data.refund));
       setSelected(null);
       load();
-    } catch (e) { setMessage(e.message); } finally { setSaving(false); }
+    } catch (e) { if (seq === detailSeq.current) setMessage(e.message); } finally { setSaving(false); }
   }
 
   return (
@@ -177,7 +190,7 @@ export default function HistoryPage() {
           <section className="panel">
             <div className="product-list" role="list">
               {transactions.map((t) => (
-                <article key={t.id} role="button" tabIndex={0} onClick={() => inspect(t.id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inspect(t.id); } }} style={{ cursor: 'pointer', border: selected?.id === t.id ? '1px solid #2563eb' : undefined, borderRadius: 6, padding: '.6rem', background: selected?.id === t.id ? '#eff6ff' : undefined }}>
+                <article key={t.id} role="button" tabIndex={0} onClick={() => inspect(t)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inspect(t); } }} style={{ cursor: 'pointer', border: selected?.id === t.id ? '1px solid #2563eb' : undefined, borderRadius: 6, padding: '.6rem', background: selected?.id === t.id ? '#eff6ff' : undefined }}>
                   <div>
                     <strong style={{ fontSize: '.9rem' }}>{t.invoice_no}</strong>
                     <span>{t.cashier} {t.customer ? `• ${t.customer} (${t.customer_tier})` : ''} • {new Date(t.created_at).toLocaleString('id-ID')}</span>

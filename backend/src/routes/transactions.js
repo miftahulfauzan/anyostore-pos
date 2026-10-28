@@ -7,6 +7,7 @@ const { localDateString } = require('../local-date');
 const { applyPriceTier } = require('../pricing');
 const { adjustStock } = require('../stock');
 const { normalizePayments, persistPayments } = require('../payments');
+const { transactionBranch } = require('../transaction-branch');
 
 const router = express.Router();
 router.use(authenticate);
@@ -137,8 +138,9 @@ router.get('/', async (req, res, next) => {
     const status = (req.query.status || '').trim();
     const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || '');
 
-    let where = 'WHERE t.branch_id = ?';
-    const params = [req.user.branch_id];
+    const branchId = transactionBranch(req.user, req.query.branch_id, { allowAll: true });
+    let where = branchId === null ? 'WHERE 1=1' : 'WHERE t.branch_id = ?';
+    const params = branchId === null ? [] : [branchId];
 
     if (isDate(dateFrom)) { where += ' AND DATE(t.created_at) >= ?'; params.push(dateFrom); }
     if (isDate(dateTo)) { where += ' AND DATE(t.created_at) <= ?'; params.push(dateTo); }
@@ -153,7 +155,7 @@ router.get('/', async (req, res, next) => {
     const total = Number(countRows[0].total || 0);
 
     const [rows] = await db.execute(
-      `SELECT t.id, t.invoice_no, t.offline_invoice_no, t.grand_total, t.payment_method, t.status, t.price_tier, t.cancelled_amount, t.created_at, u.name AS cashier, c.name AS customer, c.price_tier AS customer_tier
+      `SELECT t.id, t.branch_id, t.invoice_no, t.offline_invoice_no, t.grand_total, t.payment_method, t.status, t.price_tier, t.cancelled_amount, t.created_at, u.name AS cashier, c.name AS customer, c.price_tier AS customer_tier
        FROM transactions t JOIN users u ON u.id = t.user_id LEFT JOIN customers c ON c.id = t.customer_id
        ${where} ORDER BY t.created_at DESC LIMIT ${limit} OFFSET ${offset}`,
       params
@@ -348,7 +350,8 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
 
 router.get('/:id', async (req, res, next) => {
   try {
-    const [transactions] = await db.execute('SELECT t.id, t.invoice_no, t.grand_total, t.amount_paid, t.`change`, t.cancelled_amount, t.cancel_reason, t.payment_method, t.status, t.price_tier, t.subtotal, t.discount, t.created_at, u.name AS cashier FROM transactions t LEFT JOIN users u ON u.id = t.user_id WHERE t.id = ? AND t.branch_id = ?', [req.params.id, req.user.branch_id]);
+    const branchId = transactionBranch(req.user, req.query.branch_id);
+    const [transactions] = await db.execute('SELECT t.id, t.branch_id, t.invoice_no, t.grand_total, t.amount_paid, t.`change`, t.cancelled_amount, t.cancel_reason, t.payment_method, t.status, t.price_tier, t.subtotal, t.discount, t.created_at, u.name AS cashier FROM transactions t LEFT JOIN users u ON u.id = t.user_id WHERE t.id = ? AND t.branch_id = ?', [req.params.id, branchId]);
     if (!transactions[0]) return res.status(404).json({ success: false, message: 'Transaksi tidak ditemukan' });
     const [items] = await db.execute('SELECT id AS transaction_item_id, product_name, product_sku, variant_detail, quantity, cancelled_qty, returned_qty, cancel_reason, price, original_price, price_override, discount, subtotal FROM transaction_items WHERE transaction_id = ?', [req.params.id]);
     res.json({ success: true, data: { ...transactions[0], items } });
@@ -362,7 +365,8 @@ router.put('/:id/cancel', authorize('owner', 'manager', 'admin'), async (req, re
     const { items: cancelItems, reason } = req.body;
     if (!Array.isArray(cancelItems) || !cancelItems.length) throw httpError(400, 'Item yang dibatalkan wajib diisi');
     await connection.beginTransaction();
-    const [transactions] = await connection.execute('SELECT * FROM transactions WHERE id = ? AND branch_id = ? FOR UPDATE', [req.params.id, req.user.branch_id]);
+    const branchId = transactionBranch(req.user, req.body.branch_id);
+    const [transactions] = await connection.execute('SELECT * FROM transactions WHERE id = ? AND branch_id = ? FOR UPDATE', [req.params.id, branchId]);
     if (!transactions[0]) throw httpError(404, 'Transaksi tidak ditemukan');
     if (transactions[0].status === 'cancelled') throw httpError(400, 'Transaksi sudah dibatalkan seluruhnya');
 

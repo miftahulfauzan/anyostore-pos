@@ -8,6 +8,7 @@ router.use(authenticate);
 const error = (status, message) => Object.assign(new Error(message), { status });
 const { money } = require('../money');
 const { adjustStock } = require('../stock');
+const { transactionBranch } = require('../transaction-branch');
 
 /// Auto-approve retur dalam transaksi yang sama (dipakai POST saat membuat
 /// retur — tanpa perlu persetujuan lagi).
@@ -135,10 +136,11 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
   const connection = await db.getConnection();
   try {
     const { transaction_id: transactionId, items, reason, refund_method: refundMethod } = req.body;
+    const branchId = transactionBranch(req.user, req.body.branch_id);
     if (!Number.isInteger(Number(transactionId)) || !Array.isArray(items) || !items.length) throw error(400, 'Data retur tidak valid');
     if (refundMethod != null && !['cash', 'qris', 'transfer', 'debit'].includes(refundMethod)) throw error(400, 'Metode refund tidak valid');
     await connection.beginTransaction();
-    const [transactions] = await connection.execute('SELECT id, customer_id FROM transactions WHERE id = ? AND branch_id = ? AND status IN (\'completed\',\'partially_refunded\') FOR UPDATE', [transactionId, req.user.branch_id]);
+    const [transactions] = await connection.execute('SELECT id, customer_id FROM transactions WHERE id = ? AND branch_id = ? AND status IN (\'completed\',\'partially_refunded\') FOR UPDATE', [transactionId, branchId]);
     if (!transactions[0]) throw error(404, 'Transaksi tidak ditemukan atau tidak dapat diretur');
     // Refund memakai rasio yang sama dengan pembatalan (cancel): nilai item
     // dikali paidRatio (grand_total/subtotal) supaya diskon tingkat transaksi
@@ -175,7 +177,7 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
     const returnNo = `RET-${Date.now()}-${crypto.randomBytes(2).toString('hex')}`;
     const [result] = await connection.execute(
       'INSERT INTO returns (branch_id, transaction_id, return_no, customer_id, reason, refund_amount, refund_method, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [req.user.branch_id, transactionId, returnNo, transactions[0].customer_id, reason?.trim() || null, refund, refundMethod || null, req.user.id]
+      [branchId, transactionId, returnNo, transactions[0].customer_id, reason?.trim() || null, refund, refundMethod || null, req.user.id]
     );
     for (const item of prepared) {
       await connection.execute(
@@ -190,7 +192,7 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
       await approveReturnInTx(connection, {
         returnId: result.insertId,
         transactionId,
-        branchId: req.user.branch_id,
+        branchId,
         userId: req.user.id,
       });
     }
