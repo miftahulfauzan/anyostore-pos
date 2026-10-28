@@ -2992,6 +2992,19 @@ html.dark body {
 .dark .branch-switcher-trigger,
 .dark .branch-switcher-panel { border-color: var(--border); background-color: var(--surface-primary); color: var(--text-primary); }
 
+/* Settings and shared brand accents. */
+.settings-form { grid-template-columns: minmax(0, 1fr); }
+.settings-form .panel { grid-column: 1 / -1; }
+.branch-clone-options { display: flex; flex-wrap: wrap; gap: 1rem; }
+.branch-clone-options label { display: inline-flex; align-items: center; gap: .45rem; cursor: pointer; }
+.branch-clone-options input[type="checkbox"] { width: 18px; height: 18px; min-height: 0; margin: 0; flex: none; accent-color: var(--expressive-primary); }
+html[data-theme="green"] { --expressive-primary:#17603d; --expressive-secondary:#17603d; --primary:#17603d; --ring:#17603d; }
+html[data-theme="teal"] { --expressive-primary:#0f6669; --expressive-secondary:#0f6669; --primary:#0f6669; --ring:#0f6669; }
+html[data-theme="rose"] { --expressive-primary:#a3335c; --expressive-secondary:#a3335c; --primary:#a3335c; --ring:#a3335c; }
+html[data-theme="amber"] { --expressive-primary:#875414; --expressive-secondary:#875414; --primary:#875414; --ring:#875414; }
+html[data-theme] .app-main :where(button:not([class]), button[type="submit"], .button-link, .view-button.selected, .tabs button.active) { background-color: var(--expressive-primary); color: #fff; }
+html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-primary) !important; }
+
 @media (max-width: 700px) {
   .branch-switcher { position: static; }
   .branch-switcher-trigger { max-width: min(54vw, 250px); }

@@ -221,7 +221,7 @@ export default function SettingsPage() {
               <label>Email<input type="email" value={newBranch.email} onChange={(e) => setNewBranch({ ...newBranch, email: e.target.value })} placeholder="metro@anyostore.my.id" /></label>
               <label>Pengali harga (1 = sama, 1.2 = 20% mahal)<input type="number" step="0.01" min="0.1" value={newBranch.price_multiplier} onChange={(e) => setNewBranch({ ...newBranch, price_multiplier: e.target.value })} /></label>
             </div>
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            <div className="branch-clone-options">
               <label style={{ display: 'flex', gap: '.45rem', alignItems: 'center', cursor: 'pointer' }}><input type="checkbox" checked={newBranch.clone_photos} onChange={(e) => setNewBranch({ ...newBranch, clone_photos: e.target.checked })} /> Foto</label>
               <label style={{ display: 'flex', gap: '.45rem', alignItems: 'center', cursor: 'pointer' }}><input type="checkbox" checked={newBranch.pricing_tier_enabled} onChange={(e) => setNewBranch({ ...newBranch, pricing_tier_enabled: e.target.checked })} /> Tier harga</label>
             </div>
@@ -360,7 +360,7 @@ export default function SettingsPage() {
 
       <section className="panel">
         <h2>Penjualan</h2>
-        {select('theme', 'Tema', [['green', 'Hijau'], ['blue', 'Biru'], ['purple', 'Ungu']])}
+        {select('theme', 'Tema', [['green', 'Hijau'], ['blue', 'Biru'], ['purple', 'Ungu'], ['teal', 'Toska'], ['rose', 'Merah muda'], ['amber', 'Cokelat']])}
         <div className="two-fields">
           {input('tax_rate', 'Pajak %', 'number')}
           {select('prices_include_tax', 'Termasuk pajak', [['true', 'Ya'], ['false', 'Tidak']])}
