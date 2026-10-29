@@ -1,8 +1,9 @@
 'use client';
 import { localDateString } from '../lib/local-date';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import AppShell from '../components/AppShell';
+import { useAppSession } from '../components/AppStateProvider';
 import { labelFor, paymentLabels, statusLabels } from '../lib/ui-labels';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -11,6 +12,7 @@ const rupiah = (value) => `Rp${Number(value || 0).toLocaleString('id-ID')}`;
 const blank = (type) => ({ category_id: '', name: '', amount: '', payment_method: 'cash', expense_date: '', notes: '', type });
 
 export default function Finance() {
+  const { user, activeBranchId } = useAppSession();
   const [tab, setTab] = useState('ringkasan');
   const [data, setData] = useState(null);
   const [categories, setCategories] = useState([]);
@@ -21,30 +23,42 @@ export default function Finance() {
   const [newCategory, setNewCategory] = useState({ name: '', account_code: '5-1000', type: 'expense' });
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const loadSequence = useRef(0);
   const headers = () => ({ 'Content-Type': 'application/json'});
 
+  function branchQuery(extra = {}) {
+    const params = new URLSearchParams(extra);
+    if (user?.role === 'owner' && activeBranchId) params.set('branch_id', activeBranchId);
+    return `?${params.toString()}`;
+  }
+
   async function load() {
+    const requestId = ++loadSequence.current;
     const [catRes, expRes, incRes] = await Promise.all([
       fetch(api + '/finance/expense-categories', { headers: headers() }),
-      fetch(api + '/finance/expenses?type=expense', { headers: headers() }),
-      fetch(api + '/finance/expenses?type=income', { headers: headers() }),
+      fetch(api + '/finance/expenses' + branchQuery({ type: 'expense' }), { headers: headers() }),
+      fetch(api + '/finance/expenses' + branchQuery({ type: 'income' }), { headers: headers() }),
     ]);
     const c = await catRes.json(), e = await expRes.json(), i = await incRes.json();
     if (!catRes.ok || !expRes.ok || !incRes.ok) throw new Error(c.message || e.message || i.message);
+    if (requestId !== loadSequence.current) return;
     setCategories(c.data);
     setExpenses(e.data);
     setIncome(i.data);
+    const response = await fetch(api + '/finance/profit-loss' + branchQuery(), { headers: headers() });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.message || 'Ringkasan keuangan gagal dimuat.');
+    if (requestId !== loadSequence.current) return;
+    setData(body.data);
   }
   useEffect(() => {
-    load().catch((e) => setMessage(e.message));
-    fetch(`${api}/finance/profit-loss`, { headers: headers() })
-      .then(async (response) => {
-        const body = await response.json();
-        if (!response.ok) throw new Error(body.message);
-        setData(body.data);
-      })
-      .catch((error) => setMessage(error.message));
-  }, []);
+    if (!user) return;
+    let current = true;
+    setData(null);
+    setMessage('');
+    load().catch((error) => { if (current) setMessage(error.message); });
+    return () => { current = false; };
+  }, [activeBranchId, user?.role]);
   useEffect(() => {
     setForm({ ...blank(active), expense_date: localDateString() });
     setNewCategory({ name: '', account_code: active === 'income' ? '4-2000' : '5-1000', type: active });
@@ -67,19 +81,19 @@ export default function Finance() {
   async function submit(e) {
     e.preventDefault();
     try {
+      if (user?.role === 'owner' && activeBranchId === 'all') throw new Error('Pilih satu toko di menu atas sebelum menyimpan.');
       setSaving(true);
-      const r = await fetch(api + '/finance/expenses', { method: 'POST', headers: headers(), body: JSON.stringify({ ...form, category_id: Number(form.category_id), amount: Number(form.amount), type: active }) });
+      const r = await fetch(api + '/finance/expenses', { method: 'POST', headers: headers(), body: JSON.stringify({ ...form, category_id: Number(form.category_id), amount: Number(form.amount), type: active, ...(user?.role === 'owner' ? { branch_id: activeBranchId } : {}) }) });
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
-      setMessage(`${active === 'income' ? 'Pemasukan' : 'Pengeluaran'} disimpan dan menunggu persetujuan.`);
+      setMessage(`${active === 'income' ? 'Pemasukan' : 'Pengeluaran'} berhasil disimpan.`);
       setForm(blank(active));
-      load();
-      fetch(`${api}/finance/profit-loss`, { headers: headers() }).then((r) => r.json()).then((b) => { if (b?.data) setData(b.data); }).catch(() => {});
+      await load();
     } catch (e) { setMessage(e.message); } finally { setSaving(false); }
   }
   async function approve(id) {
     try {
-      const r = await fetch(`${api}/finance/expenses/${id}/approve`, { method: 'PUT', headers: headers() });
+      const r = await fetch(`${api}/finance/expenses/${id}/approve${branchQuery()}`, { method: 'PUT', headers: headers() });
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
       setMessage('Disetujui: ' + b.data.journal_no);
@@ -112,14 +126,15 @@ export default function Finance() {
         <>
           <section className="panel">
             <h2>Form {active === 'income' ? 'Kas Masuk' : 'Pengeluaran'}</h2>
-            <form onSubmit={submit}>
+            {user?.role === 'owner' && activeBranchId === 'all' && <p className="finance-branch-hint">Ringkasan dan riwayat menggabungkan semua toko. Pilih satu toko di menu atas untuk mencatat pemasukan atau pengeluaran.</p>}
+            <form className="finance-entry-form" onSubmit={submit}>
               <label>Kategori
                 <select required value={form.category_id} onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value }))}>
                   <option value="">Pilih kategori</option>
                   {categoryOptions(active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </label>
-              <label>Keterangan<input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></label>
+              <label>Keterangan (opsional)<input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></label>
               <label>Jumlah<input required min="0" type="number" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} /></label>
               <label>Metode
                 <select value={form.payment_method} onChange={(e) => setForm((f) => ({ ...f, payment_method: e.target.value }))}>
@@ -129,8 +144,8 @@ export default function Finance() {
                 </select>
               </label>
               <label>Tanggal<input required type="date" value={form.expense_date} onChange={(e) => setForm((f) => ({ ...f, expense_date: e.target.value }))} /></label>
-              <label>Catatan<textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} /></label>
-              <button type="submit" disabled={saving}>{saving ? 'Menyimpan…' : 'Simpan ' + (active === 'income' ? 'Pemasukan' : 'Pengeluaran')}</button>
+              <label className="finance-notes">Catatan<textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} /></label>
+              <button type="submit" disabled={saving || (user?.role === 'owner' && activeBranchId === 'all')}>{saving ? 'Menyimpan…' : 'Simpan ' + (active === 'income' ? 'Pemasukan' : 'Pengeluaran')}</button>
             </form>
             {message && <p className="message" role="status">{message}</p>}
           </section>
@@ -147,21 +162,22 @@ export default function Finance() {
             <div className="table-wrap">
               <table>
                 <thead>
-                  <tr><th>Tanggal</th><th>Kategori</th><th>Keterangan</th><th>Metode</th><th>Jumlah</th><th>Status</th><th>Aksi</th></tr>
+                  <tr><th>Tanggal</th><th>Kategori</th>{user?.role === 'owner' && activeBranchId === 'all' && <th>Toko</th>}<th>Keterangan</th><th>Metode</th><th>Jumlah</th><th>Status</th><th>Aksi</th></tr>
                 </thead>
                 <tbody>
                   {(active === 'income' ? income : expenses).map((row) => (
                     <tr key={row.id}>
                       <td>{row.expense_date}</td>
                       <td>{row.category}</td>
-                      <td>{row.name}</td>
+                      {user?.role === 'owner' && activeBranchId === 'all' && <td>{row.branch_name}</td>}
+                      <td>{row.name || '—'}</td>
                       <td>{labelFor(paymentLabels, row.payment_method)}</td>
                       <td>{rupiah(row.amount)}</td>
                       <td>{labelFor(statusLabels, row.status)}</td>
                       <td>{row.status === 'pending' ? <button type="button" onClick={() => approve(row.id)}>Setujui</button> : '-'}</td>
                     </tr>
                   ))}
-                  {(active === 'income' ? income : expenses).length === 0 && <tr><td colSpan={7}>Belum ada data.</td></tr>}
+                  {(active === 'income' ? income : expenses).length === 0 && <tr><td colSpan={user?.role === 'owner' && activeBranchId === 'all' ? 8 : 7}>Belum ada data.</td></tr>}
                 </tbody>
               </table>
             </div>

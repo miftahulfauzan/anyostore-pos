@@ -8,6 +8,25 @@ router.use(authenticate);
 const fail = (s, m) => Object.assign(new Error(m), { status: s });
 const { money } = require('../money');
 const { localDateString, localMonthStartString } = require('../local-date');
+const { parseOwnerBranchId } = require('../dashboard-stock-scope');
+
+async function branchScope(req, requested, column = 'branch_id') {
+  if (req.user.role !== 'owner') return { sql: `${column} = ?`, params: [req.user.branch_id] };
+  const branchId = parseOwnerBranchId(requested);
+  if (branchId === null) return { sql: `${column} IN (SELECT id FROM branches WHERE is_active = TRUE)`, params: [] };
+  const [branches] = await db.execute('SELECT id FROM branches WHERE id = ? AND is_active = TRUE LIMIT 1', [branchId]);
+  if (!branches.length) throw fail(404, 'Toko tidak ditemukan atau sudah tidak aktif.');
+  return { sql: `${column} = ?`, params: [branchId] };
+}
+
+async function writableBranchId(req, requested) {
+  if (req.user.role !== 'owner') return req.user.branch_id;
+  const branchId = requested == null || requested === '' ? Number(req.user.branch_id) : parseOwnerBranchId(requested);
+  if (branchId === null) throw fail(400, 'Pilih satu toko sebelum menyimpan data.');
+  const [branches] = await db.execute('SELECT id FROM branches WHERE id = ? AND is_active = TRUE LIMIT 1', [branchId]);
+  if (!branches.length) throw fail(404, 'Toko tidak ditemukan atau sudah tidak aktif.');
+  return branchId;
+}
 
 router.get('/expense-categories', async (req, res, next) => {
   try {
@@ -28,11 +47,12 @@ router.post('/expense-categories', authorize('owner', 'manager', 'admin'), async
 router.get('/expenses', async (req, res, next) => {
   try {
     const type = req.query.type === 'income' ? 'income' : 'expense';
+    const scope = await branchScope(req, req.query.branch_id, 'e.branch_id');
     const [r] = await db.execute(
-      `SELECT e.id, e.name, e.amount, e.type, e.payment_method, e.expense_date, e.status, c.name AS category, c.type AS category_type
-       FROM expenses e JOIN expense_categories c ON c.id = e.category_id
-       WHERE e.branch_id = ? AND e.type = ? ORDER BY e.expense_date DESC LIMIT 100`,
-      [req.user.branch_id, type]
+      `SELECT e.id, e.name, e.amount, e.type, e.payment_method, e.expense_date, e.status, c.name AS category, c.type AS category_type, b.name AS branch_name
+       FROM expenses e JOIN expense_categories c ON c.id = e.category_id JOIN branches b ON b.id = e.branch_id
+       WHERE ${scope.sql} AND e.type = ? ORDER BY e.expense_date DESC LIMIT 100`,
+      [...scope.params, type]
     );
     res.json({ success: true, data: r });
   } catch (e) { next(e); }
@@ -43,9 +63,10 @@ router.post('/expenses', authorize('owner', 'manager', 'admin', 'kasir'), async 
     const { category_id: categoryId, name, amount: raw, payment_method: method = 'cash', expense_date: date, notes, type = 'expense' } = req.body;
     const amount = money(raw);
     const entryType = type === 'income' ? 'income' : 'expense';
-    if (!name?.trim() || !Number.isFinite(amount) || amount <= 0 || !['cash', 'transfer', 'debit'].includes(method) || !date) {
+    if (!Number.isFinite(amount) || amount <= 0 || !['cash', 'transfer', 'debit'].includes(method) || !date) {
       throw fail(400, 'Data pengeluaran/pemasukan tidak valid');
     }
+    const branchId = await writableBranchId(req, req.body.branch_id);
     // Kategori boleh tidak dikirim (mis. input offline dari HP): pakai kategori
     // pertama sejenis, atau buat kategori 'Umum' kalau belum ada.
     let catId = Number.isInteger(Number(categoryId)) ? categoryId : null;
@@ -66,7 +87,7 @@ router.post('/expenses', authorize('owner', 'manager', 'admin', 'kasir'), async 
     // Tanpa persetujuan: langsung approved supaya langsung masuk laporan/penutupan.
     const [r] = await db.execute(
       "INSERT INTO expenses (branch_id, category_id, name, amount, type, payment_method, expense_date, notes, user_id, status, approved_at) VALUES (?,?,?,?,?,?,?,?,?, 'approved', NOW())",
-      [req.user.branch_id, catId, name.trim(), amount, entryType, method, date, notes?.trim() || null, req.user.id]
+      [branchId, catId, String(name || '').trim(), amount, entryType, method, date, notes?.trim() || null, req.user.id]
     );
     res.status(201).json({ success: true, data: { id: r.insertId, status: 'approved', type: entryType } });
   } catch (e) { next(e); }
@@ -75,8 +96,9 @@ router.post('/expenses', authorize('owner', 'manager', 'admin', 'kasir'), async 
 router.put('/expenses/:id/approve', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
   const c = await db.getConnection();
   try {
+    const scope = await branchScope(req, req.query.branch_id, 'e.branch_id');
     await c.beginTransaction();
-    const [r] = await c.execute("SELECT e.*, c.account_code, c.type AS category_type FROM expenses e JOIN expense_categories c ON c.id = e.category_id WHERE e.id = ? AND e.branch_id = ? AND e.status = 'pending' FOR UPDATE", [req.params.id, req.user.branch_id]);
+    const [r] = await c.execute(`SELECT e.*, c.account_code, c.type AS category_type FROM expenses e JOIN expense_categories c ON c.id = e.category_id WHERE e.id = ? AND ${scope.sql} AND e.status = 'pending' FOR UPDATE`, [req.params.id, ...scope.params]);
     const ex = r[0];
     if (!ex) throw fail(404, 'Pengeluaran/pemasukan pending tidak ditemukan');
     const isIncome = ex.type === 'income';
@@ -86,7 +108,7 @@ router.put('/expenses/:id/approve', authorize('owner', 'manager', 'admin'), asyn
     const no = `JRN-${Date.now()}-${crypto.randomBytes(2).toString('hex')}`;
     const [j] = await c.execute(
       'INSERT INTO journal_entries (branch_id, journal_no, journal_date, reference_type, reference_id, description, total_debit, total_credit, is_posted, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?)',
-      [req.user.branch_id, no, ex.expense_date, ex.type, ex.id, ex.name, ex.amount, ex.amount, req.user.id]
+      [ex.branch_id, no, ex.expense_date, ex.type, ex.id, ex.name, ex.amount, ex.amount, req.user.id]
     );
     // Pengeluaran: debit beban, kredit kas/bank. Pemasukan: debit kas/bank, kredit pendapatan.
     if (isIncome) {
@@ -111,12 +133,13 @@ router.put('/expenses/:id', authorize('owner', 'manager', 'admin'), async (req, 
     const { category_id: categoryId, name, amount: raw, payment_method: method = 'cash', expense_date: date, notes, type = 'expense' } = req.body;
     const amount = money(raw);
     const entryType = type === 'income' ? 'income' : 'expense';
-    if (!name?.trim() || !Number.isFinite(amount) || amount <= 0 || !['cash', 'transfer', 'debit'].includes(method) || !date) {
+    if (!Number.isFinite(amount) || amount <= 0 || !['cash', 'transfer', 'debit'].includes(method) || !date) {
       throw fail(400, 'Data pengeluaran/pemasukan tidak valid');
     }
+    const scope = await branchScope(req, req.query.branch_id ?? req.body.branch_id, 'branch_id');
     const [r] = await db.execute(
-      "UPDATE expenses SET category_id=COALESCE(?, category_id), name=?, amount=?, type=?, payment_method=?, expense_date=?, notes=?, status='approved', approved_at=NOW() WHERE id=? AND branch_id=?",
-      [categoryId, name.trim(), amount, entryType, method, date, notes?.trim() || null, req.params.id, req.user.branch_id]
+      `UPDATE expenses SET category_id=COALESCE(?, category_id), name=?, amount=?, type=?, payment_method=?, expense_date=?, notes=?, status='approved', approved_at=NOW() WHERE id=? AND ${scope.sql}`,
+      [categoryId, String(name || '').trim(), amount, entryType, method, date, notes?.trim() || null, req.params.id, ...scope.params]
     );
     if (!r.affectedRows) throw fail(404, 'Pengeluaran/pemasukan tidak ditemukan');
     res.json({ success: true, data: { id: Number(req.params.id), status: 'approved' } });
@@ -126,7 +149,8 @@ router.put('/expenses/:id', authorize('owner', 'manager', 'admin'), async (req, 
 // Hapus pengeluaran/pemasukan.
 router.delete('/expenses/:id', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
   try {
-    const [r] = await db.execute('DELETE FROM expenses WHERE id=? AND branch_id=?', [req.params.id, req.user.branch_id]);
+    const scope = await branchScope(req, req.query.branch_id, 'branch_id');
+    const [r] = await db.execute(`DELETE FROM expenses WHERE id=? AND ${scope.sql}`, [req.params.id, ...scope.params]);
     if (!r.affectedRows) throw fail(404, 'Pengeluaran/pemasukan tidak ditemukan');
     res.json({ success: true, data: { id: Number(req.params.id) } });
   } catch (e) { next(e); }
@@ -158,10 +182,12 @@ router.get('/profit-loss', authorize('owner', 'manager', 'admin'), async (req, r
   try {
     const start = req.query.start || localMonthStartString();
     const end = req.query.end || localDateString();
+    const salesScope = await branchScope(req, req.query.branch_id, 'branch_id');
+    const expenseScope = await branchScope(req, req.query.branch_id, 'branch_id');
     // Definisi penjualan disamakan dengan laporan lain: transaksi completed +
     // partially_cancelled, dan omset dikurangi cancelled_amount.
-    const [sales] = await db.execute(`SELECT COUNT(*) AS transactions, COALESCE(SUM(grand_total - cancelled_amount - refunded_amount),0) AS amount FROM transactions WHERE branch_id = ? AND status IN (${SALES_STATUSES_SQL}) AND transaction_date BETWEEN ? AND ?`, [req.user.branch_id, start, end]);
-    const [expenses] = await db.execute("SELECT COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS amount, COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS income FROM expenses WHERE branch_id = ? AND status = 'approved' AND expense_date BETWEEN ? AND ?", [req.user.branch_id, start, end]);
+    const [sales] = await db.execute(`SELECT COUNT(*) AS transactions, COALESCE(SUM(grand_total - cancelled_amount - refunded_amount),0) AS amount FROM transactions WHERE ${salesScope.sql} AND status IN (${SALES_STATUSES_SQL}) AND transaction_date BETWEEN ? AND ?`, [...salesScope.params, start, end]);
+    const [expenses] = await db.execute(`SELECT COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS amount, COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS income FROM expenses WHERE ${expenseScope.sql} AND status = 'approved' AND expense_date BETWEEN ? AND ?`, [...expenseScope.params, start, end]);
     const revenue = money(Number(sales[0].amount) + Number(expenses[0].income));
     res.json({ success: true, data: { start, end, revenue, expenses: expenses[0].amount, income: expenses[0].income, net_profit: money(revenue - expenses[0].amount) } });
   } catch (e) { next(e); }
