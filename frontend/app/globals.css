@@ -703,16 +703,14 @@ a, .photo-upload { color:var(--expressive-secondary); }
   font-size: 11px;
 }
 .payment-option.selected { border-color: #1e3a5f; background: #1e3a5f; }
-.payment-option-split { grid-column: 1 / -1; }
-.split-payments { display: grid; gap: .55rem; container-type: inline-size; }
-.split-payment-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
-.split-payment-row label { min-width: 0; gap: .3rem; font-size: .75rem; }
-.split-payment-row select,
-.split-payment-row input { width: 100%; min-width: 0; min-height: 42px; padding: .55rem; font-size: .9rem; }
-.split-payment-status { margin: 0; padding: .55rem .7rem; border: 1px solid #fecaca; border-radius: .4rem; background: #fef2f2; color: #991b1b; font-size: .8rem; font-weight: 600; }
-.split-payment-status.is-valid { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
-.split-payment-hint { margin: -.3rem 0 0; color: var(--muted-foreground); font-size: .75rem; }
-@container (max-width: 380px) { .split-payment-row { grid-template-columns: minmax(0, 1fr); } }
+.payment-method-hint { grid-column: 1 / -1; margin: -.25rem 0 .25rem; color: var(--muted-foreground); font-size: .75rem; font-weight: 400; }
+.payment-breakdown { display: grid; gap: .55rem; container-type: inline-size; }
+.payment-breakdown-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+.payment-breakdown-fields label { min-width: 0; gap: .3rem; font-size: .75rem; }
+.payment-breakdown-fields input { width: 100%; min-width: 0; min-height: 42px; padding: .55rem; font-size: .9rem; }
+.payment-breakdown-status { margin: 0; padding: .55rem .7rem; border: 1px solid #fecaca; border-radius: .4rem; background: #fef2f2; color: #991b1b; font-size: .8rem; font-weight: 600; }
+.payment-breakdown-status.is-valid { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
+@container (max-width: 380px) { .payment-breakdown-fields { grid-template-columns: minmax(0, 1fr); } }
 .quantity button { min-width: 28px; min-height: 28px; padding: 4px; }
 .total { border-color: #dbe3ee; font-size: 13px; }
 .catalog-panel { max-width: 1500px; }
