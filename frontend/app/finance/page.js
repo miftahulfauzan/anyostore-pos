@@ -170,7 +170,7 @@ export default function Finance() {
                       <td>{row.expense_date}</td>
                       <td>{row.category}</td>
                       {user?.role === 'owner' && activeBranchId === 'all' && <td>{row.branch_name}</td>}
-                      <td>{row.name || '—'}</td>
+                      <td>{row.name || '-'}</td>
                       <td>{labelFor(paymentLabels, row.payment_method)}</td>
                       <td>{rupiah(row.amount)}</td>
                       <td>{labelFor(statusLabels, row.status)}</td>
