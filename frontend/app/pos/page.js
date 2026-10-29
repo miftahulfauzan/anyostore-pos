@@ -21,6 +21,10 @@ export default function PosPage() {
   const [cart, setCart] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [cash, setCash] = useState('');
+  const [splitPayments, setSplitPayments] = useState([
+    { payment_method: 'cash', amount: '' },
+    { payment_method: 'qris', amount: '' },
+  ]);
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [manualDiscount, setManualDiscount] = useState('');
@@ -77,6 +81,7 @@ export default function PosPage() {
     setCart([]);
     setManualDiscount('');
     setCash('');
+    setSplitPayments([{ payment_method: 'cash', amount: '' }, { payment_method: 'qris', amount: '' }]);
     setVariantProduct(null);
     setCustomerId('');
     setPriceTier('retail');
@@ -241,11 +246,25 @@ export default function PosPage() {
   const discountExceedsSubtotal = cart.length > 0 && requestedDiscount > subtotal;
   const discount = discountExceedsSubtotal ? 0 : requestedDiscount;
   const total = Math.max(0, subtotal - discount);
-  const amountPaid = paymentMethod === 'cash' ? Number(cash || 0) : total;
+  const splitTotal = splitPayments.reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
+  const splitAmountsValid = splitPayments.length === 2
+    && splitPayments.every((payment) => /^\d+$/.test(payment.amount) && Number.isSafeInteger(Number(payment.amount)) && Number(payment.amount) > 0);
+  const splitMethodsValid = splitPayments.length === 2 && splitPayments[0].payment_method !== splitPayments[1].payment_method;
+  const splitPaymentsValid = splitAmountsValid && splitMethodsValid && splitTotal === total;
+  const splitPaymentStatus = !splitAmountsValid ? 'Isi nominal untuk kedua metode.'
+    : !splitMethodsValid ? 'Pilih dua metode pembayaran yang berbeda.'
+      : splitTotal === total ? `Nominal pas: ${rupiah(splitTotal)}`
+        : splitTotal < total ? `Kurang ${rupiah(total - splitTotal)} dari total ${rupiah(total)}`
+          : `Kelebihan ${rupiah(splitTotal - total)} dari total ${rupiah(total)}`;
+  const amountPaid = paymentMethod === 'cash' ? Number(cash || 0) : paymentMethod === 'split' ? splitTotal : total;
   const change = paymentMethod === 'cash' ? Math.max(0, amountPaid - total) : 0;
+  function updateSplitPayment(index, changes) {
+    setSplitPayments((current) => current.map((payment, itemIndex) => itemIndex === index ? { ...payment, ...changes } : payment));
+  }
   async function checkout() {
     if (!storeId || !warehouseId || !cart.length) return setMessage('Pilih toko, gudang, dan tambahkan produk ke keranjang.');
     if (discountExceedsSubtotal) return setMessage('Diskon tidak boleh melebihi subtotal.');
+    if (paymentMethod === 'split' && !splitPaymentsValid) return setMessage('Nominal tiap metode harus berbeda dan jumlahnya harus sama dengan total tagihan.');
     setSubmitting(true); setMessage('');
     try {
       const items = cart.map((item) => ({ product_id: item.id, variant_id: item.variant_id || undefined, quantity: item.quantity, price_override: item.price_override || undefined }));
@@ -260,11 +279,13 @@ export default function PosPage() {
         if (!proceed) return;
       }
       const bodyPayload = { branch_id: Number(storeId), warehouse_id: Number(warehouseId), items, payment_method: paymentMethod, amount_paid: amountPaid, discount_type: discount > 0 ? 'nominal' : 'none', discount_value: discount, client_transaction_id: pendingTransactionId.current, allow_negative_stock: lowStock.length > 0 };
+      if (paymentMethod === 'split') bodyPayload.payments = splitPayments.map((payment) => ({ payment_method: payment.payment_method, amount: Number(payment.amount) }));
       if (customerId) bodyPayload.customer_id = Number(customerId);
       const response = await fetch(`${apiUrl}/transactions`, { method: 'POST', headers: headers(), body: JSON.stringify(bodyPayload) });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message || 'Transaksi gagal');
       setCart([]); setCash(''); setManualDiscount(''); setPaymentMethod('cash'); setMobileCartOpen(false); setCustomerId(''); setPriceTier('retail');
+      setSplitPayments([{ payment_method: 'cash', amount: '' }, { payment_method: 'qris', amount: '' }]);
       pendingTransactionId.current = null;
       setPrintPrompt(body.data);
       loadStore(storeId).catch(() => setMessage('Transaksi berhasil, tetapi stok terbaru belum dapat dimuat. Muat ulang halaman untuk memperbarui stok.'));
@@ -354,11 +375,20 @@ export default function PosPage() {
           <div className="total"><span>Total</span><strong>{rupiah(total)}</strong></div>
           <fieldset className="payment-methods">
             <legend>Metode pembayaran</legend>
-            { [['cash', 'Tunai'], ['qris', 'QRIS'], ['debit', 'Debit'], ['transfer', 'Transfer']].map(([value, label]) => <button type="button" className={paymentMethod === value ? 'payment-option selected' : 'payment-option'} key={value} onClick={() => setPaymentMethod(value)} aria-pressed={paymentMethod === value}>{label}</button>)}
+            { [['cash', 'Tunai'], ['qris', 'QRIS'], ['debit', 'Debit'], ['transfer', 'Transfer'], ['split', 'Campuran']].map(([value, label]) => <button type="button" className={`payment-option${paymentMethod === value ? ' selected' : ''}${value === 'split' ? ' payment-option-split' : ''}`} key={value} onClick={() => setPaymentMethod(value)} aria-pressed={paymentMethod === value}>{label}</button>)}
           </fieldset>
-          {paymentMethod === 'cash' ? <label>Tunai diterima<input type="number" min="0" value={cash} onChange={(event) => setCash(event.target.value)} placeholder="0" /></label> : <p>Pembayaran {paymentMethod.toUpperCase()}: <strong>{rupiah(total)}</strong></p>}
-          <p>Kembalian: <strong>{rupiah(change)}</strong></p>
-          <button type="button" disabled={loadingStore || submitting || !cart.length || discountExceedsSubtotal} onClick={checkout}>{submitting ? 'Memproses…' : `Bayar ${paymentMethod === 'cash' ? 'Tunai' : paymentMethod.toUpperCase()}`}</button>
+          {paymentMethod === 'cash' ? <label>Tunai diterima<input type="number" min="0" value={cash} onChange={(event) => setCash(event.target.value)} placeholder="0" /></label> : paymentMethod === 'split' ? <div className="split-payments" aria-label="Rincian pembayaran campuran">
+            {splitPayments.map((payment, index) => <div className="split-payment-row" key={index}>
+              <label htmlFor={`split-method-${index}`}>Metode {index + 1}<select id={`split-method-${index}`} value={payment.payment_method} onChange={(event) => updateSplitPayment(index, { payment_method: event.target.value })} disabled={submitting}>
+                { [['cash', 'Tunai'], ['qris', 'QRIS'], ['debit', 'Debit'], ['transfer', 'Transfer']].map(([value, label]) => <option key={value} value={value} disabled={splitPayments.some((other, otherIndex) => otherIndex !== index && other.payment_method === value)}>{label}</option>)}
+              </select></label>
+              <label htmlFor={`split-amount-${index}`}>Nominal (Rp)<input id={`split-amount-${index}`} type="number" inputMode="numeric" min="1" step="1" value={payment.amount} onChange={(event) => updateSplitPayment(index, { amount: event.target.value })} placeholder="0" disabled={submitting} /></label>
+            </div>)}
+            <p className={`split-payment-status${splitPaymentsValid ? ' is-valid' : ''}`} role="status" aria-live="polite">{splitPaymentStatus}</p>
+            <p className="split-payment-hint">Nominal tunai dihitung sebagai bagian tagihan, tanpa kembalian.</p>
+          </div> : <p>Pembayaran {paymentMethod.toUpperCase()}: <strong>{rupiah(total)}</strong></p>}
+          {paymentMethod === 'cash' && <p>Kembalian: <strong>{rupiah(change)}</strong></p>}
+          <button type="button" disabled={loadingStore || submitting || !cart.length || discountExceedsSubtotal || (paymentMethod === 'split' && !splitPaymentsValid)} onClick={checkout}>{submitting ? 'Memproses…' : `Bayar ${paymentMethod === 'cash' ? 'Tunai' : paymentMethod === 'split' ? 'Campuran' : paymentMethod.toUpperCase()}`}</button>
           {message && <p className="message" role="status">{message}</p>}
         </aside>
         </section>
