@@ -7,6 +7,7 @@ export const statusLabels = {
   refunded: 'Retur penuh',
   partially_refunded: 'Retur sebagian',
   approved: 'Disetujui',
+  rejected: 'Ditolak',
   paid: 'Sudah dibayar',
 };
 

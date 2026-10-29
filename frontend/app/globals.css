@@ -1173,7 +1173,7 @@ a, .photo-upload { color:var(--expressive-secondary); }
   .tier-badge { border: 1px solid currentColor; font-size: 9px; padding: 1px 6px; }
   .report-panel a { color: #111827; text-decoration: none; }
   /* Kolom aksi (Cetak resi) disembunyikan saat cetak */
-  .report-table-transactions th:nth-child(6), .report-table-transactions td:nth-child(6) { display: none; }
+  .report-table-transactions th:last-child, .report-table-transactions td:last-child { display: none; }
 }
 
 /* Global loading and result notifications */

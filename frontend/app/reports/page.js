@@ -12,7 +12,8 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 const todayStr = () => localDateString();
 const firstOfMonthStr = () => localMonthStartString();
 const rp = (value) => `Rp${Number(value || 0).toLocaleString("id-ID")}`;
-const transactionDateTime = (row) => `${String(row.transaction_date || '').split('-').reverse().join('/')}, ${new Date(row.created_at).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' })}`;
+const formatBusinessDate = (value) => String(value || '').split('-').reverse().join('/');
+const formatRecordedAt = (value) => new Date(value).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'short', timeStyle: 'medium' });
 
 function ReportTable({
   title,
@@ -45,8 +46,9 @@ function ReportTable({
               rows.map((row, index) => (
                 <tr
                   key={
-                    row.id ||
-                    row.product_id ||
+                    row.key || row.id ||
+                    (row.product_id != null ? `${row.product_id}-${row.variant_detail || ''}` : null) ||
+                    row.category_id ||
                     row.payment_method ||
                     row.date ||
                     index
@@ -145,6 +147,9 @@ export default function ReportsPage() {
       eyebrow="ANALISIS TOKO"
       actions={
         <>
+          <a className="button-link" href="/reports/tax">
+            Laporan Pajak
+          </a>
           <a className="button-link" href="/finance">
             Keuangan
           </a>
@@ -236,14 +241,33 @@ export default function ReportsPage() {
             </article>
           </section>
           <ReportTable
+            title="Diskon, pembatalan, dan retur"
+            subtitle="Diskon item dan transaksi; pembatalan memakai tanggal transaksi, retur memakai tanggal dicatat."
+            rows={[
+              { key: "discount-total", label: "Total diskon", amount: summary.discounts },
+              { key: "discount-item", label: "Diskon item", amount: summary.item_discounts },
+              { key: "discount-transaction", label: "Diskon transaksi", amount: summary.transaction_discounts },
+              { key: "cancelled", label: `Pembatalan (${summary.cancelled_transactions || 0} transaksi)`, amount: summary.cancelled_amount },
+              { key: "refund", label: `Refund retur (${summary.returns || 0} retur)`, amount: summary.refund_amount },
+            ]}
+            columns={[
+              { label: "Rincian", key: "label" },
+              { label: "Nilai", render: (row) => rp(row.amount) },
+            ]}
+          />
+          <ReportTable
             title="Daftar transaksi"
-            subtitle="Transaksi dengan kasir dan tombol cetak ulang resi."
+            subtitle="Tanggal transaksi dapat berbeda dari waktu transaksi dicatat."
             className="report-table-transactions"
             rows={report.transactions}
             columns={[
               {
-                label: "Waktu",
-                render: (row) => transactionDateTime(row),
+                label: "Tanggal transaksi",
+                render: (row) => formatBusinessDate(row.transaction_date),
+              },
+              {
+                label: "Dicatat",
+                render: (row) => formatRecordedAt(row.created_at),
               },
               { label: "Invoice", key: "invoice_no" },
               {
@@ -259,9 +283,10 @@ export default function ReportsPage() {
                 label: "Metode",
                 render: (row) => labelFor(paymentLabels, row.payment_method),
               },
+              { label: "Diskon transaksi", render: (row) => rp(row.discount) },
               {
                 label: "Total",
-                render: (row) => rp(row.grand_total - (row.cancelled_amount || 0)),
+                render: (row) => rp(Number(row.grand_total) - Number(row.cancelled_amount || 0) - Number(row.refunded_amount || 0)),
               },
               {
                 label: "Aksi",
@@ -275,17 +300,31 @@ export default function ReportsPage() {
           />
           <ReportTable
             title="Laporan metode pembayaran"
-            subtitle="Nilai pembayaran yang diterima per metode."
+            subtitle="Nilai per metode; pembayaran gabungan dirinci ke metode yang dipakai."
             rows={report.payment_methods}
             columns={[
-              { label: "Metode", key: "payment_method" },
+              { label: "Metode", render: (row) => labelFor(paymentLabels, row.payment_method) },
               { label: "Transaksi", key: "transactions" },
               { label: "Nilai pembayaran", render: (row) => rp(row.amount) },
             ]}
           />
           <ReportTable
+            title="Daftar pembatalan"
+            subtitle="Maksimal 200 transaksi yang memiliki pembatalan tercatat pada tanggal transaksi."
+            rows={report.cancellations}
+            columns={[
+              { label: "Tanggal transaksi", render: (row) => formatBusinessDate(row.transaction_date) },
+              { label: "Dicatat", render: (row) => formatRecordedAt(row.created_at) },
+              { label: "Invoice", key: "invoice_no" },
+              { label: "Kasir", key: "cashier" },
+              { label: "Qty batal", key: "cancelled_qty" },
+              { label: "Alasan", render: (row) => row.cancel_reason || "—" },
+              { label: "Nilai", render: (row) => rp(row.cancelled_amount) },
+            ]}
+          />
+          <ReportTable
             title="Laporan produk terjual"
-            subtitle="Produk berdasarkan pendapatan, sampai 100 produk."
+            subtitle="Rincian produk dan varian berdasarkan pendapatan, sampai 200 baris."
             className="report-table-products"
             rows={report.products}
             columns={[
@@ -298,6 +337,21 @@ export default function ReportsPage() {
                   </>
                 ),
               },
+              { label: "Kategori", render: (row) => row.category_name || "Tanpa kategori" },
+              { label: "Barcode", render: (row) => row.barcode || "—" },
+              { label: "Varian", render: (row) => row.variant_detail || "—" },
+              { label: "Qty terjual", key: "quantity_sold" },
+              { label: "Pendapatan", render: (row) => rp(row.revenue) },
+              { label: "Modal", render: (row) => rp(row.cost_of_goods) },
+              { label: "Laba kotor", render: (row) => rp(row.profit) },
+            ]}
+          />
+          <ReportTable
+            title="Penjualan berdasarkan kategori"
+            subtitle="Kategori mengikuti katalog produk saat ini."
+            rows={report.categories}
+            columns={[
+              { label: "Kategori", render: (row) => row.category_name || "Tanpa kategori" },
               { label: "Qty terjual", key: "quantity_sold" },
               { label: "Pendapatan", render: (row) => rp(row.revenue) },
               { label: "Modal", render: (row) => rp(row.cost_of_goods) },
@@ -366,6 +420,70 @@ export default function ReportsPage() {
               { label: "Penjualan", render: (row) => rp(row.revenue) },
             ]}
           />
+          <ReportTable
+            title="Penjualan per jam pencatatan"
+            subtitle="Dikelompokkan menurut waktu WIB saat transaksi disimpan."
+            rows={report.hourly_sales}
+            columns={[
+              { label: "Jam WIB", key: "hour" },
+              { label: "Transaksi", key: "transactions" },
+              { label: "Penjualan bersih", render: (row) => rp(row.revenue) },
+            ]}
+          />
+          <ReportTable
+            title="Ringkasan retur"
+            subtitle="Retur dikelompokkan berdasarkan status dan tanggal pencatatan."
+            rows={report.return_summary}
+            columns={[
+              { label: "Status", render: (row) => labelFor(statusLabels, row.status) },
+              { label: "Jumlah retur", key: "returns_count" },
+              { label: "Qty barang", key: "quantity_returned" },
+              { label: "Refund disetujui", render: (row) => rp(row.refund_amount) },
+            ]}
+          />
+          <ReportTable
+            title="Daftar retur"
+            subtitle="Maksimal 200 retur yang dicatat pada periode ini."
+            rows={report.returns}
+            columns={[
+              { label: "Waktu dicatat", render: (row) => formatRecordedAt(row.created_at) },
+              { label: "No. retur", key: "return_no" },
+              { label: "Invoice", key: "invoice_no" },
+              { label: "Dibuat oleh", key: "created_by_name" },
+              { label: "Keterangan", render: (row) => row.reason || "—" },
+              { label: "Qty", key: "quantity_returned" },
+              { label: "Status", render: (row) => labelFor(statusLabels, row.status) },
+              { label: "Refund", render: (row) => rp(row.refund_amount) },
+            ]}
+          />
+          {user?.role === 'owner' && activeBranchId === 'all' && (
+            <ReportTable
+              title="Perbandingan antar toko"
+              subtitle="Semua toko aktif untuk periode yang dipilih."
+              rows={report.branch_comparison}
+              columns={[
+                { label: "Toko", key: "branch_name" },
+                { label: "Transaksi", key: "transactions" },
+                { label: "Penjualan bersih", render: (row) => rp(row.revenue) },
+                { label: "Modal terjual", render: (row) => rp(row.cost_of_goods) },
+                { label: "Pengeluaran", render: (row) => rp(row.expenses) },
+                { label: "Pemasukan lain", render: (row) => rp(row.income) },
+                { label: "Laba bersih", render: (row) => rp(row.net_profit) },
+              ]}
+            />
+          )}
+          <section className="panel report-panel report-stock-links">
+            <div className="section-heading">
+              <div>
+                <h2>Laporan stok</h2>
+                <p>Stok saat ini, mutasi, dan tren tersedia di halaman inventori.</p>
+              </div>
+            </div>
+            <div className="button-row">
+              <a className="button-link" href="/inventory/dashboard">Dashboard stok</a>
+              <a className="button-link" href="/inventory/movements">Riwayat mutasi stok</a>
+            </div>
+          </section>
           <ReportTable
             title="Ringkasan tier harga"
             subtitle="Penjualan berdasarkan tier harga transaksi."
