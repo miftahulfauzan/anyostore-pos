@@ -318,7 +318,7 @@ export default function ReportsPage() {
               { label: "Invoice", key: "invoice_no" },
               { label: "Kasir", key: "cashier" },
               { label: "Qty batal", key: "cancelled_qty" },
-              { label: "Alasan", render: (row) => row.cancel_reason || "—" },
+              { label: "Alasan", render: (row) => row.cancel_reason || "-" },
               { label: "Nilai", render: (row) => rp(row.cancelled_amount) },
             ]}
           />
@@ -338,8 +338,8 @@ export default function ReportsPage() {
                 ),
               },
               { label: "Kategori", render: (row) => row.category_name || "Tanpa kategori" },
-              { label: "Barcode", render: (row) => row.barcode || "—" },
-              { label: "Varian", render: (row) => row.variant_detail || "—" },
+              { label: "Barcode", render: (row) => row.barcode || "-" },
+              { label: "Varian", render: (row) => row.variant_detail || "-" },
               { label: "Qty terjual", key: "quantity_sold" },
               { label: "Pendapatan", render: (row) => rp(row.revenue) },
               { label: "Modal", render: (row) => rp(row.cost_of_goods) },
@@ -450,7 +450,7 @@ export default function ReportsPage() {
               { label: "No. retur", key: "return_no" },
               { label: "Invoice", key: "invoice_no" },
               { label: "Dibuat oleh", key: "created_by_name" },
-              { label: "Keterangan", render: (row) => row.reason || "—" },
+              { label: "Keterangan", render: (row) => row.reason || "-" },
               { label: "Qty", key: "quantity_returned" },
               { label: "Status", render: (row) => labelFor(statusLabels, row.status) },
               { label: "Refund", render: (row) => rp(row.refund_amount) },
