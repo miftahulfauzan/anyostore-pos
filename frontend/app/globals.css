@@ -52,6 +52,7 @@ a { color: var(--secondary); font-weight: 600; text-decoration: none; }
 .quantity { display: grid; grid-template-columns: 44px 56px 44px; align-items: center; justify-content: center; gap: 6px; }
 .quantity button { display: inline-flex; width: 44px; min-width: 44px; height: 44px; min-height: 44px; align-items: center; justify-content: center; padding: 0; font-size: 20px; line-height: 1; }
 .quantity input { box-sizing: border-box; width: 56px; height: 44px; min-height: 44px; padding: 4px 2px; border: 1px solid var(--input); border-radius: .4rem; background: var(--card); color: var(--foreground); font-size: 16px; text-align: center; }
+.cart-lines .quantity input { text-align: center; text-align-last: center; }
 @container (max-width: 620px) {
   .cart-lines article { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-areas: "info quantity price"; align-items: center; gap: 8px; }
   .cart-item-info { display: flex; grid-area: info; align-items: center; gap: 4px; min-width: 0; overflow: hidden; }
@@ -66,7 +67,7 @@ a { color: var(--secondary); font-weight: 600; text-decoration: none; }
   .cart-lines article { grid-template-columns: minmax(0, 1fr) 122px minmax(76px, .8fr); grid-template-areas: "info quantity price"; gap: 6px; }
   .cart-lines .quantity { grid-template-columns: 40px 34px 40px; gap: 3px; }
   .cart-lines .quantity button { width: 40px; min-width: 40px; }
-  .cart-lines .quantity input { width: 34px; padding-inline: 1px; }
+  .cart-lines .quantity input { width: 34px; padding-inline: 1px; text-align: center; }
   .cart-lines .cart-unit-price { gap: 1px; font-size: 11px; }
   .cart-lines .cart-unit-price .price-prefix { font-size: 11px; }
   .cart-lines .cart-unit-price input { padding-inline: 3px; font-size: 11px; }
@@ -76,7 +77,7 @@ a { color: var(--secondary); font-weight: 600; text-decoration: none; }
   .cart-item-info span { display: none; }
   .cart-lines .quantity { grid-template-columns: 32px 28px 32px; gap: 2px; }
   .cart-lines .quantity button { width: 32px; min-width: 32px; }
-  .cart-lines .quantity input { width: 28px; }
+  .cart-lines .quantity input { width: 28px; text-align: center; }
   .cart-lines .cart-unit-price .price-prefix { display: none; }
 }
 .total { display: flex; justify-content: space-between; border-top: 2px solid var(--border); padding-top: 1rem; font-size: 1.15rem; font-weight: 700; }
