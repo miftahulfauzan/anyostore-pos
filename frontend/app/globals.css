@@ -3507,6 +3507,7 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
   margin: 0;
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
+.finance-metrics .metric-card > div > span { min-height: 2.4em; line-height: 1.2; }
 .finance-entry-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
