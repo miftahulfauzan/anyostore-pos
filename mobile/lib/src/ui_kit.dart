@@ -1,10 +1,55 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import 'media_helpers.dart';
 import 'task_ui.dart';
+
+/// Task forms scroll independently of their summary and primary action.
+class UiTaskBody extends StatelessWidget {
+  const UiTaskBody(
+      {super.key,
+      required this.children,
+      required this.action,
+      this.summary,
+      this.topPadding = 16});
+  final List<Widget> children;
+  final Widget action;
+  final String? summary;
+  final double topPadding;
+
+  @override
+  Widget build(BuildContext context) => Column(children: [
+        Expanded(
+            child: ListView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: EdgeInsets.fromLTRB(16, topPadding, 16, 16),
+          children: children,
+        )),
+        DecoratedBox(
+          decoration: BoxDecoration(
+              color: taskSurface(context),
+              border: Border(top: BorderSide(color: taskBorder(context)))),
+          child: SafeArea(
+              top: false,
+              child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (summary != null) ...[
+                        Text(summary!,
+                            style: TextStyle(
+                                color: ink(context),
+                                fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 12)
+                      ],
+                      action,
+                    ],
+                  ))),
+        ),
+      ]);
+}
 
 /// Satu sumber nama yang ditampilkan di UI. SKU tetap tersedia sebagai
 /// informasi sekunder, tetapi tidak pernah menggantikan nama produk.
@@ -20,21 +65,6 @@ String productSecondaryLabel(Map<String, dynamic> product) {
   if (color != null && color.isNotEmpty) return color;
   return '';
 }
-
-/// Menjaga layout sempit tetap muat secara horizontal, tetapi tidak ikut
-/// mengecil hanya karena tinggi layar pendek. Konten yang panjang tetap dapat
-/// di-scroll sehingga ukuran teks lebih mudah dibaca.
-double responsiveLayoutScale(Size viewport) {
-  final widthScale = viewport.width / 390;
-  final heightScale = math.max(.9, viewport.height / 844);
-  return math.min(widthScale, heightScale).clamp(.82, 1.15).toDouble();
-}
-
-/// Kompensasi tipografi untuk layar ponsel. Layout sudah diskalakan agar
-/// muat, tetapi teks tetap dibuat sedikit lebih ringkas supaya form dan kartu
-/// tidak cepat memenuhi layar. Faktor aksesibilitas sistem tetap diterapkan
-/// oleh MediaQuery di root aplikasi.
-double mobileTextScale(Size viewport) => viewport.width < 600 ? .92 : 1;
 
 /// Renderer foto produk bersama untuk grid, list, kartu mutasi, dan opname.
 /// Placeholder memiliki ukuran tetap agar daftar tidak bergeser saat foto

@@ -6,6 +6,7 @@ import { ArrowUpRight, LayoutDashboard, LogOut, ShoppingCart, Store as StoreIcon
 import { useAppSession, useUnsavedWork } from '../components/AppStateProvider';
 import BranchSwitcher from '../components/BranchSwitcher';
 import { createRequestSequence } from '../components/app-state.cjs';
+import { localDateString } from '../lib/local-date';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rupiah = (amount) => `Rp${Number(amount || 0).toLocaleString('id-ID')}`;
@@ -34,6 +35,7 @@ export default function PosPage() {
   const [customers, setCustomers] = useState([]);
   const [customerId, setCustomerId] = useState('');
   const [priceTier, setPriceTier] = useState('retail');
+  const [transactionDate, setTransactionDate] = useState('');
   const [search, setSearch] = useState('');
   const headers = () => ({ 'Content-Type': 'application/json'});
   const mediaUrl = (photoPath) => photoPath ? `${apiUrl.replace('/api', '')}${photoPath}` : '';
@@ -63,12 +65,16 @@ export default function PosPage() {
       ? stores.find((store) => String(store.id) === String(activeBranchId))
       : null;
     if (!selected) {
+      setTransactionDate(localDateString());
       setStoreId('');
       setProducts([]);
       setWarehouses([]);
       setWarehouseId('');
       setCustomers([]);
       setCart([]);
+      setSelectedPaymentMethods(['cash']);
+      setPaymentAmounts({});
+      setCash('');
       setManualDiscount('');
       setCustomerId('');
       setLoadingStore(false);
@@ -76,6 +82,7 @@ export default function PosPage() {
       return;
     }
     setCart([]);
+    setTransactionDate(localDateString());
     setManualDiscount('');
     setSelectedPaymentMethods(['cash']);
     setCash('');
@@ -272,6 +279,7 @@ export default function PosPage() {
   }
   async function checkout() {
     if (!storeId || !warehouseId || !cart.length) return setMessage('Pilih toko, gudang, dan tambahkan produk ke keranjang.');
+    if (user?.role === 'owner' && !transactionDate) return setMessage('Pilih tanggal transaksi.');
     if (discountExceedsSubtotal) return setMessage('Diskon tidak boleh melebihi subtotal.');
     if (isSplitPayment && !splitPaymentsValid) return setMessage('Jumlah nominal metode pembayaran harus sama dengan total tagihan.');
     setSubmitting(true); setMessage('');
@@ -289,11 +297,12 @@ export default function PosPage() {
       }
       const bodyPayload = { branch_id: Number(storeId), warehouse_id: Number(warehouseId), items, payment_method: paymentMethod, amount_paid: amountPaid, discount_type: discount > 0 ? 'nominal' : 'none', discount_value: discount, client_transaction_id: pendingTransactionId.current, allow_negative_stock: lowStock.length > 0 };
       if (isSplitPayment) bodyPayload.payments = selectedPaymentMethods.map((method) => ({ payment_method: method, amount: Number(paymentAmounts[method]) }));
+      if (user?.role === 'owner') bodyPayload.transaction_date = transactionDate;
       if (customerId) bodyPayload.customer_id = Number(customerId);
       const response = await fetch(`${apiUrl}/transactions`, { method: 'POST', headers: headers(), body: JSON.stringify(bodyPayload) });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message || 'Transaksi gagal');
-      setCart([]); setCash(''); setManualDiscount(''); setSelectedPaymentMethods(['cash']); setPaymentAmounts({}); setMobileCartOpen(false); setCustomerId(''); setPriceTier('retail');
+      setCart([]); setCash(''); setManualDiscount(''); setSelectedPaymentMethods(['cash']); setPaymentAmounts({}); setMobileCartOpen(false); setCustomerId(''); setPriceTier('retail'); setTransactionDate(localDateString());
       pendingTransactionId.current = null;
       setPrintPrompt(body.data);
       loadStore(storeId).catch(() => setMessage('Transaksi berhasil, tetapi stok terbaru belum dapat dimuat. Muat ulang halaman untuk memperbarui stok.'));
@@ -351,6 +360,11 @@ export default function PosPage() {
               {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name} {customer.phone ? `(${customer.phone})` : ''}{tiersEnabled ? ` : ${tierLabel[customer.price_tier || 'retail']}` : ''}</option>)}
             </select>
           </label>
+          {user?.role === 'owner' && <label className="pos-transaction-date">
+            <span>Tanggal transaksi</span>
+            <input type="date" value={transactionDate} max={localDateString()} onChange={(event) => setTransactionDate(event.target.value)} disabled={loadingStore || submitting} />
+            <small>Tanggal default hari ini. Waktu pencatatan tetap tersimpan.</small>
+          </label>}
           {cart.length > 0 && tiersEnabled && <div className="pos-tier-badge"><span className={`tier-badge ${effectiveTier}`}>{tierLabel[effectiveTier]}</span><small>{priceTier === 'retail' ? 'Harga mengikuti qty otomatis' : 'Harga mengikuti tipe pelanggan'}</small></div>}
           {cart.length ? <div className="cart-lines">{cart.map((item) => (
             <article key={item.cart_id}>

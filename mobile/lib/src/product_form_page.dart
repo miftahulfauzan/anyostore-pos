@@ -461,7 +461,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8),
                         child: Text('Belum ada varian. Produk dijual polos.',
-                            style: TextStyle(fontSize: 11, color: kTaskGray)),
+                            style: TextStyle(fontSize: 12)),
                       ),
                   ],
                 ),
@@ -493,7 +493,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8),
                         child: Text('Belum ada harga grosir.',
-                            style: TextStyle(fontSize: 11, color: kTaskGray)),
+                            style: TextStyle(fontSize: 12)),
                       ),
                   ],
                 ),
@@ -522,7 +522,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8),
                         child: Text('Belum ada foto (maks 10).',
-                            style: TextStyle(fontSize: 11, color: kTaskGray)),
+                            style: TextStyle(fontSize: 12)),
                       )
                     else
                       Wrap(

@@ -1,0 +1,1 @@
+ALTER TABLE branches ADD COLUMN semi_grosir_enabled BOOLEAN NOT NULL DEFAULT TRUE;

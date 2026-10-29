@@ -17,8 +17,9 @@ import 'task_ui.dart';
 import 'theme_controller.dart';
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key, required this.api});
+  const SettingsPage({super.key, required this.api, this.role});
   final ApiClient api;
+  final String? role;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -75,7 +76,9 @@ class _SettingsPageState extends State<SettingsPage> {
     });
     try {
       final results = await Future.wait([
-        widget.api.branches(),
+        widget.role == 'owner'
+            ? widget.api.branches()
+            : Future.value(<dynamic>[]),
         widget.api.storeSettings(),
       ]);
       if (!mounted) return;
@@ -455,95 +458,97 @@ class _SettingsPageState extends State<SettingsPage> {
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
-        GlassCard(
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text('Profil Toko',
-                    style:
-                        TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: _name,
+        if (['owner', 'manager', 'admin'].contains(widget.role))
+          GlassCard(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Profil Toko',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                  const SizedBox(height: 8),
+                  TextField(
+                      controller: _name,
+                      decoration: const InputDecoration(
+                          labelText: 'Nama toko',
+                          border: OutlineInputBorder())),
+                  const SizedBox(height: 8),
+                  TextField(
+                      controller: _address,
+                      decoration: const InputDecoration(
+                          labelText: 'Alamat', border: OutlineInputBorder())),
+                  const SizedBox(height: 8),
+                  TextField(
+                      controller: _phone,
+                      decoration: const InputDecoration(
+                          labelText: 'Telepon', border: OutlineInputBorder())),
+                  const SizedBox(height: 8),
+                  TextField(
+                      controller: _email,
+                      decoration: const InputDecoration(
+                          labelText: 'Email', border: OutlineInputBorder())),
+                  const SizedBox(height: 8),
+                  TextField(
+                      controller: _npwp,
+                      decoration: const InputDecoration(
+                          labelText: 'NPWP', border: OutlineInputBorder())),
+                  const SizedBox(height: 8),
+                  TextField(
+                      controller: _invoicePrefix,
+                      decoration: const InputDecoration(
+                          labelText: 'Prefix invoice (INV)',
+                          border: OutlineInputBorder())),
+                  const SizedBox(height: 8),
+                  TextField(
+                      controller: _receiptHeader,
+                      minLines: 1,
+                      maxLines: 4,
+                      decoration: const InputDecoration(
+                          labelText:
+                              'Header struk (maks 4 baris, bisa beberapa no HP)',
+                          border: OutlineInputBorder())),
+                  const SizedBox(height: 8),
+                  TextField(
+                      controller: _receiptFooter,
+                      decoration: const InputDecoration(
+                          labelText: 'Footer struk',
+                          border: OutlineInputBorder())),
+                  const SizedBox(height: 8),
+                  TextField(
+                      controller: _receiptNote,
+                      decoration: const InputDecoration(
+                          labelText: 'Catatan struk',
+                          border: OutlineInputBorder())),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: _printerSize,
                     decoration: const InputDecoration(
-                        labelText: 'Nama toko', border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: _address,
-                    decoration: const InputDecoration(
-                        labelText: 'Alamat', border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: _phone,
-                    decoration: const InputDecoration(
-                        labelText: 'Telepon', border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: _email,
-                    decoration: const InputDecoration(
-                        labelText: 'Email', border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: _npwp,
-                    decoration: const InputDecoration(
-                        labelText: 'NPWP', border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: _invoicePrefix,
-                    decoration: const InputDecoration(
-                        labelText: 'Prefix invoice (INV)',
-                        border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: _receiptHeader,
-                    minLines: 1,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                        labelText:
-                            'Header struk (maks 4 baris, bisa beberapa no HP)',
-                        border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: _receiptFooter,
-                    decoration: const InputDecoration(
-                        labelText: 'Footer struk',
-                        border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: _receiptNote,
-                    decoration: const InputDecoration(
-                        labelText: 'Catatan struk',
-                        border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: _printerSize,
-                  decoration: const InputDecoration(
-                      labelText: 'Ukuran printer',
-                      border: OutlineInputBorder()),
-                  items: const [
-                    DropdownMenuItem(value: '58', child: Text('58 mm')),
-                    DropdownMenuItem(value: '80', child: Text('80 mm')),
-                  ],
-                  onChanged: (v) => setState(() => _printerSize = v ?? '80'),
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Auto-print struk setelah bayar',
-                      style: TextStyle(fontSize: 13)),
-                  value: _autoPrint,
-                  onChanged: (v) => setState(() => _autoPrint = v),
-                ),
-                const SizedBox(height: 12),
-                FilledButton(
-                  onPressed: _saving ? null : _saveSettings,
-                  child: Text(_saving ? 'Menyimpan...' : 'Simpan Pengaturan'),
-                ),
-              ],
+                        labelText: 'Ukuran printer',
+                        border: OutlineInputBorder()),
+                    items: const [
+                      DropdownMenuItem(value: '58', child: Text('58 mm')),
+                      DropdownMenuItem(value: '80', child: Text('80 mm')),
+                    ],
+                    onChanged: (v) => setState(() => _printerSize = v ?? '80'),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Auto-print struk setelah bayar',
+                        style: TextStyle(fontSize: 13)),
+                    value: _autoPrint,
+                    onChanged: (v) => setState(() => _autoPrint = v),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: _saving ? null : _saveSettings,
+                    child: Text(_saving ? 'Menyimpan...' : 'Simpan Pengaturan'),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
         const SizedBox(height: 10),
         GlassCard(
           child: Padding(
@@ -581,44 +586,46 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
         const SizedBox(height: 10),
-        GlassCard(
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text('Backup Data',
-                    style:
-                        TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-                const SizedBox(height: 6),
-                const Text(
-                    'Simpan snapshot seluruh database ke perangkat. Disarankan rutin sebelum update besar.',
-                    style: TextStyle(fontSize: 11, color: kTaskGray)),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Backup otomatis harian',
-                      style: TextStyle(fontSize: 13)),
-                  subtitle: const Text(
-                      'Saat app dibuka, otomatis backup bila > 24 jam sejak terakhir.',
-                      style: TextStyle(fontSize: 11, color: kTaskGray)),
-                  value: _autoBackup,
-                  onChanged: _toggleAutoBackup,
-                ),
-                const SizedBox(height: 8),
-                FilledButton.icon(
-                  onPressed: _backingUp ? null : _backupNow,
-                  icon: _backingUp
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.save_alt, size: 18),
-                  label: Text(_backingUp ? 'Membackup...' : 'Backup Sekarang'),
-                ),
-              ],
+        if (widget.role == 'owner')
+          GlassCard(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Backup Data',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                  const SizedBox(height: 6),
+                  const Text(
+                      'Simpan snapshot seluruh database ke perangkat. Disarankan rutin sebelum update besar.',
+                      style: TextStyle(fontSize: 12)),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Backup otomatis harian',
+                        style: TextStyle(fontSize: 13)),
+                    subtitle: const Text(
+                        'Saat app dibuka, otomatis backup bila > 24 jam sejak terakhir.',
+                        style: TextStyle(fontSize: 12)),
+                    value: _autoBackup,
+                    onChanged: _toggleAutoBackup,
+                  ),
+                  const SizedBox(height: 8),
+                  FilledButton.icon(
+                    onPressed: _backingUp ? null : _backupNow,
+                    icon: _backingUp
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.save_alt, size: 18),
+                    label:
+                        Text(_backingUp ? 'Membackup...' : 'Backup Sekarang'),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
         const SizedBox(height: 10),
         GlassCard(
           child: Padding(
@@ -636,94 +643,97 @@ class _SettingsPageState extends State<SettingsPage> {
                       style: TextStyle(fontSize: 13)),
                   subtitle: const Text(
                       'Muncul saat ada produk di bawah stok minimum.',
-                      style: TextStyle(fontSize: 11, color: kTaskGray)),
+                      style: TextStyle(fontSize: 12)),
                   value: _notifyLowStock,
                   onChanged: _toggleNotifyLowStock,
                 ),
                 const Text(
                     'Pengingat harian jam 09.00 WIB otomatis dijadwalkan untuk cek stok & backup.',
-                    style: TextStyle(fontSize: 10, color: kTaskGray)),
+                    style: TextStyle(fontSize: 12)),
               ],
             ),
           ),
         ),
         const SizedBox(height: 10),
-        GlassCard(
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text('Logo Aplikasi',
-                    style:
-                        TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    BrandLogo(api: widget.api, size: 64, radius: 16),
-                    const SizedBox(width: 14),
-                    const Expanded(
-                      child: Text(
-                          'Logo tampil di splash, halaman login, dan header menu. Format JPG/PNG/WebP maks 3 MB.',
-                          style: TextStyle(fontSize: 11, color: kTaskGray)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                FilledButton.icon(
-                  onPressed: _uploadingLogo ? null : _pickLogo,
-                  icon: _uploadingLogo
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.image_outlined, size: 18),
-                  label: Text(_uploadingLogo ? 'Mengunggah...' : 'Ganti Logo'),
-                ),
-              ],
+        if (['owner', 'manager', 'admin'].contains(widget.role))
+          GlassCard(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Logo Aplikasi',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      BrandLogo(api: widget.api, size: 64, radius: 16),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Text(
+                            'Logo tampil di splash, halaman login, dan header menu. Format JPG/PNG/WebP maks 3 MB.',
+                            style: TextStyle(fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  FilledButton.icon(
+                    onPressed: _uploadingLogo ? null : _pickLogo,
+                    icon: _uploadingLogo
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.image_outlined, size: 18),
+                    label:
+                        Text(_uploadingLogo ? 'Mengunggah...' : 'Ganti Logo'),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
         const SizedBox(height: 10),
-        GlassCard(
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text('Logo Toko (Kepala Invoice)',
-                    style:
-                        TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    _logoPreview(_settings['invoice_logo']?.toString() ?? ''),
-                    const SizedBox(width: 14),
-                    const Expanded(
-                      child: Text(
-                          'Logo ini dipakai di kepala struk/invoice toko & gudang ini. Format JPG/PNG/WebP maks 3 MB.',
-                          style: TextStyle(fontSize: 11, color: kTaskGray)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                FilledButton.icon(
-                  onPressed: _uploadingLogo
-                      ? null
-                      : () => _pickLogo(key: 'invoice_logo'),
-                  icon: _uploadingLogo
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.receipt_long, size: 18),
-                  label: Text(
-                      _uploadingLogo ? 'Mengunggah...' : 'Ganti Logo Toko'),
-                ),
-              ],
+        if (['owner', 'manager', 'admin'].contains(widget.role))
+          GlassCard(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Logo Toko (Kepala Invoice)',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      _logoPreview(_settings['invoice_logo']?.toString() ?? ''),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Text(
+                            'Logo ini dipakai di kepala struk/invoice toko & gudang ini. Format JPG/PNG/WebP maks 3 MB.',
+                            style: TextStyle(fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  FilledButton.icon(
+                    onPressed: _uploadingLogo
+                        ? null
+                        : () => _pickLogo(key: 'invoice_logo'),
+                    icon: _uploadingLogo
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.receipt_long, size: 18),
+                    label: Text(
+                        _uploadingLogo ? 'Mengunggah...' : 'Ganti Logo Toko'),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
         const SizedBox(height: 10),
         GlassCard(
           child: Padding(
@@ -744,7 +754,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         _printerLabel.isEmpty
                             ? 'Belum ada printer tersimpan.'
                             : 'Printer aktif: $_printerLabel',
-                        style: const TextStyle(fontSize: 12, color: kTaskGray),
+                        style:
+                            TextStyle(fontSize: 12, color: taskMuted(context)),
                       ),
                     ),
                   ],
@@ -777,51 +788,52 @@ class _SettingsPageState extends State<SettingsPage> {
                 const SizedBox(height: 2),
                 const Text(
                     'Printer yang dipilih tersimpan otomatis dan dipakai tanpa konek ulang untuk struk, barcode, dan penutupan.',
-                    style: TextStyle(fontSize: 10, color: kTaskGray)),
+                    style: TextStyle(fontSize: 12)),
               ],
             ),
           ),
         ),
         const SizedBox(height: 10),
-        GlassCard(
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text('Cabang (${_branches.length})',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w800, fontSize: 15)),
-                    ),
-                    FilledButton.icon(
-                      onPressed: _createBranch,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Tambah'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                for (final b in _branches)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(b['name']?.toString() ?? '',
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
-                    subtitle: Text(
-                        '${b['type'] ?? ''} · ${b['product_count'] ?? 0} produk · ${b['user_count'] ?? 0} pegawai'),
-                    trailing: b['id'] == _settings['branch_id']
-                        ? null
-                        : IconButton(
-                            onPressed: () => _deleteBranch(b),
-                            icon: const Icon(Icons.delete_outline),
-                          ),
+        if (widget.role == 'owner')
+          GlassCard(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text('Cabang (${_branches.length})',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w800, fontSize: 15)),
+                      ),
+                      FilledButton.icon(
+                        onPressed: _createBranch,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Tambah'),
+                      ),
+                    ],
                   ),
-              ],
+                  const SizedBox(height: 4),
+                  for (final b in _branches)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(b['name']?.toString() ?? '',
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                      subtitle: Text(
+                          '${b['type'] ?? ''} · ${b['product_count'] ?? 0} produk · ${b['user_count'] ?? 0} pegawai'),
+                      trailing: b['id'] == _settings['branch_id']
+                          ? null
+                          : IconButton(
+                              onPressed: () => _deleteBranch(b),
+                              icon: const Icon(Icons.delete_outline),
+                            ),
+                    ),
+                ],
+              ),
             ),
           ),
-        ),
       ],
     );
   }

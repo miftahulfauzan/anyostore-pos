@@ -18,6 +18,7 @@ const defaults = {
 };
 
 function sanitizeBranchName(v) { return String(v || '').trim(); }
+function isSemiGrosirEnabled(store) { return store.semi_grosir_enabled == null || Boolean(Number(store.semi_grosir_enabled)); }
 
 export default function SettingsPage() {
   const [form, setForm] = useState(defaults);
@@ -37,6 +38,7 @@ export default function SettingsPage() {
   const [newBranch, setNewBranch] = useState({ name: '', address: '', phone: '', email: '', source_branch_id: '', price_multiplier: '1', clone_photos: true, pricing_tier_enabled: true });
   const [creating, setCreating] = useState(false);
   const [createMessage, setCreateMessage] = useState('');
+  const [pricingBranchSaving, setPricingBranchSaving] = useState('');
 
   const jsonHeaders = () => ({ 'Content-Type': 'application/json'});
   const mediaUrl = (value) => value ? api.replace('/api', '') + value : '';
@@ -197,6 +199,22 @@ export default function SettingsPage() {
     finally { setCreating(false); }
   }
 
+  async function toggleBranchSemiGrosir(store) {
+    const id = String(store.id);
+    const enabled = !isSemiGrosirEnabled(store);
+    setPricingBranchSaving(id);
+    try {
+      const response = await fetch(`${api}/settings/branches/${id}/pricing`, {
+        method: 'PUT', headers: jsonHeaders(), body: JSON.stringify({ semi_grosir_enabled: enabled }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message || 'Pengaturan harga gagal disimpan');
+      setStores((current) => current.map((item) => String(item.id) === id ? { ...item, semi_grosir_enabled: enabled } : item));
+      setMessage(`Semi grosir ${enabled ? 'diaktifkan' : 'dinonaktifkan'} untuk ${store.name}.`);
+    } catch (error) { setMessage(error.message); }
+    finally { setPricingBranchSaving(''); }
+  }
+
   return <AppShell title="Pengaturan" eyebrow="KONFIGURASI TOKO">
     <div style={{ display: 'grid', gap: '1.25rem', maxWidth: 1180, margin: '0 auto' }}>
       {isOwner && (
@@ -238,12 +256,14 @@ export default function SettingsPage() {
       {isOwner && stores.length > 0 && (
         <section className="panel" style={{ gridColumn: '1 / -1' }}>
           <h2>Daftar Toko</h2>
-          <p className="muted" style={{ fontSize: '.85rem' }}>Kelola cabang. Tidak bisa hapus toko dengan transaksi.</p>
+          <p className="muted" style={{ fontSize: '.85rem' }}>Atur semi grosir POS per toko. Pengaturan harga ini terpisah dari aturan komisi staf.</p>
           <div className="table-wrap" style={{ marginTop: '.75rem' }}>
             <table>
-              <thead><tr><th>No</th><th>Nama</th><th>Tipe</th><th>Produk</th><th>User</th><th>Aktif</th><th>Aksi</th></tr></thead>
+              <thead><tr><th>No</th><th>Nama</th><th>Tipe</th><th>Produk</th><th>User</th><th>Semi Grosir</th><th>Aktif</th><th>Aksi</th></tr></thead>
               <tbody>
-                {stores.map((s, idx) => (
+                {stores.map((s, idx) => {
+                  const semiGrosirEnabled = isSemiGrosirEnabled(s);
+                  return (
                   <tr key={s.id}>
                     <td>{idx + 1}</td>
                     <td><strong>{s.name}</strong>{String(s.id) === String(branch) ? <span className="tag" style={{ marginLeft: '.5rem' }}>dipilih</span> : null}<br /><small className="muted">{s.address || '-'}</small></td>
@@ -264,6 +284,9 @@ export default function SettingsPage() {
                     </td>
                     <td>{s.product_count ?? '-'}</td>
                     <td>{s.user_count ?? '-'}</td>
+                    <td>
+                      <button type="button" className="small secondary" aria-pressed={semiGrosirEnabled} aria-label={`${semiGrosirEnabled ? 'Nonaktifkan' : 'Aktifkan'} semi grosir untuk ${s.name}`} disabled={!s.is_active || pricingBranchSaving === String(s.id)} onClick={() => toggleBranchSemiGrosir(s)}>{pricingBranchSaving === String(s.id) ? 'Menyimpan…' : semiGrosirEnabled ? 'Aktif' : 'Nonaktif'}</button>
+                    </td>
                     <td>{s.is_active ? <span className="status paid">aktif</span> : <span className="status pending">nonaktif</span>}</td>
                     <td>
                       <button type="button" className="small secondary" disabled={String(s.id) === String(branch)} onClick={async () => {
@@ -284,7 +307,8 @@ export default function SettingsPage() {
                       }}>{s.is_active ? 'Nonaktifkan' : 'Hapus Permanen'}</button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

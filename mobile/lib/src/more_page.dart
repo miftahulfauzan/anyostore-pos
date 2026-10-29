@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'account_switcher_page.dart';
 import 'activity_log_page.dart';
 import 'api_client.dart';
+import 'app_navigation.dart';
 import 'auth_store.dart';
 import 'branch_scope.dart';
 import 'cash_drawer_page.dart';
@@ -103,6 +104,7 @@ class MorePage extends StatelessWidget {
     final name = auth.userName ?? 'Pengguna';
     final email = auth.email ?? '';
     final isOwner = auth.role == 'owner';
+    final permissions = AppPermissions(auth.role);
     final activeBranch = BranchScope.active.value ?? branchId;
     if (isOwner) api.activeBranchId = activeBranch;
 
@@ -112,7 +114,7 @@ class MorePage extends StatelessWidget {
         // Profil header
         GlassCard(
           padding: const EdgeInsets.all(16),
-          radius: 20,
+          radius: 16,
           child: Row(
             children: [
               BrandLogo(api: api, size: 56, radius: 28),
@@ -126,6 +128,17 @@ class MorePage extends StatelessWidget {
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                             color: ink(context))),
+                    const SizedBox(height: 3),
+                    Text(
+                        switch (auth.role) {
+                          'gudang' => 'Akun gudang',
+                          'owner' => 'Owner',
+                          'manager' => 'Manager',
+                          'admin' => 'Admin',
+                          _ => 'Kasir',
+                        },
+                        style:
+                            TextStyle(color: taskMuted(context), fontSize: 12)),
                     if (email.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(email,
@@ -160,8 +173,14 @@ class MorePage extends StatelessWidget {
           _row(context, Icons.swap_horiz, 'Ganti Akun', kTaskSand, kTaskDark,
               () => _open(context, 'Ganti Akun', const AccountSwitcherPage())),
           _divider(context),
-          _row(context, Icons.settings, 'Pengaturan', kTaskSand, _kInk,
-              () => _open(context, 'Pengaturan', SettingsPage(api: api))),
+          _row(
+              context,
+              Icons.settings,
+              auth.role == 'gudang' ? 'Printer & tampilan' : 'Pengaturan',
+              kTaskSand,
+              _kInk,
+              () => _open(context, 'Pengaturan',
+                  SettingsPage(api: api, role: auth.role))),
         ]),
         _group(context, 'PRODUK & INVENTORI', [
           _row(
@@ -192,20 +211,28 @@ class MorePage extends StatelessWidget {
                   MutationReportPage(api: api, showPageTitle: false))),
         ]),
         _group(context, 'TRANSAKSI & KEUANGAN', [
-          _row(context, Icons.people, 'Jenis Pelanggan', kTaskSand, kTaskDark,
-              () => _open(context, 'Jenis Pelanggan', CustomersPage(api: api))),
-          _divider(context),
-          _row(context, Icons.payments, 'Laci Kas', kTaskSand, kTaskDark,
-              () => _open(context, 'Laci Kas', CashDrawerPage(api: api))),
-          _divider(context),
-          _row(
-              context,
-              Icons.account_balance_wallet,
-              'Keuangan',
-              kTaskSand,
-              kTaskDark,
-              () => _open(context, 'Keuangan', FinancePage(api: api))),
-          _divider(context),
+          if (permissions.finance) ...[
+            _row(
+                context,
+                Icons.people,
+                'Jenis Pelanggan',
+                kTaskSand,
+                kTaskDark,
+                () =>
+                    _open(context, 'Jenis Pelanggan', CustomersPage(api: api))),
+            _divider(context),
+            _row(context, Icons.payments, 'Laci Kas', kTaskSand, kTaskDark,
+                () => _open(context, 'Laci Kas', CashDrawerPage(api: api))),
+            _divider(context),
+            _row(
+                context,
+                Icons.account_balance_wallet,
+                'Keuangan',
+                kTaskSand,
+                kTaskDark,
+                () => _open(context, 'Keuangan', FinancePage(api: api))),
+            _divider(context),
+          ],
           _row(
               context,
               Icons.payments_outlined,
@@ -218,28 +245,36 @@ class MorePage extends StatelessWidget {
                   CommissionsPage(
                       api: api, branchId: activeBranch, role: role))),
         ]),
-        _group(context, 'MANAJEMEN', [
-          _row(
-              context,
-              Icons.badge,
-              'Pegawai',
-              kTaskSand,
-              kTaskDark,
-              () => _open(context, 'Pegawai',
-                  UsersPage(api: api, branchId: activeBranch, role: role))),
-          _divider(context),
-          _row(context, Icons.local_offer, 'Promo', kTaskSand, kTaskDark,
-              () => _open(context, 'Promo', PromotionsPage(api: api))),
-          _divider(context),
-          _row(
-              context,
-              Icons.receipt_long_outlined,
-              'Riwayat Aktivitas',
-              kTaskSand,
-              kTaskDark,
-              () => _open(
-                  context, 'Riwayat Aktivitas', ActivityLogPage(api: api))),
-        ]),
+        if (permissions.manageUsers ||
+            permissions.managePromotions ||
+            permissions.viewActivity)
+          _group(context, 'MANAJEMEN', [
+            if (permissions.manageUsers) ...[
+              _row(
+                  context,
+                  Icons.badge,
+                  'Pegawai',
+                  kTaskSand,
+                  kTaskDark,
+                  () => _open(context, 'Pegawai',
+                      UsersPage(api: api, branchId: activeBranch, role: role))),
+              _divider(context),
+            ],
+            if (permissions.managePromotions) ...[
+              _row(context, Icons.local_offer, 'Promo', kTaskSand, kTaskDark,
+                  () => _open(context, 'Promo', PromotionsPage(api: api))),
+              _divider(context),
+            ],
+            if (permissions.viewActivity)
+              _row(
+                  context,
+                  Icons.receipt_long_outlined,
+                  'Riwayat Aktivitas',
+                  kTaskSand,
+                  kTaskDark,
+                  () => _open(
+                      context, 'Riwayat Aktivitas', ActivityLogPage(api: api))),
+          ]),
         const SizedBox(height: 14),
         // Keluar di paling bawah.
         GlassCard(
@@ -310,7 +345,6 @@ class MorePage extends StatelessWidget {
   Widget _row(BuildContext context, IconData icon, String title, Color chipBg,
       Color chipFg, VoidCallback onTap) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final bg = dark ? const Color(0xff334155) : chipBg;
     final fg = dark ? const Color(0xffE2E8F0) : chipFg;
     return InkWell(
       onTap: onTap,
@@ -318,15 +352,8 @@ class MorePage extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: bg,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, size: 17, color: fg),
-            ),
+            SizedBox(
+                width: 24, height: 24, child: Icon(icon, size: 21, color: fg)),
             SizedBox(width: 12),
             Expanded(
               child: Text(title,

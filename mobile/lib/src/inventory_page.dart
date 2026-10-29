@@ -21,15 +21,6 @@ const _inventorySections = <({String value, IconData icon, String label})>[
   (value: 'barcode', icon: Icons.qr_code_scanner, label: 'Barcode'),
 ];
 
-String _inventorySectionSubtitle(String value) => switch (value) {
-      'stok' => 'Data stok dan produk',
-      'mutasi' => 'Input stok masuk dan keluar',
-      'transfer' => 'Kirim stok ke cabang lain',
-      'opname' => 'Stok opname / stok fisik',
-      'barcode' => 'Cetak label produk',
-      _ => 'Kelola inventori',
-    };
-
 enum InventoryStockLevel { good, low, empty }
 
 InventoryStockLevel inventoryStockLevel(num stock, num minStock) {
@@ -44,6 +35,15 @@ Color inventoryStockColor(InventoryStockLevel level) => switch (level) {
       InventoryStockLevel.empty => kTaskStockEmpty,
     };
 
+Color inventoryStockInk(BuildContext context, InventoryStockLevel level) =>
+    Theme.of(context).brightness != Brightness.dark
+        ? inventoryStockColor(level)
+        : switch (level) {
+            InventoryStockLevel.good => const Color(0xff86EFAC),
+            InventoryStockLevel.low => const Color(0xffFDBA74),
+            InventoryStockLevel.empty => const Color(0xffFCA5A5),
+          };
+
 Color inventoryStockSurface(BuildContext context, InventoryStockLevel level) {
   final color = inventoryStockColor(level);
   return Theme.of(context).brightness == Brightness.dark
@@ -57,10 +57,15 @@ Color inventoryStockSurface(BuildContext context, InventoryStockLevel level) {
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage(
-      {super.key, required this.api, required this.branchId, this.role});
+      {super.key,
+      required this.api,
+      required this.branchId,
+      this.role,
+      this.initialSection = 'stok'});
   final ApiClient api;
   final int branchId;
   final String? role;
+  final String initialSection;
 
   bool get isOwner => role == 'owner';
 
@@ -70,6 +75,33 @@ class InventoryPage extends StatefulWidget {
 
 class _InventoryPageState extends State<InventoryPage> {
   String _section = 'stok';
+
+  @override
+  void initState() {
+    super.initState();
+    _section = widget.initialSection;
+  }
+
+  void _selectSection(String value) {
+    if (value == 'transfer' || value == 'opname') {
+      Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => Scaffold(
+                backgroundColor: pageBg(context),
+                appBar: AppBar(
+                    title:
+                        Text(value == 'transfer' ? 'Transfer stok' : 'Opname')),
+                body: value == 'transfer'
+                    ? _TransferSection(
+                        api: widget.api,
+                        branchId: widget.branchId,
+                        isOwner: widget.isOwner)
+                    : _OpnameSection(
+                        api: widget.api, branchId: widget.branchId),
+              )));
+      return;
+    }
+    setState(() => _section = value);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +114,7 @@ class _InventoryPageState extends State<InventoryPage> {
             children: [
               _InventorySectionSelector(
                 selected: _section,
-                onChanged: (v) => setState(() => _section = v),
+                onChanged: _selectSection,
               ),
               Expanded(
                 child: switch (_section) {
@@ -124,73 +156,92 @@ class _InventorySectionSelector extends StatelessWidget {
       (entry) => entry.value == selected,
       orElse: () => _inventorySections.first,
     );
-    final accent = _sectionColor(item);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-      child: PopupMenuButton<String>(
-        key: const ValueKey('inventory-section-selector'),
-        tooltip: 'Pilih halaman stok',
-        offset: const Offset(0, 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        onSelected: onChanged,
-        itemBuilder: (context) => [
-          for (final entry in _inventorySections)
-            PopupMenuItem<String>(
-              value: entry.value,
-              child: Row(
-                children: [
-                  Icon(entry.icon, size: 20, color: _sectionColor(entry)),
-                  const SizedBox(width: 12),
-                  Expanded(child: Text(entry.label)),
-                  if (entry.value == selected)
-                    const Icon(Icons.check, size: 18, color: kTaskTeal),
-                ],
-              ),
-            ),
-        ],
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 58),
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: .12),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(item.icon, size: 23, color: accent),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+        child: PopupMenuButton<String>(
+          key: const ValueKey('inventory-section-selector'),
+          tooltip: 'Pilih halaman stok',
+          offset: const Offset(0, 8),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          onSelected: onChanged,
+          itemBuilder: (context) => [
+            for (final entry in _inventorySections)
+              PopupMenuItem<String>(
+                value: entry.value,
+                child: Row(
                   children: [
-                    Text(item.label,
-                        style: TextStyle(
-                            color: ink(context),
-                            fontSize: 22,
-                            height: 1.05,
-                            fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 4),
-                    Text(_inventorySectionSubtitle(item.value),
-                        style: TextStyle(
-                            color: taskMuted(context),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500)),
+                    Icon(entry.icon, size: 20, color: _sectionColor(entry)),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(entry.label)),
+                    if (entry.value == selected)
+                      const Icon(Icons.check, size: 18, color: kTaskTeal),
                   ],
                 ),
               ),
-              Icon(Icons.keyboard_arrow_down,
-                  size: 24, color: taskMuted(context)),
-            ],
+          ],
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 48),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(item.label,
+                          style: TextStyle(
+                              color: ink(context),
+                              fontSize: 20,
+                              height: 1.05,
+                              fontWeight: FontWeight.w800)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.keyboard_arrow_down,
+                    size: 24, color: taskMuted(context)),
+              ],
+            ),
           ),
         ),
       ),
-    );
+      Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(children: [
+            for (final entry in _inventorySections)
+              Expanded(
+                  child: Semantics(
+                      selected: entry.value == selected,
+                      button: true,
+                      child: InkWell(
+                        onTap: () => onChanged(entry.value),
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                              color: entry.value == selected
+                                  ? Theme.of(context)
+                                      .colorScheme
+                                      .primaryContainer
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(10)),
+                          child: Column(children: [
+                            Icon(entry.icon, size: 18, color: ink(context)),
+                            const SizedBox(height: 4),
+                            Text(entry.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: 11, color: ink(context)))
+                          ]),
+                        ),
+                      ))),
+          ])),
+      const SizedBox(height: 4)
+    ]);
   }
 
   Color _sectionColor(({String value, IconData icon, String label}) entry) =>
@@ -565,12 +616,12 @@ class _StockSectionState extends State<_StockSection> {
                                     asNum(r['total_stock']),
                                     asNum(r['min_stock']));
                                 final stockColor =
-                                    inventoryStockColor(stockLevel);
+                                    inventoryStockInk(context, stockLevel);
                                 final stockSurface =
                                     inventoryStockSurface(context, stockLevel);
                                 return GlassCard(
                                   padding: EdgeInsets.zero,
-                                  radius: 18,
+                                  radius: 12,
                                   onTap: () => _openProductEditor(r),
                                   child: Column(
                                     crossAxisAlignment:
@@ -661,25 +712,25 @@ class _StockSectionState extends State<_StockSection> {
                                     asNum(r['total_stock']),
                                     asNum(r['min_stock']));
                                 final stockColor =
-                                    inventoryStockColor(stockLevel);
+                                    inventoryStockInk(context, stockLevel);
                                 final stockSurface =
                                     inventoryStockSurface(context, stockLevel);
                                 return GlassCard(
                                   padding: const EdgeInsets.all(10),
-                                  radius: 18,
+                                  radius: 12,
                                   onTap: () => _openProductEditor(r),
                                   child: Row(
                                     children: [
                                       ClipRRect(
                                         borderRadius: BorderRadius.circular(12),
                                         child: SizedBox(
-                                          width: 48,
-                                          height: 48,
+                                          width: 58,
+                                          height: 72,
                                           child: UiProductPhoto(
                                             path: stockProductPhotoPath(r),
                                             baseUrl: widget.api.baseUrl,
-                                            width: 48,
-                                            height: 48,
+                                            width: 58,
+                                            height: 72,
                                             fit: BoxFit.cover,
                                             label:
                                                 'Foto ${productDisplayName(r)}',
@@ -693,19 +744,19 @@ class _StockSectionState extends State<_StockSection> {
                                               CrossAxisAlignment.start,
                                           children: [
                                             Text(productDisplayName(r),
-                                                maxLines: 1,
+                                                maxLines: 2,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: const TextStyle(
                                                     fontWeight: FontWeight.w700,
-                                                    fontSize: 13)),
+                                                    fontSize: 14)),
                                             const SizedBox(height: 2),
                                             Text(
-                                                '${productSecondaryLabel(r).isNotEmpty ? '${productSecondaryLabel(r)} · ' : ''}${r['branch_name'] ?? ''}',
+                                                '${r['sku'] ?? ''}${productSecondaryLabel(r).isNotEmpty ? ' · ${productSecondaryLabel(r)}' : ''}${(r['branch_name'] ?? '').toString().isNotEmpty ? ' · ${r['branch_name']}' : ''}',
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                    fontSize: 10.5,
-                                                    color: kTaskSecondary)),
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: taskMuted(context))),
                                           ],
                                         ),
                                       ),
@@ -729,12 +780,37 @@ class _StockSectionState extends State<_StockSection> {
                                                     fontSize: 12,
                                                     color: stockColor)),
                                           ),
-                                          if (stockLevel ==
-                                              InventoryStockLevel.low)
-                                            Text('min ${r['min_stock'] ?? 0}',
-                                                style: TextStyle(
-                                                    fontSize: 10,
-                                                    color: stockColor)),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                              switch (stockLevel) {
+                                                InventoryStockLevel.good =>
+                                                  'Tersedia',
+                                                InventoryStockLevel.low =>
+                                                  'Menipis',
+                                                InventoryStockLevel.empty =>
+                                                  'Habis',
+                                              },
+                                              style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Theme.of(context)
+                                                              .brightness ==
+                                                          Brightness.dark
+                                                      ? switch (stockLevel) {
+                                                          InventoryStockLevel
+                                                                .good =>
+                                                            const Color(
+                                                                0xff86EFAC),
+                                                          InventoryStockLevel
+                                                                .low =>
+                                                            const Color(
+                                                                0xffFDBA74),
+                                                          InventoryStockLevel
+                                                                .empty =>
+                                                            const Color(
+                                                                0xffFCA5A5),
+                                                        }
+                                                      : stockColor)),
                                         ],
                                       ),
                                       const SizedBox(width: 8),
@@ -837,7 +913,14 @@ class _StatCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final valueColor = color ?? kTaskDark;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final valueColor = color == null
+        ? ink(context)
+        : !dark
+            ? color!
+            : color == kTaskStockLow
+                ? const Color(0xffFDBA74)
+                : const Color(0xffFCA5A5);
     return Expanded(
       child: GlassCard(
         radius: 14,
@@ -847,21 +930,19 @@ class _StatCell extends StatelessWidget {
             Text(label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    fontSize: 9,
+                style: TextStyle(
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: kTaskGray)),
+                    color: taskMuted(context))),
             const SizedBox(height: 2),
             FittedBox(
               fit: BoxFit.scaleDown,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(icon, size: 12, color: valueColor),
-                  const SizedBox(width: 3),
                   Text(value,
                       style: TextStyle(
-                          fontSize: 13,
+                          fontSize: 17,
                           fontWeight: FontWeight.w800,
                           color: valueColor)),
                 ],
@@ -914,28 +995,7 @@ class _MutasiSectionState extends State<_MutasiSection> {
     }
   }
 
-  Future<void> _openForm() async {
-    final kind = await showModalBottomSheet<String>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.move_to_inbox),
-              title: const Text('Stok Masuk'),
-              onTap: () => Navigator.pop(ctx, 'incoming'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.outbox),
-              title: const Text('Stok Keluar'),
-              onTap: () => Navigator.pop(ctx, 'outgoing'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (kind == null || !mounted) return;
+  Future<void> _openForm(String kind) async {
     await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) =>
           _InOutForm(api: widget.api, branchId: widget.branchId, kind: kind),
@@ -947,6 +1007,31 @@ class _MutasiSectionState extends State<_MutasiSection> {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(children: [
+              Expanded(
+                  child: FilledButton.icon(
+                onPressed: () => _openForm('incoming'),
+                style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xff2E7E4F),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(0, 64)),
+                icon: const Icon(Icons.move_to_inbox_outlined),
+                label: const Text('Stok masuk'),
+              )),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: FilledButton.icon(
+                onPressed: () => _openForm('outgoing'),
+                style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xffC2410C),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(0, 64)),
+                icon: const Icon(Icons.outbox_outlined),
+                label: const Text('Stok keluar'),
+              )),
+            ])),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
           child: DropdownButtonFormField<String>(
@@ -1027,24 +1112,6 @@ class _MutasiSectionState extends State<_MutasiSection> {
                           },
                         ),
         ),
-        Padding(
-          // Tambah padding bawah area aman (home indicator iPhone) supaya
-          // tombol tidak mepet navbar.
-          padding: EdgeInsets.fromLTRB(
-              12, 4, 12, 104 + MediaQuery.of(context).padding.bottom),
-          child: FilledButton.icon(
-            onPressed: _openForm,
-            style: FilledButton.styleFrom(
-              backgroundColor: kTaskDark,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(28)),
-              minimumSize: const Size.fromHeight(50),
-            ),
-            icon: const Icon(Icons.add, size: 20),
-            label: const Text('Mutasi Stok'),
-          ),
-        ),
       ],
     );
   }
@@ -1073,6 +1140,7 @@ class _InOutFormState extends State<_InOutForm> {
   List<Map<String, dynamic>> _channels = [];
   String _warehouseId = '';
   String _channel = 'toko';
+  String _transactionDate = todayWib();
   String _batch = '';
   String _notes = '';
   final List<Map<String, dynamic>> _items = [];
@@ -1244,7 +1312,7 @@ class _InOutFormState extends State<_InOutForm> {
       final body = {
         'branch_id': widget.branchId,
         'warehouse_id': int.parse(_warehouseId),
-        'transaction_date': todayWib(),
+        'transaction_date': _transactionDate,
         if (_batch.trim().isNotEmpty) 'batch_number': _batch.trim(),
         if (_notes.trim().isNotEmpty) 'notes': _notes.trim(),
         'items': _items,
@@ -1288,12 +1356,26 @@ class _InOutFormState extends State<_InOutForm> {
           ? const UiLoadingState(label: 'Memuat formulir…')
           : (_error != null && _warehouses.isEmpty)
               ? UiErrorState(message: _error!, onRetry: () => _load())
-              : ListView(
-                  padding: EdgeInsets.fromLTRB(
-                      12,
+              : UiTaskBody(
+                  topPadding:
                       MediaQuery.of(context).padding.top + kToolbarHeight + 12,
-                      12,
-                      12),
+                  summary:
+                      '${_items.length} produk · ${_items.fold<num>(0, (sum, item) => sum + asNum(item['quantity']))} pcs',
+                  action: FilledButton(
+                    style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(52),
+                        backgroundColor: accent,
+                        foregroundColor: Colors.white),
+                    onPressed: _saving ? null : _submit,
+                    child: _saving
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : Text(widget.kind == 'incoming'
+                            ? 'Simpan stok masuk'
+                            : 'Simpan stok keluar'),
+                  ),
                   children: [
                     // Banner pembeda warna solid + teks putih.
                     Container(
@@ -1327,6 +1409,25 @@ class _InOutFormState extends State<_InOutForm> {
                       ),
                     ),
                     const SizedBox(height: 10),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime.parse(_transactionDate),
+                            firstDate: DateTime(2020),
+                            lastDate:
+                                DateTime.now().add(const Duration(days: 366)));
+                        if (picked == null || !mounted) return;
+                        setState(() => _transactionDate =
+                            '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}');
+                      },
+                      child: InputDecorator(
+                          decoration: const InputDecoration(
+                              labelText: 'Tanggal',
+                              suffixIcon: Icon(Icons.calendar_today_outlined)),
+                          child: Text(_transactionDate)),
+                    ),
+                    const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: _warehouseId.isEmpty ? null : _warehouseId,
                       decoration: const InputDecoration(
@@ -1382,7 +1483,9 @@ class _InOutFormState extends State<_InOutForm> {
                     const SizedBox(height: 12),
                     FilledButton.icon(
                       onPressed: _pickItem,
-                      style: FilledButton.styleFrom(backgroundColor: accent),
+                      style: FilledButton.styleFrom(
+                          backgroundColor: accent,
+                          foregroundColor: Colors.white),
                       icon: const Icon(Icons.add),
                       label: const Text('Tambah Produk'),
                     ),
@@ -1398,11 +1501,16 @@ class _InOutFormState extends State<_InOutForm> {
                         padding: EdgeInsets.zero,
                         child: ListTile(
                           dense: true,
+                          leading: _InventoryThumbnail(
+                              path: stockProductMediaUrl(
+                                  stockProductPhotoPath(item),
+                                  baseUrl: widget.api.baseUrl),
+                              size: const Size(42, 56)),
                           onTap: () => _editItem(item,
                               withCost: widget.kind == 'incoming'),
                           title: Text(item['name']?.toString() ?? ''),
                           subtitle: Text(
-                              '${item['variant_label'] ?? ''} · ${item['quantity']} pcs · ketuk untuk ubah'),
+                              '${item['variant_label'] ?? ''} · ${item['quantity']} pcs${widget.kind == 'incoming' ? '\nHarga beli ${fmtRp(asNum(item['cost']))}' : ''}'),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -1421,19 +1529,6 @@ class _InOutFormState extends State<_InOutForm> {
                           ),
                         ),
                       ),
-                    const SizedBox(height: 16),
-                    FilledButton(
-                      style: FilledButton.styleFrom(
-                          minimumSize: const Size.fromHeight(50),
-                          backgroundColor: accent),
-                      onPressed: _saving ? null : _submit,
-                      child: _saving
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Text('Simpan Mutasi'),
-                    ),
                   ],
                 ),
     );
@@ -1564,6 +1659,7 @@ class _CatalogPickerState extends State<_CatalogPicker> {
         'product_id': product['id'],
         if (variantId != null) 'variant_id': variantId,
         'name': product['name'],
+        'photo_path': stockProductPhotoPath(product),
         'variant_label': variantLabel,
         'quantity': quantity,
         if (widget.withCost && cost.text.trim().isNotEmpty)
@@ -1866,8 +1962,19 @@ class _TransferSectionState extends State<_TransferSection> {
     if (_error != null && _warehouses.isEmpty) {
       return UiErrorState(message: _error!, onRetry: () => _load());
     }
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 104),
+    return UiTaskBody(
+      summary:
+          '${_items.length} produk · ${_items.fold<num>(0, (sum, item) => sum + asNum(item['quantity']))} pcs',
+      action: FilledButton(
+        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+        onPressed: _saving ? null : _submit,
+        child: _saving
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2))
+            : const Text('Buat Transfer'),
+      ),
       children: [
         DropdownButtonFormField<String>(
           initialValue: _from.isEmpty ? null : _from,
@@ -1922,6 +2029,10 @@ class _TransferSectionState extends State<_TransferSection> {
             padding: EdgeInsets.zero,
             child: ListTile(
               dense: true,
+              leading: _InventoryThumbnail(
+                  path: stockProductMediaUrl(stockProductPhotoPath(item),
+                      baseUrl: widget.api.baseUrl),
+                  size: const Size(42, 56)),
               onTap: () => _editItem(item, withCost: false),
               title: Text(item['name']?.toString() ?? ''),
               subtitle: Text(
@@ -1942,17 +2053,6 @@ class _TransferSectionState extends State<_TransferSection> {
               ),
             ),
           ),
-        const SizedBox(height: 16),
-        FilledButton(
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-          onPressed: _saving ? null : _submit,
-          child: _saving
-              ? const SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Buat Transfer'),
-        ),
       ],
     );
   }
@@ -2107,8 +2207,18 @@ class _OpnameSectionState extends State<_OpnameSection> {
     if (_error != null && _warehouses.isEmpty) {
       return UiErrorState(message: _error!, onRetry: () => _load());
     }
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 104),
+    return UiTaskBody(
+      summary: '${_items.length} produk dihitung',
+      action: FilledButton(
+        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+        onPressed: _saving ? null : _submit,
+        child: _saving
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2))
+            : const Text('Simpan Opname'),
+      ),
       children: [
         DropdownButtonFormField<String>(
           initialValue: _warehouseId.isEmpty ? null : _warehouseId,
@@ -2154,24 +2264,13 @@ class _OpnameSectionState extends State<_OpnameSection> {
               onTap: () => _editItem(item),
               title: Text(item['name']?.toString() ?? ''),
               subtitle: Text(
-                  '${item['variant_label'] ?? ''} · fisik ${item['physical_stock']} · ketuk untuk ubah'),
+                  '${item['variant_label'] ?? ''}\nSistem ${item['expected_stock']} · Fisik ${item['physical_stock']}\nSelisih ${asNum(item['physical_stock']) - asNum(item['expected_stock'])}'),
               trailing: IconButton(
                 onPressed: () => setState(() => _items.remove(item)),
                 icon: const Icon(Icons.delete_outline),
               ),
             ),
           ),
-        const SizedBox(height: 16),
-        FilledButton(
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-          onPressed: _saving ? null : _submit,
-          child: _saving
-              ? const SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Simpan Opname'),
-        ),
       ],
     );
   }

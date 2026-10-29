@@ -272,8 +272,8 @@ class _ProductsPageState extends State<ProductsPage> {
                                               Text(
                                                   '${r['sku'] ?? ''} · Stok ${r['stock'] ?? 0}',
                                                   style: const TextStyle(
-                                                      fontSize: 10,
-                                                      color: kTaskGray)),
+                                                    fontSize: 10,
+                                                  )),
                                             ],
                                           ),
                                         ),

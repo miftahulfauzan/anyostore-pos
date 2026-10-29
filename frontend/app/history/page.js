@@ -10,6 +10,11 @@ const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rp = (n) => 'Rp' + Number(n || 0).toLocaleString('id-ID');
 const todayStr = () => localDateString();
 const firstOfMonthStr = () => localMonthStartString();
+const transactionDateTime = (transaction) => {
+  const date = String(transaction.transaction_date || transaction.created_at || '').slice(0, 10);
+  const time = transaction.created_at ? new Date(transaction.created_at).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' }) : '';
+  return `${date ? date.split('-').reverse().join('/') : '-'}${time ? `, ${time}` : ''}`;
+};
 
 export default function HistoryPage() {
   const { user, activeBranchId } = useAppSession();
@@ -19,6 +24,7 @@ export default function HistoryPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [message, setMessage] = useState('');
   const [selected, setSelected] = useState(null);
+  const [transactionDateDraft, setTransactionDateDraft] = useState('');
   const [quantities, setQuantities] = useState({});
   const [cancelQuantities, setCancelQuantities] = useState({});
   const [refundMethod, setRefundMethod] = useState('');
@@ -42,6 +48,7 @@ export default function HistoryPage() {
 
   const h = () => ({});
   const canCancel = ['owner', 'manager', 'admin'].includes(user?.role);
+  const canEditTransactionDate = user?.role === 'owner';
 
   async function load(p = page, override = null) {
     setLoading(true);
@@ -101,6 +108,7 @@ export default function HistoryPage() {
       if (seq !== detailSeq.current) return;
       if (!r.ok) throw Error(b.message);
       setSelected(b.data);
+      setTransactionDateDraft(String(b.data.transaction_date || '').slice(0, 10));
       const maxQty = (i) => i.quantity - (i.cancelled_qty || 0) - (i.returned_qty || 0);
       setQuantities(Object.fromEntries(b.data.items.map((i) => [i.transaction_item_id, maxQty(i)])));
       setCancelQuantities(Object.fromEntries(b.data.items.map((i) => [i.transaction_item_id, 0])));
@@ -139,6 +147,25 @@ export default function HistoryPage() {
       setMessage('Transaksi dibatalkan. Refund: ' + rp(b.data.refund));
       setSelected(null);
       load();
+    } catch (e) { if (seq === detailSeq.current) setMessage(e.message); } finally { setSaving(false); }
+  }
+
+  async function saveTransactionDate() {
+    if (!selected || !transactionDateDraft) return setMessage('Pilih tanggal transaksi.');
+    const seq = detailSeq.current;
+    try {
+      setSaving(true);
+      const r = await fetch(`${api}/transactions/${selected.id}/date`, {
+        method: 'PUT',
+        headers: { ...h(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ branch_id: selected.branch_id, transaction_date: transactionDateDraft }),
+      });
+      const b = await r.json();
+      if (seq !== detailSeq.current) return;
+      if (!r.ok) throw Error(b.message);
+      setSelected((current) => ({ ...current, transaction_date: b.data.transaction_date }));
+      setMessage('Tanggal transaksi berhasil diperbarui.');
+      await load(1);
     } catch (e) { if (seq === detailSeq.current) setMessage(e.message); } finally { setSaving(false); }
   }
 
@@ -193,7 +220,7 @@ export default function HistoryPage() {
                 <article key={t.id} role="button" tabIndex={0} onClick={() => inspect(t)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inspect(t); } }} style={{ cursor: 'pointer', border: selected?.id === t.id ? '1px solid #2563eb' : undefined, borderRadius: 6, padding: '.6rem', background: selected?.id === t.id ? '#eff6ff' : undefined }}>
                   <div>
                     <strong style={{ fontSize: '.9rem' }}>{t.invoice_no}</strong>
-                    <span>{t.cashier} {t.customer ? `• ${t.customer} (${t.customer_tier})` : ''} • {new Date(t.created_at).toLocaleString('id-ID')}</span>
+                    <span>{t.cashier} {t.customer ? `• ${t.customer} (${t.customer_tier})` : ''} • {transactionDateTime(t)}</span>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <strong>{rp(t.grand_total)}</strong>
@@ -222,7 +249,7 @@ export default function HistoryPage() {
                 <div className="section-heading">
                   <div>
                     <h2 id={isMobile ? 'transaction-detail-title' : undefined} style={{ fontSize: '1.1rem' }}>{selected.invoice_no}</h2>
-                    <p>{new Date(selected.created_at).toLocaleString('id-ID')} • {labelFor(paymentLabels, selected.payment_method)} • {rp(selected.grand_total)}{selected.cancelled_amount ? ` • refund ${rp(selected.cancelled_amount)}` : ''}</p>
+                    <p>{transactionDateTime(selected)} • {labelFor(paymentLabels, selected.payment_method)} • {rp(selected.grand_total)}{selected.cancelled_amount ? ` • refund ${rp(selected.cancelled_amount)}` : ''}</p>
                   </div>
                   <button type="button" className="small secondary" data-dialog-close onClick={() => setSelected(null)}>Tutup</button>
                 </div>
@@ -238,6 +265,11 @@ export default function HistoryPage() {
                 {activeTab === 'info' && (
                   <div style={{ display: 'grid', gap: '.5rem' }}>
                     <p className="muted" style={{ margin: 0 }}>Klik Cetak ulang untuk struk. {selected.status !== 'completed' ? `Status: ${labelFor(statusLabels, selected.status)}. Alasan: ${selected.cancel_reason || '-'}` : ''}</p>
+                    {canEditTransactionDate && <div style={{ display: 'grid', gap: '.5rem', padding: '.75rem', border: '1px solid var(--border)', borderRadius: 8 }}>
+                      <label>Tanggal transaksi<input type="date" value={transactionDateDraft} max={todayStr()} onChange={(event) => setTransactionDateDraft(event.target.value)} disabled={saving} /></label>
+                      <button type="button" className="small" onClick={saveTransactionDate} disabled={saving || !transactionDateDraft || transactionDateDraft === selected.transaction_date}>{saving ? 'Menyimpan…' : 'Simpan tanggal'}</button>
+                      <small className="muted" style={{ gridColumn: '1 / -1' }}>Waktu pencatatan dan nomor invoice tetap. Perubahan tercatat di log aktivitas.</small>
+                    </div>}
                     {selected.items.map((it) => (
                       <div key={it.transaction_item_id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>

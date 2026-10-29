@@ -290,7 +290,7 @@ class _HistoryTabState extends State<HistoryTab> {
                 const SizedBox(height: 4),
                 Text(
                   '${detail['created_at'] ?? ''}${detail['cashier'] != null && (detail['cashier'] as String).isNotEmpty ? ' · Kasir: ${detail['cashier']}' : ''}',
-                  style: const TextStyle(fontSize: 11, color: kTaskSecondary),
+                  style: TextStyle(fontSize: 12, color: taskMuted(context)),
                 ),
                 const Divider(),
                 for (final item in items) ...[
@@ -299,8 +299,8 @@ class _HistoryTabState extends State<HistoryTab> {
                           fontSize: 12.5, fontWeight: FontWeight.w700)),
                   if ((item['variant_detail'] ?? '').toString().isNotEmpty)
                     Text((item['variant_detail'] ?? '').toString(),
-                        style: const TextStyle(
-                            fontSize: 10.5, color: kTaskSecondary)),
+                        style:
+                            TextStyle(fontSize: 12, color: taskMuted(context))),
                   _StrukRow(
                     '${item['quantity']} x ${fmtRp(asNum(item['price']))}'
                     '${asNum(item['cancelled_qty']) > 0 ? '  (batal ${item['cancelled_qty']})' : ''}'
@@ -399,7 +399,7 @@ class _HistoryTabState extends State<HistoryTab> {
                     'Invoice: ${detail['invoice_no'] ?? ''}\n'
                     '${detail['created_at'] ?? ''}${detail['created_by_name'] != null && (detail['created_by_name'] as String).isNotEmpty ? ' · Oleh: ${detail['created_by_name']}' : ''}'
                     '${detail['reason'] != null && (detail['reason'] as String).isNotEmpty ? '\nAlasan: ${detail['reason']}' : ''}',
-                    style: const TextStyle(fontSize: 11, color: kTaskSecondary),
+                    style: TextStyle(fontSize: 12, color: taskMuted(context)),
                   ),
                   const Divider(),
                   for (final item in items) ...[
@@ -408,8 +408,8 @@ class _HistoryTabState extends State<HistoryTab> {
                             fontSize: 12.5, fontWeight: FontWeight.w700)),
                     if ((item['variant_detail'] ?? '').toString().isNotEmpty)
                       Text((item['variant_detail'] ?? '').toString(),
-                          style: const TextStyle(
-                              fontSize: 10.5, color: kTaskSecondary)),
+                          style: TextStyle(
+                              fontSize: 12, color: taskMuted(context))),
                     _StrukRow(
                       '${item['quantity']} x ${fmtRp(asNum(item['unit_price']))}',
                       fmtRp(asNum(item['subtotal'])),
@@ -984,7 +984,7 @@ class _TxCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style:
-                          const TextStyle(fontSize: 10, color: kTaskSecondary)),
+                          TextStyle(fontSize: 12, color: taskMuted(context))),
                 ],
               ),
             ),
@@ -1029,7 +1029,7 @@ class _StrukRow extends StatelessWidget {
             child: Text(label,
                 style: TextStyle(
                     fontSize: 12,
-                    color: kTaskSecondary,
+                    color: taskMuted(context),
                     fontWeight: bold ? FontWeight.w800 : FontWeight.w400)),
           ),
           Text(value,

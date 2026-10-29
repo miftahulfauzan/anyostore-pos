@@ -187,7 +187,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     const SizedBox(height: 6),
                     const Text(
                         '3-30 karakter: huruf, angka, titik, garis bawah, strip. Dipakai untuk login.',
-                        style: TextStyle(fontSize: 10, color: kTaskGray)),
+                        style: TextStyle(fontSize: 12)),
                     const SizedBox(height: 14),
                     FilledButton(
                       onPressed: _savingProfile ? null : _saveProfile,
@@ -292,7 +292,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(height: 10),
                 Text(_message!,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: kTaskGray)),
+                    style: TextStyle(color: taskMuted(context))),
               ],
             ],
           ),

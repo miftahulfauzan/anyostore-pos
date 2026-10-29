@@ -260,7 +260,7 @@ class _ReportsPageState extends State<ReportsPage> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                 child: PillTabs(
-                  tabs: const [
+                  tabs: [
                     (
                       value: 'ringkasan',
                       icon: Icons.dashboard_outlined,
@@ -271,7 +271,8 @@ class _ReportsPageState extends State<ReportsPage> {
                       icon: Icons.event_available,
                       label: 'Penutupan'
                     ),
-                    (value: 'ppn', icon: Icons.receipt, label: 'PPN'),
+                    if (widget.role != 'kasir')
+                      (value: 'ppn', icon: Icons.receipt, label: 'PPN'),
                   ],
                   selected: _section,
                   onChanged: (v) {

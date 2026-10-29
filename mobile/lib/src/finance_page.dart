@@ -199,8 +199,7 @@ class _FinancePageState extends State<FinancePage> {
                         padding: EdgeInsets.only(bottom: 8),
                         child: Text(
                             'Kategori: Umum (otomatis). Kategori belum tersedia offline',
-                            style:
-                                TextStyle(fontSize: 12, color: kTaskSecondary)),
+                            style: TextStyle(fontSize: 12)),
                       )
                     : DropdownButtonFormField<int?>(
                         initialValue: categoryId,

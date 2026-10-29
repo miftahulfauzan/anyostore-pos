@@ -125,53 +125,49 @@ class PillTabs extends StatelessWidget {
   Widget _pill(BuildContext context,
       ({String value, IconData icon, String label}) t, bool centered) {
     final active = t.value == selected;
-    return AnimatedScale(
-      scale: active ? 1.02 : 1.0,
+    return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOutCubic,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeInOutCubic,
-        decoration: BoxDecoration(
-          color: active ? kTaskDark : taskSurface(context),
+      curve: Curves.easeInOutCubic,
+      decoration: BoxDecoration(
+        color: active
+            ? Theme.of(context).colorScheme.primary
+            : taskSurface(context),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+            color: active
+                ? Theme.of(context).colorScheme.primary
+                : taskBorder(context)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
           borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-                color: active
-                    ? kTaskDark.withValues(alpha: .18)
-                    : const Color(0x120F172A),
-                blurRadius: active ? 4 : 2,
-                offset: const Offset(0, 2)),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: () => onChanged(t.value),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              child: Center(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(t.icon,
-                        size: 16,
-                        color: active ? Colors.white : taskMuted(context)),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(t.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color:
-                                  active ? Colors.white : taskMuted(context))),
-                    ),
-                  ],
-                ),
+          onTap: () => onChanged(t.value),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(t.icon,
+                      size: 16,
+                      color: active
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : taskMuted(context)),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(t.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: active
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : taskMuted(context))),
+                  ),
+                ],
               ),
             ),
           ),
@@ -192,46 +188,7 @@ class SoftBlobs extends StatefulWidget {
 class _SoftBlobsState extends State<SoftBlobs> {
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Stack(
-        children: [
-          Positioned(
-            top: -90,
-            right: -70,
-            child: Container(
-              width: 240,
-              height: 240,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    kTaskSecondary.withValues(alpha: .10),
-                    kTaskSecondary.withValues(alpha: 0),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -70,
-            left: -60,
-            child: Container(
-              width: 220,
-              height: 220,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    kTaskBlueLight.withValues(alpha: .08),
-                    kTaskBlueLight.withValues(alpha: 0),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return const SizedBox.shrink();
   }
 }
 
@@ -318,7 +275,7 @@ class GlassCard extends StatelessWidget {
   const GlassCard(
       {super.key,
       required this.child,
-      this.radius = 24,
+      this.radius = 16,
       this.padding = const EdgeInsets.all(16),
       this.height,
       this.dark = false,
@@ -391,8 +348,10 @@ class GlassNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final bottomPad = MediaQuery.of(context).padding.bottom;
+    final labelSize = MediaQuery.textScalerOf(context).scale(11);
+    final barHeight = labelSize > 15 ? 100.0 : 72.0;
     return SizedBox(
-      height: 78 + bottomPad,
+      height: barHeight + 16 + bottomPad,
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.bottomCenter,
@@ -402,8 +361,8 @@ class GlassNavBar extends StatelessWidget {
             right: 14,
             bottom: 14 + bottomPad,
             child: Container(
-              height: 62,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              height: barHeight,
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
               decoration: BoxDecoration(
                 color: dark ? kTaskDarkSurface : kTaskSurface,
                 borderRadius: BorderRadius.circular(28),
@@ -420,7 +379,7 @@ class GlassNavBar extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   for (var i = 0; i < items.length; i++)
-                    _navIcon(i, dark: dark),
+                    Expanded(child: _navIcon(context, i, dark: dark)),
                 ],
               ),
             ),
@@ -430,24 +389,26 @@ class GlassNavBar extends StatelessWidget {
     );
   }
 
-  Widget _navIcon(int i, {required bool dark}) {
+  Widget _navIcon(BuildContext context, int i, {required bool dark}) {
     final item = items[i];
     final active = current == i;
     final idleColor = dark ? const Color(0xffE2E8F0) : kTaskSecondary;
-    const activeColor = Colors.white;
+    final activeColor = Theme.of(context).colorScheme.onPrimary;
     return Semantics(
       label: item.label,
       button: true,
       selected: active,
-      child: GestureDetector(
+      child: InkWell(
         onTap: () => onSelect(i),
-        behavior: HitTestBehavior.opaque,
+        borderRadius: BorderRadius.circular(14),
         child: Container(
-          width: 62,
-          height: 48,
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
           decoration: BoxDecoration(
-            color: active ? kTaskDark : Colors.transparent,
-            borderRadius: BorderRadius.circular(18),
+            color: active
+                ? Theme.of(context).colorScheme.primary
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -457,9 +418,12 @@ class GlassNavBar extends StatelessWidget {
                   size: 20, color: active ? activeColor : idleColor),
               const SizedBox(height: 1),
               Text(item.label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      fontSize: 9.5,
-                      height: 1.0,
+                      fontSize: 11,
+                      height: 1.15,
                       fontWeight: active ? FontWeight.w800 : FontWeight.w700,
                       color: active ? activeColor : idleColor)),
             ],

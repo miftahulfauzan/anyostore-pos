@@ -81,7 +81,7 @@ class _CustomersPageState extends State<CustomersPage> {
                           color: ink(context))),
                   const SizedBox(height: 4),
                   const Text('Lengkapi data pelanggan di bawah ini.',
-                      style: TextStyle(fontSize: 12, color: kTaskSecondary)),
+                      style: TextStyle(fontSize: 12)),
                   const SizedBox(height: 18),
                   _label('Nama *'),
                   _field(name, 'Nama pelanggan'),

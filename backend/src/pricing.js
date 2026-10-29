@@ -61,7 +61,7 @@ async function applyGrosirSeri(connection, lines, force = true) {
   return hasGrosir ? 'grosir_seri' : 'retail';
 }
 
-async function applyAutoTier(connection, lines) {
+async function applyAutoTier(connection, lines, semiGrosirEnabled) {
   // 1) Grosir Seri: line yang qty-nya memenuhi min_qty tier grosir (force=false
   // agar qty kecil tidak dapat harga grosir).
   const grosirTier = await applyGrosirSeri(connection, lines, false);
@@ -70,7 +70,7 @@ async function applyAutoTier(connection, lines) {
   // 2) Semi Grosir: total qty > 3 dan lebih dari 1 model berbeda.
   const totalQty = lines.reduce((sum, line) => sum + line.quantity, 0);
   const distinctModels = new Set(lines.map((line) => line.productId)).size;
-  if (totalQty > 3 && distinctModels > 1) {
+  if (semiGrosirEnabled && totalQty > 3 && distinctModels > 1) {
     applySemiGrosir(lines);
     return 'semi_grosir';
   }
@@ -81,12 +81,14 @@ async function applyAutoTier(connection, lines) {
 // Tentukan tier transaksi + harga final per line.
 // Hybrid: default dari tipe pelanggan; Reguler tetap auto-deteksi qty.
 async function applyPriceTier(connection, branchId, lines, customerTier = 'reguler') {
-  const [branchRows] = await connection.execute('SELECT pricing_tier_enabled FROM branches WHERE id = ?', [branchId]);
-  const tiersEnabled = branchRows[0]?.pricing_tier_enabled ?? true;
+  const [branchRows] = await connection.execute('SELECT pricing_tier_enabled, semi_grosir_enabled FROM branches WHERE id = ?', [branchId]);
+  const branch = branchRows[0];
+  const tiersEnabled = branch?.pricing_tier_enabled ?? true;
+  const semiGrosirEnabled = branch?.semi_grosir_enabled == null || Boolean(Number(branch.semi_grosir_enabled));
   if (!tiersEnabled) return 'retail';
   if (customerTier === 'grosir_seri') return applyGrosirSeri(connection, lines);
-  if (customerTier === 'semi_grosir') return applySemiGrosir(lines);
-  return applyAutoTier(connection, lines);
+  if (customerTier === 'semi_grosir') return semiGrosirEnabled ? applySemiGrosir(lines) : 'retail';
+  return applyAutoTier(connection, lines, semiGrosirEnabled);
 }
 
 module.exports = { SEMI_GROSIR_DISCOUNT_PER_PCS, findWholesalePrice, applyPriceTier };

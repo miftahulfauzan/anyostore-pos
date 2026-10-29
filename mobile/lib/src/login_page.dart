@@ -6,9 +6,6 @@ import 'task_ui.dart';
 
 const _kInk = kTaskInk;
 const _kMuted = kTaskSecondary;
-const _kBorder = kTaskBorder;
-const _kField = kTaskBg;
-const _kFieldBorder = kTaskBorder;
 const _kError = Color(0xffB42318);
 
 class LoginPage extends StatefulWidget {
@@ -58,20 +55,21 @@ class _LoginPageState extends State<LoginPage> {
   InputDecoration _dec(String label, {String? hint, Widget? suffix}) {
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: _kFieldBorder),
+      borderSide: const BorderSide(color: Color(0xff64748B)),
     );
     return InputDecoration(
       hintText: hint,
       counterText: '',
       filled: true,
-      fillColor: _kField,
+      fillColor: taskSurface(context),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       enabledBorder: border,
       focusedBorder: border.copyWith(
-        borderSide: const BorderSide(color: _kInk, width: 1.4),
+        borderSide:
+            BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
       ),
       suffixIcon: suffix,
-      hintStyle: const TextStyle(color: kTaskGray, fontSize: 14),
+      hintStyle: TextStyle(color: taskMuted(context), fontSize: 14),
     );
   }
 
@@ -79,10 +77,8 @@ class _LoginPageState extends State<LoginPage> {
         padding: const EdgeInsets.only(bottom: 6),
         child: RichText(
           text: TextSpan(
-            style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xff334155)),
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w600, color: ink(context)),
             children: [
               TextSpan(text: text),
               const TextSpan(text: ' *', style: TextStyle(color: _kError)),
@@ -114,18 +110,19 @@ class _LoginPageState extends State<LoginPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              const Text('Login',
+                              Text('Anyostore',
                                   style: TextStyle(
                                       fontSize: 24,
                                       fontWeight: FontWeight.w700,
-                                      color: _kInk)),
+                                      color: ink(context))),
                               const SizedBox(height: 18),
                               Container(
                                 padding: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xfff4f2ec),
+                                  color: pageBg(context),
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: _kBorder),
+                                  border:
+                                      Border.all(color: taskBorder(context)),
                                 ),
                                 child: Row(
                                   children: [
@@ -187,17 +184,21 @@ class _LoginPageState extends State<LoginPage> {
                                     value: _remember,
                                     onChanged: (v) =>
                                         setState(() => _remember = v ?? true),
-                                    activeColor: _kInk,
+                                    activeColor:
+                                        Theme.of(context).colorScheme.primary,
+                                    checkColor:
+                                        Theme.of(context).colorScheme.onPrimary,
                                     visualDensity: VisualDensity.compact,
                                     materialTapTargetSize:
                                         MaterialTapTargetSize.shrinkWrap,
                                   ),
                                   const SizedBox(width: 4),
-                                  const Expanded(
+                                  Expanded(
                                     child: Text(
                                         'Ingat akun ini (muncul di menu Ganti Akun)',
                                         style: TextStyle(
-                                            fontSize: 12, color: _kMuted)),
+                                            fontSize: 12,
+                                            color: taskMuted(context))),
                                   ),
                                 ],
                               ),
@@ -205,8 +206,10 @@ class _LoginPageState extends State<LoginPage> {
                               FilledButton(
                                 onPressed: _loading ? null : _submit,
                                 style: FilledButton.styleFrom(
-                                  backgroundColor: _kInk,
-                                  foregroundColor: const Color(0xfffcfbf8),
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.primary,
+                                  foregroundColor:
+                                      Theme.of(context).colorScheme.onPrimary,
                                   disabledBackgroundColor:
                                       _kInk.withValues(alpha: .7),
                                   minimumSize: const Size.fromHeight(48),
@@ -224,7 +227,7 @@ class _LoginPageState extends State<LoginPage> {
                                             strokeWidth: 2,
                                             color: Color(0xfffcfbf8)),
                                       )
-                                    : const Text('Login'),
+                                    : const Text('Masuk ke Anyostore'),
                               ),
                             ],
                           ),
@@ -244,7 +247,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget _modeButton(bool pin, String label) {
     final active = _pinMode == pin;
     return Expanded(
-      child: GestureDetector(
+      child: InkWell(
         onTap: () => setState(() {
           _pinMode = pin;
           _showSecret = false;
@@ -252,9 +255,11 @@ class _LoginPageState extends State<LoginPage> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
           alignment: Alignment.center,
-          height: 38,
+          height: 48,
           decoration: BoxDecoration(
-            color: active ? Colors.white : Colors.transparent,
+            color: active
+                ? Theme.of(context).colorScheme.primary
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(9),
             boxShadow: active
                 ? const [
@@ -270,7 +275,9 @@ class _LoginPageState extends State<LoginPage> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: active ? _kInk : _kMuted,
+              color: active
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : taskMuted(context),
             ),
           ),
         ),

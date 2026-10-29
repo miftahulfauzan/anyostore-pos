@@ -61,6 +61,7 @@ class _DashboardPageState extends State<DashboardPage> {
   String? _branchError;
   int _requestVersion = 0;
   bool _isOwner = false;
+  bool _isWarehouse = false;
   List<Map<String, dynamic>> _branches = [];
   String _branchMode = 'own'; // own | all | branch-<id>
 
@@ -81,6 +82,7 @@ class _DashboardPageState extends State<DashboardPage> {
     super.initState();
     final role = context.read<AuthStore>().role;
     _isOwner = role == 'owner';
+    _isWarehouse = role == 'gudang';
     if (_isOwner) _loadBranches();
     _load();
   }
@@ -147,21 +149,67 @@ class _DashboardPageState extends State<DashboardPage> {
       final bp = _branchParam;
       final stockAll = _isOwner && _branchMode == 'all';
       final stockBranch = int.tryParse(bp ?? '') ?? branch;
-      // Kartu Masuk/Keluar/Selisih & grafik dari endpoint mutations-summary
-      // (SEMUA mutasi, tanpa batas paginasi) — konsisten satu sama lain.
-      final results = await Future.wait([
-        widget.api.mutationsSummary(start: start, end: end, branchId: bp),
-        widget.api.stockTotal(branchId: stockBranch, allBranches: stockAll),
-        widget.api.stockByCategory(branchId: bp),
-        widget.api.topProductsOut(start: start, end: end, branchId: bp),
-      ]);
+      late final Map<String, dynamic> mutSummary;
+      late final Map<String, dynamic> stockSummary;
+      late final List<Map<String, dynamic>> catRows;
+      late final List<Map<String, dynamic>> topRows;
+
+      if (_isWarehouse) {
+        // Backend menyediakan agregasi khusus gudang dalam satu respons.
+        // Memakai satu endpoint mencegah satu dari empat request terpisah
+        // menggagalkan seluruh ringkasan.
+        final payload = await widget.api.dashboard(start: start, end: end);
+        final warehouse = payload['warehouse_dashboard'];
+        if (warehouse is! Map<String, dynamic>) {
+          throw const FormatException('Ringkasan gudang tidak tersedia');
+        }
+        final summary = warehouse['summary'];
+        if (summary is! Map<String, dynamic>) {
+          throw const FormatException('Ringkasan stok tidak valid');
+        }
+        final dailyRows = (warehouse['daily'] as List?)
+                ?.whereType<Map<String, dynamic>>()
+                .toList() ??
+            <Map<String, dynamic>>[];
+        final totalIn = dailyRows.fold<double>(
+            0, (sum, row) => sum + asNum(row['in']));
+        final totalOut = dailyRows.fold<double>(
+            0, (sum, row) => sum + asNum(row['out']));
+        mutSummary = {
+          'total_in': totalIn,
+          'total_out': totalOut,
+          'daily': dailyRows,
+        };
+        stockSummary = {
+          'total_products': summary['total_sku'],
+          'low_stock': summary['low_stock'],
+          'out_of_stock': summary['out_of_stock'],
+        };
+        catRows = (warehouse['categories'] as List?)
+                ?.whereType<Map<String, dynamic>>()
+                .toList() ??
+            <Map<String, dynamic>>[];
+        topRows = (warehouse['top_products_out'] as List?)
+                ?.whereType<Map<String, dynamic>>()
+                .toList() ??
+            <Map<String, dynamic>>[];
+      } else {
+        // Endpoint terpisah tetap dipakai untuk ringkasan owner dan toko.
+        final results = await Future.wait([
+          widget.api.mutationsSummary(start: start, end: end, branchId: bp),
+          widget.api.stockTotal(branchId: stockBranch, allBranches: stockAll),
+          widget.api.stockByCategory(branchId: bp),
+          widget.api.topProductsOut(start: start, end: end, branchId: bp),
+        ]);
+        mutSummary = (results[0] as Map<String, dynamic>?) ?? {};
+        stockSummary = ((results[1] as Map<String, dynamic>?)?['summary']
+                as Map<String, dynamic>?) ??
+            {};
+        catRows = (results[2] as List?)?.cast<Map<String, dynamic>>() ?? [];
+        topRows = (results[3] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      }
+
       if (!mounted || requestVersion != _requestVersion) return;
-      final mutSummary = (results[0] as Map<String, dynamic>?) ?? {};
-      final stockSummary = ((results[1] as Map<String, dynamic>?)?['summary']
-              as Map<String, dynamic>?) ??
-          {};
-      final catRows = (results[2] as List?)?.cast<Map<String, dynamic>>() ?? [];
-      final topRows = (results[3] as List?)?.cast<Map<String, dynamic>>() ?? [];
       if (mutSummary['daily'] is! List ||
           ['total_in', 'total_out'].any(
               (key) => num.tryParse('${mutSummary[key]}')?.isFinite != true) ||
@@ -345,7 +393,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     size: 18, color: _kBlueAccent),
               ),
               const SizedBox(width: 10),
-              Text('Ringkasan',
+              Text('Dashboard stok',
                   style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -779,7 +827,7 @@ class _MovementCard extends StatelessWidget {
     final limit = maxV <= 0 ? 10.0 : maxV * 1.2;
     return GlassCard(
       padding: const EdgeInsets.all(16),
-      radius: 22,
+      radius: 16,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

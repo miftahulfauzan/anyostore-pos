@@ -168,14 +168,14 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                                                           ?.toString() ??
                                                       '',
                                                   style: const TextStyle(
-                                                      fontSize: 11,
-                                                      color: kTaskGray)),
+                                                    fontSize: 11,
+                                                  )),
                                               const SizedBox(height: 2),
                                               Text(
                                                   '${r['user_name'] ?? ''} · ${r['branch_name'] ?? ''} · ${r['created_at'] ?? ''}',
                                                   style: const TextStyle(
-                                                      fontSize: 9,
-                                                      color: kTaskGray)),
+                                                    fontSize: 9,
+                                                  )),
                                             ],
                                           ),
                                         ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'format.dart';
 import 'task_ui.dart';
+import 'ui_kit.dart';
 
 class PaymentSheet extends StatefulWidget {
   const PaymentSheet({super.key, required this.grandTotal});
@@ -32,6 +33,9 @@ class _PaymentSheetState extends State<PaymentSheet> {
   void dispose() {
     _amountCtrl.dispose();
     _referenceCtrl.dispose();
+    for (final row in _rows) {
+      (row['amountCtrl'] as TextEditingController).dispose();
+    }
     super.dispose();
   }
 
@@ -111,36 +115,60 @@ class _PaymentSheetState extends State<PaymentSheet> {
     final change = _method == 'cash' && _paid >= widget.grandTotal
         ? _paid - widget.grandTotal
         : 0.0;
-    return SafeArea(
-      child: Padding(
-        padding:
-            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
+    return SizedBox(
+      height: MediaQuery.sizeOf(context).height * .92,
+      child: SafeArea(
+        child: Padding(
+          padding:
+              EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: UiTaskBody(
+            action: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('Pembayaran',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w800)),
-                  const Spacer(),
-                  Text('Total ${fmtRp(widget.grandTotal)}',
-                      style: const TextStyle(fontWeight: FontWeight.w800)),
-                ],
-              ),
+                  if (_error != null) ...[
+                    Semantics(
+                        liveRegion: true,
+                        child: Text(_error!,
+                            style: TextStyle(
+                                color: Theme.of(context).colorScheme.error))),
+                    const SizedBox(height: 8),
+                  ],
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(52)),
+                    onPressed: () {
+                      final payload = _buildPayload();
+                      if (payload != null) Navigator.pop(context, payload);
+                    },
+                    child: const Text('Selesaikan pembayaran'),
+                  ),
+                  TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Kembali ke keranjang')),
+                ]),
+            children: [
+              Row(children: [
+                IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back),
+                    tooltip: 'Kembali ke keranjang'),
+                Text('Pembayaran',
+                    style: Theme.of(context).textTheme.titleMedium),
+              ]),
+              const SizedBox(height: 12),
+              Text('Total pembayaran',
+                  style: TextStyle(color: taskMuted(context))),
+              const SizedBox(height: 4),
+              Text(fmtRp(widget.grandTotal),
+                  style: TextStyle(
+                      color: ink(context),
+                      fontSize: 30,
+                      fontWeight: FontWeight.w800)),
               const SizedBox(height: 12),
               PillTabs(
                 tabs: const [
-                  (
-                    value: 'single',
-                    icon: Icons.payments,
-                    label: 'Tunai / 1 metode'
-                  ),
+                  (value: 'single', icon: Icons.payments, label: 'Satu metode'),
                   (value: 'split', icon: Icons.call_split, label: 'Split'),
                 ],
                 selected: _split ? 'split' : 'single',
@@ -148,23 +176,68 @@ class _PaymentSheetState extends State<PaymentSheet> {
               ),
               const SizedBox(height: 12),
               if (!_split) ...[
-                DropdownButtonFormField<String>(
-                  initialValue: _method,
-                  decoration: const InputDecoration(
-                      labelText: 'Metode', border: OutlineInputBorder()),
-                  items: [
-                    for (final m in methods)
-                      DropdownMenuItem(value: m, child: Text(m.toUpperCase())),
-                  ],
-                  onChanged: (v) => setState(() => _method = v ?? 'cash'),
-                ),
+                Row(children: [
+                  for (final option in const [
+                    (
+                      value: 'cash',
+                      label: 'Tunai',
+                      icon: Icons.payments_outlined
+                    ),
+                    (value: 'qris', label: 'QRIS', icon: Icons.qr_code_2),
+                    (
+                      value: 'transfer',
+                      label: 'Transfer',
+                      icon: Icons.account_balance_outlined
+                    ),
+                    (value: 'debit', label: 'Debit', icon: Icons.credit_card),
+                  ])
+                    Expanded(
+                        child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 3),
+                            child: Semantics(
+                              selected: _method == option.value,
+                              button: true,
+                              child: InkWell(
+                                onTap: () =>
+                                    setState(() => _method = option.value),
+                                borderRadius: BorderRadius.circular(10),
+                                child: Container(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 14),
+                                  decoration: BoxDecoration(
+                                      color: _method == option.value
+                                          ? Theme.of(context)
+                                              .colorScheme
+                                              .primaryContainer
+                                          : taskSurface(context),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                          color: _method == option.value
+                                              ? Theme.of(context)
+                                                  .colorScheme
+                                                  .primary
+                                              : taskBorder(context))),
+                                  child: Column(children: [
+                                    Icon(option.icon, color: ink(context)),
+                                    const SizedBox(height: 6),
+                                    Text(option.label,
+                                        style: TextStyle(
+                                            fontSize: 12, color: ink(context)))
+                                  ]),
+                                ),
+                              ),
+                            ))),
+                ]),
                 const SizedBox(height: 10),
                 TextField(
                   controller: _amountCtrl,
+                  onChanged: (_) => setState(() {}),
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                      labelText: 'Nominal dibayar',
-                      border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                      labelText: _method == 'cash'
+                          ? 'Tunai diterima'
+                          : 'Nominal dibayar',
+                      border: const OutlineInputBorder(),
                       prefixText: 'Rp '),
                 ),
                 if (_method != 'cash') ...[
@@ -237,26 +310,7 @@ class _PaymentSheetState extends State<PaymentSheet> {
                       label: const Text('Tambah metode')),
                 ),
               ],
-              if (_error != null) ...[
-                const SizedBox(height: 8),
-                Text(_error!,
-                    style:
-                        TextStyle(color: Theme.of(context).colorScheme.error)),
-              ],
               const SizedBox(height: 12),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(50)),
-                onPressed: () {
-                  try {
-                    final payload = _buildPayload();
-                    if (payload != null) Navigator.pop(context, payload);
-                  } catch (e) {
-                    setState(() => _error = 'Terjadi kesalahan: $e');
-                  }
-                },
-                child: const Text('Proses Pembayaran'),
-              ),
             ],
           ),
         ),

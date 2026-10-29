@@ -32,7 +32,7 @@ router.get('/report', async (req, res, next) => {
     // PPN Keluaran (from completed sales)
     const [salesData] = await db.execute(
       `SELECT COUNT(*) AS transactions, COALESCE(SUM(grand_total - cancelled_amount - refunded_amount), 0) AS gross_sales
-       FROM transactions WHERE branch_id=? AND status IN (${SALES_STATUSES_SQL}) AND DATE(created_at) BETWEEN ? AND ?`,
+       FROM transactions WHERE branch_id=? AND status IN (${SALES_STATUSES_SQL}) AND transaction_date BETWEEN ? AND ?`,
       [branchId, start, end]
     );
     const grossSales = Number(salesData[0].gross_sales);
@@ -57,10 +57,10 @@ router.get('/report', async (req, res, next) => {
 
     // Monthly breakdown
     const [monthly] = await db.execute(
-      `SELECT DATE_FORMAT(created_at, '%Y-%m') AS month,
+      `SELECT DATE_FORMAT(transaction_date, '%Y-%m') AS month,
               COUNT(*) AS transactions,
               COALESCE(SUM(grand_total - cancelled_amount - refunded_amount), 0) AS gross_sales
-       FROM transactions WHERE branch_id=? AND status IN (${SALES_STATUSES_SQL}) AND DATE(created_at) BETWEEN ? AND ?
+       FROM transactions WHERE branch_id=? AND status IN (${SALES_STATUSES_SQL}) AND transaction_date BETWEEN ? AND ?
        GROUP BY month ORDER BY month`,
       [branchId, start, end]
     );
@@ -119,13 +119,13 @@ router.get('/faktur-pajak', async (req, res, next) => {
     const [branch] = await db.execute('SELECT id, name, address, npwp FROM branches WHERE id=?', [branchId]);
 
     const [invoices] = await db.execute(
-      `SELECT t.id, t.invoice_no, t.grand_total, t.cancelled_amount, t.status, t.price_tier, t.created_at,
+      `SELECT t.id, t.invoice_no, t.grand_total, t.cancelled_amount, t.status, t.price_tier, t.created_at, DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS transaction_date,
               u.name AS cashier, c.name AS customer_name, c.phone AS customer_phone
        FROM transactions t
        LEFT JOIN users u ON u.id = t.user_id
        LEFT JOIN customers c ON c.id = t.customer_id
-       WHERE t.branch_id=? AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) BETWEEN ? AND ?
-       ORDER BY t.created_at ASC`,
+       WHERE t.branch_id=? AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?
+       ORDER BY t.transaction_date ASC, t.created_at ASC`,
       [branchId, start, end]
     );
 
@@ -137,7 +137,7 @@ router.get('/faktur-pajak', async (req, res, next) => {
         no: idx + 1,
         faktur_no: `FP-${t.invoice_no}`,
         invoice_no: t.invoice_no,
-        date: t.created_at,
+        date: t.transaction_date,
         customer: t.customer_name || '-',
         customer_phone: t.customer_phone || '-',
         status: t.status,

@@ -70,6 +70,7 @@ class InventoryApi extends ApiClient {
           },
         ],
       '/inventory/incoming/targets' => <Object>[],
+      '/inventory/channels' => <Object>[],
       '/inventory/mutations' => <Object>[],
       '/inventory/mutation-report' => <Object>[],
       '/inventory/incoming/products' => [
@@ -149,17 +150,21 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('inventory-section-selector')));
     await tester.pumpAndSettle();
     expect(find.text('Stok'), findsWidgets);
-    expect(find.text('Mutasi'), findsOneWidget);
-    expect(find.text('Transfer'), findsOneWidget);
-    expect(find.text('Opname'), findsOneWidget);
-    expect(find.text('Barcode'), findsOneWidget);
+    expect(find.text('Mutasi'), findsWidgets);
+    for (final label in ['Transfer', 'Opname', 'Barcode']) {
+      expect(
+          find.descendant(
+              of: find.byType(PopupMenuItem<String>),
+              matching: find.text(label)),
+          findsOneWidget);
+    }
 
     await tester.tap(find.text('Transfer').last);
     await tester.pumpAndSettle();
     expect(find.text('Dari lokasi'), findsOneWidget);
   });
 
-  testWidgets('inventory pages show the same compact visual header',
+  testWidgets('inventory tasks open separately and back preserves stock access',
       (tester) async {
     final api = InventoryApi();
     tester.view.physicalSize = const Size(900, 1800);
@@ -171,25 +176,41 @@ void main() {
             body: InventoryPage(api: api, branchId: 4, role: 'admin'))));
     await tester.pumpAndSettle();
 
-    expect(find.text('Data stok dan produk'), findsOneWidget);
+    expect(find.text('Stok'), findsWidgets);
     await tester.tap(find.byKey(const ValueKey('inventory-section-selector')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Mutasi').last);
     await tester.pumpAndSettle();
-    expect(find.text('Input stok masuk dan keluar'), findsOneWidget);
-    expect(find.text('Mutasi Stok'), findsOneWidget);
+    expect(find.text('Stok masuk'), findsOneWidget);
+    expect(find.text('Stok keluar'), findsOneWidget);
+    expect(find.text('Mutasi Stok'), findsNothing);
+
+    await tester.tap(find.text('Stok masuk'));
+    await tester.pumpAndSettle();
+    expect(find.text('Barang MASUK ke gudang'), findsOneWidget);
+    expect(find.text('Simpan stok masuk'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Stok keluar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Barang KELUAR dari gudang'), findsOneWidget);
+    expect(find.text('Saluran'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('inventory-section-selector')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Transfer').last);
     await tester.pumpAndSettle();
-    expect(find.text('Kirim stok ke cabang lain'), findsOneWidget);
-
+    expect(find.text('Transfer stok'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('inventory-section-selector')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Opname').last);
     await tester.pumpAndSettle();
-    expect(find.text('Stok opname / stok fisik'), findsOneWidget);
+    expect(find.text('Opname'), findsOneWidget);
+    expect(find.text('Simpan Opname'), findsOneWidget);
   });
 
   testWidgets('kartu stok menampilkan ikon pensil sebagai affordance edit',

@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
 import 'api_client.dart';
+import 'app_navigation.dart';
 import 'auth_store.dart';
 import 'inventory_page.dart';
 import 'more_page.dart';
@@ -23,7 +24,6 @@ import 'printer_service.dart';
 import 'printer_setup.dart';
 import 'barcode_scanner_page.dart';
 import 'dashboard_page.dart';
-import 'mutation_report_page.dart';
 import 'variant_picker.dart';
 import 'task_ui.dart';
 import 'ui_kit.dart';
@@ -95,6 +95,9 @@ class _PosPageState extends State<PosPage> {
   String _warehouseId = '';
   int? _customerId;
   String _promoCode = '';
+  String? _category;
+  int? _draftBranch;
+  Future<void> _draftWrite = Future<void>.value();
   Map<String, dynamic>? _preview;
   bool _loading = true;
   bool _saving = false;
@@ -294,6 +297,86 @@ class _PosPageState extends State<PosPage> {
       _branches = branches;
       _posBranchId ??= _branchId;
     }
+    final branch = _posBranchId ?? _branchId;
+    if (_draftBranch != branch) {
+      _draftBranch = branch;
+      unawaited(_restoreDraft(branch));
+    }
+  }
+
+  String _draftKey(int branch) =>
+      'cart-draft-${context.read<AuthStore>().userId}-$branch';
+
+  Future<void> _saveDraft() {
+    final branch = _posBranchId ?? _branchId;
+    if (context.read<AuthStore>().userId == null || branch <= 0) {
+      return Future<void>.value();
+    }
+    final key = _draftKey(branch);
+    final payload = jsonEncode({
+      'warehouse_id': _warehouseId,
+      'customer_id': _customerId,
+      'promo_code': _promoCode,
+      'items': [
+        for (final item in _cart)
+          {
+            'product_id': item.productId,
+            'variant_id': item.variantId,
+            'name': item.name,
+            'price': item.price,
+            'qty': item.qty,
+            'price_override': item.priceOverride,
+            'variant_label': item.variantLabel,
+            'photo': item.photo,
+            'stock_available': item.stockAvailable,
+          }
+      ],
+    });
+    final write =
+        _draftWrite.then<void>((_) => OfflineStore.cacheSet(key, payload));
+    _draftWrite = write.catchError((Object _) {});
+    return _draftWrite;
+  }
+
+  Future<void> _restoreDraft(int branch) async {
+    try {
+      final saved = await OfflineStore.cacheGet(_draftKey(branch));
+      if (!mounted || _draftBranch != branch || _cart.isNotEmpty || _saving) {
+        return;
+      }
+      final draft = saved?['payload'] as Map<String, dynamic>?;
+      if (draft == null || draft['items'] is! List) return;
+      final items = <CartItem>[];
+      for (final row in draft['items'] as List) {
+        if (row is! Map) continue;
+        final id = int.tryParse('${row['product_id']}');
+        final qty = int.tryParse('${row['qty']}');
+        if (id == null || id <= 0 || qty == null || qty <= 0) continue;
+        items.add(CartItem(
+            productId: id,
+            variantId: int.tryParse('${row['variant_id']}'),
+            name: row['name']?.toString() ?? 'Produk',
+            price: asNum(row['price']),
+            qty: qty,
+            priceOverride: row['price_override'] == null
+                ? null
+                : asNum(row['price_override']),
+            variantLabel: row['variant_label']?.toString(),
+            photo: row['photo']?.toString(),
+            stockAvailable: int.tryParse('${row['stock_available']}')));
+      }
+      if (items.isEmpty) return;
+      setState(() {
+        _cart.addAll(items);
+        _customerId = int.tryParse('${draft['customer_id']}');
+        _promoCode = draft['promo_code']?.toString() ?? '';
+        final warehouse = draft['warehouse_id']?.toString();
+        if (_warehouses.any((row) => '${row['id']}' == warehouse)) {
+          _warehouseId = warehouse!;
+        }
+      });
+      _schedulePreview();
+    } catch (_) {/* An unreadable draft must not prevent catalogue loading. */}
   }
 
   Timer? _searchDebounce;
@@ -306,14 +389,18 @@ class _PosPageState extends State<PosPage> {
   void _applyFilter() {
     final q = _search.text.trim().toLowerCase();
     setState(() {
-      _visible = q.isEmpty
-          ? List.of(_products)
-          : _products.where((p) {
-              final name = (p['name'] ?? '').toString().toLowerCase();
-              final sku = (p['sku'] ?? '').toString().toLowerCase();
-              final barcode = (p['barcode'] ?? '').toString().toLowerCase();
-              return name.contains(q) || sku.contains(q) || barcode.contains(q);
-            }).toList();
+      _visible = _products.where((p) {
+        if (_category != null && p['category_name']?.toString() != _category) {
+          return false;
+        }
+        final name = (p['name'] ?? '').toString().toLowerCase();
+        final sku = (p['sku'] ?? '').toString().toLowerCase();
+        final barcode = (p['barcode'] ?? '').toString().toLowerCase();
+        return q.isEmpty ||
+            name.contains(q) ||
+            sku.contains(q) ||
+            barcode.contains(q);
+      }).toList();
     });
   }
 
@@ -443,6 +530,7 @@ class _PosPageState extends State<PosPage> {
   }
 
   void _schedulePreview() {
+    unawaited(_saveDraft());
     // Perubahan keranjang menandai preview lama TIDAK fresh sampai yang baru datang.
     _cartVersion++;
     _previewTimer?.cancel();
@@ -524,6 +612,8 @@ class _PosPageState extends State<PosPage> {
         _promoCode = '';
         _customerId = null;
       });
+      await _saveDraft();
+      if (!mounted) return;
       Navigator.of(context).pop();
     } on ApiException catch (e) {
       if (mounted) {
@@ -623,7 +713,7 @@ class _PosPageState extends State<PosPage> {
       builder: (sheetCtx) {
         return DraggableScrollableSheet(
           expand: false,
-          initialChildSize: 0.55,
+          initialChildSize: 0.78,
           minChildSize: 0.38,
           maxChildSize: (1 - topRatio).clamp(0.6, 1.0),
           builder: (context, scrollController) => StatefulBuilder(
@@ -804,6 +894,8 @@ class _PosPageState extends State<PosPage> {
       _preview = null;
       _promoCode = '';
       _customerId = null;
+      await _saveDraft();
+      if (!mounted) return;
       await showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -876,6 +968,8 @@ class _PosPageState extends State<PosPage> {
     _preview = null;
     _promoCode = '';
     _customerId = null;
+    await _saveDraft();
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
             'Transaksi disimpan offline ($tempInvoice). Akan otomatis sync saat internet kembali.')));
@@ -896,7 +990,11 @@ class _PosPageState extends State<PosPage> {
       else
         HistoryTab(api: _client, role: auth.role),
       if (isGudang)
-        MutationReportPage(api: _client)
+        InventoryPage(
+            api: _client,
+            branchId: _branchId,
+            role: auth.role,
+            initialSection: 'mutasi')
       else
         InventoryPage(api: _client, branchId: _branchId, role: auth.role),
       // Role gudang tidak pakai Laporan (backend menolak) -> tab dihapus.
@@ -953,56 +1051,7 @@ class _PosPageState extends State<PosPage> {
                           ReportsPage.reloadTick.value++;
                         }
                       }),
-                      items: isGudang
-                          ? const [
-                              (
-                                icon: Icons.dashboard_outlined,
-                                activeIcon: Icons.dashboard,
-                                label: 'Dashboard'
-                              ),
-                              (
-                                icon: Icons.inventory_2_outlined,
-                                activeIcon: Icons.inventory_2,
-                                label: 'Stok'
-                              ),
-                              (
-                                icon: Icons.swap_vert,
-                                activeIcon: Icons.swap_vert,
-                                label: 'Mutasi'
-                              ),
-                              (
-                                icon: Icons.more_horiz,
-                                activeIcon: Icons.more_horiz,
-                                label: 'Lainnya'
-                              ),
-                            ]
-                          : const [
-                              (
-                                icon: Icons.shopping_bag_outlined,
-                                activeIcon: Icons.shopping_bag,
-                                label: 'POS'
-                              ),
-                              (
-                                icon: Icons.receipt_long_outlined,
-                                activeIcon: Icons.receipt_long,
-                                label: 'Riwayat'
-                              ),
-                              (
-                                icon: Icons.inventory_2_outlined,
-                                activeIcon: Icons.inventory_2,
-                                label: 'Stok'
-                              ),
-                              (
-                                icon: Icons.bar_chart_outlined,
-                                activeIcon: Icons.bar_chart,
-                                label: 'Laporan'
-                              ),
-                              (
-                                icon: Icons.more_horiz,
-                                activeIcon: Icons.more_horiz,
-                                label: 'Lainnya'
-                              ),
-                            ],
+                      items: AppNavigation.forRole(auth.role),
                     ),
                   ),
                 ],
@@ -1042,6 +1091,19 @@ class _PosPageState extends State<PosPage> {
       );
     }
     final bottomPad = MediaQuery.of(context).padding.bottom;
+    final categories = _products
+        .map((p) => p['category_name']?.toString())
+        .whereType<String>()
+        .where((name) => name.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    final width = MediaQuery.sizeOf(context).width;
+    final columns = width < 600
+        ? 2
+        : width < 900
+            ? 3
+            : 4;
     return Stack(
       children: [
         Positioned.fill(
@@ -1059,7 +1121,9 @@ class _PosPageState extends State<PosPage> {
                       isOwner: context.read<AuthStore>().role == 'owner',
                       branches: _branches,
                       posBranchId: _posBranchId,
-                      onBranchChanged: (v) {
+                      onBranchChanged: (v) async {
+                        await _saveDraft();
+                        if (!mounted) return;
                         setState(() {
                           _posBranchId = v;
                           _warehouseId = '';
@@ -1067,6 +1131,8 @@ class _PosPageState extends State<PosPage> {
                           _preview = null;
                           _customerId = null;
                           _promoCode = '';
+                          _draftBranch = null;
+                          _category = null;
                         });
                         _loadData();
                       },
@@ -1080,6 +1146,27 @@ class _PosPageState extends State<PosPage> {
                     ),
                   ),
                 ),
+                if (categories.isNotEmpty)
+                  SliverToBoxAdapter(
+                      child: SizedBox(
+                          height: 48,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            children: [
+                              for (final name in <String?>[null, ...categories])
+                                Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: ChoiceChip(
+                                      label: Text(name ?? 'Semua'),
+                                      selected: _category == name,
+                                      onSelected: (_) {
+                                        _category = name;
+                                        _applyFilter();
+                                      },
+                                    )),
+                            ],
+                          ))),
                 if (_visible.isEmpty)
                   const SliverToBoxAdapter(
                     child: SizedBox(
@@ -1091,12 +1178,14 @@ class _PosPageState extends State<PosPage> {
                   SliverPadding(
                     padding: EdgeInsets.fromLTRB(12, 12, 12, 178 + bottomPad),
                     sliver: SliverGrid(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: columns,
                         mainAxisSpacing: 10,
                         crossAxisSpacing: 10,
-                        childAspectRatio: 0.62,
+                        mainAxisExtent:
+                            ((width - 24 - (columns - 1) * 10) / columns) *
+                                    1.15 +
+                                100 * MediaQuery.textScalerOf(context).scale(1),
                       ),
                       delegate: SliverChildBuilderDelegate(
                         (_, i) => RepaintBoundary(
@@ -1129,8 +1218,11 @@ class _PosPageState extends State<PosPage> {
                     minimumSize: const Size.fromHeight(52)),
                 onPressed: _openCart,
                 icon: const Icon(Icons.shopping_cart),
-                label: Text(
-                    'Keranjang ${_cart.length} item · ${fmtRp(_cartTotal)}'),
+                label: Row(children: [
+                  Expanded(
+                      child: Text('Keranjang · ${cartTotalPcs(_cart)} pcs')),
+                  Text(fmtRp(_cartTotal)),
+                ]),
               ),
             ),
           ),
@@ -1158,7 +1250,7 @@ class _ProductCard extends StatelessWidget {
     final variantCount = int.tryParse('${product['variant_count'] ?? 0}') ?? 0;
     final photo = mediaUrl(product['photo_path']?.toString());
     return GlassCard(
-      radius: 20,
+      radius: 12,
       padding: EdgeInsets.zero,
       onTap: onTap,
       // Grid = puluhan kartu sekaligus; blur per kartu bikin scroll berat.
@@ -1179,26 +1271,18 @@ class _ProductCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Expanded(
-                      child: Text(name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 11.5, fontWeight: FontWeight.w700)),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(fmtRp(price),
-                        maxLines: 1,
-                        style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w800,
-                            color: Theme.of(context).colorScheme.primary)),
-                  ],
-                ),
+                Text(name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(fmtRp(price),
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: ink(context))),
+                const SizedBox(height: 3),
                 Text(
                     variantCount > 0
                         ? '$variantCount varian · stok $stock'
@@ -1590,6 +1674,14 @@ class _CartSheetState extends State<_CartSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Judul: fokus daftar barang + jumlah item aktif.
+              Center(
+                  child: Container(
+                      width: 36,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                          color: taskBorder(context),
+                          borderRadius: BorderRadius.circular(4)))),
               Row(
                 children: [
                   Expanded(
@@ -1789,7 +1881,6 @@ class _CartLine extends StatelessWidget {
       );
 
   Widget _controls(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
           _action(
             context: context,
@@ -1805,8 +1896,7 @@ class _CartLine extends StatelessWidget {
             onPressed: () => onQtyChanged(item, 1),
           ),
           const SizedBox(width: 4),
-          SizedBox(
-            width: 72,
+          Expanded(
             child: FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerRight,
@@ -1825,12 +1915,6 @@ class _CartLine extends StatelessWidget {
             icon: Icons.edit_outlined,
             onPressed: () => onEditPrice(item),
           ),
-          _action(
-            context: context,
-            label: 'Hapus ${item.name} dari keranjang',
-            icon: Icons.delete_outline,
-            onPressed: () => onRemove(item),
-          ),
         ],
       );
 
@@ -1838,28 +1922,33 @@ class _CartLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final narrow = constraints.maxWidth < 360;
         return GlassCard(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: const EdgeInsets.all(10),
           frosted: false,
-          child: narrow
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _info(context),
-                    const SizedBox(height: 4),
-                    Align(
-                        alignment: Alignment.centerRight,
-                        child: _controls(context)),
-                  ],
-                )
-              : Row(
-                  children: [
-                    Expanded(child: _info(context)),
-                    const SizedBox(width: 6),
-                    _controls(context),
-                  ],
-                ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: UiProductPhoto(
+                        path: item.photo,
+                        baseUrl: '',
+                        width: 52,
+                        height: 66,
+                        label: 'Foto ${item.name}')),
+                const SizedBox(width: 10),
+                Expanded(child: _info(context)),
+                _action(
+                    context: context,
+                    label: 'Hapus ${item.name} dari keranjang',
+                    icon: Icons.delete_outline,
+                    onPressed: () => onRemove(item)),
+              ]),
+              const SizedBox(height: 4),
+              _controls(context),
+            ],
+          ),
         );
       },
     );

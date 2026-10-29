@@ -9,19 +9,6 @@ void main() {
     expect(productDisplayName({'sku': 'B4-KM01'}), 'Produk tanpa nama');
   });
 
-  test(
-      'responsive layout keeps short screens scrollable instead of shrinking text',
-      () {
-    expect(responsiveLayoutScale(const Size(390, 720)), closeTo(.9, .001));
-    expect(
-        responsiveLayoutScale(const Size(320, 844)), closeTo(320 / 390, .001));
-  });
-
-  test('mobile text scale is compact but desktop keeps the normal scale', () {
-    expect(mobileTextScale(const Size(390, 844)), closeTo(.92, .001));
-    expect(mobileTextScale(const Size(600, 844)), 1);
-  });
-
   testWidgets('UiErrorState provides a visible retry action', (tester) async {
     var retries = 0;
     await tester.pumpWidget(MaterialApp(

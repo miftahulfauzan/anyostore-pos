@@ -387,8 +387,16 @@ class ApiClient {
       put('/cash-drawer/close', {'actual_cash': actualCash, 'notes': notes});
 
   // ===== Dashboard =====
-  Future<Map<String, dynamic>> dashboard() async {
-    final res = await get('/dashboard');
+  Future<Map<String, dynamic>> dashboard({
+    String? start,
+    String? end,
+    String? branchId,
+  }) async {
+    final res = await get('/dashboard', {
+      if (start != null) 'start': start,
+      if (end != null) 'end': end,
+      if (branchId != null) 'branch_id': branchId,
+    });
     return (res['data'] as Map<String, dynamic>?) ?? {};
   }
 
