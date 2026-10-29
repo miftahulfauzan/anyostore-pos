@@ -411,13 +411,11 @@ export default function SettingsPage() {
         {select('landing_page_size', 'Produk per halaman', [['12', '12 produk'], ['24', '24 produk'], ['48', '48 produk']])}
       </section>
 
-      <section className="panel">
-        <h2>Simpan</h2>
-        <p className="muted">Perubahan berlaku untuk toko dipilih.</p>
-        <button type="button" onClick={save} disabled={saving} style={{ width: '100%' }}>{saving ? 'Menyimpan…' : 'Simpan Pengaturan'}</button>
-        {message && <p className="message" role="status">{message}</p>}
-      </section>
       </div>
+      <section className="settings-save-bar" aria-label="Simpan pengaturan">
+        <p className="muted" role="status">{message || 'Perubahan berlaku untuk toko dipilih.'}</p>
+        <button type="button" onClick={save} disabled={saving}>{saving ? 'Menyimpan…' : 'Simpan Pengaturan'}</button>
+      </section>
     </div>
   </AppShell>;
 }

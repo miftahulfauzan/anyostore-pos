@@ -3392,3 +3392,37 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
   .product-excel-heading { align-items: flex-start; }
   .product-excel-table-wrap { max-height: 380px; }
 }
+
+.settings-form { padding-bottom: 110px; }
+.settings-save-bar {
+  position: fixed;
+  z-index: 40;
+  right: clamp(1rem, 3vw, 3rem);
+  bottom: 0;
+  left: calc(308px + clamp(1rem, 3vw, 3rem));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 18px max(12px, env(safe-area-inset-bottom));
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  background: color-mix(in srgb, var(--card) 94%, transparent);
+  box-shadow: 0 -6px 24px rgba(15, 23, 42, .1);
+  backdrop-filter: blur(12px);
+}
+.settings-save-bar p { margin: 0; }
+.settings-save-bar button { min-width: 220px; }
+@media (max-width: 1024px) and (min-width: 821px) {
+  .settings-save-bar { left: calc(234px + 24px); }
+  .app-main.sidebar-collapsed .settings-save-bar { left: calc(84px + 24px); }
+}
+@media (min-width: 1025px) {
+  .app-main.sidebar-collapsed .settings-save-bar { left: calc(84px + clamp(1rem, 3vw, 3rem)); }
+}
+@media (max-width: 820px) {
+  .settings-form { padding-bottom: 88px; }
+  .settings-save-bar { right: 12px; left: 12px; gap: 10px; padding: 12px 12px max(12px, env(safe-area-inset-bottom)); }
+  .settings-save-bar button { min-width: 0; }
+}
