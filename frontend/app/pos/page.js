@@ -237,7 +237,7 @@ export default function PosPage() {
     }));
   }
   const tierLabel = { retail: 'Retail', semi_grosir: 'Semi Grosir', grosir_seri: 'Grosir Seri' };
-  const tiersEnabled = selectedStore?.pricing_tier_enabled !== false;
+  const tiersEnabled = selectedStore?.pricing_tier_enabled == null || Boolean(Number(selectedStore.pricing_tier_enabled));
   // Harga final dari preview server; fallback sementara: harga dasar produk
   // (atau override manual) selama preview belum selesai dihitung.
   const cartPrice = (item) => {
