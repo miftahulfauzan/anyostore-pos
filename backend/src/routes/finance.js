@@ -183,13 +183,17 @@ router.get('/profit-loss', authorize('owner', 'manager', 'admin'), async (req, r
     const start = req.query.start || localMonthStartString();
     const end = req.query.end || localDateString();
     const salesScope = await branchScope(req, req.query.branch_id, 'branch_id');
+    const costScope = await branchScope(req, req.query.branch_id, 't.branch_id');
     const expenseScope = await branchScope(req, req.query.branch_id, 'branch_id');
     // Definisi penjualan disamakan dengan laporan lain: transaksi completed +
     // partially_cancelled, dan omset dikurangi cancelled_amount.
     const [sales] = await db.execute(`SELECT COUNT(*) AS transactions, COALESCE(SUM(grand_total - cancelled_amount - refunded_amount),0) AS amount FROM transactions WHERE ${salesScope.sql} AND status IN (${SALES_STATUSES_SQL}) AND transaction_date BETWEEN ? AND ?`, [...salesScope.params, start, end]);
+    const [costs] = await db.execute(`SELECT COALESCE(SUM(ti.cost * (ti.quantity - ti.cancelled_qty - ti.returned_qty)), 0) AS amount FROM transaction_items ti JOIN transactions t ON t.id = ti.transaction_id WHERE ${costScope.sql} AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?`, [...costScope.params, start, end]);
     const [expenses] = await db.execute(`SELECT COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS amount, COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS income FROM expenses WHERE ${expenseScope.sql} AND status = 'approved' AND expense_date BETWEEN ? AND ?`, [...expenseScope.params, start, end]);
     const revenue = money(Number(sales[0].amount) + Number(expenses[0].income));
-    res.json({ success: true, data: { start, end, revenue, expenses: expenses[0].amount, income: expenses[0].income, net_profit: money(revenue - expenses[0].amount) } });
+    const costOfGoods = money(Number(costs[0].amount));
+    const approvedExpenses = money(Number(expenses[0].amount));
+    res.json({ success: true, data: { start, end, revenue, cost_of_goods: costOfGoods, expenses: approvedExpenses, income: Number(expenses[0].income), gross_profit: money(revenue - costOfGoods), net_profit: money(revenue - costOfGoods - approvedExpenses) } });
   } catch (e) { next(e); }
 });
 

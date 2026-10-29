@@ -113,10 +113,10 @@ export default function Finance() {
         <section className="panel">
           {data ? (
             <div className="metrics-grid finance-metrics">
-              <article className="metric-card"><div><span>Pendapatan</span><strong>{rupiah(data.revenue)}</strong><small>Penjualan + pemasukan lain</small></div></article>
-              <article className="metric-card"><div><span>Pemasukan Lain</span><strong>{rupiah(data.income)}</strong><small>Kas masuk selain penjualan</small></div></article>
+              <article className="metric-card"><div><span>Pendapatan</span><strong>{rupiah(data.revenue)}</strong><small>Termasuk pemasukan lain {rupiah(data.income)}</small></div></article>
+              <article className="metric-card"><div><span>Modal barang terjual</span><strong>{rupiah(data.cost_of_goods)}</strong><small>HPP berdasarkan modal saat transaksi</small></div></article>
               <article className="metric-card"><div><span>Pengeluaran</span><strong>{rupiah(data.expenses)}</strong><small>Seluruh pengeluaran tercatat</small></div></article>
-              <article className="metric-card"><div><span>Laba bersih</span><strong>{rupiah(data.net_profit)}</strong><small>Pendapatan dikurangi pengeluaran</small></div></article>
+              <article className="metric-card"><div><span>Laba bersih</span><strong>{rupiah(data.net_profit)}</strong><small>Pendapatan − modal terjual − pengeluaran</small></div></article>
             </div>
           ) : <p>{message || 'Memuat laporan…'}</p>}
         </section>
