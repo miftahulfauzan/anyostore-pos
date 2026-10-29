@@ -1,7 +1,6 @@
 'use client';
 import { localDateString } from '../lib/local-date';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUpRight } from 'lucide-react';
 import AppShell from '../components/AppShell';
 import { useAppSession } from '../components/AppStateProvider';
 import { labelFor, paymentLabels, statusLabels } from '../lib/ui-labels';
@@ -13,8 +12,6 @@ const blank = (type) => ({ category_id: '', name: '', amount: '', payment_method
 
 export default function Finance() {
   const { user, activeBranchId } = useAppSession();
-  const [tab, setTab] = useState('ringkasan');
-  const [data, setData] = useState(null);
   const [categories, setCategories] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [income, setIncome] = useState([]);
@@ -45,16 +42,10 @@ export default function Finance() {
     setCategories(c.data);
     setExpenses(e.data);
     setIncome(i.data);
-    const response = await fetch(api + '/finance/profit-loss' + branchQuery(), { headers: headers() });
-    const body = await response.json();
-    if (!response.ok) throw new Error(body.message || 'Ringkasan keuangan gagal dimuat.');
-    if (requestId !== loadSequence.current) return;
-    setData(body.data);
   }
   useEffect(() => {
     if (!user) return;
     let current = true;
-    setData(null);
     setMessage('');
     load().catch((error) => { if (current) setMessage(error.message); });
     return () => { current = false; };
@@ -102,88 +93,70 @@ export default function Finance() {
   }
 
   return (
-    <AppShell title="Keuangan" eyebrow="BISNIS & KEUANGAN" actions={<a className="button-link" href="/reports">Semua laporan <ArrowUpRight aria-hidden="true" size={15} /></a>}>
+    <AppShell title="Keuangan" eyebrow="BISNIS & KEUANGAN">
       <div className="tabs">
-        <button type="button" className={tab === 'ringkasan' ? 'active' : ''} onClick={() => setTab('ringkasan')}>Ringkasan</button>
-        <button type="button" className={tab === 'pengeluaran' ? 'active' : ''} onClick={() => { setTab('pengeluaran'); setActive('expense'); }}>Pengeluaran</button>
-        <button type="button" className={tab === 'pemasukan' ? 'active' : ''} onClick={() => { setTab('pemasukan'); setActive('income'); }}>Pemasukan</button>
+        <button type="button" className={active === 'expense' ? 'active' : ''} onClick={() => setActive('expense')}>Pengeluaran</button>
+        <button type="button" className={active === 'income' ? 'active' : ''} onClick={() => setActive('income')}>Pemasukan</button>
       </div>
 
-      {tab === 'ringkasan' && (
-        <section className="panel">
-          {data ? (
-            <div className="metrics-grid finance-metrics">
-              <article className="metric-card"><div><span>Pendapatan</span><strong>{rupiah(data.revenue)}</strong><small>Termasuk pemasukan lain {rupiah(data.income)}</small></div></article>
-              <article className="metric-card"><div><span>Modal barang terjual</span><strong>{rupiah(data.cost_of_goods)}</strong><small>HPP berdasarkan modal saat transaksi</small></div></article>
-              <article className="metric-card"><div><span>Pengeluaran</span><strong>{rupiah(data.expenses)}</strong><small>Seluruh pengeluaran tercatat</small></div></article>
-              <article className="metric-card"><div><span>Laba bersih</span><strong>{rupiah(data.net_profit)}</strong><small>Pendapatan − modal terjual − pengeluaran</small></div></article>
-            </div>
-          ) : <p>{message || 'Memuat laporan…'}</p>}
-        </section>
-      )}
-
-      {tab !== 'ringkasan' && (
-        <>
-          <section className="panel">
-            <h2>Form {active === 'income' ? 'Kas Masuk' : 'Pengeluaran'}</h2>
-            {user?.role === 'owner' && activeBranchId === 'all' && <p className="finance-branch-hint">Ringkasan dan riwayat menggabungkan semua toko. Pilih satu toko di menu atas untuk mencatat pemasukan atau pengeluaran.</p>}
-            <form className="finance-entry-form" onSubmit={submit}>
-              <label>Kategori
-                <select required value={form.category_id} onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value }))}>
-                  <option value="">Pilih kategori</option>
-                  {categoryOptions(active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </label>
-              <label>Keterangan (opsional)<input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></label>
-              <label>Jumlah<input required min="0" type="number" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} /></label>
-              <label>Metode
-                <select value={form.payment_method} onChange={(e) => setForm((f) => ({ ...f, payment_method: e.target.value }))}>
-                  <option value="cash">Tunai</option>
-                  <option value="transfer">Transfer</option>
-                  <option value="debit">Debit</option>
-                </select>
-              </label>
-              <label>Tanggal<input required type="date" value={form.expense_date} onChange={(e) => setForm((f) => ({ ...f, expense_date: e.target.value }))} /></label>
-              <label className="finance-notes">Catatan<textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} /></label>
-              <button type="submit" disabled={saving || (user?.role === 'owner' && activeBranchId === 'all')}>{saving ? 'Menyimpan…' : 'Simpan ' + (active === 'income' ? 'Pemasukan' : 'Pengeluaran')}</button>
-            </form>
-            {message && <p className="message" role="status">{message}</p>}
-          </section>
-          <section className="panel">
-            <h2>Kategori {active === 'income' ? 'Pemasukan' : 'Pengeluaran'} Baru</h2>
-            <form onSubmit={addCategory}>
-              <label>Nama<input required value={newCategory.name} onChange={(e) => setNewCategory((n) => ({ ...n, name: e.target.value }))} /></label>
-              <label>Kode Akun<input required value={newCategory.account_code} onChange={(e) => setNewCategory((n) => ({ ...n, account_code: e.target.value }))} /></label>
-              <button type="submit">Tambah Kategori</button>
-            </form>
-          </section>
-          <section className="panel">
-            <h2>Riwayat {active === 'income' ? 'Pemasukan' : 'Pengeluaran'}</h2>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr><th>Tanggal</th><th>Kategori</th>{user?.role === 'owner' && activeBranchId === 'all' && <th>Toko</th>}<th>Keterangan</th><th>Metode</th><th>Jumlah</th><th>Status</th><th>Aksi</th></tr>
-                </thead>
-                <tbody>
-                  {(active === 'income' ? income : expenses).map((row) => (
-                    <tr key={row.id}>
-                      <td>{row.expense_date}</td>
-                      <td>{row.category}</td>
-                      {user?.role === 'owner' && activeBranchId === 'all' && <td>{row.branch_name}</td>}
-                      <td>{row.name || '-'}</td>
-                      <td>{labelFor(paymentLabels, row.payment_method)}</td>
-                      <td>{rupiah(row.amount)}</td>
-                      <td>{labelFor(statusLabels, row.status)}</td>
-                      <td>{row.status === 'pending' ? <button type="button" onClick={() => approve(row.id)}>Setujui</button> : '-'}</td>
-                    </tr>
-                  ))}
-                  {(active === 'income' ? income : expenses).length === 0 && <tr><td colSpan={user?.role === 'owner' && activeBranchId === 'all' ? 8 : 7}>Belum ada data.</td></tr>}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </>
-      )}
+      <section className="panel">
+        <h2>Form {active === 'income' ? 'Kas Masuk' : 'Pengeluaran'}</h2>
+        {user?.role === 'owner' && activeBranchId === 'all' && <p className="finance-branch-hint">Riwayat menggabungkan semua toko. Pilih satu toko di menu atas untuk mencatat pemasukan atau pengeluaran.</p>}
+        <form className="finance-entry-form" onSubmit={submit}>
+          <label>Kategori
+            <select required value={form.category_id} onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value }))}>
+              <option value="">Pilih kategori</option>
+              {categoryOptions(active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </label>
+          <label>Keterangan (opsional)<input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></label>
+          <label>Jumlah<input required min="0" type="number" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} /></label>
+          <label>Metode
+            <select value={form.payment_method} onChange={(e) => setForm((f) => ({ ...f, payment_method: e.target.value }))}>
+              <option value="cash">Tunai</option>
+              <option value="transfer">Transfer</option>
+              <option value="debit">Debit</option>
+            </select>
+          </label>
+          <label>Tanggal<input required type="date" value={form.expense_date} onChange={(e) => setForm((f) => ({ ...f, expense_date: e.target.value }))} /></label>
+          <label className="finance-notes">Catatan<textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} /></label>
+          <button type="submit" disabled={saving || (user?.role === 'owner' && activeBranchId === 'all')}>{saving ? 'Menyimpan…' : 'Simpan ' + (active === 'income' ? 'Pemasukan' : 'Pengeluaran')}</button>
+        </form>
+        {message && <p className="message" role="status">{message}</p>}
+      </section>
+      <section className="panel">
+        <h2>Kategori {active === 'income' ? 'Pemasukan' : 'Pengeluaran'} Baru</h2>
+        <form onSubmit={addCategory}>
+          <label>Nama<input required value={newCategory.name} onChange={(e) => setNewCategory((n) => ({ ...n, name: e.target.value }))} /></label>
+          <label>Kode Akun<input required value={newCategory.account_code} onChange={(e) => setNewCategory((n) => ({ ...n, account_code: e.target.value }))} /></label>
+          <button type="submit">Tambah Kategori</button>
+        </form>
+      </section>
+      <section className="panel">
+        <h2>Riwayat {active === 'income' ? 'Pemasukan' : 'Pengeluaran'}</h2>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Tanggal</th><th>Kategori</th>{user?.role === 'owner' && activeBranchId === 'all' && <th>Toko</th>}<th>Keterangan</th><th>Metode</th><th>Jumlah</th><th>Status</th><th>Aksi</th></tr>
+            </thead>
+            <tbody>
+              {(active === 'income' ? income : expenses).map((row) => (
+                <tr key={row.id}>
+                  <td>{row.expense_date}</td>
+                  <td>{row.category}</td>
+                  {user?.role === 'owner' && activeBranchId === 'all' && <td>{row.branch_name}</td>}
+                  <td>{row.name || '-'}</td>
+                  <td>{labelFor(paymentLabels, row.payment_method)}</td>
+                  <td>{rupiah(row.amount)}</td>
+                  <td>{labelFor(statusLabels, row.status)}</td>
+                  <td>{row.status === 'pending' ? <button type="button" onClick={() => approve(row.id)}>Setujui</button> : '-'}</td>
+                </tr>
+              ))}
+              {(active === 'income' ? income : expenses).length === 0 && <tr><td colSpan={user?.role === 'owner' && activeBranchId === 'all' ? 8 : 7}>Belum ada data.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </AppShell>
   );
 }

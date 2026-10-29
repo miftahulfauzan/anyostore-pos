@@ -996,8 +996,6 @@ a, .photo-upload { color:var(--expressive-secondary); }
 .login label { color: #334155; font-size: 11px; }
 .login input { border-radius: 4px; }
 .login button { width: 100%; min-height: 42px; border-radius: 4px; }
-.finance-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-
 @media (max-width: 900px) {
   .app-shell { display: block; }
   .sidebar { width: 210px; padding-inline: 9px; }
@@ -1017,7 +1015,6 @@ a, .photo-upload { color:var(--expressive-secondary); }
   .app-header { margin-bottom: 18px; }
   .login-page { padding: 28px 18px; }
   .login { width: 100%; padding: 22px; }
-  .finance-metrics { grid-template-columns: 1fr; }
   .variant-row { grid-template-columns: 1fr; }
   .variant-row .remove-variant { width: 100%; }
 }
@@ -3501,13 +3498,6 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
   .settings-save-bar button { min-width: 0; }
 }
 
-.finance-metrics {
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-.finance-metrics .metric-card > div > span { min-height: 2.4em; line-height: 1.2; }
 .finance-entry-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3525,11 +3515,7 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
   color: var(--muted-foreground, #64748b);
   background: var(--muted, #f8fafc);
 }
-@media (max-width: 1024px) {
-  .finance-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
 @media (max-width: 700px) {
-  .finance-metrics,
   .finance-entry-form { grid-template-columns: minmax(0, 1fr); }
   .finance-entry-form .finance-notes { grid-column: auto; }
 }
