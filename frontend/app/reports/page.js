@@ -76,7 +76,7 @@ export default function ReportsPage() {
   const [period, setPeriod] = useState({ start: '', end: '' });
   const [preset, setPreset] = useState("");
   const [report, setReport] = useState(null);
-  const [store, setStore] = useState(null);
+  const [storeContext, setStoreContext] = useState(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const reportLoadSequence = useRef(createRequestSequence());
@@ -104,8 +104,25 @@ export default function ReportsPage() {
     }
   }
   useEffect(() => {
-    fetch(apiUrl + "/settings", { headers: {} }).then((r) => r.ok ? r.json() : null).then((body) => setStore(body?.data || null)).catch(() => {});
-  }, []);
+    if (!activeBranchId) return undefined;
+    let current = true;
+    if (user?.role === 'owner' && activeBranchId === 'all') {
+      setStoreContext({ branchId: activeBranchId, data: null });
+      return () => { current = false; };
+    }
+    const query = new URLSearchParams();
+    if (user?.role === 'owner') query.set('branch_id', activeBranchId);
+    const search = query.toString();
+    fetch(`${apiUrl}/settings${search ? `?${search}` : ''}`, { headers: {} })
+      .then((response) => response.ok ? response.json() : null)
+      .then((body) => {
+        if (current) setStoreContext({ branchId: activeBranchId, data: body?.data || null });
+      })
+      .catch(() => {
+        if (current) setStoreContext({ branchId: activeBranchId, data: null });
+      });
+    return () => { current = false; };
+  }, [activeBranchId, user?.role]);
 
   useEffect(() => {
     if (!period.start) return undefined;
@@ -116,6 +133,9 @@ export default function ReportsPage() {
   useEffect(() => { if (!period.start) setPeriod({ start: firstOfMonthStr(), end: todayStr() }); }, []);
 
   const summary = report?.summary || {};
+  const store = storeContext?.branchId === activeBranchId ? storeContext.data : null;
+  const reportStore = String(report?.branch_id ?? '') === String(activeBranchId) ? report : null;
+  const storeName = store?.store_name || reportStore?.branch_name || (activeBranchId === 'all' ? 'Semua Toko/Gudang' : activeBranchId ? 'Memuat toko…' : 'Laporan toko');
   const logo = store?.store_logo
     ? apiUrl.replace("/api", "") + store.store_logo
     : "";
@@ -136,10 +156,10 @@ export default function ReportsPage() {
     >
       <div className="report-brand">
         {logo && String(store?.show_logo) !== "false" && (
-          <img src={logo} alt={"Logo " + (store?.store_name || "toko")} />
+          <img src={logo} alt={"Logo " + storeName} />
         )}
         <div>
-          <strong>{store?.store_name || "Laporan toko"}</strong>
+          <strong>{storeName}</strong>
           <span>{store?.store_address || ""}</span>
           <small>
             Periode {period.start} sampai {period.end}
