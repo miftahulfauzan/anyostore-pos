@@ -54,13 +54,29 @@ router.get('/', async (req, res, next) => {
       `WHERE t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)` +
       transactionScope + ' GROUP BY tp.payment_method ORDER BY amount DESC';
 
-    const [salesRows, expenseRows, recent, salesTrend, payments] = await Promise.all([
-      db.execute(salesSql, transactionParams),
-      db.execute(expensesSql, expenseParams),
-      db.execute(recentSql, transactionParams),
-      db.execute(trendSql, transactionParams),
-      db.execute(paymentSql, transactionParams)
-    ]);
+    let salesRows;
+    let expenseRows;
+    let recent;
+    let salesTrend;
+    let payments;
+    if (req.user.role === 'gudang') {
+      // Dashboard gudang hanya memakai data stok; jangan biarkan query laporan
+      // penjualan yang tidak dipakai menggagalkan seluruh respons ringkasan.
+      const emptyResult = (rows) => [rows, []];
+      salesRows = emptyResult([{ today_sales: 0, today_transactions: 0, seven_day_sales: 0, month_sales: 0 }]);
+      expenseRows = emptyResult([{ today_expenses: 0, seven_day_expenses: 0, month_expenses: 0 }]);
+      recent = emptyResult([]);
+      salesTrend = emptyResult([]);
+      payments = emptyResult([]);
+    } else {
+      [salesRows, expenseRows, recent, salesTrend, payments] = await Promise.all([
+        db.execute(salesSql, transactionParams),
+        db.execute(expensesSql, expenseParams),
+        db.execute(recentSql, transactionParams),
+        db.execute(trendSql, transactionParams),
+        db.execute(paymentSql, transactionParams)
+      ]);
+    }
 
     const salesByDate = new Map(salesTrend[0].map((row) => [
       row.date instanceof Date
