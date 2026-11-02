@@ -295,7 +295,7 @@ router.get('/mutations-summary', authorize('owner', 'manager', 'admin', 'gudang'
               COALESCE(SUM(CASE WHEN sm.qty > 0 THEN sm.qty ELSE 0 END), 0) AS total_in,
               COALESCE(SUM(CASE WHEN sm.qty < 0 THEN -sm.qty ELSE 0 END), 0) AS total_out
        FROM stock_mutations sm ${where}
-       GROUP BY DATE(sm.created_at) ORDER BY date`,
+       GROUP BY DATE_FORMAT(DATE(sm.created_at), '%Y-%m-%d') ORDER BY date`,
       params
     );
     let totalIn = 0;
