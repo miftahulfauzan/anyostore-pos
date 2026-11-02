@@ -140,6 +140,7 @@ export default function AppShell({ title, eyebrow, actions, children }) {
   const sidebarRef = useRef(null);
   const [tooltip, setTooltip] = useState(null);
   function itemIsCurrent(item) {
+    if (!item?.href) return false;
     const itemPath = item.href.split('?')[0];
     const itemQuery = item.href.includes('?') ? item.href.slice(item.href.indexOf('?')) : '';
     return pathname === itemPath && (itemQuery ? search === itemQuery : !search);
