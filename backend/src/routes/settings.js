@@ -6,6 +6,7 @@ const { assertValidUpload, createMediaUpload, decodeDataUpload, discardUploadedF
 const router = express.Router();
 router.use(authenticate);
 const allowed = new Set(['store_name','store_address','store_phone','store_email','store_tax_id','receipt_header','receipt_footer','receipt_note','printer_size','auto_print','theme','tax_rate','prices_include_tax','loyalty_enabled','loyalty_points_rate','loyalty_points_value','show_logo','show_qr','show_cashier','show_barcode','low_stock_alert','low_stock_email','order_prefix','invoice_prefix','whatsapp_number','whatsapp_number_2','whatsapp_number_3','whatsapp_numbers','landing_page_size','daily_email_enabled','daily_email_to','daily_email_from','daily_email_time','daily_email_api_url','daily_email_api_key']);
+const allowedThemes = new Set(['green', 'blue', 'purple', 'teal', 'rose', 'amber']);
 const dailyEmailKeys = new Set(['daily_email_enabled','daily_email_to','daily_email_from','daily_email_time','daily_email_api_url','daily_email_api_key']);
 const DEFAULT_EMAIL_API_URL = 'https://api.resend.com/emails';
 const emailPattern = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
@@ -347,6 +348,31 @@ router.post('/logo-data', authorize('owner','manager','admin'), async (req, res,
     const oldPath = previous[0]?.value;
     if (oldPath?.startsWith('/uploads/logos/') && oldPath !== publicPath) await removeMedia(oldPath);
     res.status(201).json({ success: true, data: { [key]: publicPath } });
+  } catch (error) { next(error); }
+});
+
+router.get('/theme', authorize('gudang'), async (req, res, next) => {
+  try {
+    const id = branchId(req);
+    const [branches] = await db.execute('SELECT id FROM branches WHERE id=? AND is_active=TRUE', [id]);
+    if (!branches[0]) return res.status(404).json({ success: false, message: 'Gudang tidak ditemukan' });
+    const [rows] = await db.execute('SELECT `value` FROM store_settings WHERE branch_id=? AND `key`=? LIMIT 1', [id, 'theme']);
+    res.json({ success: true, data: { theme: rows[0]?.value || 'green' } });
+  } catch (error) { next(error); }
+});
+
+router.put('/theme', authorize('gudang'), async (req, res, next) => {
+  try {
+    const id = branchId(req);
+    const { theme } = req.body || {};
+    if (!allowedThemes.has(theme)) return res.status(400).json({ success: false, message: 'Tema tidak valid' });
+    const [branches] = await db.execute('SELECT id FROM branches WHERE id=? AND is_active=TRUE', [id]);
+    if (!branches[0]) return res.status(404).json({ success: false, message: 'Gudang tidak ditemukan' });
+    await db.execute(
+      'INSERT INTO store_settings (branch_id,`key`,`value`) VALUES (?,\'theme\',?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)',
+      [id, theme]
+    );
+    res.json({ success: true, data: { theme } });
   } catch (error) { next(error); }
 });
 

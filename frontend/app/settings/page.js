@@ -28,6 +28,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [isWarehouse, setIsWarehouse] = useState(false);
+  const [roleResolved, setRoleResolved] = useState(false);
   const [waList, setWaList] = useState([]);
   const [emailKeySet, setEmailKeySet] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
@@ -67,19 +69,44 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
-    /* sesi via httpOnly cookie */
-    // detect owner
-    fetch(api + '/auth/me', { headers: jsonHeaders() })
-      .then((r) => r.json())
-      .then((b) => { if (b?.data?.role === 'owner') setIsOwner(true); })
-      .catch(() => {});
-    loadBranches()
-      .then(async (data) => {
+    let active = true;
+    async function initialize() {
+      try {
+        const response = await fetch(api + '/auth/me', { headers: jsonHeaders() });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.message || 'Gagal memuat akun');
+        const user = body.data || {};
+        if (!active) return;
+        setIsOwner(user.role === 'owner');
+
+        if (user.role === 'gudang') {
+          const id = String(user.branch_id || '');
+          if (!id) throw new Error('Cabang akun gudang tidak ditemukan');
+          setIsWarehouse(true);
+          setBranch(id);
+          const themeResponse = await fetch(api + '/settings/theme', { headers: jsonHeaders() });
+          const themeBody = await themeResponse.json();
+          if (!themeResponse.ok) throw new Error(themeBody.message || 'Gagal memuat tema');
+          const theme = themeBody.data?.theme || defaults.theme;
+          if (!active) return;
+          setForm((current) => ({ ...current, theme }));
+          document.documentElement.dataset.theme = theme;
+          return;
+        }
+
+        const data = await loadBranches();
+        if (!active) return;
         const id = String(data?.[0]?.id || '');
         setBranch(id);
         await load(id);
-      })
-      .catch((error) => setMessage(error.message));
+      } catch (error) {
+        if (active) setMessage(error.message);
+      } finally {
+        if (active) setRoleResolved(true);
+      }
+    }
+    initialize();
+    return () => { active = false; };
   }, []);
 
   const input = (key, label, type = 'text') => <label>{label}<input type={type} value={form[key] ?? ''} onChange={(event) => setForm({ ...form, [key]: event.target.value })} /></label>;
@@ -128,6 +155,26 @@ export default function SettingsPage() {
       setMessage('Pengaturan toko tersimpan di database.');
     } catch (error) { setMessage(error.message); }
     finally { setSaving(false); }
+  }
+
+  async function saveWarehouseTheme() {
+    setSaving(true);
+    setMessage('');
+    try {
+      const response = await fetch(api + '/settings/theme', {
+        method: 'PUT',
+        headers: jsonHeaders(),
+        body: JSON.stringify({ theme: form.theme })
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message || 'Tema gagal disimpan');
+      document.documentElement.dataset.theme = form.theme;
+      setMessage('Tema gudang tersimpan.');
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function downloadBackup() {
@@ -214,6 +261,27 @@ export default function SettingsPage() {
     } catch (error) { setMessage(error.message); }
     finally { setPricingBranchSaving(''); }
   }
+
+  if (!roleResolved) return <AppShell title="Pengaturan" eyebrow="KONFIGURASI TOKO">
+    <section className="panel"><p className="muted" role="status">Memuat pengaturan…</p></section>
+  </AppShell>;
+
+  if (isWarehouse) return <AppShell title="Pengaturan" eyebrow="GUDANG">
+    <div style={{ display: 'grid', gap: '1.25rem', maxWidth: 1180, margin: '0 auto' }}>
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <h2>Tema aplikasi</h2>
+            <p className="muted">Pilih warna tampilan untuk gudang ini.</p>
+          </div>
+          <span className="tag">Gudang</span>
+        </div>
+        {select('theme', 'Tema', [['green', 'Hijau'], ['blue', 'Biru'], ['purple', 'Ungu'], ['teal', 'Toska'], ['rose', 'Merah muda'], ['amber', 'Cokelat']])}
+        <button type="button" onClick={saveWarehouseTheme} disabled={saving}>{saving ? 'Menyimpan…' : 'Simpan Tema'}</button>
+        {message && <p className="message" role="status">{message}</p>}
+      </section>
+    </div>
+  </AppShell>;
 
   return <AppShell title="Pengaturan" eyebrow="KONFIGURASI TOKO">
     <div style={{ display: 'grid', gap: '1.25rem', maxWidth: 1180, margin: '0 auto' }}>
