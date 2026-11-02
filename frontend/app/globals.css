@@ -3519,3 +3519,52 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
   .finance-entry-form { grid-template-columns: minmax(0, 1fr); }
   .finance-entry-form .finance-notes { grid-column: auto; }
 }
+
+/* Keep the inventory sidebar compact while leaving every route reachable. */
+.nav-group > .nav-subgroup { display: grid; gap: 2px; }
+.nav-group:not(.nav-group-open) > .nav-subgroup { display: none; }
+.sidebar .nav-subgroup-toggle {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  width: 100%;
+  min-height: 36px;
+  padding: .5rem .65rem;
+  border: 0;
+  border-radius: .45rem;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: .72rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.sidebar .nav-subgroup-toggle:hover { background: rgba(148,163,184,.1); color: #f8fafc; }
+.sidebar .nav-subgroup-toggle.active { background: rgba(59,130,246,.18); box-shadow: inset 3px 0 #60a5fa; color: #f8fafc; }
+.sidebar .nav-subgroup-toggle > svg:first-child { flex: 0 0 auto; color: #94a3b8; }
+.sidebar .nav-subgroup-toggle.active > svg:first-child { color: #f8fafc; }
+.nav-subgroup-chevron { margin-left: auto; transition: transform .18s ease; }
+.nav-subgroup-chevron.chevron-open { transform: rotate(180deg); }
+.nav-subgroup-items {
+  display: grid;
+  gap: 2px;
+  margin-left: .72rem;
+  padding-left: .4rem;
+  border-left: 1px solid #334155;
+}
+.sidebar .nav-subgroup-items a { min-height: 34px; padding: .42rem .65rem; font-size: .68rem; }
+@media (min-width: 821px) {
+  .sidebar.collapsed .nav-group > .nav-subgroup,
+  html[data-pos-collapsed="true"] .sidebar .nav-group > .nav-subgroup { display: grid; }
+  .sidebar.collapsed .nav-subgroup-toggle { justify-content: center; gap: 0; padding-inline: 0; }
+  .sidebar.collapsed .nav-subgroup-label,
+  .sidebar.collapsed .nav-subgroup-chevron { display: none; }
+  .sidebar.collapsed .nav-subgroup-items { margin-left: 0; padding-left: 0; border-left: 0; }
+  .sidebar.collapsed .nav-subgroup-items a { justify-content: center; gap: 0; padding-inline: 0; }
+}
+@media (max-width: 820px) {
+  .sidebar.collapsed .nav-subgroup-toggle { justify-content: space-between; gap: .65rem; padding: .55rem .65rem; }
+  .sidebar.collapsed .nav-subgroup-label,
+  .sidebar.collapsed .nav-subgroup-chevron { display: block; }
+  .sidebar.collapsed .nav-subgroup-items { margin-left: .72rem; padding-left: .4rem; border-left: 1px solid #334155; }
+}

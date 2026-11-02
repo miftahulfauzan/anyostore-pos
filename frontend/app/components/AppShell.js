@@ -49,13 +49,25 @@ const navigation = [
       { href: '/inventory/dashboard', label: 'Dashboard Stok', icon: LayoutDashboard, roles: ['owner', 'manager', 'admin'] },
       { href: '/products', label: 'Daftar Produk', icon: Package, roles: ['owner', 'manager', 'admin', 'gudang'] },
       { href: '/inventory', label: 'Stok Produk', icon: Boxes },
-      { href: '/inventory/incoming', label: 'Stok Masuk', icon: ArrowDownToLine, roles: ['owner', 'manager', 'admin', 'gudang'] },
-      { href: '/inventory/outgoing', label: 'Stok Keluar', icon: ArrowUpFromLine, roles: ['owner', 'manager', 'admin', 'gudang'] },
-      { href: '/inventory/transfers', label: 'Transfer Stok', icon: ArrowRightLeft, roles: ['owner', 'manager', 'admin', 'gudang'] },
-      { href: '/inventory/transfers?view=history', label: 'Riwayat Transfer', icon: History, roles: ['owner', 'manager', 'admin'] },
-      { href: '/inventory/opname', label: 'Stok Opname', icon: ClipboardCheck, roles: ['owner', 'manager', 'admin', 'gudang'] },
-      { href: '/inventory/movements', label: 'Riwayat Stok', icon: History },
-      { href: '/inventory/mutation-report', label: 'Riwayat Mutasi', icon: History, roles: ['owner', 'manager', 'admin', 'gudang'] },
+      {
+        label: 'Mutasi Stok',
+        icon: ArrowRightLeft,
+        children: [
+          { href: '/inventory/incoming', label: 'Stok Masuk', icon: ArrowDownToLine, roles: ['owner', 'manager', 'admin', 'gudang'] },
+          { href: '/inventory/outgoing', label: 'Stok Keluar', icon: ArrowUpFromLine, roles: ['owner', 'manager', 'admin', 'gudang'] },
+          { href: '/inventory/transfers', label: 'Transfer Stok', icon: ArrowRightLeft, roles: ['owner', 'manager', 'admin', 'gudang'] },
+          { href: '/inventory/opname', label: 'Stok Opname', icon: ClipboardCheck, roles: ['owner', 'manager', 'admin', 'gudang'] },
+        ],
+      },
+      {
+        label: 'Riwayat',
+        icon: History,
+        children: [
+          { href: '/inventory/transfers?view=history', label: 'Riwayat Transfer', icon: History, roles: ['owner', 'manager', 'admin'] },
+          { href: '/inventory/movements', label: 'Riwayat Stok', icon: History },
+          { href: '/inventory/mutation-report', label: 'Riwayat Mutasi', icon: History, roles: ['owner', 'manager', 'admin', 'gudang'] },
+        ],
+      },
     ],
   },
   {
@@ -127,7 +139,13 @@ export default function AppShell({ title, eyebrow, actions, children }) {
   const mainRef = useRef(null);
   const sidebarRef = useRef(null);
   const [tooltip, setTooltip] = useState(null);
-  const groupIsOpen = (group) => role === 'gudang' || (openGroups[group.label] ?? group.items.some((item) => pathname === item.href.split('?')[0]));
+  function itemIsCurrent(item) {
+    const itemPath = item.href.split('?')[0];
+    const itemQuery = item.href.includes('?') ? item.href.slice(item.href.indexOf('?')) : '';
+    return pathname === itemPath && (itemQuery ? search === itemQuery : !search);
+  }
+  const groupIsOpen = (group) => role === 'gudang' || (openGroups[group.label] ?? group.items.some((item) => itemIsCurrent(item) || item.children?.some(itemIsCurrent)));
+  const submenuIsOpen = (item) => openGroups['submenu:' + item.label] ?? item.children.some(itemIsCurrent);
 
   function confirmNavigation(event, href) {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return true;
@@ -155,10 +173,13 @@ export default function AppShell({ title, eyebrow, actions, children }) {
   // sementara supaya navigasi role lain tidak sempat terlihat.
   const roleKnown = role !== null;
   const navSource = role === 'gudang' ? warehouseNavigation : navigation;
+  const roleCanSee = (item) => !item.roles || item.roles.includes(role);
   const visibleNavigation = roleResolved && roleKnown ? navSource
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => !roleKnown || !item.roles || item.roles.includes(role)),
+      items: group.items
+        .map((item) => item.children ? { ...item, children: item.children.filter(roleCanSee) } : item)
+        .filter((item) => item.children ? item.children.length > 0 : roleCanSee(item)),
     }))
     .filter((group) => group.items.length > 0) : [];
 
@@ -168,6 +189,20 @@ export default function AppShell({ title, eyebrow, actions, children }) {
     setSearch(window.location.search);
     window.requestAnimationFrame(() => mainRef.current?.focus({ preventScroll: true }));
   }, [pathname]);
+
+  useEffect(() => {
+    const activeSubmenu = navigation.flatMap((group) => group.items).find((item) => item.children?.some((child) => {
+      const itemPath = child.href.split('?')[0];
+      const itemQuery = child.href.includes('?') ? child.href.slice(child.href.indexOf('?')) : '';
+      return pathname === itemPath && (itemQuery ? search === itemQuery : !search);
+    }));
+    if (!activeSubmenu) return;
+    const submenuKey = 'submenu:' + activeSubmenu.label;
+    setOpenGroups((current) => {
+      if (current['PRODUK & INVENTORI'] && current[submenuKey]) return current;
+      return { ...current, 'PRODUK & INVENTORI': true, [submenuKey]: true };
+    });
+  }, [pathname, search, setOpenGroups]);
 
   useEffect(() => {
     if (!mobileNavOpen) return undefined;
@@ -209,6 +244,18 @@ export default function AppShell({ title, eyebrow, actions, children }) {
 
   const sidebarClass = `sidebar${collapsed ? ' collapsed' : ''}${mobileNavOpen ? ' mobile-open' : ''}${role === 'gudang' ? ' sidebar-warehouse' : ''}${roleResolved ? ' role-ready' : ' role-loading'}`;
 
+  function renderNavigationLink(item) {
+    const Icon = item.icon;
+    const active = item.active !== false && itemIsCurrent(item);
+    const itemQuery = item.href.includes('?') ? item.href.slice(item.href.indexOf('?')) : '';
+    return (
+      <Link key={item.href} href={item.href} onClick={(event) => { if (!confirmNavigation(event, item.href)) return; setSearch(itemQuery); setTooltip(null); setMobileNavOpen(false); }} className={(active ? 'active' : '') + (item.tone ? ' tone-' + item.tone : '')} aria-current={active ? 'page' : undefined} {...tooltipProps(item.label)}>
+        <Icon aria-hidden="true" size={15} strokeWidth={active ? 2.4 : 1.9} />
+        <span>{item.label}</span>
+      </Link>
+    );
+  }
+
   return (
     <div className={`app-shell${role === 'gudang' ? ' app-shell-warehouse' : ''}`}>
       <button
@@ -244,15 +291,27 @@ export default function AppShell({ title, eyebrow, actions, children }) {
                 <ChevronDown aria-hidden="true" size={14} className={groupIsOpen(group) ? 'chevron-open' : ''} />
               </button>}
               {group.items.map((item) => {
+                if (!item.children) return renderNavigationLink(item);
                 const Icon = item.icon;
-                const itemPath = item.href.split('?')[0];
-                const itemQuery = item.href.includes('?') ? item.href.slice(item.href.indexOf('?')) : '';
-                const active = item.active !== false && pathname === itemPath && (itemQuery ? search === itemQuery : !search);
+                const opened = submenuIsOpen(item);
+                const active = item.children.some(itemIsCurrent);
+                const submenuKey = 'submenu:' + item.label;
                 return (
-                  <Link key={item.href} href={item.href} onClick={(event) => { if (!confirmNavigation(event, item.href)) return; setSearch(itemQuery); setTooltip(null); setMobileNavOpen(false); }} className={`${active ? 'active' : ''}${item.tone ? ` tone-${item.tone}` : ''}`} aria-current={active ? 'page' : undefined} {...tooltipProps(item.label)}>
-                    <Icon aria-hidden="true" size={15} strokeWidth={active ? 2.4 : 1.9} />
-                    <span>{item.label}</span>
-                  </Link>
+                  <div key={item.label} className={'nav-subgroup' + (opened ? ' nav-subgroup-open' : '')}>
+                    <button
+                      type="button"
+                      className={'nav-subgroup-toggle' + (active ? ' active' : '')}
+                      onClick={() => setOpenGroups((current) => ({ ...current, [submenuKey]: !opened }))}
+                      aria-label={item.label}
+                      aria-expanded={opened}
+                      {...tooltipProps(item.label)}
+                    >
+                      <Icon aria-hidden="true" size={15} strokeWidth={active ? 2.4 : 1.9} />
+                      <span className="nav-subgroup-label">{item.label}</span>
+                      <ChevronDown aria-hidden="true" size={14} className={'nav-subgroup-chevron' + (opened ? ' chevron-open' : '')} />
+                    </button>
+                    {opened && <div className="nav-subgroup-items">{item.children.map(renderNavigationLink)}</div>}
+                  </div>
                 );
               })}
             </section>
