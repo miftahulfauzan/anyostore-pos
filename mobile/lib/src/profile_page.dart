@@ -140,17 +140,17 @@ class _ProfilePageState extends State<ProfilePage> {
 
   InputDecoration _dec(String label) {
     final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(16),
-      borderSide: const BorderSide(color: kTaskBorder),
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(color: taskBorder(context)),
     );
     return InputDecoration(
       labelText: label,
       filled: true,
-      fillColor: Colors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       enabledBorder: border,
       focusedBorder: border.copyWith(
-          borderSide: const BorderSide(color: kTaskDark, width: 1.4)),
+          borderSide: BorderSide(
+              color: Theme.of(context).colorScheme.primary, width: 2)),
     );
   }
 
@@ -165,6 +165,7 @@ class _ProfilePageState extends State<ProfilePage> {
             padding: const EdgeInsets.all(12),
             children: [
               GlassCard(
+                radius: 12,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -187,15 +188,16 @@ class _ProfilePageState extends State<ProfilePage> {
                     const SizedBox(height: 6),
                     const Text(
                         '3-30 karakter: huruf, angka, titik, garis bawah, strip. Dipakai untuk login.',
-                        style: TextStyle(fontSize: 10, color: kTaskGray)),
+                        style: TextStyle(fontSize: 12)),
                     const SizedBox(height: 14),
                     FilledButton(
                       onPressed: _savingProfile ? null : _saveProfile,
                       style: FilledButton.styleFrom(
-                        backgroundColor: kTaskDark,
-                        foregroundColor: Colors.white,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor:
+                            Theme.of(context).colorScheme.onPrimary,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(28)),
+                            borderRadius: BorderRadius.circular(14)),
                       ),
                       child: Text(
                           _savingProfile ? 'Menyimpan...' : 'Simpan Profil'),
@@ -205,6 +207,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(height: 12),
               GlassCard(
+                radius: 12,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -232,10 +235,11 @@ class _ProfilePageState extends State<ProfilePage> {
                     FilledButton(
                       onPressed: _savingPass ? null : _savePassword,
                       style: FilledButton.styleFrom(
-                        backgroundColor: kTaskOrange,
-                        foregroundColor: Colors.white,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor:
+                            Theme.of(context).colorScheme.onPrimary,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(28)),
+                            borderRadius: BorderRadius.circular(14)),
                       ),
                       child:
                           Text(_savingPass ? 'Menyimpan...' : 'Ganti Password'),
@@ -245,6 +249,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(height: 12),
               GlassCard(
+                radius: 12,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -278,10 +283,11 @@ class _ProfilePageState extends State<ProfilePage> {
                     FilledButton(
                       onPressed: _savingPin ? null : _savePin,
                       style: FilledButton.styleFrom(
-                        backgroundColor: kTaskOrange,
-                        foregroundColor: Colors.white,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor:
+                            Theme.of(context).colorScheme.onPrimary,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(28)),
+                            borderRadius: BorderRadius.circular(14)),
                       ),
                       child: Text(_savingPin ? 'Menyimpan...' : 'Ganti PIN'),
                     ),
@@ -292,7 +298,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(height: 10),
                 Text(_message!,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: kTaskGray)),
+                    style: TextStyle(color: taskMuted(context))),
               ],
             ],
           ),

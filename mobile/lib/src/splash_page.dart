@@ -5,8 +5,6 @@ import 'package:flutter/material.dart';
 import 'login_page.dart';
 import 'task_ui.dart';
 
-const _kInk = kTaskInk;
-
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
 
@@ -59,18 +57,17 @@ class _SplashPageState extends State<SplashPage> {
                     ),
                     child: const GlassCard(
                       padding: EdgeInsets.all(6),
-                      radius: 20,
+                      radius: 12,
                       child: BrandLogo(size: 92, radius: 16),
                     ),
                   ),
                   const SizedBox(height: 18),
-                  const Text('Anyostore App',
+                  Text('Anyostore App',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                          fontSize: 30,
-                          fontWeight: FontWeight.w800,
-                          color: _kInk,
-                          letterSpacing: -0.5)),
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                          color: ink(context))),
                 ],
               ),
             ),

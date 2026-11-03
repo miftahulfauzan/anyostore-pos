@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 
 import 'api_client.dart';
 import 'auth_store.dart';
+import 'branch_scope.dart';
 import 'inventory_page.dart';
 import 'more_page.dart';
 import 'offline_status.dart';
@@ -23,7 +24,7 @@ import 'printer_service.dart';
 import 'printer_setup.dart';
 import 'barcode_scanner_page.dart';
 import 'dashboard_page.dart';
-import 'mutation_report_page.dart';
+import 'finance_page.dart';
 import 'variant_picker.dart';
 import 'task_ui.dart';
 import 'ui_kit.dart';
@@ -74,6 +75,7 @@ class PosPage extends StatefulWidget {
 class _PosPageState extends State<PosPage> {
   late final ApiClient _api;
   int _tab = 0;
+  final List<int> _visitedTabs = [0];
   final _search = TextEditingController();
   final List<CartItem> _cart = [];
   Timer? _previewTimer;
@@ -94,7 +96,11 @@ class _PosPageState extends State<PosPage> {
   int? _posBranchId;
   String _warehouseId = '';
   int? _customerId;
-  String _promoCode = '';
+  final _discountCtrl = TextEditingController();
+  String _transactionDate = '';
+  String? _category;
+  int? _draftBranch;
+  Future<void> _draftWrite = Future<void>.value();
   Map<String, dynamic>? _preview;
   bool _loading = true;
   bool _saving = false;
@@ -106,6 +112,7 @@ class _PosPageState extends State<PosPage> {
   StateSetter? _sheetRefresh;
   String? _cartError;
   String? _lastProductsSync;
+  int _loadGeneration = 0;
 
   ApiClient get _client {
     final auth = context.read<AuthStore>();
@@ -116,18 +123,26 @@ class _PosPageState extends State<PosPage> {
   @override
   void initState() {
     super.initState();
+    _transactionDate = todayWib();
     _api = context.read<AuthStore>().api;
+    if (_isOwner) {
+      final branch = BranchScope.active.value ?? _branchId;
+      _posBranchId = branch > 0 ? branch : null;
+      _api.activeBranchId = _posBranchId;
+      BranchScope.active.addListener(_onBranchScopeChanged);
+      if (BranchScope.active.value == null && branch > 0) {
+        unawaited(BranchScope.set(branch));
+      }
+    }
     PosPage.requestTab.addListener(_onExternalTab);
     _loadData();
     _syncPending();
-    _prefetchVariants();
     _connSub = Connectivity().onConnectivityChanged.listen((results) {
       final online = results.any((r) => r != ConnectivityResult.none);
       if (online && OfflineStatus.offline.value) {
         OfflineStatus.notifyOnline();
         _syncPending();
         _loadData(silent: true);
-        _prefetchVariants();
       }
     });
   }
@@ -155,12 +170,84 @@ class _PosPageState extends State<PosPage> {
     _searchDebounce?.cancel();
     _connSub?.cancel();
     PosPage.requestTab.removeListener(_onExternalTab);
+    if (_isOwner) BranchScope.active.removeListener(_onBranchScopeChanged);
     _search.dispose();
+    _discountCtrl.dispose();
     super.dispose();
   }
 
   void _onExternalTab() {
-    if (mounted) setState(() => _tab = PosPage.requestTab.value);
+    final isGudang = context.read<AuthStore>().role == 'gudang';
+    _selectTab(PosPage.requestTab.value, isGudang: isGudang);
+  }
+
+  void _selectTab(int index, {bool? isGudang}) {
+    if (!mounted) return;
+    final warehouseRole =
+        isGudang ?? context.read<AuthStore>().role == 'gudang';
+    final lastTab = warehouseRole ? 2 : 3;
+    final nextTab = index.clamp(0, lastTab).toInt();
+    setState(() {
+      _tab = nextTab;
+      _visitedTabs
+        ..remove(nextTab)
+        ..add(nextTab);
+      while (_visitedTabs.length > 2) {
+        _visitedTabs.remove(_visitedTabs.firstWhere((tab) => tab != 0));
+      }
+    });
+    if (nextTab == 0 && !warehouseRole) {
+      _loadData(silent: true);
+    } else if (nextTab == 1 && !warehouseRole) {
+      ReportsPage.reloadTick.value++;
+    } else if (nextTab == 2 && !warehouseRole) {
+      HistoryTab.reloadTick.value++;
+    } else if (nextTab == 3 && !warehouseRole) {
+      FinancePage.reloadTick.value++;
+    }
+  }
+
+  String _pageTitle(String? role) {
+    if (role == 'gudang') {
+      return switch (_tab) {
+        1 => 'Stok Produk',
+        2 => 'Mutasi Stok',
+        _ => 'Dashboard Gudang',
+      };
+    }
+    return switch (_tab) {
+      1 => 'Dashboard',
+      2 => 'Riwayat Transaksi',
+      3 => 'Keuangan',
+      _ => 'POS',
+    };
+  }
+
+  void _onBranchScopeChanged() {
+    if (!_isOwner || !mounted) return;
+    final scopeWasEmpty = BranchScope.active.value == null;
+    final branch = BranchScope.active.value ?? _branchId;
+    _api.activeBranchId = branch > 0 ? branch : null;
+    if (branch > 0 && branch != _posBranchId) {
+      if (!scopeWasEmpty) unawaited(_saveDraft());
+      setState(() {
+        _posBranchId = branch;
+        _warehouseId = '';
+        _cart.clear();
+        _preview = null;
+        _customerId = null;
+        _discountCtrl.clear();
+        _transactionDate = todayWib();
+        _draftBranch = null;
+        _category = null;
+        _search.clear();
+      });
+      _previewTimer?.cancel();
+      _loadData();
+    }
+    if (scopeWasEmpty && branch > 0) {
+      unawaited(BranchScope.set(branch));
+    }
   }
 
   String _mediaUrl(String? path) => path == null || path.isEmpty
@@ -168,12 +255,18 @@ class _PosPageState extends State<PosPage> {
       : '${_api.baseUrl.replaceAll(RegExp(r'/api$'), '')}$path';
 
   int get _branchId => context.read<AuthStore>().branchId ?? 0;
+  bool get _isOwner => context.read<AuthStore>().role == 'owner';
+  double get _manualDiscount =>
+      asNum(_discountCtrl.text.replaceAll(RegExp(r'[^0-9]'), ''));
 
   Future<void> _loadData({bool silent = false}) async {
-    final branch = _posBranchId ?? _branchId;
+    final branch = _isOwner
+        ? (BranchScope.active.value ?? _posBranchId ?? _branchId)
+        : (_posBranchId ?? _branchId);
     if (branch == 0) return;
-    // POS punya pilihan toko sendiri; nonaktifkan scope owner dari Lainnya.
-    _api.activeBranchId = null;
+    final generation = ++_loadGeneration;
+    bool isCurrent() => mounted && generation == _loadGeneration;
+    _api.activeBranchId = _isOwner ? branch : null;
     PrinterService.setActiveBranch(branch);
 
     // Buka aplikasi (bukan refresh): kalau sudah disinkron hari ini,
@@ -182,14 +275,13 @@ class _PosPageState extends State<PosPage> {
       try {
         final cached = await OfflineStore.loadProductsCache(branch);
         if (cached != null) {
+          if (!isCurrent()) return;
           final payload = cached['payload'] as Map<String, dynamic>;
-          if (mounted) {
-            setState(() {
-              _applyStoreData(payload);
-              _error = null;
-              _loading = false;
-            });
-          }
+          setState(() {
+            _applyStoreData(payload);
+            _error = null;
+            _loading = false;
+          });
           _lastProductsSync = cached['updated_at']?.toString() ?? '';
           // Cache hari ini: langsung tampil tanpa sentuh server.
           if (cached['sync_date'] == todayWib()) return;
@@ -208,6 +300,7 @@ class _PosPageState extends State<PosPage> {
       // Cek versi dulu: kalau tidak ada perubahan, pakai data & gambar dari cache.
       try {
         final v = await _client.productsVersion(branchId: branch);
+        if (!isCurrent()) return;
         final ts = v['updated_at']?.toString() ?? '';
         if (ts.isNotEmpty && ts == _lastProductsSync) return;
       } catch (_) {}
@@ -222,7 +315,7 @@ class _PosPageState extends State<PosPage> {
         _client.storeSettings(),
         if (isOwner) _client.branches(),
       ]);
-      if (!mounted) return;
+      if (!isCurrent()) return;
       if (isOwner) {
         final branches = (results[4] as List).cast<Map<String, dynamic>>();
         setState(() {
@@ -241,6 +334,7 @@ class _PosPageState extends State<PosPage> {
       setState(() => _applyStoreData(storePayload));
       try {
         final v = await _client.productsVersion(branchId: branch);
+        if (!isCurrent()) return;
         _lastProductsSync = v['updated_at']?.toString() ?? '';
         await OfflineStore.saveProductsCache(branch, jsonEncode(storePayload),
             _lastProductsSync ?? '', todayWib());
@@ -254,22 +348,21 @@ class _PosPageState extends State<PosPage> {
         try {
           final cached = await OfflineStore.loadProductsCache(branch);
           if (cached != null) {
+            if (!isCurrent()) return;
             final payload = cached['payload'] as Map<String, dynamic>;
-            if (mounted) {
-              setState(() {
-                _applyStoreData(payload);
-                _error = null;
-                _loading = false;
-              });
-              _lastProductsSync = cached['updated_at']?.toString() ?? '';
-            }
+            setState(() {
+              _applyStoreData(payload);
+              _error = null;
+              _loading = false;
+            });
+            _lastProductsSync = cached['updated_at']?.toString() ?? '';
             return;
           }
         } catch (_) {}
       }
-      if (mounted) setState(() => _error = e.message);
+      if (isCurrent()) setState(() => _error = e.message);
     } finally {
-      if (mounted && !silent) setState(() => _loading = false);
+      if (isCurrent() && !silent) setState(() => _loading = false);
     }
   }
 
@@ -294,6 +387,93 @@ class _PosPageState extends State<PosPage> {
       _branches = branches;
       _posBranchId ??= _branchId;
     }
+    final branch = _posBranchId ?? _branchId;
+    if (_draftBranch != branch) {
+      _draftBranch = branch;
+      unawaited(_restoreDraft(branch));
+    }
+  }
+
+  String _draftKey(int branch) =>
+      'cart-draft-${context.read<AuthStore>().userId}-$branch';
+
+  Future<void> _saveDraft() {
+    final branch = _posBranchId ?? _branchId;
+    if (context.read<AuthStore>().userId == null || branch <= 0) {
+      return Future<void>.value();
+    }
+    final key = _draftKey(branch);
+    final payload = jsonEncode({
+      'warehouse_id': _warehouseId,
+      'customer_id': _customerId,
+      'manual_discount': _discountCtrl.text,
+      'transaction_date': _transactionDate,
+      'items': [
+        for (final item in _cart)
+          {
+            'product_id': item.productId,
+            'variant_id': item.variantId,
+            'name': item.name,
+            'price': item.price,
+            'qty': item.qty,
+            'price_override': item.priceOverride,
+            'variant_label': item.variantLabel,
+            'photo': item.photo,
+            'stock_available': item.stockAvailable,
+          }
+      ],
+    });
+    final write =
+        _draftWrite.then<void>((_) => OfflineStore.cacheSet(key, payload));
+    _draftWrite = write.catchError((Object _) {});
+    return _draftWrite;
+  }
+
+  Future<void> _restoreDraft(int branch) async {
+    try {
+      final saved = await OfflineStore.cacheGet(_draftKey(branch));
+      if (!mounted || _draftBranch != branch || _cart.isNotEmpty || _saving) {
+        return;
+      }
+      final draft = saved?['payload'] as Map<String, dynamic>?;
+      if (draft == null || draft['items'] is! List) return;
+      final items = <CartItem>[];
+      for (final row in draft['items'] as List) {
+        if (row is! Map) continue;
+        final id = int.tryParse('${row['product_id']}');
+        final qty = int.tryParse('${row['qty']}');
+        if (id == null || id <= 0 || qty == null || qty <= 0) continue;
+        items.add(CartItem(
+            productId: id,
+            variantId: int.tryParse('${row['variant_id']}'),
+            name: row['name']?.toString() ?? 'Produk',
+            price: asNum(row['price']),
+            qty: qty,
+            priceOverride: row['price_override'] == null
+                ? null
+                : asNum(row['price_override']),
+            variantLabel: row['variant_label']?.toString(),
+            photo: row['photo']?.toString(),
+            stockAvailable: int.tryParse('${row['stock_available']}')));
+      }
+      if (items.isEmpty) return;
+      setState(() {
+        _cart.addAll(items);
+        _customerId = int.tryParse('${draft['customer_id']}');
+        _discountCtrl.text = draft['manual_discount']?.toString() ?? '';
+        final draftDate = draft['transaction_date']?.toString();
+        _transactionDate = draftDate != null &&
+                DateTime.tryParse(draftDate) != null &&
+                draftDate.compareTo(todayWib()) <= 0
+            ? draftDate
+            : todayWib();
+        final warehouse = draft['warehouse_id']?.toString();
+        if (_warehouses.any((row) => '${row['id']}' == warehouse)) {
+          _warehouseId = warehouse!;
+        }
+      });
+      _schedulePreview();
+    } catch (_) {/* An unreadable draft must not prevent catalogue loading. */}
   }
 
   Timer? _searchDebounce;
@@ -306,14 +486,18 @@ class _PosPageState extends State<PosPage> {
   void _applyFilter() {
     final q = _search.text.trim().toLowerCase();
     setState(() {
-      _visible = q.isEmpty
-          ? List.of(_products)
-          : _products.where((p) {
-              final name = (p['name'] ?? '').toString().toLowerCase();
-              final sku = (p['sku'] ?? '').toString().toLowerCase();
-              final barcode = (p['barcode'] ?? '').toString().toLowerCase();
-              return name.contains(q) || sku.contains(q) || barcode.contains(q);
-            }).toList();
+      _visible = _products.where((p) {
+        if (_category != null && p['category_name']?.toString() != _category) {
+          return false;
+        }
+        final name = (p['name'] ?? '').toString().toLowerCase();
+        final sku = (p['sku'] ?? '').toString().toLowerCase();
+        final barcode = (p['barcode'] ?? '').toString().toLowerCase();
+        return q.isEmpty ||
+            name.contains(q) ||
+            sku.contains(q) ||
+            barcode.contains(q);
+      }).toList();
     });
   }
 
@@ -443,6 +627,7 @@ class _PosPageState extends State<PosPage> {
   }
 
   void _schedulePreview() {
+    unawaited(_saveDraft());
     // Perubahan keranjang menandai preview lama TIDAK fresh sampai yang baru datang.
     _cartVersion++;
     _previewTimer?.cancel();
@@ -472,7 +657,8 @@ class _PosPageState extends State<PosPage> {
         'branch_id': _posBranchId ?? _branchId,
         'customer_id': _customerId,
         'items': items,
-        if (_promoCode.trim().isNotEmpty) 'promo_code': _promoCode.trim(),
+        'discount_type': _manualDiscount > 0 ? 'nominal' : 'none',
+        'discount_value': _manualDiscount,
       });
       if (mounted && requestVersion == _cartVersion) {
         setState(() {
@@ -512,8 +698,9 @@ class _PosPageState extends State<PosPage> {
         'branch_id': branch,
         'items': items,
         'subtotal': asNum(preview?['subtotal'] ?? _cartTotal),
-        'discount_type': preview?['discount_type'] ?? 'none',
-        'discount_value': asNum(preview?['discount'] ?? 0),
+        'discount_type': preview?['discount_type'] ??
+            (_manualDiscount > 0 ? 'nominal' : 'none'),
+        'discount_value': asNum(preview?['discount'] ?? _manualDiscount),
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -521,9 +708,12 @@ class _PosPageState extends State<PosPage> {
       setState(() {
         _cart.clear();
         _preview = null;
-        _promoCode = '';
+        _discountCtrl.clear();
         _customerId = null;
+        _transactionDate = todayWib();
       });
+      await _saveDraft();
+      if (!mounted) return;
       Navigator.of(context).pop();
     } on ApiException catch (e) {
       if (mounted) {
@@ -597,7 +787,9 @@ class _PosPageState extends State<PosPage> {
           ..clear()
           ..addAll(cart);
         _customerId = int.tryParse(resumed['customer_id']?.toString() ?? '');
-        _promoCode = '';
+        _discountCtrl.text =
+            asNum(resumed['discount_value']).toStringAsFixed(0);
+        _transactionDate = todayWib();
         _preview = null;
       });
       _schedulePreview();
@@ -623,7 +815,7 @@ class _PosPageState extends State<PosPage> {
       builder: (sheetCtx) {
         return DraggableScrollableSheet(
           expand: false,
-          initialChildSize: 0.55,
+          initialChildSize: 0.78,
           minChildSize: 0.38,
           maxChildSize: (1 - topRatio).clamp(0.6, 1.0),
           builder: (context, scrollController) => StatefulBuilder(
@@ -639,7 +831,9 @@ class _PosPageState extends State<PosPage> {
                     cart: _cart,
                     customers: _customers,
                     customerId: _customerId,
-                    promoCode: _promoCode,
+                    discountController: _discountCtrl,
+                    isOwner: _isOwner,
+                    transactionDate: _transactionDate,
                     preview: _preview,
                     previewFresh: _previewFresh,
                     error: _cartError,
@@ -649,10 +843,14 @@ class _PosPageState extends State<PosPage> {
                       _sheetRefresh?.call(() {});
                       _schedulePreview();
                     },
-                    onPromoChanged: (code) {
-                      setState(() => _promoCode = code);
-                      _sheetRefresh?.call(() {});
+                    onDiscountChanged: (_) {
                       _schedulePreview();
+                      _sheetRefresh?.call(() {});
+                    },
+                    onTransactionDateChanged: (date) {
+                      setState(() => _transactionDate = date);
+                      _sheetRefresh?.call(() {});
+                      unawaited(_saveDraft());
                     },
                     onQtyChanged: (item, delta) {
                       setState(() => item.qty = math.max(1, item.qty + delta));
@@ -731,8 +929,26 @@ class _PosPageState extends State<PosPage> {
           content: Text('Gudang belum dipilih. Muat ulang data toko.')));
       return;
     }
-    final grandTotal =
-        asNum(_previewFresh ? (_preview?['grand_total']) : _cartTotal);
+    if (!_previewFresh) {
+      await _doPreview();
+      if (!mounted) return;
+    }
+    if (!_previewFresh && !OfflineStatus.offline.value) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content:
+              Text(_cartError ?? 'Tunggu harga keranjang selesai dihitung')));
+      return;
+    }
+    final estimatedSubtotal =
+        _previewFresh ? asNum(_preview?['subtotal']) : _cartTotal;
+    if (_manualDiscount > estimatedSubtotal) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Diskon tidak boleh melebihi subtotal')));
+      return;
+    }
+    final grandTotal = _previewFresh
+        ? asNum(_preview?['grand_total'])
+        : math.max(0, estimatedSubtotal - _manualDiscount).toDouble();
     final payment = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
@@ -794,7 +1010,9 @@ class _PosPageState extends State<PosPage> {
       'allow_negative_stock': allowNegativeStock,
       ...payment,
       if (_customerId != null) 'customer_id': _customerId,
-      if (_promoCode.trim().isNotEmpty) 'promo_code': _promoCode.trim(),
+      'discount_type': _manualDiscount > 0 ? 'nominal' : 'none',
+      'discount_value': _manualDiscount,
+      if (_isOwner) 'transaction_date': _transactionDate,
     };
     try {
       final result = await _client.createTransaction(payload);
@@ -802,8 +1020,11 @@ class _PosPageState extends State<PosPage> {
       final id = int.tryParse('${result['id']}');
       _cart.clear();
       _preview = null;
-      _promoCode = '';
+      _discountCtrl.clear();
       _customerId = null;
+      _transactionDate = todayWib();
+      await _saveDraft();
+      if (!mounted) return;
       await showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -867,15 +1088,24 @@ class _PosPageState extends State<PosPage> {
     final usePreview = _previewFresh;
     payload['subtotal'] =
         usePreview ? asNum(_preview?['subtotal']) : _cartTotal;
-    payload['discount'] = usePreview ? asNum(_preview?['discount']) : 0;
-    final offlineTotal =
-        usePreview ? asNum(_preview?['grand_total']) : _cartTotal;
+    final discount =
+        usePreview ? asNum(_preview?['discount']) : _manualDiscount;
+    payload['discount_type'] = discount > 0 ? 'nominal' : 'none';
+    payload['discount_value'] = discount;
+    payload['discount'] = discount;
+    if (_isOwner) payload['transaction_date'] = _transactionDate;
+    final offlineTotal = usePreview
+        ? asNum(_preview?['grand_total'])
+        : math.max(0, _cartTotal - discount).toDouble();
     await OfflineStore.insert(payload, tempInvoice, grandTotal: offlineTotal);
     if (!mounted) return;
     _cart.clear();
     _preview = null;
-    _promoCode = '';
+    _discountCtrl.clear();
     _customerId = null;
+    _transactionDate = todayWib();
+    await _saveDraft();
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
             'Transaksi disimpan offline ($tempInvoice). Akan otomatis sync saat internet kembali.')));
@@ -887,26 +1117,68 @@ class _PosPageState extends State<PosPage> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthStore>();
-    // Role gudang tidak butuh POS/Riwayat: diganti Dashboard & Keuangan.
+    // Gudang tetap memakai alur stok; peran penjualan mendapat Dashboard dan Keuangan.
     final isGudang = auth.role == 'gudang';
-    final pages = <Widget>[
-      if (isGudang) DashboardPage(api: _client) else _buildKasir(),
-      if (isGudang)
-        InventoryPage(api: _client, branchId: _branchId, role: auth.role)
-      else
-        HistoryTab(api: _client, role: auth.role),
-      if (isGudang)
-        MutationReportPage(api: _client)
-      else
-        InventoryPage(api: _client, branchId: _branchId, role: auth.role),
-      // Role gudang tidak pakai Laporan (backend menolak) -> tab dihapus.
-      if (!isGudang) ReportsPage(api: _client, role: auth.role),
-      MorePage(api: _client, branchId: _branchId, role: auth.role),
-    ];
+    final pages = isGudang
+        ? <Widget>[
+            DashboardPage(api: _client),
+            if (_visitedTabs.contains(1))
+              InventoryPage(
+                  api: _client,
+                  branchId: _branchId,
+                  role: auth.role,
+                  initialSection: 'stok')
+            else
+              const SizedBox.shrink(),
+            if (_visitedTabs.contains(2))
+              InventoryPage(
+                  api: _client,
+                  branchId: _branchId,
+                  role: auth.role,
+                  initialSection: 'mutasi')
+            else
+              const SizedBox.shrink(),
+          ]
+        : <Widget>[
+            _buildKasir(),
+            if (_visitedTabs.contains(1))
+              ReportsPage(api: _client, role: auth.role, dashboardMode: true)
+            else
+              const SizedBox.shrink(),
+            if (_visitedTabs.contains(2))
+              HistoryTab(api: _client, role: auth.role)
+            else
+              const SizedBox.shrink(),
+            if (_visitedTabs.contains(3))
+              FinancePage(api: _client, role: auth.role)
+            else
+              const SizedBox.shrink(),
+          ];
     return Scaffold(
-      // Tanpa AppBar utama (header dihapus).
+      appBar: AppBar(
+        title: Text(_pageTitle(auth.role),
+            style: const TextStyle(fontWeight: FontWeight.w700)),
+        centerTitle: true,
+        backgroundColor: taskSurface(context),
+        foregroundColor: ink(context),
+        surfaceTintColor: Colors.transparent,
+      ),
+      drawer: Drawer(
+        width: math.min(MediaQuery.sizeOf(context).width * .84, 340.0),
+        backgroundColor: pageBg(context),
+        surfaceTintColor: Colors.transparent,
+        child: SafeArea(
+          child: MorePage(
+            api: _client,
+            branchId: _branchId,
+            role: auth.role,
+            currentTab: _tab,
+            onNavigateTab: (index) => _selectTab(index, isGudang: isGudang),
+          ),
+        ),
+      ),
       body: SafeArea(
-        top: true,
+        top: false,
         bottom: false,
         child: Column(
           children: [
@@ -933,78 +1205,6 @@ class _PosPageState extends State<PosPage> {
               child: Stack(
                 children: [
                   IndexedStack(index: _tab, children: pages),
-                  // Navbar overlay: area di luar pil benar-benar transparan,
-                  // konten halaman tetap terlihat/mengalir di belakangnya.
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: GlassNavBar(
-                      current: _tab,
-                      onSelect: (i) => setState(() {
-                        _tab = i;
-                        if (_tab == 0 && !isGudang) {
-                          _loadData(silent: true);
-                        } else if (_tab == 1 && !isGudang) {
-                          // Riwayat di-refresh (tetap simpan filter).
-                          HistoryTab.reloadTick.value++;
-                        } else if (_tab == 3 && !isGudang) {
-                          // Laporan ikut di-refresh (ringkasan/penutupan).
-                          ReportsPage.reloadTick.value++;
-                        }
-                      }),
-                      items: isGudang
-                          ? const [
-                              (
-                                icon: Icons.dashboard_outlined,
-                                activeIcon: Icons.dashboard,
-                                label: 'Dashboard'
-                              ),
-                              (
-                                icon: Icons.inventory_2_outlined,
-                                activeIcon: Icons.inventory_2,
-                                label: 'Stok'
-                              ),
-                              (
-                                icon: Icons.swap_vert,
-                                activeIcon: Icons.swap_vert,
-                                label: 'Mutasi'
-                              ),
-                              (
-                                icon: Icons.more_horiz,
-                                activeIcon: Icons.more_horiz,
-                                label: 'Lainnya'
-                              ),
-                            ]
-                          : const [
-                              (
-                                icon: Icons.shopping_bag_outlined,
-                                activeIcon: Icons.shopping_bag,
-                                label: 'POS'
-                              ),
-                              (
-                                icon: Icons.receipt_long_outlined,
-                                activeIcon: Icons.receipt_long,
-                                label: 'Riwayat'
-                              ),
-                              (
-                                icon: Icons.inventory_2_outlined,
-                                activeIcon: Icons.inventory_2,
-                                label: 'Stok'
-                              ),
-                              (
-                                icon: Icons.bar_chart_outlined,
-                                activeIcon: Icons.bar_chart,
-                                label: 'Laporan'
-                              ),
-                              (
-                                icon: Icons.more_horiz,
-                                activeIcon: Icons.more_horiz,
-                                label: 'Lainnya'
-                              ),
-                            ],
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -1042,12 +1242,25 @@ class _PosPageState extends State<PosPage> {
       );
     }
     final bottomPad = MediaQuery.of(context).padding.bottom;
+    final categories = _products
+        .map((p) => p['category_name']?.toString())
+        .whereType<String>()
+        .where((name) => name.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    final width = MediaQuery.sizeOf(context).width;
+    final columns = width < 600
+        ? 3
+        : width < 900
+            ? 3
+            : 4;
     return Stack(
       children: [
         Positioned.fill(
           child: RefreshIndicator(
             onRefresh: () => _loadData(silent: true),
-            color: kTaskDark,
+            color: Theme.of(context).colorScheme.primary,
             child: CustomScrollView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               physics: const AlwaysScrollableScrollPhysics(),
@@ -1059,17 +1272,7 @@ class _PosPageState extends State<PosPage> {
                       isOwner: context.read<AuthStore>().role == 'owner',
                       branches: _branches,
                       posBranchId: _posBranchId,
-                      onBranchChanged: (v) {
-                        setState(() {
-                          _posBranchId = v;
-                          _warehouseId = '';
-                          _cart.clear();
-                          _preview = null;
-                          _customerId = null;
-                          _promoCode = '';
-                        });
-                        _loadData();
-                      },
+                      onBranchChanged: (v) => unawaited(BranchScope.set(v)),
                       warehouses: _warehouses,
                       warehouseId: _warehouseId,
                       onWarehouseChanged: (v) =>
@@ -1080,6 +1283,27 @@ class _PosPageState extends State<PosPage> {
                     ),
                   ),
                 ),
+                if (categories.isNotEmpty)
+                  SliverToBoxAdapter(
+                      child: SizedBox(
+                          height: 48,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            children: [
+                              for (final name in <String?>[null, ...categories])
+                                Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: ChoiceChip(
+                                      label: Text(name ?? 'Semua'),
+                                      selected: _category == name,
+                                      onSelected: (_) {
+                                        _category = name;
+                                        _applyFilter();
+                                      },
+                                    )),
+                            ],
+                          ))),
                 if (_visible.isEmpty)
                   const SliverToBoxAdapter(
                     child: SizedBox(
@@ -1089,14 +1313,16 @@ class _PosPageState extends State<PosPage> {
                   )
                 else
                   SliverPadding(
-                    padding: EdgeInsets.fromLTRB(12, 12, 12, 178 + bottomPad),
+                    padding: EdgeInsets.fromLTRB(12, 12, 12, 16 + bottomPad),
                     sliver: SliverGrid(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: columns,
                         mainAxisSpacing: 10,
                         crossAxisSpacing: 10,
-                        childAspectRatio: 0.62,
+                        mainAxisExtent:
+                            ((width - 24 - (columns - 1) * 10) / columns) *
+                                    1.15 +
+                                100 * MediaQuery.textScalerOf(context).scale(1),
                       ),
                       delegate: SliverChildBuilderDelegate(
                         (_, i) => RepaintBoundary(
@@ -1120,7 +1346,7 @@ class _PosPageState extends State<PosPage> {
           Positioned(
             left: 12,
             right: 12,
-            bottom: 98 + bottomPad,
+            bottom: 12 + bottomPad,
             child: AnimatedScale(
               scale: 1,
               duration: const Duration(milliseconds: 180),
@@ -1129,8 +1355,11 @@ class _PosPageState extends State<PosPage> {
                     minimumSize: const Size.fromHeight(52)),
                 onPressed: _openCart,
                 icon: const Icon(Icons.shopping_cart),
-                label: Text(
-                    'Keranjang ${_cart.length} item · ${fmtRp(_cartTotal)}'),
+                label: Row(children: [
+                  Expanded(
+                      child: Text('Keranjang · ${cartTotalPcs(_cart)} pcs')),
+                  Text(fmtRp(_cartTotal)),
+                ]),
               ),
             ),
           ),
@@ -1158,7 +1387,7 @@ class _ProductCard extends StatelessWidget {
     final variantCount = int.tryParse('${product['variant_count'] ?? 0}') ?? 0;
     final photo = mediaUrl(product['photo_path']?.toString());
     return GlassCard(
-      radius: 20,
+      radius: 12,
       padding: EdgeInsets.zero,
       onTap: onTap,
       // Grid = puluhan kartu sekaligus; blur per kartu bikin scroll berat.
@@ -1179,26 +1408,18 @@ class _ProductCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Expanded(
-                      child: Text(name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 11.5, fontWeight: FontWeight.w700)),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(fmtRp(price),
-                        maxLines: 1,
-                        style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w800,
-                            color: Theme.of(context).colorScheme.primary)),
-                  ],
-                ),
+                Text(name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(fmtRp(price),
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: ink(context))),
+                const SizedBox(height: 3),
                 Text(
                     variantCount > 0
                         ? '$variantCount varian · stok $stock'
@@ -1297,13 +1518,13 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
           children: [
             DropdownButtonFormField<int?>(
               initialValue: widget.posBranchId,
-              style: const TextStyle(fontSize: 12.5, color: kTaskDark),
-              decoration: const InputDecoration(
+              style: TextStyle(fontSize: 14, color: ink(context)),
+              decoration: InputDecoration(
                   labelText: 'Toko / Gudang',
-                  labelStyle: TextStyle(color: kTaskSecondary),
-                  prefixIcon: Icon(Icons.store, size: 18, color: kTaskDark),
+                  labelStyle: TextStyle(color: taskMuted(context)),
+                  prefixIcon: Icon(Icons.store,
+                      size: 18, color: Theme.of(context).colorScheme.primary),
                   filled: true,
-                  fillColor: Colors.white,
                   border: OutlineInputBorder(),
                   contentPadding:
                       EdgeInsets.symmetric(horizontal: 12, vertical: 13)),
@@ -1323,12 +1544,11 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
               DropdownButtonFormField<String>(
                 initialValue:
                     widget.warehouseId.isEmpty ? null : widget.warehouseId,
-                style: const TextStyle(fontSize: 12.5, color: kTaskDark),
-                decoration: const InputDecoration(
+                style: TextStyle(fontSize: 14, color: ink(context)),
+                decoration: InputDecoration(
                     labelText: 'Gudang',
-                    labelStyle: TextStyle(color: kTaskSecondary),
+                    labelStyle: TextStyle(color: taskMuted(context)),
                     filled: true,
-                    fillColor: Colors.white,
                     border: OutlineInputBorder(),
                     contentPadding:
                         EdgeInsets.symmetric(horizontal: 12, vertical: 13)),
@@ -1345,7 +1565,7 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
         );
       } else {
         branchArea = Material(
-          color: Colors.white,
+          color: taskSurface(context),
           borderRadius: BorderRadius.circular(12),
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
@@ -1359,17 +1579,16 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.store, size: 17, color: kTaskDark),
+                  Icon(Icons.store,
+                      size: 17, color: Theme.of(context).colorScheme.primary),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(branchName ?? 'Toko / Gudang',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style:
-                            const TextStyle(fontSize: 12.5, color: kTaskDark)),
+                        style: TextStyle(fontSize: 12.5, color: ink(context))),
                   ),
-                  const Icon(Icons.expand_more,
-                      size: 18, color: kTaskSecondary),
+                  Icon(Icons.expand_more, size: 18, color: taskMuted(context)),
                 ],
               ),
             ),
@@ -1473,26 +1692,19 @@ class _QtyInputState extends State<_QtyInput> {
         textInputAction: TextInputAction.done,
         onSubmitted: (_) => _fn.unfocus(),
         textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+        style: TextStyle(
+            fontSize: 13, fontWeight: FontWeight.w800, color: ink(context)),
         decoration: InputDecoration(
           isDense: true,
           filled: true,
-          fillColor: Theme.of(context).brightness == Brightness.dark
-              ? kTaskDarkSurface
-              : kTaskSand,
+          fillColor: taskSurface(context),
           border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xff334155)
-                      : kTaskBorder)),
+              borderSide: BorderSide(color: taskBorder(context))),
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xffCBD5E1)
-                      : kTaskDark,
-                  width: 1.4)),
+                  color: Theme.of(context).colorScheme.primary, width: 2)),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
         ),
@@ -1511,13 +1723,16 @@ class _CartSheet extends StatefulWidget {
     required this.cart,
     required this.customers,
     required this.customerId,
-    required this.promoCode,
+    required this.discountController,
+    required this.isOwner,
+    required this.transactionDate,
     required this.preview,
     required this.previewFresh,
     required this.error,
     required this.saving,
     required this.onCustomerChanged,
-    required this.onPromoChanged,
+    required this.onDiscountChanged,
+    required this.onTransactionDateChanged,
     required this.onQtyChanged,
     required this.onQtySet,
     required this.onRemove,
@@ -1531,13 +1746,16 @@ class _CartSheet extends StatefulWidget {
   final List<CartItem> cart;
   final List<Map<String, dynamic>> customers;
   final int? customerId;
-  final String promoCode;
+  final TextEditingController discountController;
+  final bool isOwner;
+  final String transactionDate;
   final Map<String, dynamic>? preview;
   final bool previewFresh;
   final String? error;
   final bool saving;
   final ValueChanged<int?> onCustomerChanged;
-  final ValueChanged<String> onPromoChanged;
+  final ValueChanged<String> onDiscountChanged;
+  final ValueChanged<String> onTransactionDateChanged;
   final void Function(CartItem, int) onQtyChanged;
   final void Function(CartItem, int) onQtySet;
   final ValueChanged<CartItem> onRemove;
@@ -1552,6 +1770,30 @@ class _CartSheet extends StatefulWidget {
 
 class _CartSheetState extends State<_CartSheet> {
   bool _showOptions = false;
+
+  double _parseDiscount() =>
+      asNum(widget.discountController.text.replaceAll(RegExp(r'[^0-9]'), ''));
+
+  String _dateLabel(String value) {
+    final date = DateTime.tryParse(value);
+    if (date == null) return value;
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  Future<void> _pickTransactionDate() async {
+    final today = DateTime.parse(todayWib());
+    final current = DateTime.tryParse(widget.transactionDate) ?? today;
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: current.isAfter(today) ? today : current,
+      firstDate: DateTime(2020),
+      lastDate: today,
+    );
+    if (selected == null) return;
+    final value =
+        '${selected.year.toString().padLeft(4, '0')}-${selected.month.toString().padLeft(2, '0')}-${selected.day.toString().padLeft(2, '0')}';
+    widget.onTransactionDateChanged(value);
+  }
 
   String _customerName() {
     for (final c in widget.customers) {
@@ -1568,12 +1810,15 @@ class _CartSheetState extends State<_CartSheet> {
     final localSubtotal = cartSubtotal(cart);
     final subtotal = asNum(
         widget.previewFresh ? (widget.preview?['subtotal']) : localSubtotal);
-    final discount =
-        asNum(widget.previewFresh ? (widget.preview?['discount']) : 0);
-    final grandTotal = asNum(
-        widget.previewFresh ? (widget.preview?['grand_total']) : subtotal);
+    final discount = asNum(widget.previewFresh
+        ? (widget.preview == null ? null : widget.preview!['discount'])
+        : _parseDiscount());
+    final grandTotal = asNum(widget.previewFresh
+        ? (widget.preview == null ? null : widget.preview!['grand_total'])
+        : math.max(0, subtotal - discount));
     final customerName = _customerName();
-    final hasExtra = customerName.isNotEmpty || widget.promoCode.isNotEmpty;
+    final hasExtra = customerName.isNotEmpty;
+    final invalidDiscount = discount > subtotal;
     final totalPcs = cartTotalPcs(cart);
 
     final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
@@ -1590,10 +1835,18 @@ class _CartSheetState extends State<_CartSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Judul: fokus daftar barang + jumlah item aktif.
+              Center(
+                  child: Container(
+                      width: 36,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                          color: taskBorder(context),
+                          borderRadius: BorderRadius.circular(4)))),
               Row(
                 children: [
                   Expanded(
-                    child: Text('Keranjang (${cart.length} item)',
+                    child: Text('Keranjang ($totalPcs pcs)',
                         style: Theme.of(context)
                             .textTheme
                             .titleMedium
@@ -1614,7 +1867,7 @@ class _CartSheetState extends State<_CartSheet> {
                 ],
               ),
               const SizedBox(height: 6),
-              // Opsi (pelanggan/promo/tahan) hanya muncul saat dibuka.
+              // Pelanggan dan transaksi tahan berada di menu Opsi.
               if (_showOptions) ...[
                 if (widget.customers.isNotEmpty)
                   DropdownButtonFormField<int?>(
@@ -1636,11 +1889,15 @@ class _CartSheetState extends State<_CartSheet> {
                   ),
                 const SizedBox(height: 8),
                 TextField(
+                  controller: widget.discountController,
+                  keyboardType: TextInputType.number,
+                  onChanged: widget.onDiscountChanged,
                   decoration: const InputDecoration(
-                      isDense: true,
-                      labelText: 'Kode promo (opsional)',
-                      border: OutlineInputBorder()),
-                  onChanged: widget.onPromoChanged,
+                    isDense: true,
+                    labelText: 'Diskon (Rp)',
+                    prefixText: 'Rp ',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -1677,14 +1934,6 @@ class _CartSheetState extends State<_CartSheet> {
                               style: const TextStyle(fontSize: 11)),
                           visualDensity: VisualDensity.compact,
                         ),
-                      if (widget.promoCode.isNotEmpty)
-                        Chip(
-                          avatar:
-                              const Icon(Icons.local_offer_outlined, size: 15),
-                          label: Text(widget.promoCode,
-                              style: const TextStyle(fontSize: 11)),
-                          visualDensity: VisualDensity.compact,
-                        ),
                     ],
                   ),
                 ),
@@ -1692,6 +1941,56 @@ class _CartSheetState extends State<_CartSheet> {
                 child: ListView(
                   controller: widget.scrollController,
                   children: [
+                    if (widget.isOwner) ...[
+                      OutlinedButton.icon(
+                        onPressed: _pickTransactionDate,
+                        icon:
+                            const Icon(Icons.calendar_today_outlined, size: 18),
+                        label: Text(
+                            'Tanggal transaksi: ${_dateLabel(widget.transactionDate)}'),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    if (cart.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text('Item',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: ink(context))),
+                            ),
+                            SizedBox(
+                              width: 136,
+                              child: Text(
+                                'Qty',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: ink(context),
+                                ),
+                              ),
+                            ),
+                            SizedBox(
+                              width: 76,
+                              child: Text(
+                                'Total',
+                                textAlign: TextAlign.right,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: ink(context),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 48),
+                          ],
+                        ),
+                      ),
                     for (final item in cart)
                       _CartLine(
                         item: item,
@@ -1707,6 +2006,10 @@ class _CartSheetState extends State<_CartSheet> {
               Text('Total pcs: $totalPcs pcs',
                   style: const TextStyle(fontWeight: FontWeight.w700)),
               if (discount > 0) Text('Diskon: -${fmtRp(discount)}'),
+              if (invalidDiscount)
+                Text('Diskon melebihi subtotal',
+                    style:
+                        TextStyle(color: Theme.of(context).colorScheme.error)),
               if (widget.error != null) ...[
                 const SizedBox(height: 6),
                 Text(widget.error!,
@@ -1718,7 +2021,12 @@ class _CartSheetState extends State<_CartSheet> {
               FilledButton(
                 style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(52)),
-                onPressed: widget.saving || cart.isEmpty ? null : widget.onPay,
+                onPressed: widget.saving ||
+                        cart.isEmpty ||
+                        invalidDiscount ||
+                        widget.error != null
+                    ? null
+                    : widget.onPay,
                 child: widget.saving
                     ? const SizedBox(
                         width: 22,
@@ -1764,104 +2072,112 @@ class _CartLine extends StatelessWidget {
         onPressed: onPressed,
         tooltip: label,
         icon: Icon(icon, size: 19),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.tightFor(width: 44, height: 44),
       ),
     );
   }
 
   Widget _info(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(item.name,
-              softWrap: true,
-              style: const TextStyle(fontWeight: FontWeight.w700, height: 1.2)),
-          const SizedBox(height: 2),
-          Text(fmtRp(item.priceOverride ?? item.price),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w700, height: 1.2)),
+          Text(
+              '${fmtRp(item.priceOverride ?? item.price)}${item.variantLabel != null && item.variantLabel!.isNotEmpty ? ' · ${item.variantLabel}' : ''}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: ink(context))),
-          if (item.variantLabel != null && item.variantLabel!.isNotEmpty)
-            Text(item.variantLabel!,
-                style: TextStyle(
-                    fontSize: 10,
-                    color: Theme.of(context).colorScheme.outline)),
+                  fontWeight: FontWeight.w700,
+                  color: taskMuted(context))),
         ],
       );
 
-  Widget _controls(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _action(
-            context: context,
-            label: 'Kurangi jumlah ${item.name}',
-            icon: Icons.remove_circle_outline,
-            onPressed: () => onQtyChanged(item, -1),
-          ),
-          _QtyInput(value: item.qty, onChanged: (v) => onQtySet(item, v)),
-          _action(
-            context: context,
-            label: 'Tambah jumlah ${item.name}',
-            icon: Icons.add_circle_outline,
-            onPressed: () => onQtyChanged(item, 1),
-          ),
-          const SizedBox(width: 4),
-          SizedBox(
-            width: 72,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerRight,
-              child: Text(
-                fmtRp((item.priceOverride ?? item.price) * item.qty),
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: ink(context)),
-              ),
+  Widget _quantityControls(BuildContext context) => SizedBox(
+        width: 136,
+        child: Row(
+          children: [
+            _action(
+              context: context,
+              label: 'Kurangi jumlah ${item.name}',
+              icon: Icons.remove_circle_outline,
+              onPressed: () => onQtyChanged(item, -1),
             ),
-          ),
-          _action(
-            context: context,
-            label: 'Ubah harga ${item.name}',
-            icon: Icons.edit_outlined,
-            onPressed: () => onEditPrice(item),
-          ),
-          _action(
-            context: context,
-            label: 'Hapus ${item.name} dari keranjang',
-            icon: Icons.delete_outline,
-            onPressed: () => onRemove(item),
-          ),
-        ],
+            _QtyInput(value: item.qty, onChanged: (v) => onQtySet(item, v)),
+            const SizedBox(width: 4),
+            _action(
+              context: context,
+              label: 'Tambah jumlah ${item.name}',
+              icon: Icons.add_circle_outline,
+              onPressed: () => onQtyChanged(item, 1),
+            ),
+          ],
+        ),
       );
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final narrow = constraints.maxWidth < 360;
-        return GlassCard(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          frosted: false,
-          child: narrow
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _info(context),
-                    const SizedBox(height: 4),
-                    Align(
-                        alignment: Alignment.centerRight,
-                        child: _controls(context)),
-                  ],
-                )
-              : Row(
-                  children: [
-                    Expanded(child: _info(context)),
-                    const SizedBox(width: 6),
-                    _controls(context),
-                  ],
+    final lineTotal = (item.priceOverride ?? item.price) * item.qty;
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            children: [
+              Expanded(child: _info(context)),
+              const SizedBox(width: 6),
+              _quantityControls(context),
+              const SizedBox(width: 6),
+              SizedBox(
+                width: 76,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(fmtRp(lineTotal),
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: ink(context))),
                 ),
-        );
-      },
+              ),
+              PopupMenuButton<String>(
+                tooltip: 'Opsi ${item.name}',
+                padding: EdgeInsets.zero,
+                iconSize: 19,
+                icon: const Icon(Icons.more_vert),
+                onSelected: (value) {
+                  if (value == 'price') onEditPrice(item);
+                  if (value == 'remove') onRemove(item);
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: 'price',
+                    child: Row(children: [
+                      Icon(Icons.edit_outlined, size: 18),
+                      SizedBox(width: 8),
+                      Text('Ubah harga'),
+                    ]),
+                  ),
+                  PopupMenuItem(
+                    value: 'remove',
+                    child: Row(children: [
+                      Icon(Icons.delete_outline, size: 18),
+                      SizedBox(width: 8),
+                      Text('Hapus item'),
+                    ]),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        Divider(height: 8, thickness: 1, color: taskBorder(context)),
+      ],
     );
   }
 }

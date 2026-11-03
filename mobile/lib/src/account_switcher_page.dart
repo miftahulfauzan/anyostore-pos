@@ -178,25 +178,25 @@ class _AccountTile extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return GlassCard(
       padding: EdgeInsets.zero,
-      radius: 20,
+      radius: 12,
       onTap: isCurrent ? null : onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Row(
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: dark ? const Color(0xff334155) : kTaskSand,
+                color: dark ? kTaskDarkBorder : kTaskSurfaceMuted,
               ),
               alignment: Alignment.center,
               child: Text(name.isEmpty ? '?' : name[0].toUpperCase(),
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
-                      color: kTaskDark)),
+                      color: ink(context))),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -220,14 +220,15 @@ class _AccountTile extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(
-                            color: kTaskDark,
+                            color: Theme.of(context).colorScheme.primary,
                             borderRadius: BorderRadius.circular(99),
                           ),
-                          child: const Text('AKTIF',
+                          child: Text('AKTIF',
                               style: TextStyle(
                                   fontSize: 8,
                                   fontWeight: FontWeight.w800,
-                                  color: Colors.white)),
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary)),
                         ),
                       ],
                     ],
