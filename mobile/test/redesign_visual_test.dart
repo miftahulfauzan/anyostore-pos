@@ -15,6 +15,8 @@ import 'package:pos_pakaian_mobile/src/payment_sheet.dart';
 import 'package:pos_pakaian_mobile/src/settings_page.dart';
 import 'package:pos_pakaian_mobile/src/task_ui.dart';
 
+import 'dashboard_page_test.dart' as analytics;
+
 class RedesignApi extends ApiClient {
   final requests = <String>[];
   @override
@@ -155,6 +157,20 @@ void main() {
     });
   }
 
+  for (final brightness in Brightness.values) {
+    testWidgets('analytics focal metric remains readable in $brightness',
+        (tester) async {
+      await analytics.showDashboard(tester, analytics.DashboardApi(),
+          size: const Size(320, 844), brightness: brightness);
+      await tester.pumpAndSettle();
+      expect(find.text('12.345'), findsOneWidget);
+      expect(tester.widget<Text>(find.text('12.345')).style!.fontSize,
+          greaterThanOrEqualTo(28));
+      await tester.scrollUntilVisible(find.text('Pergerakan Stok'), 200);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets(
       'warehouse settings retain theme and printer without owner-only requests',
       (tester) async {
@@ -168,7 +184,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('warehouse menu keeps operational groups without sales management',
+  testWidgets(
+      'warehouse menu keeps operational groups without sales management',
       (tester) async {
     final api = RedesignApi();
     await showScreen(

@@ -3,14 +3,17 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
+import 'branch_scope.dart';
 import 'format.dart';
 import 'offline_status.dart';
 import 'offline_store.dart';
 import 'task_ui.dart';
 
 class FinancePage extends StatefulWidget {
-  const FinancePage({super.key, required this.api});
+  const FinancePage({super.key, required this.api, this.role});
+  static final ValueNotifier<int> reloadTick = ValueNotifier(0);
   final ApiClient api;
+  final String? role;
 
   @override
   State<FinancePage> createState() => _FinancePageState();
@@ -20,17 +23,35 @@ class _FinancePageState extends State<FinancePage> {
   String _tab = 'expense';
   List<Map<String, dynamic>> _rows = [];
   List<Map<String, dynamic>> _categories = [];
-  Map<String, dynamic>? _profitLoss;
   bool _loading = true;
   String? _error;
+  int? _branchId;
+  bool get _isOwner => widget.role == 'owner';
 
   @override
   void initState() {
     super.initState();
+    if (_isOwner) {
+      _branchId = BranchScope.active.value;
+      widget.api.activeBranchId = _branchId;
+      BranchScope.active.addListener(_onBranchChanged);
+    }
     _load();
     // Saat internet kembali: otomatis muat ulang dari server (normal setelah sync).
     OfflineStatus.syncTick.addListener(_onSyncTick);
+    FinancePage.reloadTick.addListener(_onReloadTick);
   }
+
+  void _onBranchChanged() {
+    if (!_isOwner) return;
+    final branchId = BranchScope.active.value;
+    if (branchId == _branchId) return;
+    _branchId = branchId;
+    widget.api.activeBranchId = branchId;
+    _load();
+  }
+
+  void _onReloadTick() => _load(silent: true);
 
   void _onSyncTick() {
     _load(silent: true);
@@ -39,6 +60,8 @@ class _FinancePageState extends State<FinancePage> {
   @override
   void dispose() {
     OfflineStatus.syncTick.removeListener(_onSyncTick);
+    FinancePage.reloadTick.removeListener(_onReloadTick);
+    if (_isOwner) BranchScope.active.removeListener(_onBranchChanged);
     super.dispose();
   }
 
@@ -54,11 +77,9 @@ class _FinancePageState extends State<FinancePage> {
       final results = await Future.wait([
         widget.api.expenses(type: _tab),
         widget.api.expenseCategories(),
-        widget.api.profitLoss(start: todayWib(), end: todayWib()),
       ]);
       if (!mounted) return;
-      // Gabung pengeluaran/pemasukan offline (kuning) + sesuaikan laba rugi.
-      // Filter by cabang aktif supaya tidak tercampur antar cabang.
+      // Tampilkan antrean offline dan batasi menurut cabang aktif.
       final activeBranch = widget.api.activeBranchId;
       final serverRows = (results[0] as List).cast<Map<String, dynamic>>();
       final rawPending = await OfflineStore.pendingExpenses();
@@ -90,54 +111,16 @@ class _FinancePageState extends State<FinancePage> {
             },
           ],
       ];
-      final rawPendingTxs = await OfflineStore.pending();
-      final pendingTxs = activeBranch == null
-          ? rawPendingTxs
-          : rawPendingTxs.where((t) {
-              try {
-                final p = jsonDecode(t['payload'] as String? ?? '{}')
-                    as Map<String, dynamic>;
-                final b = int.tryParse('${p['branch_id']}');
-                return b == activeBranch;
-              } catch (_) {
-                return false;
-              }
-            }).toList();
-      double txTotal = 0;
-      for (final t in pendingTxs) {
-        txTotal += asNum(t['grand_total']);
-      }
-      double expSum = 0;
-      double incSum = 0;
-      for (final r in pending) {
-        final p2 =
-            jsonDecode(r['payload'] as String? ?? '{}') as Map<String, dynamic>;
-        if (p2['type'] == 'income') {
-          incSum += asNum(p2['amount']);
-        } else {
-          expSum += asNum(p2['amount']);
-        }
-      }
-      final pl = Map<String, dynamic>.from(results[2] as Map<String, dynamic>);
-      final revenue = asNum(pl['revenue']) + txTotal + incSum;
-      final expenses = asNum(pl['expenses']) + expSum;
-      final income = asNum(pl['income']) + incSum;
-      pl['revenue'] = revenue;
-      pl['expenses'] = expenses;
-      pl['income'] = income;
-      pl['net_profit'] = revenue - expenses;
       setState(() {
         _rows = [...localRows, ...serverRows];
         _categories = (results[1] as List).cast<Map<String, dynamic>>();
-        _profitLoss = pl;
       });
-      // Simpan cache keuangan (pengeluaran/pemasukan/laba rugi) untuk offline.
+      // Simpan cache keuangan untuk mode offline.
       await OfflineStore.cacheSet(
           cacheKey,
           jsonEncode({
             'rows': results[0],
             'categories': results[1],
-            'profitLoss': results[2],
           }));
     } on ApiException catch (e) {
       if (e.isNetwork) {
@@ -151,7 +134,6 @@ class _FinancePageState extends State<FinancePage> {
                   .cast<Map<String, dynamic>>();
               _categories = ((payload['categories'] as List?) ?? [])
                   .cast<Map<String, dynamic>>();
-              _profitLoss = payload['profitLoss'] as Map<String, dynamic>?;
               _error = null;
             });
             return;
@@ -171,8 +153,15 @@ class _FinancePageState extends State<FinancePage> {
               'Data offline belum bisa diedit. Tunggu sampai tersinkron.')));
       return;
     }
+    if (_isOwner && widget.api.activeBranchId == null && existing == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Pilih satu toko sebelum menambah data keuangan.')));
+      return;
+    }
     final name =
         TextEditingController(text: existing?['name']?.toString() ?? '');
+    final notes =
+        TextEditingController(text: existing?['notes']?.toString() ?? '');
     final amount = TextEditingController(
         text: existing == null ? '' : '${asNum(existing['amount'])}');
     final date = TextEditingController(
@@ -199,8 +188,7 @@ class _FinancePageState extends State<FinancePage> {
                         padding: EdgeInsets.only(bottom: 8),
                         child: Text(
                             'Kategori: Umum (otomatis). Kategori belum tersedia offline',
-                            style:
-                                TextStyle(fontSize: 12, color: kTaskSecondary)),
+                            style: TextStyle(fontSize: 12)),
                       )
                     : DropdownButtonFormField<int?>(
                         initialValue: categoryId,
@@ -220,7 +208,8 @@ class _FinancePageState extends State<FinancePage> {
                 TextField(
                     controller: name,
                     decoration: const InputDecoration(
-                        labelText: 'Nama *', border: OutlineInputBorder())),
+                        labelText: 'Keterangan (opsional)',
+                        border: OutlineInputBorder())),
                 const SizedBox(height: 8),
                 TextField(
                     controller: amount,
@@ -248,6 +237,17 @@ class _FinancePageState extends State<FinancePage> {
                   ],
                   onChanged: (v) => setDialogState(() => method = v ?? 'cash'),
                 ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: notes,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Catatan (opsional)',
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
+                  ),
+                ),
               ],
             ),
           ),
@@ -262,10 +262,14 @@ class _FinancePageState extends State<FinancePage> {
         ),
       ),
     );
+    name.dispose();
+    notes.dispose();
+    amount.dispose();
+    date.dispose();
     if (saved != true || !mounted) return;
-    if (name.text.trim().isEmpty || amount.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Kategori, nama, dan nominal wajib diisi')));
+    if (amount.text.trim().isEmpty || date.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nominal dan tanggal wajib diisi')));
       return;
     }
     try {
@@ -275,6 +279,7 @@ class _FinancePageState extends State<FinancePage> {
         'amount': double.tryParse(amount.text.replaceAll('.', '')) ?? 0,
         'payment_method': method,
         'expense_date': date.text.trim(),
+        'notes': notes.text.trim(),
         'type': type,
         if (widget.api.activeBranchId != null)
           'branch_id': widget.api.activeBranchId,
@@ -338,21 +343,6 @@ class _FinancePageState extends State<FinancePage> {
     }
   }
 
-  Widget _plMini(String label, String value) {
-    return Column(
-      children: [
-        Text(value,
-            style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: Colors.white)),
-        const SizedBox(height: 2),
-        Text(label,
-            style: const TextStyle(fontSize: 9, color: Color(0xffCBD5E1))),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -375,49 +365,6 @@ class _FinancePageState extends State<FinancePage> {
             },
           ),
         ),
-        if (_profitLoss != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-            child: GlassCard(
-              dark: true,
-              padding: const EdgeInsets.all(18),
-              radius: 24,
-              child: Column(
-                children: [
-                  const Text('LABA RUGI HARI INI',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1,
-                          color: Color(0xffCBD5E1))),
-                  const SizedBox(height: 8),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(fmtRp(asNum(_profitLoss?['net_profit'])),
-                        style: const TextStyle(
-                            fontSize: 30,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white)),
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _plMini(
-                          'Pendapatan', fmtRp(asNum(_profitLoss?['revenue']))),
-                      const SizedBox(width: 14),
-                      _plMini('Pengeluaran',
-                          fmtRp(asNum(_profitLoss?['expenses']))),
-                      const SizedBox(width: 14),
-                      _plMini(
-                          'Pemasukan', fmtRp(asNum(_profitLoss?['income']))),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
           child: Align(
@@ -432,28 +379,98 @@ class _FinancePageState extends State<FinancePage> {
         ),
         Expanded(
           child: _loading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(
+                  child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 12),
+                    Text('Memuat keuangan…')
+                  ],
+                ))
               : _error != null
-                  ? Center(child: Text(_error!))
+                  ? Center(
+                      child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Text(_error!),
+                        const SizedBox(height: 12),
+                        FilledButton(
+                            onPressed: _load, child: const Text('Coba lagi')),
+                      ]),
+                    ))
                   : _rows.isEmpty
-                      ? const Center(child: Text('Belum ada data'))
+                      ? Center(
+                          child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(_tab == 'income'
+                              ? 'Belum ada pemasukan pada toko ini.'
+                              : 'Belum ada pengeluaran pada toko ini.'),
+                        ))
                       : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 104),
-                          itemCount: _rows.length,
+                          padding: EdgeInsets.fromLTRB(12, 12, 12,
+                              16 + MediaQuery.of(context).padding.bottom),
+                          itemCount: _rows.length + 1,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 8),
                           itemBuilder: (_, i) {
-                            final row = _rows[i];
+                            if (i == 0) {
+                              return GlassCard(
+                                key: const ValueKey('finance-summary'),
+                                radius: 20,
+                                padding: const EdgeInsets.all(20),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                        _tab == 'income'
+                                            ? 'Catatan pemasukan'
+                                            : 'Catatan pengeluaran',
+                                        style: TextStyle(
+                                            color: taskMuted(context))),
+                                    const SizedBox(height: 6),
+                                    Text('${_rows.length} catatan',
+                                        style: const TextStyle(
+                                            fontSize: 32,
+                                            fontWeight: FontWeight.w800,
+                                            color: kTaskAccent)),
+                                  ],
+                                ),
+                              );
+                            }
+                            final row = _rows[i - 1];
+                            final subtitle = [
+                              if (row['offline'] == true) 'OFFLINE',
+                              row['category']?.toString() ?? '',
+                              row['expense_date']?.toString() ?? '',
+                              row['payment_method']?.toString() ?? '',
+                              row['notes']?.toString() ?? '',
+                            ]
+                                .where((value) => value.trim().isNotEmpty)
+                                .join(' · ');
                             return GlassCard(
                               padding: EdgeInsets.zero,
                               child: ListTile(
-                                tileColor:
-                                    row['offline'] == true ? kTaskSand : null,
-                                title: Text(row['name']?.toString() ?? '',
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w700)),
-                                subtitle: Text(
-                                    '${row['offline'] == true ? 'OFFLINE · ' : ''}${row['category'] ?? ''} · ${row['expense_date'] ?? ''} · ${row['payment_method'] ?? ''}'),
+                                tileColor: row['offline'] == true
+                                    ? (Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? kTaskDarkBg
+                                        : kTaskSurfaceMuted)
+                                    : null,
+                                title: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(fmtRp(asNum(row['amount'])),
+                                        style: TextStyle(
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.w800,
+                                            color: ink(context))),
+                                    Text(row['name']?.toString() ?? '',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w700)),
+                                  ],
+                                ),
+                                subtitle: Text(subtitle),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [

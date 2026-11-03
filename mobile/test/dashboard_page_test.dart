@@ -4,8 +4,11 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:pos_pakaian_mobile/main.dart' as app;
 import 'package:pos_pakaian_mobile/src/api_client.dart';
 import 'package:pos_pakaian_mobile/src/auth_store.dart';
+import 'package:pos_pakaian_mobile/src/branch_scope.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pos_pakaian_mobile/src/dashboard_page.dart';
 import 'package:pos_pakaian_mobile/src/task_ui.dart';
 
@@ -60,7 +63,8 @@ class DashboardApi extends ApiClient {
 }
 
 Future<void> showDashboard(WidgetTester tester, DashboardApi api,
-    {Size size = const Size(900, 3000)}) async {
+    {Size size = const Size(900, 3000),
+    Brightness brightness = Brightness.light}) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
@@ -70,12 +74,18 @@ Future<void> showDashboard(WidgetTester tester, DashboardApi api,
     ..branchId = 4;
   await tester.pumpWidget(ChangeNotifierProvider.value(
     value: auth,
-    child: MaterialApp(home: Scaffold(body: DashboardPage(api: api))),
+    child: MaterialApp(
+        theme: app.buildAnyostoreTheme(brightness: brightness),
+        home: Scaffold(body: DashboardPage(api: api))),
   ));
   await tester.pump();
 }
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    BranchScope.active.value = null;
+  });
   test('dashboard menormalkan tanggal ISO dari server ke tanggal lokal API',
       () {
     expect(dashboardDateKey('2026-09-13T00:00:00.000Z'), '2026-09-13');
@@ -152,15 +162,15 @@ void main() {
     await showDashboard(tester, api, size: const Size(390, 844));
     await tester.pumpAndSettle();
     api.empty = true;
-    await tester.tap(find.byTooltip('Buka filter'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Terapkan Filter'));
+    await tester.tap(find.byTooltip('Muat ulang'));
     await tester.pumpAndSettle();
     expect(find.text('0'), findsNWidgets(3));
     expect(find.text('Belum ada pergerakan stok pada rentang ini.'),
         findsOneWidget);
     expect(find.text('Belum ada produk pada toko/gudang ini.'), findsOneWidget);
     expect(find.text('Belum ada data stok per kategori.'), findsOneWidget);
+    await tester.scrollUntilVisible(
+        find.text('Belum ada produk keluar pada rentang ini.'), 200);
     expect(
         find.text('Belum ada produk keluar pada rentang ini.'), findsOneWidget);
     expect(find.byType(PieChart), findsNothing);
@@ -175,14 +185,12 @@ void main() {
     await showDashboard(tester, api);
     await tester.pumpAndSettle();
     api.respond = (path, params) async {
-      if (path == '/inventory/stock-by-category') {
+      if (path == '/inventory/mutations-summary') {
         throw ApiException('Server sedang bermasalah', statusCode: 500);
       }
       return api.response(path, params);
     };
-    await tester.tap(find.byTooltip('Buka filter'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Terapkan Filter'));
+    await tester.tap(find.byTooltip('Muat ulang'));
     await tester.pumpAndSettle();
     expect(find.text('Gagal memuat ringkasan'), findsOneWidget);
     expect(find.text('12.345'), findsNothing);
@@ -205,10 +213,9 @@ void main() {
     await showDashboard(tester, api, size: const Size(390, 844));
     api.respond = null;
     api.empty = true;
-    await tester.tap(find.byTooltip('Buka filter'));
+    await tester.tap(find.byKey(const ValueKey('dashboard-period-selector')));
     await tester.pump(const Duration(milliseconds: 1000));
-    final applyFilter = find.widgetWithText(FilledButton, 'Terapkan Filter');
-    tester.widget<FilledButton>(applyFilter).onPressed!();
+    await tester.tap(find.text('Kemarin'));
     await tester.pump();
     await tester.pumpAndSettle();
     expect(find.text('Belum ada data stok per kategori.'), findsOneWidget);
