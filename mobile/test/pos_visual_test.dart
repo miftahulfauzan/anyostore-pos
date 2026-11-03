@@ -269,7 +269,7 @@ void main() {
         final theme = app.buildAnyostoreTheme(brightness: brightness);
         expect(selectedDecoration.borderRadius, BorderRadius.circular(12));
         expect(selectedDecoration.color,
-            brightness == Brightness.dark ? kTaskDarkSurface : kTaskSurfaceMuted);
+            brightness == Brightness.dark ? kTaskDarkBg : kTaskSurfaceMuted);
         expect(selectedDecoration.color, isNot(theme.colorScheme.primary));
         expect(selectedDecoration.border!.top.color, theme.colorScheme.primary);
         final selectedIcon =
@@ -279,7 +279,7 @@ void main() {
         expect(selectedLabel.style!.color, theme.colorScheme.primary);
         expect(
             _contrastRatio(theme.colorScheme.primary, selectedDecoration.color!),
-            greaterThan(4.4));
+            greaterThan(4.5));
         expect(
             find.text('Selesaikan pembayaran').hitTestable(), findsOneWidget);
         expect(tester.takeException(), isNull);

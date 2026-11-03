@@ -217,7 +217,7 @@ class _PaymentSheetState extends State<PaymentSheet> {
                                 color: _selectedMethods.contains(method)
                                     ? (Theme.of(context).brightness ==
                                             Brightness.dark
-                                        ? kTaskDarkSurface
+                                        ? kTaskDarkBg
                                         : kTaskSurfaceMuted)
                                     : taskSurface(context),
                                 borderRadius: BorderRadius.circular(12),
