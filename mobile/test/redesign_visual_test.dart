@@ -200,18 +200,29 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('payment visual uses four methods in a narrow viewport',
-      (tester) async {
-    final api = RedesignApi();
-    await showScreen(tester, const PaymentSheet(grandTotal: 275000), api,
-        size: const Size(320, 720));
-    for (final label in ['Tunai', 'QRIS', 'Transfer', 'Debit']) {
-      expect(find.text(label), findsOneWidget);
-    }
-    expect(tester.takeException(), isNull);
-    if (Platform.environment['CAPTURE_MOBILE_UI'] == '1') {
-      await expectLater(find.byKey(const ValueKey('preview')),
-          matchesGoldenFile('goldens/payment.png'));
-    }
-  });
+  for (final brightness in Brightness.values) {
+    testWidgets(
+        'payment visual uses four methods in a narrow viewport in $brightness',
+        (tester) async {
+      final api = RedesignApi();
+      await showScreen(tester, const PaymentSheet(grandTotal: 275000), api,
+          size: const Size(320, 720), brightness: brightness);
+      for (final label in ['Tunai', 'QRIS', 'Transfer', 'Debit']) {
+        expect(find.text(label), findsOneWidget);
+      }
+      final totalCard = tester.widget<GlassCard>(find
+          .ancestor(
+              of: find.text('Total pembayaran'),
+              matching: find.byType(GlassCard))
+          .first);
+      expect(totalCard.radius, 20);
+      expect(find.text('Selesaikan pembayaran').hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      if (Platform.environment['CAPTURE_MOBILE_UI'] == '1' &&
+          brightness == Brightness.light) {
+        await expectLater(find.byKey(const ValueKey('preview')),
+            matchesGoldenFile('goldens/payment.png'));
+      }
+    });
+  }
 }

@@ -1259,7 +1259,7 @@ class _PosPageState extends State<PosPage> {
       ..sort();
     final width = MediaQuery.sizeOf(context).width;
     final columns = width < 600
-        ? 3
+        ? 2
         : width < 900
             ? 3
             : 4;
@@ -1321,7 +1321,8 @@ class _PosPageState extends State<PosPage> {
                   )
                 else
                   SliverPadding(
-                    padding: EdgeInsets.fromLTRB(12, 12, 12, 16 + bottomPad),
+                    padding: EdgeInsets.fromLTRB(
+                        12, 12, 12, (_cart.isNotEmpty ? 148 : 16) + bottomPad),
                     sliver: SliverGrid(
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: columns,
@@ -1355,19 +1356,27 @@ class _PosPageState extends State<PosPage> {
             left: 12,
             right: 12,
             bottom: 12 + bottomPad,
-            child: AnimatedScale(
-              scale: 1,
-              duration: const Duration(milliseconds: 180),
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52)),
-                onPressed: _openCart,
-                icon: const Icon(Icons.shopping_cart),
-                label: Row(children: [
-                  Expanded(
-                      child: Text('Keranjang · ${cartTotalPcs(_cart)} pcs')),
-                  Text(fmtRp(_cartTotal)),
-                ]),
+            child: GlassCard(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(children: [
+                    Expanded(child: Text('Keranjang · ${cartTotalPcs(_cart)} pcs',
+                        style: TextStyle(color: taskMuted(context)))),
+                    Text(fmtRp(_cartTotal), style: TextStyle(
+                        color: ink(context), fontWeight: FontWeight.w800)),
+                  ]),
+                  const SizedBox(height: 8),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48)),
+                    onPressed: _openCart,
+                    icon: const Icon(Icons.shopping_cart_outlined),
+                    label: const Text('Bayar'),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1395,7 +1404,7 @@ class _ProductCard extends StatelessWidget {
     final variantCount = int.tryParse('${product['variant_count'] ?? 0}') ?? 0;
     final photo = mediaUrl(product['photo_path']?.toString());
     return GlassCard(
-      radius: 12,
+      radius: 16,
       padding: EdgeInsets.zero,
       onTap: onTap,
       // Grid = puluhan kartu sekaligus; blur per kartu bikin scroll berat.
@@ -1500,20 +1509,6 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, c) {
-      final total = c.maxWidth;
-      const gap = 10.0;
-      final double branchW;
-      if (!_hasBranch) {
-        branchW = 0;
-      } else if (_active == 'search') {
-        branchW = 0;
-      } else if (_active == 'branch') {
-        branchW = total - gap;
-      } else {
-        branchW = total * 0.36;
-      }
-      final searchW = total - gap - branchW;
-
       final branchName = widget.branches
           .firstWhere((b) => int.tryParse('${b['id']}') == widget.posBranchId,
               orElse: () => const {})['name']
@@ -1526,6 +1521,7 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
           children: [
             DropdownButtonFormField<int?>(
               initialValue: widget.posBranchId,
+              isExpanded: true,
               style: TextStyle(fontSize: 14, color: ink(context)),
               decoration: InputDecoration(
                   labelText: 'Toko / Gudang',
@@ -1552,6 +1548,7 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
               DropdownButtonFormField<String>(
                 initialValue:
                     widget.warehouseId.isEmpty ? null : widget.warehouseId,
+                isExpanded: true,
                 style: TextStyle(fontSize: 14, color: ink(context)),
                 decoration: InputDecoration(
                     labelText: 'Gudang',
@@ -1582,7 +1579,7 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
               height: 48,
               padding: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
-                border: Border.all(color: kTaskBorder),
+                border: Border.all(color: taskBorder(context)),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -1604,42 +1601,27 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
         );
       }
 
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (_hasBranch)
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeInOut,
-              width: branchW,
-              child: AnimatedSize(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeInOut,
-                child: branchArea,
+          if (_hasBranch) ...[
+            branchArea,
+            const SizedBox(height: 12),
+          ],
+          TextField(
+            controller: widget.searchController,
+            focusNode: _searchFocus,
+            onChanged: widget.onSearchChanged,
+            onTap: () => setState(() => _active = 'search'),
+            decoration: InputDecoration(
+              labelText: 'Cari produk',
+              hintText: 'Nama / SKU / barcode',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: IconButton(
+                onPressed: widget.onScan,
+                icon: const Icon(Icons.qr_code_scanner),
+                tooltip: 'Scan barcode',
               ),
-            ),
-          if (_hasBranch) const SizedBox(width: gap),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeInOut,
-            width: searchW,
-            child: TextField(
-              controller: widget.searchController,
-              focusNode: _searchFocus,
-              onChanged: widget.onSearchChanged,
-              onTap: () => setState(() => _active = 'search'),
-              style: const TextStyle(fontSize: 12.5),
-              decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.search),
-                  hintText: 'Cari nama / SKU / barcode',
-                  border: const OutlineInputBorder(),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
-                  suffixIcon: IconButton(
-                    onPressed: widget.onScan,
-                    icon: const Icon(Icons.qr_code_scanner),
-                    tooltip: 'Scan barcode',
-                  )),
             ),
           ),
         ],
@@ -1959,46 +1941,6 @@ class _CartSheetState extends State<_CartSheet> {
                       ),
                       const SizedBox(height: 8),
                     ],
-                    if (cart.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text('Item',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                      color: ink(context))),
-                            ),
-                            SizedBox(
-                              width: 136,
-                              child: Text(
-                                'Qty',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  color: ink(context),
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 76,
-                              child: Text(
-                                'Total',
-                                textAlign: TextAlign.right,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  color: ink(context),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 48),
-                          ],
-                        ),
-                      ),
                     for (final item in cart)
                       _CartLine(
                         item: item,
@@ -2040,7 +1982,7 @@ class _CartSheetState extends State<_CartSheet> {
                         width: 22,
                         height: 22,
                         child: CircularProgressIndicator(strokeWidth: 2))
-                    : Text(fmtRp(grandTotal),
+                    : Text('Bayar · ${fmtRp(grandTotal)}',
                         style: const TextStyle(
                             fontSize: 17, fontWeight: FontWeight.w800)),
               ),
@@ -2107,7 +2049,7 @@ class _CartLine extends StatelessWidget {
       );
 
   Widget _quantityControls(BuildContext context) => SizedBox(
-        width: 136,
+        width: 140,
         child: Row(
           children: [
             _action(
@@ -2135,24 +2077,11 @@ class _CartLine extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 3),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Row(children: [
               Expanded(child: _info(context)),
-              const SizedBox(width: 6),
-              _quantityControls(context),
-              const SizedBox(width: 6),
-              SizedBox(
-                width: 76,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: Text(fmtRp(lineTotal),
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: ink(context))),
-                ),
-              ),
               PopupMenuButton<String>(
                 tooltip: 'Opsi ${item.name}',
                 padding: EdgeInsets.zero,
@@ -2181,6 +2110,14 @@ class _CartLine extends StatelessWidget {
                   ),
                 ],
               ),
+              ]),
+              Row(children: [
+                _quantityControls(context),
+                const SizedBox(width: 12),
+                Expanded(child: Text(fmtRp(lineTotal),
+                    textAlign: TextAlign.right,
+                    style: TextStyle(fontWeight: FontWeight.w800, color: ink(context)))),
+              ]),
             ],
           ),
         ),
