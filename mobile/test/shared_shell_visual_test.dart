@@ -6,9 +6,21 @@ import 'package:pos_pakaian_mobile/main.dart' as app;
 import 'package:pos_pakaian_mobile/src/api_client.dart';
 import 'package:pos_pakaian_mobile/src/auth_store.dart';
 import 'package:pos_pakaian_mobile/src/branch_scope.dart';
-import 'package:pos_pakaian_mobile/src/more_page.dart';
+import 'package:pos_pakaian_mobile/src/login_page.dart';
+import 'package:pos_pakaian_mobile/src/pos_page.dart';
+import 'package:pos_pakaian_mobile/src/task_ui.dart';
 
 class _ShellApi extends ApiClient {
+  @override
+  Future<List<dynamic>> products({required int branchId, String search = ''}) async => [];
+  @override
+  Future<List<dynamic>> warehouses(int branchId) async => [];
+  @override
+  Future<List<dynamic>> customers({String search = ''}) async => [];
+  @override
+  Future<Map<String, dynamic>> storeSettings() async => {};
+  @override
+  Future<Map<String, dynamic>> productsVersion({required int branchId}) async => {};
   @override
   Future<List<dynamic>> branches() async => [
         {'id': 4, 'name': 'Anyostore Metro'},
@@ -36,26 +48,27 @@ void main() {
           value: auth,
           child: MaterialApp(
             theme: theme,
-            home: Scaffold(
-              appBar: AppBar(title: const Text('Kasir')),
-              drawer: Drawer(
-                child: SafeArea(
-                  child: MorePage(
-                    api: api,
-                    branchId: 4,
-                    role: 'owner',
-                    currentTab: 0,
-                    onNavigateTab: (_) {},
-                  ),
-                ),
-              ),
-              body: const SizedBox.expand(),
-            ),
+            home: const PosPage(runStartupBackgroundTasks: false),
           ),
         ));
+        await tester.pump();
+        final bar = tester.widget<AppBar>(find.byType(AppBar).first);
+        expect(bar.backgroundColor,
+            brightness == Brightness.dark ? kTaskDarkSurface : kTaskSurface);
         await tester.tap(find.byTooltip('Open navigation menu'));
-        await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+        final drawer = tester.widget<Drawer>(find.byType(Drawer));
+        expect(drawer.backgroundColor,
+            brightness == Brightness.dark ? kTaskDarkSurface : kTaskSurface);
         expect(find.text('Pemilik Toko'), findsOneWidget);
+        final profileCard = tester.widget<GlassCard>(
+          find.ancestor(
+            of: find.text('Pemilik Toko'),
+            matching: find.byType(GlassCard),
+          ).first,
+        );
+        expect(profileCard.radius, 16);
         expect(find.text('Toko/Gudang aktif'), findsOneWidget);
         expect(find.text('Anyostore Metro'), findsOneWidget);
         final activeRow = tester.widget<Container>(
@@ -65,9 +78,26 @@ void main() {
           ).first,
         );
         expect((activeRow.decoration as BoxDecoration).color,
-            theme.colorScheme.primary);
+            brightness == Brightness.dark ? kTaskDarkSurface : kTaskSurfaceMuted);
+        expect(
+          tester.widget<Icon>(find.byIcon(Icons.point_of_sale).first).color,
+          theme.colorScheme.primary,
+        );
         expect(tester.takeException(), isNull);
       });
     }
   }
+
+  testWidgets('login hero uses the approved 20 px radius', (tester) async {
+    final api = _ShellApi();
+    await tester.pumpWidget(ChangeNotifierProvider.value(
+        value: AuthStore(api),
+        child: MaterialApp(
+          theme: app.buildAnyostoreTheme(),
+          home: const LoginPage(),
+        )));
+    final card = tester.widget<GlassCard>(
+        find.ancestor(of: find.text('Anyostore'), matching: find.byType(GlassCard)).first);
+    expect(card.radius, 20);
+  });
 }

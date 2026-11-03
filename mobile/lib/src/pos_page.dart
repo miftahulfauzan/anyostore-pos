@@ -66,7 +66,10 @@ int cartTotalPcs(List<CartItem> cart) =>
 class PosPage extends StatefulWidget {
   /// Tab yang diminta halaman lain (misal Dashboard -> Kasir).
   static final ValueNotifier<int> requestTab = ValueNotifier<int>(0);
-  const PosPage({super.key});
+  const PosPage({super.key, this.runStartupBackgroundTasks = true});
+
+  /// Disable startup loading and offline/connectivity work in isolated widget tests.
+  final bool runStartupBackgroundTasks;
 
   @override
   State<PosPage> createState() => _PosPageState();
@@ -87,6 +90,7 @@ class _PosPageState extends State<PosPage> {
   bool get _previewFresh =>
       _preview != null && _cartError == null && _previewVersion == _cartVersion;
   StreamSubscription<List<ConnectivityResult>>? _connSub;
+  bool _listeningToBranchScope = false;
 
   List<Map<String, dynamic>> _products = [];
   List<Map<String, dynamic>> _visible = [];
@@ -130,11 +134,13 @@ class _PosPageState extends State<PosPage> {
       _posBranchId = branch > 0 ? branch : null;
       _api.activeBranchId = _posBranchId;
       BranchScope.active.addListener(_onBranchScopeChanged);
+      _listeningToBranchScope = true;
       if (BranchScope.active.value == null && branch > 0) {
         unawaited(BranchScope.set(branch));
       }
     }
     PosPage.requestTab.addListener(_onExternalTab);
+    if (!widget.runStartupBackgroundTasks) return;
     _loadData();
     _syncPending();
     _connSub = Connectivity().onConnectivityChanged.listen((results) {
@@ -170,7 +176,9 @@ class _PosPageState extends State<PosPage> {
     _searchDebounce?.cancel();
     _connSub?.cancel();
     PosPage.requestTab.removeListener(_onExternalTab);
-    if (_isOwner) BranchScope.active.removeListener(_onBranchScopeChanged);
+    if (_listeningToBranchScope) {
+      BranchScope.active.removeListener(_onBranchScopeChanged);
+    }
     _search.dispose();
     _discountCtrl.dispose();
     super.dispose();
@@ -1165,7 +1173,7 @@ class _PosPageState extends State<PosPage> {
       ),
       drawer: Drawer(
         width: math.min(MediaQuery.sizeOf(context).width * .84, 340.0),
-        backgroundColor: pageBg(context),
+        backgroundColor: taskSurface(context),
         surfaceTintColor: Colors.transparent,
         child: SafeArea(
           child: MorePage(

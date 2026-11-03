@@ -105,7 +105,7 @@ class _LoginPageState extends State<LoginPage> {
                         constraints: const BoxConstraints(maxWidth: 420),
                         child: GlassCard(
                           padding: const EdgeInsets.all(24),
-                          radius: 12,
+                          radius: 20,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [

@@ -110,7 +110,7 @@ class MorePage extends StatelessWidget {
         // Profil header
         GlassCard(
           padding: const EdgeInsets.all(16),
-          radius: 12,
+          radius: 16,
           child: Row(
             children: [
               BrandLogo(api: api, size: 56, radius: 28),
@@ -691,7 +691,7 @@ class MorePage extends StatelessWidget {
       {bool selected = false}) {
     final active = Theme.of(context).colorScheme.primary;
     final fg = selected
-        ? Theme.of(context).colorScheme.onPrimary
+        ? active
         : taskMuted(context);
     return InkWell(
       borderRadius: BorderRadius.circular(10),
@@ -702,7 +702,9 @@ class MorePage extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: selected
             ? BoxDecoration(
-                color: active,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? taskSurface(context)
+                    : kTaskSurfaceMuted,
                 borderRadius: BorderRadius.circular(10),
               )
             : null,
@@ -723,15 +725,11 @@ class MorePage extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                      color: selected
-                          ? Theme.of(context).colorScheme.onPrimary
-                          : ink(context))),
+                      color: selected ? active : ink(context))),
             ),
             Icon(Icons.chevron_right,
                 size: 18,
-                color: selected
-                    ? Theme.of(context).colorScheme.onPrimary
-                    : taskMuted(context)),
+                color: selected ? active : taskMuted(context)),
           ],
         ),
       ),
@@ -984,19 +982,24 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
                     color: taskMuted(context))),
           ),
           const SizedBox(width: 8),
-          DropdownButton<int?>(
-            value: BranchScope.active.value,
-            underline: const SizedBox.shrink(),
-            items: [
-              for (final b in _branches)
-                DropdownMenuItem<int?>(
-                    value: int.tryParse('${b['id']}'),
-                    child: Text(b['name']?.toString() ?? '',
-                        style: const TextStyle(fontSize: 12))),
-            ],
-            onChanged: (v) {
-              BranchScope.set(v);
-            },
+          SizedBox(
+            width: 120,
+            child: DropdownButton<int?>(
+              isExpanded: true,
+              value: BranchScope.active.value,
+              underline: const SizedBox.shrink(),
+              items: [
+                for (final b in _branches)
+                  DropdownMenuItem<int?>(
+                      value: int.tryParse('${b['id']}'),
+                      child: Text(b['name']?.toString() ?? '',
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12))),
+              ],
+              onChanged: (v) {
+                BranchScope.set(v);
+              },
+            ),
           ),
         ],
       ),
