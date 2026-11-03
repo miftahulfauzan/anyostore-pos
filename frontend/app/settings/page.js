@@ -471,7 +471,7 @@ export default function SettingsPage() {
           <div className="section-heading">
             <div>
               <h2>Laporan Harian Email</h2>
-              <p>Laporan stok masuk dan keluar yang benar-benar tercatat akan dikirim otomatis setiap hari sesuai waktu WIB.</p>
+              <p>Ringkasan gabungan dan rincian mutasi stok seluruh toko serta gudang aktif dikirim otomatis setiap hari sesuai waktu WIB.</p>
             </div>
             <span className="tag">Owner</span>
           </div>
@@ -494,7 +494,7 @@ export default function SettingsPage() {
             />
           </label>
           {emailKeySet && <p className="muted" style={{ margin: 0, fontSize: '.82rem' }}>API key tersimpan dan tidak pernah ditampilkan kembali.</p>}
-          <p className="muted" style={{ margin: 0, fontSize: '.82rem' }}>Provider yang didukung saat ini: Resend. Laporan dikirim berdasarkan mutasi stok nyata pada cabang yang dipilih.</p>
+          <p className="muted" style={{ margin: 0, fontSize: '.82rem' }}>Provider yang didukung: Resend. Penerima dan jadwal mengikuti pengaturan pada toko yang dipilih; isi laporan menggabungkan semua toko dan gudang aktif.</p>
         </section>
       )}
 
