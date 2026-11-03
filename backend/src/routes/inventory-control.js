@@ -507,8 +507,8 @@ router.post(
 router.get("/store-targets", authorize("owner", "manager", "admin", "gudang"), async (req, res, next) => {
   try {
     const [rows] = await db.execute(
-      "SELECT b.id,b.name,w.id AS warehouse_id,w.name AS warehouse_name FROM branches b JOIN warehouses w ON w.branch_id=b.id AND w.is_active=TRUE WHERE b.is_active=TRUE AND b.id<>? ORDER BY b.name,w.name",
-      [req.user.branch_id],
+      "SELECT b.id AS branch_id,b.name AS branch_name,w.id AS warehouse_id,w.name AS warehouse_name FROM branches b JOIN warehouses w ON w.branch_id=b.id AND w.is_active=TRUE WHERE b.is_active=TRUE AND (? IN ('owner','gudang') OR b.id<>?) ORDER BY b.name,w.name",
+      [req.user.role, req.user.branch_id],
     );
     res.json({ success: true, data: rows });
   } catch (e) {
@@ -780,8 +780,21 @@ router.post(
       validateOpnameItems(items);
       await c.beginTransaction();
       const requestedBranch = Number(req.body.branch_id);
-      const branchScope = req.user.role === "owner" && Number.isSafeInteger(requestedBranch) && requestedBranch > 0
-        ? requestedBranch : Number(req.user.branch_id);
+      let branchScope = Number(req.user.branch_id);
+      if (
+        ["owner", "gudang"].includes(req.user.role) &&
+        Number.isSafeInteger(requestedBranch) &&
+        requestedBranch > 0
+      ) {
+        if (req.user.role === "gudang") {
+          const [branches] = await c.execute(
+            "SELECT id FROM branches WHERE id=? AND is_active=TRUE LIMIT 1",
+            [requestedBranch],
+          );
+          if (!branches[0]) throw fail(403, "Cabang tidak aktif atau tidak ditemukan");
+        }
+        branchScope = requestedBranch;
+      }
       const [ws] = await c.execute(
         "SELECT id, branch_id FROM warehouses WHERE id=? AND branch_id=? AND is_active=TRUE FOR UPDATE",
         [warehouseId, branchScope],
