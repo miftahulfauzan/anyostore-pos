@@ -33,6 +33,8 @@ void main() {
 
   test('dark theme uses distinct background and surface', () {
     final theme = buildAnyostoreTheme(brightness: Brightness.dark);
+    expect(kTaskDarkBg, const Color(0xff10151D));
+    expect(kTaskDarkSurface, const Color(0xff18212C));
     expect(theme.scaffoldBackgroundColor, kTaskDarkBg);
     expect(theme.colorScheme.surface, kTaskDarkSurface);
     expect(kTaskDarkBg, isNot(kTaskDarkSurface));

@@ -7,8 +7,8 @@ import 'api_client.dart';
 
 // Anyostore Denim Clean palette; status colors stay semantic.
 const kTaskBg = Color(0xffF4F6F8);
-const kTaskDarkBg = Color(0xff111827);
-const kTaskDarkSurface = Color(0xff1F2937);
+const kTaskDarkBg = Color(0xff10151D);
+const kTaskDarkSurface = Color(0xff18212C);
 const kTaskDarkInk = Color(0xffF1F5F9);
 const kTaskDarkSecondary = Color(0xffC1CFDF);
 const kTaskSurface = Color(0xffffffff);
