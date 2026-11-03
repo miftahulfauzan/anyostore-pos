@@ -257,8 +257,13 @@ void main() {
         final selected = tester.widget<Container>(find
             .ancestor(of: find.text('Tunai'), matching: find.byType(Container))
             .first);
-        expect((selected.decoration as BoxDecoration).borderRadius,
-            BorderRadius.circular(12));
+        final selectedDecoration = selected.decoration as BoxDecoration;
+        final theme = app.buildAnyostoreTheme(brightness: brightness);
+        expect(selectedDecoration.borderRadius, BorderRadius.circular(12));
+        expect(selectedDecoration.color,
+            brightness == Brightness.dark ? kTaskDarkSurface : kTaskSurfaceMuted);
+        expect(selectedDecoration.color, isNot(theme.colorScheme.primary));
+        expect(selectedDecoration.border!.top.color, theme.colorScheme.primary);
         expect(
             find.text('Selesaikan pembayaran').hitTestable(), findsOneWidget);
         expect(tester.takeException(), isNull);

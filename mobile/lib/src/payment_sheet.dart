@@ -215,9 +215,10 @@ class _PaymentSheetState extends State<PaymentSheet> {
                                   vertical: 12, horizontal: 2),
                               decoration: BoxDecoration(
                                 color: _selectedMethods.contains(method)
-                                    ? Theme.of(context)
-                                        .colorScheme
-                                        .primary
+                                    ? (Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? kTaskDarkSurface
+                                        : kTaskSurfaceMuted)
                                     : taskSurface(context),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
@@ -228,7 +229,7 @@ class _PaymentSheetState extends State<PaymentSheet> {
                               ),
                               child: Column(children: [
                                 Icon(icons[method], color: _selectedMethods.contains(method)
-                                    ? Theme.of(context).colorScheme.onPrimary : taskMuted(context)),
+                                    ? Theme.of(context).colorScheme.primary : taskMuted(context)),
                                 const SizedBox(height: 6),
                                 FittedBox(
                                   fit: BoxFit.scaleDown,
@@ -236,7 +237,7 @@ class _PaymentSheetState extends State<PaymentSheet> {
                                       style: TextStyle(
                                           fontSize: 12, fontWeight: FontWeight.w600,
                                           color: _selectedMethods.contains(method)
-                                              ? Theme.of(context).colorScheme.onPrimary : ink(context))),
+                                              ? Theme.of(context).colorScheme.primary : ink(context))),
                                 ),
                               ]),
                             ),
