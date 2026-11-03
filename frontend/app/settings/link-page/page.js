@@ -96,11 +96,33 @@ const emptyForm = {
   show_info: true, social: [], links: [],
 };
 
+function slugFromName(value) {
+  return String(value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80)
+    .replace(/-+$/g, '');
+}
+
 export default function LinkPageSettings() {
   const [form, setForm] = useState(emptyForm);
   const [stats, setStats] = useState(null);
   const [stores, setStores] = useState([]);
+  const [pages, setPages] = useState([]);
   const [branch, setBranch] = useState('');
+  const [selectedPageId, setSelectedPageId] = useState('');
+  const [pageName, setPageName] = useState('');
+  const [pageSlug, setPageSlug] = useState('');
+  const [isPublished, setIsPublished] = useState(true);
+  const [isDefault, setIsDefault] = useState(false);
+  const [savedFingerprint, setSavedFingerprint] = useState('');
+  const [newPageName, setNewPageName] = useState('');
+  const [newPageSlug, setNewPageSlug] = useState('');
+  const [newSlugEdited, setNewSlugEdited] = useState(false);
+  const [duplicateCurrent, setDuplicateCurrent] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -114,7 +136,10 @@ export default function LinkPageSettings() {
 
   const jsonHeaders = () => ({ 'Content-Type': 'application/json' });
   const mediaUrl = (value) => (value ? api.replace('/api', '') + value : '');
-  const pageUrl = typeof window !== 'undefined' ? window.location.origin + '/link' : 'https://anyostore.my.id/link';
+  const pageUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/link/${pageSlug || `toko-${branch || '1'}`}`
+    : `https://anyostore.my.id/link/${pageSlug || `toko-${branch || '1'}`}`;
+  const hasUnsavedChanges = Boolean(savedFingerprint) && savedFingerprint !== JSON.stringify({ form, pageName, pageSlug, isPublished, isDefault });
 
   const previewConfig = useMemo(() => ({
     title: form.title,
@@ -138,11 +163,13 @@ export default function LinkPageSettings() {
     }),
   }), [form]);
 
-  async function loadConfig(id) {
-    const response = await fetch(api + '/link-page/config?branch_id=' + id, { headers: jsonHeaders() });
+  async function loadConfig(id, pageId) {
+    const params = new URLSearchParams({ branch_id: String(id) });
+    if (pageId) params.set('page_id', String(pageId));
+    const response = await fetch(api + '/link-page/config?' + params.toString(), { headers: jsonHeaders() });
     const body = await response.json();
     if (!response.ok) throw new Error(body.message);
-    setForm({
+    const nextForm = {
       title: body.data.title || '',
       subtitle: body.data.subtitle || '',
       address: body.data.address || '',
@@ -156,8 +183,35 @@ export default function LinkPageSettings() {
       show_info: body.data.show_info !== false,
       social: Array.isArray(body.data.social) ? body.data.social : [],
       links: Array.isArray(body.data.links) ? body.data.links : [],
-    });
+    };
+    const nextPageName = body.data.page_name || body.data.title || '';
+    const nextSlug = body.data.slug || '';
+    const nextPublished = body.data.is_published !== false;
+    const nextDefault = body.data.is_default === true || Number(body.data.is_default) === 1;
+    setForm(nextForm);
+    setSelectedPageId(String(body.data.page_id || pageId || ''));
+    setPageName(nextPageName);
+    setPageSlug(nextSlug);
+    setIsPublished(nextPublished);
+    setIsDefault(nextDefault);
+    setSavedFingerprint(JSON.stringify({ form: nextForm, pageName: nextPageName, pageSlug: nextSlug, isPublished: nextPublished, isDefault: nextDefault }));
     setStats(body.data.stats || null);
+  }
+
+  async function loadPages(id, preferredId) {
+    const response = await fetch(api + '/link-page/pages?branch_id=' + encodeURIComponent(id), { headers: jsonHeaders() });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.message);
+    const list = body.data.pages || [];
+    setPages(list);
+    const selected = list.find((page) => String(page.id) === String(preferredId))
+      || list.find((page) => page.is_default)
+      || list[0];
+    if (selected) await loadConfig(id, selected.id);
+    else {
+      setSelectedPageId('');
+      setStats(null);
+    }
   }
 
   useEffect(() => {
@@ -175,7 +229,7 @@ export default function LinkPageSettings() {
         const first = list.find((s) => s.is_active) || list[0];
         if (first) {
           setBranch(String(first.id));
-          return loadConfig(first.id);
+          return loadPages(first.id);
         }
         return null;
       })
@@ -246,6 +300,67 @@ export default function LinkPageSettings() {
     });
   }
 
+  async function selectPage(pageId) {
+    if (hasUnsavedChanges && !window.confirm('Perubahan belum disimpan. Buang perubahan dan pindah halaman?')) return;
+    setMessage('');
+    try { await loadConfig(branch, pageId); }
+    catch (error) { setMessage(error.message); }
+  }
+
+  async function changeBranch(id) {
+    if (hasUnsavedChanges && !window.confirm('Perubahan belum disimpan. Buang perubahan dan pindah toko?')) return;
+    setBranch(id);
+    setMessage('');
+    try { await loadPages(id); }
+    catch (error) { setMessage(error.message); }
+  }
+
+  async function createPage() {
+    const name = newPageName.trim();
+    const slug = newPageSlug.trim().toLowerCase();
+    if (!name || !slug) { setMessage('Nama dan URL halaman wajib diisi.'); return; }
+    if (hasUnsavedChanges && !window.confirm(duplicateCurrent
+      ? 'Perubahan halaman ini belum disimpan. Duplikat akan memakai versi terakhir yang tersimpan. Lanjutkan?'
+      : 'Perubahan halaman ini belum disimpan dan akan ditinggalkan saat halaman baru dibuka. Lanjutkan?')) return;
+    setSaving(true);
+    setMessage('');
+    try {
+      const response = await fetch(api + '/link-page/pages', {
+        method: 'POST',
+        headers: jsonHeaders(),
+        body: JSON.stringify({
+          branch_id: Number(branch),
+          name,
+          slug,
+          source_page_id: duplicateCurrent ? Number(selectedPageId) : undefined,
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message || 'Gagal membuat halaman');
+      setNewPageName('');
+      setNewPageSlug('');
+      setNewSlugEdited(false);
+      await loadPages(branch, body.data.id);
+      setMessage(duplicateCurrent ? 'Halaman berhasil diduplikat.' : 'Halaman baru berhasil dibuat.');
+    } catch (error) { setMessage(error.message); }
+    finally { setSaving(false); }
+  }
+
+  async function deletePage() {
+    if (!selectedPageId || isDefault) return;
+    if (!window.confirm(`Hapus halaman “${pageName}” beserta statistiknya? Tindakan ini tidak bisa dibatalkan.`)) return;
+    setSaving(true);
+    setMessage('');
+    try {
+      const response = await fetch(api + '/link-page/pages/' + encodeURIComponent(selectedPageId), { method: 'DELETE', headers: jsonHeaders() });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message || 'Gagal menghapus halaman');
+      await loadPages(branch);
+      setMessage('Halaman dihapus.');
+    } catch (error) { setMessage(error.message); }
+    finally { setSaving(false); }
+  }
+
   async function uploadAvatar(file) {
     if (!file) return;
     const invalid = validateDataUpload(file, ['image/jpeg', 'image/png', 'image/webp']);
@@ -253,7 +368,7 @@ export default function LinkPageSettings() {
     setUploadingAvatar(true);
     setMessage('');
     try {
-      const body = await uploadMediaData(api + '/link-page/avatar?branch_id=' + branch, file);
+      const body = await uploadMediaData(api + '/link-page/avatar?branch_id=' + branch + '&page_id=' + encodeURIComponent(selectedPageId), file);
       setForm((current) => ({ ...current, avatar: body.data.avatar }));
       setMessage('Avatar halaman link tersimpan.');
     } catch (e) { setMessage(e.message); }
@@ -293,15 +408,22 @@ export default function LinkPageSettings() {
     setSaving(true);
     setMessage('');
     try {
-      const response = await fetch(api + '/link-page', {
+      if (!selectedPageId) throw new Error('Pilih halaman yang akan disimpan.');
+      const metaResponse = await fetch(api + '/link-page/pages/' + encodeURIComponent(selectedPageId), {
         method: 'PUT',
         headers: jsonHeaders(),
-        body: JSON.stringify({ branch_id: Number(branch), ...form }),
+        body: JSON.stringify({
+          name: pageName,
+          slug: pageSlug,
+          is_published: isPublished,
+          is_default: isDefault,
+          config: form,
+        }),
       });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.message);
+      const metaBody = await metaResponse.json();
+      if (!metaResponse.ok) throw new Error(metaBody.message || 'Gagal menyimpan halaman link');
+      await loadPages(branch, selectedPageId);
       setMessage('Halaman link tersimpan.');
-      await loadConfig(branch);
     } catch (e) { setMessage(e.message); }
     finally { setSaving(false); }
   }
@@ -315,14 +437,14 @@ export default function LinkPageSettings() {
   }
 
   async function resetStats() {
-    if (!confirm('Hapus semua statistik view dan klik untuk toko ini? Tidak bisa dibatalkan.')) return;
+    if (!confirm(`Hapus semua statistik view dan klik untuk halaman “${pageName}”? Tidak bisa dibatalkan.`)) return;
     setResetting(true);
     setMessage('');
     try {
       const response = await fetch(api + '/link-page/stats/reset', {
         method: 'POST',
         headers: jsonHeaders(),
-        body: JSON.stringify({ branch_id: Number(branch) }),
+        body: JSON.stringify({ branch_id: Number(branch), page_id: Number(selectedPageId) }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message);
@@ -419,7 +541,7 @@ export default function LinkPageSettings() {
           <div className="section-heading">
             <div>
               <h2>Halaman Link untuk bio Instagram</h2>
-              <p>Seperti Linktree, tapi di domain sendiri: <strong>{pageUrl}</strong>. Kelola tombol, urutan, layout, dan statistiknya di sini.</p>
+              <p>Kelola beberapa halaman seperti Linktree. Setiap halaman punya URL, desain, tombol, dan statistik sendiri.</p>
             </div>
             <div style={{ display: 'flex', gap: '.5rem', alignSelf: 'center', flexWrap: 'wrap' }}>
               <a className="small secondary" href={pageUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}>
@@ -433,10 +555,61 @@ export default function LinkPageSettings() {
 
           <form onSubmit={save} style={{ display: 'grid', gap: '1rem', marginTop: '.5rem' }}>
             {stores.length > 1 && (
-              <label>Toko<select value={branch} onChange={(e) => { const id = e.target.value; setBranch(id); setMessage(''); loadConfig(id).catch((err) => setMessage(err.message)); }}>
+              <label>Toko<select value={branch} onChange={(e) => changeBranch(e.target.value)}>
                 {stores.map((s) => <option key={s.id} value={s.id}>{s.name}{s.is_active ? '' : ' (nonaktif)'}</option>)}
               </select></label>
             )}
+
+            <div style={{ display: 'grid', gap: '.8rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '.8rem', background: 'var(--card)' }}>
+              <div className="two-fields">
+                <label>Pilih halaman<select value={selectedPageId} onChange={(e) => selectPage(e.target.value)}>
+                  {pages.map((page) => <option key={page.id} value={page.id}>{page.name}{page.is_default ? ' · Utama' : ''}{!page.is_published ? ' · Draft' : ''}</option>)}
+                </select></label>
+                <div style={{ display: 'flex', gap: '.5rem', alignItems: 'end', flexWrap: 'wrap' }}>
+                  <a className="small secondary" href={pageUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}>
+                    <ExternalLink style={{ width: 14, height: 14 }} /> Buka URL
+                  </a>
+                  {!isDefault && <button type="button" className="small secondary" onClick={deletePage} disabled={saving} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#b42318' }}>
+                    <Trash2 style={{ width: 14, height: 14 }} /> Hapus halaman
+                  </button>}
+                </div>
+              </div>
+
+              <div className="two-fields">
+                <label>Nama halaman di pengelola<input value={pageName} onChange={(e) => setPageName(e.target.value)} maxLength={120} placeholder="Contoh: Promo Ramadan" /></label>
+                <label>Slug URL<input value={pageSlug} onChange={(e) => setPageSlug(e.target.value.toLowerCase())} maxLength={80} placeholder="promo-ramadan" />
+                  <span className="muted" style={{ display: 'block', fontSize: '.78rem' }}>Alamat publik: {pageUrl}</span>
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '.45rem', cursor: isDefault ? 'not-allowed' : 'pointer' }}>
+                  <input type="checkbox" checked={isPublished} disabled={isDefault} onChange={(e) => setIsPublished(e.target.checked)} /> Publikasikan halaman
+                </label>
+                {isDefault ? <span className="tag">Halaman utama · tersedia juga di /link</span> : <button type="button" className="small secondary" onClick={() => { setIsDefault(true); setIsPublished(true); }}>Jadikan halaman utama</button>}
+                {!isPublished && <span className="muted" style={{ fontSize: '.82rem' }}>Draft tidak dapat dibuka pengunjung.</span>}
+              </div>
+
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '.8rem', display: 'grid', gap: '.65rem' }}>
+                <strong>Tambah halaman atau duplikat halaman ini</strong>
+                <div className="two-fields">
+                  <label>Nama halaman baru<input value={newPageName} onChange={(e) => {
+                    const value = e.target.value;
+                    setNewPageName(value);
+                    if (!newSlugEdited) setNewPageSlug(slugFromName(value));
+                  }} maxLength={120} placeholder="Contoh: Koleksi Lebaran" /></label>
+                  <label>Slug URL baru<input value={newPageSlug} onChange={(e) => { setNewPageSlug(e.target.value.toLowerCase()); setNewSlugEdited(true); }} maxLength={80} placeholder="koleksi-lebaran" /></label>
+                </div>
+                <div style={{ display: 'flex', gap: '.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '.45rem', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={duplicateCurrent} onChange={(e) => setDuplicateCurrent(e.target.checked)} /> Salin desain dan tautan halaman yang dipilih
+                  </label>
+                  <button type="button" className="small secondary" onClick={createPage} disabled={saving || !newPageName.trim() || !newPageSlug.trim()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <Plus style={{ width: 14, height: 14 }} /> {saving ? 'Memproses…' : duplicateCurrent ? 'Duplikat halaman' : 'Buat halaman'}
+                  </button>
+                </div>
+              </div>
+            </div>
 
             <div className="two-fields">
               <label>Judul (nama toko)<input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} maxLength={120} /></label>
