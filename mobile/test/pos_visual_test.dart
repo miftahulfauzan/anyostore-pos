@@ -130,6 +130,14 @@ Future<void> showPosSurface(
   await tester.pumpAndSettle();
 }
 
+double _contrastRatio(Color foreground, Color background) {
+  final light = foreground.computeLuminance();
+  final dark = background.computeLuminance();
+  final brighter = light > dark ? light : dark;
+  final dimmer = light > dark ? dark : light;
+  return (brighter + 0.05) / (dimmer + 0.05);
+}
+
 void main() {
   setUpAll(() => databaseFactory = databaseFactorySqflitePlugin);
   setUp(() {
@@ -264,6 +272,14 @@ void main() {
             brightness == Brightness.dark ? kTaskDarkSurface : kTaskSurfaceMuted);
         expect(selectedDecoration.color, isNot(theme.colorScheme.primary));
         expect(selectedDecoration.border!.top.color, theme.colorScheme.primary);
+        final selectedIcon =
+            tester.widget<Icon>(find.byIcon(Icons.payments_outlined));
+        final selectedLabel = tester.widget<Text>(find.text('Tunai'));
+        expect(selectedIcon.color, theme.colorScheme.primary);
+        expect(selectedLabel.style!.color, theme.colorScheme.primary);
+        expect(
+            _contrastRatio(theme.colorScheme.primary, selectedDecoration.color!),
+            greaterThan(4.4));
         expect(
             find.text('Selesaikan pembayaran').hitTestable(), findsOneWidget);
         expect(tester.takeException(), isNull);
