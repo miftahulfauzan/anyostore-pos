@@ -5,21 +5,25 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_client.dart';
 
-// Anyostore cream and denim design system.
-// Green and orange remain reserved for semantic stock and transaction states.
-const kTaskBg = Color(0xffF5F1EA);
-const kTaskDarkBg = Color(0xff12151B);
+// Anyostore Denim Clean palette; status colors stay semantic.
+const kTaskBg = Color(0xffF4F6F8);
+const kTaskDarkBg = Color(0xff111827);
 const kTaskDarkSurface = Color(0xff1F2937);
+const kTaskDarkInk = Color(0xffF1F5F9);
+const kTaskDarkSecondary = Color(0xffC1CFDF);
 const kTaskSurface = Color(0xffffffff);
-const kTaskInk = Color(0xff1E3A5F);
+const kTaskSurfaceMuted = Color(0xffEEF2F6);
+const kTaskInk = Color(0xff151821);
 const kTaskDark = Color(0xff1E3A5F);
-const kTaskSecondary = Color(0xff2E5D8F);
-const kTaskBlueLight = Color(0xff5A8BBF);
+const kTaskSecondary = Color(0xff5D6878);
+const kTaskAccent = Color(0xff3D83F6);
+const kTaskBlueLight = kTaskSurfaceMuted;
 const kTaskTeal = Color(0xff246B45);
 const kTaskTerracotta = Color(0xff9A3412);
-const kTaskSand = Color(0xffE7E0D6);
-const kTaskGray = Color(0xff475569);
-const kTaskBorder = Color(0xffE7E0D6);
+const kTaskSand = kTaskSurfaceMuted;
+const kTaskGray = kTaskSecondary;
+const kTaskBorder = Color(0xffD9E0E8);
+const kTaskDarkBorder = Color(0xff334155);
 
 // Status stok mengikuti mockup mobile: tersedia (teal), menipis (oranye),
 // dan habis (merah). Teks status tetap ditampilkan sehingga warna bukan satu-
@@ -44,7 +48,7 @@ Color pageBg(BuildContext context) =>
 /// Warna teks/ikon utama yang ikut mode terang/gelap.
 Color ink(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xffF1F5F9)
+        ? kTaskDarkInk
         : kTaskInk;
 
 Color taskSurface(BuildContext context) =>
@@ -54,12 +58,12 @@ Color taskSurface(BuildContext context) =>
 
 Color taskMuted(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xffCBD5E1)
+        ? kTaskDarkSecondary
         : kTaskSecondary;
 
 Color taskBorder(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xff334155)
+        ? kTaskDarkBorder
         : kTaskBorder;
 
 /// Entrance: fade + slide-up halus (Corporate motion). Delay untuk stagger.
@@ -95,7 +99,7 @@ class PillTabs extends StatelessWidget {
     if (tabs.length <= 3) {
       // 2-3 menu: satu baris, lebar dibagi rata.
       return SizedBox(
-        height: 44,
+        height: 48,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(
@@ -111,7 +115,7 @@ class PillTabs extends StatelessWidget {
     }
     // 4+ menu: tetap bisa di-slide ke samping.
     return SizedBox(
-      height: 44,
+      height: 48,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -125,53 +129,49 @@ class PillTabs extends StatelessWidget {
   Widget _pill(BuildContext context,
       ({String value, IconData icon, String label}) t, bool centered) {
     final active = t.value == selected;
-    return AnimatedScale(
-      scale: active ? 1.02 : 1.0,
+    return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOutCubic,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeInOutCubic,
-        decoration: BoxDecoration(
-          color: active ? kTaskDark : taskSurface(context),
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-                color: active
-                    ? kTaskDark.withValues(alpha: .18)
-                    : const Color(0x120F172A),
-                blurRadius: active ? 4 : 2,
-                offset: const Offset(0, 2)),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: () => onChanged(t.value),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              child: Center(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(t.icon,
-                        size: 16,
-                        color: active ? Colors.white : taskMuted(context)),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(t.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color:
-                                  active ? Colors.white : taskMuted(context))),
-                    ),
-                  ],
-                ),
+      curve: Curves.easeInOutCubic,
+      decoration: BoxDecoration(
+        color: active
+            ? Theme.of(context).colorScheme.primary
+            : taskSurface(context),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: active
+                ? Theme.of(context).colorScheme.primary
+                : taskBorder(context)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => onChanged(t.value),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(t.icon,
+                      size: 16,
+                      color: active
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : taskMuted(context)),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(t.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: active
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : taskMuted(context))),
+                  ),
+                ],
               ),
             ),
           ),
@@ -192,46 +192,7 @@ class SoftBlobs extends StatefulWidget {
 class _SoftBlobsState extends State<SoftBlobs> {
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Stack(
-        children: [
-          Positioned(
-            top: -90,
-            right: -70,
-            child: Container(
-              width: 240,
-              height: 240,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    kTaskSecondary.withValues(alpha: .10),
-                    kTaskSecondary.withValues(alpha: 0),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -70,
-            left: -60,
-            child: Container(
-              width: 220,
-              height: 220,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    kTaskBlueLight.withValues(alpha: .08),
-                    kTaskBlueLight.withValues(alpha: 0),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return const SizedBox.shrink();
   }
 }
 
@@ -318,7 +279,7 @@ class GlassCard extends StatelessWidget {
   const GlassCard(
       {super.key,
       required this.child,
-      this.radius = 24,
+      this.radius = 16,
       this.padding = const EdgeInsets.all(16),
       this.height,
       this.dark = false,
@@ -353,8 +314,7 @@ class GlassCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
         color: isDark ? kTaskDarkSurface : kTaskSurface,
-        border:
-            Border.all(color: isDark ? const Color(0xff334155) : kTaskBorder),
+        border: Border.all(color: isDark ? kTaskDarkBorder : kTaskBorder),
       ),
       child: height == null ? inner : SizedBox(height: height, child: inner),
     );
@@ -391,8 +351,10 @@ class GlassNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final bottomPad = MediaQuery.of(context).padding.bottom;
+    final labelSize = MediaQuery.textScalerOf(context).scale(11);
+    final barHeight = labelSize > 15 ? 100.0 : 72.0;
     return SizedBox(
-      height: 78 + bottomPad,
+      height: barHeight + 16 + bottomPad,
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.bottomCenter,
@@ -402,13 +364,12 @@ class GlassNavBar extends StatelessWidget {
             right: 14,
             bottom: 14 + bottomPad,
             child: Container(
-              height: 62,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              height: barHeight,
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
               decoration: BoxDecoration(
                 color: dark ? kTaskDarkSurface : kTaskSurface,
                 borderRadius: BorderRadius.circular(28),
-                border: Border.all(
-                    color: dark ? const Color(0xff334155) : kTaskBorder),
+                border: Border.all(color: dark ? kTaskDarkBorder : kTaskBorder),
                 boxShadow: const [
                   BoxShadow(
                       color: Color(0x1A0F172A),
@@ -420,7 +381,7 @@ class GlassNavBar extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   for (var i = 0; i < items.length; i++)
-                    _navIcon(i, dark: dark),
+                    Expanded(child: _navIcon(context, i, dark: dark)),
                 ],
               ),
             ),
@@ -430,24 +391,26 @@ class GlassNavBar extends StatelessWidget {
     );
   }
 
-  Widget _navIcon(int i, {required bool dark}) {
+  Widget _navIcon(BuildContext context, int i, {required bool dark}) {
     final item = items[i];
     final active = current == i;
     final idleColor = dark ? const Color(0xffE2E8F0) : kTaskSecondary;
-    const activeColor = Colors.white;
+    final activeColor = Theme.of(context).colorScheme.onPrimary;
     return Semantics(
       label: item.label,
       button: true,
       selected: active,
-      child: GestureDetector(
+      child: InkWell(
         onTap: () => onSelect(i),
-        behavior: HitTestBehavior.opaque,
+        borderRadius: BorderRadius.circular(14),
         child: Container(
-          width: 62,
-          height: 48,
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
           decoration: BoxDecoration(
-            color: active ? kTaskDark : Colors.transparent,
-            borderRadius: BorderRadius.circular(18),
+            color: active
+                ? Theme.of(context).colorScheme.primary
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -457,9 +420,12 @@ class GlassNavBar extends StatelessWidget {
                   size: 20, color: active ? activeColor : idleColor),
               const SizedBox(height: 1),
               Text(item.label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      fontSize: 9.5,
-                      height: 1.0,
+                      fontSize: 11,
+                      height: 1.15,
                       fontWeight: active ? FontWeight.w800 : FontWeight.w700,
                       color: active ? activeColor : idleColor)),
             ],

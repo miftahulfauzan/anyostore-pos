@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -13,10 +14,12 @@ import 'src/notification_service.dart';
 import 'src/pos_page.dart';
 import 'src/theme_controller.dart';
 import 'src/task_ui.dart';
-import 'src/ui_kit.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  PaintingBinding.instance.imageCache
+    ..maximumSize = 160
+    ..maximumSizeBytes = 48 << 20;
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
@@ -71,6 +74,7 @@ class _FadeSlideTransitionsBuilder extends PageTransitionsBuilder {
       Animation<double> animation,
       Animation<double> secondaryAnimation,
       Widget child) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
     final curved = CurvedAnimation(
       parent: animation,
       curve: Curves.easeOutCubic,
@@ -87,21 +91,25 @@ class _FadeSlideTransitionsBuilder extends PageTransitionsBuilder {
   }
 }
 
-ThemeData _buildTheme({Brightness brightness = Brightness.light}) {
+ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
   final dark = brightness == Brightness.dark;
-  const seed = kTaskDark;
+  final fontFamily = defaultTargetPlatform == TargetPlatform.iOS
+      ? 'CupertinoSystemText'
+      : 'Roboto';
   final scheme = ColorScheme.fromSeed(
-    seedColor: seed,
+    seedColor: kTaskDark,
     brightness: brightness,
     surface: dark ? kTaskDarkSurface : kTaskSurface,
   ).copyWith(
-    primary: dark ? const Color(0xff5A8BBF) : kTaskDark,
-    onPrimary: Colors.white,
-    secondary: dark ? const Color(0xff45B6A2) : kTaskTeal,
-    onSecondary: Colors.white,
-    tertiary: dark ? const Color(0xffF2B8A5) : kTaskTerracotta,
-    error: dark ? const Color(0xffF2B8A5) : kTaskTerracotta,
-    outline: dark ? const Color(0xff475569) : kTaskBorder,
+    primary: dark ? kTaskAccent : kTaskDark,
+    onPrimary: dark ? kTaskDarkBg : Colors.white,
+    secondary: kTaskAccent,
+    onSecondary: dark ? kTaskDarkBg : Colors.white,
+    tertiary: dark ? kTaskDarkSurface : kTaskSurfaceMuted,
+    onTertiary: dark ? kTaskDarkInk : kTaskInk,
+    error: dark ? const Color(0xffFCA5A5) : const Color(0xffB42318),
+    outline: dark ? kTaskDarkBorder : kTaskBorder,
+    outlineVariant: dark ? kTaskDarkBorder : kTaskBorder,
   );
   return ThemeData(
     useMaterial3: true,
@@ -116,39 +124,43 @@ ThemeData _buildTheme({Brightness brightness = Brightness.light}) {
       },
     ),
     scaffoldBackgroundColor: dark ? kTaskDarkBg : kTaskBg,
-    fontFamily: 'sans-serif',
+    fontFamily: fontFamily,
     textTheme: TextTheme(
       bodyLarge: TextStyle(
           fontSize: 16,
           height: 1.35,
-          color: dark ? const Color(0xffE7ECF4) : kTaskInk),
+          color: dark ? kTaskDarkInk : kTaskInk),
       bodyMedium: TextStyle(
           fontSize: 14,
           height: 1.35,
-          color: dark ? const Color(0xffCBD5E1) : kTaskInk),
+          color: dark ? kTaskDarkInk : kTaskInk),
       bodySmall: TextStyle(
           fontSize: 12,
           height: 1.35,
-          color: dark ? const Color(0xffA7B4C7) : kTaskGray),
+          color: dark ? kTaskDarkSecondary : kTaskSecondary),
       labelLarge: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w700,
-          color: dark ? const Color(0xffF1F5FB) : kTaskInk),
+          color: dark ? kTaskDarkInk : kTaskInk),
       titleMedium: TextStyle(
           fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: dark ? kTaskDarkInk : kTaskInk),
+      titleLarge: TextStyle(
+          fontSize: 22,
           fontWeight: FontWeight.w800,
-          color: dark ? const Color(0xffF1F5FB) : kTaskInk),
+          color: dark ? kTaskDarkInk : kTaskInk),
     ),
     appBarTheme: AppBarTheme(
-      backgroundColor: dark ? kTaskDarkSurface : kTaskSurface,
+      backgroundColor: dark ? kTaskDarkBg : kTaskBg,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: true,
       titleTextStyle: TextStyle(
-          fontSize: 18,
+          fontSize: 19,
           fontWeight: FontWeight.w700,
-          color: dark ? const Color(0xffF1F5F9) : kTaskInk),
+          color: dark ? kTaskDarkInk : kTaskInk),
     ),
     cardTheme: CardThemeData(
       elevation: 0,
@@ -157,7 +169,7 @@ ThemeData _buildTheme({Brightness brightness = Brightness.light}) {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: dark ? const Color(0xff334155) : kTaskBorder),
+        side: BorderSide(color: dark ? kTaskDarkBorder : kTaskBorder),
       ),
     ),
     iconButtonTheme: IconButtonThemeData(
@@ -176,7 +188,7 @@ ThemeData _buildTheme({Brightness brightness = Brightness.light}) {
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: dark ? kTaskDarkSurface : kTaskSurface,
       surfaceTintColor: Colors.transparent,
-      indicatorColor: dark ? kTaskDark : kTaskSand,
+      indicatorColor: dark ? kTaskDarkBorder : kTaskSurfaceMuted,
       elevation: 0,
       height: 68,
       labelTextStyle: const WidgetStatePropertyAll(
@@ -184,48 +196,61 @@ ThemeData _buildTheme({Brightness brightness = Brightness.light}) {
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        minimumSize: const Size(0, 48),
-        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        backgroundColor: scheme.primary,
+        foregroundColor: scheme.onPrimary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        minimumSize: const Size(0, 50),
+        textStyle: TextStyle(
+            fontSize: 15, fontWeight: FontWeight.w700, fontFamily: fontFamily),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        minimumSize: const Size(0, 46),
-        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        foregroundColor: dark ? scheme.primary : kTaskDark,
+        side: BorderSide(color: dark ? kTaskDarkBorder : kTaskBorder),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        minimumSize: const Size(0, 48),
+        textStyle: TextStyle(
+            fontSize: 15, fontWeight: FontWeight.w700, fontFamily: fontFamily),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        textStyle: const TextStyle(fontWeight: FontWeight.w600),
+        foregroundColor: dark ? scheme.primary : kTaskDark,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        textStyle:
+            TextStyle(fontWeight: FontWeight.w600, fontFamily: fontFamily),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: dark ? const Color(0xff263241) : kTaskSurface,
+      fillColor: dark ? kTaskDarkSurface : kTaskSurfaceMuted,
+      hintStyle: TextStyle(color: dark ? kTaskDarkSecondary : kTaskSecondary),
       border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide:
-              BorderSide(color: dark ? const Color(0xff334155) : kTaskBorder)),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: dark ? kTaskDarkBorder : kTaskBorder)),
       enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide:
-              BorderSide(color: dark ? const Color(0xff334155) : kTaskBorder)),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: dark ? kTaskDarkBorder : kTaskBorder)),
       focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: seed, width: 1.5)),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: kTaskAccent, width: 2)),
+      errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: scheme.error)),
+      focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: scheme.error, width: 2)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     ),
     bottomSheetTheme: BottomSheetThemeData(
-      backgroundColor: dark ? const Color(0xF21F2937) : const Color(0xEEFFFFFF),
+      backgroundColor: dark ? kTaskDarkSurface : kTaskSurface,
       surfaceTintColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     ),
     dialogTheme: DialogThemeData(
-      backgroundColor: dark ? const Color(0xF21F2937) : const Color(0xF2FFFFFF),
+      backgroundColor: dark ? kTaskDarkSurface : kTaskSurface,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     ),
@@ -246,73 +271,50 @@ ThemeData _buildTheme({Brightness brightness = Brightness.light}) {
           fontSize: 12,
           fontWeight: FontWeight.w600),
     ),
+    dividerTheme: DividerThemeData(
+      color: dark ? kTaskDarkBorder : kTaskBorder,
+      thickness: 1,
+      space: 20,
+    ),
+    textSelectionTheme: TextSelectionThemeData(
+      cursorColor: kTaskAccent,
+      selectionColor: kTaskAccent.withValues(alpha: .22),
+      selectionHandleColor: kTaskAccent,
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith((states) =>
+          states.contains(WidgetState.selected) ? scheme.onPrimary : null),
+      trackColor: WidgetStateProperty.resolveWith((states) =>
+          states.contains(WidgetState.selected) ? scheme.primary : null),
+    ),
+    checkboxTheme: CheckboxThemeData(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+      side: BorderSide(color: dark ? kTaskDarkBorder : kTaskBorder, width: 1.5),
+    ),
+    progressIndicatorTheme: ProgressIndicatorThemeData(color: scheme.primary),
   );
 }
 
 class PosMobileApp extends StatelessWidget {
   const PosMobileApp({super.key});
 
-  static const double designW = 390;
-  static const double designH = 844;
-
   @override
   Widget build(BuildContext context) {
-    // Skala responsif: di HP kecil UI ikut mengecil, di HP besar ikut membesar.
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeController.mode,
       builder: (context, themeMode, _) {
-        // Area di luar area desain diisi warna tema (bukan hitam) supaya
-        // tidak ada garis hitam di HP dengan rasio layar lebih tinggi.
-        final band = themeMode == ThemeMode.dark ? kTaskDarkBg : kTaskBg;
-        return ColoredBox(
-            color: band,
-            child: LayoutBuilder(builder: (context, constraints) {
-              final mq = MediaQuery.of(context);
-              final scale = responsiveLayoutScale(
-                  Size(constraints.maxWidth, constraints.maxHeight));
-              final textScale = mobileTextScale(
-                  Size(constraints.maxWidth, constraints.maxHeight));
-              // Rata ke ATAS: warna AppBar/halaman bisa memenuhi area status bar
-              // (dulu Center menyisakan pita atas yang warnanya beda -> status
-              // bar setengah warna lain di halaman beraksen hijau/oranye).
-              // Tinggi kotak = penuh layar, tapi konten di-scroll/scaled dulu
-              // (child height = maxH/scale) supaya setelah Transform.scale hasil
-              // akhir TEPAT menutupi layar — tidak ada pita kosong di bawah.
-              final childHeight = constraints.maxHeight / scale;
-              return Align(
-                alignment: Alignment.topCenter,
-                child: SizedBox(
-                  width: designW * scale,
-                  height: constraints.maxHeight,
-                  child: Transform.scale(
-                    scale: scale,
-                    alignment: Alignment.topCenter,
-                    child: MediaQuery(
-                      data: mq.copyWith(
-                        size: Size(designW, childHeight),
-                        devicePixelRatio: mq.devicePixelRatio / scale,
-                        textScaler: TextScaler.linear(
-                            mq.textScaler.scale(1) * textScale),
-                      ),
-                      child: MaterialApp(
-                        title: 'Anyostore App',
-                        debugShowCheckedModeBanner: false,
-                        theme: _buildTheme(brightness: Brightness.light),
-                        darkTheme: _buildTheme(brightness: Brightness.dark),
-                        themeMode: themeMode,
-                        home: Consumer<AuthStore>(
-                          builder: (_, auth, __) => auth.isAuthenticated
-                              // Key userId: saat ganti akun, PosPage dibuat ulang
-                              // supaya data (produk/toko/laporan) fresh.
-                              ? PosPage(key: ValueKey(auth.userId))
-                              : const LoginPage(),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }));
+        return MaterialApp(
+          title: 'Anyostore App',
+          debugShowCheckedModeBanner: false,
+          theme: buildAnyostoreTheme(brightness: Brightness.light),
+          darkTheme: buildAnyostoreTheme(brightness: Brightness.dark),
+          themeMode: themeMode,
+          home: Consumer<AuthStore>(
+            builder: (_, auth, __) => auth.isAuthenticated
+                ? PosPage(key: ValueKey(auth.userId))
+                : const LoginPage(),
+          ),
+        );
       },
     );
   }

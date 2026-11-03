@@ -3,16 +3,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_pakaian_mobile/src/task_ui.dart';
 
 void main() {
-  test('Anyostore palette uses the approved cream and denim tokens', () {
-    expect(kTaskBg, const Color(0xffF5F1EA));
+  test('shared light palette uses the approved NexaDash tokens', () {
+    expect(kTaskBg, const Color(0xffF4F6F8));
+    expect(kTaskSurface, const Color(0xffFFFFFF));
+    expect(kTaskSurfaceMuted, const Color(0xffEEF2F6));
     expect(kTaskDark, const Color(0xff1E3A5F));
-    expect(kTaskInk, const Color(0xff1E3A5F));
-    expect(kTaskSecondary, const Color(0xff2E5D8F));
-    expect(kTaskBlueLight, const Color(0xff5A8BBF));
+    expect(kTaskInk, const Color(0xff151821));
+    expect(kTaskSecondary, const Color(0xff5D6878));
+    expect(kTaskAccent, const Color(0xff3D83F6));
     expect(kTaskTeal, const Color(0xff246B45));
     expect(kTaskTerracotta, const Color(0xff9A3412));
-    expect(kTaskSand, const Color(0xffE7E0D6));
-    expect(kTaskBorder, const Color(0xffE7E0D6));
+    expect(kTaskBorder, const Color(0xffD9E0E8));
     expect(kTaskStockGood, const Color(0xff246B45));
     expect(kTaskStockLow, const Color(0xff9A3412));
     expect(kTaskStockEmpty, const Color(0xffB42318));
