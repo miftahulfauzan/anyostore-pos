@@ -132,7 +132,13 @@ function parseConfig(raw, { branch, settings }) {
   }
 }
 
-const RESERVED_SLUGS = new Set(['api', 'new', 'settings', 'admin', 'assets', 'favicon.ico', 'robots.txt', 'sitemap.xml']);
+// These top-level paths belong to the app or static assets and must never be captured as a public link page.
+const RESERVED_SLUGS = new Set([
+  'api', '_next', 'new', 'link', 'login', 'pos', 'dashboard', 'history', 'closing',
+  'products', 'produk', 'inventory', 'finance', 'reports', 'settings', 'admin',
+  'profile', 'receipt', 'operations', 'customers', 'promotions', 'commissions', 'users', 'expenses',
+  'assets', 'uploads', 'favicon.ico', 'robots.txt', 'sitemap.xml', 'manifest.json',
+]);
 
 function validSlug(value) {
   const slug = String(value || '').trim();

@@ -140,8 +140,8 @@ export default function LinkPageSettings() {
   const jsonHeaders = () => ({ 'Content-Type': 'application/json' });
   const mediaUrl = (value) => (value ? api.replace('/api', '') + value : '');
   const pageUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/link/${pageSlug || `toko-${branch || '1'}`}`
-    : `https://anyostore.my.id/link/${pageSlug || `toko-${branch || '1'}`}`;
+    ? `${window.location.origin}/${pageSlug || `toko-${branch || '1'}`}`
+    : `https://anyostore.my.id/${pageSlug || `toko-${branch || '1'}`}`;
   const hasUnsavedChanges = Boolean(savedFingerprint) && savedFingerprint !== JSON.stringify({ form, pageName, pageSlug, isPublished, isDefault });
 
   const previewConfig = useMemo(() => ({
@@ -600,7 +600,7 @@ export default function LinkPageSettings() {
                     Publikasikan
                   </label>
                   {isDefault
-                    ? <span className="tag">Halaman utama · /link</span>
+                    ? <span className="tag">Halaman utama · /{pageSlug}</span>
                     : <button type="button" className="small secondary" onClick={() => { setIsDefault(true); setIsPublished(true); }}>Jadikan halaman utama</button>}
                   {!isDefault && (
                     <button type="button" className="small secondary link-settings-delete" onClick={deletePage} disabled={saving}>
