@@ -128,7 +128,7 @@ export default function OlseraImportPage() {
         <section className="panel">
           <div>
             <h2>Ringkasan pratinjau</h2>
-            <p className="muted" style={{ margin: '.35rem 0 0' }}>{preview.branch_name} · {preview.date_from || '—'} sampai {preview.date_to || '—'}</p>
+            <p className="muted" style={{ margin: '.35rem 0 0' }}>{preview.branch_name} · {preview.date_from || '-'} sampai {preview.date_to || '-'}</p>
           </div>
           <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '.65rem' }}>
             {[
@@ -159,7 +159,7 @@ export default function OlseraImportPage() {
               <tbody>{preview.unmatched.map((row) => (
                 <tr key={row.sourceName}>
                   <td>{row.sourceName || '(tanpa nama)'}</td>
-                  <td>{row.sku || '—'}</td>
+                  <td>{row.sku || '-'}</td>
                   <td>{row.quantity}</td>
                   <td>{rp(row.amount)}</td>
                   <td><select aria-label={`Cocokkan ${row.sourceName}`} value={mappings[row.sourceName] || ''} onChange={(event) => setMapping(row.sourceName, event.target.value)}>
