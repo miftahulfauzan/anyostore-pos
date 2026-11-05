@@ -3,7 +3,7 @@ const multer = require('multer');
 const db = require('../db');
 const { authenticate, authorize } = require('../auth');
 const {
-  END_DATE,
+  IMPORT_PROFILES,
   MAX_FILES,
   MAX_TOTAL_BYTES,
   parseFiles,
@@ -86,14 +86,23 @@ function parseMappings(value) {
   }
 }
 
-async function getBlokBBranch(branchId) {
+function getImportProfile(profileId) {
+  const profile = IMPORT_PROFILES[String(profileId || 'blok_b')];
+  if (!profile) throw Object.assign(new Error('Pilih sumber impor Olsera yang valid.'), { status: 400 });
+  return profile;
+}
+
+async function getTargetBranch(profile, branchId) {
   const id = Number(branchId);
-  if (!Number.isSafeInteger(id) || id <= 0) throw Object.assign(new Error('Pilih cabang Blok B.'), { status: 400 });
+  const metro = profile.id === 'pgmta_metro';
+  const expectedBranch = metro ? /^anyostore\s+metro$/i : /(?:blok\s*b|toko\s*b)\b/i;
+  const requestedName = metro ? 'Anyostore Metro' : 'Blok B';
+  if (!Number.isSafeInteger(id) || id <= 0) throw Object.assign(new Error(`Pilih cabang ${requestedName}.`), { status: 400 });
   const [rows] = await db.execute('SELECT id, name, type FROM branches WHERE id = ? AND is_active = TRUE LIMIT 1', [id]);
   const branch = rows[0];
   if (!branch) throw Object.assign(new Error('Cabang tidak ditemukan atau nonaktif.'), { status: 404 });
-  if (branch.type !== 'toko' || !/(?:blok\s*b|toko\s*b)\b/i.test(branch.name)) {
-    throw Object.assign(new Error('Impor ini dibatasi untuk toko Blok B.'), { status: 403 });
+  if (branch.type !== 'toko' || !expectedBranch.test(String(branch.name || '').trim())) {
+    throw Object.assign(new Error(`Profil ${requestedName} hanya dapat diimpor ke cabang ${requestedName}.`), { status: 403 });
   }
   return branch;
 }
@@ -116,23 +125,36 @@ async function getCatalog(branchId) {
 }
 
 async function buildPreview(req) {
-  const branch = await getBlokBBranch(req.body.branch_id);
+  const profile = getImportProfile(req.body.source_profile);
+  const branch = await getTargetBranch(profile, req.body.branch_id);
   const mappings = parseMappings(req.body.product_mappings);
   const catalog = await getCatalog(branch.id);
-  const prepared = await parseFiles(req.files, catalog.rows, mappings);
+  const prepared = await parseFiles(req.files, catalog.rows, mappings, profile);
   const [existing] = await db.execute(
     "SELECT source_order_no FROM transactions WHERE branch_id = ? AND source_system = 'olsera'",
     [branch.id]
   );
+  const [manualRows] = await db.execute(
+    `SELECT COUNT(*) AS total
+     FROM transactions
+     WHERE branch_id = ? AND transaction_date BETWEEN ? AND ?
+       AND (source_system IS NULL OR source_system <> 'olsera')`,
+    [branch.id, profile.startDate, profile.endDate]
+  );
   const existingOrders = new Set(existing.map((row) => row.source_order_no));
   return {
     branch,
+    profile,
     catalog,
     prepared,
     mappings,
     preview: {
       ...previewPayload(prepared, existingOrders),
-      end_date_limit: END_DATE,
+      source_profile: profile.id,
+      source_label: profile.label,
+      existing_manual_transactions: Number(manualRows[0]?.total || 0),
+      start_date_limit: profile.startDate,
+      end_date_limit: profile.endDate,
       branch_id: branch.id,
       branch_name: branch.name,
       product_options: catalog.options,
@@ -171,7 +193,7 @@ function paymentMethodForRow(method) {
   return ['cash', 'qris', 'debit', 'transfer', 'credit', 'other'].includes(method) ? method : 'other';
 }
 
-async function saveBatch(connection, branchId, userId, payloads, finalBatch, totalTransactions, totalReturns) {
+async function saveBatch(connection, branchId, userId, payloads, finalBatch, totalTransactions, totalReturns, profile) {
   const transactionColumns = [
     'branch_id', 'transaction_date', 'invoice_no', 'offline_invoice_no', 'client_transaction_id', 'user_id', 'customer_id',
     'subtotal', 'discount_type', 'discount_value', 'discount', 'grand_total', 'payment_method', 'amount_paid', 'change',
@@ -220,7 +242,7 @@ async function saveBatch(connection, branchId, userId, payloads, finalBatch, tot
   if (finalBatch) {
     await connection.execute(
       'INSERT INTO activity_logs (user_id, action, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)',
-      [userId, 'olsera_history_import', `Impor Olsera Blok B selesai: ${totalTransactions} transaksi, ${totalReturns} retur.`, 'import', 'Olsera history import']
+      [userId, 'olsera_history_import', `Impor ${profile.label} selesai: ${totalTransactions} transaksi, ${totalReturns} retur.`, 'import', 'Olsera history import']
     );
   }
 }
@@ -228,7 +250,7 @@ async function saveBatch(connection, branchId, userId, payloads, finalBatch, tot
 router.post('/apply', receiveFiles, async (req, res) => {
   let imported = 0;
   try {
-    const { branch, catalog, prepared } = await buildPreview(req);
+    const { branch, catalog, prepared, profile } = await buildPreview(req);
     const [existing] = await db.execute(
       "SELECT source_order_no FROM transactions WHERE branch_id = ? AND source_system = 'olsera'",
       [branch.id]
@@ -254,7 +276,8 @@ router.post('/apply', receiveFiles, async (req, res) => {
           connection, branch.id, req.user.id, batch,
           offset + batchSize >= payloads.length,
           payloads.length,
-          payloads.filter((item) => item.total < 0).length
+          payloads.filter((item) => item.total < 0).length,
+          profile
         );
         await connection.commit();
         imported += batch.length;
@@ -269,6 +292,7 @@ router.post('/apply', receiveFiles, async (req, res) => {
       success: true,
       data: {
         branch_name: branch.name,
+        source_label: profile.label,
         imported_transactions: imported,
         imported_returns: payloads.filter((item) => item.total < 0).length,
         already_imported: prepared.transactions.length - fresh.length,

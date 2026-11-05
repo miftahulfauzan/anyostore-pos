@@ -1,8 +1,23 @@
 const crypto = require('node:crypto');
 const ExcelJS = require('exceljs');
 
-const START_DATE = '2024-01-01';
-const END_DATE = '2026-10-20';
+const IMPORT_PROFILES = Object.freeze({
+  blok_b: Object.freeze({
+    id: 'blok_b',
+    label: 'Olsera Blok B → Toko B',
+    startDate: '2024-01-01',
+    endDate: '2026-10-20',
+  }),
+  pgmta_metro: Object.freeze({
+    id: 'pgmta_metro',
+    label: 'Olsera PGMTA → Anyostore Metro',
+    startDate: '2022-10-02',
+    endDate: '2025-11-05',
+  }),
+});
+const DEFAULT_PROFILE = IMPORT_PROFILES.blok_b;
+const START_DATE = DEFAULT_PROFILE.startDate;
+const END_DATE = DEFAULT_PROFILE.endDate;
 const MAX_FILES = 80;
 const MAX_TOTAL_BYTES = 20 * 1024 * 1024;
 const MAX_ROWS_PER_FILE = 50_000;
@@ -101,7 +116,7 @@ function sourceDate(row, get, isReturn) {
     || datePart(row.getCell(1).value);
 }
 
-async function parseWorkbook(file) {
+async function parseWorkbook(file, dateRange = DEFAULT_PROFILE) {
   if (!file?.buffer || !Buffer.isBuffer(file.buffer) || file.buffer.length < 4 || file.buffer.subarray(0, 2).toString() !== 'PK') {
     throw new Error(`${file?.originalname || 'File'} bukan workbook .xlsx yang valid`);
   }
@@ -123,7 +138,7 @@ async function parseWorkbook(file) {
     const rawQuantity = type === 'items' ? numberValue(get(row, 'qty'), 'qty') : 0;
     const isReturn = type === 'items' ? rawQuantity < 0 : numberValue(get(row, 'total amount'), 'total amount', { allowBlank: true }) < 0;
     const date = sourceDate(row, get, isReturn);
-    if (!date || date < START_DATE || date > END_DATE) continue;
+    if (!date || date < dateRange.startDate || date > dateRange.endDate) continue;
 
     if (type === 'sales') {
       const total = numberValue(get(row, 'total amount'), 'total amount', { allowBlank: true });
@@ -370,12 +385,12 @@ function prepareImport(parsedFiles, products, productMappings = {}) {
   };
 }
 
-async function parseFiles(files, products, productMappings = {}) {
+async function parseFiles(files, products, productMappings = {}, dateRange = DEFAULT_PROFILE) {
   if (!Array.isArray(files) || files.length < 2 || files.length > MAX_FILES) throw new Error(`Pilih 2–${MAX_FILES} file laporan .xlsx`);
   const totalBytes = files.reduce((sum, file) => sum + (file.size || file.buffer?.length || 0), 0);
   if (totalBytes > MAX_TOTAL_BYTES) throw new Error('Ukuran seluruh file melebihi 20 MB');
   const parsed = [];
-  for (const file of files) parsed.push(await parseWorkbook(file));
+  for (const file of files) parsed.push(await parseWorkbook(file, dateRange));
   return prepareImport(parsed, products, productMappings);
 }
 
@@ -501,6 +516,7 @@ function transactionPayload(transaction, branchId, userId, idsByRowName, idsByIt
 
 module.exports = {
   END_DATE,
+  IMPORT_PROFILES,
   MAX_FILES,
   MAX_TOTAL_BYTES,
   parseFiles,
