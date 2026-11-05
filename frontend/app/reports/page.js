@@ -369,7 +369,7 @@ export default function ReportsPage() {
                   render: (row) => (
                     <>
                       <strong>{row.name}</strong>
-                      <small>{row.role}</small>
+                      <small>{row.source_system === "olsera" ? "Riwayat Olsera" : row.role}</small>
                     </>
                   ),
                 },

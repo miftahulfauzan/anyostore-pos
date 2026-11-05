@@ -17,6 +17,7 @@ export const paymentLabels = {
   debit: 'Debit',
   transfer: 'Transfer',
   split: 'Gabungan',
+  other: 'Lainnya / tidak diketahui',
 };
 
 export const cashMovementLabels = {

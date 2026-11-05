@@ -389,6 +389,18 @@ export default function SettingsPage() {
         <section className="panel settings-feature-panel">
           <div className="section-heading">
             <div>
+              <h2>Impor riwayat Olsera</h2>
+              <p>Masukkan riwayat penjualan toko Blok B dari file Excel. Impor berhenti pada 20 Oktober 2026 dan tidak mengubah stok.</p>
+            </div>
+            <a className="button-link" href="/settings/olsera-import">Buka impor</a>
+          </div>
+        </section>
+      )}
+
+      {isOwner && (
+        <section className="panel settings-feature-panel">
+          <div className="section-heading">
+            <div>
               <h2>Backup Data &amp; Media</h2>
               <p>Unduh snapshot semua cabang tanpa batas jumlah baris, beserta foto/video tersimpan dan manifest pemeriksaan integritas. Perubahan media saat backup dapat menggagalkan proses; ulangi saat unggahan selesai.</p>
               <p>API key email dikosongkan dan perlu diisi ulang setelah pemulihan. Rahasia konfigurasi server dan media dari URL eksternal tidak disertakan. File berisi data pelanggan dan akun; simpan secara privat. Pemulihan lewat alat administrator hanya ke database terisolasi yang kosong dengan skema yang cocok.</p>
