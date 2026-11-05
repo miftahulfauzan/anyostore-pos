@@ -12,7 +12,7 @@ const IMPORT_PROFILES = Object.freeze({
     id: 'pgmta_metro',
     label: 'Olsera PGMTA → Anyostore Metro',
     startDate: '2022-10-02',
-    endDate: '2025-11-05',
+    endDate: '2026-11-05',
   }),
 });
 const DEFAULT_PROFILE = IMPORT_PROFILES.blok_b;

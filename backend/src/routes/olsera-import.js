@@ -50,7 +50,7 @@ const aggregateMemoryStorage = {
 
 const upload = multer({
   storage: aggregateMemoryStorage,
-  limits: { fileSize: 8 * 1024 * 1024, files: MAX_FILES, fields: 2, parts: MAX_FILES + 2, fieldSize: 1024 * 1024 },
+  limits: { fileSize: 8 * 1024 * 1024, files: MAX_FILES, fields: 3, parts: MAX_FILES + 3, fieldSize: 1024 * 1024 },
   fileFilter(_req, file, callback) {
     if (!String(file.originalname || '').toLowerCase().endsWith('.xlsx')) {
       callback(Object.assign(new Error('Pilih file laporan Excel .xlsx dari Olsera.'), { status: 400 }));

@@ -9,7 +9,7 @@ const isBlokB = (branch) => /(?:blok\s*b|toko\s*b)\b/i.test(String(branch?.name 
 const isMetro = (branch) => /^anyostore\s+metro$/i.test(String(branch?.name || '').trim());
 const profiles = {
   blok_b: { label: 'Olsera Blok B → Toko B', start: '2024-01-01', end: '2026-10-20', matches: isBlokB },
-  pgmta_metro: { label: 'Olsera PGMTA → Anyostore Metro', start: '2022-10-02', end: '2025-11-05', matches: isMetro },
+  pgmta_metro: { label: 'Olsera PGMTA → Anyostore Metro', start: '2022-10-02', end: '2026-11-05', matches: isMetro },
 };
 
 export default function OlseraImportPage() {
