@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Button as GlisseButton } from 'glisse';
 import AppShell from '../components/AppShell';
 import CategoryManager from '../components/CategoryManager';
 import { uploadMediaData, validateDataUpload } from '../lib/media-upload';
@@ -506,7 +507,17 @@ export default function SettingsPage() {
       </div>
       <section className="settings-save-bar" aria-label="Simpan pengaturan">
         <p className="muted" role="status">{message || 'Perubahan berlaku untuk toko dipilih.'}</p>
-        <button type="button" onClick={save} disabled={saving}>{saving ? 'Menyimpan…' : 'Simpan Pengaturan'}</button>
+        <GlisseButton
+          type="button"
+          variant="filled"
+          tint="var(--expressive-primary)"
+          className="settings-save-action"
+          onClick={save}
+          disabled={saving}
+          style={{ height: 48, borderRadius: 10, padding: '0 24px', fontSize: 16, fontWeight: 700 }}
+        >
+          {saving ? 'Menyimpan…' : 'Simpan Pengaturan'}
+        </GlisseButton>
       </section>
     </div>
   </AppShell>;
