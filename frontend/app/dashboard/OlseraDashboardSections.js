@@ -1,6 +1,7 @@
 'use client';
 
-import { ArrowDownLeft, ArrowUpRight, BarChart3, BriefcaseBusiness, ChartNoAxesCombined, CircleDollarSign, RotateCcw, Store } from 'lucide-react';
+import { ArrowUpRight, BriefcaseBusiness, ChartNoAxesCombined, CircleDollarSign, RotateCcw } from 'lucide-react';
+import { useState } from 'react';
 
 const rupiah = (value) => 'Rp' + Number(value || 0).toLocaleString('id-ID');
 const number = (value) => Number(value || 0);
@@ -30,9 +31,9 @@ function MetricRow({ label, value }) {
   return <div className="dashboard-report-row"><span>{label}</span><strong>{value}</strong></div>;
 }
 
-function TrendChart({ rows, valueKey = 'revenue', color, emptyMessage }) {
+function TrendChart({ rows, valueKey = 'revenue', color, emptyMessage, totalLabel = 'Total' }) {
   const visible = (rows || []).slice(-14);
-  const valueRows = visible.slice(-7);
+  const [showValues, setShowValues] = useState(false);
   const values = visible.map((row) => number(row[valueKey]));
   if (!visible.length) return <p className="dashboard-report-empty">{emptyMessage}</p>;
   const max = Math.max(1, ...values);
@@ -58,71 +59,50 @@ function TrendChart({ rows, valueKey = 'revenue', color, emptyMessage }) {
     <div className="dashboard-report-axis-labels">
       {visible.map((row) => <span key={row.date}>{dateLabel(row.date)}</span>)}
     </div>
-    <div className="dashboard-report-values" aria-label="Nilai per tanggal">
-      <span className="dashboard-report-values-label">Nilai per tanggal</span>
-      <div className="dashboard-report-values-list">
-        {valueRows.map((row, index) => <div className="dashboard-report-value-row" key={`${row.date}-${index}`}>
-          <span>{dateLabel(row.date)}</span>
-          <strong>{rupiah(row[valueKey])}</strong>
-        </div>)}
-      </div>
-    </div>
+    <button
+      type="button"
+      className="dashboard-report-values-toggle"
+      aria-expanded={showValues}
+      onClick={() => setShowValues((current) => !current)}
+    >
+      {showValues ? 'Sembunyikan angka' : 'Lihat angka'}
+    </button>
+    {showValues && <div className="dashboard-report-chart-total" aria-live="polite">
+      <span>{totalLabel}</span>
+      <strong>{rupiah(values.reduce((total, value) => total + value, 0))}</strong>
+    </div>}
   </div>;
 }
 
 function SeriesSection({ title, icon, tone, color, rows, valueKey, emptyMessage }) {
   return <Section title={title} icon={icon} tone={tone} className="dashboard-report-series">
-    <TrendChart rows={rows} valueKey={valueKey} color={color} emptyMessage={emptyMessage} />
+    <TrendChart rows={rows} valueKey={valueKey} color={color} totalLabel={`Total ${title.toLowerCase()}`} emptyMessage={emptyMessage} />
     <span className="dashboard-report-legend"><i style={{ backgroundColor: color }} />{title}</span>
-  </Section>;
-}
-
-function ProductGroups({ groups }) {
-  const visible = (groups || []).slice(0, 6);
-  const max = Math.max(1, ...visible.map((group) => number(group.quantity_sold)));
-  return <Section title="Top product groups" icon={BarChart3} tone="purple" className="dashboard-report-products">
-    {visible.length ? visible.map((group) => <div className="dashboard-product-group" key={group.name}>
-      <div><span>{group.name || 'Tanpa kategori'}</span><strong>{number(group.quantity_sold)} pcs</strong></div>
-      <span className="dashboard-product-track"><i style={{ width: `${Math.max(3, number(group.quantity_sold) / max * 100)}%` }} /></span>
-      <small>{rupiah(group.revenue)}</small>
-    </div>) : <p className="dashboard-report-empty">Belum ada grup produk pada periode ini.</p>}
-  </Section>;
-}
-
-function SalesSources({ sources }) {
-  if (!sources?.length) return null;
-  return <Section title="Sumber penjualan" icon={Store} tone="blue" className="dashboard-report-sources">
-    {sources.slice(0, 5).map((source) => <div className="dashboard-source" key={source.name}>
-      <div><span>{source.name}</span><strong>{number(source.share)}%</strong></div>
-      <span className="dashboard-product-track"><i style={{ width: `${Math.max(3, Math.min(100, number(source.share)))}%` }} /></span>
-      <small>{number(source.transactions)} transaksi · {rupiah(source.revenue)}</small>
-    </div>)}
   </Section>;
 }
 
 export default function OlseraDashboardSections({ reportData, fallbackData }) {
   if (!reportData) return <section className="panel dashboard-report-loading"><p>Memuat laporan toko…</p></section>;
   const summary = reportData.summary || fallbackData?.summary || {};
-  const groups = reportData.product_groups || [];
+  const productsSold = Array.isArray(reportData.products)
+    ? reportData.products.reduce((total, product) => total + number(product.quantity_sold), 0)
+    : (summary.products_sold ?? fallbackData?.summary?.products_sold ?? 0);
   return <div className="dashboard-report-layout">
-    <Section title="Sekilas toko" description={reportData.branch_name || 'Ringkasan periode terpilih'} icon={BriefcaseBusiness} tone="denim" className="dashboard-report-glance">
-      <MetricRow label="Pelanggan baru" value={number(summary.new_customers)} />
+    <Section title="Ringkasan toko" description={reportData.branch_name || 'Ringkasan periode terpilih'} icon={BriefcaseBusiness} tone="denim" className="dashboard-report-glance">
       <MetricRow label="Pesanan" value={number(summary.transactions)} />
       <MetricRow label="Pendapatan" value={rupiah(summary.gross_sales ?? summary.revenue)} />
-      <MetricRow label="Pemasukan" value={rupiah(summary.income)} />
       <MetricRow label="Pengeluaran" value={rupiah(summary.expenses)} />
       <MetricRow label="Pengembalian" value={rupiah(summary.return_amount)} />
-      <MetricRow label="Rata-rata transaksi" value={rupiah(summary.average_transaction)} />
+      <MetricRow label="Produk terjual" value={`${number(productsSold)} pcs`} />
     </Section>
 
     <Section title="Sales" description="Penjualan transaksi selesai pada periode terpilih." icon={ChartNoAxesCombined} tone="blue" className="dashboard-report-sales">
       <div className="dashboard-report-focal"><span>Total sales</span><strong>{rupiah(summary.gross_sales ?? summary.revenue)}</strong><small>{number(summary.transactions)} transaksi</small></div>
-      <TrendChart rows={reportData.daily_sales} color={colors.blue} emptyMessage="Belum ada data penjualan pada periode ini." />
+      <TrendChart rows={reportData.daily_sales} color={colors.blue} totalLabel="Total penjualan" emptyMessage="Belum ada data penjualan pada periode ini." />
       <span className="dashboard-report-legend"><i style={{ backgroundColor: colors.blue }} />Sales</span>
     </Section>
 
     <div className="dashboard-report-series-grid">
-      <SeriesSection title="Income" icon={ArrowDownLeft} tone="teal" color={colors.teal} rows={reportData.daily_income} valueKey="amount" emptyMessage="Belum ada data pendapatan pada periode ini." />
       <SeriesSection title="Expense" icon={ArrowUpRight} tone="terracotta" color={colors.terracotta} rows={reportData.daily_expenses} valueKey="amount" emptyMessage="Belum ada data pengeluaran pada periode ini." />
       <SeriesSection title="Return" icon={RotateCcw} tone="purple" color={colors.purple} rows={reportData.daily_returns} valueKey="amount" emptyMessage="Belum ada data retur pada periode ini." />
       <Section title="Hasil usaha" icon={CircleDollarSign} tone="denim" className="dashboard-report-profit">
@@ -130,11 +110,6 @@ export default function OlseraDashboardSections({ reportData, fallbackData }) {
         <MetricRow label="Laba bersih" value={rupiah(summary.net_profit)} />
         <MetricRow label="Retur disetujui" value={`${number(summary.return_count)} catatan`} />
       </Section>
-    </div>
-
-    <div className="dashboard-report-detail-grid">
-      <ProductGroups groups={groups} />
-      <SalesSources sources={reportData.sales_sources} />
     </div>
   </div>;
 }
