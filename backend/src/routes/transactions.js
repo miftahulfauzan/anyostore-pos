@@ -152,16 +152,16 @@ router.get('/', async (req, res, next) => {
     if (isDate(dateTo)) { where += ' AND t.transaction_date <= ?'; params.push(dateTo); }
     if (status && ['completed','cancelled','partially_cancelled','partially_refunded','refunded'].includes(status)) { where += ' AND t.status = ?'; params.push(status); }
     if (search) {
-      where += ' AND (t.invoice_no LIKE ? OR t.offline_invoice_no LIKE ? OR u.name LIKE ? OR c.name LIKE ? OR t.grand_total LIKE ?)';
+      where += ' AND (t.invoice_no LIKE ? OR t.offline_invoice_no LIKE ? OR t.source_order_no LIKE ? OR COALESCE(NULLIF(t.source_cashier, \'\'), u.name) LIKE ? OR COALESCE(NULLIF(t.source_customer_name, \'\'), c.name) LIKE ? OR t.grand_total LIKE ?)';
       const like = `%${search}%`;
-      params.push(like, like, like, like, like);
+      params.push(like, like, like, like, like, like);
     }
 
     const [countRows] = await db.execute(`SELECT COUNT(*) AS total FROM transactions t JOIN users u ON u.id=t.user_id LEFT JOIN customers c ON c.id=t.customer_id ${where}`, params);
     const total = Number(countRows[0].total || 0);
 
     const [rows] = await db.execute(
-      `SELECT t.id, t.branch_id, t.invoice_no, t.offline_invoice_no, t.grand_total, t.payment_method, t.status, t.price_tier, t.cancelled_amount, t.created_at, DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS transaction_date, u.name AS cashier, c.name AS customer, c.price_tier AS customer_tier
+      `SELECT t.id, t.branch_id, t.invoice_no, t.offline_invoice_no, t.source_system, t.source_order_no, t.grand_total, t.payment_method, t.status, t.price_tier, t.cancelled_amount, t.created_at, DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS transaction_date, COALESCE(NULLIF(t.source_cashier, ''), u.name) AS cashier, COALESCE(NULLIF(t.source_customer_name, ''), c.name) AS customer, c.price_tier AS customer_tier
        FROM transactions t JOIN users u ON u.id = t.user_id LEFT JOIN customers c ON c.id = t.customer_id
        ${where} ORDER BY t.transaction_date DESC, t.created_at DESC LIMIT ${limit} OFFSET ${offset}`,
       params
@@ -359,7 +359,7 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
 router.get('/:id', async (req, res, next) => {
   try {
     const branchId = transactionBranch(req.user, req.query.branch_id);
-    const [transactions] = await db.execute("SELECT t.id, t.branch_id, t.invoice_no, t.grand_total, t.amount_paid, t.`change`, t.cancelled_amount, t.cancel_reason, t.payment_method, t.status, t.price_tier, t.subtotal, t.discount, t.created_at, DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS transaction_date, u.name AS cashier FROM transactions t LEFT JOIN users u ON u.id = t.user_id WHERE t.id = ? AND t.branch_id = ?", [req.params.id, branchId]);
+    const [transactions] = await db.execute("SELECT t.id, t.branch_id, t.invoice_no, t.offline_invoice_no, t.source_system, t.source_order_no, t.grand_total, t.amount_paid, t.`change`, t.cancelled_amount, t.cancel_reason, t.payment_method, t.status, t.price_tier, t.subtotal, t.discount, t.created_at, DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS transaction_date, COALESCE(NULLIF(t.source_cashier, ''), u.name) AS cashier, t.source_customer_name FROM transactions t LEFT JOIN users u ON u.id = t.user_id WHERE t.id = ? AND t.branch_id = ?", [req.params.id, branchId]);
     if (!transactions[0]) return res.status(404).json({ success: false, message: 'Transaksi tidak ditemukan' });
     const [items] = await db.execute('SELECT id AS transaction_item_id, product_name, product_sku, variant_detail, quantity, cancelled_qty, returned_qty, cancel_reason, price, original_price, price_override, discount, subtotal FROM transaction_items WHERE transaction_id = ?', [req.params.id]);
     res.json({ success: true, data: { ...transactions[0], items } });
@@ -404,6 +404,7 @@ router.put('/:id/cancel', authorize('owner', 'manager', 'admin'), async (req, re
     const branchId = transactionBranch(req.user, req.body.branch_id);
     const [transactions] = await connection.execute('SELECT * FROM transactions WHERE id = ? AND branch_id = ? FOR UPDATE', [req.params.id, branchId]);
     if (!transactions[0]) throw httpError(404, 'Transaksi tidak ditemukan');
+    if (transactions[0].source_system === 'olsera') throw httpError(400, 'Transaksi impor Olsera tidak dapat dibatalkan melalui POS.');
     if (transactions[0].status === 'cancelled') throw httpError(400, 'Transaksi sudah dibatalkan seluruhnya');
 
     // Refund harus proporsional terhadap yang benar-benar dibayar. Diskon tingkat

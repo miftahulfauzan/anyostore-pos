@@ -1,6 +1,5 @@
 // ignore_for_file: prefer_const_constructors
 
-import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
@@ -9,19 +8,18 @@ import 'package:provider/provider.dart';
 
 import 'api_client.dart';
 import 'auth_store.dart';
-import 'branch_scope.dart';
 import 'report_filter.dart';
 import 'format.dart';
 import 'task_ui.dart';
 
-Color _stockLowColor(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xffFDBA74)
-        : kTaskStockLow;
-Color _stockEmptyColor(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xffFCA5A5)
-        : kTaskStockEmpty;
+// Dashboard memakai token yang sama dengan halaman mobile lainnya.
+const _kBlueAccent = kTaskDark;
+const _kGreen = kTaskTeal;
+const _kRed = kTaskStockEmpty;
+const _kMagenta = kTaskSecondary;
+const _kOrange = kTaskStockLow;
+const _kMuted = kTaskGray;
+const _kBorder = kTaskBorder;
 
 const _months = [
   'Jan',
@@ -37,17 +35,6 @@ const _months = [
   'Nov',
   'Des'
 ];
-
-const _dashboardPalette = <Color>[
-  kTaskAccent,
-  kTaskTeal,
-  kTaskTerracotta,
-  kTaskPurple,
-  kTaskWarning,
-];
-
-Color _dashboardColor(int index) =>
-    _dashboardPalette[index % _dashboardPalette.length];
 
 /// Server MySQL dapat mengirim DATE sebagai string ISO lengkap atau tanggal
 /// biasa. Grafik memakai kunci tanggal YYYY-MM-DD agar titik harian tidak
@@ -74,6 +61,7 @@ class _DashboardPageState extends State<DashboardPage> {
   String? _branchError;
   int _requestVersion = 0;
   bool _isOwner = false;
+  bool _isWarehouse = false;
   List<Map<String, dynamic>> _branches = [];
   String _branchMode = 'own'; // own | all | branch-<id>
 
@@ -92,42 +80,11 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void initState() {
     super.initState();
-    _isOwner = context.read<AuthStore>().role == 'owner';
-    if (_isOwner) {
-      final activeBranch = BranchScope.active.value;
-      final accountBranch = context.read<AuthStore>().branchId;
-      _branchMode = activeBranch == null
-          ? 'all'
-          : activeBranch == accountBranch
-              ? 'own'
-              : 'branch-$activeBranch';
-      widget.api.activeBranchId = activeBranch;
-      BranchScope.active.addListener(_onSharedBranchChanged);
-      _loadBranches();
-    }
+    final role = context.read<AuthStore>().role;
+    _isOwner = role == 'owner';
+    _isWarehouse = role == 'gudang';
+    if (_isOwner) _loadBranches();
     _load();
-  }
-
-  void _onSharedBranchChanged() {
-    if (!_isOwner) return;
-    final branchId = BranchScope.active.value;
-    final accountBranch = context.read<AuthStore>().branchId;
-    final mode = branchId == null
-        ? 'all'
-        : branchId == accountBranch
-            ? 'own'
-            : 'branch-$branchId';
-    if (mode == _branchMode) return;
-    _branchMode = mode;
-    widget.api.activeBranchId = branchId;
-    setState(() {});
-    _load();
-  }
-
-  @override
-  void dispose() {
-    if (_isOwner) BranchScope.active.removeListener(_onSharedBranchChanged);
-    super.dispose();
   }
 
   Future<void> _loadBranches() async {
@@ -151,9 +108,6 @@ class _DashboardPageState extends State<DashboardPage> {
   String? get _branchParam {
     if (!_isOwner) return null;
     if (_branchMode == 'all') return 'all';
-    if (_branchMode == 'own') {
-      return context.read<AuthStore>().branchId?.toString();
-    }
     if (_branchMode.startsWith('branch-')) {
       return _branchMode.replaceFirst('branch-', '');
     }
@@ -200,20 +154,60 @@ class _DashboardPageState extends State<DashboardPage> {
       late final List<Map<String, dynamic>> catRows;
       late final List<Map<String, dynamic>> topRows;
 
-      final results = await Future.wait([
-        widget.api.mutationsSummary(start: start, end: end, branchId: bp),
-        widget.api.stockTotal(branchId: stockBranch, allBranches: stockAll),
-        widget.api.stockByCategory(branchId: bp).catchError((_) => <dynamic>[]),
-        widget.api
-            .topProductsOut(start: start, end: end, branchId: bp)
-            .catchError((_) => <dynamic>[]),
-      ]);
-      mutSummary = (results[0] as Map<String, dynamic>?) ?? {};
-      stockSummary = ((results[1] as Map<String, dynamic>?)?['summary']
-              as Map<String, dynamic>?) ??
-          {};
-      catRows = (results[2] as List?)?.cast<Map<String, dynamic>>() ?? [];
-      topRows = (results[3] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      if (_isWarehouse) {
+        // Backend menyediakan agregasi khusus gudang dalam satu respons.
+        // Memakai satu endpoint mencegah satu dari empat request terpisah
+        // menggagalkan seluruh ringkasan.
+        final payload = await widget.api.dashboard(start: start, end: end);
+        final warehouse = payload['warehouse_dashboard'];
+        if (warehouse is! Map<String, dynamic>) {
+          throw const FormatException('Ringkasan gudang tidak tersedia');
+        }
+        final summary = warehouse['summary'];
+        if (summary is! Map<String, dynamic>) {
+          throw const FormatException('Ringkasan stok tidak valid');
+        }
+        final dailyRows = (warehouse['daily'] as List?)
+                ?.whereType<Map<String, dynamic>>()
+                .toList() ??
+            <Map<String, dynamic>>[];
+        final totalIn = dailyRows.fold<double>(
+            0, (sum, row) => sum + asNum(row['in']));
+        final totalOut = dailyRows.fold<double>(
+            0, (sum, row) => sum + asNum(row['out']));
+        mutSummary = {
+          'total_in': totalIn,
+          'total_out': totalOut,
+          'daily': dailyRows,
+        };
+        stockSummary = {
+          'total_products': summary['total_sku'],
+          'low_stock': summary['low_stock'],
+          'out_of_stock': summary['out_of_stock'],
+        };
+        catRows = (warehouse['categories'] as List?)
+                ?.whereType<Map<String, dynamic>>()
+                .toList() ??
+            <Map<String, dynamic>>[];
+        topRows = (warehouse['top_products_out'] as List?)
+                ?.whereType<Map<String, dynamic>>()
+                .toList() ??
+            <Map<String, dynamic>>[];
+      } else {
+        // Endpoint terpisah tetap dipakai untuk ringkasan owner dan toko.
+        final results = await Future.wait([
+          widget.api.mutationsSummary(start: start, end: end, branchId: bp),
+          widget.api.stockTotal(branchId: stockBranch, allBranches: stockAll),
+          widget.api.stockByCategory(branchId: bp),
+          widget.api.topProductsOut(start: start, end: end, branchId: bp),
+        ]);
+        mutSummary = (results[0] as Map<String, dynamic>?) ?? {};
+        stockSummary = ((results[1] as Map<String, dynamic>?)?['summary']
+                as Map<String, dynamic>?) ??
+            {};
+        catRows = (results[2] as List?)?.cast<Map<String, dynamic>>() ?? [];
+        topRows = (results[3] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      }
 
       if (!mounted || requestVersion != _requestVersion) return;
       if (mutSummary['daily'] is! List ||
@@ -314,8 +308,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 const SizedBox(height: 2),
               Expanded(
                 child: ListView(
-                  padding: EdgeInsets.fromLTRB(
-                      12, 12, 12, 16 + MediaQuery.of(context).padding.bottom),
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 104),
                   children: [
                     _buildHeader(),
                     const SizedBox(height: 12),
@@ -335,21 +328,21 @@ class _DashboardPageState extends State<DashboardPage> {
                                   label: 'Masuk',
                                   value: _fmtNum(_masuk),
                                   icon: Icons.south_west,
-                                  color: kTaskTeal)),
+                                  color: _kGreen)),
                           const SizedBox(width: 8),
                           Expanded(
                               child: _SummaryCard(
                                   label: 'Keluar',
                                   value: _fmtNum(_keluar),
                                   icon: Icons.north_east,
-                                  color: kTaskTerracotta)),
+                                  color: _kRed)),
                           const SizedBox(width: 8),
                           Expanded(
                               child: _SummaryCard(
                                   label: 'Selisih',
                                   value: _fmtNum(_selisih),
                                   icon: Icons.swap_vert,
-                                  color: kTaskPurple)),
+                                  color: _kBlueAccent)),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -383,12 +376,30 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _buildHeader() {
     return GlassCard(
       padding: const EdgeInsets.all(12),
-      radius: 16,
+      radius: 22,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (_isOwner) _buildOwnerBranchSelector(),
-          if (_isOwner) const SizedBox(height: 10),
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: kTaskSand,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.calendar_month,
+                    size: 18, color: _kBlueAccent),
+              ),
+              const SizedBox(width: 10),
+              Text('Dashboard stok',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: ink(context))),
+            ],
+          ),
           const SizedBox(height: 10),
           Row(
             children: [
@@ -417,12 +428,24 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             ],
           ),
+          if (_isOwner && _branchMode != 'own') ...[
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: InputChip(
+                label: Text('Lokasi: $_selectedBranchLabel'),
+                onDeleted: () {
+                  setState(() => _branchMode = 'own');
+                  _load();
+                },
+                materialTapTargetSize: MaterialTapTargetSize.padded,
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           Text('Periode: $_presetLabel · $_activeLabel',
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: taskMuted(context))),
+              style: const TextStyle(
+                  fontSize: 11.5, fontWeight: FontWeight.w600, color: _kMuted)),
           if (_branchError != null) ...[
             const SizedBox(height: 4),
             Row(
@@ -435,84 +458,6 @@ class _DashboardPageState extends State<DashboardPage> {
               ],
             ),
           ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOwnerBranchSelector() {
-    final branchItems = <DropdownMenuItem<String>>[
-      const DropdownMenuItem(value: 'own', child: Text('Toko saya (default)')),
-      const DropdownMenuItem(value: 'all', child: Text('Semua toko/gudang')),
-      for (final branch in _branches)
-        DropdownMenuItem(
-          value: 'branch-${branch['id']}',
-          child: Text(branch['name']?.toString() ?? ''),
-        ),
-    ];
-    if (_branchMode.startsWith('branch-') &&
-        !branchItems.any((item) => item.value == _branchMode)) {
-      branchItems.add(const DropdownMenuItem(
-          value: 'selected', child: Text('Toko/gudang dipilih')));
-    }
-    final value = branchItems.any((item) => item.value == _branchMode)
-        ? _branchMode
-        : 'all';
-    return Container(
-      key: const ValueKey('dashboard-branch-selector'),
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: taskSurface(context),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: taskBorder(context)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.store_outlined,
-              size: 19, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(width: 10),
-          Expanded(
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: value,
-                isExpanded: true,
-                icon: const Icon(Icons.keyboard_arrow_down),
-                onChanged: (next) {
-                  if (next == null || next == 'selected') return;
-                  final branchId = next == 'all'
-                      ? null
-                      : next == 'own'
-                          ? context.read<AuthStore>().branchId
-                          : int.tryParse(next.replaceFirst('branch-', ''));
-                  unawaited(BranchScope.set(branchId));
-                },
-                selectedItemBuilder: (_) => [
-                  for (final item in branchItems)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                          item.value == value
-                              ? (item.value == 'all'
-                                  ? 'Semua toko/gudang'
-                                  : item.value == 'own'
-                                      ? 'Toko saya (default)'
-                                      : _selectedBranchLabel)
-                              : item.child is Text
-                                  ? (item.child as Text).data ?? ''
-                                  : '',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: ink(context))),
-                    ),
-                ],
-                items: branchItems,
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -616,12 +561,10 @@ class _DashboardPageState extends State<DashboardPage> {
         branchError: _branchError,
         onRetryBranches: _loadBranches,
         onApply: (branchMode) {
-          final selectedBranch = branchMode == 'all'
-              ? null
-              : branchMode == 'own'
-                  ? context.read<AuthStore>().branchId
-                  : int.tryParse(branchMode.replaceFirst('branch-', ''));
-          unawaited(BranchScope.set(selectedBranch));
+          setState(() {
+            _branchMode = branchMode;
+          });
+          _load();
         },
       ),
     );
@@ -792,7 +735,7 @@ class _DashboardMessage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => GlassCard(
         padding: const EdgeInsets.all(16),
-        radius: 16,
+        radius: 22,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -829,35 +772,33 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 148,
-      child: GlassCard(
-        padding: const EdgeInsets.all(12),
-        radius: 16,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: .14),
-                borderRadius: BorderRadius.circular(11),
-              ),
-              child: Icon(icon, size: 18, color: color),
+    return GlassCard(
+      padding: const EdgeInsets.all(12),
+      radius: 18,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: .14),
+              borderRadius: BorderRadius.circular(11),
             ),
-            const SizedBox(height: 10),
-            Text(label,
-                style: TextStyle(fontSize: 12, color: taskMuted(context))),
-            const SizedBox(height: 2),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(value,
-                  style: TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.w800, color: color)),
-            ),
-          ],
-        ),
+            child: Icon(icon, size: 18, color: color),
+          ),
+          const SizedBox(height: 10),
+          Text(label, style: const TextStyle(fontSize: 11, color: _kMuted)),
+          const SizedBox(height: 2),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(value,
+                style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: ink(context))),
+          ),
+        ],
       ),
     );
   }
@@ -890,13 +831,32 @@ class _MovementCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionHeading(
-              icon: Icons.swap_vert,
-              title: 'Pergerakan Stok',
-              color: kTaskAccent),
-          const SizedBox(height: 6),
-          Text('Masuk ${totalMasuk.round()} / Keluar ${totalKeluar.round()}',
-              style: TextStyle(fontSize: 12, color: taskMuted(context))),
+          Row(
+            children: [
+              Expanded(
+                child: Text('Pergerakan Stok',
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: ink(context))),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: kTaskSand,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Text(
+                  'Masuk ${totalMasuk.round()} / Keluar ${totalKeluar.round()}',
+                  style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      color: _kBlueAccent),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 14),
           SizedBox(
             height: 210,
@@ -908,8 +868,7 @@ class _MovementCard extends StatelessWidget {
                   show: true,
                   drawVerticalLine: false,
                   getDrawingHorizontalLine: (_) => FlLine(
-                      color: taskBorder(context).withValues(alpha: .55),
-                      strokeWidth: 0.6),
+                      color: _kBorder.withValues(alpha: .55), strokeWidth: 0.6),
                 ),
                 borderData: FlBorderData(show: false),
                 titlesData: FlTitlesData(
@@ -923,8 +882,7 @@ class _MovementCard extends StatelessWidget {
                       reservedSize: 34,
                       interval: limit / 4,
                       getTitlesWidget: (v, meta) => Text('${v.round()}',
-                          style: TextStyle(
-                              fontSize: 10, color: taskMuted(context))),
+                          style: const TextStyle(fontSize: 9, color: _kMuted)),
                     ),
                   ),
                   bottomTitles: AxisTitles(
@@ -940,8 +898,8 @@ class _MovementCard extends StatelessWidget {
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(daily[i].label,
-                              style: TextStyle(
-                                  fontSize: 10, color: taskMuted(context))),
+                              style: const TextStyle(
+                                  fontSize: 8.5, color: _kMuted)),
                         );
                       },
                     ),
@@ -968,15 +926,15 @@ class _MovementCard extends StatelessWidget {
                     ],
                     isCurved: true,
                     curveSmoothness: 0.35,
-                    color: kTaskTeal,
+                    color: _kBlueAccent,
                     barWidth: 2.4,
                     dotData: FlDotData(
                       show: true,
                       getDotPainter: (s, p, b, i) => FlDotCirclePainter(
                         radius: 3,
-                        color: taskSurface(context),
+                        color: Colors.white,
                         strokeWidth: 2,
-                        strokeColor: kTaskTeal,
+                        strokeColor: _kBlueAccent,
                       ),
                     ),
                     belowBarData: BarAreaData(
@@ -985,8 +943,8 @@ class _MovementCard extends StatelessWidget {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          kTaskTeal.withValues(alpha: .16),
-                          kTaskTeal.withValues(alpha: 0),
+                          _kBlueAccent.withValues(alpha: .28),
+                          _kBlueAccent.withValues(alpha: 0),
                         ],
                       ),
                     ),
@@ -998,15 +956,15 @@ class _MovementCard extends StatelessWidget {
                     ],
                     isCurved: true,
                     curveSmoothness: 0.35,
-                    color: kTaskTerracotta,
+                    color: _kRed,
                     barWidth: 2.4,
                     dotData: FlDotData(
                       show: true,
                       getDotPainter: (s, p, b, i) => FlDotCirclePainter(
                         radius: 3,
-                        color: taskSurface(context),
+                        color: Colors.white,
                         strokeWidth: 2,
-                        strokeColor: kTaskTerracotta,
+                        strokeColor: _kRed,
                       ),
                     ),
                     belowBarData: BarAreaData(
@@ -1015,8 +973,8 @@ class _MovementCard extends StatelessWidget {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          kTaskTerracotta.withValues(alpha: .20),
-                          kTaskTerracotta.withValues(alpha: 0),
+                          _kRed.withValues(alpha: .24),
+                          _kRed.withValues(alpha: 0),
                         ],
                       ),
                     ),
@@ -1026,13 +984,12 @@ class _MovementCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 12,
-            runSpacing: 8,
-            children: [
-              _LegendDot(color: kTaskTeal, label: 'Stok Masuk'),
-              _LegendDot(color: kTaskTerracotta, label: 'Stok Keluar'),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              _LegendDot(color: _kBlueAccent, label: 'Stok Masuk'),
+              SizedBox(width: 16),
+              _LegendDot(color: _kRed, label: 'Stok Keluar'),
             ],
           ),
         ],
@@ -1063,18 +1020,19 @@ class _StatusCard extends StatelessWidget {
     }
     return GlassCard(
       padding: const EdgeInsets.all(16),
-      radius: 16,
+      radius: 22,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionHeading(
-              icon: Icons.inventory_2_outlined,
-              title: 'Status Stok',
-              color: kTaskPurple),
+          Text('Status Stok',
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: ink(context))),
           if (totalProduk > 0) ...[
             const SizedBox(height: 2),
             Text('$totalProduk produk',
-                style: TextStyle(fontSize: 12, color: taskMuted(context))),
+                style: const TextStyle(fontSize: 11, color: _kMuted)),
           ],
           const SizedBox(height: 12),
           Row(
@@ -1091,17 +1049,17 @@ class _StatusCard extends StatelessWidget {
                         sections: [
                           PieChartSectionData(
                               value: aman.toDouble(),
-                              color: kTaskTeal,
+                              color: _kBlueAccent,
                               radius: 36,
                               showTitle: false),
                           PieChartSectionData(
                               value: hampir.toDouble(),
-                              color: _stockLowColor(context),
+                              color: _kOrange,
                               radius: 36,
                               showTitle: false),
                           PieChartSectionData(
                               value: kosong.toDouble(),
-                              color: _stockEmptyColor(context),
+                              color: _kRed,
                               radius: 36,
                               showTitle: false),
                         ],
@@ -1114,9 +1072,8 @@ class _StatusCard extends StatelessWidget {
                                   fontSize: 20,
                                   fontWeight: FontWeight.w800,
                                   color: ink(context))),
-                          Text('Aman',
-                              style: TextStyle(
-                                  fontSize: 11, color: taskMuted(context))),
+                          const Text('Aman',
+                              style: TextStyle(fontSize: 10, color: _kMuted)),
                         ],
                       ),
                     ],
@@ -1128,31 +1085,29 @@ class _StatusCard extends StatelessWidget {
                 child: Column(
                   children: [
                     _RingIndicator(
-                        percent: aman, color: kTaskTeal, label: 'Aman'),
+                        percent: aman, color: _kBlueAccent, label: 'Aman'),
                     const SizedBox(height: 10),
                     _RingIndicator(
                         percent: hampir,
-                        color: _stockLowColor(context),
+                        color: _kOrange,
                         label: 'Hampir Habis'),
                     const SizedBox(height: 10),
                     _RingIndicator(
-                        percent: kosong,
-                        color: _stockEmptyColor(context),
-                        label: 'Kosong'),
+                        percent: kosong, color: _kRed, label: 'Kosong'),
                   ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 12,
-            runSpacing: 8,
-            children: [
-              _LegendDot(color: kTaskTeal, label: 'Aman'),
-              _LegendDot(color: _stockLowColor(context), label: 'Hampir Habis'),
-              _LegendDot(color: _stockEmptyColor(context), label: 'Kosong'),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              _LegendDot(color: _kBlueAccent, label: 'Aman'),
+              SizedBox(width: 12),
+              _LegendDot(color: _kOrange, label: 'Hampir Habis'),
+              SizedBox(width: 12),
+              _LegendDot(color: _kRed, label: 'Kosong'),
             ],
           ),
         ],
@@ -1178,14 +1133,15 @@ class _CategoryCard extends StatelessWidget {
     final limit = maxV <= 0 ? 10.0 : maxV * 1.15;
     return GlassCard(
       padding: const EdgeInsets.all(16),
-      radius: 16,
+      radius: 22,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionHeading(
-              icon: Icons.category_outlined,
-              title: 'Stok per Kategori',
-              color: kTaskTeal),
+          Text('Stok per Kategori',
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: ink(context))),
           const SizedBox(height: 14),
           SizedBox(
             height: 230,
@@ -1196,8 +1152,7 @@ class _CategoryCard extends StatelessWidget {
                   show: true,
                   drawVerticalLine: false,
                   getDrawingHorizontalLine: (_) => FlLine(
-                      color: taskBorder(context).withValues(alpha: .55),
-                      strokeWidth: 0.6),
+                      color: _kBorder.withValues(alpha: .55), strokeWidth: 0.6),
                 ),
                 borderData: FlBorderData(show: false),
                 titlesData: FlTitlesData(
@@ -1216,8 +1171,8 @@ class _CategoryCard extends StatelessWidget {
                             ? '${(val / 1000).toStringAsFixed(1)}k'
                             : '${val.round()}';
                         return Text(text,
-                            style: TextStyle(
-                                fontSize: 10, color: taskMuted(context)));
+                            style:
+                                const TextStyle(fontSize: 9, color: _kMuted));
                       },
                     ),
                   ),
@@ -1238,8 +1193,8 @@ class _CategoryCard extends StatelessWidget {
                             angle: -0.7854,
                             child: Text(label,
                                 maxLines: 1,
-                                style: TextStyle(
-                                    fontSize: 10, color: taskMuted(context))),
+                                style: const TextStyle(
+                                    fontSize: 8.5, color: _kMuted)),
                           ),
                         );
                       },
@@ -1264,7 +1219,7 @@ class _CategoryCard extends StatelessWidget {
                       barRods: [
                         BarChartRodData(
                           toY: categories[i].$2,
-                          color: _dashboardColor(i),
+                          color: _kBlueAccent,
                           width: 18,
                           borderRadius: const BorderRadius.vertical(
                               top: Radius.circular(5)),
@@ -1297,29 +1252,30 @@ class _TopProductsCard extends StatelessWidget {
     final maxV = products.fold<double>(0, (s, p) => math.max(s, p.$2));
     return GlassCard(
       padding: const EdgeInsets.all(16),
-      radius: 16,
+      radius: 22,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionHeading(
-              icon: Icons.local_fire_department_outlined,
-              title: 'Top Produk Keluar',
-              color: kTaskTerracotta),
+          Text('Top Produk Keluar',
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: ink(context))),
           const SizedBox(height: 14),
-          for (var i = 0; i < products.length; i++)
+          for (final p in products)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 5),
               child: Row(
                 children: [
                   SizedBox(
                     width: 92,
-                    child: Text(products[i].$1,
+                    child: Text(p.$1,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
+                        style: const TextStyle(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w700,
-                            color: taskMuted(context))),
+                            color: _kMuted)),
                   ),
                   Expanded(
                     child: Container(
@@ -1332,10 +1288,10 @@ class _TopProductsCard extends StatelessWidget {
                       ),
                       alignment: Alignment.centerLeft,
                       child: FractionallySizedBox(
-                        widthFactor: maxV <= 0 ? 0 : products[i].$2 / maxV,
+                        widthFactor: maxV <= 0 ? 0 : p.$2 / maxV,
                         child: Container(
                           decoration: BoxDecoration(
-                            color: _dashboardColor(i),
+                            color: _kMagenta,
                             borderRadius: BorderRadius.circular(7),
                           ),
                         ),
@@ -1345,7 +1301,7 @@ class _TopProductsCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   SizedBox(
                     width: 42,
-                    child: Text('${products[i].$2.round()}',
+                    child: Text('${p.$2.round()}',
                         textAlign: TextAlign.right,
                         style: const TextStyle(
                             fontSize: 11, fontWeight: FontWeight.w800)),
@@ -1355,41 +1311,6 @@ class _TopProductsCard extends StatelessWidget {
             ),
         ],
       ),
-    );
-  }
-}
-
-class _SectionHeading extends StatelessWidget {
-  const _SectionHeading({
-    required this.icon,
-    required this.title,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String title;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: .12),
-            borderRadius: BorderRadius.circular(11),
-          ),
-          child: Icon(icon, size: 18, color: color),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(title,
-              style: TextStyle(
-                  fontSize: 15, fontWeight: FontWeight.w800, color: color)),
-        ),
-      ],
     );
   }
 }
@@ -1413,7 +1334,7 @@ class _LegendDot extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 5),
-        Text(label, style: TextStyle(fontSize: 11, color: taskMuted(context))),
+        Text(label, style: const TextStyle(fontSize: 10.5, color: _kMuted)),
       ],
     );
   }
@@ -1446,7 +1367,7 @@ class _RingIndicator extends StatelessWidget {
                   backgroundColor:
                       Theme.of(context).brightness == Brightness.dark
                           ? const Color(0xff334155)
-                          : kTaskBlueLight,
+                          : const Color(0xffEFEBE3),
                   valueColor: AlwaysStoppedAnimation(color),
                 ),
               ),
@@ -1458,8 +1379,8 @@ class _RingIndicator extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(label,
-              style: TextStyle(fontSize: 12, color: taskMuted(context))),
+          child:
+              Text(label, style: const TextStyle(fontSize: 11, color: _kMuted)),
         ),
       ],
     );

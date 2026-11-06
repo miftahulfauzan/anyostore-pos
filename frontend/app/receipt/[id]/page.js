@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rp = (number) => `Rp${Number(number || 0).toLocaleString('id-ID')}`;
-const paymentLabels = { cash: 'Tunai', qris: 'QRIS', debit: 'Kartu debit', transfer: 'Transfer', split: 'Pembayaran terpisah' };
+const paymentLabels = { cash: 'Tunai', qris: 'QRIS', debit: 'Kartu debit', transfer: 'Transfer', split: 'Pembayaran terpisah', other: 'Lainnya / tidak diketahui' };
 
 function ReceiptRow({ label, value, strong = false, negative = false }) {
   return <div className={`receipt-summary-row${strong ? ' strong' : ''}${negative ? ' negative' : ''}`}><span>{label}</span><b>{value}</b></div>;

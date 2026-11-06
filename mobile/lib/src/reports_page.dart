@@ -1,16 +1,13 @@
-import 'dart:async';
 import 'dart:convert';
 
 // ignore_for_file: prefer_const_constructors
 
 import 'dart:io';
 
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'api_client.dart';
-import 'branch_scope.dart';
 import 'offline_status.dart';
 import 'offline_store.dart';
 import 'format.dart';
@@ -19,17 +16,10 @@ import 'report_filter.dart';
 import 'task_ui.dart';
 
 class ReportsPage extends StatefulWidget {
-  const ReportsPage(
-      {super.key,
-      required this.api,
-      this.role,
-      this.dashboardMode = false,
-      this.initialSection = 'ringkasan'});
+  const ReportsPage({super.key, required this.api, this.role});
   static final ValueNotifier<int> reloadTick = ValueNotifier(0);
   final ApiClient api;
   final String? role;
-  final bool dashboardMode;
-  final String initialSection;
 
   @override
   State<ReportsPage> createState() => _ReportsPageState();
@@ -46,7 +36,6 @@ class _ReportsPageState extends State<ReportsPage> {
   bool get _isOwner => widget.role == 'owner';
   List<Map<String, dynamic>> _branches = [];
   int? _branchId;
-  int _loadGeneration = 0;
 
   (String, String) get _range {
     final now = DateTime.now().toUtc().add(const Duration(hours: 7));
@@ -64,12 +53,6 @@ class _ReportsPageState extends State<ReportsPage> {
   @override
   void initState() {
     super.initState();
-    _section = widget.initialSection;
-    if (_isOwner) {
-      _branchId = BranchScope.active.value;
-      widget.api.activeBranchId = _branchId;
-      BranchScope.active.addListener(_onBranchScopeChanged);
-    }
     _load();
     // Saat internet kembali: otomatis muat ulang dari server (normal setelah sync).
     OfflineStatus.syncTick.addListener(_onSyncTick);
@@ -85,26 +68,14 @@ class _ReportsPageState extends State<ReportsPage> {
     _load(silent: true);
   }
 
-  void _onBranchScopeChanged() {
-    if (!_isOwner) return;
-    final branchId = BranchScope.active.value;
-    widget.api.activeBranchId = branchId;
-    if (branchId == _branchId) return;
-    setState(() => _branchId = branchId);
-    _load();
-  }
-
   @override
   void dispose() {
     OfflineStatus.syncTick.removeListener(_onSyncTick);
     ReportsPage.reloadTick.removeListener(_onReloadTick);
-    if (_isOwner) BranchScope.active.removeListener(_onBranchScopeChanged);
     super.dispose();
   }
 
   Future<void> _load({bool silent = false}) async {
-    final generation = ++_loadGeneration;
-    bool isCurrent() => mounted && generation == _loadGeneration;
     if (!silent) {
       setState(() {
         _loading = true;
@@ -116,74 +87,29 @@ class _ReportsPageState extends State<ReportsPage> {
     try {
       if (_isOwner && _branches.isEmpty) {
         try {
-          final branches = await widget.api.branches();
-          if (!isCurrent()) return;
-          _branches = branches.cast<Map<String, dynamic>>();
+          _branches =
+              (await widget.api.branches()).cast<Map<String, dynamic>>();
         } catch (_) {}
       }
       Map<String, dynamic> data;
-      if (widget.dashboardMode && widget.role == 'kasir') {
-        final payload = await widget.api.dashboard(start: start, end: end);
-        final summary =
-            (payload['summary'] as Map<String, dynamic>?) ?? const {};
-        data = {
-          'summary': {
-            'transactions': summary['today_transactions'] ?? 0,
-            'revenue': summary['today_sales'] ?? 0,
-            'gross_sales': summary['today_sales'] ?? 0,
-            'products_sold': summary['products_sold'] ?? 0,
-          },
-          'cashier_dashboard': payload,
-          'payment_methods': payload['payment_breakdown'] ?? const [],
-          'daily_sales': [
-            for (final row in (payload['sales_trend'] as List? ?? const []))
-              if (row is Map<String, dynamic>)
-                {
-                  'date': row['date'],
-                  'transactions': 0,
-                  'revenue': row['sales'] ?? 0,
-                },
-          ],
-        };
-      } else
-        switch (_section) {
-          case 'penutupan':
-            // Penutupan harian per cabang; owner dapat melihat gabungannya.
-            if (_isOwner && _branchId == null && _branches.isNotEmpty) {
-              final reports = await Future.wait(_branches.map((branch) =>
-                  widget.api.reportDailyClosing(
-                      date: todayWib(),
-                      branchId: int.tryParse('${branch['id']}'))));
-              data = _combineClosings(reports);
-            } else {
-              data = await widget.api
-                  .reportDailyClosing(date: todayWib(), branchId: _branchId);
-            }
-            break;
-          case 'ppn':
-            if (_isOwner && _branchId == null && _branches.isNotEmpty) {
-              final reports = await Future.wait(_branches.map((branch) =>
-                  widget.api.taxReport(
-                      start: start,
-                      end: end,
-                      branchId: int.tryParse('${branch['id']}'))));
-              data = _combineTaxReports(reports);
-            } else {
-              data = await widget.api
-                  .taxReport(start: start, end: end, branchId: _branchId);
-            }
-            break;
-          default:
-            data = await widget.api.reportOverview(
-                start: start,
-                end: end,
-                branchId: _branchId,
-                allBranches: _isOwner && _branchId == null);
-        }
-      if (!isCurrent()) return;
+      switch (_section) {
+        case 'penutupan':
+          // Penutupan hanya untuk hari ini (tanpa rentang).
+          data = await widget.api
+              .reportDailyClosing(date: todayWib(), branchId: _branchId);
+          break;
+        case 'ppn':
+          data = await widget.api
+              .taxReport(start: start, end: end, branchId: _branchId);
+          break;
+        default:
+          data = await widget.api
+              .reportOverview(start: start, end: end, branchId: _branchId);
+      }
+      if (!mounted) return;
       // Transaksi & pengeluaran/pemasukan offline ikut masuk ringkasan/penutupan.
       final merged = await _mergeOffline(data);
-      if (!isCurrent()) return;
+      if (!mounted) return;
       setState(() => _data = merged);
       // Simpan cache laporan (data server asli) untuk offline.
       try {
@@ -196,10 +122,10 @@ class _ReportsPageState extends State<ReportsPage> {
       if (e.isNetwork) {
         try {
           final cached = await OfflineStore.cacheGet(cacheKey);
-          if (cached != null && isCurrent()) {
+          if (cached != null && mounted) {
             final merged =
                 await _mergeOffline(cached['payload'] as Map<String, dynamic>);
-            if (isCurrent()) {
+            if (mounted) {
               setState(() {
                 _data = merged;
                 _error = null;
@@ -209,114 +135,10 @@ class _ReportsPageState extends State<ReportsPage> {
           }
         } catch (_) {}
       }
-      if (isCurrent()) setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message);
     } finally {
-      if (isCurrent()) setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
-  }
-
-  Map<String, dynamic> _combineClosings(List<Map<String, dynamic>> reports) {
-    final combined = <String, dynamic>{
-      'document': 'Penutupan Penjualan',
-      'store': 'Semua toko/gudang',
-      'date': todayWib(),
-      'receipt_count': 0,
-      'return_count': 0,
-      'total_sales': 0.0,
-      'subtotal': 0.0,
-      'expenses': 0.0,
-      'income': 0.0,
-      'expected_total': 0.0,
-      'methods': <String, Map<String, dynamic>>{},
-    };
-    final methods = combined['methods'] as Map<String, Map<String, dynamic>>;
-    for (final report in reports) {
-      for (final field in [
-        'receipt_count',
-        'return_count',
-        'total_sales',
-        'subtotal',
-        'expenses',
-        'income',
-        'expected_total',
-      ]) {
-        final total = asNum(combined[field]) + asNum(report[field]);
-        combined[field] =
-            const {'receipt_count', 'return_count'}.contains(field)
-                ? total.toInt()
-                : total;
-      }
-      final branchMethods = (report['methods'] as Map<String, dynamic>?) ?? {};
-      for (final entry in branchMethods.entries) {
-        final target = methods.putIfAbsent(entry.key, () => {});
-        final values = entry.value as Map<String, dynamic>;
-        for (final field in [
-          'sales',
-          'returns',
-          'cancellations',
-          'cash_in_out',
-          'total',
-        ]) {
-          target[field] = asNum(target[field]) + asNum(values[field]);
-        }
-      }
-    }
-    return combined;
-  }
-
-  Map<String, dynamic> _combineTaxReports(List<Map<String, dynamic>> reports) {
-    final outputSales = <String, dynamic>{
-      'transactions': 0,
-      'gross_sales': 0.0,
-      'ppn_base': 0.0,
-      'ppn_amount': 0.0,
-    };
-    final inputSales = <String, dynamic>{
-      'orders': 0,
-      'total_purchase': 0.0,
-      'ppn_base': 0.0,
-      'ppn_amount': 0.0,
-    };
-    final months = <String, Map<String, dynamic>>{};
-    double net = 0;
-    for (final report in reports) {
-      final output = (report['ppn_keluaran'] as Map<String, dynamic>?) ?? {};
-      final input = (report['ppn_masukan'] as Map<String, dynamic>?) ?? {};
-      for (final field in outputSales.keys) {
-        final total = asNum(outputSales[field]) + asNum(output[field]);
-        outputSales[field] = field == 'transactions' ? total.toInt() : total;
-      }
-      for (final field in inputSales.keys) {
-        final total = asNum(inputSales[field]) + asNum(input[field]);
-        inputSales[field] = field == 'orders' ? total.toInt() : total;
-      }
-      net += asNum(report['net_ppn']);
-      for (final raw in (report['monthly'] as List?) ?? []) {
-        if (raw is! Map) continue;
-        final row = Map<String, dynamic>.from(raw);
-        final month = '${row['month']}';
-        final target = months.putIfAbsent(month, () => {'month': month});
-        for (final field in [
-          'transactions',
-          'gross_sales',
-          'ppn_base',
-          'ppn_keluaran',
-        ]) {
-          final total = asNum(target[field]) + asNum(row[field]);
-          target[field] = field == 'transactions' ? total.toInt() : total;
-        }
-      }
-    }
-    final sortedMonths = months.values.toList()
-      ..sort((a, b) => '${a['month']}'.compareTo('${b['month']}'));
-    return {
-      'store_name': 'Semua toko/gudang',
-      'tax_rate': 'gabungan',
-      'ppn_keluaran': outputSales,
-      'ppn_masukan': inputSales,
-      'net_ppn': net,
-      'monthly': sortedMonths,
-    };
   }
 
   /// Tambahkan transaksi & pengeluaran/pemasukan offline ke Ringkasan/Penutupan.
@@ -355,56 +177,23 @@ class _ReportsPageState extends State<ReportsPage> {
             }).toList();
       if (txs.isEmpty && exps.isEmpty) return data;
       double txTotal = 0;
-      var offlinePcs = 0;
       final byMethod = <String, double>{};
-      final methodCounts = <String, int>{};
-      final byDate = <String, Map<String, dynamic>>{};
       for (final t in txs) {
         txTotal += asNum(t['grand_total']);
         final p =
             jsonDecode(t['payload'] as String? ?? '{}') as Map<String, dynamic>;
-        for (final item in (p['items'] as List?) ?? const []) {
-          if (item is Map) offlinePcs += asNum(item['quantity']).round();
-        }
-        final payments = (p['payments'] as List?) ?? const [];
-        if (payments.isNotEmpty) {
-          for (final rawPayment in payments) {
-            if (rawPayment is! Map) continue;
-            final method = (rawPayment['payment_method'] ?? 'cash').toString();
-            byMethod[method] =
-                (byMethod[method] ?? 0) + asNum(rawPayment['amount']);
-            methodCounts[method] = (methodCounts[method] ?? 0) + 1;
-          }
-        } else {
-          final method = (p['payment_method'] ?? 'cash').toString();
-          byMethod[method] = (byMethod[method] ?? 0) + asNum(t['grand_total']);
-          methodCounts[method] = (methodCounts[method] ?? 0) + 1;
-        }
-        final date = p['transaction_date']?.toString() ??
-            t['created_at']?.toString().substring(0, 10) ??
-            todayWib();
-        final daily = byDate.putIfAbsent(
-            date, () => {'date': date, 'transactions': 0, 'revenue': 0.0});
-        daily['transactions'] = asNum(daily['transactions']) + 1;
-        daily['revenue'] = asNum(daily['revenue']) + asNum(t['grand_total']);
+        final m = (p['payment_method'] ?? 'cash').toString();
+        byMethod[m] = (byMethod[m] ?? 0) + asNum(t['grand_total']);
       }
       double expSum = 0;
       double incSum = 0;
-      final incomeByDate = <String, double>{};
-      final expenseByDate = <String, double>{};
       for (final r in exps) {
         final p =
             jsonDecode(r['payload'] as String? ?? '{}') as Map<String, dynamic>;
-        final date = p['expense_date']?.toString() ??
-            p['date']?.toString() ??
-            todayWib();
-        final amount = asNum(p['amount']);
         if (p['type'] == 'income') {
-          incSum += amount;
-          incomeByDate[date] = (incomeByDate[date] ?? 0) + amount;
+          incSum += asNum(p['amount']);
         } else {
-          expSum += amount;
-          expenseByDate[date] = (expenseByDate[date] ?? 0) + amount;
+          expSum += asNum(p['amount']);
         }
       }
       final copy = Map<String, dynamic>.from(data);
@@ -429,17 +218,13 @@ class _ReportsPageState extends State<ReportsPage> {
         final summary = Map<String, dynamic>.from(
             (copy['summary'] as Map<String, dynamic>?) ?? {});
         summary['transactions'] = asNum(summary['transactions']) + txs.length;
-        summary['revenue'] = asNum(summary['revenue']) + txTotal;
-        summary['gross_sales'] = asNum(summary['gross_sales']) + txTotal;
+        summary['revenue'] = asNum(summary['revenue']) + txTotal + incSum;
         summary['income'] = asNum(summary['income']) + incSum;
         summary['expenses'] = asNum(summary['expenses']) + expSum;
-        summary['gross_profit'] = asNum(summary['gross_profit']) + txTotal;
+        summary['gross_profit'] =
+            asNum(summary['gross_profit']) + txTotal + incSum;
         summary['net_profit'] =
             asNum(summary['net_profit']) + txTotal + incSum - expSum;
-        final productsSold = _totalProductsSold(copy);
-        if (productsSold != null) {
-          summary['products_sold'] = productsSold + offlinePcs;
-        }
         copy['summary'] = summary;
         final payments = List<Map<String, dynamic>>.from(
             (copy['payment_methods'] as List?) ?? []);
@@ -450,59 +235,12 @@ class _ReportsPageState extends State<ReportsPage> {
             payments[idx] = {
               ...payments[idx],
               'amount': asNum(payments[idx]['amount']) + e.value,
-              'transactions':
-                  asNum(payments[idx]['transactions']) + methodCounts[e.key]!,
             };
           } else {
-            payments.add({
-              'payment_method': e.key,
-              'amount': e.value,
-              'transactions': methodCounts[e.key] ?? 0,
-            });
+            payments.add({'payment_method': e.key, 'amount': e.value});
           }
         }
         copy['payment_methods'] = payments;
-        final dailySales = List<Map<String, dynamic>>.from(
-            (copy['daily_sales'] as List?) ?? []);
-        for (final e in byDate.entries) {
-          final index =
-              dailySales.indexWhere((row) => '${row['date']}' == e.key);
-          if (index < 0) {
-            dailySales.add(e.value);
-          } else {
-            dailySales[index] = {
-              ...dailySales[index],
-              'transactions': asNum(dailySales[index]['transactions']) +
-                  asNum(e.value['transactions']),
-              'revenue': asNum(dailySales[index]['revenue']) +
-                  asNum(e.value['revenue']),
-            };
-          }
-        }
-        dailySales.sort((a, b) => '${a['date']}'.compareTo('${b['date']}'));
-        copy['daily_sales'] = dailySales;
-
-        void mergeDailyAmounts(String key, Map<String, double> additions) {
-          final rows =
-              List<Map<String, dynamic>>.from((copy[key] as List?) ?? []);
-          for (final entry in additions.entries) {
-            final index =
-                rows.indexWhere((row) => '${row['date']}' == entry.key);
-            if (index < 0) {
-              rows.add({'date': entry.key, 'amount': entry.value});
-            } else {
-              rows[index] = {
-                ...rows[index],
-                'amount': asNum(rows[index]['amount']) + entry.value,
-              };
-            }
-          }
-          rows.sort((a, b) => '${a['date']}'.compareTo('${b['date']}'));
-          copy[key] = rows;
-        }
-
-        mergeDailyAmounts('daily_income', incomeByDate);
-        mergeDailyAmounts('daily_expenses', expenseByDate);
       }
       return copy;
     } catch (_) {
@@ -519,37 +257,30 @@ class _ReportsPageState extends State<ReportsPage> {
           const Positioned.fill(child: SoftBlobs()),
           Column(
             children: [
-              if (!widget.dashboardMode)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-                  child: PillTabs(
-                    tabs: [
-                      if (widget.role != 'kasir')
-                        (
-                          value: 'penjualan',
-                          icon: Icons.point_of_sale,
-                          label: 'Penjualan'
-                        ),
-                      (
-                        value: 'ringkasan',
-                        icon: Icons.dashboard_outlined,
-                        label: 'Ringkasan'
-                      ),
-                      (
-                        value: 'penutupan',
-                        icon: Icons.event_available,
-                        label: 'Penutupan'
-                      ),
-                      if (widget.role != 'kasir')
-                        (value: 'ppn', icon: Icons.receipt, label: 'PPN'),
-                    ],
-                    selected: _section,
-                    onChanged: (v) {
-                      setState(() => _section = v);
-                      _load();
-                    },
-                  ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                child: PillTabs(
+                  tabs: [
+                    (
+                      value: 'ringkasan',
+                      icon: Icons.dashboard_outlined,
+                      label: 'Ringkasan'
+                    ),
+                    (
+                      value: 'penutupan',
+                      icon: Icons.event_available,
+                      label: 'Penutupan'
+                    ),
+                    if (widget.role != 'kasir')
+                      (value: 'ppn', icon: Icons.receipt, label: 'PPN'),
+                  ],
+                  selected: _section,
+                  onChanged: (v) {
+                    setState(() => _section = v);
+                    _load();
+                  },
                 ),
+              ),
               _buildFilterBar(context),
               Expanded(child: _buildBody()),
             ],
@@ -564,7 +295,7 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   String _branchLabel(int? id) {
-    if (id == null) return _isOwner ? 'Semua toko/gudang' : 'Toko saya';
+    if (id == null) return 'Toko saya (default)';
     final branch = _branches.firstWhere(
       (item) => item['id']?.toString() == id.toString(),
       orElse: () => <String, dynamic>{},
@@ -573,30 +304,6 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   Widget _buildFilterBar(BuildContext context) {
-    if (widget.dashboardMode && widget.role == 'kasir') {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-        child: GlassCard(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text('Penjualan hari ini, 7 hari, dan bulan ini',
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: taskMuted(context))),
-              ),
-              IconButton(
-                onPressed: _load,
-                icon: const Icon(Icons.refresh),
-                tooltip: 'Muat ulang',
-              ),
-            ],
-          ),
-        ),
-      );
-    }
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
       child: GlassCard(
@@ -610,41 +317,44 @@ class _ReportsPageState extends State<ReportsPage> {
                 Expanded(
                   child: _buildPeriodSelector(context),
                 ),
-                if (!widget.dashboardMode) ...[
-                  const SizedBox(width: 8),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: taskSurface(context),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: taskBorder(context)),
-                    ),
-                    child: IconButton(
-                      key: const ValueKey('reports-filter-button'),
-                      onPressed: _openFilterSheet,
-                      icon: const Icon(Icons.tune_outlined),
-                      tooltip: 'Buka filter',
-                      color: ink(context),
-                    ),
+                const SizedBox(width: 8),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: taskSurface(context),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: taskBorder(context)),
                   ),
-                ],
-                if (!widget.dashboardMode) const SizedBox(width: 8),
-                if (!widget.dashboardMode)
-                  IconButton(
-                    onPressed: _export,
-                    icon: const Icon(Icons.ios_share, size: 20),
-                    tooltip: 'Export CSV',
+                  child: IconButton(
+                    key: const ValueKey('reports-filter-button'),
+                    onPressed: _openFilterSheet,
+                    icon: const Icon(Icons.tune_outlined),
+                    tooltip: 'Buka filter',
+                    color: ink(context),
                   ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: _export,
+                  icon: const Icon(Icons.ios_share, size: 20),
+                  tooltip: 'Export CSV',
+                ),
               ],
             ),
-            if (_isOwner) ...[
+            if (_isOwner && _branchId != null) ...[
               const SizedBox(height: 4),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Lokasi: ${_branchLabel(_branchId)}',
-                    style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: taskMuted(context))),
+              SizedBox(
+                height: 48,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: InputChip(
+                    label: Text('Lokasi: ${_branchLabel(_branchId)}'),
+                    onDeleted: () {
+                      setState(() => _branchId = null);
+                      _load();
+                    },
+                    materialTapTargetSize: MaterialTapTargetSize.padded,
+                  ),
+                ),
               ),
             ],
             const SizedBox(height: 4),
@@ -743,12 +453,10 @@ class _ReportsPageState extends State<ReportsPage> {
         initialBranchId: _branchId,
         branches: _branches,
         onApply: (branchId) {
-          if (branchId == null || BranchScope.active.value == branchId) {
-            setState(() => _branchId = branchId);
-            _load();
-          } else {
-            unawaited(BranchScope.set(branchId));
-          }
+          setState(() {
+            _branchId = branchId;
+          });
+          _load();
         },
       ),
     );
@@ -761,7 +469,6 @@ class _ReportsPageState extends State<ReportsPage> {
     row(['Laporan', _section, 'Rentang', '${_range.$1} s.d. ${_range.$2}']);
     row([]);
     final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
-    final productsSold = _totalProductsSold(_data);
     switch (_section) {
       case 'penutupan':
         row(['Tanggal', (_data?['date'] ?? '').toString()]);
@@ -789,9 +496,6 @@ class _ReportsPageState extends State<ReportsPage> {
         row(['PPN Bersih', fmtRp(asNum(_data?['net_ppn']))]);
       default:
         row(['Transaksi', '${summary['transactions'] ?? 0}']);
-        if (productsSold != null) {
-          row(['Produk terjual', '$productsSold pcs']);
-        }
         row(['Pendapatan', fmtRp(asNum(summary['revenue']))]);
         row(['HPP', fmtRp(asNum(summary['cost_of_goods']))]);
         row(['Laba kotor', fmtRp(asNum(summary['gross_profit']))]);
@@ -817,50 +521,9 @@ class _ReportsPageState extends State<ReportsPage> {
             .cast<Map<String, dynamic>>()) {
           row([
             'Produk',
-            '${p['name']} (${p['sku'] ?? '-'})',
+            p['name'].toString(),
             '${p['quantity_sold']} pcs',
-            'Omzet ${fmtRp(asNum(p['revenue']))}',
-            'Modal ${fmtRp(asNum(p['cost_of_goods']))}',
-            'Laba ${fmtRp(asNum(p['profit']))}',
-          ]);
-        }
-        for (final s in ((_data?['daily_sales'] as List?) ?? [])
-            .cast<Map<String, dynamic>>()) {
-          row([
-            'Penjualan harian',
-            '${s['date']}',
-            '${s['transactions']} transaksi',
-            fmtRp(asNum(s['revenue'])),
-          ]);
-        }
-        for (final c in ((_data?['cashiers'] as List?) ?? [])
-            .cast<Map<String, dynamic>>()) {
-          row([
-            'Kasir',
-            '${c['name']} (${c['role']})',
-            '${c['transactions']} transaksi',
-            fmtRp(asNum(c['revenue'])),
-            'Diskon ${fmtRp(asNum(c['discounts']))}',
-          ]);
-        }
-        for (final c in ((_data?['customers'] as List?) ?? [])
-            .cast<Map<String, dynamic>>()) {
-          row([
-            'Pelanggan',
-            '${c['name']} · ${c['phone'] ?? '-'}',
-            '${c['transactions']} transaksi',
-            fmtRp(asNum(c['revenue'])),
-          ]);
-        }
-        for (final t in ((_data?['transactions'] as List?) ?? [])
-            .cast<Map<String, dynamic>>()) {
-          row([
-            'Transaksi',
-            '${t['invoice_no']}',
-            '${t['transaction_date']} · ${t['cashier']} · ${t['branch_name']}',
-            (t['payment_method'] ?? '').toString(),
-            '${t['status']}',
-            fmtRp(asNum(t['grand_total'])),
+            fmtRp(asNum(p['revenue']))
           ]);
         }
     }
@@ -871,17 +534,7 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   Widget _buildBody() {
-    if (_loading) {
-      return const Center(
-          child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 12),
-          Text('Memuat laporan…')
-        ],
-      ));
-    }
+    if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null) {
       return Center(
         child: Padding(
@@ -897,178 +550,19 @@ class _ReportsPageState extends State<ReportsPage> {
         ),
       );
     }
-    final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
-    final emptySales = (widget.dashboardMode ||
-            _section == 'ringkasan' ||
-            _section == 'penjualan') &&
-        asNum(summary['transactions']) == 0 &&
-        asNum(summary['gross_sales'] ?? summary['revenue']) == 0;
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
-        padding: EdgeInsets.fromLTRB(
-            12, 12, 12, 16 + MediaQuery.of(context).padding.bottom),
-        children: _spaced([
-          if (emptySales)
-            GlassCard(
-                child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(widget.dashboardMode && widget.role == 'kasir'
-                    ? 'Belum ada penjualan hari ini.'
-                    : 'Belum ada penjualan pada rentang ini.'),
-                const SizedBox(height: 8),
-                OutlinedButton(
-                    onPressed: widget.dashboardMode && widget.role == 'kasir'
-                        ? _load
-                        : () => _selectPreset('custom'),
-                    child: Text(widget.dashboardMode && widget.role == 'kasir'
-                        ? 'Muat ulang'
-                        : 'Ubah periode')),
-              ],
-            )),
-          ...(widget.dashboardMode
-              ? _dashboard()
-              : switch (_section) {
-                  'penjualan' => _sales(),
-                  'penutupan' => _closing(),
-                  'ppn' => _ppn(),
-                  _ => _overview(),
-                }),
-        ]),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 104),
+        children: _spaced(switch (_section) {
+          'penjualan' => _sales(),
+          'penutupan' => _closing(),
+          'ppn' => _ppn(),
+          _ => _overview(),
+        }),
       ),
     );
   }
-
-  List<Widget> _dashboard() {
-    if (widget.role == 'kasir') {
-      final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
-      final cashierData =
-          (_data?['cashier_dashboard'] as Map<String, dynamic>?) ?? {};
-      final periodSummary =
-          (cashierData['summary'] as Map<String, dynamic>?) ?? {};
-      final payments = ((_data?['payment_methods'] as List?) ?? [])
-          .whereType<Map<String, dynamic>>()
-          .toList();
-      final daily = ((_data?['daily_sales'] as List?) ?? [])
-          .whereType<Map<String, dynamic>>()
-          .toList();
-      return [
-        _Card('Penjualan', [
-          _FocalMetric('Hari ini', fmtRp(asNum(summary['revenue']))),
-          _Row('Transaksi hari ini', '${summary['transactions'] ?? 0}'),
-          _Row('Produk terjual', '${summary['products_sold'] ?? 0} pcs'),
-          _Row('7 hari', fmtRp(asNum(periodSummary['seven_day_sales']))),
-          _Row('Bulan ini', fmtRp(asNum(periodSummary['month_sales']))),
-        ]),
-        if (daily.isNotEmpty) _SalesTrendCard(rows: daily),
-        if (payments.isNotEmpty)
-          _Card('Pembayaran · 30 hari', [
-            for (final payment in payments.take(5))
-              _Row((payment['payment_method'] ?? '').toString().toUpperCase(),
-                  fmtRp(asNum(payment['amount']))),
-          ]),
-      ];
-    }
-
-    final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
-    final methods = ((_data?['payment_methods'] as List?) ?? [])
-        .whereType<Map<String, dynamic>>()
-        .toList();
-    final products = ((_data?['products'] as List?) ?? [])
-        .whereType<Map<String, dynamic>>()
-        .toList();
-    final lowStock = ((_data?['low_stock'] as List?) ?? [])
-        .whereType<Map<String, dynamic>>()
-        .toList();
-    final daily = ((_data?['daily_sales'] as List?) ?? [])
-        .whereType<Map<String, dynamic>>()
-        .toList();
-    final dailyExpenses = _reportRows('daily_expenses');
-    final dailyReturns = _reportRows('daily_returns');
-    final salesSources = _reportRows('sales_sources');
-    final productsSold = _totalProductsSold(_data);
-    return [
-      _ReportSection(
-        key: const ValueKey('reports-shop-glance'),
-        title: 'Ringkasan toko',
-        icon: Icons.storefront_outlined,
-        color: kTaskDark,
-        children: [
-          _Row('Pesanan', '${summary['transactions'] ?? 0}'),
-          _Row('Pendapatan',
-              fmtRp(asNum(summary['gross_sales'] ?? summary['revenue']))),
-          if (productsSold != null) _Row('Produk terjual', '$productsSold pcs'),
-          _Row('Pengeluaran', fmtRp(asNum(summary['expenses']))),
-          _Row('Pengembalian', fmtRp(asNum(summary['return_amount']))),
-        ],
-      ),
-      _ReportSection(
-        key: const ValueKey('reports-sales-section'),
-        title: 'Sales',
-        icon: Icons.trending_up,
-        color: kTaskAccent,
-        children: [
-          _FocalMetric('Total sales',
-              fmtRp(asNum(summary['gross_sales'] ?? summary['revenue']))),
-          if (daily.isNotEmpty)
-            _SalesTrendCard(rows: daily)
-          else
-            const _ReportEmptySeries(
-                'Belum ada data penjualan pada periode ini.'),
-        ],
-      ),
-      _ReportSeriesSection(
-        key: const ValueKey('reports-expense-section'),
-        title: 'Expense',
-        icon: Icons.north_east,
-        color: kTaskTerracotta,
-        rows: dailyExpenses,
-        valueKey: 'amount',
-        emptyMessage: 'Belum ada data pengeluaran pada periode ini.',
-      ),
-      _ReportSeriesSection(
-        key: const ValueKey('reports-return-section'),
-        title: 'Return',
-        icon: Icons.keyboard_return,
-        color: kTaskPurple,
-        rows: dailyReturns,
-        valueKey: 'amount',
-        emptyMessage: 'Belum ada data retur pada periode ini.',
-      ),
-      if (salesSources.isNotEmpty)
-        _ReportSection(
-          title: 'Sumber penjualan',
-          icon: Icons.point_of_sale_outlined,
-          color: kTaskAccent,
-          children: [
-            for (final source in salesSources.take(5))
-              _ReportSourceRow(source: source),
-          ],
-        ),
-      if (methods.isNotEmpty)
-        _Card('Pembayaran per metode', [
-          for (final method in methods.take(5))
-            _Row((method['payment_method'] ?? '').toString().toUpperCase(),
-                fmtRp(asNum(method['amount']))),
-        ]),
-      if (products.isNotEmpty)
-        _Card('Produk terlaris', [
-          for (final product in products.take(6))
-            _Row('${product['name']} · ${product['quantity_sold']} pcs',
-                fmtRp(asNum(product['revenue']))),
-        ]),
-      if (lowStock.isNotEmpty)
-        _Card('Stok perlu diperiksa', [
-          for (final product in lowStock.take(6))
-            _Row('${product['name']}',
-                '${product['stock']} / min ${product['min_stock']}'),
-        ]),
-    ];
-  }
-
-  List<Map<String, dynamic>> _reportRows(String key) =>
-      ((_data?[key] as List?) ?? []).whereType<Map<String, dynamic>>().toList();
 
   List<Widget> _spaced(List<Widget> items) => [
         for (var i = 0; i < items.length; i++) ...[
@@ -1076,21 +570,6 @@ class _ReportsPageState extends State<ReportsPage> {
           items[i],
         ],
       ];
-
-  int? _totalProductsSold(Map<String, dynamic>? data) {
-    if (data == null) return null;
-    final summary = data['summary'] as Map<String, dynamic>?;
-    if (summary?['products_sold'] != null) {
-      return asNum(summary!['products_sold']).round();
-    }
-    final tiers = data['price_tiers'];
-    if (tiers is! List) return null;
-    var total = 0;
-    for (final tier in tiers) {
-      if (tier is Map) total += asNum(tier['products_sold']).round();
-    }
-    return total;
-  }
 
   List<Widget> _overview() {
     final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
@@ -1100,13 +579,11 @@ class _ReportsPageState extends State<ReportsPage> {
         ((_data?['products'] as List?) ?? []).cast<Map<String, dynamic>>();
     final lowStock =
         ((_data?['low_stock'] as List?) ?? []).cast<Map<String, dynamic>>();
-    final productsSold = _totalProductsSold(_data);
     return [
       _Card('Ringkasan', [
-        _FocalMetric('Penjualan',
-            fmtRp(asNum(summary['gross_sales'] ?? summary['revenue']))),
         _Row('Transaksi', '${summary['transactions'] ?? 0}'),
-        if (productsSold != null) _Row('Produk terjual', '$productsSold pcs'),
+        _Row('Penjualan',
+            fmtRp(asNum(summary['gross_sales'] ?? summary['revenue']))),
         _Row('Pemasukan', fmtRp(asNum(summary['income']))),
         _Row('HPP', fmtRp(asNum(summary['cost_of_goods']))),
         _Row('Laba kotor', fmtRp(asNum(summary['gross_profit']))),
@@ -1133,89 +610,26 @@ class _ReportsPageState extends State<ReportsPage> {
 
   List<Widget> _sales() {
     final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
-    final payments = ((_data?['payment_methods'] as List?) ?? [])
-        .cast<Map<String, dynamic>>();
-    final products =
-        ((_data?['products'] as List?) ?? []).cast<Map<String, dynamic>>();
-    final daily =
-        ((_data?['daily_sales'] as List?) ?? []).cast<Map<String, dynamic>>();
-    final cashiers =
-        ((_data?['cashiers'] as List?) ?? []).cast<Map<String, dynamic>>();
-    final customers =
-        ((_data?['customers'] as List?) ?? []).cast<Map<String, dynamic>>();
-    final transactions =
-        ((_data?['transactions'] as List?) ?? []).cast<Map<String, dynamic>>();
-    final productsSold = _totalProductsSold(_data);
+    final payments =
+        ((_data?['payments'] as List?) ?? []).cast<Map<String, dynamic>>();
     return [
       _Card('Penjualan', [
-        _FocalMetric('Penjualan bersih',
-            fmtRp(asNum(summary['gross_sales'] ?? summary['revenue']))),
         _Row('Transaksi', '${summary['transactions'] ?? 0}'),
-        if (productsSold != null) _Row('Produk terjual', '$productsSold pcs'),
+        _Row('Penjualan bersih', fmtRp(asNum(summary['gross_sales']))),
         _Row('Diskon', fmtRp(asNum(summary['discounts']))),
-        _Row('Modal barang terjual', fmtRp(asNum(summary['cost_of_goods']))),
-        _Row('Laba kotor', fmtRp(asNum(summary['gross_profit']))),
-        _Row('Laba bersih', fmtRp(asNum(summary['net_profit']))),
       ]),
       if (payments.isNotEmpty)
-        _Card('Pembayaran per metode', [
+        _Card('Per metode', [
           for (final p in payments)
-            _Row(
-                '${(p['payment_method'] ?? '').toString().toUpperCase()} · ${p['transactions'] ?? 0} transaksi',
+            _Row((p['payment_method'] ?? '').toString().toUpperCase(),
                 fmtRp(asNum(p['amount']))),
-        ]),
-      if (daily.isNotEmpty)
-        _Card('Penjualan per tanggal', [
-          for (final d in daily)
-            _Row('${_displayDate(d['date'])} · ${d['transactions']} transaksi',
-                fmtRp(asNum(d['revenue']))),
-        ]),
-      if (cashiers.isNotEmpty)
-        _Card('Penjualan per kasir', [
-          for (final c in cashiers.take(20))
-            _Row('${c['name']} · ${c['role']}',
-                '${c['transactions']} trx · ${fmtRp(asNum(c['revenue']))}'),
-        ]),
-      if (customers.isNotEmpty)
-        _Card('Penjualan per pelanggan', [
-          for (final c in customers.take(20))
-            _Row('${c['name']} · ${c['phone'] ?? '-'}',
-                '${c['transactions']} trx · ${fmtRp(asNum(c['revenue']))}'),
-        ]),
-      if (products.isNotEmpty)
-        _Card('Produk terjual', [
-          for (final p in products.take(30))
-            _Row(
-                '${p['name']} · SKU ${p['sku'] ?? '-'} · ${p['quantity_sold']} pcs',
-                'Omzet ${fmtRp(asNum(p['revenue']))}\nModal ${fmtRp(asNum(p['cost_of_goods']))} · Laba ${fmtRp(asNum(p['profit']))}'),
-        ]),
-      if (transactions.isNotEmpty)
-        _Card('Transaksi terbaru', [
-          for (final t in transactions.take(30))
-            _Row(
-                '${t['invoice_no']} · ${_displayDate(t['transaction_date'])}\n${t['cashier']} · ${t['branch_name']} · ${(t['payment_method'] ?? '').toString().toUpperCase()}',
-                '${fmtRp(asNum(t['grand_total']))}\n${t['status']}'),
         ]),
     ];
   }
 
-  String _displayDate(dynamic value) {
-    final raw = value?.toString() ?? '';
-    final date = DateTime.tryParse(raw);
-    if (date == null) return raw;
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-  }
-
   Future<void> _printClosing() {
     return printNow(context, (printer, device) async {
-      final previousBranch = widget.api.activeBranchId;
-      if (_isOwner) widget.api.activeBranchId = _branchId;
-      late final Map<String, dynamic> store;
-      try {
-        store = await widget.api.storeSettings();
-      } finally {
-        widget.api.activeBranchId = previousBranch;
-      }
+      final store = await widget.api.storeSettings();
       await printer.printClosing({
         'store': store,
         'date': _data?['date'] ?? '',
@@ -1232,27 +646,21 @@ class _ReportsPageState extends State<ReportsPage> {
     final methods = (_data?['methods'] as Map<String, dynamic>?) ?? {};
     return [
       FilledButton.icon(
-        onPressed: _isOwner && _branchId == null ? null : _printClosing,
+        onPressed: _printClosing,
         style: FilledButton.styleFrom(
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+          backgroundColor: kTaskDark,
+          foregroundColor: Colors.white,
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
           minimumSize: const Size.fromHeight(50),
         ),
         icon: const Icon(Icons.print, size: 18),
         label: const Text('Cetak Penutupan'),
       ),
-      if (_isOwner && _branchId == null)
-        Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: Text('Pilih satu cabang untuk mencetak penutupan.',
-              style: TextStyle(fontSize: 11, color: taskMuted(context))),
-        ),
       const SizedBox(height: 12),
       _Card('Penutupan ${_data?['date'] ?? ''}', [
         _Row('Total struk', '${_data?['receipt_count'] ?? 0}'),
-        _FocalMetric('Total penjualan', fmtRp(asNum(_data?['total_sales']))),
+        _Row('Total penjualan', fmtRp(asNum(_data?['total_sales']))),
         _Row('Retur', '${_data?['return_count'] ?? 0}'),
         _Row('Pengeluaran', fmtRp(asNum(_data?['expenses']))),
         _Row('Pemasukan', fmtRp(asNum(_data?['income']))),
@@ -1277,11 +685,8 @@ class _ReportsPageState extends State<ReportsPage> {
     final masukan = (_data?['ppn_masukan'] as Map<String, dynamic>?) ?? {};
     final monthly =
         ((_data?['monthly'] as List?) ?? []).cast<Map<String, dynamic>>();
-    final title = _data?['tax_rate'] == 'gabungan'
-        ? 'PPN · Tarif gabungan'
-        : 'PPN (rate ${_data?['tax_rate'] ?? 0}%)';
     return [
-      _Card(title, [
+      _Card('PPN (rate ${_data?['tax_rate'] ?? 0}%)', [
         _Row('PPN Keluaran', fmtRp(asNum(keluaran['ppn_amount']))),
         _Row('PPN Masukan', fmtRp(asNum(masukan['ppn_amount']))),
         _Row('PPN Bersih', fmtRp(asNum(_data?['net_ppn']))),
@@ -1307,324 +712,6 @@ class _ReportsPageState extends State<ReportsPage> {
 }
 
 typedef _ReportFilterApply = void Function(int? branchId);
-
-class _ReportSection extends StatelessWidget {
-  const _ReportSection({
-    super.key,
-    required this.title,
-    required this.icon,
-    required this.color,
-    required this.children,
-  });
-
-  final String title;
-  final IconData icon;
-  final Color color;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final sectionColor =
-        Theme.of(context).brightness == Brightness.dark && color == kTaskDark
-            ? kTaskAccentDark
-            : color;
-    return GlassCard(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 20, color: sectionColor),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Text(title,
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: sectionColor)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          for (var i = 0; i < children.length; i++) ...[
-            if (i > 0)
-              Divider(height: 14, thickness: 1, color: taskBorder(context)),
-            children[i],
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _ReportEmptySeries extends StatelessWidget {
-  const _ReportEmptySeries(this.message);
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        child: Text(message,
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: taskMuted(context))),
-      );
-}
-
-class _ReportSeriesSection extends StatelessWidget {
-  const _ReportSeriesSection({
-    super.key,
-    required this.title,
-    required this.icon,
-    required this.color,
-    required this.rows,
-    required this.valueKey,
-    required this.emptyMessage,
-  });
-
-  final String title;
-  final IconData icon;
-  final Color color;
-  final List<Map<String, dynamic>> rows;
-  final String valueKey;
-  final String emptyMessage;
-
-  @override
-  Widget build(BuildContext context) => _ReportSection(
-        title: title,
-        icon: icon,
-        color: color,
-        children: [
-          if (rows.isEmpty)
-            _ReportEmptySeries(emptyMessage)
-          else
-            _ReportLineChart(rows: rows, valueKey: valueKey, color: color),
-        ],
-      );
-}
-
-class _ReportLineChart extends StatelessWidget {
-  const _ReportLineChart({
-    required this.rows,
-    required this.valueKey,
-    required this.color,
-  });
-
-  final List<Map<String, dynamic>> rows;
-  final String valueKey;
-  final Color color;
-
-  String _day(dynamic value) {
-    final raw = value?.toString() ?? '';
-    return raw.length >= 10 ? raw.substring(8, 10) : raw;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final visible = rows.length > 14 ? rows.sublist(rows.length - 14) : rows;
-    final valueRows =
-        visible.length > 7 ? visible.sublist(visible.length - 7) : visible;
-    final values = visible.map((row) => asNum(row[valueKey])).toList();
-    final maxValue =
-        values.fold<double>(0, (max, value) => value > max ? value : max);
-    final maxY = maxValue <= 0 ? 1.0 : maxValue * 1.2;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(
-          height: 182,
-          child: LineChart(
-            LineChartData(
-              minY: 0,
-              maxY: maxY,
-              gridData: FlGridData(
-                show: true,
-                drawVerticalLine: false,
-                getDrawingHorizontalLine: (_) => FlLine(
-                    color: taskBorder(context).withValues(alpha: .6),
-                    strokeWidth: .7),
-              ),
-              borderData: FlBorderData(show: false),
-              titlesData: FlTitlesData(
-                topTitles:
-                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                rightTitles:
-                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 38,
-                    interval: maxY / 4,
-                    getTitlesWidget: (value, meta) => Text(compactRp(value),
-                        style:
-                            TextStyle(fontSize: 9, color: taskMuted(context))),
-                  ),
-                ),
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 24,
-                    interval: 1,
-                    getTitlesWidget: (value, meta) {
-                      final index = value.toInt();
-                      if (index < 0 || index >= visible.length) {
-                        return const SizedBox.shrink();
-                      }
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 5),
-                        child: Text(_day(visible[index]['date']),
-                            style: TextStyle(
-                                fontSize: 9, color: taskMuted(context))),
-                      );
-                    },
-                  ),
-                ),
-              ),
-              lineTouchData: LineTouchData(
-                touchTooltipData: LineTouchTooltipData(
-                  getTooltipItems: (spots) => spots
-                      .map((spot) => LineTooltipItem(
-                          fmtRp(spot.y),
-                          const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 11)))
-                      .toList(),
-                ),
-              ),
-              lineBarsData: [
-                LineChartBarData(
-                  spots: [
-                    for (var i = 0; i < values.length; i++)
-                      FlSpot(i.toDouble(), values[i]),
-                  ],
-                  isCurved: true,
-                  curveSmoothness: .32,
-                  color: color,
-                  barWidth: 2.4,
-                  dotData: FlDotData(
-                    show: true,
-                    getDotPainter: (spot, percent, bar, index) =>
-                        FlDotCirclePainter(
-                      radius: 3,
-                      color: taskSurface(context),
-                      strokeWidth: 2,
-                      strokeColor: color,
-                    ),
-                  ),
-                  belowBarData: BarAreaData(
-                    show: true,
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        color.withValues(alpha: .2),
-                        color.withValues(alpha: 0)
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text('Nilai per tanggal',
-            style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: ink(context))),
-        const SizedBox(height: 6),
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 6,
-          childAspectRatio: 3.6,
-          children: [
-            for (final row in valueRows)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                decoration: BoxDecoration(
-                  color: taskSurface(context),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: taskBorder(context)),
-                ),
-                child: Row(
-                  children: [
-                    Text(_dateLabel(row['date']),
-                        style:
-                            TextStyle(fontSize: 10, color: taskMuted(context))),
-                    const SizedBox(width: 5),
-                    Expanded(
-                      child: Text(fmtRp(asNum(row[valueKey])),
-                          textAlign: TextAlign.right,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              color: ink(context))),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  String _dateLabel(dynamic value) {
-    final raw = value?.toString() ?? '';
-    return raw.length >= 10
-        ? '${raw.substring(8, 10)}/${raw.substring(5, 7)}'
-        : raw;
-  }
-
-  String compactRp(double value) {
-    if (value >= 1000000) return 'Rp${(value / 1000000).toStringAsFixed(1)}jt';
-    if (value >= 1000) return 'Rp${(value / 1000).round()}rb';
-    return 'Rp${value.round()}';
-  }
-}
-
-class _ReportSourceRow extends StatelessWidget {
-  const _ReportSourceRow({required this.source});
-
-  final Map<String, dynamic> source;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 7),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                    child: Text(source['name']?.toString() ?? 'POS',
-                        style: TextStyle(fontSize: 12, color: ink(context)))),
-                Text('${asNum(source['share']).round()}%',
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: taskMuted(context))),
-              ],
-            ),
-            const SizedBox(height: 5),
-            LinearProgressIndicator(
-              minHeight: 7,
-              value: (asNum(source['share']) / 100).clamp(0, 1),
-              borderRadius: BorderRadius.circular(99),
-              backgroundColor: taskBorder(context).withValues(alpha: .55),
-              valueColor: const AlwaysStoppedAnimation(kTaskAccent),
-            ),
-          ],
-        ),
-      );
-}
 
 class _ReportFilterSheet extends StatefulWidget {
   const _ReportFilterSheet({
@@ -1692,10 +779,9 @@ class _ReportFilterSheetState extends State<_ReportFilterSheet> {
                       prefixIcon: Icon(Icons.store_outlined),
                     ),
                     items: [
-                      DropdownMenuItem<int?>(
+                      const DropdownMenuItem<int?>(
                         value: null,
-                        child: Text(
-                            widget.isOwner ? 'Semua toko/gudang' : 'Toko saya'),
+                        child: Text('Toko saya (default)'),
                       ),
                       for (final branch in widget.branches)
                         DropdownMenuItem<int?>(
@@ -1739,215 +825,31 @@ class _ReportFilterSheetState extends State<_ReportFilterSheet> {
   }
 }
 
-class _SalesTrendCard extends StatefulWidget {
-  const _SalesTrendCard({required this.rows});
-
-  final List<Map<String, dynamic>> rows;
-
-  @override
-  State<_SalesTrendCard> createState() => _SalesTrendCardState();
-}
-
-class _SalesTrendCardState extends State<_SalesTrendCard> {
-  int? _selectedIndex;
-
-  @override
-  Widget build(BuildContext context) {
-    final visible = widget.rows.length > 14
-        ? widget.rows.sublist(widget.rows.length - 14)
-        : widget.rows;
-    final values = visible.map((row) => asNum(row['revenue'])).toList();
-    final maxValue =
-        values.fold<double>(0, (max, value) => value > max ? value : max);
-    final selected = _selectedIndex != null && _selectedIndex! < visible.length
-        ? visible[_selectedIndex!]
-        : null;
-    const accent = kTaskAccent;
-    return GlassCard(
-      key: const ValueKey('reports-dashboard-trend'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Tren penjualan harian',
-              style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: ink(context))),
-          const SizedBox(height: 14),
-          SizedBox(
-            height: 104,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var i = 0; i < visible.length; i++)
-                  Expanded(
-                    child: GestureDetector(
-                      key: ValueKey('reports-sales-trend-bar-$i'),
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => setState(() => _selectedIndex = i),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            SizedBox(
-                              height: 76,
-                              child: Align(
-                                alignment: Alignment.bottomCenter,
-                                child: Container(
-                                  width: 12,
-                                  height: maxValue == 0
-                                      ? 4
-                                      : (values[i] / maxValue * 72)
-                                          .clamp(4, 72)
-                                          .toDouble(),
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [kTaskAccent, kTaskTeal],
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: accent.withValues(alpha: .18),
-                                        blurRadius: 6,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ],
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              (visible[i]['date']?.toString() ?? '').length >=
-                                      10
-                                  ? visible[i]['date']
-                                      .toString()
-                                      .substring(8, 10)
-                                  : visible[i]['date']?.toString() ?? '',
-                              style: TextStyle(
-                                  fontSize: 9, color: taskMuted(context)),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          if (selected == null)
-            Text('Ketuk grafik untuk melihat total penjualan',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11, color: taskMuted(context)))
-          else
-            Container(
-              key: const ValueKey('reports-sales-trend-value'),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-              decoration: BoxDecoration(
-                color: kTaskAccent.withValues(alpha: .08),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: kTaskAccent.withValues(alpha: .22)),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(_dateLabel(selected['date']),
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: taskMuted(context))),
-                  ),
-                  Text(fmtRp(asNum(selected['revenue'])),
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w900,
-                          color: kTaskAccent)),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  String _dateLabel(dynamic value) {
-    final raw = value?.toString() ?? '';
-    return raw.length >= 10
-        ? '${raw.substring(8, 10)}/${raw.substring(5, 7)}'
-        : raw;
-  }
-}
-
 class _Card extends StatelessWidget {
   const _Card(this.title, this.rows);
   final String title;
   final List<Widget> rows;
 
   @override
-  Widget build(BuildContext context) {
-    final accent = _dashboardCardAccent(title);
-    return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: .12),
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: Icon(_dashboardCardIcon(title), size: 18, color: accent),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(title,
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: accent)),
-              ),
+  Widget build(BuildContext context) => GlassCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(title,
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: ink(context))),
+            const SizedBox(height: 10),
+            for (var i = 0; i < rows.length; i++) ...[
+              if (i > 0)
+                const Divider(
+                    height: 14, thickness: 1, color: Color(0x14E2E8F0)),
+              rows[i],
             ],
-          ),
-          const SizedBox(height: 10),
-          for (var i = 0; i < rows.length; i++) ...[
-            if (i > 0)
-              Divider(height: 14, thickness: 1, color: taskBorder(context)),
-            rows[i],
           ],
-        ],
-      ),
-    );
-  }
-}
-
-Color _dashboardCardAccent(String title) {
-  if (title.contains('Hasil usaha')) return kTaskTeal;
-  if (title.contains('Ringkasan')) return kTaskAccent;
-  if (title.contains('Pembayaran') || title.contains('Metode')) {
-    return kTaskTeal;
-  }
-  if (title.contains('Stok')) return kTaskWarning;
-  if (title.contains('Produk')) return kTaskTerracotta;
-  return kTaskAccent;
-}
-
-IconData _dashboardCardIcon(String title) {
-  if (title.contains('Hasil usaha')) {
-    return Icons.account_balance_wallet_outlined;
-  }
-  if (title.contains('Pembayaran') || title.contains('Metode')) {
-    return Icons.payments_outlined;
-  }
-  if (title.contains('Stok')) return Icons.inventory_2_outlined;
-  if (title.contains('Produk')) return Icons.local_mall_outlined;
-  return Icons.insights_outlined;
+        ),
+      );
 }
 
 class _Row extends StatelessWidget {
@@ -1964,42 +866,19 @@ class _Row extends StatelessWidget {
               child: Text(label,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: taskMuted(context))),
-            ),
-            const SizedBox(width: 14),
-            Flexible(
-              child: Text(value,
-                  textAlign: TextAlign.right,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: ink(context))),
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xffCBD5E1)
+                          : kTaskSecondary)),
             ),
+            const SizedBox(width: 14),
+            Text(value,
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: ink(context))),
           ],
         ),
-      );
-}
-
-class _FocalMetric extends StatelessWidget {
-  const _FocalMetric(this.label, this.value);
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label,
-              style: TextStyle(fontSize: 13, color: taskMuted(context))),
-          const SizedBox(height: 6),
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
-                  color: kTaskAccent)),
-          const SizedBox(height: 8),
-        ],
       );
 }

@@ -7,6 +7,7 @@ export const statusLabels = {
   refunded: 'Retur penuh',
   partially_refunded: 'Retur sebagian',
   approved: 'Disetujui',
+  rejected: 'Ditolak',
   paid: 'Sudah dibayar',
 };
 
@@ -16,6 +17,7 @@ export const paymentLabels = {
   debit: 'Debit',
   transfer: 'Transfer',
   split: 'Gabungan',
+  other: 'Lainnya / tidak diketahui',
 };
 
 export const cashMovementLabels = {

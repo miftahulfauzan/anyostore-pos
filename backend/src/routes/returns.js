@@ -140,8 +140,9 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
     if (!Number.isInteger(Number(transactionId)) || !Array.isArray(items) || !items.length) throw error(400, 'Data retur tidak valid');
     if (refundMethod != null && !['cash', 'qris', 'transfer', 'debit'].includes(refundMethod)) throw error(400, 'Metode refund tidak valid');
     await connection.beginTransaction();
-    const [transactions] = await connection.execute('SELECT id, customer_id FROM transactions WHERE id = ? AND branch_id = ? AND status IN (\'completed\',\'partially_refunded\') FOR UPDATE', [transactionId, branchId]);
+    const [transactions] = await connection.execute('SELECT id, customer_id, source_system FROM transactions WHERE id = ? AND branch_id = ? AND status IN (\'completed\',\'partially_refunded\') FOR UPDATE', [transactionId, branchId]);
     if (!transactions[0]) throw error(404, 'Transaksi tidak ditemukan atau tidak dapat diretur');
+    if (transactions[0].source_system === 'olsera') throw error(400, 'Transaksi impor Olsera tidak dapat diproses sebagai retur stok.');
     // Refund memakai rasio yang sama dengan pembatalan (cancel): nilai item
     // dikali paidRatio (grand_total/subtotal) supaya diskon tingkat transaksi
     // dan promo terbagi proporsional.

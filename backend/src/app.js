@@ -28,6 +28,7 @@ const publicRouter = require('./routes/public');
 const linkPageRouter = require('./routes/link-page');
 const activityLogsRouter = require('./routes/activity-logs');
 const backupRouter = require('./routes/backup');
+const olseraImportRouter = require('./routes/olsera-import');
 const path = require('path');
 const { serveBlob } = require('./media-storage');
 
@@ -74,7 +75,7 @@ app.post('/api/auth/logout', logout);
 app.get('/api/auth/me', authenticate, async (req, res, next) => {
   try {
     const [[user], [branch]] = await Promise.all([
-      db.execute('SELECT id, name, username, email, role, branch_id FROM users WHERE id = ? LIMIT 1', [req.user.id]),
+      db.execute('SELECT id, name, username, email, role, branch_id, pin_hash IS NOT NULL AS has_pin FROM users WHERE id = ? LIMIT 1', [req.user.id]),
       db.execute('SELECT id, name FROM branches WHERE id = ? LIMIT 1', [req.user.branch_id])
     ]);
     if (!user[0]) return res.status(404).json({ success: false, message: 'Pengguna tidak ditemukan' });
@@ -85,6 +86,7 @@ app.use('/api/public', publicRouter);
 app.use('/api/link-page', linkPageRouter);
 app.use('/api/activity-logs', activityLogsRouter);
 app.use('/api/backup', backupRouter);
+app.use('/api/olsera-import', olseraImportRouter);
 app.use('/api/products', productsRouter);
 app.use('/api/inventory', inventoryRouter);
 app.use('/api/transactions', transactionsRouter);

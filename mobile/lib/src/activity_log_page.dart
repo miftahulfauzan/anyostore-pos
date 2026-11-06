@@ -66,17 +66,16 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                     hintText: 'Cari aktivitas / petugas',
                     prefixIcon: const Icon(Icons.search, size: 20),
                     filled: true,
-                    fillColor: taskSurface(context),
+                    fillColor: kTaskSurface,
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 12),
                     enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(color: taskBorder(context))),
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: const BorderSide(color: kTaskBorder)),
                     focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(
-                            color: Theme.of(context).colorScheme.primary,
-                            width: 2)),
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide:
+                            const BorderSide(color: kTaskDark, width: 1.4)),
                   ),
                   onSubmitted: (_) => _load(),
                 ),
@@ -104,13 +103,10 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                                         ? FontWeight.w800
                                         : FontWeight.w600)),
                             selected: _action == f.$1,
-                            selectedColor:
-                                Theme.of(context).colorScheme.primary,
+                            selectedColor: kTaskDark,
                             labelStyle: TextStyle(
-                                color: _action == f.$1
-                                    ? Theme.of(context).colorScheme.onPrimary
-                                    : taskMuted(context)),
-                            side: BorderSide(color: taskBorder(context)),
+                                color:
+                                    _action == f.$1 ? Colors.white : kTaskGray),
                             onSelected: (_) {
                               setState(() => _action = f.$1);
                               _load();
@@ -172,13 +168,13 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                                                           ?.toString() ??
                                                       '',
                                                   style: const TextStyle(
-                                                    fontSize: 12,
+                                                    fontSize: 11,
                                                   )),
                                               const SizedBox(height: 2),
                                               Text(
                                                   '${r['user_name'] ?? ''} · ${r['branch_name'] ?? ''} · ${r['created_at'] ?? ''}',
                                                   style: const TextStyle(
-                                                    fontSize: 11,
+                                                    fontSize: 9,
                                                   )),
                                             ],
                                           ),

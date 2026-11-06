@@ -5,44 +5,37 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_client.dart';
 
-// Anyostore Denim Clean palette; status colors stay semantic.
-const kTaskBg = Color(0xffF7F9FC);
-const kTaskDarkBg = Color(0xff10151D);
-const kTaskDarkSurface = Color(0xff18212C);
-const kTaskDarkInk = Color(0xffF1F5F9);
-const kTaskDarkSecondary = Color(0xffC1CFDF);
+// Anyostore cream and denim design system.
+// Green and orange remain reserved for semantic stock and transaction states.
+const kTaskBg = Color(0xffF5F1EA);
+const kTaskDarkBg = Color(0xff12151B);
+const kTaskDarkSurface = Color(0xff1F2937);
 const kTaskSurface = Color(0xffffffff);
-const kTaskSurfaceMuted = Color(0xffEEF2F6);
-const kTaskInk = Color(0xff151821);
+const kTaskInk = Color(0xff1E3A5F);
 const kTaskDark = Color(0xff1E3A5F);
-const kTaskSecondary = Color(0xff5D6878);
-const kTaskAccent = Color(0xff2563EB);
-const kTaskAccentDark = Color(0xff60A5FA);
-const kTaskBlueLight = Color(0xffDBEAFE);
-const kTaskTeal = Color(0xff16A34A);
-const kTaskTerracotta = Color(0xffEA580C);
-const kTaskPurple = Color(0xff7C3AED);
-const kTaskPurpleLight = Color(0xffEDE9FE);
-const kTaskWarning = Color(0xffF59E0B);
-const kTaskSand = kTaskSurfaceMuted;
-const kTaskGray = kTaskSecondary;
-const kTaskBorder = Color(0xffD9E0E8);
-const kTaskDarkBorder = Color(0xff334155);
+const kTaskSecondary = Color(0xff2E5D8F);
+const kTaskBlueLight = Color(0xff5A8BBF);
+const kTaskTeal = Color(0xff246B45);
+const kTaskTerracotta = Color(0xff9A3412);
+const kTaskSand = Color(0xffE7E0D6);
+const kTaskGray = Color(0xff475569);
+const kTaskBorder = Color(0xffE7E0D6);
 
 // Status stok mengikuti mockup mobile: tersedia (teal), menipis (oranye),
 // dan habis (merah). Teks status tetap ditampilkan sehingga warna bukan satu-
 // satunya penanda kondisi.
-const kTaskStockGood = Color(0xff15803D);
-const kTaskStockGoodSurface = Color(0xffDCFCE7);
-const kTaskStockLow = Color(0xff92400E);
-const kTaskStockLowSurface = Color(0xffFEF3C7);
+const kTaskStockGood = Color(0xff246B45);
+const kTaskStockGoodSurface = Color(0xffDDF2E5);
+const kTaskStockLow = Color(0xff9A3412);
+const kTaskStockLowSurface = Color(0xffFCE4D6);
 const kTaskStockEmpty = Color(0xffB42318);
 const kTaskStockEmptySurface = Color(0xffFBE4E4);
 
 // Compatibility aliases for feature pages that still use the old semantic
 // names. New UI should prefer the explicit tokens above.
-const kTaskOrange = kTaskTerracotta;
-const kTaskOrangeLight = Color(0xffFFEDD5);
+const kTaskOrange = kTaskDark;
+const kTaskOrangeLight = kTaskSecondary;
+const kTaskPurple = kTaskTeal;
 
 /// Warna latar halaman yang ikut mode terang/gelap.
 Color pageBg(BuildContext context) =>
@@ -50,7 +43,9 @@ Color pageBg(BuildContext context) =>
 
 /// Warna teks/ikon utama yang ikut mode terang/gelap.
 Color ink(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark ? kTaskDarkInk : kTaskInk;
+    Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xffF1F5F9)
+        : kTaskInk;
 
 Color taskSurface(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
@@ -59,12 +54,12 @@ Color taskSurface(BuildContext context) =>
 
 Color taskMuted(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-        ? kTaskDarkSecondary
+        ? const Color(0xffCBD5E1)
         : kTaskSecondary;
 
 Color taskBorder(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-        ? kTaskDarkBorder
+        ? const Color(0xff334155)
         : kTaskBorder;
 
 /// Entrance: fade + slide-up halus (Corporate motion). Delay untuk stagger.
@@ -100,7 +95,7 @@ class PillTabs extends StatelessWidget {
     if (tabs.length <= 3) {
       // 2-3 menu: satu baris, lebar dibagi rata.
       return SizedBox(
-        height: 48,
+        height: 44,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(
@@ -116,7 +111,7 @@ class PillTabs extends StatelessWidget {
     }
     // 4+ menu: tetap bisa di-slide ke samping.
     return SizedBox(
-      height: 48,
+      height: 44,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -137,7 +132,7 @@ class PillTabs extends StatelessWidget {
         color: active
             ? Theme.of(context).colorScheme.primary
             : taskSurface(context),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
             color: active
                 ? Theme.of(context).colorScheme.primary
@@ -146,7 +141,7 @@ class PillTabs extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           onTap: () => onChanged(t.value),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -315,7 +310,8 @@ class GlassCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
         color: isDark ? kTaskDarkSurface : kTaskSurface,
-        border: Border.all(color: isDark ? kTaskDarkBorder : kTaskBorder),
+        border:
+            Border.all(color: isDark ? const Color(0xff334155) : kTaskBorder),
       ),
       child: height == null ? inner : SizedBox(height: height, child: inner),
     );
@@ -370,7 +366,8 @@ class GlassNavBar extends StatelessWidget {
               decoration: BoxDecoration(
                 color: dark ? kTaskDarkSurface : kTaskSurface,
                 borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: dark ? kTaskDarkBorder : kTaskBorder),
+                border: Border.all(
+                    color: dark ? const Color(0xff334155) : kTaskBorder),
                 boxShadow: const [
                   BoxShadow(
                       color: Color(0x1A0F172A),

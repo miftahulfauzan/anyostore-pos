@@ -114,7 +114,7 @@ export default function HistoryPage() {
       setCancelQuantities(Object.fromEntries(b.data.items.map((i) => [i.transaction_item_id, 0])));
       setRefundMethod('');
       setCancelReason('');
-      setActiveTab('retur');
+      setActiveTab(b.data.source_system === 'olsera' ? 'info' : 'retur');
     } catch (e) { if (seq === detailSeq.current) setMessage(e.message); }
   }
 
@@ -219,7 +219,7 @@ export default function HistoryPage() {
               {transactions.map((t) => (
                 <article key={t.id} role="button" tabIndex={0} onClick={() => inspect(t)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inspect(t); } }} style={{ cursor: 'pointer', border: selected?.id === t.id ? '1px solid #2563eb' : undefined, borderRadius: 6, padding: '.6rem', background: selected?.id === t.id ? '#eff6ff' : undefined }}>
                   <div>
-                    <strong style={{ fontSize: '.9rem' }}>{t.invoice_no}</strong>
+                    <strong style={{ fontSize: '.9rem' }}>{t.invoice_no}{t.source_system === 'olsera' ? <small className="muted"> · Olsera</small> : null}</strong>
                     <span>{t.cashier} {t.customer ? `• ${t.customer} (${t.customer_tier})` : ''} • {transactionDateTime(t)}</span>
                   </div>
                   <div style={{ textAlign: 'right' }}>
@@ -256,15 +256,15 @@ export default function HistoryPage() {
 
               <div style={{ display: 'flex', gap: '.4rem', marginTop: '.75rem' }}>
                 <button type="button" className={activeTab === 'info' ? 'small' : 'small secondary'} onClick={() => setActiveTab('info')}>Info</button>
-                <button type="button" className={activeTab === 'retur' ? 'small' : 'small secondary'} onClick={() => setActiveTab('retur')}>Retur</button>
-                {canCancel && <button type="button" className={activeTab === 'cancel' ? 'small' : 'small secondary'} onClick={() => setActiveTab('cancel')}>Batal</button>}
+                {selected.source_system !== 'olsera' && <button type="button" className={activeTab === 'retur' ? 'small' : 'small secondary'} onClick={() => setActiveTab('retur')}>Retur</button>}
+                {canCancel && selected.source_system !== 'olsera' && <button type="button" className={activeTab === 'cancel' ? 'small' : 'small secondary'} onClick={() => setActiveTab('cancel')}>Batal</button>}
                 <a className="small secondary" href={'/receipt/' + selected.id + '?print=1'} target="_blank" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>Cetak ulang</a>
               </div>
 
               <div style={{ marginTop: '1rem' }}>
                 {activeTab === 'info' && (
                   <div style={{ display: 'grid', gap: '.5rem' }}>
-                    <p className="muted" style={{ margin: 0 }}>Klik Cetak ulang untuk struk. {selected.status !== 'completed' ? `Status: ${labelFor(statusLabels, selected.status)}. Alasan: ${selected.cancel_reason || '-'}` : ''}</p>
+                    <p className="muted" style={{ margin: 0 }}>Klik Cetak ulang untuk struk. {selected.source_system === 'olsera' ? `Riwayat impor Olsera · nomor sumber ${selected.source_order_no || selected.offline_invoice_no || '-'}. Retur stok dan pembatalan dinonaktifkan untuk data lama.` : ''} {selected.status !== 'completed' ? `Status: ${labelFor(statusLabels, selected.status)}. Alasan: ${selected.cancel_reason || '-'}` : ''}</p>
                     {canEditTransactionDate && <div style={{ display: 'grid', gap: '.5rem', padding: '.75rem', border: '1px solid var(--border)', borderRadius: 8 }}>
                       <label>Tanggal transaksi<input type="date" value={transactionDateDraft} max={todayStr()} onChange={(event) => setTransactionDateDraft(event.target.value)} disabled={saving} /></label>
                       <button type="button" className="small" onClick={saveTransactionDate} disabled={saving || !transactionDateDraft || transactionDateDraft === selected.transaction_date}>{saving ? 'Menyimpan…' : 'Simpan tanggal'}</button>
@@ -284,7 +284,7 @@ export default function HistoryPage() {
                     ))}
                   </div>
                 )}
-                {activeTab === 'retur' && (
+                {activeTab === 'retur' && selected.source_system !== 'olsera' && (
                   <div style={{ display: 'grid', gap: '.6rem' }}>
                     <p className="muted" style={{ margin: 0, fontSize: '.85rem' }}>Pilih qty yang mau diretur. Stok akan kembali setelah approve.</p>
                     {selected.items.map((item) => {
@@ -316,7 +316,7 @@ export default function HistoryPage() {
                     <button type="button" disabled={saving} onClick={createReturn} style={{ minHeight: 44 }}>{saving ? '…' : 'Buat retur'}</button>
                   </div>
                 )}
-                {activeTab === 'cancel' && canCancel && (
+                {activeTab === 'cancel' && canCancel && selected.source_system !== 'olsera' && (
                   <div style={{ display: 'grid', gap: '.6rem' }}>
                     {selected.status === 'cancelled' ? <p className="message">Transaksi sudah batal total.</p> : <>
                       <p className="muted" style={{ margin: 0, fontSize: '.85rem' }}>Batalkan sebagian atau semua item. Refund dihitung otomatis.</p>

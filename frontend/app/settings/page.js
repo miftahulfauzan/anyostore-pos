@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Button as GlisseButton } from 'glisse';
 import AppShell from '../components/AppShell';
 import CategoryManager from '../components/CategoryManager';
 import { uploadMediaData, validateDataUpload } from '../lib/media-upload';
@@ -28,6 +29,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [isWarehouse, setIsWarehouse] = useState(false);
+  const [roleResolved, setRoleResolved] = useState(false);
   const [waList, setWaList] = useState([]);
   const [emailKeySet, setEmailKeySet] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
@@ -67,19 +70,44 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
-    /* sesi via httpOnly cookie */
-    // detect owner
-    fetch(api + '/auth/me', { headers: jsonHeaders() })
-      .then((r) => r.json())
-      .then((b) => { if (b?.data?.role === 'owner') setIsOwner(true); })
-      .catch(() => {});
-    loadBranches()
-      .then(async (data) => {
+    let active = true;
+    async function initialize() {
+      try {
+        const response = await fetch(api + '/auth/me', { headers: jsonHeaders() });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.message || 'Gagal memuat akun');
+        const user = body.data || {};
+        if (!active) return;
+        setIsOwner(user.role === 'owner');
+
+        if (user.role === 'gudang') {
+          const id = String(user.branch_id || '');
+          if (!id) throw new Error('Cabang akun gudang tidak ditemukan');
+          setIsWarehouse(true);
+          setBranch(id);
+          const themeResponse = await fetch(api + '/settings/theme', { headers: jsonHeaders() });
+          const themeBody = await themeResponse.json();
+          if (!themeResponse.ok) throw new Error(themeBody.message || 'Gagal memuat tema');
+          const theme = themeBody.data?.theme || defaults.theme;
+          if (!active) return;
+          setForm((current) => ({ ...current, theme }));
+          document.documentElement.dataset.theme = theme;
+          return;
+        }
+
+        const data = await loadBranches();
+        if (!active) return;
         const id = String(data?.[0]?.id || '');
         setBranch(id);
         await load(id);
-      })
-      .catch((error) => setMessage(error.message));
+      } catch (error) {
+        if (active) setMessage(error.message);
+      } finally {
+        if (active) setRoleResolved(true);
+      }
+    }
+    initialize();
+    return () => { active = false; };
   }, []);
 
   const input = (key, label, type = 'text') => <label>{label}<input type={type} value={form[key] ?? ''} onChange={(event) => setForm({ ...form, [key]: event.target.value })} /></label>;
@@ -128,6 +156,26 @@ export default function SettingsPage() {
       setMessage('Pengaturan toko tersimpan di database.');
     } catch (error) { setMessage(error.message); }
     finally { setSaving(false); }
+  }
+
+  async function saveWarehouseTheme() {
+    setSaving(true);
+    setMessage('');
+    try {
+      const response = await fetch(api + '/settings/theme', {
+        method: 'PUT',
+        headers: jsonHeaders(),
+        body: JSON.stringify({ theme: form.theme })
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message || 'Tema gagal disimpan');
+      document.documentElement.dataset.theme = form.theme;
+      setMessage('Tema gudang tersimpan.');
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function downloadBackup() {
@@ -214,6 +262,27 @@ export default function SettingsPage() {
     } catch (error) { setMessage(error.message); }
     finally { setPricingBranchSaving(''); }
   }
+
+  if (!roleResolved) return <AppShell title="Pengaturan" eyebrow="KONFIGURASI TOKO">
+    <section className="panel"><p className="muted" role="status">Memuat pengaturan…</p></section>
+  </AppShell>;
+
+  if (isWarehouse) return <AppShell title="Pengaturan" eyebrow="GUDANG">
+    <div style={{ display: 'grid', gap: '1.25rem', maxWidth: 1180, margin: '0 auto' }}>
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <h2>Tema aplikasi</h2>
+            <p className="muted">Pilih warna tampilan untuk gudang ini.</p>
+          </div>
+          <span className="tag">Gudang</span>
+        </div>
+        {select('theme', 'Tema', [['green', 'Hijau'], ['blue', 'Biru'], ['purple', 'Ungu'], ['teal', 'Toska'], ['rose', 'Merah muda'], ['amber', 'Cokelat']])}
+        <button type="button" onClick={saveWarehouseTheme} disabled={saving}>{saving ? 'Menyimpan…' : 'Simpan Tema'}</button>
+        {message && <p className="message" role="status">{message}</p>}
+      </section>
+    </div>
+  </AppShell>;
 
   return <AppShell title="Pengaturan" eyebrow="KONFIGURASI TOKO">
     <div style={{ display: 'grid', gap: '1.25rem', maxWidth: 1180, margin: '0 auto' }}>
@@ -320,6 +389,18 @@ export default function SettingsPage() {
         <section className="panel settings-feature-panel">
           <div className="section-heading">
             <div>
+              <h2>Impor riwayat Olsera</h2>
+              <p>Masukkan riwayat penjualan toko Blok B dari file Excel. Impor berhenti pada 20 Oktober 2026 dan tidak mengubah stok.</p>
+            </div>
+            <a className="button-link" href="/settings/olsera-import">Buka impor</a>
+          </div>
+        </section>
+      )}
+
+      {isOwner && (
+        <section className="panel settings-feature-panel">
+          <div className="section-heading">
+            <div>
               <h2>Backup Data &amp; Media</h2>
               <p>Unduh snapshot semua cabang tanpa batas jumlah baris, beserta foto/video tersimpan dan manifest pemeriksaan integritas. Perubahan media saat backup dapat menggagalkan proses; ulangi saat unggahan selesai.</p>
               <p>API key email dikosongkan dan perlu diisi ulang setelah pemulihan. Rahasia konfigurasi server dan media dari URL eksternal tidak disertakan. File berisi data pelanggan dan akun; simpan secara privat. Pemulihan lewat alat administrator hanya ke database terisolasi yang kosong dengan skema yang cocok.</p>
@@ -403,7 +484,7 @@ export default function SettingsPage() {
           <div className="section-heading">
             <div>
               <h2>Laporan Harian Email</h2>
-              <p>Laporan stok masuk dan keluar yang benar-benar tercatat akan dikirim otomatis setiap hari sesuai waktu WIB.</p>
+              <p>Ringkasan gabungan dan rincian mutasi stok seluruh toko serta gudang aktif dikirim otomatis setiap hari sesuai waktu WIB.</p>
             </div>
             <span className="tag">Owner</span>
           </div>
@@ -426,7 +507,7 @@ export default function SettingsPage() {
             />
           </label>
           {emailKeySet && <p className="muted" style={{ margin: 0, fontSize: '.82rem' }}>API key tersimpan dan tidak pernah ditampilkan kembali.</p>}
-          <p className="muted" style={{ margin: 0, fontSize: '.82rem' }}>Provider yang didukung saat ini: Resend. Laporan dikirim berdasarkan mutasi stok nyata pada cabang yang dipilih.</p>
+          <p className="muted" style={{ margin: 0, fontSize: '.82rem' }}>Provider yang didukung: Resend. Penerima dan jadwal mengikuti pengaturan pada toko yang dipilih; isi laporan menggabungkan semua toko dan gudang aktif.</p>
         </section>
       )}
 
@@ -437,8 +518,18 @@ export default function SettingsPage() {
 
       </div>
       <section className="settings-save-bar" aria-label="Simpan pengaturan">
-        <p className="muted">{message || 'Perubahan berlaku untuk toko dipilih.'}</p>
-        <button type="button" onClick={save} disabled={saving}>{saving ? 'Menyimpan…' : 'Simpan Pengaturan'}</button>
+        <p className="muted" role="status">{message || 'Perubahan berlaku untuk toko dipilih.'}</p>
+        <GlisseButton
+          type="button"
+          variant="filled"
+          tint="var(--expressive-primary)"
+          className="settings-save-action"
+          onClick={save}
+          disabled={saving}
+          style={{ height: 48, borderRadius: 10, padding: '0 24px', fontSize: 16, fontWeight: 700 }}
+        >
+          {saving ? 'Menyimpan…' : 'Simpan Pengaturan'}
+        </GlisseButton>
       </section>
     </div>
   </AppShell>;

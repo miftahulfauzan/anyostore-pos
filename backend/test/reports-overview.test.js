@@ -8,7 +8,7 @@ process.env.DB_NAME ||= 'test-db';
 process.env.JWT_SECRET ||= 'test-access-secret';
 process.env.JWT_REFRESH_SECRET ||= 'test-refresh-secret';
 
-test('reports overview exposes separate sales, income, returns and product groups', async () => {
+test('reports overview exposes sales, profit, products and return sections', async () => {
   const dbPath = require.resolve('../src/db');
   const calls = [];
   require.cache[dbPath] = {
@@ -19,35 +19,29 @@ test('reports overview exposes separate sales, income, returns and product group
       execute: async (sql, params) => {
         calls.push({ sql, params });
         if (sql.includes('SELECT name FROM branches')) return [[{ name: 'Semua Toko/Gudang' }]];
-        if (sql.includes('AS return_amount') && sql.includes('COUNT(*)')) {
-          return [[{ return_count: '1', return_amount: '12000' }]];
-        }
-        if (sql.includes('FROM returns') && sql.includes('GROUP BY DATE')) {
-          return [[{ date: '2026-11-01', count: '1', amount: '12000' }]];
-        }
-        if (sql.includes("type = 'income'") && sql.includes('GROUP BY expense_date')) {
-          return [[{ date: '2026-11-01', amount: '30000' }]];
-        }
-        if (sql.includes("type = 'expense'") && sql.includes('GROUP BY expense_date')) {
-          return [[{ date: '2026-11-01', amount: '20000' }]];
-        }
-        if (sql.includes('AS new_customers')) return [[{ new_customers: '1' }]];
-        if (sql.includes('GROUP BY category_name')) {
-          return [[{ category_name: 'Denim', quantity_sold: '5', revenue: '100000' }]];
+        if (sql.includes('AS transaction_discount')) {
+          return [[{ transaction_discount: '5000', item_discount: '0' }]];
         }
         if (sql.includes('COUNT(*) AS transactions') && sql.includes('AS revenue')) {
           return [[{ transactions: '2', revenue: '100000', discounts: '5000' }]];
         }
-        if (sql.includes('AS cost_of_goods')) {
+        if (sql.includes('item_profit')) {
           return [[{ cost_of_goods: '40000', item_profit: '60000' }]];
         }
         if (sql.includes('AS amount') && sql.includes('AS income') && sql.includes('FROM expenses')) {
           return [[{ amount: '20000', income: '30000' }]];
         }
+        if (sql.includes('COUNT(*) AS transactions') && sql.includes('cancelled_amount')) {
+          return [[{ transactions: '0', amount: '0' }]];
+        }
         if (sql.includes('tp.payment_method')) return [[{ payment_method: 'cash', transactions: '2', amount: '100000' }]];
         if (sql.includes('GROUP BY ti.product_id')) {
           return [[{ product_id: 10, name: 'Denim', sku: 'D10', category_name: 'Denim', quantity_sold: '5', revenue: '100000', cost_of_goods: '40000', profit: '60000' }]];
         }
+        if (sql.includes('GROUP BY c.id, c.name')) {
+          return [[{ category_id: 1, category_name: 'Denim', quantity_sold: '5', revenue: '100000', cost_of_goods: '40000', profit: '60000' }]];
+        }
+        if (sql.includes('t.invoice_no')) return [[]];
         if (sql.includes('FROM users u')) return [[]];
         if (sql.includes('FROM customers c')) return [[]];
         if (sql.includes('p.min_stock')) return [[]];
@@ -55,7 +49,6 @@ test('reports overview exposes separate sales, income, returns and product group
           return [[{ date: '2026-11-01', transactions: '2', revenue: '100000' }]];
         }
         if (sql.includes('t.price_tier')) return [[]];
-        if (sql.includes('t.invoice_no')) return [[]];
         return [[]];
       },
     },
@@ -72,32 +65,12 @@ test('reports overview exposes separate sales, income, returns and product group
 
   assert.equal(body.data.summary.gross_sales, 100000);
   assert.equal(body.data.summary.income, 30000);
-  assert.equal(body.data.summary.revenue, 100000);
-  assert.equal(body.data.summary.return_amount, 12000);
-  assert.equal(body.data.summary.return_count, 1);
-  assert.equal(body.data.summary.new_customers, 1);
-  assert.equal(body.data.summary.average_transaction, 50000);
-  assert.deepEqual(body.data.daily_income, [
-    { date: '2026-11-01', amount: 30000 },
-    { date: '2026-11-02', amount: 0 },
-    { date: '2026-11-03', amount: 0 },
-  ]);
-  assert.deepEqual(body.data.daily_expenses, [
-    { date: '2026-11-01', amount: 20000 },
-    { date: '2026-11-02', amount: 0 },
-    { date: '2026-11-03', amount: 0 },
-  ]);
-  assert.deepEqual(body.data.daily_returns, [
-    { date: '2026-11-01', count: 1, amount: 12000 },
-    { date: '2026-11-02', count: 0, amount: 0 },
-    { date: '2026-11-03', count: 0, amount: 0 },
-  ]);
-  assert.deepEqual(body.data.product_groups, [
-    { name: 'Denim', quantity_sold: 5, revenue: 100000 },
-  ]);
-  assert.deepEqual(body.data.sales_sources, [
-    { name: 'POS', transactions: 2, revenue: 100000, share: 100 },
-  ]);
+  assert.equal(body.data.summary.revenue, 130000);
+  assert.equal(body.data.summary.transaction_discounts, 5000);
+  assert.equal(body.data.summary.refund_amount, 0);
+  assert.equal(body.data.products[0].name, 'Denim');
+  assert.equal(body.data.categories[0].category_name, 'Denim');
+  assert.equal(body.data.payment_methods[0].payment_method, 'cash');
   assert.equal(body.data.branch_id, 'all');
   assert.ok(calls.some(({ sql, params }) => sql.includes('branch_id') && params.includes('2026-11-01')));
 });

@@ -19,9 +19,13 @@ export default function MyAccount() {
   const [current, setCurrent] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [currentPin, setCurrentPin] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPin, setSavingPin] = useState(false);
   const [range, setRange] = useState({ start: '', end: '' });
   const [preset, setPreset] = useState('');
   const [loadingComm, setLoadingComm] = useState(false);
@@ -101,13 +105,32 @@ export default function MyAccount() {
     } catch (e) { setMessage(e.message); } finally { setLoading(false); }
   }
 
+  async function changePin(e) {
+    e.preventDefault();
+    if (profile?.has_pin && !/^\d{6}$/.test(currentPin)) return setMessage('PIN saat ini harus enam digit');
+    if (!/^\d{6}$/.test(newPin)) return setMessage('PIN baru harus enam digit');
+    if (newPin !== confirmPin) return setMessage('Konfirmasi PIN tidak cocok');
+    setSavingPin(true);
+    try {
+      const body = { pin: newPin };
+      if (profile?.has_pin) body.current_pin = currentPin;
+      const r = await fetch(`${api}/users/${profile.id}/pin`, { method: 'PUT', headers: headers(), body: JSON.stringify(body) });
+      const b = await safeJson(r);
+      if (!r.ok) throw new Error(b.message || `Gagal mengubah PIN (${r.status})`);
+      setProfile((p) => ({ ...p, has_pin: true }));
+      setCurrentPin(''); setNewPin(''); setConfirmPin('');
+      setMessage('PIN berhasil diubah. Silakan login kembali dengan PIN baru.');
+    } catch (e2) { setMessage(e2.message); }
+    finally { setSavingPin(false); }
+  }
+
   const live = commission?.live;
   const rules = commission?.applicable_rules || [];
 
   return (
     <AppShell title="Akun Saya" eyebrow="PROFIL">
       {message && <p className="message" role="status">{message}</p>}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', alignItems: 'start', maxWidth: 1180, margin: '0 auto' }}>
+      <div className="profile-layout">
         <section className="panel">
           <h2>Profil</h2>
           {profile ? (
@@ -132,6 +155,21 @@ export default function MyAccount() {
             <label>Password baru<input type="password" value={newPass} onChange={(e) => setNewPass(e.target.value)} required minLength={8} /></label>
             <label>Konfirmasi<input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required /></label>
             <button type="submit" disabled={loading}>{loading ? 'Menyimpan…' : 'Simpan Password'}</button>
+          </form>
+        </section>
+
+        <section className="panel">
+          <h2>Ubah PIN</h2>
+          <p className="muted" style={{ margin: 0 }}>
+            {profile?.has_pin ? 'Masukkan PIN lama, lalu buat PIN baru 6 digit.' : 'Akun ini belum memiliki PIN. Buat PIN baru 6 digit.'}
+          </p>
+          <form onSubmit={changePin} style={{ display: 'grid', gap: '.75rem' }}>
+            {profile?.has_pin && (
+              <label>PIN saat ini<input type="password" inputMode="numeric" autoComplete="off" value={currentPin} onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, '').slice(0, 6))} required pattern="[0-9]{6}" maxLength={6} /></label>
+            )}
+            <label>PIN baru<input type="password" inputMode="numeric" autoComplete="new-password" value={newPin} onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 6))} required pattern="[0-9]{6}" maxLength={6} /></label>
+            <label>Konfirmasi PIN baru<input type="password" inputMode="numeric" autoComplete="new-password" value={confirmPin} onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 6))} required pattern="[0-9]{6}" maxLength={6} /></label>
+            <button type="submit" disabled={savingPin}>{savingPin ? 'Menyimpan…' : 'Simpan PIN'}</button>
           </form>
         </section>
 

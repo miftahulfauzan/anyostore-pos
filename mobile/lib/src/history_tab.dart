@@ -5,7 +5,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
-import 'branch_scope.dart';
 import 'offline_status.dart';
 import 'offline_store.dart';
 import 'barcode_scanner_page.dart';
@@ -34,21 +33,13 @@ class _HistoryTabState extends State<HistoryTab> {
 
   String _preset = 'today'; // today | 7d | 30d | all
   String _status = '';
-  int _loadGeneration = 0;
-  int? _scopeBranchId;
   final _search = TextEditingController();
 
   bool get _canCancel => ['owner', 'manager', 'admin'].contains(widget.role);
-  bool get _isOwner => widget.role == 'owner';
 
   @override
   void initState() {
     super.initState();
-    if (_isOwner) {
-      _scopeBranchId = BranchScope.active.value;
-      widget.api.activeBranchId = _scopeBranchId;
-      BranchScope.active.addListener(_onBranchScopeChanged);
-    }
     _load();
     // Saat internet kembali: otomatis muat ulang dari server (normal setelah sync).
     OfflineStatus.syncTick.addListener(_onSyncTick);
@@ -65,21 +56,10 @@ class _HistoryTabState extends State<HistoryTab> {
     _load(silent: true);
   }
 
-  void _onBranchScopeChanged() {
-    if (!_isOwner) return;
-    final branchId = BranchScope.active.value;
-    widget.api.activeBranchId = branchId;
-    if (branchId == _scopeBranchId) return;
-    _scopeBranchId = branchId;
-    _page = 1;
-    _load();
-  }
-
   @override
   void dispose() {
     OfflineStatus.syncTick.removeListener(_onSyncTick);
     HistoryTab.reloadTick.removeListener(_onReloadTick);
-    if (_isOwner) BranchScope.active.removeListener(_onBranchScopeChanged);
     _search.dispose();
     super.dispose();
   }
@@ -138,11 +118,6 @@ class _HistoryTabState extends State<HistoryTab> {
   }
 
   Future<void> _load({bool silent = false}) async {
-    final generation = ++_loadGeneration;
-    final branchId =
-        _isOwner ? BranchScope.active.value : widget.api.activeBranchId;
-    if (_isOwner) widget.api.activeBranchId = branchId;
-    bool isCurrent() => mounted && generation == _loadGeneration;
     if (!silent) {
       setState(() {
         _loading = true;
@@ -150,20 +125,19 @@ class _HistoryTabState extends State<HistoryTab> {
       });
     }
     final range = _range;
-    final branchKey = branchId?.toString() ?? 'all';
     final cacheKey =
-        'history-$branchKey-${range.$1}-${range.$2}-$_status-${_search.text.trim()}-$_page';
-    final returnCacheKey = 'history-retur-$branchKey';
+        'history-${range.$1}-${range.$2}-$_status-${_search.text.trim()}-$_page';
     try {
       if (_section == 'retur') {
         final rows = await widget.api.returnsList();
-        if (!isCurrent()) return;
+        if (!mounted) return;
         setState(() {
           _returns = rows.cast<Map<String, dynamic>>();
           _loading = false;
         });
         // Simpan cache retur untuk offline.
-        await OfflineStore.cacheSet(returnCacheKey, jsonEncode({'rows': rows}));
+        await OfflineStore.cacheSet(
+            'history-retur', jsonEncode({'rows': rows}));
         return;
       }
       final (rows, totalPages) = await widget.api.transactionsPage(
@@ -174,10 +148,9 @@ class _HistoryTabState extends State<HistoryTab> {
         status: _status,
         search: _search.text.trim(),
       );
-      if (!isCurrent()) return;
-      final merged = await _mergeOffline(rows.cast<Map<String, dynamic>>(),
-          branchId: branchId);
-      if (!isCurrent()) return;
+      if (!mounted) return;
+      final merged = await _mergeOffline(rows.cast<Map<String, dynamic>>());
+      if (!mounted) return;
       setState(() {
         _rows = merged;
         _totalPages = totalPages;
@@ -195,8 +168,8 @@ class _HistoryTabState extends State<HistoryTab> {
         // Offline: pakai cache riwayat/retur terakhir.
         try {
           if (_section == 'retur') {
-            final cached = await OfflineStore.cacheGet(returnCacheKey);
-            if (cached != null && isCurrent()) {
+            final cached = await OfflineStore.cacheGet('history-retur');
+            if (cached != null && mounted) {
               setState(() {
                 _returns = ((cached['payload'] as Map<String, dynamic>)['rows']
                             as List?)
@@ -209,13 +182,12 @@ class _HistoryTabState extends State<HistoryTab> {
             }
           } else {
             final cached = await OfflineStore.cacheGet(cacheKey);
-            if (cached != null && isCurrent()) {
+            if (cached != null && mounted) {
               final payload = cached['payload'] as Map<String, dynamic>;
               final merged = await _mergeOffline(
                   ((payload['rows'] as List?) ?? [])
-                      .cast<Map<String, dynamic>>(),
-                  branchId: branchId);
-              if (isCurrent()) {
+                      .cast<Map<String, dynamic>>());
+              if (mounted) {
                 setState(() {
                   _rows = merged;
                   _totalPages =
@@ -230,7 +202,6 @@ class _HistoryTabState extends State<HistoryTab> {
         } catch (_) {}
       }
       if (mounted) {
-        if (!isCurrent()) return;
         setState(() {
           _error = e.message;
           _loading = false;
@@ -241,30 +212,21 @@ class _HistoryTabState extends State<HistoryTab> {
 
   /// Gabungkan transaksi offline (kuning) ke atas daftar riwayat.
   Future<List<Map<String, dynamic>>> _mergeOffline(
-      List<Map<String, dynamic>> rows,
-      {int? branchId}) async {
+      List<Map<String, dynamic>> rows) async {
     try {
       final pending = await OfflineStore.pending();
       if (pending.isEmpty) return rows;
-      final offlineRows = <Map<String, dynamic>>[];
-      for (final r in pending) {
-        final payload =
-            jsonDecode(r['payload'] as String? ?? '{}') as Map<String, dynamic>;
-        if (_isOwner &&
-            branchId != null &&
-            int.tryParse('${payload['branch_id']}') != branchId) {
-          continue;
-        }
-        offlineRows.add({
-          'offline': true,
-          'branch_id': payload['branch_id'],
-          'invoice_no': r['temp_invoice_no']?.toString() ?? '-',
-          'grand_total': r['grand_total'],
-          'created_at': r['created_at']?.toString() ?? '',
-          'status': 'offline',
-          'cashier': 'Belum sync',
-        });
-      }
+      final offlineRows = <Map<String, dynamic>>[
+        for (final r in pending)
+          {
+            'offline': true,
+            'invoice_no': r['temp_invoice_no']?.toString() ?? '-',
+            'grand_total': r['grand_total'],
+            'created_at': r['created_at']?.toString() ?? '',
+            'status': 'offline',
+            'cashier': 'Belum sync',
+          },
+      ];
       return [...offlineRows, ...rows];
     } catch (_) {
       return rows;
@@ -277,12 +239,6 @@ class _HistoryTabState extends State<HistoryTab> {
     Map<String, dynamic> detail;
     try {
       detail = await widget.api.transactionDetail(id);
-      if (detail['payment_method'] == 'split') {
-        try {
-          final receipt = await widget.api.receipt(id);
-          detail['payments'] = receipt['payments'];
-        } catch (_) {}
-      }
       // Simpan cache detail transaksi untuk offline.
       await OfflineStore.cacheSet('tx-detail-$id', jsonEncode(detail));
     } on ApiException catch (e) {
@@ -333,11 +289,7 @@ class _HistoryTabState extends State<HistoryTab> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Tanggal transaksi: ${_dateLabel(detail['transaction_date']?.toString())}',
-                  style: TextStyle(fontSize: 12, color: taskMuted(context)),
-                ),
-                Text(
-                  'Dicatat: ${detail['created_at'] ?? ''}${detail['cashier'] != null && (detail['cashier'] as String).isNotEmpty ? ' · Kasir: ${detail['cashier']}' : ''}',
+                  '${detail['created_at'] ?? ''}${detail['cashier'] != null && (detail['cashier'] as String).isNotEmpty ? ' · Kasir: ${detail['cashier']}' : ''}',
                   style: TextStyle(fontSize: 12, color: taskMuted(context)),
                 ),
                 const Divider(),
@@ -370,12 +322,6 @@ class _HistoryTabState extends State<HistoryTab> {
                   _StrukRow('Kembalian', fmtRp(asNum(detail['change']))),
                 _StrukRow('Metode',
                     (detail['payment_method'] ?? '').toString().toUpperCase()),
-                for (final payment
-                    in ((detail['payments'] as List?) ?? []).whereType<Map>())
-                  _StrukRow(
-                    (payment['payment_method'] ?? '').toString().toUpperCase(),
-                    fmtRp(asNum(payment['amount'])),
-                  ),
                 if (detail['cancelled_amount'] != null &&
                     asNum(detail['cancelled_amount']) > 0)
                   _StrukRow('Dibatalkan',
@@ -386,15 +332,6 @@ class _HistoryTabState extends State<HistoryTab> {
           ),
         ),
         actions: [
-          if (_isOwner && row['offline'] != true)
-            TextButton.icon(
-              onPressed: () async {
-                Navigator.pop(ctx);
-                await _editTransactionDate(id, detail);
-              },
-              icon: const Icon(Icons.edit_calendar_outlined),
-              label: const Text('Ubah tanggal'),
-            ),
           if (_canCancel && detail['status'] != 'cancelled')
             TextButton(
               onPressed: () {
@@ -425,45 +362,6 @@ class _HistoryTabState extends State<HistoryTab> {
         ],
       ),
     );
-  }
-
-  String _dateLabel(String? value) {
-    final date = DateTime.tryParse(value ?? '');
-    if (date == null) return value ?? '-';
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-  }
-
-  Future<void> _editTransactionDate(int id, Map<String, dynamic> detail) async {
-    final today = DateTime.parse(todayWib());
-    final current = DateTime.tryParse('${detail['transaction_date']}') ?? today;
-    final selected = await showDatePicker(
-      context: context,
-      initialDate: current.isAfter(today) ? today : current,
-      firstDate: DateTime(2020),
-      lastDate: today,
-      helpText: 'Pilih tanggal transaksi',
-    );
-    if (selected == null || !mounted) return;
-    final date =
-        '${selected.year.toString().padLeft(4, '0')}-${selected.month.toString().padLeft(2, '0')}-${selected.day.toString().padLeft(2, '0')}';
-    try {
-      await widget.api.updateTransactionDate(
-        id,
-        date,
-        branchId: int.tryParse('${detail['branch_id']}'),
-      );
-      await OfflineStore.cacheSet(
-          'tx-detail-$id', jsonEncode({...detail, 'transaction_date': date}));
-      if (!mounted) return;
-      _load(silent: true);
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tanggal transaksi diperbarui')));
-    } on ApiException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
-      }
-    }
   }
 
   /// Detail retur ala struk (dari endpoint /returns/:id).
@@ -771,20 +669,22 @@ class _HistoryTabState extends State<HistoryTab> {
   }
 
   InputDecoration _dec(String label, {bool hint = false}) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
     final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: taskBorder(context)),
+      borderRadius: BorderRadius.circular(16),
+      borderSide:
+          BorderSide(color: dark ? const Color(0xff334155) : kTaskBorder),
     );
     return InputDecoration(
       labelText: hint ? null : label,
       hintText: hint ? label : null,
       filled: true,
-      fillColor: taskSurface(context),
+      fillColor: dark ? const Color(0xff263241) : kTaskSurface,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       enabledBorder: border,
       focusedBorder: border.copyWith(
           borderSide: BorderSide(
-              color: Theme.of(context).colorScheme.primary, width: 2)),
+              color: dark ? const Color(0xffCBD5E1) : kTaskDark, width: 1.4)),
     );
   }
 
@@ -935,8 +835,7 @@ class _HistoryTabState extends State<HistoryTab> {
         return const Center(child: Text('Belum ada retur'));
       }
       return ListView.separated(
-        padding: EdgeInsets.fromLTRB(
-            12, 12, 12, 16 + MediaQuery.of(context).padding.bottom),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 104),
         itemCount: _returns.length,
         separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (_, i) {
@@ -944,8 +843,8 @@ class _HistoryTabState extends State<HistoryTab> {
           final status = row['status']?.toString() ?? '';
           return _TxCard(
             icon: Icons.assignment_return,
-            iconBg: kTaskPurpleLight,
-            iconFg: kTaskPurple,
+            iconBg: kTaskSand,
+            iconFg: kTaskDark,
             title: row['return_no']?.toString() ?? '-',
             subtitle: '${row['invoice_no'] ?? ''} · ${row['created_at'] ?? ''}',
             trailing: fmtRp(asNum(row['refund_amount'])),
@@ -963,8 +862,7 @@ class _HistoryTabState extends State<HistoryTab> {
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView.separated(
-        padding: EdgeInsets.fromLTRB(
-            12, 12, 12, 16 + MediaQuery.of(context).padding.bottom),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 104),
         itemCount: _rows.length + 1,
         separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (_, i) {
@@ -999,11 +897,11 @@ class _HistoryTabState extends State<HistoryTab> {
           final status = (row['status'] ?? '').toString();
           return _TxCard(
             icon: isOffline ? Icons.cloud_off : Icons.receipt,
-            iconBg: isOffline ? kTaskStockLowSurface : kTaskBlueLight,
+            iconBg: isOffline ? kTaskSand : kTaskSand,
             iconFg: isOffline ? kTaskTerracotta : kTaskDark,
             title: row['invoice_no']?.toString() ?? '-',
             subtitle:
-                'Tgl ${_dateLabel(row['transaction_date']?.toString())} · ${row['created_at'] ?? ''} · ${isOffline ? 'Belum tersinkron' : (row['payment_method'] ?? '').toString().toUpperCase()}'
+                '${row['created_at'] ?? ''} · ${isOffline ? 'Belum tersinkron' : (row['payment_method'] ?? '').toString().toUpperCase()}'
                 '${row['cashier'] != null && (row['cashier'] as String).isNotEmpty ? ' · Kasir: ${row['cashier']}' : ''}',
             trailing: fmtRp(asNum(row['grand_total'])),
             status: isOffline ? 'offline' : status,
@@ -1050,66 +948,59 @@ class _TxCard extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final chipBg = dark ? const Color(0xff334155) : iconBg;
     final chipFg = dark ? const Color(0xffE2E8F0) : iconFg;
+    // Transaksi offline ditandai latar kuning.
+    const offlineBg = Color(0xFFFFF3CD);
     return GlassCard(
-      radius: 16,
+      radius: 24,
       padding: const EdgeInsets.all(14),
       onTap: onTap,
       child: ColoredBox(
-        color: Colors.transparent,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        color: offline ? offlineBg : Colors.transparent,
+        child: Row(
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: chipBg,
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Icon(icon, size: 20, color: chipFg),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: ink(context))),
-                      const SizedBox(height: 3),
-                      Text(subtitle,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontSize: 12, color: taskMuted(context))),
-                    ],
-                  ),
-                ),
-                if (status != null && status!.isNotEmpty)
-                  Flexible(
-                    child: Align(
-                      alignment: Alignment.topRight,
-                      child: _StatusChip(status!),
-                    ),
-                  ),
-              ],
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: chipBg,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Icon(icon, size: 20, color: chipFg),
             ),
-            const SizedBox(height: 12),
-            Row(
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: ink(context))),
+                  const SizedBox(height: 3),
+                  Text(subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          TextStyle(fontSize: 12, color: taskMuted(context))),
+                ],
+              ),
+            ),
+            SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Expanded(
-                    child: Text(trailing,
-                        style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: ink(context)))),
+                Text(trailing,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: ink(context))),
+                if (status != null && status!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  _StatusChip(status!),
+                ],
                 if (extra != null) extra!,
               ],
             ),
@@ -1141,13 +1032,11 @@ class _StrukRow extends StatelessWidget {
                     color: taskMuted(context),
                     fontWeight: bold ? FontWeight.w800 : FontWeight.w400)),
           ),
-          Flexible(
-              child: Text(value,
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
-                      color: valueColor ?? ink(context)))),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+                  color: valueColor ?? ink(context))),
         ],
       ),
     );
@@ -1164,13 +1053,13 @@ class _StatusChip extends StatelessWidget {
     final (label, bg, fg) = switch (status) {
       'completed' => (
           'Selesai',
-          dark ? const Color(0xff164E2A) : kTaskStockGoodSurface,
-          dark ? const Color(0xff86EFAC) : kTaskStockGood
+          dark ? kTaskDark : kTaskSand,
+          dark ? const Color(0xffE2E8F0) : kTaskDark
         ),
       'pending' => (
           'Menunggu',
-          dark ? const Color(0xff4A3E2A) : kTaskStockLowSurface,
-          dark ? const Color(0xffFCD34D) : kTaskStockLow
+          dark ? kTaskDark : kTaskSand,
+          dark ? const Color(0xffE2E8F0) : kTaskDark
         ),
       'partially_cancelled' => (
           'Sebagian dibatalkan',
@@ -1189,18 +1078,18 @@ class _StatusChip extends StatelessWidget {
         ),
       'approved' => (
           'Disetujui',
-          dark ? const Color(0xff164E2A) : kTaskStockGoodSurface,
-          dark ? const Color(0xff86EFAC) : kTaskStockGood
+          dark ? kTaskDark : kTaskSand,
+          dark ? const Color(0xffE2E8F0) : kTaskDark
         ),
       'partially_refunded' => (
           'Retur sebagian',
-          dark ? const Color(0xff38205F) : kTaskPurpleLight,
-          dark ? const Color(0xffC4B5FD) : kTaskPurple
+          dark ? kTaskDark : kTaskSand,
+          dark ? const Color(0xffE2E8F0) : kTaskDark
         ),
       'refunded' => (
           'Retur penuh',
-          dark ? const Color(0xff38205F) : kTaskPurpleLight,
-          dark ? const Color(0xffC4B5FD) : kTaskPurple
+          dark ? kTaskDark : kTaskSand,
+          dark ? const Color(0xffE2E8F0) : kTaskDark
         ),
       _ => (
           status,
@@ -1212,7 +1101,7 @@ class _StatusChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(99),
       ),
       child: Text(label,
           style:

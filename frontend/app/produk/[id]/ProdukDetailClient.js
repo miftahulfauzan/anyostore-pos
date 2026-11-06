@@ -35,8 +35,12 @@ export default function ProdukDetail() {
   const [qty, setQty] = useState(4);
   const [selectedVariantId, setSelectedVariantId] = useState(null);
   const [added, setAdded] = useState(false);
+  const [stockError, setStockError] = useState('');
   const [cartCount, setCartCount] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const selectedVariant = product?.variants?.find((variant) => variant.id === selectedVariantId) || null;
+  const modelAvailableStock = Number(product?.available_stock || 0);
+  const selectedAvailableStock = selectedVariant ? Number(selectedVariant.available_stock || 0) : modelAvailableStock;
 
   function loadCart() {
     try { const c = JSON.parse(localStorage.getItem('landing_cart') || '[]'); return Array.isArray(c) ? c : []; } catch { return []; }
@@ -52,30 +56,59 @@ export default function ProdukDetail() {
   useEffect(() => {
     if (!product) return;
     const vars = product.variants || [];
-    setSelectedVariantId((cur) => cur ?? (vars[0]?.id ?? null));
-    setCartCount(loadCart().reduce((s, i) => s + (Number(i.qty) || 0), 0));
+    const firstAvailable = vars.find((variant) => Number(variant.available_stock || 0) > 0) || vars[0];
+    const existingCart = loadCart();
+    const alreadyInModel = existingCart.filter((item) => item.productId === product.id).reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+    const alreadyInVariant = firstAvailable
+      ? existingCart.filter((item) => item.key === `${product.id}-${firstAvailable.id}`).reduce((sum, item) => sum + (Number(item.qty) || 0), 0)
+      : 0;
+    const modelRemaining = Math.max(0, Number(product.available_stock || 0) - alreadyInModel);
+    const variantRemaining = firstAvailable ? Math.max(0, Number(firstAvailable.available_stock || 0) - alreadyInVariant) : modelRemaining;
+    setSelectedVariantId(firstAvailable?.id ?? null);
+    setQty(Math.max(1, Math.min(4, modelRemaining, variantRemaining)));
+    setCartCount(existingCart.reduce((s, i) => s + (Number(i.qty) || 0), 0));
   }, [product]);
 
   function addToCart() {
     if (!product) return;
-    const sel = (product.variants || []).find((v) => v.id === selectedVariantId) || null;
+    const sel = selectedVariant;
+    if (modelAvailableStock < 4) {
+      setStockError(`Stok tersedia ${modelAvailableStock} pcs. Minimum pembelian 4 pcs per model.`);
+      return;
+    }
     const key = `${product.id}-${sel?.id || 0}`;
     const next = loadCart();
     const existing = next.find((i) => i.key === key);
+    const alreadyInModel = next.filter((i) => i.productId === product.id).reduce((sum, i) => sum + (Number(i.qty) || 0), 0);
+    const alreadyInVariant = Number(existing?.qty || 0);
+    const lineAvailableStock = sel ? Number(sel.available_stock || 0) : modelAvailableStock;
+    if (qty > modelAvailableStock - alreadyInModel || qty > lineAvailableStock - alreadyInVariant) {
+      setStockError('Stok tidak cukup untuk jumlah yang dipilih. Kurangi jumlah atau pilih varian lain.');
+      return;
+    }
     const item = {
       key,
       productId: product.id,
+      variantId: sel?.id || null,
       name: product.name,
       sku: product.sku,
       variantLabel: sel ? [sel.color, sel.size].filter(Boolean).join(' · ') : '',
-      price: Number(sel?.price ?? product.price ?? 0),
+      price: Number(sel?.price > 0 ? sel.price : product.price ?? 0),
       qty: Math.max(1, qty),
       photo: sel?.photo_path || product.media?.[0]?.path || null,
+      availableStock: lineAvailableStock,
+      modelAvailableStock,
     };
-    if (existing) existing.qty += item.qty;
+    if (existing) {
+      existing.qty += item.qty;
+      existing.availableStock = lineAvailableStock;
+      existing.modelAvailableStock = modelAvailableStock;
+      existing.variantId = sel?.id || null;
+    }
     else next.push(item);
     saveCart(next);
     setCartCount(next.reduce((s, i) => s + (Number(i.qty) || 0), 0));
+    setStockError('');
     setAdded(true);
     window.setTimeout(() => setAdded(false), 2600);
   }
@@ -97,8 +130,7 @@ export default function ProdukDetail() {
 
   const media = product.media || [];
   const variants = product.variants || [];
-  const selectedVariant = variants.find((v) => v.id === selectedVariantId) || null;
-  const displayPrice = Number(selectedVariant?.price ?? product.price ?? 0);
+  const displayPrice = Number(selectedVariant?.price > 0 ? selectedVariant.price : product.price ?? 0);
   const imgs = [
     ...media.map((m) => ({ path: m.path, transform: m.transform, color: null })),
     ...variants.filter((v) => v.photo_path).map((v) => ({ path: v.photo_path, transform: v.photo_transform || null, color: v.color })),
@@ -154,16 +186,24 @@ export default function ProdukDetail() {
                       <button
                         key={v.id}
                         type="button"
+                        disabled={Number(v.available_stock || 0) <= 0}
                         onClick={() => {
                           setSelectedVariantId(v.id);
+                          setStockError('');
+                          const existingCart = loadCart();
+                          const alreadyInVariant = existingCart.filter((item) => item.key === `${product.id}-${v.id}`).reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+                          const alreadyInModel = existingCart.filter((item) => item.productId === product.id).reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+                          const remaining = Math.min(Number(v.available_stock || 0) - alreadyInVariant, modelAvailableStock - alreadyInModel);
+                          setQty((current) => Math.max(1, Math.min(current, remaining)));
                           if (v.photo_path) {
                             const idx = imgs.findIndex((m) => m.path === v.photo_path);
                             if (idx >= 0) setActiveImg(idx);
                           }
                         }}
-                        style={{ padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${active ? C.accent : C.border}`, background: active ? C.accent : C.white, color: active ? '#fff' : C.ink, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                        style={{ padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${active ? C.accent : C.border}`, background: active ? C.accent : C.white, color: active ? '#fff' : C.ink, fontWeight: 600, fontSize: 12, cursor: Number(v.available_stock || 0) <= 0 ? 'not-allowed' : 'pointer', opacity: Number(v.available_stock || 0) <= 0 ? .5 : 1 }}
                       >
                         {v.color || 'Varian'}
+                        <span style={{ display: 'block', fontSize: 11, opacity: .8 }}>Stok {Number(v.available_stock || 0)}</span>
                         {Number(v.price) > 0 && Number(v.price) !== Number(product.price) && <span style={{ display: 'block', fontSize: 11, opacity: .85 }}>Rp{Number(v.price).toLocaleString('id-ID')}</span>}
                       </button>
                     );
@@ -174,11 +214,12 @@ export default function ProdukDetail() {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <strong style={{ fontSize: 13, color: C.ink, minWidth: 56 }}>Jumlah</strong>
-              <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Kurangi jumlah" style={{ width: 36, height: 36, padding: 0, borderRadius: 8, border: 'none', background: C.accent, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><I.minus style={{ width: 16, height: 16 }} /></button>
-              <input type="number" min="1" value={qty} onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))} aria-label="Jumlah" style={{ width: 56, height: 36, textAlign: 'center', border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 700, fontSize: 15 }} />
-              <button type="button" onClick={() => setQty((q) => q + 1)} aria-label="Tambah jumlah" style={{ width: 36, height: 36, padding: 0, borderRadius: 8, border: 'none', background: C.accent, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><I.plus style={{ width: 16, height: 16 }} /></button>
+              <button type="button" onClick={() => { setQty((q) => Math.max(1, q - 1)); setStockError(''); }} aria-label="Kurangi jumlah" style={{ width: 36, height: 36, padding: 0, borderRadius: 8, border: 'none', background: C.accent, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><I.minus style={{ width: 16, height: 16 }} /></button>
+              <input type="number" min="1" max={selectedAvailableStock} value={qty} onChange={(e) => { setQty(Math.max(1, Math.min(selectedAvailableStock, Number(e.target.value) || 1))); setStockError(''); }} aria-label="Jumlah" style={{ width: 56, height: 36, textAlign: 'center', border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 700, fontSize: 15 }} />
+              <button type="button" disabled={qty >= selectedAvailableStock} onClick={() => setQty((q) => Math.min(selectedAvailableStock, q + 1))} aria-label="Tambah jumlah" style={{ width: 36, height: 36, padding: 0, borderRadius: 8, border: 'none', background: C.accent, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: qty >= selectedAvailableStock ? 'not-allowed' : 'pointer', opacity: qty >= selectedAvailableStock ? .55 : 1 }}><I.plus style={{ width: 16, height: 16 }} /></button>
             </div>
 
+            {stockError && <p role="alert" style={{ margin: '-8px 0 0', color: '#b91c1c', fontSize: 12, fontWeight: 600 }}>{stockError}</p>}
             <button type="button" onClick={addToCart} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 46, borderRadius: 10, border: 'none', background: C.accent, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
               {added ? <I.check style={{ width: 17, height: 17 }} /> : <I.cart style={{ width: 17, height: 17 }} />} {added ? 'Ditambahkan ke Keranjang' : 'Tambah ke Keranjang'}
             </button>

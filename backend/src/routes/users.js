@@ -140,9 +140,10 @@ router.put('/:id/pin', authenticate, authorize('owner', 'manager', 'admin', 'kas
     if (!isSelf && req.user.role !== 'owner') return res.status(403).json({ success: false, message: 'Hanya owner yang bisa mengubah PIN pengguna lain' });
     const [rows] = await db.execute('SELECT pin_hash FROM users WHERE id=?', [targetId]);
     if (!rows[0]) return res.status(404).json({ success: false, message: 'Pengguna tidak ditemukan' });
-    // Ubah PIN sendiri: verifikasi PIN lama kalau diisi (dan user memang sudah punya PIN).
-    if (isSelf && rows[0].pin_hash && currentPin && !(await bcrypt.compare(String(currentPin), rows[0].pin_hash))) {
-      return badRequest(res, 'PIN saat ini salah');
+    // Ubah PIN sendiri: wajib verifikasi PIN lama jika PIN sudah terpasang.
+    if (isSelf && rows[0].pin_hash) {
+      if (!/^\d{6}$/.test(String(currentPin || ''))) return badRequest(res, 'PIN saat ini wajib diisi enam digit');
+      if (!(await bcrypt.compare(String(currentPin), rows[0].pin_hash))) return badRequest(res, 'PIN saat ini salah');
     }
     await db.execute('UPDATE users SET pin_hash=?, token_version = token_version + 1 WHERE id=?', [await bcrypt.hash(pin, 12), targetId]);
     res.json({ success: true });

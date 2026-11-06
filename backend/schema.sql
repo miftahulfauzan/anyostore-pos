@@ -147,7 +147,7 @@ CREATE TABLE transactions (
     discount_value DECIMAL(12,2) DEFAULT 0,
     discount DECIMAL(12,2) DEFAULT 0,
     grand_total DECIMAL(12,2) NOT NULL,
-    payment_method ENUM('cash','qris','debit','transfer','credit','split') NOT NULL,
+    payment_method ENUM('cash','qris','debit','transfer','credit','split','other') NOT NULL,
     amount_paid DECIMAL(12,2) NOT NULL,
     `change` DECIMAL(12,2) DEFAULT 0,
     notes TEXT,
@@ -179,7 +179,7 @@ CREATE TABLE invoice_sequences (
 CREATE TABLE transaction_items (
     id INT PRIMARY KEY AUTO_INCREMENT,
     transaction_id INT NOT NULL,
-    product_id INT NOT NULL,
+    product_id INT DEFAULT NULL,
     variant_id INT DEFAULT NULL,
     product_name VARCHAR(200),
     product_sku VARCHAR(50),
@@ -726,7 +726,7 @@ CREATE TABLE commission_items (
 CREATE TABLE transaction_payments (
     id INT PRIMARY KEY AUTO_INCREMENT,
     transaction_id INT NOT NULL,
-    payment_method ENUM('cash','qris','debit','transfer','credit') NOT NULL,
+    payment_method ENUM('cash','qris','debit','transfer','credit','other') NOT NULL,
     amount DECIMAL(12,2) NOT NULL,
     reference VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

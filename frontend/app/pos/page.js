@@ -84,8 +84,8 @@ export default function PosPage() {
     setCart([]);
     setTransactionDate(localDateString());
     setManualDiscount('');
-    setCash('');
     setSelectedPaymentMethods(['cash']);
+    setCash('');
     setPaymentAmounts({});
     setVariantProduct(null);
     setCustomerId('');

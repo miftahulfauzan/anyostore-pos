@@ -5,13 +5,16 @@ import LinkBioPage from '../components/LinkBioPage';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
-export default function LinkBioClient() {
+export default function LinkBioClient({ slug = '' }) {
   const [config, setConfig] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    fetch(api + '/link-page')
+    const endpoint = slug
+      ? api + '/link-page/public/' + encodeURIComponent(slug)
+      : api + '/link-page';
+    fetch(endpoint)
       .then((r) => r.json())
       .then((body) => {
         if (cancelled) return;
@@ -20,7 +23,7 @@ export default function LinkBioClient() {
       })
       .catch((e) => { if (!cancelled) setError(e.message || 'Terjadi kesalahan'); });
     return () => { cancelled = true; };
-  }, []);
+  }, [slug]);
 
   if (error) {
     return (
@@ -46,7 +49,7 @@ export default function LinkBioClient() {
         fetch(api + '/link-page/click', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ branch_id: config.branch_id, item_id: item.id, label: item.label }),
+          body: JSON.stringify({ page_id: config.page_id, branch_id: config.branch_id, item_id: item.id, label: item.label }),
         }).catch(() => {});
       }}
     />

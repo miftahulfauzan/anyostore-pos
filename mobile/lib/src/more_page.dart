@@ -13,7 +13,7 @@ import 'cash_drawer_page.dart';
 import 'commissions_page.dart';
 import 'customers_page.dart';
 import 'dashboard_page.dart';
-import 'inventory_page.dart';
+import 'finance_page.dart';
 import 'mutation_report_page.dart';
 import 'profile_page.dart';
 import 'products_page.dart';
@@ -21,30 +21,20 @@ import 'stock_movements_page.dart';
 import 'offline_queue_page.dart';
 import 'offline_store.dart';
 import 'promotions_page.dart';
-import 'reports_page.dart';
 import 'settings_page.dart';
 import 'users_page.dart';
 import 'task_ui.dart';
-import 'transfer_history_page.dart';
 
 const _kInk = kTaskInk;
 const _kMuted = kTaskSecondary;
 const _kBorder = kTaskBorder;
 
 class MorePage extends StatelessWidget {
-  const MorePage({
-    super.key,
-    required this.api,
-    required this.branchId,
-    this.role,
-    this.currentTab = 0,
-    this.onNavigateTab,
-  });
+  const MorePage(
+      {super.key, required this.api, required this.branchId, this.role});
   final ApiClient api;
   final int branchId;
   final String? role;
-  final int currentTab;
-  final ValueChanged<int>? onNavigateTab;
 
   Widget _scaffold(BuildContext context, String title, Widget child) =>
       Scaffold(
@@ -57,36 +47,28 @@ class MorePage extends StatelessWidget {
       );
 
   Widget _group(BuildContext context, String title, List<Widget> rows) {
-    return _MoreMenuGroup(
-      key: ValueKey('more-menu-$title'),
-      title: _groupTitle(title),
-      icon: _groupIcon(title),
-      rows: rows,
-      initiallyExpanded: true,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(6, 16, 0, 6),
+          child: Text(title,
+              style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xffCBD5E1)
+                      : kTaskSecondary)),
+        ),
+        GlassCard(
+          padding: EdgeInsets.zero,
+          radius: 20,
+          child: Column(children: rows),
+        ),
+      ],
     );
   }
-
-  String _groupTitle(String title) => switch (title) {
-        'UTAMA' => 'Operasional',
-        'TRANSAKSI' => 'Transaksi & Stok',
-        'GUDANG' => 'Gudang',
-        'LAINNYA' => 'Laporan',
-        'AKUN' => 'Pengaturan',
-        'PRODUK & INVENTORI' => 'Produk & Inventori',
-        'BISNIS' => 'Laporan',
-        'ADMINISTRASI' => 'Pengaturan',
-        _ => title,
-      };
-
-  IconData _groupIcon(String title) => switch (title) {
-        'UTAMA' => Icons.assignment_outlined,
-        'TRANSAKSI' => Icons.inventory_2_outlined,
-        'GUDANG' => Icons.warehouse_outlined,
-        'LAINNYA' || 'BISNIS' => Icons.bar_chart_outlined,
-        'AKUN' || 'ADMINISTRASI' => Icons.settings_outlined,
-        'PRODUK & INVENTORI' => Icons.inventory_2_outlined,
-        _ => Icons.folder_outlined,
-      };
 
   Future<void> _confirmLogout(BuildContext context, AuthStore auth) async {
     final choice = await showDialog<String>(
@@ -123,11 +105,11 @@ class MorePage extends StatelessWidget {
     final email = auth.email ?? '';
     final isOwner = auth.role == 'owner';
     final permissions = AppPermissions(auth.role);
-    int activeBranch() => BranchScope.active.value ?? branchId;
-    if (isOwner) api.activeBranchId = BranchScope.active.value;
+    final activeBranch = BranchScope.active.value ?? branchId;
+    if (isOwner) api.activeBranchId = activeBranch;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 104),
       children: [
         // Profil header
         GlassCard(
@@ -180,460 +162,124 @@ class MorePage extends StatelessWidget {
         const SizedBox(height: 12),
         _OfflineTile(api: api),
         const SizedBox(height: 12),
-        if (auth.role == 'gudang') ...[
-          _group(context, 'UTAMA', [
-            _row(context, Icons.dashboard_outlined, 'Dashboard', kTaskSand,
-                kTaskDark, () => _navigateTab(context, 0),
-                selected: currentTab == 0),
-          ]),
-          _group(context, 'TRANSAKSI', [
+        _group(context, 'UTAMA', [
+          _row(context, Icons.dashboard, 'Dashboard', kTaskSand, _kInk,
+              () => _open(context, 'Dashboard', DashboardPage(api: api))),
+        ]),
+        _group(context, 'AKUN & TOKO', [
+          _row(context, Icons.person_outline, 'Akun Saya', kTaskSand, kTaskDark,
+              () => _open(context, 'Akun Saya', ProfilePage(api: api))),
+          _divider(context),
+          _row(context, Icons.swap_horiz, 'Ganti Akun', kTaskSand, kTaskDark,
+              () => _open(context, 'Ganti Akun', const AccountSwitcherPage())),
+          _divider(context),
+          _row(
+              context,
+              Icons.settings,
+              auth.role == 'gudang' ? 'Printer & tampilan' : 'Pengaturan',
+              kTaskSand,
+              _kInk,
+              () => _open(context, 'Pengaturan',
+                  SettingsPage(api: api, role: auth.role))),
+        ]),
+        _group(context, 'PRODUK & INVENTORI', [
+          _row(
+              context,
+              Icons.inventory_2_outlined,
+              'Daftar Produk',
+              kTaskSand,
+              kTaskDark,
+              () => _open(context, 'Daftar Produk',
+                  ProductsPage(api: api, branchId: activeBranch))),
+          _divider(context),
+          _row(
+              context,
+              Icons.history,
+              'Riwayat Stok',
+              kTaskSand,
+              kTaskDark,
+              () => _open(context, 'Riwayat Stok',
+                  StockMovementsPage(api: api, branchId: activeBranch))),
+          _divider(context),
+          _row(
+              context,
+              Icons.swap_vert,
+              'Mutasi',
+              kTaskSand,
+              kTaskDark,
+              () => _open(context, 'Mutasi',
+                  MutationReportPage(api: api, showPageTitle: false))),
+        ]),
+        _group(context, 'TRANSAKSI & KEUANGAN', [
+          if (permissions.finance) ...[
             _row(
                 context,
-                Icons.inventory_2_outlined,
-                'Master Produk',
-                kTaskSand,
-                kTaskDark,
-                () => _open(context, 'Master Produk',
-                    ProductsPage(api: api, branchId: activeBranch()))),
-            _divider(context),
-            _row(
-                context,
-                Icons.move_to_inbox_outlined,
-                'Stok Masuk',
-                kTaskSand,
-                kTaskDark,
-                () => _open(
-                    context,
-                    'Stok Masuk',
-                    InventoryPage(
-                        api: api,
-                        branchId: activeBranch(),
-                        role: auth.role,
-                        initialSection: 'incoming'),
-                    showPageHeader: false)),
-            _divider(context),
-            _row(
-                context,
-                Icons.outbox_outlined,
-                'Stok Keluar',
-                kTaskSand,
-                kTaskDark,
-                () => _open(
-                    context,
-                    'Stok Keluar',
-                    InventoryPage(
-                        api: api,
-                        branchId: activeBranch(),
-                        role: auth.role,
-                        initialSection: 'outgoing'),
-                    showPageHeader: false)),
-            _divider(context),
-            _row(
-                context,
-                Icons.fact_check_outlined,
-                'Stok Opname',
-                kTaskSand,
-                kTaskDark,
-                () => _open(
-                    context,
-                    'Stok Opname',
-                    InventoryPage(
-                        api: api,
-                        branchId: activeBranch(),
-                        role: auth.role,
-                        initialSection: 'opname'))),
-          ]),
-          _group(context, 'GUDANG', [
-            _row(
-                context,
-                Icons.warehouse_outlined,
-                'Manajemen Gudang',
-                kTaskSand,
-                kTaskDark,
-                () => _open(
-                    context,
-                    'Manajemen Gudang',
-                    InventoryPage(
-                        api: api,
-                        branchId: activeBranch(),
-                        role: auth.role,
-                        initialSection: 'stok'))),
-            _divider(context),
-            _row(
-                context,
-                Icons.swap_horiz,
-                'Transfer Gudang',
-                kTaskSand,
-                kTaskDark,
-                () => _open(
-                    context,
-                    'Transfer Gudang',
-                    InventoryPage(
-                        api: api,
-                        branchId: activeBranch(),
-                        role: auth.role,
-                        initialSection: 'transfer'))),
-            _divider(context),
-            _row(
-                context,
-                Icons.history,
-                'Riwayat Transfer',
-                kTaskSand,
-                kTaskDark,
-                () => _open(context, 'Riwayat Transfer',
-                    TransferHistoryPage(api: api))),
-          ]),
-          _group(context, 'LAINNYA', [
-            _row(
-                context,
-                Icons.swap_vert,
-                'Riwayat Mutasi',
-                kTaskSand,
-                kTaskDark,
-                () => _open(context, 'Riwayat Mutasi',
-                    MutationReportPage(api: api, showPageTitle: false))),
-            _divider(context),
-            _row(
-                context,
-                Icons.bar_chart_outlined,
-                'Laporan Lainnya',
-                kTaskSand,
-                kTaskDark,
-                () => _open(context, 'Laporan Lainnya',
-                    StockMovementsPage(api: api, branchId: activeBranch()))),
-            _divider(context),
-            _row(
-                context,
-                Icons.settings_outlined,
-                'Pengaturan',
-                kTaskSand,
-                kTaskDark,
-                () => _open(context, 'Pengaturan',
-                    SettingsPage(api: api, role: auth.role))),
-          ]),
-          _group(context, 'AKUN', [
-            _row(
-                context,
-                Icons.person_outline,
-                'Akun Saya',
-                kTaskSand,
-                kTaskDark,
-                () => _open(context, 'Akun Saya', ProfilePage(api: api))),
-            _divider(context),
-            _row(
-                context,
-                Icons.swap_horiz,
-                'Ganti Akun',
+                Icons.people,
+                'Jenis Pelanggan',
                 kTaskSand,
                 kTaskDark,
                 () =>
-                    _open(context, 'Ganti Akun', const AccountSwitcherPage())),
-          ]),
-        ] else ...[
-          _group(context, 'UTAMA', [
-            if (permissions.sales)
-              _row(context, Icons.point_of_sale, 'POS', kTaskSand, kTaskDark,
-                  () => _navigateTab(context, 0),
-                  selected: currentTab == 0),
+                    _open(context, 'Jenis Pelanggan', CustomersPage(api: api))),
+            _divider(context),
+            _row(context, Icons.payments, 'Laci Kas', kTaskSand, kTaskDark,
+                () => _open(context, 'Laci Kas', CashDrawerPage(api: api))),
             _divider(context),
             _row(
                 context,
-                Icons.dashboard_outlined,
-                'Dashboard',
+                Icons.account_balance_wallet,
+                'Keuangan',
                 kTaskSand,
                 kTaskDark,
-                () => _navigateTab(context, permissions.sales ? 1 : 0),
-                selected: currentTab == (permissions.sales ? 1 : 0)),
-            if (permissions.sales) ...[
-              _divider(context),
-              _row(context, Icons.receipt_long_outlined, 'Transaksi', kTaskSand,
-                  kTaskDark, () => _navigateTab(context, 2),
-                  selected: currentTab == 2),
-            ],
-            if (permissions.finance) ...[
-              _divider(context),
+                () => _open(context, 'Keuangan', FinancePage(api: api))),
+            _divider(context),
+          ],
+          _row(
+              context,
+              Icons.payments_outlined,
+              'Komisi',
+              kTaskSand,
+              kTaskDark,
+              () => _open(
+                  context,
+                  'Komisi',
+                  CommissionsPage(
+                      api: api, branchId: activeBranch, role: role))),
+        ]),
+        if (permissions.manageUsers ||
+            permissions.managePromotions ||
+            permissions.viewActivity)
+          _group(context, 'MANAJEMEN', [
+            if (permissions.manageUsers) ...[
               _row(
                   context,
-                  Icons.account_balance_wallet_outlined,
-                  'Keuangan',
+                  Icons.badge,
+                  'Pegawai',
                   kTaskSand,
                   kTaskDark,
-                  () => _navigateTab(context, permissions.sales ? 3 : 0),
-                  selected: currentTab == (permissions.sales ? 3 : 0)),
-            ],
-          ]),
-          _group(context, 'PRODUK & INVENTORI', [
-            if (auth.role != 'gudang' && permissions.viewActivity) ...[
-              _row(
-                  context,
-                  Icons.dashboard_customize_outlined,
-                  'Dashboard Stok',
-                  kTaskSand,
-                  _kInk,
-                  () => _open(
-                      context, 'Dashboard Stok', DashboardPage(api: api))),
+                  () => _open(context, 'Pegawai',
+                      UsersPage(api: api, branchId: activeBranch, role: role))),
               _divider(context),
             ],
-            _row(
-                context,
-                Icons.inventory_2_outlined,
-                'Daftar Produk',
-                kTaskSand,
-                kTaskDark,
-                () => _open(context, 'Daftar Produk',
-                    ProductsPage(api: api, branchId: activeBranch()))),
-            _divider(context),
-            _row(
-                context,
-                Icons.qr_code_scanner,
-                'Cetak Barcode',
-                kTaskSand,
-                kTaskDark,
-                () => _open(
-                    context,
-                    'Cetak Barcode',
-                    InventoryPage(
-                        api: api,
-                        branchId: activeBranch(),
-                        role: auth.role,
-                        initialSection: 'barcode'))),
-            _divider(context),
-            _row(context, Icons.warehouse_outlined, 'Stok Produk', kTaskSand,
-                kTaskDark, () {
-              if (auth.role == 'gudang') {
-                _navigateTab(context, 1);
-                return;
-              }
-              _open(
-                  context,
-                  'Stok Produk',
-                  InventoryPage(
-                      api: api,
-                      branchId: activeBranch(),
-                      role: auth.role,
-                      initialSection: 'stok'));
-            }, selected: auth.role == 'gudang' && currentTab == 1),
-            _divider(context),
-            _row(
-                context,
-                Icons.move_to_inbox_outlined,
-                'Stok Masuk',
-                kTaskSand,
-                kTaskDark,
-                () => _open(
-                    context,
-                    'Stok Masuk',
-                    InventoryPage(
-                        api: api,
-                        branchId: activeBranch(),
-                        role: auth.role,
-                        initialSection: 'incoming'),
-                    showPageHeader: false)),
-            _divider(context),
-            _row(
-                context,
-                Icons.outbox_outlined,
-                'Stok Keluar',
-                kTaskSand,
-                kTaskDark,
-                () => _open(
-                    context,
-                    'Stok Keluar',
-                    InventoryPage(
-                        api: api,
-                        branchId: activeBranch(),
-                        role: auth.role,
-                        initialSection: 'outgoing'),
-                    showPageHeader: false)),
-            _divider(context),
-            _row(
-                context,
-                Icons.swap_horiz,
-                'Transfer Stok',
-                kTaskSand,
-                kTaskDark,
-                () => _open(
-                    context,
-                    'Transfer Stok',
-                    InventoryPage(
-                        api: api,
-                        branchId: activeBranch(),
-                        role: auth.role,
-                        initialSection: 'transfer'))),
-            _divider(context),
-            if (auth.role != 'kasir') ...[
-              _row(
-                  context,
-                  Icons.history,
-                  'Riwayat Transfer',
-                  kTaskSand,
-                  kTaskDark,
-                  () => _open(context, 'Riwayat Transfer',
-                      TransferHistoryPage(api: api))),
+            if (permissions.managePromotions) ...[
+              _row(context, Icons.local_offer, 'Promo', kTaskSand, kTaskDark,
+                  () => _open(context, 'Promo', PromotionsPage(api: api))),
               _divider(context),
             ],
-            _row(
-                context,
-                Icons.fact_check_outlined,
-                'Stok Opname',
-                kTaskSand,
-                kTaskDark,
-                () => _open(
-                    context,
-                    'Stok Opname',
-                    InventoryPage(
-                        api: api,
-                        branchId: activeBranch(),
-                        role: auth.role,
-                        initialSection: 'opname'))),
-            _divider(context),
-            _row(
-                context,
-                Icons.history,
-                'Riwayat Stok',
-                kTaskSand,
-                kTaskDark,
-                () => _open(context, 'Riwayat Stok',
-                    StockMovementsPage(api: api, branchId: activeBranch()))),
-            _divider(context),
-            _row(
-                context,
-                Icons.swap_vert,
-                'Riwayat Mutasi',
-                kTaskSand,
-                kTaskDark,
-                () => _open(context, 'Riwayat Mutasi',
-                    MutationReportPage(api: api, showPageTitle: false))),
-          ]),
-          if (permissions.viewActivity ||
-              permissions.finance ||
-              permissions.sales ||
-              permissions.managePromotions)
-            _group(context, 'BISNIS', [
-              if (permissions.viewActivity) ...[
-                _row(
-                    context,
-                    Icons.bar_chart_outlined,
-                    'Laporan',
-                    kTaskSand,
-                    kTaskDark,
-                    () => _open(context, 'Laporan',
-                        ReportsPage(api: api, role: auth.role))),
-              ],
-              if (permissions.managePromotions) ...[
-                _divider(context),
-                _row(
-                    context,
-                    Icons.local_offer_outlined,
-                    'Promo & Diskon',
-                    kTaskSand,
-                    kTaskDark,
-                    () => _open(
-                        context, 'Promo & Diskon', PromotionsPage(api: api))),
-              ],
-              if (auth.role == 'owner') ...[
-                _divider(context),
-                _row(
-                    context,
-                    Icons.receipt_long_outlined,
-                    'Laporan Pajak',
-                    kTaskSand,
-                    kTaskDark,
-                    () => _open(
-                        context,
-                        'Laporan Pajak',
-                        ReportsPage(
-                            api: api, role: auth.role, initialSection: 'ppn'))),
-              ],
-              if (permissions.sales) ...[
-                _divider(context),
-                _row(
-                    context,
-                    Icons.people_outline,
-                    'Pelanggan',
-                    kTaskSand,
-                    kTaskDark,
-                    () => _open(context, 'Pelanggan', CustomersPage(api: api))),
-              ],
-              if (permissions.finance) ...[
-                _divider(context),
-                _row(context, Icons.payments, 'Laci Kas', kTaskSand, kTaskDark,
-                    () => _open(context, 'Laci Kas', CashDrawerPage(api: api))),
-              ],
-            ]),
-          if (permissions.manageUsers ||
-              permissions.viewActivity ||
-              permissions.ownCommission)
-            _group(context, 'ADMINISTRASI', [
+            if (permissions.viewActivity)
               _row(
                   context,
-                  Icons.payments_outlined,
-                  role == 'owner' ? 'Komisi Staf' : 'Komisi Saya',
+                  Icons.receipt_long_outlined,
+                  'Riwayat Aktivitas',
                   kTaskSand,
                   kTaskDark,
                   () => _open(
-                      context,
-                      'Komisi',
-                      CommissionsPage(
-                          api: api, branchId: activeBranch(), role: role))),
-              if (permissions.manageUsers) ...[
-                _divider(context),
-                _row(
-                    context,
-                    Icons.badge_outlined,
-                    'Pegawai & Akses',
-                    kTaskSand,
-                    kTaskDark,
-                    () => _open(
-                        context,
-                        'Pegawai',
-                        UsersPage(
-                            api: api, branchId: activeBranch(), role: role))),
-              ],
-              _divider(context),
-              _row(
-                  context,
-                  Icons.settings_outlined,
-                  auth.role == 'gudang' ? 'Printer & tampilan' : 'Pengaturan',
-                  kTaskSand,
-                  _kInk,
-                  () => _open(context, 'Pengaturan',
-                      SettingsPage(api: api, role: auth.role))),
-              _divider(context),
-              _row(
-                  context,
-                  Icons.person_outline,
-                  'Akun Saya',
-                  kTaskSand,
-                  kTaskDark,
-                  () => _open(context, 'Akun Saya', ProfilePage(api: api))),
-              _divider(context),
-              _row(
-                  context,
-                  Icons.swap_horiz,
-                  'Ganti Akun',
-                  kTaskSand,
-                  kTaskDark,
-                  () => _open(
-                      context, 'Ganti Akun', const AccountSwitcherPage())),
-              if (permissions.viewActivity) ...[
-                _divider(context),
-                _row(
-                    context,
-                    Icons.receipt_long_outlined,
-                    'Riwayat Aktivitas',
-                    kTaskSand,
-                    kTaskDark,
-                    () => _open(context, 'Riwayat Aktivitas',
-                        ActivityLogPage(api: api))),
-              ],
-            ]),
-        ],
+                      context, 'Riwayat Aktivitas', ActivityLogPage(api: api))),
+          ]),
         const SizedBox(height: 14),
         // Keluar di paling bawah.
         GlassCard(
           padding: EdgeInsets.zero,
-          radius: 12,
+          radius: 20,
           child: InkWell(
             onTap: () => _confirmLogout(context, auth),
             child: Padding(
@@ -666,8 +312,7 @@ class MorePage extends StatelessWidget {
                                     ? const Color(0xffF2B8A5)
                                     : kTaskTerracotta)),
                   ),
-                  Icon(Icons.chevron_right,
-                      size: 18, color: taskMuted(context)),
+                  const Icon(Icons.chevron_right, size: 18, color: kTaskGray),
                 ],
               ),
             ),
@@ -675,7 +320,7 @@ class MorePage extends StatelessWidget {
         ),
         Padding(
           padding: EdgeInsets.only(top: 20, bottom: 8),
-          child: Text('Anyostore App v0.2.0',
+          child: Text('Anyostore App v0.1.0',
               textAlign: TextAlign.center,
               style: TextStyle(
                   fontSize: 10,
@@ -698,153 +343,35 @@ class MorePage extends StatelessWidget {
       );
 
   Widget _row(BuildContext context, IconData icon, String title, Color chipBg,
-      Color chipFg, VoidCallback onTap,
-      {bool selected = false}) {
-    final active = Theme.of(context).colorScheme.primary;
-    final fg = selected ? active : taskMuted(context);
+      Color chipFg, VoidCallback onTap) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final fg = dark ? const Color(0xffE2E8F0) : chipFg;
     return InkWell(
-      borderRadius: BorderRadius.circular(10),
       onTap: onTap,
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 44),
-        margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: selected
-            ? BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? taskSurface(context)
-                    : kTaskSurfaceMuted,
-                borderRadius: BorderRadius.circular(10),
-              )
-            : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           children: [
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, size: 18, color: fg),
-            ),
-            const SizedBox(width: 12),
+            SizedBox(
+                width: 24, height: 24, child: Icon(icon, size: 21, color: fg)),
+            SizedBox(width: 12),
             Expanded(
               child: Text(title,
                   style: TextStyle(
                       fontSize: 13,
-                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                      color: selected ? active : ink(context))),
+                      fontWeight: FontWeight.w600,
+                      color: ink(context))),
             ),
-            Icon(Icons.chevron_right,
-                size: 18, color: selected ? active : taskMuted(context)),
+            const Icon(Icons.chevron_right, size: 18, color: kTaskGray),
           ],
         ),
       ),
     );
   }
 
-  void _navigateTab(BuildContext context, int index) {
-    Scaffold.maybeOf(context)?.closeDrawer();
-    onNavigateTab?.call(index);
-  }
-
-  void _open(BuildContext context, String title, Widget child,
-      {bool showPageHeader = true}) {
-    final navigator = Navigator.of(context);
-    Scaffold.maybeOf(context)?.closeDrawer();
-    navigator.push(MaterialPageRoute(
-        builder: (_) =>
-            showPageHeader ? _scaffold(context, title, child) : child));
-  }
-}
-
-class _MoreMenuGroup extends StatefulWidget {
-  const _MoreMenuGroup({
-    super.key,
-    required this.title,
-    required this.icon,
-    required this.rows,
-    required this.initiallyExpanded,
-  });
-
-  final String title;
-  final IconData icon;
-  final List<Widget> rows;
-  final bool initiallyExpanded;
-
-  @override
-  State<_MoreMenuGroup> createState() => _MoreMenuGroupState();
-}
-
-class _MoreMenuGroupState extends State<_MoreMenuGroup> {
-  late bool _expanded = widget.initiallyExpanded;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final active = Theme.of(context).colorScheme.primary;
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 6),
-      child: GlassCard(
-        padding: EdgeInsets.zero,
-        radius: 16,
-        child: Column(
-          children: [
-            InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () => setState(() => _expanded = !_expanded),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: dark ? const Color(0xff233247) : kTaskSurfaceMuted,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
-                    bottomLeft: _expanded ? Radius.zero : Radius.circular(16),
-                    bottomRight: _expanded ? Radius.zero : Radius.circular(16),
-                  ),
-                ),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                child: Row(
-                  children: [
-                    Icon(widget.icon, size: 22, color: active),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        widget.title,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: dark ? const Color(0xffF8FAFC) : kTaskDark,
-                        ),
-                      ),
-                    ),
-                    Icon(
-                      _expanded ? Icons.expand_less : Icons.expand_more,
-                      size: 21,
-                      color: _expanded ? active : taskMuted(context),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            AnimatedSize(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOutCubic,
-              alignment: Alignment.topCenter,
-              child: _expanded
-                  ? Padding(
-                      padding: const EdgeInsets.only(left: 4, bottom: 6),
-                      child: Column(children: widget.rows),
-                    )
-                  : const SizedBox(width: double.infinity),
-            ),
-          ],
-        ),
-      ),
-    );
+  void _open(BuildContext context, String title, Widget child) {
+    Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => _scaffold(context, title, child)));
   }
 }
 
@@ -877,12 +404,10 @@ class _OfflineTileState extends State<_OfflineTile> {
   @override
   Widget build(BuildContext context) {
     return GlassCard(
-      radius: 12,
+      radius: 20,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       onTap: () async {
-        final navigator = Navigator.of(context);
-        Scaffold.maybeOf(context)?.closeDrawer();
-        await navigator.push(MaterialPageRoute(
+        await Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => OfflineQueuePage(api: widget.api)));
         await _load();
       },
@@ -892,10 +417,10 @@ class _OfflineTileState extends State<_OfflineTile> {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.tertiary,
-              borderRadius: BorderRadius.circular(8),
+              color: const Color(0xffF8E9E4),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(Icons.cloud_off, size: 17, color: taskMuted(context)),
+            child: Icon(Icons.cloud_off, size: 17, color: kTaskTerracotta),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -909,17 +434,17 @@ class _OfflineTileState extends State<_OfflineTile> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
+                color: kTaskDark,
                 borderRadius: BorderRadius.circular(99),
               ),
               child: Text('$_count',
-                  style: TextStyle(
+                  style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.onPrimary)),
+                      color: Colors.white)),
             )
           else
-            Icon(Icons.chevron_right, size: 18, color: taskMuted(context)),
+            const Icon(Icons.chevron_right, size: 18, color: kTaskGray),
         ],
       ),
     );
@@ -944,13 +469,7 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
   void initState() {
     super.initState();
     widget.api.activeBranchId = BranchScope.active.value;
-    BranchScope.active.addListener(_onBranchScopeChanged);
     _load();
-  }
-
-  void _onBranchScopeChanged() {
-    widget.api.activeBranchId = BranchScope.active.value;
-    if (mounted) setState(() {});
   }
 
   Future<void> _load() async {
@@ -958,6 +477,10 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
       final rows = await widget.api.branches();
       if (!mounted) return;
       setState(() => _branches = rows.cast<Map<String, dynamic>>());
+      if (BranchScope.active.value == null && _branches.isNotEmpty) {
+        BranchScope.set(int.tryParse('${_branches.first['id']}'));
+        widget.api.activeBranchId = BranchScope.active.value;
+      }
     } on ApiException catch (_) {
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -965,50 +488,38 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
   }
 
   @override
-  void dispose() {
-    BranchScope.active.removeListener(_onBranchScopeChanged);
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     if (_loading) return const SizedBox.shrink();
     return GlassCard(
       padding: const EdgeInsets.all(12),
-      radius: 12,
+      radius: 18,
       child: Row(
         children: [
-          Icon(Icons.storefront,
-              size: 18, color: Theme.of(context).colorScheme.primary),
+          const Icon(Icons.storefront, size: 18, color: kTaskDark),
           const SizedBox(width: 10),
-          Expanded(
+          const Expanded(
             child: Text('Toko/Gudang aktif',
                 style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: taskMuted(context))),
+                    color: kTaskSecondary)),
           ),
           const SizedBox(width: 8),
-          SizedBox(
-            width: 120,
-            child: DropdownButton<int?>(
-              isExpanded: true,
-              value: BranchScope.active.value,
-              underline: const SizedBox.shrink(),
-              items: [
-                const DropdownMenuItem<int?>(
-                    value: null, child: Text('Semua toko/gudang')),
-                for (final b in _branches)
-                  DropdownMenuItem<int?>(
-                      value: int.tryParse('${b['id']}'),
-                      child: Text(b['name']?.toString() ?? '',
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 12))),
-              ],
-              onChanged: (v) {
-                BranchScope.set(v);
-              },
-            ),
+          DropdownButton<int?>(
+            value: BranchScope.active.value,
+            underline: const SizedBox.shrink(),
+            items: [
+              for (final b in _branches)
+                DropdownMenuItem<int?>(
+                    value: int.tryParse('${b['id']}'),
+                    child: Text(b['name']?.toString() ?? '',
+                        style: const TextStyle(fontSize: 12))),
+            ],
+            onChanged: (v) {
+              BranchScope.set(v);
+              widget.api.activeBranchId = v;
+              setState(() {});
+            },
           ),
         ],
       ),

@@ -29,19 +29,19 @@ abstract final class AppNavigation {
             label: 'POS'
           ),
           (
-            icon: Icons.dashboard_outlined,
-            activeIcon: Icons.dashboard,
-            label: 'Dashboard'
-          ),
-          (
             icon: Icons.receipt_long_outlined,
             activeIcon: Icons.receipt_long,
             label: 'Riwayat'
           ),
           (
-            icon: Icons.account_balance_wallet_outlined,
-            activeIcon: Icons.account_balance_wallet,
-            label: 'Keuangan'
+            icon: Icons.inventory_2_outlined,
+            activeIcon: Icons.inventory_2,
+            label: 'Stok'
+          ),
+          (
+            icon: Icons.bar_chart_outlined,
+            activeIcon: Icons.bar_chart,
+            label: 'Laporan'
           ),
           (
             icon: Icons.more_horiz,

@@ -7,6 +7,7 @@ import SafeImage from './components/SafeImage';
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 const T = { black: '#1a1a1a', blue: '#1e3a5f', white: '#ffffff', bg: '#fafafa', card: '#ffffff', muted: '#71717a', border: '#e5e7eb' };
+const MIN_ORDER_QTY = 4;
 
 const I = {
   box: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></svg>),
@@ -115,45 +116,101 @@ export default function LandingPage() {
   const [waMsg, setWaMsg] = useState('');
   const [cart, setCart] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
+  const [orderChecking, setOrderChecking] = useState(false);
   const [picker, setPicker] = useState(null);
+  const pickerRequest = useRef(0);
   const [pickVariantId, setPickVariantId] = useState(null);
   const [pickQty, setPickQty] = useState(1);
   const [pickerLoading, setPickerLoading] = useState(false);
+  const [stockNotice, setStockNotice] = useState('');
+  const stockNoticeTimer = useRef(null);
   const waPhone = settings?.whatsapp || settings?.store_phone || '';
   const waPhones = settings?.whatsapp_numbers?.length ? settings.whatsapp_numbers : waPhone ? [waPhone] : [];
   function pickWa(msg) { if (!waPhones.length) return; setWaMsg(msg); setWaPicker(true); }
 
   useEffect(() => { try { const raw = localStorage.getItem('landing_cart'); if (raw) setCart(JSON.parse(raw)); } catch { setCart([]); } }, []);
   useEffect(() => { try { localStorage.setItem('landing_cart', JSON.stringify(cart)); } catch { /* storage may be unavailable in private browsing */ } }, [cart]);
-  function countInCart(productId) { return cart.filter((i) => i.productId === productId).reduce((s, i) => s + i.qty, 0); }
-  const cartPcs = cart.reduce((s, i) => s + i.qty, 0);
-  const cartTotal = cart.reduce((s, i) => s + i.qty * i.price, 0);
-  const pickMin = picker ? Math.max(1, 4 - countInCart(picker.product.id)) : 1;
+  function countInCart(productId) { return cart.filter((i) => Number(i.productId) === Number(productId)).reduce((s, i) => s + Number(i.qty || 0), 0); }
+  const cartPcs = cart.reduce((s, i) => s + Number(i.qty || 0), 0);
+  const cartTotal = cart.reduce((s, i) => s + Number(i.qty || 0) * Number(i.price || 0), 0);
   const pickerSelected = picker ? picker.variants.find((v) => v.id === pickVariantId) || null : null;
   const pickerPhoto = pickerSelected?.photo_path || picker?.product?.photo_path || null;
-  const modelTotals = cart.reduce((m, i) => { m[i.productId] = (m[i.productId] || 0) + i.qty; return m; }, {});
+  const modelStockRemaining = picker ? Math.max(0, Number(picker.product.available_stock || 0) - countInCart(picker.product.id)) : 0;
+  const selectedVariantQty = pickerSelected ? cart.filter((item) => item.key === `${picker.product.id}-${pickerSelected.id}`).reduce((sum, item) => sum + item.qty, 0) : 0;
+  const pickerStockRemaining = pickerSelected
+    ? Math.max(0, Number(pickerSelected.available_stock || 0) - selectedVariantQty)
+    : modelStockRemaining;
+  const pickMax = Math.min(modelStockRemaining, pickerStockRemaining);
+  const modelTotals = cart.reduce((m, i) => { const id = Number(i.productId); m[id] = (m[id] || 0) + Number(i.qty || 0); return m; }, {});
   const cartWarnings = Object.entries(modelTotals)
-    .map(([pid, qty]) => ({ name: cart.find((i) => i.productId === Number(pid))?.name || 'Produk', qty }))
-    .filter((w) => w.qty < 4);
+    .map(([pid, qty]) => {
+      const item = cart.find((i) => Number(i.productId) === Number(pid));
+      return { name: item?.name || 'Produk', qty, available: item?.modelAvailableStock };
+    })
+    .filter((w) => w.qty < MIN_ORDER_QTY || (w.available != null && w.qty > Number(w.available)));
+  const hasMinimumWarning = cartWarnings.some((warning) => warning.qty < MIN_ORDER_QTY);
+
+  function showStockNotice(message) {
+    setStockNotice(message);
+    if (stockNoticeTimer.current) clearTimeout(stockNoticeTimer.current);
+    stockNoticeTimer.current = setTimeout(() => setStockNotice(''), 3600);
+  }
+
+  useEffect(() => () => { if (stockNoticeTimer.current) clearTimeout(stockNoticeTimer.current); }, []);
+
+  function closePicker() {
+    pickerRequest.current += 1;
+    setPickerLoading(false);
+    setPicker(null);
+  }
 
   function openPicker(product) {
-    setPickQty(Math.max(1, 4 - countInCart(product.id)));
+    const requestId = ++pickerRequest.current;
     setPickVariantId(null);
-    if (Number(product.variant_count) > 0) {
-      setPickerLoading(true);
-      setPicker({ product, variants: [] });
-      fetch(`${api}/public/products/${product.id}`)
-        .then((r) => r.json())
-        .then((b) => {
-          const variants = (b.data?.variants || []).filter((v) => v.is_active !== false);
-          setPicker((cur) => (cur && cur.product.id === product.id ? { product: cur.product, variants } : cur));
-          setPickVariantId((cur) => cur ?? (variants[0]?.id ?? null));
-        })
-        .catch(() => setPicker((cur) => (cur && cur.product.id === product.id ? { ...cur, variants: [] } : cur)))
-        .finally(() => setPickerLoading(false));
-    } else {
-      setPicker({ product, variants: [] });
-    }
+    setPickerLoading(true);
+    setPicker({ product, variants: [] });
+    fetch(`${api}/public/products/${product.id}`)
+      .then(async (response) => {
+        const body = await response.json();
+        if (requestId !== pickerRequest.current) return;
+        if (!response.ok || !body.data) throw new Error('Gagal memuat stok produk');
+        const currentProduct = { ...product, ...body.data };
+        const available = Number(currentProduct.available_stock || 0);
+        const alreadyInCart = countInCart(product.id);
+        if (available < MIN_ORDER_QTY) {
+          setPicker(null);
+          showStockNotice(`Stok ${product.name} hanya ${available} pcs. Minimum pembelian ${MIN_ORDER_QTY} pcs per model.`);
+          return;
+        }
+        if (alreadyInCart >= available) {
+          setPicker(null);
+          showStockNotice(`Stok ${product.name} sudah habis untuk jumlah di keranjang.`);
+          return;
+        }
+
+        const variants = (currentProduct.variants || []).filter((variant) => variant.is_active !== false);
+        if (Number(product.variant_count) > 0 && variants.length === 0) throw new Error('Varian produk tidak tersedia');
+        const firstAvailable = variants.find((variant) => Number(variant.available_stock || 0) > 0) || null;
+        if (variants.length > 0 && !firstAvailable) {
+          setPicker(null);
+          showStockNotice(`Stok varian ${product.name} tidak tersedia.`);
+          return;
+        }
+
+        setPicker((current) => current?.product.id === product.id ? { product: currentProduct, variants } : current);
+        setPickVariantId(firstAvailable?.id ?? null);
+        const inVariant = firstAvailable
+          ? cart.filter((item) => item.key === `${product.id}-${firstAvailable.id}`).reduce((sum, item) => sum + item.qty, 0)
+          : 0;
+        const remaining = Math.min(MIN_ORDER_QTY - alreadyInCart, available - alreadyInCart, Number(firstAvailable?.available_stock ?? available) - inVariant);
+        setPickQty(Math.max(1, remaining));
+      })
+      .catch(() => {
+        if (requestId !== pickerRequest.current) return;
+        setPicker((current) => current?.product.id === product.id ? null : current);
+        showStockNotice(`Stok ${product.name} gagal diperiksa. Coba lagi.`);
+      })
+      .finally(() => { if (requestId === pickerRequest.current) setPickerLoading(false); });
   }
 
   function addFromPicker() {
@@ -161,25 +218,46 @@ export default function LandingPage() {
     const selected = picker.variants.find((v) => v.id === pickVariantId) || null;
     const key = `${picker.product.id}-${selected?.id || 0}`;
     const variantLabel = selected ? [selected.color, selected.size].filter(Boolean).join(' · ') : '';
-    const price = Number(selected?.price ?? picker.product.price ?? 0);
+    const price = Number(selected?.price > 0 ? selected.price : picker.product.price ?? 0);
     const photo = selected?.photo_path || picker.product.photo_path || null;
     const qty = Math.max(1, pickQty);
+    const modelAvailableStock = Number(picker.product.available_stock || 0);
+    const variantAvailableStock = selected ? Number(selected.available_stock || 0) : modelAvailableStock;
+    const alreadyInModel = countInCart(picker.product.id);
+    const alreadyInVariant = cart.filter((item) => item.key === key).reduce((sum, item) => sum + item.qty, 0);
+    if (qty > modelAvailableStock - alreadyInModel || qty > variantAvailableStock - alreadyInVariant) {
+      showStockNotice(`Stok ${picker.product.name} tidak cukup untuk jumlah yang dipilih.`);
+      return;
+    }
     setCart((prev) => {
       const existing = prev.find((i) => i.key === key);
-      if (existing) return prev.map((i) => (i.key === key ? { ...i, qty: i.qty + qty } : i));
-      return [...prev, { key, productId: picker.product.id, name: picker.product.name, sku: picker.product.sku, variantLabel, price, qty, photo }];
+      if (existing) return prev.map((i) => (i.key === key ? { ...i, qty: i.qty + qty, variantId: selected?.id || null, availableStock: variantAvailableStock, modelAvailableStock } : i));
+      return [...prev, { key, productId: picker.product.id, variantId: selected?.id || null, name: picker.product.name, sku: picker.product.sku, variantLabel, price, qty, photo, availableStock: variantAvailableStock, modelAvailableStock }];
     });
-    setPicker(null);
+    closePicker();
     setCartOpen(true);
   }
 
   function setItemQty(key, qty) {
+    const item = cart.find((current) => current.key === key);
+    if (!item) return;
+    const modelTotal = cart.filter((current) => Number(current.productId) === Number(item.productId)).reduce((sum, current) => sum + Number(current.qty || 0), 0);
+    const others = modelTotal - item.qty;
+    const minQty = Math.max(1, MIN_ORDER_QTY - others);
+    const maxQty = Math.min(
+      item.availableStock == null ? Number.POSITIVE_INFINITY : Number(item.availableStock) - cart.filter((current) => current.key === key).reduce((sum, current) => sum + current.qty, 0) + item.qty,
+      item.modelAvailableStock == null ? Number.POSITIVE_INFINITY : Number(item.modelAvailableStock) - others,
+    );
+    if (maxQty < minQty) {
+      showStockNotice(`Stok ${item.name} tidak cukup untuk minimum ${MIN_ORDER_QTY} pcs per model.`);
+      return;
+    }
+    const requested = Math.max(minQty, Number(qty) || minQty);
+    if (requested > maxQty) showStockNotice(`Stok ${item.name} tidak cukup untuk jumlah yang dipilih.`);
+    const nextQty = Math.min(requested, maxQty);
     setCart((prev) => prev.map((i) => {
       if (i.key !== key) return i;
-      const modelTotal = prev.filter((x) => x.productId === i.productId).reduce((s, x) => s + x.qty, 0);
-      const others = modelTotal - i.qty;
-      const minQty = Math.max(1, 4 - others);
-      return { ...i, qty: Math.max(minQty, Number(qty) || minQty) };
+      return { ...i, qty: nextQty };
     }));
   }
   function removeItem(key) { setCart((prev) => prev.filter((i) => i.key !== key)); }
@@ -188,18 +266,73 @@ export default function LandingPage() {
   function buildOrderMsg() {
     const groups = {};
     for (const it of cart) {
-      if (!groups[it.productId]) groups[it.productId] = { name: it.name, items: [], qty: 0, total: 0 };
+      if (!groups[it.productId]) groups[it.productId] = { name: it.name, items: [] };
       groups[it.productId].items.push(it);
-      groups[it.productId].qty += it.qty;
-      groups[it.productId].total += it.qty * it.price;
     }
     const lines = Object.values(groups).map((g, gi) => {
       const detail = g.items.map((it) => `    ${it.variantLabel ? `${it.variantLabel}: ` : ''}${it.qty} pcs × ${fmtRp(it.price)} = ${fmtRp(it.qty * it.price)}`).join('\n');
-      return `${gi + 1}. ${g.name}: ${g.qty} pcs · ${fmtRp(g.total)}\n${detail}`;
+      return `${gi + 1}. ${g.name}\n${detail}`;
     });
-    return `Halo Anyostore, saya mau order grosir:\n\n${lines.join('\n')}\n\nTotal: ${cartPcs} pcs · ${fmtRp(cartTotal)}\nMin. pembelian 4 pcs per model (varian boleh dicampur).`;
+    return `Halo Anyostore, saya mau order grosir:\n\n${lines.join('\n')}\n\nTotal: ${cartPcs} pcs · ${fmtRp(cartTotal)}\nMin. pembelian 4 pcs per model\n\nSilahkan Transfer ke Rekening Berikut:\n\n[ ] BCA          : 0042813603\n[ ] MANDIRI  : 1640000929465\n\na.n. Miftahul Fauzan\n\nJika sudah transfer Mohon Konfirmasinya ya ka`;
   }
-  function sendOrder() { setCartOpen(false); pickWa(buildOrderMsg()); }
+  async function sendOrder() {
+    if (!cart.length || hasMinimumWarning || orderChecking) return;
+    setOrderChecking(true);
+    try {
+      const productIds = [...new Set(cart.map((item) => Number(item.productId)))];
+      const checkedProducts = await Promise.all(productIds.map(async (productId) => {
+        const response = await fetch(`${api}/public/products/${productId}`);
+        const body = await response.json();
+        if (!response.ok || !body.data) throw new Error('Stok produk gagal diperiksa');
+        return [productId, body.data];
+      }));
+      const productsById = new Map(checkedProducts);
+      const quantitiesByModel = cart.reduce((totals, item) => {
+        const productId = Number(item.productId);
+        totals[productId] = (totals[productId] || 0) + Number(item.qty || 0);
+        return totals;
+      }, {});
+
+      for (const [productId, qty] of Object.entries(quantitiesByModel)) {
+        const product = productsById.get(Number(productId));
+        const available = Number(product.available_stock || 0);
+        if (qty < MIN_ORDER_QTY) {
+          showStockNotice(`${product.name}: minimum pembelian ${MIN_ORDER_QTY} pcs per model.`);
+          return;
+        }
+        if (qty > available) {
+          showStockNotice(`Stok ${product.name} tersisa ${available} pcs, sedangkan keranjang berisi ${qty} pcs.`);
+          return;
+        }
+      }
+
+      const refreshedCart = [];
+      for (const item of cart) {
+        const product = productsById.get(Number(item.productId));
+        const encodedVariantId = Number(String(item.key).split('-').pop()) || null;
+        const variantId = Number(item.variantId) || encodedVariantId;
+        const variant = variantId ? (product.variants || []).find((candidate) => Number(candidate.id) === variantId) : null;
+        if (variantId && !variant) {
+          showStockNotice(`Varian ${item.variantLabel || item.name} sudah tidak tersedia. Perbarui keranjang.`);
+          return;
+        }
+        const availableStock = Number(variant?.available_stock ?? product.available_stock ?? 0);
+        if (Number(item.qty) > availableStock) {
+          showStockNotice(`Stok ${item.name}${item.variantLabel ? ` (${item.variantLabel})` : ''} tersisa ${availableStock} pcs.`);
+          return;
+        }
+        refreshedCart.push({ ...item, variantId, availableStock, modelAvailableStock: Number(product.available_stock || 0) });
+      }
+
+      setCart(refreshedCart);
+      setCartOpen(false);
+      pickWa(buildOrderMsg());
+    } catch {
+      showStockNotice('Stok gagal diperiksa. Coba lagi sebelum mengirim pesanan.');
+    } finally {
+      setOrderChecking(false);
+    }
+  }
 
   const [today, setToday] = useState('');
   useEffect(() => { setToday(`${new Date().getFullYear()}-${new Date().getMonth() + 1}-${new Date().getDate()}`); }, []);
@@ -208,6 +341,7 @@ export default function LandingPage() {
   const pages = useMemo(() => { const tp = totalPages; let s = Math.max(1, page - 2); let e = Math.min(tp, s + 4); s = Math.max(1, e - 4); const o = []; for (let i = s; i <= e; i++) o.push(i); return o; }, [page, totalPages]);
   return (
     <div id="main-content" style={{ background: T.bg, color: T.black, minHeight: '100vh', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      {stockNotice && <div role="status" aria-live="polite" style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 160, width: 'min(520px, calc(100% - 32px))', padding: '12px 16px', borderRadius: 10, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontSize: 14, fontWeight: 700, boxShadow: '0 8px 24px rgba(15,23,42,.16)' }}>{stockNotice}</div>}
       <h1 style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }}>Anyostore - Grosir Pakaian Denim Wanita</h1>
       {/* 1. Top bar */}
       <div style={{ background: T.black, color: '#fff', textAlign: 'center', padding: '6px 16px', fontSize: 11, fontWeight: 500, letterSpacing: '.04em' }}>
@@ -385,13 +519,13 @@ export default function LandingPage() {
               </div>
               {cartWarnings.length > 0 && (
                 <div style={{ display: 'grid', gap: 3 }}>
-                  {cartWarnings.map((w) => <p key={w.name} style={{ margin: 0, fontSize: 11, color: '#b45309' }}>{w.name} masih {w.qty} pcs. Minimal 4 pcs per model.</p>)}
+                  {cartWarnings.map((w) => <p key={w.name} style={{ margin: 0, fontSize: 11, color: '#b45309' }}>{w.qty < MIN_ORDER_QTY ? `${w.name} ${w.qty} pcs. Minimum ${MIN_ORDER_QTY} pcs per model.` : `${w.name}: jumlah pesanan melebihi stok tersedia (${Number(w.available || 0)} pcs).`}</p>)}
                 </div>
               )}
               <p style={{ margin: 0, fontSize: 11, color: T.muted }}>Minimal pembelian 4 pcs per model. Varian boleh dicampur.</p>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button type="button" onClick={clearCart} disabled={!cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', minWidth: 110 }}>Kosongkan</button>
-                <button type="button" onClick={sendOrder} disabled={!cart.length} className="pcard-btn primary" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44 }}><I.chat style={{ width: 15, height: 15 }} /> Chat Pesanan via WhatsApp</button>
+                <button type="button" onClick={sendOrder} disabled={!cart.length || hasMinimumWarning || orderChecking} className="pcard-btn primary" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44 }}><I.chat style={{ width: 15, height: 15 }} /> {orderChecking ? 'Memeriksa stok…' : 'Chat Pesanan via WhatsApp'}</button>
               </div>
             </div>
           </div>
@@ -400,11 +534,11 @@ export default function LandingPage() {
 
       {/* Pilih varian + jumlah */}
       {picker && (
-        <div onClick={() => setPicker(null)} role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'grid', placeItems: 'center', zIndex: 130, padding: 16, backdropFilter: 'blur(4px)' }}>
+        <div onClick={closePicker} role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'grid', placeItems: 'center', zIndex: 130, padding: 16, backdropFilter: 'blur(4px)' }}>
           <div onClick={(e) => e.stopPropagation()} className="wa-modal-in" style={{ background: T.card, borderRadius: 14, padding: 24, maxWidth: 400, width: '100%', boxShadow: '0 24px 48px rgba(0,0,0,.18)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.black }}>{picker.product.name}</h3>
-              <button type="button" onClick={() => setPicker(null)} aria-label="Tutup" style={{ width: 34, height: 34, padding: 0, borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, cursor: 'pointer', color: T.muted, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}><I.close style={{ width: 16, height: 16, display: 'block' }} /></button>
+              <button type="button" onClick={closePicker} aria-label="Tutup" style={{ width: 34, height: 34, padding: 0, borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, cursor: 'pointer', color: T.muted, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}><I.close style={{ width: 16, height: 16, display: 'block' }} /></button>
             </div>
             {pickerPhoto
               ? <img src={`${api.replace('/api', '')}${pickerPhoto}`} alt={picker.product.name} style={{ width: '100%', height: 200, objectFit: 'cover', borderRadius: 10, display: 'block', marginBottom: 16, background: '#f3f4f6' }} />
@@ -417,9 +551,12 @@ export default function LandingPage() {
                   {picker.variants.map((v) => {
                     const active = v.id === pickVariantId;
                     const label = [v.color, v.size].filter(Boolean).join(' · ') || 'Varian';
+                    const inVariant = cart.filter((item) => item.key === `${picker.product.id}-${v.id}`).reduce((sum, item) => sum + Number(item.qty || 0), 0);
+                    const variantRemaining = Math.max(0, Number(v.available_stock || 0) - inVariant);
                     return (
-                      <button key={v.id} type="button" onClick={() => setPickVariantId(v.id)} style={{ padding: '9px 10px', borderRadius: 8, border: `1.5px solid ${active ? T.blue : T.border}`, background: active ? T.blue : T.card, color: active ? '#fff' : T.black, fontWeight: 600, fontSize: 12, cursor: 'pointer', transition: 'all .2s' }}>
+                      <button key={v.id} type="button" disabled={variantRemaining <= 0} onClick={() => { setPickVariantId(v.id); setPickQty((current) => Math.max(1, Math.min(current, variantRemaining, modelStockRemaining))); }} title={variantRemaining <= 0 ? 'Stok varian habis untuk pesanan ini' : `Stok ${variantRemaining} pcs tersedia untuk pesanan ini`} style={{ padding: '9px 10px', borderRadius: 8, border: `1.5px solid ${active ? T.blue : T.border}`, background: active ? T.blue : T.card, color: active ? '#fff' : T.black, fontWeight: 600, fontSize: 12, cursor: variantRemaining <= 0 ? 'not-allowed' : 'pointer', opacity: variantRemaining <= 0 ? .5 : 1, transition: 'all .2s' }}>
                         {label}
+                        <span style={{ display: 'block', fontSize: 11, opacity: .75 }}>Stok {variantRemaining}</span>
                         {Number(v.price) > 0 && Number(v.price) !== Number(picker.product.price) && <span style={{ display: 'block', fontSize: 11, opacity: .85 }}>{fmtRp(v.price)}</span>}
                       </button>
                     );
@@ -429,11 +566,11 @@ export default function LandingPage() {
             )}
             <strong style={{ fontSize: 12, color: T.muted, textTransform: 'uppercase', letterSpacing: '.05em' }}>Jumlah</strong>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '10px 0 18px' }}>
-              <button type="button" className="qty-btn" onClick={() => setPickQty((q) => Math.max(pickMin, q - 1))} aria-label="Kurangi jumlah"><I.minus style={{ width: 18, height: 18, color: '#fff' }} /></button>
-              <input type="number" min={pickMin} value={pickQty} onChange={(e) => setPickQty(Math.max(pickMin, Number(e.target.value) || pickMin))} aria-label="Jumlah" className="qty-input" style={{ width: 60, height: 36, fontSize: 16 }} />
-              <button type="button" className="qty-btn" onClick={() => setPickQty((q) => q + 1)} aria-label="Tambah jumlah"><I.plus style={{ width: 18, height: 18, color: '#fff' }} /></button>
+              <button type="button" className="qty-btn" onClick={() => setPickQty((q) => Math.max(1, q - 1))} aria-label="Kurangi jumlah"><I.minus style={{ width: 18, height: 18, color: '#fff' }} /></button>
+              <input type="number" min="1" max={pickMax} value={pickQty} onChange={(e) => setPickQty(Math.max(1, Math.min(pickMax, Number(e.target.value) || 1)))} aria-label="Jumlah" className="qty-input" style={{ width: 60, height: 36, fontSize: 16 }} />
+              <button type="button" className="qty-btn" disabled={pickQty >= pickMax} onClick={() => setPickQty((q) => Math.min(pickMax, q + 1))} aria-label="Tambah jumlah"><I.plus style={{ width: 18, height: 18, color: '#fff' }} /></button>
             </div>
-            <button type="button" onClick={addFromPicker} className="pcard-btn primary" style={{ width: '100%', minHeight: 46, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 14 }}><I.cart style={{ width: 16, height: 16 }} /> Tambah ke Keranjang</button>
+            <button type="button" onClick={addFromPicker} disabled={!pickMax || pickerLoading} className="pcard-btn primary" style={{ width: '100%', minHeight: 46, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 14 }}><I.cart style={{ width: 16, height: 16 }} /> Tambah ke Keranjang</button>
             <p style={{ margin: '12px 0 0', fontSize: 12, color: T.muted, textAlign: 'center' }}>Minimal 4 pcs per model. Varian boleh dicampur.</p>
           </div>
         </div>
