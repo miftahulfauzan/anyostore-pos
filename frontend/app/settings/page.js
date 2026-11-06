@@ -18,6 +18,7 @@ const defaults = {
 };
 
 function sanitizeBranchName(v) { return String(v || '').trim(); }
+function isSemiGrosirEnabled(store) { return store.semi_grosir_enabled == null || Boolean(Number(store.semi_grosir_enabled)); }
 
 export default function SettingsPage() {
   const [form, setForm] = useState(defaults);
@@ -37,6 +38,7 @@ export default function SettingsPage() {
   const [newBranch, setNewBranch] = useState({ name: '', address: '', phone: '', email: '', source_branch_id: '', price_multiplier: '1', clone_photos: true, pricing_tier_enabled: true });
   const [creating, setCreating] = useState(false);
   const [createMessage, setCreateMessage] = useState('');
+  const [pricingBranchSaving, setPricingBranchSaving] = useState('');
 
   const jsonHeaders = () => ({ 'Content-Type': 'application/json'});
   const mediaUrl = (value) => value ? api.replace('/api', '') + value : '';
@@ -197,6 +199,22 @@ export default function SettingsPage() {
     finally { setCreating(false); }
   }
 
+  async function toggleBranchSemiGrosir(store) {
+    const id = String(store.id);
+    const enabled = !isSemiGrosirEnabled(store);
+    setPricingBranchSaving(id);
+    try {
+      const response = await fetch(`${api}/settings/branches/${id}/pricing`, {
+        method: 'PUT', headers: jsonHeaders(), body: JSON.stringify({ semi_grosir_enabled: enabled }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message || 'Pengaturan harga gagal disimpan');
+      setStores((current) => current.map((item) => String(item.id) === id ? { ...item, semi_grosir_enabled: enabled } : item));
+      setMessage(`Semi grosir ${enabled ? 'diaktifkan' : 'dinonaktifkan'} untuk ${store.name}.`);
+    } catch (error) { setMessage(error.message); }
+    finally { setPricingBranchSaving(''); }
+  }
+
   return <AppShell title="Pengaturan" eyebrow="KONFIGURASI TOKO">
     <div style={{ display: 'grid', gap: '1.25rem', maxWidth: 1180, margin: '0 auto' }}>
       {isOwner && (
@@ -221,7 +239,7 @@ export default function SettingsPage() {
               <label>Email<input type="email" value={newBranch.email} onChange={(e) => setNewBranch({ ...newBranch, email: e.target.value })} placeholder="metro@anyostore.my.id" /></label>
               <label>Pengali harga (1 = sama, 1.2 = 20% mahal)<input type="number" step="0.01" min="0.1" value={newBranch.price_multiplier} onChange={(e) => setNewBranch({ ...newBranch, price_multiplier: e.target.value })} /></label>
             </div>
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            <div className="branch-clone-options">
               <label style={{ display: 'flex', gap: '.45rem', alignItems: 'center', cursor: 'pointer' }}><input type="checkbox" checked={newBranch.clone_photos} onChange={(e) => setNewBranch({ ...newBranch, clone_photos: e.target.checked })} /> Foto</label>
               <label style={{ display: 'flex', gap: '.45rem', alignItems: 'center', cursor: 'pointer' }}><input type="checkbox" checked={newBranch.pricing_tier_enabled} onChange={(e) => setNewBranch({ ...newBranch, pricing_tier_enabled: e.target.checked })} /> Tier harga</label>
             </div>
@@ -238,12 +256,14 @@ export default function SettingsPage() {
       {isOwner && stores.length > 0 && (
         <section className="panel" style={{ gridColumn: '1 / -1' }}>
           <h2>Daftar Toko</h2>
-          <p className="muted" style={{ fontSize: '.85rem' }}>Kelola cabang. Tidak bisa hapus toko dengan transaksi.</p>
+          <p className="muted" style={{ fontSize: '.85rem' }}>Atur semi grosir POS per toko. Pengaturan harga ini terpisah dari aturan komisi staf.</p>
           <div className="table-wrap" style={{ marginTop: '.75rem' }}>
             <table>
-              <thead><tr><th>No</th><th>Nama</th><th>Tipe</th><th>Produk</th><th>User</th><th>Aktif</th><th>Aksi</th></tr></thead>
+              <thead><tr><th>No</th><th>Nama</th><th>Tipe</th><th>Produk</th><th>User</th><th>Semi Grosir</th><th>Aktif</th><th>Aksi</th></tr></thead>
               <tbody>
-                {stores.map((s, idx) => (
+                {stores.map((s, idx) => {
+                  const semiGrosirEnabled = isSemiGrosirEnabled(s);
+                  return (
                   <tr key={s.id}>
                     <td>{idx + 1}</td>
                     <td><strong>{s.name}</strong>{String(s.id) === String(branch) ? <span className="tag" style={{ marginLeft: '.5rem' }}>dipilih</span> : null}<br /><small className="muted">{s.address || '-'}</small></td>
@@ -264,6 +284,9 @@ export default function SettingsPage() {
                     </td>
                     <td>{s.product_count ?? '-'}</td>
                     <td>{s.user_count ?? '-'}</td>
+                    <td>
+                      <button type="button" className="small secondary" aria-pressed={semiGrosirEnabled} aria-label={`${semiGrosirEnabled ? 'Nonaktifkan' : 'Aktifkan'} semi grosir untuk ${s.name}`} disabled={!s.is_active || pricingBranchSaving === String(s.id)} onClick={() => toggleBranchSemiGrosir(s)}>{pricingBranchSaving === String(s.id) ? 'Menyimpan…' : semiGrosirEnabled ? 'Aktif' : 'Nonaktif'}</button>
+                    </td>
                     <td>{s.is_active ? <span className="status paid">aktif</span> : <span className="status pending">nonaktif</span>}</td>
                     <td>
                       <button type="button" className="small secondary" disabled={String(s.id) === String(branch)} onClick={async () => {
@@ -284,7 +307,8 @@ export default function SettingsPage() {
                       }}>{s.is_active ? 'Nonaktifkan' : 'Hapus Permanen'}</button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -360,7 +384,7 @@ export default function SettingsPage() {
 
       <section className="panel">
         <h2>Penjualan</h2>
-        {select('theme', 'Tema', [['green', 'Hijau'], ['blue', 'Biru'], ['purple', 'Ungu']])}
+        {select('theme', 'Tema', [['green', 'Hijau'], ['blue', 'Biru'], ['purple', 'Ungu'], ['teal', 'Toska'], ['rose', 'Merah muda'], ['amber', 'Cokelat']])}
         <div className="two-fields">
           {input('tax_rate', 'Pajak %', 'number')}
           {select('prices_include_tax', 'Termasuk pajak', [['true', 'Ya'], ['false', 'Tidak']])}
@@ -411,13 +435,11 @@ export default function SettingsPage() {
         {select('landing_page_size', 'Produk per halaman', [['12', '12 produk'], ['24', '24 produk'], ['48', '48 produk']])}
       </section>
 
-      <section className="panel">
-        <h2>Simpan</h2>
-        <p className="muted">Perubahan berlaku untuk toko dipilih.</p>
-        <button type="button" onClick={save} disabled={saving} style={{ width: '100%' }}>{saving ? 'Menyimpan…' : 'Simpan Pengaturan'}</button>
-        {message && <p className="message" role="status">{message}</p>}
-      </section>
       </div>
+      <section className="settings-save-bar" aria-label="Simpan pengaturan">
+        <p className="muted">{message || 'Perubahan berlaku untuk toko dipilih.'}</p>
+        <button type="button" onClick={save} disabled={saving}>{saving ? 'Menyimpan…' : 'Simpan Pengaturan'}</button>
+      </section>
     </div>
   </AppShell>;
 }

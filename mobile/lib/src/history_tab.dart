@@ -944,8 +944,8 @@ class _HistoryTabState extends State<HistoryTab> {
           final status = row['status']?.toString() ?? '';
           return _TxCard(
             icon: Icons.assignment_return,
-            iconBg: kTaskSand,
-            iconFg: kTaskDark,
+            iconBg: kTaskPurpleLight,
+            iconFg: kTaskPurple,
             title: row['return_no']?.toString() ?? '-',
             subtitle: '${row['invoice_no'] ?? ''} · ${row['created_at'] ?? ''}',
             trailing: fmtRp(asNum(row['refund_amount'])),
@@ -999,7 +999,7 @@ class _HistoryTabState extends State<HistoryTab> {
           final status = (row['status'] ?? '').toString();
           return _TxCard(
             icon: isOffline ? Icons.cloud_off : Icons.receipt,
-            iconBg: isOffline ? kTaskSand : kTaskSand,
+            iconBg: isOffline ? kTaskStockLowSurface : kTaskBlueLight,
             iconFg: isOffline ? kTaskTerracotta : kTaskDark,
             title: row['invoice_no']?.toString() ?? '-',
             subtitle:
@@ -1059,50 +1059,57 @@ class _TxCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: chipBg,
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Icon(icon, size: 20, color: chipFg),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: chipBg,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Icon(icon, size: 20, color: chipFg),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: ink(context))),
+                      const SizedBox(height: 3),
+                      Text(subtitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 12, color: taskMuted(context))),
+                    ],
+                  ),
+                ),
+                if (status != null && status!.isNotEmpty)
+                  Flexible(
+                    child: Align(
+                      alignment: Alignment.topRight,
+                      child: _StatusChip(status!),
+                    ),
+                  ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: ink(context))),
-                  const SizedBox(height: 3),
-                  Text(subtitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style:
-                          TextStyle(fontSize: 12, color: taskMuted(context))),
-                ],
-              ),
-            ),
-            ]),
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: Text(trailing,
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: ink(context)))),
-                if (status != null && status!.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  Flexible(child: _StatusChip(status!)),
-                ],
+                Expanded(
+                    child: Text(trailing,
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: ink(context)))),
                 if (extra != null) extra!,
               ],
             ),
@@ -1134,12 +1141,13 @@ class _StrukRow extends StatelessWidget {
                     color: taskMuted(context),
                     fontWeight: bold ? FontWeight.w800 : FontWeight.w400)),
           ),
-          Flexible(child: Text(value,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
-                  color: valueColor ?? ink(context)))),
+          Flexible(
+              child: Text(value,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+                      color: valueColor ?? ink(context)))),
         ],
       ),
     );
@@ -1156,13 +1164,13 @@ class _StatusChip extends StatelessWidget {
     final (label, bg, fg) = switch (status) {
       'completed' => (
           'Selesai',
-          dark ? kTaskDark : kTaskSand,
-          dark ? const Color(0xffE2E8F0) : kTaskDark
+          dark ? const Color(0xff164E2A) : kTaskStockGoodSurface,
+          dark ? const Color(0xff86EFAC) : kTaskStockGood
         ),
       'pending' => (
           'Menunggu',
-          dark ? kTaskDark : kTaskSand,
-          dark ? const Color(0xffE2E8F0) : kTaskDark
+          dark ? const Color(0xff4A3E2A) : kTaskStockLowSurface,
+          dark ? const Color(0xffFCD34D) : kTaskStockLow
         ),
       'partially_cancelled' => (
           'Sebagian dibatalkan',
@@ -1181,18 +1189,18 @@ class _StatusChip extends StatelessWidget {
         ),
       'approved' => (
           'Disetujui',
-          dark ? kTaskDark : kTaskSand,
-          dark ? const Color(0xffE2E8F0) : kTaskDark
+          dark ? const Color(0xff164E2A) : kTaskStockGoodSurface,
+          dark ? const Color(0xff86EFAC) : kTaskStockGood
         ),
       'partially_refunded' => (
           'Retur sebagian',
-          dark ? kTaskDark : kTaskSand,
-          dark ? const Color(0xffE2E8F0) : kTaskDark
+          dark ? const Color(0xff38205F) : kTaskPurpleLight,
+          dark ? const Color(0xffC4B5FD) : kTaskPurple
         ),
       'refunded' => (
           'Retur penuh',
-          dark ? kTaskDark : kTaskSand,
-          dark ? const Color(0xffE2E8F0) : kTaskDark
+          dark ? const Color(0xff38205F) : kTaskPurpleLight,
+          dark ? const Color(0xffC4B5FD) : kTaskPurple
         ),
       _ => (
           status,

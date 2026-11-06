@@ -27,6 +27,8 @@ class _FinancePageState extends State<FinancePage> {
   String? _error;
   int? _branchId;
   bool get _isOwner => widget.role == 'owner';
+  bool get _canManageCategories =>
+      ['owner', 'manager', 'admin'].contains(widget.role);
 
   @override
   void initState() {
@@ -166,11 +168,15 @@ class _FinancePageState extends State<FinancePage> {
         text: existing == null ? '' : '${asNum(existing['amount'])}');
     final date = TextEditingController(
         text: existing?['expense_date']?.toString() ?? todayWib());
+    final type = existing?['type']?.toString() ?? _tab;
+    final matchingCategories =
+        _categories.where((c) => (c['type'] ?? '') == type).toList();
     var categoryId = existing == null
-        ? (_categories.isEmpty ? null : _categories.first['id'] as int?)
+        ? (matchingCategories.isEmpty
+            ? null
+            : int.tryParse('${matchingCategories.first['id']}'))
         : int.tryParse('${existing['category_id']}');
     var method = existing?['payment_method']?.toString() ?? 'cash';
-    final type = existing?['type']?.toString() ?? _tab;
     final isEdit = existing != null;
     final saved = await showDialog<bool>(
       context: context,
@@ -309,6 +315,48 @@ class _FinancePageState extends State<FinancePage> {
     }
   }
 
+  Future<void> _addExpenseCategory() async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Tambah Kategori Pengeluaran'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(
+            labelText: 'Nama kategori',
+            hintText: 'Contoh: Transportasi',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+              child: const Text('Simpan')),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (name == null || name.isEmpty || !mounted) return;
+    try {
+      await widget.api.createExpenseCategory({'name': name, 'type': 'expense'});
+      await _load(silent: true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Kategori "$name" ditambahkan')));
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
   Future<void> _delete(Map<String, dynamic> row) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -367,14 +415,25 @@ class _FinancePageState extends State<FinancePage> {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-          child: Align(
-            alignment: Alignment.center,
-            child: FilledButton.icon(
-              onPressed: _form,
-              icon: const Icon(Icons.add),
-              label: Text(
-                  _tab == 'income' ? 'Tambah Pemasukan' : 'Tambah Pengeluaran'),
-            ),
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                onPressed: _form,
+                icon: const Icon(Icons.add),
+                label: Text(_tab == 'income'
+                    ? 'Tambah Pemasukan'
+                    : 'Tambah Pengeluaran'),
+              ),
+              if (_canManageCategories && _tab == 'expense')
+                OutlinedButton.icon(
+                  onPressed: _addExpenseCategory,
+                  icon: const Icon(Icons.category_outlined),
+                  label: const Text('Kategori'),
+                ),
+            ],
           ),
         ),
         Expanded(
@@ -433,7 +492,7 @@ class _FinancePageState extends State<FinancePage> {
                                         style: const TextStyle(
                                             fontSize: 32,
                                             fontWeight: FontWeight.w800,
-                                            color: kTaskAccent)),
+                                            color: kTaskPurple)),
                                   ],
                                 ),
                               );

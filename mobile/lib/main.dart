@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -93,17 +92,17 @@ class _FadeSlideTransitionsBuilder extends PageTransitionsBuilder {
 
 ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
   final dark = brightness == Brightness.dark;
-  final fontFamily = defaultTargetPlatform == TargetPlatform.iOS
-      ? 'CupertinoSystemText'
-      : 'Roboto';
+  const fontFamily = 'Plus Jakarta Sans';
+  final primary = dark ? kTaskAccentDark : kTaskDark;
+  final accent = dark ? kTaskAccentDark : kTaskAccent;
   final scheme = ColorScheme.fromSeed(
     seedColor: kTaskDark,
     brightness: brightness,
     surface: dark ? kTaskDarkSurface : kTaskSurface,
   ).copyWith(
-    primary: dark ? kTaskAccent : kTaskDark,
+    primary: primary,
     onPrimary: dark ? kTaskDarkBg : Colors.white,
-    secondary: kTaskAccent,
+    secondary: accent,
     onSecondary: dark ? kTaskDarkBg : Colors.white,
     tertiary: dark ? kTaskDarkSurface : kTaskSurfaceMuted,
     onTertiary: dark ? kTaskDarkInk : kTaskInk,
@@ -127,13 +126,9 @@ ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
     fontFamily: fontFamily,
     textTheme: TextTheme(
       bodyLarge: TextStyle(
-          fontSize: 16,
-          height: 1.35,
-          color: dark ? kTaskDarkInk : kTaskInk),
+          fontSize: 16, height: 1.35, color: dark ? kTaskDarkInk : kTaskInk),
       bodyMedium: TextStyle(
-          fontSize: 14,
-          height: 1.35,
-          color: dark ? kTaskDarkInk : kTaskInk),
+          fontSize: 14, height: 1.35, color: dark ? kTaskDarkInk : kTaskInk),
       bodySmall: TextStyle(
           fontSize: 12,
           height: 1.35,
@@ -152,15 +147,16 @@ ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
           color: dark ? kTaskDarkInk : kTaskInk),
     ),
     appBarTheme: AppBarTheme(
-      backgroundColor: dark ? kTaskDarkBg : kTaskBg,
+      backgroundColor: kTaskDark,
+      foregroundColor: Colors.white,
+      systemOverlayStyle: SystemUiOverlayStyle.light,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: true,
       titleTextStyle: TextStyle(
-          fontSize: 19,
-          fontWeight: FontWeight.w700,
-          color: dark ? kTaskDarkInk : kTaskInk),
+          fontSize: 19, fontWeight: FontWeight.w700, color: Colors.white),
+      iconTheme: const IconThemeData(color: Colors.white),
     ),
     cardTheme: CardThemeData(
       elevation: 0,
@@ -234,7 +230,7 @@ ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
           borderSide: BorderSide(color: dark ? kTaskDarkBorder : kTaskBorder)),
       focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: kTaskAccent, width: 2)),
+          borderSide: BorderSide(color: accent, width: 2)),
       errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: scheme.error)),
@@ -277,9 +273,9 @@ ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
       space: 20,
     ),
     textSelectionTheme: TextSelectionThemeData(
-      cursorColor: kTaskAccent,
-      selectionColor: kTaskAccent.withValues(alpha: .22),
-      selectionHandleColor: kTaskAccent,
+      cursorColor: accent,
+      selectionColor: accent.withValues(alpha: .22),
+      selectionHandleColor: accent,
     ),
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith((states) =>

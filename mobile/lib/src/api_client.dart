@@ -64,8 +64,11 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body) =>
-      _request(() => _httpClient.post(_uri(path),
-          headers: _headers, body: jsonEncode(_withBranch(body))));
+      _request(
+        () => _httpClient.post(_uri(path),
+            headers: _headers, body: jsonEncode(_withBranch(body))),
+        allowEmptyResponse: path == '/inventory-control/opnames',
+      );
 
   /// Dipakai untuk endpoint autentikasi refresh. Respons 401 dari endpoint
   /// ini harus berhenti di sini, bukan memicu refresh token lagi.
@@ -90,6 +93,7 @@ class ApiClient {
     Future<http.Response> Function() run, {
     bool retried = false,
     bool allowRefresh = true,
+    bool allowEmptyResponse = false,
   }) async {
     try {
       final res = await run().timeout(const Duration(seconds: 30));
@@ -104,7 +108,10 @@ class ApiClient {
           // Callback refresh yang gagal tetap diperlakukan sebagai sesi habis.
         }
         if (ok) {
-          return _request(run, retried: true, allowRefresh: allowRefresh);
+          return _request(run,
+              retried: true,
+              allowRefresh: allowRefresh,
+              allowEmptyResponse: allowEmptyResponse);
         }
         // Refresh gagal (token lama sudah tidak valid/kedaluwarsa).
         await _notifySessionExpired();
@@ -115,7 +122,7 @@ class ApiClient {
         throw _expiredException;
       }
       OfflineStatus.offline.value = false;
-      return _decode(res);
+      return _decode(res, allowEmptyResponse: allowEmptyResponse);
     } on ApiException {
       rethrow;
     } on TimeoutException {
@@ -158,7 +165,14 @@ class ApiClient {
     }
   }
 
-  Map<String, dynamic> _decode(http.Response res) {
+  Map<String, dynamic> _decode(http.Response res,
+      {bool allowEmptyResponse = false}) {
+    if (allowEmptyResponse &&
+        res.statusCode >= 200 &&
+        res.statusCode < 300 &&
+        res.body.trim().isEmpty) {
+      return {};
+    }
     Map<String, dynamic> data;
     try {
       data = jsonDecode(res.body) as Map<String, dynamic>;
@@ -270,6 +284,11 @@ class ApiClient {
     return (res['data'] as List?) ?? [];
   }
 
+  Future<List<dynamic>> allWarehouses() async {
+    final res = await get('/inventory/warehouses/all');
+    return (res['data'] as List?) ?? [];
+  }
+
   Future<List<dynamic>> customers({String search = ''}) async {
     final res =
         await get('/customers', {if (search.isNotEmpty) 'search': search});
@@ -349,6 +368,16 @@ class ApiClient {
     return (res['data'] as Map<String, dynamic>?) ?? {};
   }
 
+  Future<Map<String, dynamic>> updateTransactionDate(
+    int id,
+    String transactionDate, {
+    int? branchId,
+  }) =>
+      put('/transactions/$id/date', {
+        'transaction_date': transactionDate,
+        if (branchId != null) 'branch_id': branchId,
+      });
+
   Future<Map<String, dynamic>> receipt(int id) async {
     final res = await get('/printer/invoice/$id');
     return (res['data'] as Map<String, dynamic>?) ?? {};
@@ -387,8 +416,16 @@ class ApiClient {
       put('/cash-drawer/close', {'actual_cash': actualCash, 'notes': notes});
 
   // ===== Dashboard =====
-  Future<Map<String, dynamic>> dashboard() async {
-    final res = await get('/dashboard');
+  Future<Map<String, dynamic>> dashboard({
+    String? start,
+    String? end,
+    String? branchId,
+  }) async {
+    final res = await get('/dashboard', {
+      if (start != null) 'start': start,
+      if (end != null) 'end': end,
+      if (branchId != null) 'branch_id': branchId,
+    });
     return (res['data'] as Map<String, dynamic>?) ?? {};
   }
 
@@ -503,6 +540,34 @@ class ApiClient {
         'key': key,
       });
 
+  Future<Map<String, dynamic>> linkPageConfig(int branchId) =>
+      get('/link-page/config', {'branch_id': '$branchId'});
+
+  Future<Map<String, dynamic>> saveLinkPage(
+          int branchId, Map<String, dynamic> config) =>
+      put('/link-page', {'branch_id': branchId, ...config});
+
+  Future<Map<String, dynamic>> uploadLinkPageAvatar(
+          int branchId, String mime, String filename, String base64) =>
+      post('/link-page/avatar', {
+        'branch_id': branchId,
+        'content_type': mime,
+        'filename': filename,
+        'data_url': 'data:$mime;base64,$base64',
+      });
+
+  Future<Map<String, dynamic>> uploadLinkPageMedia(
+          String mime, String filename, String base64) =>
+      post('/link-page/media', {
+        'content_type': mime,
+        'filename': filename,
+        'data_url': 'data:$mime;base64,$base64',
+      });
+
+  Future<void> resetLinkPageStats(int branchId) async {
+    await post('/link-page/stats/reset', {'branch_id': branchId});
+  }
+
   // ===== Komisi =====
   Future<Map<String, dynamic>> commissions() async {
     final res = await get('/commissions');
@@ -562,6 +627,10 @@ class ApiClient {
     final res = await get('/finance/expense-categories');
     return (res['data'] as List?) ?? [];
   }
+
+  Future<Map<String, dynamic>> createExpenseCategory(
+          Map<String, dynamic> body) =>
+      post('/finance/expense-categories', body);
 
   Future<List<dynamic>> expenses({String type = 'expense'}) async {
     final res = await get('/finance/expenses', {'type': type});
@@ -706,6 +775,25 @@ class ApiClient {
           Map<String, dynamic> body) =>
       post('/inventory-control/transfers/inter-store', body);
 
+  Future<Map<String, dynamic>> transferHistory({
+    int page = 1,
+    int limit = 25,
+    String search = '',
+    String status = '',
+    String direction = '',
+    String? start,
+    String? end,
+  }) =>
+      get('/inventory-control/transfers/history', {
+        'page': '$page',
+        'limit': '$limit',
+        if (search.isNotEmpty) 'search': search,
+        if (status.isNotEmpty) 'status': status,
+        if (direction.isNotEmpty) 'direction': direction,
+        if (start != null) 'start': start,
+        if (end != null) 'end': end,
+      });
+
   Future<Map<String, dynamic>> createOpname(Map<String, dynamic> body) =>
       post('/inventory-control/opnames', body);
 
@@ -733,10 +821,12 @@ class ApiClient {
     required String start,
     required String end,
     int? branchId,
+    bool allBranches = false,
   }) async {
     final res = await get('/reports/overview', {
       'start': start,
       'end': end,
+      if (allBranches) 'branch_id': 'all',
       if (branchId != null) 'branch_id': '$branchId',
     });
     return (res['data'] as Map<String, dynamic>?) ?? {};

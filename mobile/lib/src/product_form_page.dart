@@ -186,20 +186,21 @@ class _ProductFormPageState extends State<ProductFormPage> {
   InputDecoration _dec(String label,
       {String? prefix, Widget? suffix, bool multi = false}) {
     final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(16),
-      borderSide: const BorderSide(color: kTaskBorder),
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(color: taskBorder(context)),
     );
     return InputDecoration(
       labelText: label,
       prefixText: prefix,
       suffixIcon: suffix,
       filled: true,
-      fillColor: kTaskSurface,
+      fillColor: taskSurface(context),
       contentPadding:
           EdgeInsets.symmetric(horizontal: 14, vertical: multi ? 18 : 14),
       enabledBorder: border,
       focusedBorder: border.copyWith(
-          borderSide: const BorderSide(color: kTaskDark, width: 1.4)),
+          borderSide: BorderSide(
+              color: Theme.of(context).colorScheme.primary, width: 2)),
     );
   }
 
@@ -357,6 +358,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                     TextField(controller: _name, decoration: _dec('Nama *')),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
+                      isExpanded: true,
                       initialValue: _categoryId,
                       decoration: _dec('Kategori *'),
                       items: [
@@ -409,6 +411,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                         const SizedBox(width: 10),
                         Expanded(
                             child: DropdownButtonFormField<String>(
+                          isExpanded: true,
                           initialValue: _gender,
                           decoration: _dec('Gender'),
                           items: const [
@@ -461,7 +464,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8),
                         child: Text('Belum ada varian. Produk dijual polos.',
-                            style: TextStyle(fontSize: 11, color: kTaskGray)),
+                            style: TextStyle(fontSize: 12)),
                       ),
                   ],
                 ),
@@ -493,7 +496,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8),
                         child: Text('Belum ada harga grosir.',
-                            style: TextStyle(fontSize: 11, color: kTaskGray)),
+                            style: TextStyle(fontSize: 12)),
                       ),
                   ],
                 ),
@@ -522,7 +525,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8),
                         child: Text('Belum ada foto (maks 10).',
-                            style: TextStyle(fontSize: 11, color: kTaskGray)),
+                            style: TextStyle(fontSize: 12)),
                       )
                     else
                       Wrap(
@@ -577,10 +580,10 @@ class _ProductFormPageState extends State<ProductFormPage> {
               FilledButton(
                 onPressed: _saving ? null : _save,
                 style: FilledButton.styleFrom(
-                  backgroundColor: kTaskDark,
-                  foregroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28)),
+                      borderRadius: BorderRadius.circular(14)),
                   minimumSize: const Size.fromHeight(50),
                 ),
                 child: Text(_saving ? 'Menyimpan...' : 'Simpan Produk'),
@@ -614,7 +617,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: kTaskSand,
+        color: taskSurface(context),
+        border: Border.all(color: taskBorder(context)),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -674,10 +678,12 @@ class _ProductFormPageState extends State<ProductFormPage> {
                 ),
               ),
               const SizedBox(width: 8),
-              TextButton.icon(
-                onPressed: () => _pickVariantPhoto(v),
-                icon: const Icon(Icons.add_photo_alternate, size: 16),
-                label: const Text('Foto varian'),
+              Expanded(
+                child: TextButton.icon(
+                  onPressed: () => _pickVariantPhoto(v),
+                  icon: const Icon(Icons.add_photo_alternate, size: 16),
+                  label: const Text('Foto varian', overflow: TextOverflow.ellipsis),
+                ),
               ),
               if (v.photoBytes != null)
                 TextButton(
@@ -700,7 +706,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: kTaskSand,
+        color: taskSurface(context),
+        border: Border.all(color: taskBorder(context)),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(

@@ -291,11 +291,11 @@ router.get('/mutations-summary', authorize('owner', 'manager', 'admin', 'gudang'
     if (end) { where += ' AND DATE(sm.created_at) <= ?'; params.push(end); }
 
     const [rows] = await db.execute(
-      `SELECT DATE_FORMAT(DATE(sm.created_at), '%Y-%m-%d') AS date,
+      `SELECT DATE(sm.created_at) AS date,
               COALESCE(SUM(CASE WHEN sm.qty > 0 THEN sm.qty ELSE 0 END), 0) AS total_in,
               COALESCE(SUM(CASE WHEN sm.qty < 0 THEN -sm.qty ELSE 0 END), 0) AS total_out
        FROM stock_mutations sm ${where}
-       GROUP BY DATE(sm.created_at) ORDER BY date`,
+       GROUP BY DATE(sm.created_at) ORDER BY DATE(sm.created_at)`,
       params
     );
     let totalIn = 0;
@@ -305,7 +305,10 @@ router.get('/mutations-summary', authorize('owner', 'manager', 'admin', 'gudang'
       const tout = Number(r.total_out || 0);
       totalIn += tin;
       totalOut += tout;
-      return { date: r.date, in: tin, out: tout };
+      const date = r.date instanceof Date
+        ? localDateString(r.date)
+        : String(r.date).slice(0, 10);
+      return { date, in: tin, out: tout };
     });
     res.json({ success: true, data: { total_in: totalIn, total_out: totalOut, daily } });
   } catch (e) { next(e); }

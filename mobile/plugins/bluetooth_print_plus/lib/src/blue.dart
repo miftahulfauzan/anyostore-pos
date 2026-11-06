@@ -122,6 +122,7 @@ class BluetoothPrintPlus {
   /// The `connect` method returns immediately, and the connection status
   /// is reported on the `connectState` stream.
   static Future<dynamic> connect(BluetoothDevice device) async {
+    await _initFlutterBluePlus();
     await _methodChannel.invokeMethod('connect', device.toJson());
   }
 

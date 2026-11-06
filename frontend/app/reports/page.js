@@ -12,6 +12,7 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 const todayStr = () => localDateString();
 const firstOfMonthStr = () => localMonthStartString();
 const rp = (value) => `Rp${Number(value || 0).toLocaleString("id-ID")}`;
+const transactionDateTime = (row) => `${String(row.transaction_date || '').split('-').reverse().join('/')}, ${new Date(row.created_at).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' })}`;
 
 function ReportTable({
   title,
@@ -222,8 +223,7 @@ export default function ReportsPage() {
             columns={[
               {
                 label: "Waktu",
-                render: (row) =>
-                  new Date(row.created_at).toLocaleString("id-ID"),
+                render: (row) => transactionDateTime(row),
               },
               { label: "Invoice", key: "invoice_no" },
               {

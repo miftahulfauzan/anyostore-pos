@@ -262,15 +262,16 @@ class _UsersPageState extends State<UsersPage> {
               decoration: InputDecoration(
                 labelText: 'Toko / Gudang',
                 filled: true,
-                fillColor: Colors.white,
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: kTaskBorder)),
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: taskBorder(context))),
                 focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: kTaskDark, width: 1.4)),
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 2)),
               ),
               items: [
                 for (final b in _branches)

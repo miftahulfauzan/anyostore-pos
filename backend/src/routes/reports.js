@@ -18,12 +18,32 @@ function dateRange(query) {
   return { start, end };
 }
 
+function dateKey(value) {
+  if (value instanceof Date) return localDateString(value);
+  return String(value || '').slice(0, 10);
+}
+
+function nextLocalDate(value) {
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + 1));
+  return [date.getUTCFullYear(), String(date.getUTCMonth() + 1).padStart(2, '0'), String(date.getUTCDate()).padStart(2, '0')].join('-');
+}
+
+function fillDailyRange(start, end, rows, mapRow) {
+  const byDate = new Map(rows.map((row) => [dateKey(row.date), row]));
+  const output = [];
+  for (let date = start; date <= end; date = nextLocalDate(date)) {
+    output.push(mapRow(date, byDate.get(date)));
+  }
+  return output;
+}
+
 router.get('/sales', async (req, res, next) => {
   try {
     const { start, end } = dateRange(req.query);
     const branchId = req.user.role === 'owner' ? (Number(req.query.branch_id) || req.user.branch_id) : req.user.branch_id;
-    const [summary] = await db.execute(`SELECT COUNT(*) AS transactions, COALESCE(SUM(grand_total - cancelled_amount - refunded_amount), 0) AS gross_sales, COALESCE(SUM(discount), 0) AS discounts FROM transactions WHERE branch_id = ? AND status IN (${SALES_STATUSES_SQL}) AND DATE(created_at) BETWEEN ? AND ?`, [branchId, start, end]);
-    const [payments] = await db.execute(`SELECT tp.payment_method, COALESCE(SUM(tp.amount - ((t.cancelled_amount + t.refunded_amount) * tp.amount / NULLIF(t.grand_total, 0))), 0) AS amount FROM transaction_payments tp JOIN transactions t ON t.id = tp.transaction_id WHERE t.branch_id = ? AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) BETWEEN ? AND ? GROUP BY tp.payment_method`, [branchId, start, end]);
+    const [summary] = await db.execute(`SELECT COUNT(*) AS transactions, COALESCE(SUM(grand_total - cancelled_amount - refunded_amount), 0) AS gross_sales, COALESCE(SUM(discount), 0) AS discounts FROM transactions WHERE branch_id = ? AND status IN (${SALES_STATUSES_SQL}) AND transaction_date BETWEEN ? AND ?`, [branchId, start, end]);
+    const [payments] = await db.execute(`SELECT tp.payment_method, COALESCE(SUM(tp.amount - ((t.cancelled_amount + t.refunded_amount) * tp.amount / NULLIF(t.grand_total, 0))), 0) AS amount FROM transaction_payments tp JOIN transactions t ON t.id = tp.transaction_id WHERE t.branch_id = ? AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ? GROUP BY tp.payment_method`, [branchId, start, end]);
     res.json({ success: true, data: { branch_id: branchId, start, end, ...summary[0], payments } });
   } catch (error) { next(error); }
 });
@@ -44,7 +64,7 @@ router.get('/daily-closing', async (req, res, next) => {
 
     const [salesData] = await db.execute(
       `SELECT COUNT(*) AS receipt_count, COALESCE(SUM(grand_total - cancelled_amount - refunded_amount), 0) AS total_sales
-       FROM transactions WHERE branch_id=? AND status IN (${SALES_STATUSES_SQL}) AND DATE(created_at)=?`,
+       FROM transactions WHERE branch_id=? AND status IN (${SALES_STATUSES_SQL}) AND transaction_date=?`,
       [branchId, date]
     );
     const [returnsData] = await db.execute(
@@ -57,7 +77,7 @@ router.get('/daily-closing', async (req, res, next) => {
               COALESCE(SUM(tp.amount), 0) AS sales,
               COALESCE(SUM(t.cancelled_amount * tp.amount / NULLIF(t.grand_total, 0)), 0) AS cancellations
        FROM transaction_payments tp JOIN transactions t ON t.id = tp.transaction_id
-       WHERE t.branch_id=? AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at)=?
+       WHERE t.branch_id=? AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date=?
        GROUP BY tp.payment_method ORDER BY tp.payment_method`,
       [branchId, date]
     );
@@ -121,30 +141,45 @@ router.get('/overview', async (req, res, next) => {
       : '= ?';
     const branchParams = owner && selectedBranchId === null ? [] : [selectedBranchId];
     const periodParams = [...branchParams, start, end];
-    const [[sales], [costs], [expenses], payments, products, cashiers, customers, lowStock, dailySales, priceTiers, transactions] = await Promise.all([
-      db.execute(`SELECT COUNT(*) AS transactions, COALESCE(SUM(grand_total - cancelled_amount - refunded_amount), 0) AS revenue, COALESCE(SUM(discount), 0) AS discounts FROM transactions WHERE branch_id ${scope} AND status IN (${SALES_STATUSES_SQL}) AND DATE(created_at) BETWEEN ? AND ?`, periodParams),
-      db.execute(`SELECT COALESCE(SUM(ti.cost * (ti.quantity - ti.cancelled_qty - ti.returned_qty)), 0) AS cost_of_goods, COALESCE(SUM(ti.subtotal * (ti.quantity - ti.cancelled_qty - ti.returned_qty) / NULLIF(ti.quantity, 0) - ti.cost * (ti.quantity - ti.cancelled_qty - ti.returned_qty)), 0) AS item_profit FROM transaction_items ti JOIN transactions t ON t.id = ti.transaction_id WHERE t.branch_id ${scope} AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) BETWEEN ? AND ?`, periodParams),
+    const [[sales], [costs], [expenses], payments, products, cashiers, customers, lowStock, dailySales, priceTiers, transactions, [returnsSummary], dailyIncome, dailyExpenses, dailyReturns, [newCustomers], productGroups] = await Promise.all([
+      db.execute(`SELECT COUNT(*) AS transactions, COALESCE(SUM(grand_total - cancelled_amount - refunded_amount), 0) AS revenue, COALESCE(SUM(discount), 0) AS discounts FROM transactions WHERE branch_id ${scope} AND status IN (${SALES_STATUSES_SQL}) AND transaction_date BETWEEN ? AND ?`, periodParams),
+      db.execute(`SELECT COALESCE(SUM(ti.cost * (ti.quantity - ti.cancelled_qty - ti.returned_qty)), 0) AS cost_of_goods, COALESCE(SUM(ti.subtotal * (ti.quantity - ti.cancelled_qty - ti.returned_qty) / NULLIF(ti.quantity, 0) - ti.cost * (ti.quantity - ti.cancelled_qty - ti.returned_qty)), 0) AS item_profit FROM transaction_items ti JOIN transactions t ON t.id = ti.transaction_id WHERE t.branch_id ${scope} AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?`, periodParams),
       db.execute(`SELECT COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS amount, COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS income FROM expenses WHERE branch_id ${scope} AND status = 'approved' AND expense_date BETWEEN ? AND ?`, periodParams),
-      db.execute(`SELECT tp.payment_method, COUNT(DISTINCT t.id) AS transactions, COALESCE(SUM(tp.amount - ((t.cancelled_amount + t.refunded_amount) * tp.amount / NULLIF(t.grand_total, 0))), 0) AS amount FROM transaction_payments tp JOIN transactions t ON t.id = tp.transaction_id WHERE t.branch_id ${scope} AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) BETWEEN ? AND ? GROUP BY tp.payment_method ORDER BY amount DESC`, periodParams),
-      db.execute(`SELECT ti.product_id, MAX(ti.product_name) AS name, MAX(ti.product_sku) AS sku, SUM(ti.quantity - ti.cancelled_qty - ti.returned_qty) AS quantity_sold, COALESCE(SUM(ti.subtotal * (ti.quantity - ti.cancelled_qty - ti.returned_qty) / NULLIF(ti.quantity, 0) * t.grand_total / NULLIF(t.subtotal, 0)), 0) AS revenue, COALESCE(SUM(ti.cost * (ti.quantity - ti.cancelled_qty - ti.returned_qty)), 0) AS cost_of_goods, COALESCE(SUM(ti.subtotal * (ti.quantity - ti.cancelled_qty - ti.returned_qty) / NULLIF(ti.quantity, 0) * t.grand_total / NULLIF(t.subtotal, 0) - ti.cost * (ti.quantity - ti.cancelled_qty - ti.returned_qty)), 0) AS profit FROM transaction_items ti JOIN transactions t ON t.id = ti.transaction_id WHERE t.branch_id ${scope} AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) BETWEEN ? AND ? GROUP BY ti.product_id ORDER BY revenue DESC LIMIT 100`, periodParams),
-      db.execute(`SELECT u.id, u.name, u.role, COUNT(t.id) AS transactions, COALESCE(SUM(t.grand_total - t.cancelled_amount - t.refunded_amount), 0) AS revenue, COALESCE(SUM(t.discount), 0) AS discounts FROM users u LEFT JOIN transactions t ON t.user_id = u.id AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) BETWEEN ? AND ? WHERE u.branch_id ${scope} GROUP BY u.id, u.name, u.role ORDER BY revenue DESC`, [start, end, ...branchParams]),
-      db.execute(`SELECT c.id, c.name, c.phone, COUNT(t.id) AS transactions, COALESCE(SUM(t.grand_total - t.cancelled_amount - t.refunded_amount), 0) AS revenue FROM customers c JOIN transactions t ON t.customer_id = c.id AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) BETWEEN ? AND ? WHERE c.branch_id ${scope} GROUP BY c.id, c.name, c.phone ORDER BY revenue DESC LIMIT 50`, [start, end, ...branchParams]),
+      db.execute(`SELECT tp.payment_method, COUNT(DISTINCT t.id) AS transactions, COALESCE(SUM(tp.amount - ((t.cancelled_amount + t.refunded_amount) * tp.amount / NULLIF(t.grand_total, 0))), 0) AS amount FROM transaction_payments tp JOIN transactions t ON t.id = tp.transaction_id WHERE t.branch_id ${scope} AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ? GROUP BY tp.payment_method ORDER BY amount DESC`, periodParams),
+      db.execute(`SELECT ti.product_id, MAX(ti.product_name) AS name, MAX(ti.product_sku) AS sku, SUM(ti.quantity - ti.cancelled_qty - ti.returned_qty) AS quantity_sold, COALESCE(SUM(ti.subtotal * (ti.quantity - ti.cancelled_qty - ti.returned_qty) / NULLIF(ti.quantity, 0) * t.grand_total / NULLIF(t.subtotal, 0)), 0) AS revenue, COALESCE(SUM(ti.cost * (ti.quantity - ti.cancelled_qty - ti.returned_qty)), 0) AS cost_of_goods, COALESCE(SUM(ti.subtotal * (ti.quantity - ti.cancelled_qty - ti.returned_qty) / NULLIF(ti.quantity, 0) * t.grand_total / NULLIF(t.subtotal, 0) - ti.cost * (ti.quantity - ti.cancelled_qty - ti.returned_qty)), 0) AS profit FROM transaction_items ti JOIN transactions t ON t.id = ti.transaction_id WHERE t.branch_id ${scope} AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ? GROUP BY ti.product_id ORDER BY revenue DESC LIMIT 100`, periodParams),
+      db.execute(`SELECT u.id, u.name, u.role, COUNT(t.id) AS transactions, COALESCE(SUM(t.grand_total - t.cancelled_amount - t.refunded_amount), 0) AS revenue, COALESCE(SUM(t.discount), 0) AS discounts FROM users u LEFT JOIN transactions t ON t.user_id = u.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ? WHERE u.branch_id ${scope} GROUP BY u.id, u.name, u.role ORDER BY revenue DESC`, [start, end, ...branchParams]),
+      db.execute(`SELECT c.id, c.name, c.phone, COUNT(t.id) AS transactions, COALESCE(SUM(t.grand_total - t.cancelled_amount - t.refunded_amount), 0) AS revenue FROM customers c JOIN transactions t ON t.customer_id = c.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ? WHERE c.branch_id ${scope} GROUP BY c.id, c.name, c.phone ORDER BY revenue DESC LIMIT 50`, [start, end, ...branchParams]),
       db.execute(`SELECT p.id, p.name, p.sku, p.stock, p.min_stock, b.name AS branch_name FROM products p JOIN branches b ON b.id = p.branch_id WHERE p.branch_id ${scope} AND p.is_active = TRUE AND p.stock <= p.min_stock ORDER BY p.stock ASC, p.name LIMIT 100`, branchParams),
-      db.execute(`SELECT DATE(created_at) AS date, COUNT(*) AS transactions, COALESCE(SUM(grand_total - cancelled_amount - refunded_amount), 0) AS revenue FROM transactions WHERE branch_id ${scope} AND status IN (${SALES_STATUSES_SQL}) AND DATE(created_at) BETWEEN ? AND ? GROUP BY DATE(created_at) ORDER BY date`, periodParams),
-      db.execute(`SELECT t.price_tier, COUNT(DISTINCT t.id) AS transactions, COALESCE(SUM(ti.quantity - ti.cancelled_qty - ti.returned_qty), 0) AS products_sold, COALESCE(SUM(ti.subtotal * (ti.quantity - ti.cancelled_qty - ti.returned_qty) / NULLIF(ti.quantity, 0)), 0) AS revenue FROM transactions t JOIN transaction_items ti ON ti.transaction_id = t.id WHERE t.branch_id ${scope} AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) BETWEEN ? AND ? GROUP BY t.price_tier`, periodParams),
-      db.execute(`SELECT t.id, t.invoice_no, t.grand_total, t.cancelled_amount, t.status, t.payment_method, t.price_tier, t.created_at, u.name AS cashier, b.name AS branch_name FROM transactions t JOIN users u ON u.id = t.user_id JOIN branches b ON b.id = t.branch_id WHERE t.branch_id ${scope} AND DATE(t.created_at) BETWEEN ? AND ? ORDER BY t.created_at DESC LIMIT 200`, periodParams)
+      db.execute(`SELECT DATE_FORMAT(transaction_date, '%Y-%m-%d') AS date, COUNT(*) AS transactions, COALESCE(SUM(grand_total - cancelled_amount - refunded_amount), 0) AS revenue FROM transactions WHERE branch_id ${scope} AND status IN (${SALES_STATUSES_SQL}) AND transaction_date BETWEEN ? AND ? GROUP BY transaction_date ORDER BY date`, periodParams),
+      db.execute(`SELECT t.price_tier, COUNT(DISTINCT t.id) AS transactions, COALESCE(SUM(ti.quantity - ti.cancelled_qty - ti.returned_qty), 0) AS products_sold, COALESCE(SUM(ti.subtotal * (ti.quantity - ti.cancelled_qty - ti.returned_qty) / NULLIF(ti.quantity, 0)), 0) AS revenue FROM transactions t JOIN transaction_items ti ON ti.transaction_id = t.id WHERE t.branch_id ${scope} AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ? GROUP BY t.price_tier`, periodParams),
+      db.execute(`SELECT t.id, t.invoice_no, t.grand_total, t.cancelled_amount, t.status, t.payment_method, t.price_tier, t.created_at, DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS transaction_date, u.name AS cashier, b.name AS branch_name FROM transactions t JOIN users u ON u.id = t.user_id JOIN branches b ON b.id = t.branch_id WHERE t.branch_id ${scope} AND t.transaction_date BETWEEN ? AND ? ORDER BY t.transaction_date DESC, t.created_at DESC LIMIT 200`, periodParams),
+      db.execute(`SELECT COUNT(*) AS return_count, COALESCE(SUM(refund_amount), 0) AS return_amount FROM returns WHERE branch_id ${scope} AND status = 'approved' AND DATE(created_at) BETWEEN ? AND ?`, periodParams),
+      db.execute(`SELECT DATE_FORMAT(expense_date, '%Y-%m-%d') AS date, COALESCE(SUM(amount), 0) AS amount FROM expenses WHERE branch_id ${scope} AND type = 'income' AND status = 'approved' AND expense_date BETWEEN ? AND ? GROUP BY expense_date ORDER BY date`, periodParams),
+      db.execute(`SELECT DATE_FORMAT(expense_date, '%Y-%m-%d') AS date, COALESCE(SUM(amount), 0) AS amount FROM expenses WHERE branch_id ${scope} AND type = 'expense' AND status = 'approved' AND expense_date BETWEEN ? AND ? GROUP BY expense_date ORDER BY date`, periodParams),
+      db.execute(`SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS date, COUNT(*) AS count, COALESCE(SUM(refund_amount), 0) AS amount FROM returns WHERE branch_id ${scope} AND status = 'approved' AND DATE(created_at) BETWEEN ? AND ? GROUP BY DATE(created_at) ORDER BY date`, periodParams),
+      db.execute(`SELECT COUNT(*) AS new_customers FROM customers WHERE branch_id ${scope} AND DATE(created_at) BETWEEN ? AND ?`, periodParams),
+      db.execute(`SELECT COALESCE(c.name, 'Tanpa kategori') AS category_name, COALESCE(SUM(ti.quantity - ti.cancelled_qty - ti.returned_qty), 0) AS quantity_sold, COALESCE(SUM(ti.subtotal * (ti.quantity - ti.returned_qty - ti.cancelled_qty) / NULLIF(ti.quantity, 0) * t.grand_total / NULLIF(t.subtotal, 0)), 0) AS revenue FROM transaction_items ti JOIN transactions t ON t.id = ti.transaction_id JOIN products p ON p.id = ti.product_id LEFT JOIN categories c ON c.id = p.category_id WHERE t.branch_id ${scope} AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ? GROUP BY category_name ORDER BY quantity_sold DESC, category_name LIMIT 10`, periodParams)
     ]);
-    const revenue = money(Number(sales[0].revenue) + Number(expenses[0].income));
+    const grossSales = money(Number(sales[0].revenue));
     const costOfGoods = Number(costs[0].cost_of_goods);
     const approvedExpenses = Number(expenses[0].amount);
     const income = Number(expenses[0].income);
+    const returnAmount = money(Number(returnsSummary[0].return_amount));
+    const returnCount = Number(returnsSummary[0].return_count || 0);
+    const transactionCount = Number(sales[0].transactions || 0);
+    const newCustomerCount = Number(newCustomers[0].new_customers || 0);
+    const netProfit = money(Number(grossSales) + income - costOfGoods - approvedExpenses);
+    const dailyIncomeRows = fillDailyRange(start, end, dailyIncome[0], (date, row) => ({ date, amount: Number(row?.amount || 0) }));
+    const dailyExpenseRows = fillDailyRange(start, end, dailyExpenses[0], (date, row) => ({ date, amount: Number(row?.amount || 0) }));
+    const dailyReturnRows = fillDailyRange(start, end, dailyReturns[0], (date, row) => ({ date, count: Number(row?.count || 0), amount: Number(row?.amount || 0) }));
+    const sourceRevenue = Number(grossSales);
     const branchName = owner && selectedBranchId === null
       ? 'Semua Toko/Gudang'
       : (await db.execute('SELECT name FROM branches WHERE id=? AND is_active = TRUE', [selectedBranchId]))[0][0]?.name || '';
     res.json({ success: true, data: {
       start, end, branch_id: owner && selectedBranchId === null ? 'all' : selectedBranchId, branch_name: branchName,
-      summary: { transactions: sales[0].transactions, revenue, gross_sales: Number(sales[0].revenue), discounts: sales[0].discounts, cost_of_goods: costOfGoods, gross_profit: revenue - costOfGoods, expenses: approvedExpenses, income, net_profit: money(revenue - costOfGoods - approvedExpenses) },
-      payment_methods: payments[0], products: products[0], cashiers: cashiers[0], customers: customers[0], low_stock: lowStock[0], daily_sales: dailySales[0], price_tiers: priceTiers[0], transactions: transactions[0]
+      summary: { transactions: transactionCount, revenue: grossSales, gross_sales: grossSales, discounts: sales[0].discounts, cost_of_goods: costOfGoods, gross_profit: money(Number(grossSales) - costOfGoods), expenses: approvedExpenses, income, return_amount: returnAmount, return_count: returnCount, new_customers: newCustomerCount, average_transaction: transactionCount ? money(Number(grossSales) / transactionCount) : 0, net_profit: netProfit },
+      payment_methods: payments[0], products: products[0], cashiers: cashiers[0], customers: customers[0], low_stock: lowStock[0], daily_sales: dailySales[0], daily_income: dailyIncomeRows, daily_expenses: dailyExpenseRows, daily_returns: dailyReturnRows, product_groups: productGroups[0].map((row) => ({ name: row.category_name || 'Tanpa kategori', quantity_sold: Number(row.quantity_sold || 0), revenue: money(Number(row.revenue || 0)) })), sales_sources: [{ name: 'POS', transactions: transactionCount, revenue: sourceRevenue, share: sourceRevenue > 0 ? 100 : 0 }], price_tiers: priceTiers[0], transactions: transactions[0]
     } });
   } catch (error) { next(error); }
 });

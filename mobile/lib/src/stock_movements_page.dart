@@ -155,8 +155,8 @@ class _StockMovementsPageState extends State<StockMovementsPage> {
                                                   overflow:
                                                       TextOverflow.ellipsis,
                                                   style: const TextStyle(
-                                                      fontSize: 10,
-                                                      color: kTaskGray)),
+                                                    fontSize: 10,
+                                                  )),
                                             ],
                                           ),
                                         ),

@@ -14,7 +14,6 @@ import 'commissions_page.dart';
 import 'customers_page.dart';
 import 'dashboard_page.dart';
 import 'inventory_page.dart';
-import 'link_page_settings.dart';
 import 'mutation_report_page.dart';
 import 'profile_page.dart';
 import 'products_page.dart';
@@ -60,11 +59,34 @@ class MorePage extends StatelessWidget {
   Widget _group(BuildContext context, String title, List<Widget> rows) {
     return _MoreMenuGroup(
       key: ValueKey('more-menu-$title'),
-      title: title,
+      title: _groupTitle(title),
+      icon: _groupIcon(title),
       rows: rows,
-      initiallyExpanded: title == 'UTAMA',
+      initiallyExpanded: true,
     );
   }
+
+  String _groupTitle(String title) => switch (title) {
+        'UTAMA' => 'Operasional',
+        'TRANSAKSI' => 'Transaksi & Stok',
+        'GUDANG' => 'Gudang',
+        'LAINNYA' => 'Laporan',
+        'AKUN' => 'Pengaturan',
+        'PRODUK & INVENTORI' => 'Produk & Inventori',
+        'BISNIS' => 'Laporan',
+        'ADMINISTRASI' => 'Pengaturan',
+        _ => title,
+      };
+
+  IconData _groupIcon(String title) => switch (title) {
+        'UTAMA' => Icons.assignment_outlined,
+        'TRANSAKSI' => Icons.inventory_2_outlined,
+        'GUDANG' => Icons.warehouse_outlined,
+        'LAINNYA' || 'BISNIS' => Icons.bar_chart_outlined,
+        'AKUN' || 'ADMINISTRASI' => Icons.settings_outlined,
+        'PRODUK & INVENTORI' => Icons.inventory_2_outlined,
+        _ => Icons.folder_outlined,
+      };
 
   Future<void> _confirmLogout(BuildContext context, AuthStore auth) async {
     final choice = await showDialog<String>(
@@ -568,17 +590,6 @@ class MorePage extends StatelessWidget {
                         UsersPage(
                             api: api, branchId: activeBranch(), role: role))),
               ],
-              if (auth.role == 'owner') ...[
-                _divider(context),
-                _row(
-                    context,
-                    Icons.link,
-                    'Halaman Link',
-                    kTaskSand,
-                    kTaskDark,
-                    () => _open(context, 'Halaman Link',
-                        LinkPageSettings(api: api, branchId: activeBranch()))),
-              ],
               _divider(context),
               _row(
                   context,
@@ -690,9 +701,7 @@ class MorePage extends StatelessWidget {
       Color chipFg, VoidCallback onTap,
       {bool selected = false}) {
     final active = Theme.of(context).colorScheme.primary;
-    final fg = selected
-        ? active
-        : taskMuted(context);
+    final fg = selected ? active : taskMuted(context);
     return InkWell(
       borderRadius: BorderRadius.circular(10),
       onTap: onTap,
@@ -728,8 +737,7 @@ class MorePage extends StatelessWidget {
                       color: selected ? active : ink(context))),
             ),
             Icon(Icons.chevron_right,
-                size: 18,
-                color: selected ? active : taskMuted(context)),
+                size: 18, color: selected ? active : taskMuted(context)),
           ],
         ),
       ),
@@ -755,11 +763,13 @@ class _MoreMenuGroup extends StatefulWidget {
   const _MoreMenuGroup({
     super.key,
     required this.title,
+    required this.icon,
     required this.rows,
     required this.initiallyExpanded,
   });
 
   final String title;
+  final IconData icon;
   final List<Widget> rows;
   final bool initiallyExpanded;
 
@@ -776,61 +786,63 @@ class _MoreMenuGroupState extends State<_MoreMenuGroup> {
     final active = Theme.of(context).colorScheme.primary;
 
     return Padding(
-      padding: const EdgeInsets.only(top: 2),
-      child: Column(
-        children: [
-          InkWell(
-            borderRadius: BorderRadius.circular(10),
-            onTap: () => setState(() => _expanded = !_expanded),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              child: SizedBox(
-                height: 44,
+      padding: const EdgeInsets.only(top: 6),
+      child: GlassCard(
+        padding: EdgeInsets.zero,
+        radius: 16,
+        child: Column(
+          children: [
+            InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => setState(() => _expanded = !_expanded),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: dark ? const Color(0xff233247) : kTaskSurfaceMuted,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                    bottomLeft: _expanded ? Radius.zero : Radius.circular(16),
+                    bottomRight: _expanded ? Radius.zero : Radius.circular(16),
+                  ),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 child: Row(
                   children: [
+                    Icon(widget.icon, size: 22, color: active),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         widget.title,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 16,
                           fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
-                          color: _expanded
-                              ? active
-                              : dark
-                                  ? const Color(0xffCBD5E1)
-                                  : kTaskSecondary,
+                          color: dark ? const Color(0xffF8FAFC) : kTaskDark,
                         ),
                       ),
                     ),
                     Icon(
                       _expanded ? Icons.expand_less : Icons.expand_more,
-                      size: 20,
+                      size: 21,
                       color: _expanded ? active : taskMuted(context),
                     ),
                   ],
                 ),
               ),
             ),
-          ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOutCubic,
-            alignment: Alignment.topCenter,
-            child: _expanded
-                ? Padding(
-                    padding: const EdgeInsets.only(left: 4),
-                    child: Column(children: widget.rows),
-                  )
-                : const SizedBox(width: double.infinity),
-          ),
-          Divider(
-            height: 8,
-            indent: 12,
-            endIndent: 12,
-            color: dark ? const Color(0xff334155) : kTaskBorder,
-          ),
-        ],
+            AnimatedSize(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: _expanded
+                  ? Padding(
+                      padding: const EdgeInsets.only(left: 4, bottom: 6),
+                      child: Column(children: widget.rows),
+                    )
+                  : const SizedBox(width: double.infinity),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -883,8 +895,7 @@ class _OfflineTileState extends State<_OfflineTile> {
               color: Theme.of(context).colorScheme.tertiary,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(Icons.cloud_off,
-                size: 17, color: taskMuted(context)),
+            child: Icon(Icons.cloud_off, size: 17, color: taskMuted(context)),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -947,10 +958,6 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
       final rows = await widget.api.branches();
       if (!mounted) return;
       setState(() => _branches = rows.cast<Map<String, dynamic>>());
-      if (BranchScope.active.value == null && _branches.isNotEmpty) {
-        BranchScope.set(int.tryParse('${_branches.first['id']}'));
-        widget.api.activeBranchId = BranchScope.active.value;
-      }
     } on ApiException catch (_) {
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -989,6 +996,8 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
               value: BranchScope.active.value,
               underline: const SizedBox.shrink(),
               items: [
+                const DropdownMenuItem<int?>(
+                    value: null, child: Text('Semua toko/gudang')),
                 for (final b in _branches)
                   DropdownMenuItem<int?>(
                       value: int.tryParse('${b['id']}'),

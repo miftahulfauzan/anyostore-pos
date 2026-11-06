@@ -168,13 +168,14 @@ class _QtyFieldState extends State<_QtyField> {
         decoration: InputDecoration(
           isDense: true,
           filled: true,
-          fillColor: kTaskSand,
+          fillColor: taskSurface(context),
           border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: kTaskBorder)),
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: taskBorder(context))),
           focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: kTaskDark, width: 1.4)),
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                  color: Theme.of(context).colorScheme.primary, width: 2)),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
         ),
@@ -233,8 +234,8 @@ class _VariantBox extends StatelessWidget {
                 child: url.isEmpty
                     ? ColoredBox(
                         color: scheme.surfaceContainerHighest,
-                        child: const Icon(Icons.inventory_2,
-                            size: 14, color: Colors.grey),
+                        child: Icon(Icons.inventory_2,
+                            size: 14, color: taskMuted(context)),
                       )
                     : CachedNetworkImage(
                         imageUrl: url,
@@ -242,8 +243,8 @@ class _VariantBox extends StatelessWidget {
                         memCacheWidth: 120,
                         errorWidget: (_, __, ___) => ColoredBox(
                           color: scheme.surfaceContainerHighest,
-                          child: const Icon(Icons.inventory_2,
-                              size: 14, color: Colors.grey),
+                          child: Icon(Icons.inventory_2,
+                              size: 14, color: taskMuted(context)),
                         ),
                       ),
               ),

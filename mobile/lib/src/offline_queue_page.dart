@@ -96,10 +96,12 @@ class _OfflineQueuePageState extends State<OfflineQueuePage> {
                       child: FilledButton.icon(
                         onPressed: _syncing ? null : _sync,
                         style: FilledButton.styleFrom(
-                          backgroundColor: kTaskDark,
-                          foregroundColor: Colors.white,
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
+                          foregroundColor:
+                              Theme.of(context).colorScheme.onPrimary,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(28)),
+                              borderRadius: BorderRadius.circular(14)),
                         ),
                         icon: _syncing
                             ? const SizedBox(
@@ -128,7 +130,7 @@ class _OfflineQueuePageState extends State<OfflineQueuePage> {
     if (_rows.isEmpty) {
       return const Center(
         child: Text('Tidak ada data offline menunggu sync.',
-            style: TextStyle(color: kTaskGray)),
+            style: TextStyle(fontSize: 14)),
       );
     }
     return ListView.separated(
@@ -178,15 +180,17 @@ class _OfflineQueuePageState extends State<OfflineQueuePage> {
                             fontWeight: FontWeight.w800,
                             color: ink(context))),
                     Text(amount,
-                        style: const TextStyle(fontSize: 12, color: kTaskGray)),
+                        style:
+                            TextStyle(fontSize: 12, color: taskMuted(context))),
                     Text(datePart,
-                        style: const TextStyle(fontSize: 10, color: kTaskGray)),
+                        style:
+                            TextStyle(fontSize: 12, color: taskMuted(context))),
                   ],
                 ),
               ),
               IconButton(
                 onPressed: () => _remove(row),
-                icon: const Icon(Icons.delete_outline, color: kTaskGray),
+                icon: Icon(Icons.delete_outline, color: taskMuted(context)),
                 tooltip: 'Hapus dari antrean',
               ),
             ],

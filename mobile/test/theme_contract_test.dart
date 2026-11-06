@@ -12,14 +12,18 @@ double contrast(Color a, Color b) {
 }
 
 void main() {
-  test('light theme derives surfaces, text, controls, and focus from tokens', () {
+  test('light theme derives surfaces, text, controls, and focus from tokens',
+      () {
     final theme = buildAnyostoreTheme();
     expect(theme.scaffoldBackgroundColor, kTaskBg);
     expect(theme.colorScheme.surface, kTaskSurface);
     expect(theme.colorScheme.primary, kTaskDark);
     expect(theme.colorScheme.secondary, kTaskAccent);
+    expect(theme.textTheme.bodyMedium?.fontFamily, 'Plus Jakarta Sans');
     expect(theme.textTheme.bodyMedium?.color, kTaskInk);
-    expect(theme.appBarTheme.backgroundColor, kTaskBg);
+    expect(theme.appBarTheme.backgroundColor, kTaskDark);
+    expect(theme.appBarTheme.foregroundColor, Colors.white);
+    expect(theme.appBarTheme.titleTextStyle?.color, Colors.white);
     expect(theme.dialogTheme.backgroundColor, kTaskSurface);
     expect(theme.inputDecorationTheme.fillColor, kTaskSurfaceMuted);
     expect(theme.inputDecorationTheme.focusedBorder?.borderSide.color,
@@ -37,6 +41,7 @@ void main() {
     expect(kTaskDarkSurface, const Color(0xff18212C));
     expect(theme.scaffoldBackgroundColor, kTaskDarkBg);
     expect(theme.colorScheme.surface, kTaskDarkSurface);
+    expect(theme.colorScheme.primary, kTaskAccentDark);
     expect(kTaskDarkBg, isNot(kTaskDarkSurface));
   });
 }

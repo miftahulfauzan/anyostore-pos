@@ -5,6 +5,7 @@ import 'dart:convert';
 
 import 'dart:io';
 
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -130,6 +131,7 @@ class _ReportsPageState extends State<ReportsPage> {
             'transactions': summary['today_transactions'] ?? 0,
             'revenue': summary['today_sales'] ?? 0,
             'gross_sales': summary['today_sales'] ?? 0,
+            'products_sold': summary['products_sold'] ?? 0,
           },
           'cashier_dashboard': payload,
           'payment_methods': payload['payment_breakdown'] ?? const [],
@@ -388,13 +390,21 @@ class _ReportsPageState extends State<ReportsPage> {
       }
       double expSum = 0;
       double incSum = 0;
+      final incomeByDate = <String, double>{};
+      final expenseByDate = <String, double>{};
       for (final r in exps) {
         final p =
             jsonDecode(r['payload'] as String? ?? '{}') as Map<String, dynamic>;
+        final date = p['expense_date']?.toString() ??
+            p['date']?.toString() ??
+            todayWib();
+        final amount = asNum(p['amount']);
         if (p['type'] == 'income') {
-          incSum += asNum(p['amount']);
+          incSum += amount;
+          incomeByDate[date] = (incomeByDate[date] ?? 0) + amount;
         } else {
-          expSum += asNum(p['amount']);
+          expSum += amount;
+          expenseByDate[date] = (expenseByDate[date] ?? 0) + amount;
         }
       }
       final copy = Map<String, dynamic>.from(data);
@@ -419,12 +429,11 @@ class _ReportsPageState extends State<ReportsPage> {
         final summary = Map<String, dynamic>.from(
             (copy['summary'] as Map<String, dynamic>?) ?? {});
         summary['transactions'] = asNum(summary['transactions']) + txs.length;
-        summary['revenue'] = asNum(summary['revenue']) + txTotal + incSum;
+        summary['revenue'] = asNum(summary['revenue']) + txTotal;
         summary['gross_sales'] = asNum(summary['gross_sales']) + txTotal;
         summary['income'] = asNum(summary['income']) + incSum;
         summary['expenses'] = asNum(summary['expenses']) + expSum;
-        summary['gross_profit'] =
-            asNum(summary['gross_profit']) + txTotal + incSum;
+        summary['gross_profit'] = asNum(summary['gross_profit']) + txTotal;
         summary['net_profit'] =
             asNum(summary['net_profit']) + txTotal + incSum - expSum;
         final productsSold = _totalProductsSold(copy);
@@ -472,6 +481,28 @@ class _ReportsPageState extends State<ReportsPage> {
         }
         dailySales.sort((a, b) => '${a['date']}'.compareTo('${b['date']}'));
         copy['daily_sales'] = dailySales;
+
+        void mergeDailyAmounts(String key, Map<String, double> additions) {
+          final rows =
+              List<Map<String, dynamic>>.from((copy[key] as List?) ?? []);
+          for (final entry in additions.entries) {
+            final index =
+                rows.indexWhere((row) => '${row['date']}' == entry.key);
+            if (index < 0) {
+              rows.add({'date': entry.key, 'amount': entry.value});
+            } else {
+              rows[index] = {
+                ...rows[index],
+                'amount': asNum(rows[index]['amount']) + entry.value,
+              };
+            }
+          }
+          rows.sort((a, b) => '${a['date']}'.compareTo('${b['date']}'));
+          copy[key] = rows;
+        }
+
+        mergeDailyAmounts('daily_income', incomeByDate);
+        mergeDailyAmounts('daily_expenses', expenseByDate);
       }
       return copy;
     } catch (_) {
@@ -488,19 +519,7 @@ class _ReportsPageState extends State<ReportsPage> {
           const Positioned.fill(child: SoftBlobs()),
           Column(
             children: [
-              if (widget.dashboardMode)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text('Dashboard',
-                        style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            color: ink(context))),
-                  ),
-                )
-              else
+              if (!widget.dashboardMode)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                   child: PillTabs(
@@ -938,6 +957,7 @@ class _ReportsPageState extends State<ReportsPage> {
         _Card('Penjualan', [
           _FocalMetric('Hari ini', fmtRp(asNum(summary['revenue']))),
           _Row('Transaksi hari ini', '${summary['transactions'] ?? 0}'),
+          _Row('Produk terjual', '${summary['products_sold'] ?? 0} pcs'),
           _Row('7 hari', fmtRp(asNum(periodSummary['seven_day_sales']))),
           _Row('Bulan ini', fmtRp(asNum(periodSummary['month_sales']))),
         ]),
@@ -964,23 +984,68 @@ class _ReportsPageState extends State<ReportsPage> {
     final daily = ((_data?['daily_sales'] as List?) ?? [])
         .whereType<Map<String, dynamic>>()
         .toList();
+    final dailyExpenses = _reportRows('daily_expenses');
+    final dailyReturns = _reportRows('daily_returns');
+    final salesSources = _reportRows('sales_sources');
     final productsSold = _totalProductsSold(_data);
     return [
-      _Card('Ringkasan penjualan', [
-        _FocalMetric('Omzet',
-            fmtRp(asNum(summary['gross_sales'] ?? summary['revenue']))),
-        _Row('Transaksi', '${summary['transactions'] ?? 0}'),
-        if (productsSold != null) _Row('Produk terjual', '$productsSold pcs'),
-      ]),
-      if (daily.isNotEmpty) _SalesTrendCard(rows: daily),
-      _Card('Hasil usaha', [
-        _Row('Diskon', fmtRp(asNum(summary['discounts']))),
-        _Row('Modal barang', fmtRp(asNum(summary['cost_of_goods']))),
-        _Row('Laba kotor', fmtRp(asNum(summary['gross_profit']))),
-        _Row('Pemasukan lain', fmtRp(asNum(summary['income']))),
-        _Row('Pengeluaran', fmtRp(asNum(summary['expenses']))),
-        _Row('Laba bersih', fmtRp(asNum(summary['net_profit']))),
-      ]),
+      _ReportSection(
+        key: const ValueKey('reports-shop-glance'),
+        title: 'Ringkasan toko',
+        icon: Icons.storefront_outlined,
+        color: kTaskDark,
+        children: [
+          _Row('Pesanan', '${summary['transactions'] ?? 0}'),
+          _Row('Pendapatan',
+              fmtRp(asNum(summary['gross_sales'] ?? summary['revenue']))),
+          if (productsSold != null) _Row('Produk terjual', '$productsSold pcs'),
+          _Row('Pengeluaran', fmtRp(asNum(summary['expenses']))),
+          _Row('Pengembalian', fmtRp(asNum(summary['return_amount']))),
+        ],
+      ),
+      _ReportSection(
+        key: const ValueKey('reports-sales-section'),
+        title: 'Sales',
+        icon: Icons.trending_up,
+        color: kTaskAccent,
+        children: [
+          _FocalMetric('Total sales',
+              fmtRp(asNum(summary['gross_sales'] ?? summary['revenue']))),
+          if (daily.isNotEmpty)
+            _SalesTrendCard(rows: daily)
+          else
+            const _ReportEmptySeries(
+                'Belum ada data penjualan pada periode ini.'),
+        ],
+      ),
+      _ReportSeriesSection(
+        key: const ValueKey('reports-expense-section'),
+        title: 'Expense',
+        icon: Icons.north_east,
+        color: kTaskTerracotta,
+        rows: dailyExpenses,
+        valueKey: 'amount',
+        emptyMessage: 'Belum ada data pengeluaran pada periode ini.',
+      ),
+      _ReportSeriesSection(
+        key: const ValueKey('reports-return-section'),
+        title: 'Return',
+        icon: Icons.keyboard_return,
+        color: kTaskPurple,
+        rows: dailyReturns,
+        valueKey: 'amount',
+        emptyMessage: 'Belum ada data retur pada periode ini.',
+      ),
+      if (salesSources.isNotEmpty)
+        _ReportSection(
+          title: 'Sumber penjualan',
+          icon: Icons.point_of_sale_outlined,
+          color: kTaskAccent,
+          children: [
+            for (final source in salesSources.take(5))
+              _ReportSourceRow(source: source),
+          ],
+        ),
       if (methods.isNotEmpty)
         _Card('Pembayaran per metode', [
           for (final method in methods.take(5))
@@ -1001,6 +1066,9 @@ class _ReportsPageState extends State<ReportsPage> {
         ]),
     ];
   }
+
+  List<Map<String, dynamic>> _reportRows(String key) =>
+      ((_data?[key] as List?) ?? []).whereType<Map<String, dynamic>>().toList();
 
   List<Widget> _spaced(List<Widget> items) => [
         for (var i = 0; i < items.length; i++) ...[
@@ -1240,6 +1308,324 @@ class _ReportsPageState extends State<ReportsPage> {
 
 typedef _ReportFilterApply = void Function(int? branchId);
 
+class _ReportSection extends StatelessWidget {
+  const _ReportSection({
+    super.key,
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.children,
+  });
+
+  final String title;
+  final IconData icon;
+  final Color color;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final sectionColor =
+        Theme.of(context).brightness == Brightness.dark && color == kTaskDark
+            ? kTaskAccentDark
+            : color;
+    return GlassCard(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 20, color: sectionColor),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(title,
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: sectionColor)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0)
+              Divider(height: 14, thickness: 1, color: taskBorder(context)),
+            children[i],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ReportEmptySeries extends StatelessWidget {
+  const _ReportEmptySeries(this.message);
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        child: Text(message,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: taskMuted(context))),
+      );
+}
+
+class _ReportSeriesSection extends StatelessWidget {
+  const _ReportSeriesSection({
+    super.key,
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.rows,
+    required this.valueKey,
+    required this.emptyMessage,
+  });
+
+  final String title;
+  final IconData icon;
+  final Color color;
+  final List<Map<String, dynamic>> rows;
+  final String valueKey;
+  final String emptyMessage;
+
+  @override
+  Widget build(BuildContext context) => _ReportSection(
+        title: title,
+        icon: icon,
+        color: color,
+        children: [
+          if (rows.isEmpty)
+            _ReportEmptySeries(emptyMessage)
+          else
+            _ReportLineChart(rows: rows, valueKey: valueKey, color: color),
+        ],
+      );
+}
+
+class _ReportLineChart extends StatelessWidget {
+  const _ReportLineChart({
+    required this.rows,
+    required this.valueKey,
+    required this.color,
+  });
+
+  final List<Map<String, dynamic>> rows;
+  final String valueKey;
+  final Color color;
+
+  String _day(dynamic value) {
+    final raw = value?.toString() ?? '';
+    return raw.length >= 10 ? raw.substring(8, 10) : raw;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = rows.length > 14 ? rows.sublist(rows.length - 14) : rows;
+    final valueRows =
+        visible.length > 7 ? visible.sublist(visible.length - 7) : visible;
+    final values = visible.map((row) => asNum(row[valueKey])).toList();
+    final maxValue =
+        values.fold<double>(0, (max, value) => value > max ? value : max);
+    final maxY = maxValue <= 0 ? 1.0 : maxValue * 1.2;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: 182,
+          child: LineChart(
+            LineChartData(
+              minY: 0,
+              maxY: maxY,
+              gridData: FlGridData(
+                show: true,
+                drawVerticalLine: false,
+                getDrawingHorizontalLine: (_) => FlLine(
+                    color: taskBorder(context).withValues(alpha: .6),
+                    strokeWidth: .7),
+              ),
+              borderData: FlBorderData(show: false),
+              titlesData: FlTitlesData(
+                topTitles:
+                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles:
+                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 38,
+                    interval: maxY / 4,
+                    getTitlesWidget: (value, meta) => Text(compactRp(value),
+                        style:
+                            TextStyle(fontSize: 9, color: taskMuted(context))),
+                  ),
+                ),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 24,
+                    interval: 1,
+                    getTitlesWidget: (value, meta) {
+                      final index = value.toInt();
+                      if (index < 0 || index >= visible.length) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 5),
+                        child: Text(_day(visible[index]['date']),
+                            style: TextStyle(
+                                fontSize: 9, color: taskMuted(context))),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              lineTouchData: LineTouchData(
+                touchTooltipData: LineTouchTooltipData(
+                  getTooltipItems: (spots) => spots
+                      .map((spot) => LineTooltipItem(
+                          fmtRp(spot.y),
+                          const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 11)))
+                      .toList(),
+                ),
+              ),
+              lineBarsData: [
+                LineChartBarData(
+                  spots: [
+                    for (var i = 0; i < values.length; i++)
+                      FlSpot(i.toDouble(), values[i]),
+                  ],
+                  isCurved: true,
+                  curveSmoothness: .32,
+                  color: color,
+                  barWidth: 2.4,
+                  dotData: FlDotData(
+                    show: true,
+                    getDotPainter: (spot, percent, bar, index) =>
+                        FlDotCirclePainter(
+                      radius: 3,
+                      color: taskSurface(context),
+                      strokeWidth: 2,
+                      strokeColor: color,
+                    ),
+                  ),
+                  belowBarData: BarAreaData(
+                    show: true,
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        color.withValues(alpha: .2),
+                        color.withValues(alpha: 0)
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text('Nilai per tanggal',
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: ink(context))),
+        const SizedBox(height: 6),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 6,
+          childAspectRatio: 3.6,
+          children: [
+            for (final row in valueRows)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: taskSurface(context),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: taskBorder(context)),
+                ),
+                child: Row(
+                  children: [
+                    Text(_dateLabel(row['date']),
+                        style:
+                            TextStyle(fontSize: 10, color: taskMuted(context))),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(fmtRp(asNum(row[valueKey])),
+                          textAlign: TextAlign.right,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: ink(context))),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  String _dateLabel(dynamic value) {
+    final raw = value?.toString() ?? '';
+    return raw.length >= 10
+        ? '${raw.substring(8, 10)}/${raw.substring(5, 7)}'
+        : raw;
+  }
+
+  String compactRp(double value) {
+    if (value >= 1000000) return 'Rp${(value / 1000000).toStringAsFixed(1)}jt';
+    if (value >= 1000) return 'Rp${(value / 1000).round()}rb';
+    return 'Rp${value.round()}';
+  }
+}
+
+class _ReportSourceRow extends StatelessWidget {
+  const _ReportSourceRow({required this.source});
+
+  final Map<String, dynamic> source;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                    child: Text(source['name']?.toString() ?? 'POS',
+                        style: TextStyle(fontSize: 12, color: ink(context)))),
+                Text('${asNum(source['share']).round()}%',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: taskMuted(context))),
+              ],
+            ),
+            const SizedBox(height: 5),
+            LinearProgressIndicator(
+              minHeight: 7,
+              value: (asNum(source['share']) / 100).clamp(0, 1),
+              borderRadius: BorderRadius.circular(99),
+              backgroundColor: taskBorder(context).withValues(alpha: .55),
+              valueColor: const AlwaysStoppedAnimation(kTaskAccent),
+            ),
+          ],
+        ),
+      );
+}
+
 class _ReportFilterSheet extends StatefulWidget {
   const _ReportFilterSheet({
     required this.isOwner,
@@ -1353,19 +1739,32 @@ class _ReportFilterSheetState extends State<_ReportFilterSheet> {
   }
 }
 
-class _SalesTrendCard extends StatelessWidget {
+class _SalesTrendCard extends StatefulWidget {
   const _SalesTrendCard({required this.rows});
 
   final List<Map<String, dynamic>> rows;
 
   @override
+  State<_SalesTrendCard> createState() => _SalesTrendCardState();
+}
+
+class _SalesTrendCardState extends State<_SalesTrendCard> {
+  int? _selectedIndex;
+
+  @override
   Widget build(BuildContext context) {
-    final visible = rows.length > 14 ? rows.sublist(rows.length - 14) : rows;
+    final visible = widget.rows.length > 14
+        ? widget.rows.sublist(widget.rows.length - 14)
+        : widget.rows;
     final values = visible.map((row) => asNum(row['revenue'])).toList();
     final maxValue =
         values.fold<double>(0, (max, value) => value > max ? value : max);
+    final selected = _selectedIndex != null && _selectedIndex! < visible.length
+        ? visible[_selectedIndex!]
+        : null;
     const accent = kTaskAccent;
     return GlassCard(
+      key: const ValueKey('reports-dashboard-trend'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1382,17 +1781,19 @@ class _SalesTrendCard extends StatelessWidget {
               children: [
                 for (var i = 0; i < visible.length; i++)
                   Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          SizedBox(
-                            height: 76,
-                            child: Align(
-                              alignment: Alignment.bottomCenter,
-                              child: Tooltip(
-                                message: fmtRp(values[i]),
+                    child: GestureDetector(
+                      key: ValueKey('reports-sales-trend-bar-$i'),
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => setState(() => _selectedIndex = i),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            SizedBox(
+                              height: 76,
+                              child: Align(
+                                alignment: Alignment.bottomCenter,
                                 child: Container(
                                   width: 12,
                                   height: maxValue == 0
@@ -1401,31 +1802,83 @@ class _SalesTrendCard extends StatelessWidget {
                                           .clamp(4, 72)
                                           .toDouble(),
                                   decoration: BoxDecoration(
-                                    color: accent.withValues(alpha: .82),
+                                    gradient: const LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [kTaskAccent, kTaskTeal],
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: accent.withValues(alpha: .18),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            (visible[i]['date']?.toString() ?? '').length >= 10
-                                ? visible[i]['date'].toString().substring(8, 10)
-                                : visible[i]['date']?.toString() ?? '',
-                            style: TextStyle(
-                                fontSize: 9, color: taskMuted(context)),
-                          ),
-                        ],
+                            const SizedBox(height: 6),
+                            Text(
+                              (visible[i]['date']?.toString() ?? '').length >=
+                                      10
+                                  ? visible[i]['date']
+                                      .toString()
+                                      .substring(8, 10)
+                                  : visible[i]['date']?.toString() ?? '',
+                              style: TextStyle(
+                                  fontSize: 9, color: taskMuted(context)),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
               ],
             ),
           ),
+          const SizedBox(height: 8),
+          if (selected == null)
+            Text('Ketuk grafik untuk melihat total penjualan',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11, color: taskMuted(context)))
+          else
+            Container(
+              key: const ValueKey('reports-sales-trend-value'),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              decoration: BoxDecoration(
+                color: kTaskAccent.withValues(alpha: .08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: kTaskAccent.withValues(alpha: .22)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(_dateLabel(selected['date']),
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: taskMuted(context))),
+                  ),
+                  Text(fmtRp(asNum(selected['revenue'])),
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                          color: kTaskAccent)),
+                ],
+              ),
+            ),
         ],
       ),
     );
+  }
+
+  String _dateLabel(dynamic value) {
+    final raw = value?.toString() ?? '';
+    return raw.length >= 10
+        ? '${raw.substring(8, 10)}/${raw.substring(5, 7)}'
+        : raw;
   }
 }
 
@@ -1435,24 +1888,66 @@ class _Card extends StatelessWidget {
   final List<Widget> rows;
 
   @override
-  Widget build(BuildContext context) => GlassCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(title,
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: ink(context))),
-            const SizedBox(height: 10),
-            for (var i = 0; i < rows.length; i++) ...[
-              if (i > 0)
-                Divider(height: 14, thickness: 1, color: taskBorder(context)),
-              rows[i],
+  Widget build(BuildContext context) {
+    final accent = _dashboardCardAccent(title);
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Icon(_dashboardCardIcon(title), size: 18, color: accent),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(title,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: accent)),
+              ),
             ],
+          ),
+          const SizedBox(height: 10),
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0)
+              Divider(height: 14, thickness: 1, color: taskBorder(context)),
+            rows[i],
           ],
-        ),
-      );
+        ],
+      ),
+    );
+  }
+}
+
+Color _dashboardCardAccent(String title) {
+  if (title.contains('Hasil usaha')) return kTaskTeal;
+  if (title.contains('Ringkasan')) return kTaskAccent;
+  if (title.contains('Pembayaran') || title.contains('Metode')) {
+    return kTaskTeal;
+  }
+  if (title.contains('Stok')) return kTaskWarning;
+  if (title.contains('Produk')) return kTaskTerracotta;
+  return kTaskAccent;
+}
+
+IconData _dashboardCardIcon(String title) {
+  if (title.contains('Hasil usaha')) {
+    return Icons.account_balance_wallet_outlined;
+  }
+  if (title.contains('Pembayaran') || title.contains('Metode')) {
+    return Icons.payments_outlined;
+  }
+  if (title.contains('Stok')) return Icons.inventory_2_outlined;
+  if (title.contains('Produk')) return Icons.local_mall_outlined;
+  return Icons.insights_outlined;
 }
 
 class _Row extends StatelessWidget {

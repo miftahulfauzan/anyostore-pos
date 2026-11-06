@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'api_client.dart';
 import 'auth_store.dart';
+import 'branch_scope.dart';
 import 'format.dart';
 import 'printer_setup.dart';
 import 'product_form_page.dart';
@@ -184,9 +185,10 @@ class _ProductsPageState extends State<ProductsPage> {
                             value: int.tryParse('${b['id']}'),
                             child: Text(b['name']?.toString() ?? '')),
                     ],
-                    onChanged: (v) {
+                    onChanged: (v) async {
                       setState(() => _branchId = v);
-                      _load();
+                      if (v != null) await BranchScope.set(v);
+                      await _load();
                     },
                   ),
                 ),
@@ -198,16 +200,17 @@ class _ProductsPageState extends State<ProductsPage> {
                     hintText: 'Cari nama / SKU / barcode',
                     prefixIcon: const Icon(Icons.search, size: 20),
                     filled: true,
-                    fillColor: kTaskSurface,
+                    fillColor: taskSurface(context),
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 12),
                     enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(color: kTaskBorder)),
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: taskBorder(context))),
                     focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide:
-                            BorderSide(color: ink(context), width: 1.4)),
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.primary,
+                            width: 2)),
                   ),
                   onSubmitted: (_) => _load(),
                 ),
@@ -272,8 +275,8 @@ class _ProductsPageState extends State<ProductsPage> {
                                               Text(
                                                   '${r['sku'] ?? ''} · Stok ${r['stock'] ?? 0}',
                                                   style: const TextStyle(
-                                                      fontSize: 10,
-                                                      color: kTaskGray)),
+                                                    fontSize: 10,
+                                                  )),
                                             ],
                                           ),
                                         ),
@@ -292,8 +295,9 @@ class _ProductsPageState extends State<ProductsPage> {
                                                 IconButton(
                                                   onPressed: () =>
                                                       _printLabel(r),
-                                                  visualDensity:
-                                                      VisualDensity.compact,
+                                                  constraints: const BoxConstraints(
+                                                      minWidth: 44, minHeight: 44),
+                                                  padding: EdgeInsets.zero,
                                                   tooltip: 'Cetak label harga',
                                                   icon: Icon(Icons.print,
                                                       size: 18,
@@ -301,8 +305,9 @@ class _ProductsPageState extends State<ProductsPage> {
                                                 ),
                                                 IconButton(
                                                   onPressed: () => _copy(r),
-                                                  visualDensity:
-                                                      VisualDensity.compact,
+                                                  constraints: const BoxConstraints(
+                                                      minWidth: 44, minHeight: 44),
+                                                  padding: EdgeInsets.zero,
                                                   tooltip: 'Salin produk',
                                                   icon: const Icon(
                                                       Icons.copy_outlined,
@@ -310,8 +315,10 @@ class _ProductsPageState extends State<ProductsPage> {
                                                 ),
                                                 IconButton(
                                                   onPressed: () => _delete(r),
-                                                  visualDensity:
-                                                      VisualDensity.compact,
+                                                  constraints: const BoxConstraints(
+                                                      minWidth: 44, minHeight: 44),
+                                                  padding: EdgeInsets.zero,
+                                                  tooltip: 'Hapus produk',
                                                   icon: const Icon(
                                                       Icons.delete_outline,
                                                       size: 18,
@@ -334,10 +341,10 @@ class _ProductsPageState extends State<ProductsPage> {
                 child: FilledButton.icon(
                   onPressed: () => _openForm(),
                   style: FilledButton.styleFrom(
-                    backgroundColor: kTaskDark,
-                    foregroundColor: Colors.white,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(28)),
+                        borderRadius: BorderRadius.circular(14)),
                     minimumSize: const Size.fromHeight(50),
                   ),
                   icon: const Icon(Icons.add, size: 20),

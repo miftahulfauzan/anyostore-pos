@@ -1,8 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Toko/gudang aktif yang dipilih owner di halaman Lainnya.
-/// Semua halaman di bawah Lainnya otomatis memakai cabang ini.
+/// Toko/gudang aktif owner yang dipakai bersama oleh layar operasional.
 class BranchScope {
   static const _key = 'pos_owner_active_branch';
   static final ValueNotifier<int?> active = ValueNotifier(null);

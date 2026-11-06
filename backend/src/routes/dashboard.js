@@ -27,11 +27,15 @@ router.get('/', async (req, res, next) => {
 
     const salesSql =
       'SELECT ' +
-      'COALESCE(SUM(CASE WHEN DATE(t.created_at) = CURDATE() THEN t.grand_total - t.cancelled_amount - t.refunded_amount ELSE 0 END), 0) AS today_sales, ' +
-      'SUM(CASE WHEN DATE(t.created_at) = CURDATE() THEN 1 ELSE 0 END) AS today_transactions, ' +
-      'COALESCE(SUM(CASE WHEN DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) THEN t.grand_total - t.cancelled_amount - t.refunded_amount ELSE 0 END), 0) AS seven_day_sales, ' +
-      'COALESCE(SUM(CASE WHEN YEAR(t.created_at) = YEAR(CURDATE()) AND MONTH(t.created_at) = MONTH(CURDATE()) THEN t.grand_total - t.cancelled_amount - t.refunded_amount ELSE 0 END), 0) AS month_sales ' +
+      'COALESCE(SUM(CASE WHEN t.transaction_date = CURDATE() THEN t.grand_total - t.cancelled_amount - t.refunded_amount ELSE 0 END), 0) AS today_sales, ' +
+      'SUM(CASE WHEN t.transaction_date = CURDATE() THEN 1 ELSE 0 END) AS today_transactions, ' +
+      'COALESCE(SUM(CASE WHEN t.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) THEN t.grand_total - t.cancelled_amount - t.refunded_amount ELSE 0 END), 0) AS seven_day_sales, ' +
+      'COALESCE(SUM(CASE WHEN YEAR(t.transaction_date) = YEAR(CURDATE()) AND MONTH(t.transaction_date) = MONTH(CURDATE()) THEN t.grand_total - t.cancelled_amount - t.refunded_amount ELSE 0 END), 0) AS month_sales ' +
       `FROM transactions t WHERE t.status IN (${SALES_STATUSES_SQL})` + transactionScope;
+    const productsSoldSql =
+      'SELECT COALESCE(SUM(ti.quantity - ti.cancelled_qty - ti.returned_qty), 0) AS products_sold ' +
+      'FROM transaction_items ti JOIN transactions t ON t.id = ti.transaction_id ' +
+      `WHERE t.status IN (${SALES_STATUSES_SQL})` + transactionScope;
     const expensesSql =
       'SELECT ' +
       'COALESCE(SUM(CASE WHEN e.expense_date = CURDATE() THEN e.amount ELSE 0 END), 0) AS today_expenses, ' +
@@ -39,28 +43,56 @@ router.get('/', async (req, res, next) => {
       'COALESCE(SUM(CASE WHEN YEAR(e.expense_date) = YEAR(CURDATE()) AND MONTH(e.expense_date) = MONTH(CURDATE()) THEN e.amount ELSE 0 END), 0) AS month_expenses ' +
       "FROM expenses e WHERE e.status = 'approved'" + expenseScope;
     const recentSql =
-      'SELECT t.id, t.invoice_no, t.grand_total, t.payment_method, t.created_at, u.name AS cashier, b.name AS branch_name ' +
+      "SELECT t.id, t.invoice_no, t.grand_total, t.payment_method, t.created_at, DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS transaction_date, u.name AS cashier, b.name AS branch_name " +
       'FROM transactions t JOIN users u ON u.id = t.user_id JOIN branches b ON b.id = t.branch_id ' +
-      'WHERE 1 = 1' + transactionScope + ' ORDER BY t.created_at DESC LIMIT 6';
+      'WHERE 1 = 1' + transactionScope + ' ORDER BY t.transaction_date DESC, t.created_at DESC LIMIT 6';
     const trendSql =
-      'SELECT DATE(t.created_at) AS date, COALESCE(SUM(t.grand_total - t.cancelled_amount - t.refunded_amount), 0) AS sales ' +
-      `FROM transactions t WHERE t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)` +
-      transactionScope + ' GROUP BY DATE(t.created_at) ORDER BY date';
+      "SELECT DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS date, COALESCE(SUM(t.grand_total - t.cancelled_amount - t.refunded_amount), 0) AS sales " +
+      `FROM transactions t WHERE t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)` +
+      transactionScope + ' GROUP BY t.transaction_date ORDER BY date';
     const paymentSql =
       // Refund (cancelled_amount) dikurangi proporsional per metode pembayaran,
       // supaya breakdown = ringkasan penjualan.
       'SELECT tp.payment_method, COALESCE(SUM(tp.amount - ((t.cancelled_amount + t.refunded_amount) * tp.amount / NULLIF(t.grand_total, 0))), 0) AS amount ' +
       'FROM transaction_payments tp JOIN transactions t ON t.id = tp.transaction_id ' +
-      `WHERE t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)` +
+      `WHERE t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)` +
       transactionScope + ' GROUP BY tp.payment_method ORDER BY amount DESC';
 
-    const [salesRows, expenseRows, recent, salesTrend, payments] = await Promise.all([
-      db.execute(salesSql, transactionParams),
-      db.execute(expensesSql, expenseParams),
-      db.execute(recentSql, transactionParams),
-      db.execute(trendSql, transactionParams),
-      db.execute(paymentSql, transactionParams)
-    ]);
+    let salesRows;
+    let expenseRows;
+    let recent;
+    let salesTrend;
+    let payments;
+    let productsSold;
+    if (req.user.role === 'gudang') {
+      // Dashboard gudang hanya memakai data stok. Hindari query penjualan,
+      // pembayaran, dan pengeluaran yang tidak dipakai oleh halaman ini.
+      const emptyResult = (rows) => [rows, []];
+      salesRows = emptyResult([{
+        today_sales: 0,
+        today_transactions: 0,
+        seven_day_sales: 0,
+        month_sales: 0,
+      }]);
+      expenseRows = emptyResult([{
+        today_expenses: 0,
+        seven_day_expenses: 0,
+        month_expenses: 0,
+      }]);
+      recent = emptyResult([]);
+      salesTrend = emptyResult([]);
+      payments = emptyResult([]);
+      productsSold = emptyResult([{ products_sold: 0 }]);
+    } else {
+      [salesRows, expenseRows, recent, salesTrend, payments, productsSold] = await Promise.all([
+        db.execute(salesSql, transactionParams),
+        db.execute(expensesSql, expenseParams),
+        db.execute(recentSql, transactionParams),
+        db.execute(trendSql, transactionParams),
+        db.execute(paymentSql, transactionParams),
+        db.execute(productsSoldSql, transactionParams)
+      ]);
+    }
 
     const salesByDate = new Map(salesTrend[0].map((row) => [
       row.date instanceof Date
@@ -83,21 +115,25 @@ router.get('/', async (req, res, next) => {
     const storeScope = selectedBranchId === null ? '' : ' AND b.id = ?';
     const stores = owner ? (await db.execute(
       `SELECT b.id, b.name, b.address,
-        COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount - t.refunded_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) = CURDATE()), 0) AS today_sales,
-        COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount - t.refunded_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)), 0) AS seven_day_sales,
-        COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount - t.refunded_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')), 0) AS month_sales,
+        COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount - t.refunded_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date = CURDATE()), 0) AS today_sales,
+        COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount - t.refunded_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)), 0) AS seven_day_sales,
+        COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount - t.refunded_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')), 0) AS month_sales,
         COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id AND e.status = 'approved' AND e.expense_date = CURDATE()), 0) AS today_expenses,
         COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id AND e.status = 'approved' AND e.expense_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)), 0) AS seven_day_expenses,
         COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id AND e.status = 'approved' AND YEAR(e.expense_date) = YEAR(CURDATE()) AND MONTH(e.expense_date) = MONTH(CURDATE())), 0) AS month_expenses,
-        COALESCE((SELECT COUNT(*) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) = CURDATE()), 0) AS today_transactions,
-        COALESCE((SELECT COUNT(*) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND DATE(t.created_at) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)), 0) AS seven_day_transactions,
-        COALESCE((SELECT COUNT(*) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')), 0) AS month_transactions,
+        COALESCE((SELECT COUNT(*) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date = CURDATE()), 0) AS today_transactions,
+        COALESCE((SELECT COUNT(*) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)), 0) AS seven_day_transactions,
+        COALESCE((SELECT COUNT(*) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')), 0) AS month_transactions,
         (SELECT COUNT(*) FROM products p WHERE p.branch_id = b.id AND p.is_active = TRUE) AS products
        FROM branches b WHERE b.is_active = TRUE${storeScope} ORDER BY b.id`,
       selectedBranchId === null ? [] : [selectedBranchId]
     ))[0] : [];
 
-    const summary = { ...salesRows[0][0], ...expenseRows[0][0] };
+    const summary = {
+      ...salesRows[0][0],
+      ...expenseRows[0][0],
+      products_sold: Number(productsSold[0][0]?.products_sold || 0),
+    };
 
     // Ringkasan stok tersedia terpisah untuk Owner dan petugas toko/gudang.
     let stockSummary = null;

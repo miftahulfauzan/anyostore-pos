@@ -123,6 +123,15 @@ void main() {
     expect(find.byType(LineChart), findsOneWidget);
   });
 
+  testWidgets('summary totals use the same font size', (tester) async {
+    await showDashboard(tester, DashboardApi());
+    await tester.pumpAndSettle();
+
+    for (final value in ['12.345', '21', '12.324']) {
+      expect(tester.widget<Text>(find.text(value).first).style?.fontSize, 20);
+    }
+  });
+
   testWidgets('dashboard membedakan warna stok hampir habis dan kosong',
       (tester) async {
     await showDashboard(tester, DashboardApi());
@@ -132,6 +141,22 @@ void main() {
     expect(chart.data.sections[1].color, kTaskStockLow);
     expect(chart.data.sections[2].color, kTaskStockEmpty);
     expect(chart.data.sections[1].color, isNot(chart.data.sections[2].color));
+  });
+
+  testWidgets('dashboard stok memakai aksen warna per bagian', (tester) async {
+    await showDashboard(tester, DashboardApi());
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<Text>(find.text('Pergerakan Stok').first).style?.color,
+        kTaskAccent);
+    expect(tester.widget<Text>(find.text('Status Stok').first).style?.color,
+        kTaskPurple);
+    expect(
+        tester.widget<Text>(find.text('Stok per Kategori').first).style?.color,
+        kTaskTeal);
+    expect(
+        tester.widget<Text>(find.text('Top Produk Keluar').first).style?.color,
+        kTaskTerracotta);
   });
 
   testWidgets('dashboard filters stay compact on a phone', (tester) async {

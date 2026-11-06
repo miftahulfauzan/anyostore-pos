@@ -38,6 +38,17 @@ const _months = [
   'Des'
 ];
 
+const _dashboardPalette = <Color>[
+  kTaskAccent,
+  kTaskTeal,
+  kTaskTerracotta,
+  kTaskPurple,
+  kTaskWarning,
+];
+
+Color _dashboardColor(int index) =>
+    _dashboardPalette[index % _dashboardPalette.length];
+
 /// Server MySQL dapat mengirim DATE sebagai string ISO lengkap atau tanggal
 /// biasa. Grafik memakai kunci tanggal YYYY-MM-DD agar titik harian tidak
 /// hilang hanya karena perbedaan format serialisasi.
@@ -317,29 +328,28 @@ class _DashboardPageState extends State<DashboardPage> {
                         onRetry: _load,
                       )
                     else ...[
-                      _SummaryCard(
-                          label: 'Masuk',
-                          value: _fmtNum(_masuk),
-                          icon: Icons.south_west,
-                          color: kTaskAccent,
-                          focal: true),
-                      const SizedBox(height: 12),
                       Row(
                         children: [
+                          Expanded(
+                              child: _SummaryCard(
+                                  label: 'Masuk',
+                                  value: _fmtNum(_masuk),
+                                  icon: Icons.south_west,
+                                  color: kTaskTeal)),
+                          const SizedBox(width: 8),
                           Expanded(
                               child: _SummaryCard(
                                   label: 'Keluar',
                                   value: _fmtNum(_keluar),
                                   icon: Icons.north_east,
-                                  color: _stockEmptyColor(context))),
+                                  color: kTaskTerracotta)),
                           const SizedBox(width: 8),
                           Expanded(
                               child: _SummaryCard(
                                   label: 'Selisih',
                                   value: _fmtNum(_selisih),
                                   icon: Icons.swap_vert,
-                                  color:
-                                      Theme.of(context).colorScheme.primary)),
+                                  color: kTaskPurple)),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -377,29 +387,8 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? kTaskDarkBg
-                      : kTaskSurfaceMuted,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(Icons.calendar_month,
-                    size: 18, color: Theme.of(context).colorScheme.primary),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                  child: Text('Dashboard stok',
-                      style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: ink(context)))),
-            ],
-          ),
+          if (_isOwner) _buildOwnerBranchSelector(),
+          if (_isOwner) const SizedBox(height: 10),
           const SizedBox(height: 10),
           Row(
             children: [
@@ -428,20 +417,6 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             ],
           ),
-          if (_isOwner && _branchMode != 'own') ...[
-            const SizedBox(height: 4),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: InputChip(
-                label: Text('Lokasi: $_selectedBranchLabel'),
-                onDeleted: () {
-                  unawaited(
-                      BranchScope.set(context.read<AuthStore>().branchId));
-                },
-                materialTapTargetSize: MaterialTapTargetSize.padded,
-              ),
-            ),
-          ],
           const SizedBox(height: 10),
           Text('Periode: $_presetLabel · $_activeLabel',
               style: TextStyle(
@@ -460,6 +435,84 @@ class _DashboardPageState extends State<DashboardPage> {
               ],
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOwnerBranchSelector() {
+    final branchItems = <DropdownMenuItem<String>>[
+      const DropdownMenuItem(value: 'own', child: Text('Toko saya (default)')),
+      const DropdownMenuItem(value: 'all', child: Text('Semua toko/gudang')),
+      for (final branch in _branches)
+        DropdownMenuItem(
+          value: 'branch-${branch['id']}',
+          child: Text(branch['name']?.toString() ?? ''),
+        ),
+    ];
+    if (_branchMode.startsWith('branch-') &&
+        !branchItems.any((item) => item.value == _branchMode)) {
+      branchItems.add(const DropdownMenuItem(
+          value: 'selected', child: Text('Toko/gudang dipilih')));
+    }
+    final value = branchItems.any((item) => item.value == _branchMode)
+        ? _branchMode
+        : 'all';
+    return Container(
+      key: const ValueKey('dashboard-branch-selector'),
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: taskSurface(context),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: taskBorder(context)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.store_outlined,
+              size: 19, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: value,
+                isExpanded: true,
+                icon: const Icon(Icons.keyboard_arrow_down),
+                onChanged: (next) {
+                  if (next == null || next == 'selected') return;
+                  final branchId = next == 'all'
+                      ? null
+                      : next == 'own'
+                          ? context.read<AuthStore>().branchId
+                          : int.tryParse(next.replaceFirst('branch-', ''));
+                  unawaited(BranchScope.set(branchId));
+                },
+                selectedItemBuilder: (_) => [
+                  for (final item in branchItems)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                          item.value == value
+                              ? (item.value == 'all'
+                                  ? 'Semua toko/gudang'
+                                  : item.value == 'own'
+                                      ? 'Toko saya (default)'
+                                      : _selectedBranchLabel)
+                              : item.child is Text
+                                  ? (item.child as Text).data ?? ''
+                                  : '',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: ink(context))),
+                    ),
+                ],
+                items: branchItems,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -768,9 +821,7 @@ class _SummaryCard extends StatelessWidget {
       {required this.label,
       required this.value,
       required this.icon,
-      required this.color,
-      this.focal = false});
-  final bool focal;
+      required this.color});
   final String label;
   final String value;
   final IconData icon;
@@ -778,34 +829,35 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      padding: EdgeInsets.all(focal ? 20 : 12),
-      radius: focal ? 20 : 16,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: .14),
-              borderRadius: BorderRadius.circular(11),
+    return SizedBox(
+      height: 148,
+      child: GlassCard(
+        padding: const EdgeInsets.all(12),
+        radius: 16,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: .14),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Icon(icon, size: 18, color: color),
             ),
-            child: Icon(icon, size: 18, color: color),
-          ),
-          const SizedBox(height: 10),
-          Text(label,
-              style: TextStyle(fontSize: 12, color: taskMuted(context))),
-          const SizedBox(height: 2),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(value,
-                style: TextStyle(
-                    fontSize: focal ? 32 : 20,
-                    fontWeight: FontWeight.w800,
-                    color: focal ? kTaskAccent : ink(context))),
-          ),
-        ],
+            const SizedBox(height: 10),
+            Text(label,
+                style: TextStyle(fontSize: 12, color: taskMuted(context))),
+            const SizedBox(height: 2),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(value,
+                  style: TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.w800, color: color)),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -838,11 +890,10 @@ class _MovementCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Pergerakan Stok',
-              style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: ink(context))),
+          const _SectionHeading(
+              icon: Icons.swap_vert,
+              title: 'Pergerakan Stok',
+              color: kTaskAccent),
           const SizedBox(height: 6),
           Text('Masuk ${totalMasuk.round()} / Keluar ${totalKeluar.round()}',
               style: TextStyle(fontSize: 12, color: taskMuted(context))),
@@ -917,7 +968,7 @@ class _MovementCard extends StatelessWidget {
                     ],
                     isCurved: true,
                     curveSmoothness: 0.35,
-                    color: kTaskAccent,
+                    color: kTaskTeal,
                     barWidth: 2.4,
                     dotData: FlDotData(
                       show: true,
@@ -925,7 +976,7 @@ class _MovementCard extends StatelessWidget {
                         radius: 3,
                         color: taskSurface(context),
                         strokeWidth: 2,
-                        strokeColor: kTaskAccent,
+                        strokeColor: kTaskTeal,
                       ),
                     ),
                     belowBarData: BarAreaData(
@@ -934,8 +985,8 @@ class _MovementCard extends StatelessWidget {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          kTaskAccent.withValues(alpha: .10),
-                          kTaskAccent.withValues(alpha: 0),
+                          kTaskTeal.withValues(alpha: .16),
+                          kTaskTeal.withValues(alpha: 0),
                         ],
                       ),
                     ),
@@ -947,7 +998,7 @@ class _MovementCard extends StatelessWidget {
                     ],
                     isCurved: true,
                     curveSmoothness: 0.35,
-                    color: _stockEmptyColor(context),
+                    color: kTaskTerracotta,
                     barWidth: 2.4,
                     dotData: FlDotData(
                       show: true,
@@ -955,7 +1006,7 @@ class _MovementCard extends StatelessWidget {
                         radius: 3,
                         color: taskSurface(context),
                         strokeWidth: 2,
-                        strokeColor: _stockEmptyColor(context),
+                        strokeColor: kTaskTerracotta,
                       ),
                     ),
                     belowBarData: BarAreaData(
@@ -964,8 +1015,8 @@ class _MovementCard extends StatelessWidget {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          _stockEmptyColor(context).withValues(alpha: .24),
-                          _stockEmptyColor(context).withValues(alpha: 0),
+                          kTaskTerracotta.withValues(alpha: .20),
+                          kTaskTerracotta.withValues(alpha: 0),
                         ],
                       ),
                     ),
@@ -980,9 +1031,8 @@ class _MovementCard extends StatelessWidget {
             spacing: 12,
             runSpacing: 8,
             children: [
-              _LegendDot(color: kTaskAccent, label: 'Stok Masuk'),
-              _LegendDot(
-                  color: _stockEmptyColor(context), label: 'Stok Keluar'),
+              _LegendDot(color: kTaskTeal, label: 'Stok Masuk'),
+              _LegendDot(color: kTaskTerracotta, label: 'Stok Keluar'),
             ],
           ),
         ],
@@ -1017,11 +1067,10 @@ class _StatusCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Status Stok',
-              style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: ink(context))),
+          const _SectionHeading(
+              icon: Icons.inventory_2_outlined,
+              title: 'Status Stok',
+              color: kTaskPurple),
           if (totalProduk > 0) ...[
             const SizedBox(height: 2),
             Text('$totalProduk produk',
@@ -1042,7 +1091,7 @@ class _StatusCard extends StatelessWidget {
                         sections: [
                           PieChartSectionData(
                               value: aman.toDouble(),
-                              color: Theme.of(context).colorScheme.primary,
+                              color: kTaskTeal,
                               radius: 36,
                               showTitle: false),
                           PieChartSectionData(
@@ -1079,9 +1128,7 @@ class _StatusCard extends StatelessWidget {
                 child: Column(
                   children: [
                     _RingIndicator(
-                        percent: aman,
-                        color: Theme.of(context).colorScheme.primary,
-                        label: 'Aman'),
+                        percent: aman, color: kTaskTeal, label: 'Aman'),
                     const SizedBox(height: 10),
                     _RingIndicator(
                         percent: hampir,
@@ -1103,8 +1150,7 @@ class _StatusCard extends StatelessWidget {
             spacing: 12,
             runSpacing: 8,
             children: [
-              _LegendDot(
-                  color: Theme.of(context).colorScheme.primary, label: 'Aman'),
+              _LegendDot(color: kTaskTeal, label: 'Aman'),
               _LegendDot(color: _stockLowColor(context), label: 'Hampir Habis'),
               _LegendDot(color: _stockEmptyColor(context), label: 'Kosong'),
             ],
@@ -1136,11 +1182,10 @@ class _CategoryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Stok per Kategori',
-              style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: ink(context))),
+          const _SectionHeading(
+              icon: Icons.category_outlined,
+              title: 'Stok per Kategori',
+              color: kTaskTeal),
           const SizedBox(height: 14),
           SizedBox(
             height: 230,
@@ -1219,7 +1264,7 @@ class _CategoryCard extends StatelessWidget {
                       barRods: [
                         BarChartRodData(
                           toY: categories[i].$2,
-                          color: Theme.of(context).colorScheme.primary,
+                          color: _dashboardColor(i),
                           width: 18,
                           borderRadius: const BorderRadius.vertical(
                               top: Radius.circular(5)),
@@ -1256,20 +1301,19 @@ class _TopProductsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Top Produk Keluar',
-              style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: ink(context))),
+          const _SectionHeading(
+              icon: Icons.local_fire_department_outlined,
+              title: 'Top Produk Keluar',
+              color: kTaskTerracotta),
           const SizedBox(height: 14),
-          for (final p in products)
+          for (var i = 0; i < products.length; i++)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 5),
               child: Row(
                 children: [
                   SizedBox(
                     width: 92,
-                    child: Text(p.$1,
+                    child: Text(products[i].$1,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -1288,10 +1332,10 @@ class _TopProductsCard extends StatelessWidget {
                       ),
                       alignment: Alignment.centerLeft,
                       child: FractionallySizedBox(
-                        widthFactor: maxV <= 0 ? 0 : p.$2 / maxV,
+                        widthFactor: maxV <= 0 ? 0 : products[i].$2 / maxV,
                         child: Container(
                           decoration: BoxDecoration(
-                            color: taskMuted(context),
+                            color: _dashboardColor(i),
                             borderRadius: BorderRadius.circular(7),
                           ),
                         ),
@@ -1301,7 +1345,7 @@ class _TopProductsCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   SizedBox(
                     width: 42,
-                    child: Text('${p.$2.round()}',
+                    child: Text('${products[i].$2.round()}',
                         textAlign: TextAlign.right,
                         style: const TextStyle(
                             fontSize: 11, fontWeight: FontWeight.w800)),
@@ -1311,6 +1355,41 @@ class _TopProductsCard extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading({
+    required this.icon,
+    required this.title,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String title;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: .12),
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Icon(icon, size: 18, color: color),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(title,
+              style: TextStyle(
+                  fontSize: 15, fontWeight: FontWeight.w800, color: color)),
+        ),
+      ],
     );
   }
 }

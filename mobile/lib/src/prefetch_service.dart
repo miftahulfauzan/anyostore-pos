@@ -4,9 +4,7 @@ import 'dart:math' as math;
 import 'api_client.dart';
 import 'offline_store.dart';
 
-/// Unduh otomatis detail + varian SEMUA produk untuk cabang tertentu saat
-/// app dibuka / koneksi pulih, supaya saat offline varian produk sudah
-/// tersedia tanpa harus diklik satu per satu dulu.
+/// Unduh detail produk bervarian agar pemilihan varian tetap tersedia offline.
 class PrefetchService {
   static final Set<int> _running = {};
 
@@ -16,11 +14,15 @@ class PrefetchService {
     _running.add(branchId);
     try {
       final products = await api.products(branchId: branchId);
-      final futures = <Future<void>>[];
-      for (final p in products) {
-        final id = int.tryParse('${p['id']}');
-        if (id == null) continue;
-        futures.add(() async {
+      final productsWithVariants = products.where((product) {
+        return (int.tryParse('${product['variant_count'] ?? 0}') ?? 0) > 0;
+      }).toList();
+      for (var i = 0; i < productsWithVariants.length; i += 3) {
+        final batch = productsWithVariants.sublist(
+            i, math.min(i + 3, productsWithVariants.length));
+        await Future.wait(batch.map((p) async {
+          final id = int.tryParse('${p['id']}');
+          if (id == null) return;
           try {
             final detail = await api.product(id, branchId: branchId);
             await OfflineStore.cacheSet(
@@ -28,11 +30,7 @@ class PrefetchService {
           } catch (_) {
             // Satu produk gagal: lewati, cache lama tetap dipakai.
           }
-        }());
-      }
-      // Proses paralel 6 per batch supaya tidak membebani server.
-      for (var i = 0; i < futures.length; i += 6) {
-        await Future.wait(futures.sublist(i, math.min(i + 6, futures.length)));
+        }));
       }
     } catch (_) {
       // Offline / server error: diam saja, tidak mengganggu aplikasi.

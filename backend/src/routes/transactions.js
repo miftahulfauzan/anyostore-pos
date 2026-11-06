@@ -16,8 +16,14 @@ function httpError(status, message) {
   return Object.assign(new Error(message), { status });
 }
 
-async function nextInvoice(connection, branchId) {
-  const businessDate = localDateString();
+function isDateOnly(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
+async function nextInvoice(connection, branchId, businessDate = localDateString()) {
   // Prefix invoice dari Pengaturan (invoice_prefix), default INV.
   const [prefixRows] = await connection.execute("SELECT `value` FROM store_settings WHERE branch_id = ? AND `key` = 'invoice_prefix' LIMIT 1", [branchId]);
   const prefix = String(prefixRows[0]?.value || 'INV').trim().toUpperCase();
@@ -142,8 +148,8 @@ router.get('/', async (req, res, next) => {
     let where = branchId === null ? 'WHERE 1=1' : 'WHERE t.branch_id = ?';
     const params = branchId === null ? [] : [branchId];
 
-    if (isDate(dateFrom)) { where += ' AND DATE(t.created_at) >= ?'; params.push(dateFrom); }
-    if (isDate(dateTo)) { where += ' AND DATE(t.created_at) <= ?'; params.push(dateTo); }
+    if (isDate(dateFrom)) { where += ' AND t.transaction_date >= ?'; params.push(dateFrom); }
+    if (isDate(dateTo)) { where += ' AND t.transaction_date <= ?'; params.push(dateTo); }
     if (status && ['completed','cancelled','partially_cancelled','partially_refunded','refunded'].includes(status)) { where += ' AND t.status = ?'; params.push(status); }
     if (search) {
       where += ' AND (t.invoice_no LIKE ? OR t.offline_invoice_no LIKE ? OR u.name LIKE ? OR c.name LIKE ? OR t.grand_total LIKE ?)';
@@ -155,9 +161,9 @@ router.get('/', async (req, res, next) => {
     const total = Number(countRows[0].total || 0);
 
     const [rows] = await db.execute(
-      `SELECT t.id, t.branch_id, t.invoice_no, t.offline_invoice_no, t.grand_total, t.payment_method, t.status, t.price_tier, t.cancelled_amount, t.created_at, u.name AS cashier, c.name AS customer, c.price_tier AS customer_tier
+      `SELECT t.id, t.branch_id, t.invoice_no, t.offline_invoice_no, t.grand_total, t.payment_method, t.status, t.price_tier, t.cancelled_amount, t.created_at, DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS transaction_date, u.name AS cashier, c.name AS customer, c.price_tier AS customer_tier
        FROM transactions t JOIN users u ON u.id = t.user_id LEFT JOIN customers c ON c.id = t.customer_id
-       ${where} ORDER BY t.created_at DESC LIMIT ${limit} OFFSET ${offset}`,
+       ${where} ORDER BY t.transaction_date DESC, t.created_at DESC LIMIT ${limit} OFFSET ${offset}`,
       params
     );
     res.json({ success: true, data: rows, page, total, totalPages: Math.ceil(total / limit) });
@@ -204,6 +210,8 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
     const { warehouse_id: warehouseId, customer_id: customerId = null, items, discount_type: discountType = 'none', discount_value: discountValue = 0, promo_code: promoCode, notes, client_transaction_id: clientTransactionId = null, offline: isOffline = false, offline_invoice_no: offlineInvoiceNo = null } = req.body;
     const requestedBranch = Number(req.body.branch_id);
     const branchId = req.user.role === 'owner' && Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
+    const transactionDate = req.user.role === 'owner' && req.body.transaction_date != null ? req.body.transaction_date : localDateString();
+    if (!isDateOnly(transactionDate) || transactionDate > localDateString()) throw httpError(400, 'Tanggal transaksi harus valid dan tidak boleh setelah hari ini');
     if (!Number.isInteger(Number(warehouseId)) || !Array.isArray(items) || !items.length || !['none', 'percentage', 'nominal'].includes(discountType)) {
       throw httpError(400, 'Data transaksi tidak valid');
     }
@@ -312,11 +320,11 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
     }
     const grandTotal = money(subtotal - discount);
     const payment = normalizePayments(req.body, grandTotal);
-    const invoiceNo = await nextInvoice(connection, branchId);
+    const invoiceNo = await nextInvoice(connection, branchId, transactionDate);
     const [transactionResult] = await connection.execute(
-      `INSERT INTO transactions (branch_id, invoice_no, offline_invoice_no, client_transaction_id, user_id, customer_id, subtotal, discount_type, discount_value, discount, grand_total, payment_method, amount_paid, \`change\`, notes, price_tier)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [branchId, invoiceNo, offlineInvoiceNo?.trim() || null, clientTransactionId, req.user.id, customerId, subtotal, effectiveDiscountType, requestedDiscount, discount, grandTotal, payment.method, payment.paid, payment.change, [notes?.trim(), promo ? `Promo ${promo.code}` : null].filter(Boolean).join(' · ') || null, priceTier]
+      `INSERT INTO transactions (branch_id, transaction_date, invoice_no, offline_invoice_no, client_transaction_id, user_id, customer_id, subtotal, discount_type, discount_value, discount, grand_total, payment_method, amount_paid, \`change\`, notes, price_tier)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [branchId, transactionDate, invoiceNo, offlineInvoiceNo?.trim() || null, clientTransactionId, req.user.id, customerId, subtotal, effectiveDiscountType, requestedDiscount, discount, grandTotal, payment.method, payment.paid, payment.change, [notes?.trim(), promo ? `Promo ${promo.code}` : null].filter(Boolean).join(' · ') || null, priceTier]
     );
     if (promo) await connection.execute('UPDATE promotions SET usage_count=usage_count+1 WHERE id=?', [promo.id]);
     for (const line of lines) {
@@ -351,11 +359,39 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
 router.get('/:id', async (req, res, next) => {
   try {
     const branchId = transactionBranch(req.user, req.query.branch_id);
-    const [transactions] = await db.execute('SELECT t.id, t.branch_id, t.invoice_no, t.grand_total, t.amount_paid, t.`change`, t.cancelled_amount, t.cancel_reason, t.payment_method, t.status, t.price_tier, t.subtotal, t.discount, t.created_at, u.name AS cashier FROM transactions t LEFT JOIN users u ON u.id = t.user_id WHERE t.id = ? AND t.branch_id = ?', [req.params.id, branchId]);
+    const [transactions] = await db.execute("SELECT t.id, t.branch_id, t.invoice_no, t.grand_total, t.amount_paid, t.`change`, t.cancelled_amount, t.cancel_reason, t.payment_method, t.status, t.price_tier, t.subtotal, t.discount, t.created_at, DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS transaction_date, u.name AS cashier FROM transactions t LEFT JOIN users u ON u.id = t.user_id WHERE t.id = ? AND t.branch_id = ?", [req.params.id, branchId]);
     if (!transactions[0]) return res.status(404).json({ success: false, message: 'Transaksi tidak ditemukan' });
     const [items] = await db.execute('SELECT id AS transaction_item_id, product_name, product_sku, variant_detail, quantity, cancelled_qty, returned_qty, cancel_reason, price, original_price, price_override, discount, subtotal FROM transaction_items WHERE transaction_id = ?', [req.params.id]);
     res.json({ success: true, data: { ...transactions[0], items } });
   } catch (error) { next(error); }
+});
+
+router.put('/:id/date', authorize('owner'), async (req, res, next) => {
+  const connection = await db.getConnection();
+  try {
+    const { transaction_date: transactionDate } = req.body;
+    if (!isDateOnly(transactionDate) || transactionDate > localDateString()) throw httpError(400, 'Tanggal transaksi harus valid dan tidak boleh setelah hari ini');
+    const branchId = transactionBranch(req.user, req.body.branch_id);
+    await connection.beginTransaction();
+    const [transactions] = await connection.execute(
+      "SELECT invoice_no, DATE_FORMAT(transaction_date, '%Y-%m-%d') AS transaction_date FROM transactions WHERE id = ? AND branch_id = ? FOR UPDATE",
+      [req.params.id, branchId]
+    );
+    if (!transactions[0]) throw httpError(404, 'Transaksi tidak ditemukan');
+    const previousDate = transactions[0].transaction_date;
+    if (previousDate !== transactionDate) {
+      await connection.execute('UPDATE transactions SET transaction_date = ? WHERE id = ? AND branch_id = ?', [transactionDate, req.params.id, branchId]);
+      await connection.execute(
+        'INSERT INTO activity_logs (user_id, action, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)',
+        [req.user.id, 'transaction_date_edit', `Invoice ${transactions[0].invoice_no}: tanggal transaksi ${previousDate} menjadi ${transactionDate}`, req.ip, req.get('user-agent') || null]
+      );
+    }
+    await connection.commit();
+    res.json({ success: true, data: { transaction_date: transactionDate } });
+  } catch (error) {
+    await connection.rollback();
+    next(error);
+  } finally { connection.release(); }
 });
 
 // Partial / full cancellation of transaction items.

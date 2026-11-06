@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'format.dart';
+import 'receipt_layout.dart';
 
 /// Cetak struk thermal ke printer Bluetooth ESC/POS (GPrinter, 80mm).
 class PrinterService {
@@ -57,15 +60,33 @@ class PrinterService {
     });
     try {
       await BluetoothPrintPlus.startScan(timeout: const Duration(seconds: 6));
-      await Future<void>.delayed(const Duration(milliseconds: 6500));
     } finally {
       await sub.cancel();
     }
     return collected;
   }
 
-  Future<void> connect(BluetoothDevice device) =>
-      BluetoothPrintPlus.connect(device);
+  Future<void> connect(BluetoothDevice device) async {
+    if (BluetoothPrintPlus.isConnected) {
+      await disconnect();
+    }
+    final connected = Completer<void>();
+    late final StreamSubscription<ConnectState> subscription;
+    subscription = BluetoothPrintPlus.connectState.listen((state) {
+      if (state == ConnectState.connected && !connected.isCompleted) {
+        connected.complete();
+      }
+    });
+    try {
+      await BluetoothPrintPlus.connect(device);
+      if (BluetoothPrintPlus.isConnected) {
+        return;
+      }
+      await connected.future.timeout(const Duration(seconds: 8));
+    } finally {
+      await subscription.cancel();
+    }
+  }
 
   Future<void> disconnect() => BluetoothPrintPlus.disconnect();
 
@@ -129,114 +150,18 @@ class PrinterService {
   Future<void> printReceipt(Map<String, dynamic> receipt) async {
     final esc = EscCommand();
     await esc.cleanCommand();
+    final layout = ReceiptLayout.fromReceipt(receipt);
 
-    Future<void> line(String text,
-            {Alignment alignment = Alignment.left,
-            EscTextStyle style = EscTextStyle.default_,
-            EscFontSize fontSize = EscFontSize.default_}) =>
-        esc.text(
-            content: text,
-            alignment: alignment,
-            style: style,
-            fontSize: fontSize);
-
-    Future<void> blank() => esc.newline();
-
-    final store = (receipt['store'] as Map<String, dynamic>?) ?? {};
-    final storeName = store['store_name']?.toString() ?? 'Anyostore';
-
-    // Header toko
-    await line(storeName,
-        alignment: Alignment.center,
-        style: EscTextStyle.bold,
-        fontSize: EscFontSize.size2);
-    if (store['store_address']?.toString().isNotEmpty == true) {
-      await line(store['store_address'].toString(),
-          alignment: Alignment.center);
+    for (final row in layout.build(receipt)) {
+      await esc.text(
+        content: row.text,
+        alignment: row.alignment == ReceiptLineAlignment.center
+            ? Alignment.center
+            : Alignment.left,
+        style: row.bold ? EscTextStyle.bold : EscTextStyle.default_,
+        fontSize: row.large ? EscFontSize.size2 : EscFontSize.default_,
+      );
     }
-    if (store['store_phone']?.toString().isNotEmpty == true) {
-      await line('Telp: ${store['store_phone']}', alignment: Alignment.center);
-    }
-    if (store['store_tax_id']?.toString().isNotEmpty == true) {
-      await line('NPWP: ${store['store_tax_id']}', alignment: Alignment.center);
-    }
-    if (store['receipt_header']?.toString().isNotEmpty == true) {
-      // Header struk bisa beberapa baris (mis. daftar no HP admin).
-      for (final h in store['receipt_header'].toString().split('\n')) {
-        if (h.trim().isNotEmpty) {
-          await line(h.trim(), alignment: Alignment.center);
-        }
-      }
-    }
-    await line('--------------------------------');
-
-    // Info transaksi
-    await line('${receipt['invoice_no'] ?? ''}',
-        alignment: Alignment.center, style: EscTextStyle.bold);
-    await line('${receipt['created_at'] ?? ''}', alignment: Alignment.center);
-    if (receipt['cashier']?.toString().isNotEmpty == true) {
-      await line('Kasir: ${receipt['cashier']}');
-    }
-    if (receipt['customer_name']?.toString().isNotEmpty == true) {
-      await line('Pelanggan: ${receipt['customer_name']}');
-    }
-    await line('--------------------------------');
-
-    // Item
-    final rawItems = (receipt['items'] as List?) ?? [];
-    for (final raw in rawItems) {
-      final item = raw as Map<String, dynamic>;
-      final name = item['product_name']?.toString() ?? '';
-      final variant = item['variant_detail']?.toString() ?? '';
-      final qty = asNum(item['quantity']).toInt();
-      final price = asNum(item['price']);
-      final subtotal = asNum(item['subtotal']);
-      await line(name, style: EscTextStyle.bold);
-      if (variant.isNotEmpty) await line('  $variant');
-      await line('  $qty x ${fmtRp(price)}'.padRight(24) +
-          fmtRp(subtotal).padLeft(24));
-    }
-    await line('--------------------------------');
-
-    // Total
-    await line('Subtotal'.padRight(24) +
-        fmtRp(asNum(receipt['subtotal'])).padLeft(24));
-    final discount = asNum(receipt['discount']);
-    if (discount > 0) {
-      await line('Diskon'.padRight(24) + fmtRp(discount).padLeft(24));
-    }
-    await line('TOTAL'.padRight(24) +
-        fmtRp(asNum(receipt['grand_total'])).padLeft(24));
-    await line('--------------------------------');
-
-    // Pembayaran
-    final payments = (receipt['payments'] as List?) ?? [];
-    if (payments.isNotEmpty) {
-      for (final raw in payments) {
-        final p = raw as Map<String, dynamic>;
-        final method = p['payment_method']?.toString() ?? '';
-        final amount = asNum(p['amount']);
-        await line(
-            method.toUpperCase().padRight(24) + fmtRp(amount).padLeft(24));
-      }
-    }
-    final change = asNum(receipt['change']);
-    if (change > 0) {
-      await line('Kembalian'.padRight(24) + fmtRp(change).padLeft(24));
-    }
-
-    // Footer
-    await blank();
-    if (store['receipt_note']?.toString().isNotEmpty == true) {
-      await line(store['receipt_note'].toString(), alignment: Alignment.center);
-    }
-    if (store['receipt_footer']?.toString().isNotEmpty == true) {
-      await line(store['receipt_footer'].toString(),
-          alignment: Alignment.center);
-    }
-    await line('Terima kasih, sampai jumpa lagi!', alignment: Alignment.center);
-    await blank();
-    await blank();
     await esc.cutPaper();
 
     final bytes = await esc.getCommand();

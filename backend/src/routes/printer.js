@@ -9,7 +9,7 @@ router.get('/invoice/:id', async (req, res, next) => {
   try {
     const owner = req.user.role === 'owner';
     const [transactions] = await db.execute(
-      'SELECT t.id, t.branch_id, t.invoice_no, t.created_at, t.subtotal, t.discount, t.grand_total, t.payment_method, t.amount_paid, t.`change`, t.notes, u.name AS cashier, c.name AS customer_name, ' +
+      "SELECT t.id, t.branch_id, t.invoice_no, t.created_at, DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS transaction_date, t.subtotal, t.discount, t.grand_total, t.payment_method, t.amount_paid, t.`change`, t.notes, u.name AS cashier, c.name AS customer_name, " +
       'b.name AS store_name, b.address AS store_address, b.phone AS store_phone, b.email AS store_email, b.npwp AS store_tax_id ' +
       'FROM transactions t JOIN users u ON u.id = t.user_id JOIN branches b ON b.id = t.branch_id LEFT JOIN customers c ON c.id = t.customer_id ' +
       `WHERE t.id = ?${owner ? '' : ' AND t.branch_id = ?'}`,

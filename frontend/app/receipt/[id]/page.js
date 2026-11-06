@@ -36,6 +36,7 @@ export default function Receipt({ params }) {
   const logo = data.store.store_logo ? api.replace('/api', '') + data.store.store_logo : '';
   const printerSize = String(data.store.printer_size || '80mm').includes('58') ? '58mm' : '80mm';
   const date = new Date(data.created_at);
+  const businessDate = String(data.transaction_date || data.created_at).slice(0, 10).split('-').reverse().join('/');
   const payments = data.payments?.length ? data.payments : [{ payment_method: data.payment_method, amount: data.grand_total }];
 
   return <main className="receipt">
@@ -55,7 +56,7 @@ export default function Receipt({ params }) {
         <h2 id="receipt-invoice-title">Informasi transaksi</h2>
         <dl>
           <div><dt>Invoice</dt><dd>{data.invoice_no}</dd></div>
-          <div><dt>Tanggal</dt><dd>{date.toLocaleDateString('id-ID')} · {date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</dd></div>
+          <div><dt>Tanggal</dt><dd>{businessDate} · {date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })}</dd></div>
           <div><dt>Kasir</dt><dd>{data.cashier}</dd></div>
           {data.customer_name && <div><dt>Pelanggan</dt><dd>{data.customer_name}</dd></div>}
         </dl>

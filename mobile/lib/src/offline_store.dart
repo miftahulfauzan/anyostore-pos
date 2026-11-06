@@ -8,12 +8,27 @@ import 'api_client.dart';
 
 /// Penyimpanan lokal transaksi offline + sinkronisasi otomatis.
 class OfflineStore {
+  static const _maxGenericCacheEntries = 500;
+  static const _genericCachePruneInterval = 25;
   static Database? _db;
+  static int _genericCacheWritesSincePrune = 0;
+
+  static Future<void> _pruneGenericCache(Database db) async {
+    await db.execute('''
+      DELETE FROM generic_cache
+      WHERE cache_key NOT IN (
+        SELECT cache_key FROM generic_cache
+        ORDER BY updated_at DESC, cache_key DESC
+        LIMIT $_maxGenericCacheEntries
+      )
+    ''');
+    _genericCacheWritesSincePrune = 0;
+  }
 
   static Future<Database> _open() async {
     if (_db != null) return _db!;
     final path = join(await getDatabasesPath(), 'anyostore_offline.db');
-    _db = await openDatabase(path, version: 4, onCreate: (db, version) async {
+    _db = await openDatabase(path, version: 5, onCreate: (db, version) async {
       await db.execute('''
         CREATE TABLE IF NOT EXISTS offline_transactions (
           client_transaction_id TEXT PRIMARY KEY,
@@ -38,6 +53,8 @@ class OfflineStore {
           updated_at TEXT NOT NULL
         )
       ''');
+      await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_generic_cache_updated_at ON generic_cache(updated_at)');
       await db.execute('''
         CREATE TABLE IF NOT EXISTS offline_expenses (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,7 +93,12 @@ class OfflineStore {
           )
         ''');
       }
+      if (oldVersion < 5) {
+        await db.execute(
+            'CREATE INDEX IF NOT EXISTS idx_generic_cache_updated_at ON generic_cache(updated_at)');
+      }
     });
+    await _pruneGenericCache(_db!);
     return _db!;
   }
 
@@ -189,6 +211,9 @@ class OfflineStore {
           'updated_at': DateTime.now().toIso8601String(),
         },
         conflictAlgorithm: ConflictAlgorithm.replace);
+    if (++_genericCacheWritesSincePrune >= _genericCachePruneInterval) {
+      await _pruneGenericCache(db);
+    }
   }
 
   static Future<Map<String, dynamic>?> cacheGet(String key) async {

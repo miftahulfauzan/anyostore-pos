@@ -5,6 +5,7 @@ import 'dart:math' as math;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
@@ -101,6 +102,7 @@ class _PosPageState extends State<PosPage> {
   String _warehouseId = '';
   int? _customerId;
   final _discountCtrl = TextEditingController();
+  final _notesCtrl = TextEditingController();
   String _transactionDate = '';
   String? _category;
   int? _draftBranch;
@@ -108,7 +110,7 @@ class _PosPageState extends State<PosPage> {
   Map<String, dynamic>? _preview;
   bool _loading = true;
   bool _saving = false;
-  bool _autoPrint = false;
+  bool _autoPrint = true;
   String? _error;
 
   /// Dipakai sheet keranjang untuk me-refresh dirinya saat _cart/_preview
@@ -135,9 +137,6 @@ class _PosPageState extends State<PosPage> {
       _api.activeBranchId = _posBranchId;
       BranchScope.active.addListener(_onBranchScopeChanged);
       _listeningToBranchScope = true;
-      if (BranchScope.active.value == null && branch > 0) {
-        unawaited(BranchScope.set(branch));
-      }
     }
     PosPage.requestTab.addListener(_onExternalTab);
     if (!widget.runStartupBackgroundTasks) return;
@@ -181,6 +180,7 @@ class _PosPageState extends State<PosPage> {
     }
     _search.dispose();
     _discountCtrl.dispose();
+    _notesCtrl.dispose();
     super.dispose();
   }
 
@@ -233,11 +233,10 @@ class _PosPageState extends State<PosPage> {
 
   void _onBranchScopeChanged() {
     if (!_isOwner || !mounted) return;
-    final scopeWasEmpty = BranchScope.active.value == null;
     final branch = BranchScope.active.value ?? _branchId;
     _api.activeBranchId = branch > 0 ? branch : null;
     if (branch > 0 && branch != _posBranchId) {
-      if (!scopeWasEmpty) unawaited(_saveDraft());
+      if (BranchScope.active.value != null) unawaited(_saveDraft());
       setState(() {
         _posBranchId = branch;
         _warehouseId = '';
@@ -245,6 +244,7 @@ class _PosPageState extends State<PosPage> {
         _preview = null;
         _customerId = null;
         _discountCtrl.clear();
+        _notesCtrl.clear();
         _transactionDate = todayWib();
         _draftBranch = null;
         _category = null;
@@ -252,9 +252,6 @@ class _PosPageState extends State<PosPage> {
       });
       _previewTimer?.cancel();
       _loadData();
-    }
-    if (scopeWasEmpty && branch > 0) {
-      unawaited(BranchScope.set(branch));
     }
   }
 
@@ -384,8 +381,11 @@ class _PosPageState extends State<PosPage> {
     _customers =
         ((payload['customers'] as List?) ?? []).cast<Map<String, dynamic>>();
     final settings = (payload['settings'] as Map<String, dynamic>?) ?? {};
-    _autoPrint =
-        settings['auto_print'] == '1' || settings['auto_print'] == true;
+    final autoPrint = settings['auto_print'];
+    _autoPrint = autoPrint == null ||
+        autoPrint == '1' ||
+        autoPrint == true ||
+        autoPrint == 'true';
     if (_warehouseId.isEmpty && _warehouses.isNotEmpty) {
       _warehouseId = '${_warehouses.first['id']}';
     }
@@ -415,6 +415,7 @@ class _PosPageState extends State<PosPage> {
       'warehouse_id': _warehouseId,
       'customer_id': _customerId,
       'manual_discount': _discountCtrl.text,
+      'notes': _notesCtrl.text,
       'transaction_date': _transactionDate,
       'items': [
         for (final item in _cart)
@@ -469,6 +470,7 @@ class _PosPageState extends State<PosPage> {
         _cart.addAll(items);
         _customerId = int.tryParse('${draft['customer_id']}');
         _discountCtrl.text = draft['manual_discount']?.toString() ?? '';
+        _notesCtrl.text = draft['notes']?.toString() ?? '';
         final draftDate = draft['transaction_date']?.toString();
         _transactionDate = draftDate != null &&
                 DateTime.tryParse(draftDate) != null &&
@@ -709,14 +711,16 @@ class _PosPageState extends State<PosPage> {
         'discount_type': preview?['discount_type'] ??
             (_manualDiscount > 0 ? 'nominal' : 'none'),
         'discount_value': asNum(preview?['discount'] ?? _manualDiscount),
+        if (_notesCtrl.text.trim().isNotEmpty) 'notes': _notesCtrl.text.trim(),
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Transaksi ditahan. Bisa dilanjutkan kapan saja.')));
+          content: Text('Draft disimpan. Bisa dilanjutkan kapan saja.')));
       setState(() {
         _cart.clear();
         _preview = null;
         _discountCtrl.clear();
+        _notesCtrl.clear();
         _customerId = null;
         _transactionDate = todayWib();
       });
@@ -737,29 +741,46 @@ class _PosPageState extends State<PosPage> {
       final pending = await _client.pendingTransactions(branchId: branch);
       if (!mounted) return;
       if (pending.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Tidak ada transaksi yang ditahan')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Tidak ada draft')));
         return;
       }
       final picked = await showDialog<int>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Transaksi Ditahan'),
+          title: const Text('Draft'),
           content: SizedBox(
             width: double.maxFinite,
-            child: ListView(
+            child: ListView.separated(
               shrinkWrap: true,
-              children: [
-                for (final p in pending)
-                  ListTile(
+              itemCount: pending.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 6),
+              itemBuilder: (_, index) {
+                final p = pending[index];
+                final heldAt = DateTime.tryParse('${p['held_at']}')?.toLocal();
+                final heldLabel = heldAt == null
+                    ? 'Tanggal draft tidak tersedia'
+                    : '${heldAt.day.toString().padLeft(2, '0')}/${heldAt.month.toString().padLeft(2, '0')}/${heldAt.year} · ${heldAt.hour.toString().padLeft(2, '0')}:${heldAt.minute.toString().padLeft(2, '0')}';
+                final itemCount =
+                    p['items'] is List ? (p['items'] as List).length : 0;
+                return Card(
+                  margin: EdgeInsets.zero,
+                  child: ListTile(
                     dense: true,
+                    leading: CircleAvatar(
+                      radius: 17,
+                      child: Text('$itemCount',
+                          style: const TextStyle(fontSize: 12)),
+                    ),
                     title: Text(
-                        '${(p['items'] is List ? (p['items'] as List).length : 0).toString()} item'),
-                    subtitle: Text('Total ${fmtRp(asNum(p['subtotal']))}'),
+                        '$itemCount item · ${fmtRp(asNum(p['subtotal']))}',
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    subtitle: Text('Draft $heldLabel'),
                     onTap: () =>
                         Navigator.pop(ctx, int.tryParse(p['id'].toString())),
                   ),
-              ],
+                );
+              },
             ),
           ),
           actions: [
@@ -797,6 +818,7 @@ class _PosPageState extends State<PosPage> {
         _customerId = int.tryParse(resumed['customer_id']?.toString() ?? '');
         _discountCtrl.text =
             asNum(resumed['discount_value']).toStringAsFixed(0);
+        _notesCtrl.text = resumed['notes']?.toString() ?? '';
         _transactionDate = todayWib();
         _preview = null;
       });
@@ -840,6 +862,7 @@ class _PosPageState extends State<PosPage> {
                     customers: _customers,
                     customerId: _customerId,
                     discountController: _discountCtrl,
+                    notesController: _notesCtrl,
                     isOwner: _isOwner,
                     transactionDate: _transactionDate,
                     preview: _preview,
@@ -855,15 +878,14 @@ class _PosPageState extends State<PosPage> {
                       _schedulePreview();
                       _sheetRefresh?.call(() {});
                     },
+                    onNotesChanged: (_) {
+                      unawaited(_saveDraft());
+                      _sheetRefresh?.call(() {});
+                    },
                     onTransactionDateChanged: (date) {
                       setState(() => _transactionDate = date);
                       _sheetRefresh?.call(() {});
                       unawaited(_saveDraft());
-                    },
-                    onQtyChanged: (item, delta) {
-                      setState(() => item.qty = math.max(1, item.qty + delta));
-                      _sheetRefresh?.call(() {});
-                      _schedulePreview();
                     },
                     onQtySet: (item, value) {
                       setState(() => item.qty = math.max(1, value));
@@ -871,7 +893,6 @@ class _PosPageState extends State<PosPage> {
                       _schedulePreview();
                     },
                     onHold: _holdCart,
-                    onResume: _resumeCart,
                     onRemove: (item) {
                       setState(() => _cart.remove(item));
                       _sheetRefresh?.call(() {});
@@ -1018,6 +1039,7 @@ class _PosPageState extends State<PosPage> {
       'allow_negative_stock': allowNegativeStock,
       ...payment,
       if (_customerId != null) 'customer_id': _customerId,
+      if (_notesCtrl.text.trim().isNotEmpty) 'notes': _notesCtrl.text.trim(),
       'discount_type': _manualDiscount > 0 ? 'nominal' : 'none',
       'discount_value': _manualDiscount,
       if (_isOwner) 'transaction_date': _transactionDate,
@@ -1029,6 +1051,7 @@ class _PosPageState extends State<PosPage> {
       _cart.clear();
       _preview = null;
       _discountCtrl.clear();
+      _notesCtrl.clear();
       _customerId = null;
       _transactionDate = todayWib();
       await _saveDraft();
@@ -1043,16 +1066,17 @@ class _PosPageState extends State<PosPage> {
             TextButton(
                 onPressed: () => Navigator.pop(ctx),
                 child: const Text('Selesai')),
-            FilledButton.icon(
-              onPressed: () {
-                Navigator.pop(ctx);
-                if (id != null) {
-                  printReceiptNow(context, () => _client.receipt(id));
-                }
-              },
-              icon: const Icon(Icons.print),
-              label: const Text('Cetak Struk'),
-            ),
+            if (!_autoPrint)
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  if (id != null) {
+                    printReceiptNow(context, () => _client.receipt(id));
+                  }
+                },
+                icon: const Icon(Icons.print),
+                label: const Text('Cetak Struk'),
+              ),
           ],
         ),
       );
@@ -1110,6 +1134,7 @@ class _PosPageState extends State<PosPage> {
     _cart.clear();
     _preview = null;
     _discountCtrl.clear();
+    _notesCtrl.clear();
     _customerId = null;
     _transactionDate = todayWib();
     await _saveDraft();
@@ -1167,9 +1192,23 @@ class _PosPageState extends State<PosPage> {
         title: Text(_pageTitle(auth.role),
             style: const TextStyle(fontWeight: FontWeight.w700)),
         centerTitle: true,
-        backgroundColor: taskSurface(context),
-        foregroundColor: ink(context),
+        backgroundColor: kTaskDark,
+        foregroundColor: Colors.white,
+        titleTextStyle: TextStyle(
+            fontSize: 19, fontWeight: FontWeight.w700, color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
+        systemOverlayStyle: SystemUiOverlayStyle.light,
         surfaceTintColor: Colors.transparent,
+        actions: [
+          if (!isGudang && _tab == 0)
+            Tooltip(
+              message: 'Buka Draft',
+              child: IconButton(
+                onPressed: _resumeCart,
+                icon: const Icon(Icons.description_outlined, size: 18),
+              ),
+            ),
+        ],
       ),
       drawer: Drawer(
         width: math.min(MediaQuery.sizeOf(context).width * .84, 340.0),
@@ -1259,7 +1298,7 @@ class _PosPageState extends State<PosPage> {
       ..sort();
     final width = MediaQuery.sizeOf(context).width;
     final columns = width < 600
-        ? 2
+        ? 3
         : width < 900
             ? 3
             : 4;
@@ -1363,10 +1402,12 @@ class _PosPageState extends State<PosPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Row(children: [
-                    Expanded(child: Text('Keranjang · ${cartTotalPcs(_cart)} pcs',
-                        style: TextStyle(color: taskMuted(context)))),
-                    Text(fmtRp(_cartTotal), style: TextStyle(
-                        color: ink(context), fontWeight: FontWeight.w800)),
+                    Expanded(
+                        child: Text('Keranjang · ${cartTotalPcs(_cart)} pcs',
+                            style: TextStyle(color: taskMuted(context)))),
+                    Text(fmtRp(_cartTotal),
+                        style: TextStyle(
+                            color: ink(context), fontWeight: FontWeight.w800)),
                   ]),
                   const SizedBox(height: 8),
                   FilledButton.icon(
@@ -1673,8 +1714,15 @@ class _QtyInputState extends State<_QtyInput> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 40,
+    return Container(
+      width: 44,
+      height: 36,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: taskSurface(context),
+        border: Border.all(color: taskBorder(context)),
+        borderRadius: BorderRadius.circular(9),
+      ),
       child: TextField(
         controller: _c,
         focusNode: _fn,
@@ -1682,21 +1730,15 @@ class _QtyInputState extends State<_QtyInput> {
         textInputAction: TextInputAction.done,
         onSubmitted: (_) => _fn.unfocus(),
         textAlign: TextAlign.center,
+        cursorHeight: 16,
         style: TextStyle(
             fontSize: 13, fontWeight: FontWeight.w800, color: ink(context)),
-        decoration: InputDecoration(
+        decoration: const InputDecoration(
           isDense: true,
-          filled: true,
-          fillColor: taskSurface(context),
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: taskBorder(context))),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                  color: Theme.of(context).colorScheme.primary, width: 2)),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: EdgeInsets.zero,
         ),
         onChanged: (t) {
           final v = int.tryParse(t);
@@ -1714,6 +1756,7 @@ class _CartSheet extends StatefulWidget {
     required this.customers,
     required this.customerId,
     required this.discountController,
+    required this.notesController,
     required this.isOwner,
     required this.transactionDate,
     required this.preview,
@@ -1722,14 +1765,13 @@ class _CartSheet extends StatefulWidget {
     required this.saving,
     required this.onCustomerChanged,
     required this.onDiscountChanged,
+    required this.onNotesChanged,
     required this.onTransactionDateChanged,
-    required this.onQtyChanged,
     required this.onQtySet,
     required this.onRemove,
     required this.onEditPrice,
     required this.onPay,
     required this.onHold,
-    required this.onResume,
   });
 
   final ScrollController? scrollController;
@@ -1737,6 +1779,7 @@ class _CartSheet extends StatefulWidget {
   final List<Map<String, dynamic>> customers;
   final int? customerId;
   final TextEditingController discountController;
+  final TextEditingController notesController;
   final bool isOwner;
   final String transactionDate;
   final Map<String, dynamic>? preview;
@@ -1745,14 +1788,13 @@ class _CartSheet extends StatefulWidget {
   final bool saving;
   final ValueChanged<int?> onCustomerChanged;
   final ValueChanged<String> onDiscountChanged;
+  final ValueChanged<String> onNotesChanged;
   final ValueChanged<String> onTransactionDateChanged;
-  final void Function(CartItem, int) onQtyChanged;
   final void Function(CartItem, int) onQtySet;
   final ValueChanged<CartItem> onRemove;
   final ValueChanged<CartItem> onEditPrice;
   final VoidCallback onPay;
   final VoidCallback onHold;
-  final VoidCallback onResume;
 
   @override
   State<_CartSheet> createState() => _CartSheetState();
@@ -1760,6 +1802,7 @@ class _CartSheet extends StatefulWidget {
 
 class _CartSheetState extends State<_CartSheet> {
   bool _showOptions = false;
+  bool _showActions = false;
 
   double _parseDiscount() =>
       asNum(widget.discountController.text.replaceAll(RegExp(r'[^0-9]'), ''));
@@ -1794,6 +1837,75 @@ class _CartSheetState extends State<_CartSheet> {
     return '';
   }
 
+  Future<void> _editNotes() async {
+    final controller = TextEditingController(text: widget.notesController.text);
+    final value = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Catatan transaksi'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 3,
+          textInputAction: TextInputAction.newline,
+          decoration: const InputDecoration(
+            hintText: 'Contoh: kirim ke toko cabang',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (value == null || !mounted) return;
+    widget.notesController.text = value.trim();
+    widget.onNotesChanged(widget.notesController.text);
+    setState(() {});
+  }
+
+  Widget _actionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback? onPressed,
+  }) {
+    final color = onPressed == null ? taskMuted(context) : kTaskDark;
+    return Expanded(
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: color,
+          side: BorderSide(
+              color: onPressed == null ? taskBorder(context) : kTaskDark),
+          minimumSize: const Size(0, 60),
+          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 5),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 19),
+            const SizedBox(height: 3),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(label,
+                  maxLines: 1, style: const TextStyle(fontSize: 11)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = widget.cart;
@@ -1807,187 +1919,281 @@ class _CartSheetState extends State<_CartSheet> {
         ? (widget.preview == null ? null : widget.preview!['grand_total'])
         : math.max(0, subtotal - discount));
     final customerName = _customerName();
-    final hasExtra = customerName.isNotEmpty;
     final invalidDiscount = discount > subtotal;
     final totalPcs = cartTotalPcs(cart);
 
-    final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
-    // Geser sheet ke atas saat keyboard muncul supaya Bayar tidak tertutup.
+    // Geser sheet ke atas saat keyboard muncul supaya input qty tetap terlihat.
     return AnimatedPadding(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOutCubic,
       padding:
           EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Judul: fokus daftar barang + jumlah item aktif.
-              Center(
-                  child: Container(
-                      width: 36,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                          color: taskBorder(context),
-                          borderRadius: BorderRadius.circular(4)))),
-              Row(
+        top: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              key: const ValueKey('cart-sheet-header'),
+              color: kTaskDark,
+              padding: const EdgeInsets.fromLTRB(4, 6, 14, 8),
+              child: Row(
                 children: [
-                  Expanded(
-                    child: Text('Keranjang ($totalPcs pcs)',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w800)),
+                  IconButton(
+                    tooltip: 'Tutup keranjang',
+                    onPressed: () => Navigator.of(context).pop(),
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints.tightFor(width: 40, height: 48),
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
                   ),
-                  if (keyboardOpen)
-                    TextButton(
-                      onPressed: () =>
-                          FocusManager.instance.primaryFocus?.unfocus(),
-                      child: const Text('Selesai'),
+                  const Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text('Keranjang',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800)),
                     ),
-                  TextButton.icon(
+                  ),
+                  IconButton(
+                    tooltip: _showActions
+                        ? 'Sembunyikan menu aksi'
+                        : 'Tampilkan menu aksi',
                     onPressed: () =>
-                        setState(() => _showOptions = !_showOptions),
-                    icon: Icon(_showOptions ? Icons.expand_less : Icons.tune),
-                    label: Text(_showOptions ? 'Tutup Opsi' : 'Opsi'),
+                        setState(() => _showActions = !_showActions),
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints.tightFor(width: 40, height: 48),
+                    icon: Icon(
+                        _showActions ? Icons.expand_less : Icons.expand_more,
+                        color: Colors.white),
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              // Pelanggan dan transaksi tahan berada di menu Opsi.
-              if (_showOptions) ...[
-                if (widget.customers.isNotEmpty)
-                  DropdownButtonFormField<int?>(
-                    initialValue: widget.customerId,
-                    decoration: const InputDecoration(
-                        isDense: true,
-                        labelText: 'Pelanggan (opsional)',
-                        border: OutlineInputBorder()),
-                    items: [
-                      const DropdownMenuItem<int?>(
-                          value: null, child: Text('Tanpa pelanggan')),
-                      for (final c in widget.customers)
-                        DropdownMenuItem<int?>(
-                            value: int.tryParse('${c['id']}'),
-                            child: Text(
-                                '${c['name']}${c['phone'] != null && (c['phone'] as String).isNotEmpty ? ' · ${c['phone']}' : ''}')),
-                    ],
-                    onChanged: widget.onCustomerChanged,
-                  ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: widget.discountController,
-                  keyboardType: TextInputType.number,
-                  onChanged: widget.onDiscountChanged,
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    labelText: 'Diskon (Rp)',
-                    prefixText: 'Rp ',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: widget.onHold,
-                        icon: const Icon(Icons.pause_circle_outline, size: 18),
-                        label: const Text('Tahan'),
+            ),
+            Expanded(
+              child: ListView(
+                controller: widget.scrollController,
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                children: [
+                  if (customerName.isNotEmpty) ...[
+                    Material(
+                      color: taskSurface(context),
+                      shape: RoundedRectangleBorder(
+                        side: BorderSide(color: taskBorder(context)),
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: widget.onResume,
-                        icon: const Icon(Icons.play_circle_outline, size: 18),
-                        label: const Text('Ambil Tahan'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-              ] else if (hasExtra)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      if (customerName.isNotEmpty)
-                        Chip(
-                          avatar: const Icon(Icons.person_outline, size: 15),
-                          label: Text(customerName,
-                              style: const TextStyle(fontSize: 11)),
-                          visualDensity: VisualDensity.compact,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: widget.customers.isEmpty
+                            ? null
+                            : () => setState(() => _showOptions = true),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 12),
+                          child: Row(
+                            children: [
+                              Icon(Icons.person_outline,
+                                  color: kTaskDark, size: 22),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(customerName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w700)),
+                              ),
+                              if (widget.customers.isNotEmpty)
+                                Icon(Icons.expand_more,
+                                    color: taskMuted(context)),
+                            ],
+                          ),
                         ),
-                    ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                    decoration: BoxDecoration(
+                      color: taskSurface(context),
+                      border: Border(
+                        top: BorderSide(color: taskBorder(context)),
+                        bottom: BorderSide(color: taskBorder(context)),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                            flex: 5,
+                            child: Text('Nama',
+                                style: TextStyle(fontWeight: FontWeight.w800))),
+                        SizedBox(
+                            width: 58,
+                            child: Text('Qty',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w800))),
+                        const SizedBox(
+                            width: 82,
+                            child: Text('Total',
+                                textAlign: TextAlign.right,
+                                style: TextStyle(fontWeight: FontWeight.w800))),
+                        const SizedBox(width: 44),
+                      ],
+                    ),
                   ),
-                ),
-              Expanded(
-                child: ListView(
-                  controller: widget.scrollController,
+                  for (final item in cart)
+                    _CartLine(
+                      item: item,
+                      onQtySet: widget.onQtySet,
+                      onRemove: widget.onRemove,
+                      onEditPrice: widget.onEditPrice,
+                    ),
+                  if (widget.isOwner) ...[
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _pickTransactionDate,
+                      icon: const Icon(Icons.calendar_today_outlined, size: 18),
+                      label: Text(
+                          'Tanggal transaksi: ${_dateLabel(widget.transactionDate)}'),
+                    ),
+                  ],
+                  if (_showOptions) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: taskSurface(context),
+                        border: Border.all(color: taskBorder(context)),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (widget.customers.isNotEmpty)
+                            DropdownButtonFormField<int?>(
+                              initialValue: widget.customerId,
+                              decoration: const InputDecoration(
+                                  isDense: true,
+                                  labelText: 'Pelanggan (opsional)',
+                                  border: OutlineInputBorder()),
+                              items: [
+                                const DropdownMenuItem<int?>(
+                                    value: null,
+                                    child: Text('Tanpa pelanggan')),
+                                for (final c in widget.customers)
+                                  DropdownMenuItem<int?>(
+                                      value: int.tryParse('${c['id']}'),
+                                      child: Text('${c['name']}')),
+                              ],
+                              onChanged: widget.onCustomerChanged,
+                            ),
+                          if (widget.customers.isNotEmpty)
+                            const SizedBox(height: 8),
+                          TextField(
+                            controller: widget.discountController,
+                            keyboardType: TextInputType.number,
+                            onChanged: widget.onDiscountChanged,
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              labelText: 'Diskon (Rp)',
+                              prefixText: 'Rp ',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (_showActions)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                child: Row(
                   children: [
-                    if (widget.isOwner) ...[
-                      OutlinedButton.icon(
-                        onPressed: _pickTransactionDate,
-                        icon:
-                            const Icon(Icons.calendar_today_outlined, size: 18),
-                        label: Text(
-                            'Tanggal transaksi: ${_dateLabel(widget.transactionDate)}'),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                    for (final item in cart)
-                      _CartLine(
-                        item: item,
-                        onQtyChanged: widget.onQtyChanged,
-                        onQtySet: widget.onQtySet,
-                        onRemove: widget.onRemove,
-                        onEditPrice: widget.onEditPrice,
-                      ),
+                    _actionButton(
+                        icon: Icons.local_offer_outlined,
+                        label: 'Diskon',
+                        onPressed: () => setState(() => _showOptions = true)),
+                    const SizedBox(width: 4),
+                    _actionButton(
+                        icon: Icons.notes_outlined,
+                        label: 'Catatan',
+                        onPressed: _editNotes),
+                    const SizedBox(width: 4),
+                    _actionButton(
+                        icon: Icons.pause_circle_outline,
+                        label: 'Tahan',
+                        onPressed: cart.isEmpty ? null : widget.onHold),
+                    const SizedBox(width: 4),
+                    _actionButton(
+                        icon: Icons.more_horiz,
+                        label: 'Lainnya',
+                        onPressed: () =>
+                            setState(() => _showOptions = !_showOptions)),
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
-              Text('Total pcs: $totalPcs pcs',
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
-              if (discount > 0) Text('Diskon: -${fmtRp(discount)}'),
-              if (invalidDiscount)
-                Text('Diskon melebihi subtotal',
-                    style:
-                        TextStyle(color: Theme.of(context).colorScheme.error)),
-              if (widget.error != null) ...[
-                const SizedBox(height: 6),
-                Text(widget.error!,
-                    style:
-                        TextStyle(color: Theme.of(context).colorScheme.error)),
-              ],
-              const SizedBox(height: 10),
-              // Tombol bayar = jumlah total orderan (tap tetap lanjut bayar).
-              FilledButton(
-                style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52)),
-                onPressed: widget.saving ||
-                        cart.isEmpty ||
-                        invalidDiscount ||
-                        widget.error != null
-                    ? null
-                    : widget.onPay,
-                child: widget.saving
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : Text('Bayar · ${fmtRp(grandTotal)}',
-                        style: const TextStyle(
-                            fontSize: 17, fontWeight: FontWeight.w800)),
+            Container(
+              key: const ValueKey('cart-summary-footer'),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              decoration: BoxDecoration(
+                color: taskSurface(context),
+                border: Border(top: BorderSide(color: taskBorder(context))),
               ),
-            ],
-          ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Text('$totalPcs pcs',
+                          style: const TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w800)),
+                    ],
+                  ),
+                  if (discount > 0)
+                    Text('Diskon: -${fmtRp(discount)}',
+                        style: TextStyle(color: taskMuted(context))),
+                  if (invalidDiscount)
+                    Text('Diskon melebihi subtotal',
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.error)),
+                  if (widget.error != null) ...[
+                    const SizedBox(height: 4),
+                    Text(widget.error!,
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.error)),
+                  ],
+                  const SizedBox(height: 8),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(52)),
+                    onPressed: widget.saving ||
+                            cart.isEmpty ||
+                            invalidDiscount ||
+                            widget.error != null
+                        ? null
+                        : widget.onPay,
+                    child: widget.saving
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : Text('Bayar · ${fmtRp(grandTotal)}',
+                            style: const TextStyle(
+                                fontSize: 17, fontWeight: FontWeight.w800)),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1997,36 +2203,15 @@ class _CartSheetState extends State<_CartSheet> {
 class _CartLine extends StatelessWidget {
   const _CartLine({
     required this.item,
-    required this.onQtyChanged,
     required this.onQtySet,
     required this.onRemove,
     required this.onEditPrice,
   });
 
   final CartItem item;
-  final void Function(CartItem, int) onQtyChanged;
   final void Function(CartItem, int) onQtySet;
   final ValueChanged<CartItem> onRemove;
   final ValueChanged<CartItem> onEditPrice;
-
-  Widget _action({
-    required BuildContext context,
-    required String label,
-    required IconData icon,
-    required VoidCallback onPressed,
-  }) {
-    return Semantics(
-      button: true,
-      label: label,
-      child: IconButton(
-        onPressed: onPressed,
-        tooltip: label,
-        icon: Icon(icon, size: 19),
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints.tightFor(width: 44, height: 44),
-      ),
-    );
-  }
 
   Widget _info(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2048,44 +2233,46 @@ class _CartLine extends StatelessWidget {
         ],
       );
 
-  Widget _quantityControls(BuildContext context) => SizedBox(
-        width: 140,
-        child: Row(
-          children: [
-            _action(
-              context: context,
-              label: 'Kurangi jumlah ${item.name}',
-              icon: Icons.remove_circle_outline,
-              onPressed: () => onQtyChanged(item, -1),
-            ),
-            _QtyInput(value: item.qty, onChanged: (v) => onQtySet(item, v)),
-            const SizedBox(width: 4),
-            _action(
-              context: context,
-              label: 'Tambah jumlah ${item.name}',
-              icon: Icons.add_circle_outline,
-              onPressed: () => onQtyChanged(item, 1),
-            ),
-          ],
-        ),
-      );
-
   @override
   Widget build(BuildContext context) {
     final lineTotal = (item.priceOverride ?? item.price) * item.qty;
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 3),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Column(
+        children: [
+          Row(
             children: [
-              Row(children: [
-              Expanded(child: _info(context)),
+              Expanded(flex: 5, child: _info(context)),
+              SizedBox(
+                width: 58,
+                child: Center(
+                  child: _QtyInput(
+                    value: item.qty,
+                    onChanged: (value) => onQtySet(item, value),
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 82,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(fmtRp(lineTotal),
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                            fontWeight: FontWeight.w800, color: ink(context))),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 2),
               PopupMenuButton<String>(
                 tooltip: 'Opsi ${item.name}',
                 padding: EdgeInsets.zero,
                 iconSize: 19,
+                constraints:
+                    const BoxConstraints.tightFor(width: 44, height: 44),
                 icon: const Icon(Icons.more_vert),
                 onSelected: (value) {
                   if (value == 'price') onEditPrice(item);
@@ -2110,19 +2297,11 @@ class _CartLine extends StatelessWidget {
                   ),
                 ],
               ),
-              ]),
-              Row(children: [
-                _quantityControls(context),
-                const SizedBox(width: 12),
-                Expanded(child: Text(fmtRp(lineTotal),
-                    textAlign: TextAlign.right,
-                    style: TextStyle(fontWeight: FontWeight.w800, color: ink(context)))),
-              ]),
             ],
           ),
-        ),
-        Divider(height: 8, thickness: 1, color: taskBorder(context)),
-      ],
+          Divider(height: 8, thickness: 1, color: taskBorder(context)),
+        ],
+      ),
     );
   }
 }

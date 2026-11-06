@@ -4,18 +4,22 @@ import 'package:pos_pakaian_mobile/src/task_ui.dart';
 
 void main() {
   test('shared light palette uses the approved NexaDash tokens', () {
-    expect(kTaskBg, const Color(0xffF4F6F8));
+    expect(kTaskBg, const Color(0xffF7F9FC));
     expect(kTaskSurface, const Color(0xffFFFFFF));
     expect(kTaskSurfaceMuted, const Color(0xffEEF2F6));
     expect(kTaskDark, const Color(0xff1E3A5F));
     expect(kTaskInk, const Color(0xff151821));
     expect(kTaskSecondary, const Color(0xff5D6878));
-    expect(kTaskAccent, const Color(0xff3D83F6));
-    expect(kTaskTeal, const Color(0xff246B45));
-    expect(kTaskTerracotta, const Color(0xff9A3412));
+    expect(kTaskAccent, const Color(0xff2563EB));
+    expect(kTaskTeal, const Color(0xff16A34A));
+    expect(kTaskTerracotta, const Color(0xffEA580C));
+    expect(kTaskPurple, const Color(0xff7C3AED));
+    expect(kTaskWarning, const Color(0xffF59E0B));
     expect(kTaskBorder, const Color(0xffD9E0E8));
-    expect(kTaskStockGood, const Color(0xff246B45));
-    expect(kTaskStockLow, const Color(0xff9A3412));
+    expect(kTaskStockGood, const Color(0xff15803D));
+    expect(kTaskStockGoodSurface, const Color(0xffDCFCE7));
+    expect(kTaskStockLow, const Color(0xff92400E));
+    expect(kTaskStockLowSurface, const Color(0xffFEF3C7));
     expect(kTaskStockEmpty, const Color(0xffB42318));
   });
 

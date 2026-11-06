@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
+import 'branch_scope.dart';
 import 'format.dart';
 import 'task_ui.dart';
 
@@ -31,6 +33,7 @@ class _CommissionsPageState extends State<CommissionsPage> {
   String? _customEnd;
   List<Map<String, dynamic>> _branches = [];
   int? _branchId;
+  int _loadGeneration = 0;
 
   bool get _isOwner => widget.role == 'owner';
 
@@ -98,10 +101,32 @@ class _CommissionsPageState extends State<CommissionsPage> {
   void initState() {
     super.initState();
     if (!_canManage) _tab = 'saya';
+    if (_isOwner) {
+      _branchId = BranchScope.active.value ?? widget.branchId;
+      widget.api.activeBranchId = _branchId;
+      BranchScope.active.addListener(_onBranchScopeChanged);
+    }
     _load();
   }
 
+  void _onBranchScopeChanged() {
+    if (!_isOwner || !mounted) return;
+    final branchId = BranchScope.active.value ?? widget.branchId;
+    widget.api.activeBranchId = branchId;
+    if (branchId == _branchId) return;
+    setState(() => _branchId = branchId);
+    _load();
+  }
+
+  @override
+  void dispose() {
+    if (_isOwner) BranchScope.active.removeListener(_onBranchScopeChanged);
+    super.dispose();
+  }
+
   Future<void> _load() async {
+    final generation = ++_loadGeneration;
+    bool isCurrent() => mounted && generation == _loadGeneration;
     setState(() {
       _loading = true;
       _error = null;
@@ -109,11 +134,10 @@ class _CommissionsPageState extends State<CommissionsPage> {
     try {
       if (_isOwner && _branches.isEmpty) {
         try {
-          _branches =
+          final branches =
               (await widget.api.branches()).cast<Map<String, dynamic>>();
-          _branchId ??= _branches.isEmpty
-              ? null
-              : int.tryParse('${_branches.first['id']}');
+          if (!isCurrent()) return;
+          setState(() => _branches = branches);
         } catch (_) {}
       }
       final (start, end) = _range;
@@ -122,18 +146,18 @@ class _CommissionsPageState extends State<CommissionsPage> {
             .commissionMine(start: start, end: end, branchId: _branchId);
         debugPrint(
             'KOMISI_MINE branch=$_branchId range=$start..$end => ${jsonEncode(data)}');
-        if (!mounted) return;
+        if (!isCurrent()) return;
         setState(() => _mine = data);
       } else if (_tab == 'report') {
         final data = await widget.api
             .commissionReport(start: start, end: end, branchId: _branchId);
         debugPrint(
             'KOMISI_REPORT branch=$_branchId range=$start..$end => ${jsonEncode(data)}');
-        if (!mounted) return;
+        if (!isCurrent()) return;
         setState(() => _report = data);
       } else {
         final data = await widget.api.commissions();
-        if (!mounted) return;
+        if (!isCurrent()) return;
         setState(() {
           _rules =
               ((data['rules'] as List?) ?? []).cast<Map<String, dynamic>>();
@@ -142,9 +166,9 @@ class _CommissionsPageState extends State<CommissionsPage> {
         });
       }
     } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (isCurrent()) setState(() => _error = e.message);
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (isCurrent()) setState(() => _loading = false);
     }
   }
 
@@ -321,23 +345,22 @@ class _CommissionsPageState extends State<CommissionsPage> {
               children: [
                 if (_isOwner && _branches.isNotEmpty && _tab == 'report')
                   DropdownButtonFormField<int?>(
-                    initialValue: _branchId,
+                    initialValue: _branchId ?? widget.branchId,
                     isExpanded: true,
                     decoration: const InputDecoration(
                         isDense: true,
                         labelText: 'Toko',
                         border: OutlineInputBorder()),
                     items: [
-                      const DropdownMenuItem<int?>(
-                          value: null, child: Text('Cabang default saya')),
                       for (final b in _branches)
                         DropdownMenuItem<int?>(
                             value: int.tryParse('${b['id']}'),
                             child: Text(b['name']?.toString() ?? '')),
                     ],
                     onChanged: (v) {
-                      setState(() => _branchId = v);
-                      _load();
+                      if (v != null && BranchScope.active.value != v) {
+                        unawaited(BranchScope.set(v));
+                      }
                     },
                   ),
                 if (_isOwner && _branches.isNotEmpty && _tab == 'report')

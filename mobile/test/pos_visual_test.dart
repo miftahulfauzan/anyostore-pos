@@ -183,6 +183,34 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('POS exposes a Draft quick action in the app bar',
+      (tester) async {
+    final api = PosVisualApi();
+    final auth = AuthStore(api)
+      ..role = 'owner'
+      ..branchId = 4;
+    await showPosSurface(tester, const PosPage(), 320, Brightness.light,
+        auth: auth);
+    expect(find.byTooltip('Buka Draft'), findsOneWidget);
+    expect(find.text('Draft'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('history uses a denim header', (tester) async {
+    addTearDown(() => PosPage.requestTab.value = 0);
+    final auth = AuthStore(PosVisualApi())
+      ..role = 'kasir'
+      ..branchId = 4;
+    await showPosSurface(tester, const PosPage(), 390, Brightness.light,
+        auth: auth);
+    PosPage.requestTab.value = 2;
+    await tester.pumpAndSettle();
+    final bar = tester.widget<AppBar>(find.byType(AppBar));
+    expect(bar.backgroundColor, kTaskDark);
+    expect(bar.foregroundColor, Colors.white);
+    expect(bar.titleTextStyle?.color, Colors.white);
+  });
+
   for (final width in [320.0, 390.0]) {
     for (final brightness in Brightness.values) {
       testWidgets(
@@ -220,7 +248,7 @@ void main() {
         expect(
             (grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount)
                 .crossAxisCount,
-            2);
+            3);
         expect(
             tester
                 .widget<UiProductPhoto>(find.byType(UiProductPhoto).first)
@@ -244,7 +272,31 @@ void main() {
             findsOneWidget);
         await tester.tap(find.text('Bayar'));
         await tester.pumpAndSettle();
-        expect(find.text('Total pcs: 1 pcs'), findsOneWidget);
+        expect(find.byKey(const ValueKey('cart-sheet-header')), findsOneWidget);
+        expect(find.text('Nama'), findsOneWidget);
+        expect(find.text('Qty'), findsOneWidget);
+        expect(find.text('Total'), findsOneWidget);
+        expect(find.text('Diskon'), findsNothing);
+        expect(find.text('Catatan'), findsNothing);
+        expect(find.text('Tahan'), findsNothing);
+        expect(find.text('Lainnya'), findsNothing);
+        expect(
+            find.byKey(const ValueKey('cart-summary-footer')), findsOneWidget);
+        expect(find.text('1 pcs'), findsOneWidget);
+        expect(find.text('Total'), findsOneWidget);
+        expect(find.text('Pelanggan Umum'), findsNothing);
+        expect(find.text('Ambil Draft'), findsNothing);
+        expect(find.text('Ambil transaksi ditahan'), findsNothing);
+        expect(find.byTooltip('Tampilkan menu aksi'), findsOneWidget);
+        await tester.tap(find.byTooltip('Tampilkan menu aksi'));
+        await tester.pumpAndSettle();
+        expect(find.text('Diskon'), findsOneWidget);
+        expect(find.text('Catatan'), findsOneWidget);
+        expect(find.text('Tahan'), findsOneWidget);
+        expect(find.text('Lainnya'), findsOneWidget);
+        expect(find.byTooltip('Sembunyikan menu aksi'), findsOneWidget);
+        await tester.tap(find.byTooltip('Sembunyikan menu aksi'));
+        await tester.pumpAndSettle();
         expect(find.text('Bayar · Rp275.000').hitTestable(), findsOneWidget);
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
@@ -278,7 +330,8 @@ void main() {
         expect(selectedIcon.color, theme.colorScheme.primary);
         expect(selectedLabel.style!.color, theme.colorScheme.primary);
         expect(
-            _contrastRatio(theme.colorScheme.primary, selectedDecoration.color!),
+            _contrastRatio(
+                theme.colorScheme.primary, selectedDecoration.color!),
             greaterThan(4.5));
         expect(
             find.text('Selesaikan pembayaran').hitTestable(), findsOneWidget);
@@ -295,6 +348,9 @@ void main() {
             find.ancestor(of: invoice, matching: find.byType(GlassCard)).first);
         expect(card.radius, 16);
         expect(find.text('Rp275.000'), findsOneWidget);
+        final statusTop = tester.getTopLeft(find.text('Selesai'));
+        final totalTop = tester.getTopLeft(find.text('Rp275.000'));
+        expect(statusTop.dy, lessThan(totalTop.dy));
         await tester.tap(invoice);
         await tester.pumpAndSettle();
         expect(find.text('Kemeja Denim'), findsOneWidget);

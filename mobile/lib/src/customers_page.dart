@@ -62,7 +62,7 @@ class _CustomersPageState extends State<CustomersPage> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => Dialog(
-          backgroundColor: const Color(0xF2FFFFFF),
+          backgroundColor: Theme.of(ctx).colorScheme.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
             side: const BorderSide(color: kTaskBorder),
@@ -81,7 +81,7 @@ class _CustomersPageState extends State<CustomersPage> {
                           color: ink(context))),
                   const SizedBox(height: 4),
                   const Text('Lengkapi data pelanggan di bawah ini.',
-                      style: TextStyle(fontSize: 12, color: kTaskSecondary)),
+                      style: TextStyle(fontSize: 12)),
                   const SizedBox(height: 18),
                   _label('Nama *'),
                   _field(name, 'Nama pelanggan'),
@@ -133,10 +133,11 @@ class _CustomersPageState extends State<CustomersPage> {
                           onPressed: () => Navigator.pop(ctx, true),
                           style: FilledButton.styleFrom(
                             minimumSize: const Size(0, 46),
-                            backgroundColor: kTaskDark,
-                            foregroundColor: Colors.white,
+                            backgroundColor: Theme.of(ctx).colorScheme.primary,
+                            foregroundColor:
+                                Theme.of(ctx).colorScheme.onPrimary,
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
+                                borderRadius: BorderRadius.circular(14)),
                           ),
                           child: const Text('Simpan'),
                         ),
@@ -219,16 +220,17 @@ class _CustomersPageState extends State<CustomersPage> {
 
   InputDecoration _decoration() {
     final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: kTaskBorder),
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(color: taskBorder(context)),
     );
     return InputDecoration(
       filled: true,
-      fillColor: kTaskBg,
+      fillColor: taskSurface(context),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       enabledBorder: border,
       focusedBorder: border.copyWith(
-          borderSide: const BorderSide(color: kTaskDark, width: 1.4)),
+          borderSide: BorderSide(
+              color: Theme.of(context).colorScheme.primary, width: 2)),
     );
   }
 

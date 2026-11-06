@@ -6,10 +6,18 @@ import 'task_ui.dart';
 
 /// Bottom sheet untuk scan, pilih, dan cetak ke printer Bluetooth (GPrinter).
 class PrinterSetupSheet extends StatefulWidget {
-  const PrinterSetupSheet({super.key, required this.title, required this.job});
+  const PrinterSetupSheet({
+    super.key,
+    required this.title,
+    required this.job,
+    this.autoScan = false,
+    this.autoPrintOnDetect = false,
+  });
   final String title;
   final Future<void> Function(PrinterService printer, BluetoothDevice device)
       job;
+  final bool autoScan;
+  final bool autoPrintOnDetect;
 
   @override
   State<PrinterSetupSheet> createState() => _PrinterSetupSheetState();
@@ -23,6 +31,14 @@ class _PrinterSetupSheetState extends State<PrinterSetupSheet> {
   int? _printingIndex;
   String? _status;
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.autoScan) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scan());
+    }
+  }
+
   Future<void> _scan() async {
     setState(() {
       _scanning = true;
@@ -34,8 +50,23 @@ class _PrinterSetupSheetState extends State<PrinterSetupSheet> {
       if (!mounted) return;
       setState(() => _devices = devices);
       if (devices.isEmpty) {
-        _error =
-            'Tidak ada printer ditemukan. Pastikan GPrinter menyala dan sudah dipasangkan di Settings Bluetooth Android.';
+        setState(() {
+          _error =
+              'Tidak ada printer ditemukan. Pastikan GPrinter menyala dan sudah dipasangkan di Settings Bluetooth Android.';
+        });
+      } else if (widget.autoPrintOnDetect) {
+        final saved = await _printer.savedPrinter();
+        final savedIndex = saved == null
+            ? -1
+            : devices.indexWhere((device) => device.address == saved.address);
+        final autoIndex = savedIndex >= 0
+            ? savedIndex
+            : devices.length == 1
+                ? 0
+                : -1;
+        if (autoIndex >= 0 && mounted) {
+          await _print(devices[autoIndex], autoIndex);
+        }
       }
     } catch (e) {
       if (mounted) setState(() => _error = 'Gagal scan: $e');
@@ -159,11 +190,18 @@ Future<void> showPrinterJobSheet(
   BuildContext context,
   Future<void> Function(PrinterService printer, BluetoothDevice device) job, {
   String title = 'Cetak ke Printer Bluetooth',
+  bool autoScan = false,
+  bool autoPrintOnDetect = false,
 }) {
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    builder: (_) => PrinterSetupSheet(title: title, job: job),
+    builder: (_) => PrinterSetupSheet(
+      title: title,
+      job: job,
+      autoScan: autoScan,
+      autoPrintOnDetect: autoPrintOnDetect,
+    ),
   );
 }
 
@@ -174,15 +212,32 @@ Future<void> showPrinterSheet(
   return showPrinterJobSheet(context, (printer, device) async {
     final receipt = await receiptLoader();
     await printer.printReceipt(receipt);
-  });
+  }, autoScan: true, autoPrintOnDetect: true);
 }
 
-/// Cetak pakai printer tersimpan tanpa scan ulang; kalau belum ada,
-/// fallback ke bottom sheet pilih printer.
+Future<void>? _printNowInFlight;
+
+/// Cetak ke printer tersimpan. Jika koneksi lama sudah tidak tersedia, scan
+/// otomatis dan langsung mencetak bila satu printer terdeteksi.
 Future<void> printNow(
   BuildContext context,
   Future<void> Function(PrinterService printer, BluetoothDevice device) job, {
   String title = 'Cetak ke Printer Bluetooth',
+}) async {
+  if (_printNowInFlight != null) return _printNowInFlight!;
+  final operation = _printNowInternal(context, job, title: title);
+  _printNowInFlight = operation;
+  try {
+    await operation;
+  } finally {
+    if (identical(_printNowInFlight, operation)) _printNowInFlight = null;
+  }
+}
+
+Future<void> _printNowInternal(
+  BuildContext context,
+  Future<void> Function(PrinterService printer, BluetoothDevice device) job, {
+  required String title,
 }) async {
   final printer = PrinterService();
   final saved = await printer.savedPrinter();
@@ -201,7 +256,13 @@ Future<void> printNow(
     }
   }
   if (!context.mounted) return;
-  await showPrinterJobSheet(context, job, title: title);
+  await showPrinterJobSheet(
+    context,
+    job,
+    title: title,
+    autoScan: true,
+    autoPrintOnDetect: true,
+  );
 }
 
 Future<void> printReceiptNow(

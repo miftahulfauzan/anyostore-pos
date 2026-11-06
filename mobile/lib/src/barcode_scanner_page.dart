@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import 'task_ui.dart';
+
 class BarcodeScannerPage extends StatefulWidget {
   const BarcodeScannerPage({super.key});
   @override
@@ -23,7 +25,7 @@ class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: kTaskDark,
         foregroundColor: Colors.white,
         title: const Text('Scan Barcode'),
       ),

@@ -727,9 +727,9 @@ class _MutationReportPageState extends State<MutationReportPage> {
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                       color: ink(context))),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 5),
-                child: Text('·', style: TextStyle(color: kTaskGray)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                child: Text('·', style: TextStyle(color: taskMuted(context))),
               ),
               Expanded(
                   child: Text(batch['number']?.toString() ?? '-',
@@ -772,10 +772,10 @@ class _MutationReportPageState extends State<MutationReportPage> {
             const SizedBox(height: 4),
             const Divider(height: 1),
             if (products.isEmpty)
-              const Padding(
-                padding: EdgeInsets.only(top: 10),
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
                 child: Text('Tidak ada detail produk.',
-                    style: TextStyle(color: kTaskGray)),
+                    style: TextStyle(color: taskMuted(context))),
               )
             else
               for (final product in products)
@@ -793,12 +793,13 @@ class _MutationReportPageState extends State<MutationReportPage> {
                 ),
               ),
             ] else
-              const Padding(
-                padding: EdgeInsets.only(top: 10),
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text('Data import',
-                      style: TextStyle(color: kTaskGray, fontSize: 12)),
+                      style:
+                          TextStyle(color: taskMuted(context), fontSize: 12)),
                 ),
               ),
           ],
@@ -894,8 +895,8 @@ class _MutationReportPageState extends State<MutationReportPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(facts[index].$1,
-                  style: const TextStyle(
-                      color: kTaskGray,
+                  style: TextStyle(
+                      color: taskMuted(context),
                       fontSize: 9,
                       fontWeight: FontWeight.w700)),
               const SizedBox(height: 3),
@@ -936,8 +937,10 @@ class _MutationReportPageState extends State<MutationReportPage> {
                     color: ink(context))),
           ),
           Text('${_reportInt(product['qty'])} pcs',
-              style: const TextStyle(
-                  fontSize: 12, color: kTaskGray, fontWeight: FontWeight.w700)),
+              style: TextStyle(
+                  fontSize: 12,
+                  color: taskMuted(context),
+                  fontWeight: FontWeight.w700)),
         ],
       ),
     );
