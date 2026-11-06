@@ -353,7 +353,7 @@ export default function AppShell({ title, eyebrow, actions, children }) {
             <button type="button" className="theme-toggle" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Ganti ke mode terang' : 'Ganti ke mode gelap'}>
               {theme === 'dark' ? <Sun aria-hidden="true" size={18} /> : <Moon aria-hidden="true" size={18} />}
             </button>
-            {actions}
+            <div className="header-action-links">{actions}</div>
           </div>
         </header>
         <div className="app-content">{children}</div>

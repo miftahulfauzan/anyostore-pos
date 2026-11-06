@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const root = new URL('../', `file://${__dirname}/`);
 const css = fs.readFileSync(new URL('app/globals.css', root), 'utf8');
 const layout = fs.readFileSync(new URL('app/layout.js', root), 'utf8');
+const appShell = fs.readFileSync(new URL('app/components/AppShell.js', root), 'utf8');
 const readIfPresent = (relativePath) => {
   const url = new URL(relativePath, root);
   return fs.existsSync(url) ? fs.readFileSync(url, 'utf8') : '';
@@ -19,7 +20,15 @@ test('mobile dashboard actions use a stable two-row grid', () => {
   assert.match(css, /@media\s*\(max-width:\s*520px\)[\s\S]*?\.header-actions\s*\{[^}]*display:\s*grid/s);
   assert.match(css, /\.header-actions\s*>\s*\.branch-switcher\s*\{[^}]*grid-column:\s*1/s);
   assert.match(css, /\.header-actions\s*>\s*\.theme-toggle\s*\{[^}]*grid-column:\s*2/s);
-  assert.match(css, /\.header-actions\s*>\s*a\.button-link:first-of-type\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/s);
+  assert.match(css, /\.header-action-links\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*repeat\(2/s);
+  assert.match(css, /\.header-action-links\s*>\s*a\.button-link\s*\{[^}]*width:\s*100%/s);
+  assert.match(appShell, /className="header-action-links">\{actions\}<\/div>/);
+  const finalMobileLayoutStart = css.lastIndexOf('/* Final mobile dashboard layout */');
+  assert.notEqual(finalMobileLayoutStart, -1);
+  const finalMobileLayout = css.slice(finalMobileLayoutStart);
+  assert.match(finalMobileLayout, /\.header-actions\s*\{[^}]*display:\s*grid/s);
+  assert.match(finalMobileLayout, /\.header-action-links\s*\{[^}]*grid-template-columns:\s*repeat\(2/s);
+  assert.doesNotMatch(finalMobileLayout, /\.header-actions\s*\{[^}]*display:\s*flex/s);
 });
 
 test('mobile dashboard date filter keeps separator aligned and apply full width', () => {
@@ -41,4 +50,13 @@ test('web app exposes an installable iOS-compatible PWA shell', () => {
   assert.match(register, /navigator\.serviceWorker\.register\(['"]\/sw\.js['"]/);
   assert.match(serviceWorker, /event\.respondWith/);
   assert.match(serviceWorker, /\/api\//);
+});
+
+test('mobile sidebar backdrop stays translucent and closes on outside tap', () => {
+  const finalMobileLayoutStart = css.lastIndexOf('/* Final mobile dashboard layout */');
+  const finalMobileLayout = css.slice(finalMobileLayoutStart);
+  assert.match(appShell, /className=\{`sidebar-backdrop \$\{mobileNavOpen \? 'visible' : ''\}`\}/);
+  assert.match(appShell, /onClick=\{\(\) => setMobileNavOpen\(false\)\}/);
+  assert.match(finalMobileLayout, /\.sidebar-backdrop\s*\{[^}]*background:\s*rgba\(15,\s*23,\s*42,\s*\.58\)\s*!important/s);
+  assert.match(finalMobileLayout, /\.sidebar-backdrop\.visible\s*\{[^}]*pointer-events:\s*auto\s*!important/s);
 });
