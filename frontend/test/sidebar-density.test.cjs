@@ -41,3 +41,15 @@ test('very short desktop screens tighten spacing further without hiding navigati
   assert.match(normalLinks, /min-height:\s*34px/);
   assert.doesNotMatch(compact, /display:\s*none/);
 });
+
+test('sidebar submenu toggles keep icon, label, and chevron aligned', () => {
+  const toggle = block(css, '.sidebar .nav-subgroup-toggle');
+  const items = block(css, '.sidebar .nav-subgroup-items');
+
+  assert.match(toggle, /display:\s*flex/);
+  assert.match(toggle, /align-items:\s*center/);
+  assert.match(toggle, /min-height:\s*38px/);
+  assert.match(toggle, /justify-content:\s*flex-start/);
+  assert.match(items, /display:\s*grid/);
+  assert.match(items, /margin-left:\s*25px/);
+});
