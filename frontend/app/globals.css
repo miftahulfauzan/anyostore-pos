@@ -3688,6 +3688,18 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
 
 /* Final mobile dashboard layout */
 @media (max-width: 520px) {
+  .app-header,
+  .app-content {
+    width: min(100%, 1180px);
+    margin-inline: auto;
+  }
+  .app-content {
+    justify-items: center;
+  }
+  .app-content > * {
+    width: min(100%, 1180px);
+    margin-inline: auto;
+  }
   .header-actions {
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) 44px;
@@ -3712,7 +3724,7 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
   .header-action-links {
     display: grid;
     grid-column: 1 / -1;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
     min-width: 0;
   }
@@ -3720,6 +3732,10 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
     width: 100%;
     min-width: 0;
     justify-content: center;
+    padding-inline: 5px;
+    font-size: 11px;
+    line-height: 1.15;
+    text-align: center;
   }
   .sidebar-backdrop {
     position: fixed;
