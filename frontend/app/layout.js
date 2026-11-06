@@ -2,6 +2,7 @@ import './globals.css';
 import './audit-fixes.css';
 import NotificationCenter from './components/NotificationCenter';
 import AppStateProvider from './components/AppStateProvider';
+import PwaRegister from './components/PwaRegister';
 import { preferencesScript } from './components/app-state.cjs';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://anyostore.my.id';
@@ -14,6 +15,13 @@ export const metadata = {
   description: siteDescription,
   icons: {
     icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }, { url: '/icon.svg', type: 'image/svg+xml' }],
+    apple: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+  },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    title: 'Anyostore POS',
+    statusBarStyle: 'black-translucent',
   },
   openGraph: {
     type: 'website',
@@ -36,6 +44,7 @@ export const viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  themeColor: '#1E3A5F',
 };
 
 export default function RootLayout({ children }) {
@@ -50,6 +59,7 @@ export default function RootLayout({ children }) {
       <body style={{ fontFamily: "'Plus Jakarta Sans', Inter, system-ui, -apple-system, sans-serif" }}>
         <a className="skip-link" href="#main-content">Lewati ke konten utama</a>
         <AppStateProvider>{children}</AppStateProvider>
+        <PwaRegister />
         <NotificationCenter />
       </body>
     </html>

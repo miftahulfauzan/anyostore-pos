@@ -1,0 +1,20 @@
+{
+  "name": "Anyostore POS",
+  "short_name": "Anyostore",
+  "description": "Operasional toko dan gudang Anyostore.",
+  "lang": "id-ID",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F5F1EA",
+  "theme_color": "#1E3A5F",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
