@@ -21,11 +21,18 @@ function validateTransferStatus(status) {
 function buildTransferCancellationMovements(transfer, items, reason = '') {
   const cleanReason = String(reason || '').trim().slice(0, 255);
   const note = `Pembatalan ${transfer.number || `transfer #${transfer.id}`}${cleanReason ? `: ${cleanReason}` : ''}`;
+  const crossBranch = Number(transfer.source_branch_id) !== Number(transfer.destination_branch_id);
 
   return items.flatMap((item) => {
     const quantity = Number(item.quantity);
     if (!Number.isInteger(quantity) || quantity <= 0) {
       throw fail(400, 'Rincian transfer tidak valid');
+    }
+    if (crossBranch && item.destination_product_id == null) {
+      throw fail(400, 'Mapping produk tujuan transfer tidak tersedia');
+    }
+    if (crossBranch && item.variant_id != null && item.destination_variant_id == null) {
+      throw fail(400, 'Mapping varian tujuan transfer tidak tersedia');
     }
     return [
       {

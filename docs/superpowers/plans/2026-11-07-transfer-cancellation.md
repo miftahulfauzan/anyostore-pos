@@ -102,4 +102,3 @@
 - [ ] **Step 3: Run the production web build and a release Android compile check** if dependencies/toolchain are available; do not deploy or install without a separate user request.
 - [ ] **Step 4: Review the diff** for migration safety, permission scope, atomic rollback, and accidental changes outside transfer cancellation.
 - [ ] **Step 5: Commit** the final verification/ledger update with `chore: verify transfer cancellation`.
-

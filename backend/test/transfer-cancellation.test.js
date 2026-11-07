@@ -84,6 +84,22 @@ test('inter-store cancellation uses destination product and variant mappings', (
   assert.equal(movements[1].delta, 2);
 });
 
+test('inter-store cancellation refuses legacy rows without destination mapping', () => {
+  assert.throws(
+    () => buildTransferCancellationMovements(
+      {
+        id: 44,
+        source_branch_id: 4,
+        destination_branch_id: 9,
+        source_warehouse_id: 10,
+        destination_warehouse_id: 20,
+      },
+      [{ product_id: 21, variant_id: 31, destination_product_id: null, destination_variant_id: null, quantity: 2 }],
+    ),
+    (error) => error.status === 400 && /mapping produk tujuan/i.test(error.message),
+  );
+});
+
 test('only completed transfers can be cancelled and cancelled repeats conflict', () => {
   assert.equal(validateTransferStatus('completed'), null);
   assert.throws(() => validateTransferStatus('cancelled'), (error) => error.status === 409);
