@@ -5,6 +5,17 @@ const { authenticate } = require('../auth');
 const router = express.Router();
 router.use(authenticate);
 
+function buildReceiptStore(transaction, settings) {
+  return {
+    store_name: transaction.store_name,
+    store_address: transaction.store_address || '',
+    store_phone: transaction.store_phone || '',
+    store_email: transaction.store_email || '',
+    store_tax_id: transaction.store_tax_id || '',
+    ...Object.fromEntries(settings.map((setting) => [setting.key, setting.value])),
+  };
+}
+
 router.get('/invoice/:id', async (req, res, next) => {
   try {
     const owner = req.user.role === 'owner';
@@ -19,19 +30,13 @@ router.get('/invoice/:id', async (req, res, next) => {
     const [items] = await db.execute('SELECT product_name AS name, product_sku AS sku, variant_detail, quantity, price, discount, subtotal FROM transaction_items WHERE transaction_id = ? ORDER BY id', [req.params.id]);
     const [payments] = await db.execute('SELECT payment_method, amount, reference FROM transaction_payments WHERE transaction_id = ? ORDER BY id', [req.params.id]);
     const [settings] = await db.execute(
-      'SELECT `key`, `value` FROM store_settings WHERE branch_id = ? AND `key` IN (\'receipt_header\', \'receipt_footer\', \'receipt_note\', \'store_logo\', \'show_logo\', \'printer_size\')',
+      'SELECT `key`, `value` FROM store_settings WHERE branch_id = ? AND `key` IN (\'receipt_header\', \'receipt_footer\', \'receipt_note\', \'store_logo\', \'invoice_logo\', \'show_logo\', \'printer_size\')',
       [transactions[0].branch_id]
     );
-    const store = {
-      store_name: transactions[0].store_name,
-      store_address: transactions[0].store_address || '',
-      store_phone: transactions[0].store_phone || '',
-      store_email: transactions[0].store_email || '',
-      store_tax_id: transactions[0].store_tax_id || '',
-      ...Object.fromEntries(settings.map((setting) => [setting.key, setting.value]))
-    };
+    const store = buildReceiptStore(transactions[0], settings);
     res.json({ success: true, data: { ...transactions[0], items, payments, store } });
   } catch (error) { next(error); }
 });
 
 module.exports = router;
+module.exports.buildReceiptStore = buildReceiptStore;

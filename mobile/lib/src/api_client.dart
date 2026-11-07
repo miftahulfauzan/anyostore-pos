@@ -83,6 +83,10 @@ class ApiClient {
       _request(() => _httpClient.put(_uri(path),
           headers: _headers, body: jsonEncode(_withBranch(body))));
 
+  Future<Map<String, dynamic>> patch(String path, Map<String, dynamic> body) =>
+      _request(() => _httpClient.patch(_uri(path),
+          headers: _headers, body: jsonEncode(_withBranch(body))));
+
   Future<Map<String, dynamic>> delete(String path) =>
       _request(() => _httpClient.delete(_uri(path), headers: _headers));
 
@@ -222,6 +226,19 @@ class ApiClient {
     final res = await get('/products/categories');
     return (res['data'] as List?) ?? [];
   }
+
+  Future<Map<String, dynamic>> createCategory(String name, {String? color}) =>
+      post('/products/categories', {'name': name, 'color': color});
+
+  Future<Map<String, dynamic>> updateCategory(int id, String name,
+          {String? color}) =>
+      put('/products/categories/$id', {'name': name, 'color': color});
+
+  Future<Map<String, dynamic>> reorderCategories(List<int> order) =>
+      patch('/products/categories/reorder', {'order': order});
+
+  Future<Map<String, dynamic>> deleteCategory(int id) =>
+      delete('/products/categories/$id');
 
   Future<Map<String, dynamic>> createProduct(Map<String, dynamic> body) =>
       post('/products', body);

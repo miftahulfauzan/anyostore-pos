@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'format.dart';
@@ -8,9 +10,30 @@ import 'receipt_layout.dart';
 
 /// Cetak struk thermal ke printer Bluetooth ESC/POS (GPrinter, 80mm).
 class PrinterService {
+  // Small packets are more reliable with the low-cost Bluetooth serial
+  // adapters used by thermal printers. A single large write can be accepted
+  // by the Android plugin but only the beginning reaches the printer.
+  static const _bluetoothChunkSize = 128;
+  static const _betweenChunks = Duration(milliseconds: 45);
+  static const _afterWrite = Duration(milliseconds: 450);
+
   static const _prefName = 'pos_saved_printer_name';
   static const _prefAddr = 'pos_saved_printer_addr';
   static const _activeBranch = 'pos_active_branch';
+
+  PrinterService({
+    http.Client? httpClient,
+    String? baseUrl,
+    Future<Uint8List?> Function(String url)? logoLoader,
+  })  : _httpClient = httpClient ?? http.Client(),
+        _baseUrl = baseUrl ??
+            const String.fromEnvironment('API_URL',
+                defaultValue: 'https://anyostore.my.id/api'),
+        _logoLoader = logoLoader;
+
+  final http.Client _httpClient;
+  final String _baseUrl;
+  final Future<Uint8List?> Function(String url)? _logoLoader;
 
   /// Printer disimpan per toko/gudang (multi-printer per cabang).
   static Future<void> setActiveBranch(int branchId) async {
@@ -90,6 +113,55 @@ class PrinterService {
 
   Future<void> disconnect() => BluetoothPrintPlus.disconnect();
 
+  Future<void> _writeBytes(Uint8List bytes) async {
+    if (bytes.isEmpty) return;
+
+    for (var start = 0; start < bytes.length; start += _bluetoothChunkSize) {
+      final end = (start + _bluetoothChunkSize).clamp(0, bytes.length);
+      final chunk = Uint8List.fromList(bytes.sublist(start, end));
+      final result = await BluetoothPrintPlus.write(chunk);
+      if (result == false) {
+        throw StateError('Printer menolak data pada paket ${start + 1}.');
+      }
+      if (end < bytes.length) await Future<void>.delayed(_betweenChunks);
+    }
+
+    // Keep the connection alive while the last packet leaves the phone. This
+    // is important because printNow disconnects immediately after this call.
+    await Future<void>.delayed(_afterWrite);
+  }
+
+  String _mediaUrl(String path) {
+    if (Uri.tryParse(path)?.hasScheme == true) return path;
+    final root = _baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+    return path.startsWith('/') ? '$root$path' : '$root/$path';
+  }
+
+  Future<Uint8List?> _loadReceiptLogo(Map<String, dynamic> receipt) async {
+    try {
+      final store = (receipt['store'] as Map<String, dynamic>?) ?? {};
+      if (store['show_logo']?.toString().toLowerCase() == 'false') return null;
+      final invoiceLogo = store['invoice_logo']?.toString().trim() ?? '';
+      final storeLogo = store['store_logo']?.toString().trim() ?? '';
+      final path = invoiceLogo.isNotEmpty ? invoiceLogo : storeLogo;
+      if (path.isEmpty) return null;
+      final url = _mediaUrl(path);
+      final logoLoader = _logoLoader;
+      if (logoLoader != null) return await logoLoader(url);
+      final response = await _httpClient
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 3));
+      if (response.statusCode != 200 || response.bodyBytes.isEmpty) return null;
+      return Uint8List.fromList(response.bodyBytes);
+    } catch (_) {
+      // A broken logo must not prevent the receipt text from printing.
+      return null;
+    }
+  }
+
+  int _receiptLogoMaxWidth(Map<String, dynamic> receipt) =>
+      ReceiptLayout.fromReceipt(receipt).width <= 32 ? 384 : 576;
+
   Future<void> printBarcode({required String code, String? label}) async {
     final esc = EscCommand();
     await esc.cleanCommand();
@@ -98,6 +170,7 @@ class PrinterService {
           content: label.trim(),
           alignment: Alignment.center,
           style: EscTextStyle.bold);
+      await esc.newline();
     }
     await esc.code128(
         content: code,
@@ -105,9 +178,10 @@ class PrinterService {
         alignment: Alignment.center,
         hriPosition: HriPosition.below);
     await esc.newline();
+    await esc.print(feedLines: 4);
     await esc.cutPaper();
     final bytes = await esc.getCommand();
-    if (bytes != null) await BluetoothPrintPlus.write(bytes);
+    if (bytes != null) await _writeBytes(bytes);
   }
 
   /// Label harga 40x30 mm untuk rak: nama, varian, harga besar, sku/barcode.
@@ -121,10 +195,11 @@ class PrinterService {
     final esc = EscCommand();
     await esc.cleanCommand();
     await esc.text(content: name.trim(), style: EscTextStyle.bold);
+    await esc.newline();
     if (variant != null && variant.trim().isNotEmpty) {
       await esc.text(content: variant.trim());
+      await esc.newline();
     }
-    await esc.newline();
     await esc.text(
         content: price.trim(),
         alignment: Alignment.center,
@@ -133,6 +208,7 @@ class PrinterService {
     await esc.newline();
     if (sku != null && sku.trim().isNotEmpty) {
       await esc.text(content: sku.trim(), alignment: Alignment.center);
+      await esc.newline();
     }
     if (barcode != null && barcode.trim().isNotEmpty) {
       await esc.code128(
@@ -142,15 +218,26 @@ class PrinterService {
           hriPosition: HriPosition.below);
     }
     await esc.newline();
+    await esc.print(feedLines: 4);
     await esc.cutPaper();
     final bytes = await esc.getCommand();
-    if (bytes != null) await BluetoothPrintPlus.write(bytes);
+    if (bytes != null) await _writeBytes(bytes);
   }
 
   Future<void> printReceipt(Map<String, dynamic> receipt) async {
     final esc = EscCommand();
     await esc.cleanCommand();
     final layout = ReceiptLayout.fromReceipt(receipt);
+
+    final logo = await _loadReceiptLogo(receipt);
+    if (logo != null && logo.isNotEmpty) {
+      await esc.image(
+        image: logo,
+        alignment: Alignment.center,
+        maxWidth: _receiptLogoMaxWidth(receipt),
+      );
+      await esc.newline();
+    }
 
     for (final row in layout.build(receipt)) {
       await esc.text(
@@ -161,11 +248,13 @@ class PrinterService {
         style: row.bold ? EscTextStyle.bold : EscTextStyle.default_,
         fontSize: row.large ? EscFontSize.size2 : EscFontSize.default_,
       );
+      await esc.newline();
     }
+    await esc.print(feedLines: 4);
     await esc.cutPaper();
 
     final bytes = await esc.getCommand();
-    if (bytes != null) await BluetoothPrintPlus.write(bytes);
+    if (bytes != null) await _writeBytes(bytes);
   }
 
   /// Cetak laporan penutupan harian.
@@ -173,14 +262,17 @@ class PrinterService {
     final esc = EscCommand();
     await esc.cleanCommand();
     Future<void> line(String text,
-            {Alignment alignment = Alignment.left,
-            EscTextStyle style = EscTextStyle.default_,
-            EscFontSize fontSize = EscFontSize.default_}) =>
-        esc.text(
-            content: text,
-            alignment: alignment,
-            style: style,
-            fontSize: fontSize);
+        {Alignment alignment = Alignment.left,
+        EscTextStyle style = EscTextStyle.default_,
+        EscFontSize fontSize = EscFontSize.default_}) async {
+      await esc.text(
+          content: text,
+          alignment: alignment,
+          style: style,
+          fontSize: fontSize);
+      await esc.newline();
+    }
+
     final store = (closing['store'] as Map<String, dynamic>?) ?? {};
     final storeName = store['store_name']?.toString() ?? 'Anyostore';
     final methods = (closing['methods'] as Map<String, dynamic>?) ?? {};
@@ -219,11 +311,10 @@ class PrinterService {
     }
     await line('--------------------------------');
     await line('Terima kasih, sampai jumpa lagi!', alignment: Alignment.center);
-    await esc.newline();
-    await esc.newline();
+    await esc.print(feedLines: 4);
     await esc.cutPaper();
     final bytes = await esc.getCommand();
-    if (bytes != null) await BluetoothPrintPlus.write(bytes);
+    if (bytes != null) await _writeBytes(bytes);
   }
 
   /// Uji cetak sederhana untuk memastikan printer siap dipakai.
@@ -235,16 +326,19 @@ class PrinterService {
         alignment: Alignment.center,
         style: EscTextStyle.bold,
         fontSize: EscFontSize.size2);
+    await esc.newline();
     await esc.text(content: '--------------------------------');
+    await esc.newline();
     await esc.text(
         content: 'UJI CETAK PRINTER',
         alignment: Alignment.center,
         style: EscTextStyle.bold);
+    await esc.newline();
     await esc.text(content: 'Printer siap dipakai otomatis');
     await esc.newline();
-    await esc.newline();
+    await esc.print(feedLines: 4);
     await esc.cutPaper();
     final bytes = await esc.getCommand();
-    if (bytes != null) await BluetoothPrintPlus.write(bytes);
+    if (bytes != null) await _writeBytes(bytes);
   }
 }

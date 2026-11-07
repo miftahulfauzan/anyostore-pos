@@ -9,12 +9,14 @@ class VariantPicker extends StatefulWidget {
       {super.key,
       required this.product,
       required this.variants,
-      required this.mediaUrl});
+      required this.mediaUrl,
+      this.initialQty = 1});
   final Map<String, dynamic> product;
   final List<Map<String, dynamic>> variants;
 
   /// Mengubah path foto relatif -> URL penuh.
   final String Function(String?) mediaUrl;
+  final int initialQty;
 
   @override
   State<VariantPicker> createState() => _VariantPickerState();
@@ -22,11 +24,12 @@ class VariantPicker extends StatefulWidget {
 
 class _VariantPickerState extends State<VariantPicker> {
   int? _variantId;
-  int _qty = 1;
+  late int _qty;
 
   @override
   void initState() {
     super.initState();
+    _qty = widget.initialQty < 1 ? 1 : widget.initialQty;
     if (widget.variants.isNotEmpty) {
       _variantId = widget.variants.first['id'] as int?;
     }

@@ -54,8 +54,8 @@ class _LoginPageState extends State<LoginPage> {
 
   InputDecoration _dec(String label, {String? hint, Widget? suffix}) {
     final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: Color(0xff64748B)),
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(color: taskBorder(context)),
     );
     return InputDecoration(
       hintText: hint,
@@ -106,7 +106,6 @@ class _LoginPageState extends State<LoginPage> {
                         child: GlassCard(
                           padding: const EdgeInsets.all(24),
                           radius: 20,
-                          frosted: true,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
@@ -225,7 +224,7 @@ class _LoginPageState extends State<LoginPage> {
                                         height: 22,
                                         child: CircularProgressIndicator(
                                             strokeWidth: 2,
-                                            color: Color(0xfffcfbf8)),
+                                            color: Colors.white),
                                       )
                                     : const Text('Masuk ke Anyostore'),
                               ),

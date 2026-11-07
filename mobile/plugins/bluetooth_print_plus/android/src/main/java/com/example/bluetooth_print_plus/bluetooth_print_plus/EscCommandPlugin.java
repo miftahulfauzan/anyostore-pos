@@ -55,6 +55,7 @@ public class EscCommandPlugin implements FlutterPlugin, MethodCallHandler, Reque
         Integer height = call.argument("height");
         Integer rotation = call.argument("rotation");
         Integer alignment = call.argument("alignment");
+        Integer maxWidth = call.argument("maxWidth");
         String method = call.method;
         EscCommand.JUSTIFICATION align = EscCommand.JUSTIFICATION.LEFT;
         if (alignment != null) {
@@ -160,6 +161,17 @@ public class EscCommandPlugin implements FlutterPlugin, MethodCallHandler, Reque
                 assert bytes != null;
                 this.getEscCommand().addSelectJustification(align);
                 Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                if (bitmap == null) {
+                    result.error("INVALID_IMAGE", "Logo tidak dapat dibaca", null);
+                    break;
+                }
+                if (maxWidth != null && maxWidth > 0 && bitmap.getWidth() > maxWidth) {
+                    int scaledHeight = Math.max(1, Math.round(
+                            bitmap.getHeight() * (maxWidth.floatValue() / bitmap.getWidth())));
+                    Bitmap scaled = Bitmap.createScaledBitmap(bitmap, maxWidth, scaledHeight, true);
+                    if (scaled != bitmap) bitmap.recycle();
+                    bitmap = scaled;
+                }
                 this.getEscCommand().addOriginRastBitImage(bitmap, bitmap.getWidth(), 1);
                 result.success(true);
                 break;

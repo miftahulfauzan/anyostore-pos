@@ -8,6 +8,7 @@ const { deleteCatalogProduct, productCapabilities } = require('../product-lifecy
 const { loadProductRackLocations } = require('../product-rack-locations');
 const { createProductWorkbook, parseProductWorkbook, XLSX_MIME, MAX_ROWS_PER_SHEET } = require('../product-excel');
 const { validateProductWorkbook, applyProductWorkbook } = require('../product-excel-import');
+const { normalizeCategoryColor } = require('../category-color');
 
 const router = express.Router();
 router.use(authenticate);
@@ -173,7 +174,7 @@ async function syncVariantColorsAcrossStores(productId, branchId, executor = db)
 
 router.get('/categories', async (req, res, next) => {
   try {
-    const [categories] = await db.execute('SELECT id, name, slug, sku_prefix, sort_order FROM categories WHERE is_active = TRUE ORDER BY sort_order, name');
+    const [categories] = await db.execute('SELECT id, name, slug, sku_prefix, sort_order, color FROM categories WHERE is_active = TRUE ORDER BY sort_order, name');
     res.json({ success: true, data: categories });
   } catch (error) { next(error); }
 });
@@ -182,9 +183,10 @@ router.post('/categories', authorize('owner', 'manager', 'admin', 'gudang'), asy
   try {
     const { name, slug, sku_prefix: skuPrefix, description } = req.body;
     if (!name?.trim()) return res.status(400).json({ success: false, message: 'Nama kategori wajib diisi' });
+    const color = normalizeCategoryColor(req.body.color);
     const [result] = await db.execute(
-      'INSERT INTO categories (name, slug, sku_prefix, description) VALUES (?, ?, ?, ?)',
-      [name.trim(), slug?.trim() || null, skuPrefix?.trim() || null, description?.trim() || null]
+      'INSERT INTO categories (name, slug, sku_prefix, description, color) VALUES (?, ?, ?, ?, ?)',
+      [name.trim(), slug?.trim() || null, skuPrefix?.trim() || null, description?.trim() || null, color]
     );
     // Kategori baru ditaruh paling akhir sesuai urutannya.
     await db.execute('UPDATE categories SET sort_order = id WHERE id = ?', [result.insertId]);
@@ -200,7 +202,14 @@ router.put('/categories/:id', authorize('owner', 'manager', 'admin', 'gudang'), 
     if (!name?.trim()) return res.status(400).json({ success: false, message: 'Nama kategori wajib diisi' });
     const [existing] = await db.execute('SELECT id FROM categories WHERE id = ?', [id]);
     if (!existing[0]) return res.status(404).json({ success: false, message: 'Kategori tidak ditemukan' });
-    await db.execute('UPDATE categories SET name = ?, slug = ?, sku_prefix = ?, description = ? WHERE id = ?', [name.trim(), slug?.trim() || null, skuPrefix?.trim() || null, description?.trim() || null, id]);
+    const fields = ['name = ?', 'slug = ?', 'sku_prefix = ?', 'description = ?'];
+    const params = [name.trim(), slug?.trim() || null, skuPrefix?.trim() || null, description?.trim() || null];
+    if (Object.prototype.hasOwnProperty.call(req.body, 'color')) {
+      fields.push('color = ?');
+      params.push(normalizeCategoryColor(req.body.color));
+    }
+    params.push(id);
+    await db.execute(`UPDATE categories SET ${fields.join(', ')} WHERE id = ?`, params);
     res.json({ success: true });
   } catch (error) { next(error); }
 });
@@ -221,8 +230,16 @@ router.delete('/categories/:id', authorize('owner'), async (req, res, next) => {
 // Simpan urutan kategori (drag & drop): body { order: [id, id, ...] }.
 router.patch('/categories/reorder', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
-    const order = Array.isArray(req.body.order) ? req.body.order.map((id) => Number(id)).filter(Number.isInteger) : [];
+    const order = Array.isArray(req.body.order) ? req.body.order.map((id) => Number(id)) : [];
     if (!order.length) return res.status(400).json({ success: false, message: 'Urutan kategori tidak valid' });
+    if (order.some((id) => !Number.isInteger(id) || id < 1) || new Set(order).size !== order.length) {
+      return res.status(400).json({ success: false, message: 'Urutan kategori tidak valid' });
+    }
+    const [activeCategories] = await db.execute('SELECT id FROM categories WHERE is_active = TRUE ORDER BY sort_order, name');
+    const activeIds = activeCategories.map((category) => Number(category.id));
+    if (order.length !== activeIds.length || order.some((id) => !activeIds.includes(id))) {
+      return res.status(400).json({ success: false, message: 'Urutan kategori harus memuat semua kategori aktif' });
+    }
     for (let index = 0; index < order.length; index += 1) {
       await db.execute('UPDATE categories SET sort_order = ? WHERE id = ?', [index, order[index]]);
     }
@@ -404,7 +421,7 @@ router.get('/', async (req, res, next) => {
     const [rows] = await db.execute(
       `SELECT p.id, p.branch_id, p.name, p.sku, p.barcode, p.price, p.cost, p.stock, p.min_stock, p.gender,
               b.type AS branch_type, b.is_active AS branch_active, b.warehouse_catalog_delete_enabled,
-              c.name AS category_name,
+              c.name AS category_name, c.color AS category_color, c.sort_order AS category_sort_order,
                (SELECT pp.path FROM product_photos pp WHERE pp.product_id = p.id AND pp.variant_id IS NULL AND pp.media_type = 'image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
                (SELECT pp.\`transform\` FROM product_photos pp WHERE pp.product_id = p.id AND pp.variant_id IS NULL AND pp.media_type = 'image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_transform,
               (SELECT COUNT(*) FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_active = TRUE) AS variant_count,
@@ -437,7 +454,7 @@ router.get('/:id', async (req, res, next) => {
     const branchId = await readableBranchId(req);
     const [rows] = await db.execute(
       `SELECT p.id, p.branch_id, p.name, p.description, p.category_id, p.sku, p.barcode, p.price, p.cost, p.stock, p.min_stock, p.gender,
-              c.name AS category_name,
+              c.name AS category_name, c.color AS category_color, c.sort_order AS category_sort_order,
                (SELECT pp.path FROM product_photos pp WHERE pp.product_id = p.id AND pp.variant_id IS NULL AND pp.media_type = 'image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
                (SELECT pp.\`transform\` FROM product_photos pp WHERE pp.product_id = p.id AND pp.variant_id IS NULL AND pp.media_type = 'image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_transform
         FROM products p JOIN categories c ON c.id = p.category_id

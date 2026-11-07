@@ -5,12 +5,14 @@ import 'dart:math' as math;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
 import 'api_client.dart';
-import 'app_navigation.dart';
 import 'auth_store.dart';
+import 'branch_scope.dart';
+import 'category_visuals.dart';
 import 'inventory_page.dart';
 import 'more_page.dart';
 import 'offline_status.dart';
@@ -24,6 +26,7 @@ import 'printer_service.dart';
 import 'printer_setup.dart';
 import 'barcode_scanner_page.dart';
 import 'dashboard_page.dart';
+import 'finance_page.dart';
 import 'variant_picker.dart';
 import 'task_ui.dart';
 import 'ui_kit.dart';
@@ -65,7 +68,10 @@ int cartTotalPcs(List<CartItem> cart) =>
 class PosPage extends StatefulWidget {
   /// Tab yang diminta halaman lain (misal Dashboard -> Kasir).
   static final ValueNotifier<int> requestTab = ValueNotifier<int>(0);
-  const PosPage({super.key});
+  const PosPage({super.key, this.runStartupBackgroundTasks = true});
+
+  /// Disable startup loading and offline/connectivity work in isolated widget tests.
+  final bool runStartupBackgroundTasks;
 
   @override
   State<PosPage> createState() => _PosPageState();
@@ -74,6 +80,7 @@ class PosPage extends StatefulWidget {
 class _PosPageState extends State<PosPage> {
   late final ApiClient _api;
   int _tab = 0;
+  final List<int> _visitedTabs = [0];
   final _search = TextEditingController();
   final List<CartItem> _cart = [];
   Timer? _previewTimer;
@@ -85,23 +92,28 @@ class _PosPageState extends State<PosPage> {
   bool get _previewFresh =>
       _preview != null && _cartError == null && _previewVersion == _cartVersion;
   StreamSubscription<List<ConnectivityResult>>? _connSub;
+  bool _listeningToBranchScope = false;
 
   List<Map<String, dynamic>> _products = [];
   List<Map<String, dynamic>> _visible = [];
+  List<Map<String, dynamic>> _categoryCatalog = [];
   List<Map<String, dynamic>> _warehouses = [];
   List<Map<String, dynamic>> _customers = [];
   List<Map<String, dynamic>> _branches = [];
+  String? _storeName;
   int? _posBranchId;
   String _warehouseId = '';
   int? _customerId;
-  String _promoCode = '';
+  final _discountCtrl = TextEditingController();
+  final _notesCtrl = TextEditingController();
+  String _transactionDate = '';
   String? _category;
   int? _draftBranch;
   Future<void> _draftWrite = Future<void>.value();
   Map<String, dynamic>? _preview;
   bool _loading = true;
   bool _saving = false;
-  bool _autoPrint = false;
+  bool _autoPrint = true;
   String? _error;
 
   /// Dipakai sheet keranjang untuk me-refresh dirinya saat _cart/_preview
@@ -109,6 +121,7 @@ class _PosPageState extends State<PosPage> {
   StateSetter? _sheetRefresh;
   String? _cartError;
   String? _lastProductsSync;
+  int _loadGeneration = 0;
 
   ApiClient get _client {
     final auth = context.read<AuthStore>();
@@ -119,18 +132,26 @@ class _PosPageState extends State<PosPage> {
   @override
   void initState() {
     super.initState();
+    _transactionDate = todayWib();
     _api = context.read<AuthStore>().api;
+    if (_isOwner) {
+      final branch = BranchScope.active.value ?? _branchId;
+      _posBranchId = branch > 0 ? branch : null;
+      _api.activeBranchId = _posBranchId;
+      BranchScope.active.addListener(_onBranchScopeChanged);
+      _listeningToBranchScope = true;
+    }
     PosPage.requestTab.addListener(_onExternalTab);
+    categoryCatalogRevision.addListener(_onCategoryCatalogChanged);
+    if (!widget.runStartupBackgroundTasks) return;
     _loadData();
     _syncPending();
-    _prefetchVariants();
     _connSub = Connectivity().onConnectivityChanged.listen((results) {
       final online = results.any((r) => r != ConnectivityResult.none);
       if (online && OfflineStatus.offline.value) {
         OfflineStatus.notifyOnline();
         _syncPending();
         _loadData(silent: true);
-        _prefetchVariants();
       }
     });
   }
@@ -158,12 +179,90 @@ class _PosPageState extends State<PosPage> {
     _searchDebounce?.cancel();
     _connSub?.cancel();
     PosPage.requestTab.removeListener(_onExternalTab);
+    categoryCatalogRevision.removeListener(_onCategoryCatalogChanged);
+    if (_listeningToBranchScope) {
+      BranchScope.active.removeListener(_onBranchScopeChanged);
+    }
     _search.dispose();
+    _discountCtrl.dispose();
+    _notesCtrl.dispose();
     super.dispose();
   }
 
   void _onExternalTab() {
-    if (mounted) setState(() => _tab = PosPage.requestTab.value);
+    final isGudang = context.read<AuthStore>().role == 'gudang';
+    _selectTab(PosPage.requestTab.value, isGudang: isGudang);
+  }
+
+  void _onCategoryCatalogChanged() {
+    if (!mounted || !widget.runStartupBackgroundTasks) return;
+    unawaited(_loadData(silent: true, force: true));
+  }
+
+  void _selectTab(int index, {bool? isGudang}) {
+    if (!mounted) return;
+    final warehouseRole =
+        isGudang ?? context.read<AuthStore>().role == 'gudang';
+    final lastTab = warehouseRole ? 2 : 3;
+    final nextTab = index.clamp(0, lastTab).toInt();
+    setState(() {
+      _tab = nextTab;
+      _visitedTabs
+        ..remove(nextTab)
+        ..add(nextTab);
+      while (_visitedTabs.length > 2) {
+        _visitedTabs.remove(_visitedTabs.firstWhere((tab) => tab != 0));
+      }
+    });
+    if (nextTab == 0 && !warehouseRole) {
+      _loadData(silent: true);
+    } else if (nextTab == 1 && !warehouseRole) {
+      ReportsPage.reloadTick.value++;
+    } else if (nextTab == 2 && !warehouseRole) {
+      HistoryTab.reloadTick.value++;
+    } else if (nextTab == 3 && !warehouseRole) {
+      FinancePage.reloadTick.value++;
+    }
+  }
+
+  String _pageTitle(String? role) {
+    if (role == 'gudang') {
+      return switch (_tab) {
+        1 => 'Stok Produk',
+        2 => 'Mutasi Stok',
+        _ => 'Dashboard Gudang',
+      };
+    }
+    return switch (_tab) {
+      1 => 'Dashboard',
+      2 => 'Riwayat Transaksi',
+      3 => 'Keuangan',
+      _ => 'POS',
+    };
+  }
+
+  void _onBranchScopeChanged() {
+    if (!_isOwner || !mounted) return;
+    final branch = BranchScope.active.value ?? _branchId;
+    _api.activeBranchId = branch > 0 ? branch : null;
+    if (branch > 0 && branch != _posBranchId) {
+      if (BranchScope.active.value != null) unawaited(_saveDraft());
+      setState(() {
+        _posBranchId = branch;
+        _warehouseId = '';
+        _cart.clear();
+        _preview = null;
+        _customerId = null;
+        _discountCtrl.clear();
+        _notesCtrl.clear();
+        _transactionDate = todayWib();
+        _draftBranch = null;
+        _category = null;
+        _search.clear();
+      });
+      _previewTimer?.cancel();
+      _loadData();
+    }
   }
 
   String _mediaUrl(String? path) => path == null || path.isEmpty
@@ -171,13 +270,47 @@ class _PosPageState extends State<PosPage> {
       : '${_api.baseUrl.replaceAll(RegExp(r'/api$'), '')}$path';
 
   int get _branchId => context.read<AuthStore>().branchId ?? 0;
+  bool get _isOwner => context.read<AuthStore>().role == 'owner';
+  String? get _activeBranchName {
+    final branchId = _posBranchId ?? _branchId;
+    final branch = _branches.cast<Map<String, dynamic>?>().firstWhere(
+        (row) => int.tryParse('${row?['id']}') == branchId,
+        orElse: () => null);
+    final name = branch?['name']?.toString().trim();
+    if (name != null && name.isNotEmpty) return name;
+    final storeName = _storeName?.trim();
+    if (storeName != null && storeName.isNotEmpty) return storeName;
+    for (final warehouse in _warehouses) {
+      final warehouseBranch = warehouse['branch_name']?.toString().trim();
+      if (warehouseBranch != null && warehouseBranch.isNotEmpty) {
+        return warehouseBranch;
+      }
+    }
+    return null;
+  }
 
-  Future<void> _loadData({bool silent = false}) async {
-    final branch = _posBranchId ?? _branchId;
+  bool get _isMetro {
+    final name = _activeBranchName?.toLowerCase().trim() ?? '';
+    final normalized = name.replaceAll(RegExp(r'[^a-z0-9]'), '');
+    return normalized.endsWith('metro') ||
+        normalized.startsWith('tokobasik') ||
+        normalized.startsWith('basik');
+  }
+
+  int get _defaultCartQty => _isMetro ? 4 : 1;
+
+  double get _manualDiscount =>
+      asNum(_discountCtrl.text.replaceAll(RegExp(r'[^0-9]'), ''));
+
+  Future<void> _loadData({bool silent = false, bool force = false}) async {
+    final branch = _isOwner
+        ? (BranchScope.active.value ?? _posBranchId ?? _branchId)
+        : (_posBranchId ?? _branchId);
     if (branch == 0) return;
-    // POS punya pilihan toko sendiri; nonaktifkan scope owner dari Lainnya.
-    _api.activeBranchId = null;
-    PrinterService.setActiveBranch(branch);
+    final generation = ++_loadGeneration;
+    bool isCurrent() => mounted && generation == _loadGeneration;
+    _api.activeBranchId = _isOwner ? branch : null;
+    await PrinterService.setActiveBranch(branch);
 
     // Buka aplikasi (bukan refresh): kalau sudah disinkron hari ini,
     // langsung pakai cache lokal tanpa menyentuh server.
@@ -185,17 +318,25 @@ class _PosPageState extends State<PosPage> {
       try {
         final cached = await OfflineStore.loadProductsCache(branch);
         if (cached != null) {
+          if (!isCurrent()) return;
           final payload = cached['payload'] as Map<String, dynamic>;
-          if (mounted) {
-            setState(() {
-              _applyStoreData(payload);
-              _error = null;
-              _loading = false;
-            });
-          }
+          setState(() {
+            _applyStoreData(payload);
+            _error = null;
+            _loading = false;
+          });
           _lastProductsSync = cached['updated_at']?.toString() ?? '';
-          // Cache hari ini: langsung tampil tanpa sentuh server.
-          if (cached['sync_date'] == todayWib()) return;
+          // Produk boleh tetap dari cache hari ini, tetapi urutan/warna kategori
+          // harus selalu disegarkan karena pengaturan kategori tidak mengubah
+          // products.updated_at.
+          if (cached['sync_date'] == todayWib()) {
+            final categories = await _fetchCategoryRows();
+            if (!isCurrent()) return;
+            if (categories != null) {
+              setState(() => _applyCategoryRows(categories));
+            }
+            return;
+          }
           // Cache lama: tampil dulu (instant), refresh dari server di background.
           silent = true;
         }
@@ -207,10 +348,18 @@ class _PosPageState extends State<PosPage> {
         _loading = true;
         _error = null;
       });
-    } else if (_products.isNotEmpty && _lastProductsSync != null) {
-      // Cek versi dulu: kalau tidak ada perubahan, pakai data & gambar dari cache.
+    } else if (!force && _products.isNotEmpty && _lastProductsSync != null) {
+      // Kategori punya sumber penyimpanan sendiri. Ambil dulu sebelum cek versi
+      // produk karena reorder/warna tidak mengubah products.updated_at.
+      final categories = await _fetchCategoryRows();
+      if (!isCurrent()) return;
+      if (categories != null) {
+        setState(() => _applyCategoryRows(categories));
+      }
+      // Cek versi produk setelah katalog kategori terbaru diterapkan.
       try {
         final v = await _client.productsVersion(branchId: branch);
+        if (!isCurrent()) return;
         final ts = v['updated_at']?.toString() ?? '';
         if (ts.isNotEmpty && ts == _lastProductsSync) return;
       } catch (_) {}
@@ -220,14 +369,15 @@ class _PosPageState extends State<PosPage> {
       final isOwner = context.read<AuthStore>().role == 'owner';
       final results = await Future.wait([
         _client.products(branchId: branch),
+        _client.productCategories(),
         _client.warehouses(branch),
         _client.customers(),
         _client.storeSettings(),
         if (isOwner) _client.branches(),
       ]);
-      if (!mounted) return;
+      if (!isCurrent()) return;
       if (isOwner) {
-        final branches = (results[4] as List).cast<Map<String, dynamic>>();
+        final branches = (results[5] as List).cast<Map<String, dynamic>>();
         setState(() {
           _branches = branches;
           _posBranchId ??= _branchId;
@@ -236,14 +386,16 @@ class _PosPageState extends State<PosPage> {
       if (!mounted) return;
       final storePayload = {
         'products': results[0],
-        'warehouses': results[1],
-        'customers': results[2],
-        'settings': results[3],
-        if (isOwner) 'branches': results[4],
+        'categories': results[1],
+        'warehouses': results[2],
+        'customers': results[3],
+        'settings': results[4],
+        if (isOwner) 'branches': results[5],
       };
       setState(() => _applyStoreData(storePayload));
       try {
         final v = await _client.productsVersion(branchId: branch);
+        if (!isCurrent()) return;
         _lastProductsSync = v['updated_at']?.toString() ?? '';
         await OfflineStore.saveProductsCache(branch, jsonEncode(storePayload),
             _lastProductsSync ?? '', todayWib());
@@ -257,37 +409,44 @@ class _PosPageState extends State<PosPage> {
         try {
           final cached = await OfflineStore.loadProductsCache(branch);
           if (cached != null) {
+            if (!isCurrent()) return;
             final payload = cached['payload'] as Map<String, dynamic>;
-            if (mounted) {
-              setState(() {
-                _applyStoreData(payload);
-                _error = null;
-                _loading = false;
-              });
-              _lastProductsSync = cached['updated_at']?.toString() ?? '';
-            }
+            setState(() {
+              _applyStoreData(payload);
+              _error = null;
+              _loading = false;
+            });
+            _lastProductsSync = cached['updated_at']?.toString() ?? '';
             return;
           }
         } catch (_) {}
       }
-      if (mounted) setState(() => _error = e.message);
+      if (isCurrent()) setState(() => _error = e.message);
     } finally {
-      if (mounted && !silent) setState(() => _loading = false);
+      if (isCurrent() && !silent) setState(() => _loading = false);
     }
   }
 
   /// Terapkan data produk/gudang/pelanggan/pengaturan (dari server atau cache lokal).
   void _applyStoreData(Map<String, dynamic> payload) {
-    _products =
+    final rawProducts =
         ((payload['products'] as List?) ?? []).cast<Map<String, dynamic>>();
-    _visible = List.of(_products);
+    final categoryRows = _categoryRowsFrom(payload['categories']);
+    _categoryCatalog = categoryRows;
+    _products = _mergeProductsWithCategorySettings(rawProducts, categoryRows);
+    _visible = _filteredProducts();
     _warehouses =
         ((payload['warehouses'] as List?) ?? []).cast<Map<String, dynamic>>();
     _customers =
         ((payload['customers'] as List?) ?? []).cast<Map<String, dynamic>>();
     final settings = (payload['settings'] as Map<String, dynamic>?) ?? {};
-    _autoPrint =
-        settings['auto_print'] == '1' || settings['auto_print'] == true;
+    final storeName = settings['store_name']?.toString().trim();
+    _storeName = storeName == null || storeName.isEmpty ? null : storeName;
+    final autoPrint = settings['auto_print'];
+    _autoPrint = autoPrint == null ||
+        autoPrint == '1' ||
+        autoPrint == true ||
+        autoPrint == 'true';
     if (_warehouseId.isEmpty && _warehouses.isNotEmpty) {
       _warehouseId = '${_warehouses.first['id']}';
     }
@@ -304,6 +463,62 @@ class _PosPageState extends State<PosPage> {
     }
   }
 
+  List<Map<String, dynamic>> _categoryRowsFrom(dynamic raw) =>
+      (raw as List?)
+          ?.whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList() ??
+      <Map<String, dynamic>>[];
+
+  Future<List<Map<String, dynamic>>?> _fetchCategoryRows() async {
+    try {
+      return _categoryRowsFrom(await _client.productCategories());
+    } catch (_) {
+      // Category refresh is supplemental; cached products remain usable
+      // when the device is offline or the server is temporarily unavailable.
+      return null;
+    }
+  }
+
+  void _applyCategoryRows(List<Map<String, dynamic>> rows) {
+    _categoryCatalog = rows
+        .map((category) => Map<String, dynamic>.from(category))
+        .toList();
+    _products = _mergeProductsWithCategorySettings(_products, _categoryCatalog);
+    _visible = _filteredProducts();
+  }
+
+  List<Map<String, dynamic>> _mergeProductsWithCategorySettings(
+      List<Map<String, dynamic>> products,
+      List<Map<String, dynamic>> categoryRows) {
+    final categoriesById = <int, Map<String, dynamic>>{};
+    final categoriesByName = <String, Map<String, dynamic>>{};
+    for (final category in categoryRows) {
+      final id = int.tryParse('${category['id']}');
+      final name = category['name']?.toString().trim().toLowerCase();
+      if (id != null) categoriesById[id] = category;
+      if (name != null && name.isNotEmpty) categoriesByName[name] = category;
+    }
+    return products.map((product) {
+      final categoryId = int.tryParse('${product['category_id']}');
+      final productCategoryName =
+          product['category_name']?.toString().trim().toLowerCase();
+      final category =
+          (categoryId == null ? null : categoriesById[categoryId]) ??
+              (productCategoryName == null
+                  ? null
+                  : categoriesByName[productCategoryName]);
+      if (category == null) return Map<String, dynamic>.from(product);
+      return {
+        ...product,
+        if (category.containsKey('name')) 'category_name': category['name'],
+        if (category.containsKey('color')) 'category_color': category['color'],
+        if (category.containsKey('sort_order'))
+          'category_sort_order': category['sort_order'],
+      };
+    }).toList();
+  }
+
   String _draftKey(int branch) =>
       'cart-draft-${context.read<AuthStore>().userId}-$branch';
 
@@ -316,7 +531,9 @@ class _PosPageState extends State<PosPage> {
     final payload = jsonEncode({
       'warehouse_id': _warehouseId,
       'customer_id': _customerId,
-      'promo_code': _promoCode,
+      'manual_discount': _discountCtrl.text,
+      'notes': _notesCtrl.text,
+      'transaction_date': _transactionDate,
       'items': [
         for (final item in _cart)
           {
@@ -369,7 +586,14 @@ class _PosPageState extends State<PosPage> {
       setState(() {
         _cart.addAll(items);
         _customerId = int.tryParse('${draft['customer_id']}');
-        _promoCode = draft['promo_code']?.toString() ?? '';
+        _discountCtrl.text = draft['manual_discount']?.toString() ?? '';
+        _notesCtrl.text = draft['notes']?.toString() ?? '';
+        final draftDate = draft['transaction_date']?.toString();
+        _transactionDate = draftDate != null &&
+                DateTime.tryParse(draftDate) != null &&
+                draftDate.compareTo(todayWib()) <= 0
+            ? draftDate
+            : todayWib();
         final warehouse = draft['warehouse_id']?.toString();
         if (_warehouses.any((row) => '${row['id']}' == warehouse)) {
           _warehouseId = warehouse!;
@@ -387,21 +611,23 @@ class _PosPageState extends State<PosPage> {
   }
 
   void _applyFilter() {
+    setState(() => _visible = _filteredProducts());
+  }
+
+  List<Map<String, dynamic>> _filteredProducts() {
     final q = _search.text.trim().toLowerCase();
-    setState(() {
-      _visible = _products.where((p) {
-        if (_category != null && p['category_name']?.toString() != _category) {
-          return false;
-        }
-        final name = (p['name'] ?? '').toString().toLowerCase();
-        final sku = (p['sku'] ?? '').toString().toLowerCase();
-        final barcode = (p['barcode'] ?? '').toString().toLowerCase();
-        return q.isEmpty ||
-            name.contains(q) ||
-            sku.contains(q) ||
-            barcode.contains(q);
-      }).toList();
-    });
+    return _products.where((p) {
+      if (_category != null && p['category_name']?.toString() != _category) {
+        return false;
+      }
+      final name = (p['name'] ?? '').toString().toLowerCase();
+      final sku = (p['sku'] ?? '').toString().toLowerCase();
+      final barcode = (p['barcode'] ?? '').toString().toLowerCase();
+      return q.isEmpty ||
+          name.contains(q) ||
+          sku.contains(q) ||
+          barcode.contains(q);
+    }).toList();
   }
 
   Future<void> _addProduct(Map<String, dynamic> product) async {
@@ -451,11 +677,14 @@ class _PosPageState extends State<PosPage> {
         final result = await showDialog<Map<String, dynamic>>(
           context: context,
           builder: (_) => VariantPicker(
-              product: d, variants: variants, mediaUrl: _mediaUrl),
+              product: d,
+              variants: variants,
+              mediaUrl: _mediaUrl,
+              initialQty: _defaultCartQty),
         );
         if (result == null) return;
         variantId = result['variant_id'] as int?;
-        qty = (result['qty'] as int?) ?? 1;
+        qty = (result['qty'] as int?) ?? _defaultCartQty;
         final selectedVariants =
             variants.where((v) => v['id'] == variantId).toList();
         final selectedVariant =
@@ -493,7 +722,7 @@ class _PosPageState extends State<PosPage> {
         variantId: null,
         variantLabel: null,
         photo: product['photo_path']?.toString(),
-        qty: 1,
+        qty: _defaultCartQty,
         stockAvailable: int.tryParse('${product['stock'] ?? 0}') ?? 0,
       );
     }
@@ -560,7 +789,8 @@ class _PosPageState extends State<PosPage> {
         'branch_id': _posBranchId ?? _branchId,
         'customer_id': _customerId,
         'items': items,
-        if (_promoCode.trim().isNotEmpty) 'promo_code': _promoCode.trim(),
+        'discount_type': _manualDiscount > 0 ? 'nominal' : 'none',
+        'discount_value': _manualDiscount,
       });
       if (mounted && requestVersion == _cartVersion) {
         setState(() {
@@ -600,17 +830,21 @@ class _PosPageState extends State<PosPage> {
         'branch_id': branch,
         'items': items,
         'subtotal': asNum(preview?['subtotal'] ?? _cartTotal),
-        'discount_type': preview?['discount_type'] ?? 'none',
-        'discount_value': asNum(preview?['discount'] ?? 0),
+        'discount_type': preview?['discount_type'] ??
+            (_manualDiscount > 0 ? 'nominal' : 'none'),
+        'discount_value': asNum(preview?['discount'] ?? _manualDiscount),
+        if (_notesCtrl.text.trim().isNotEmpty) 'notes': _notesCtrl.text.trim(),
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Transaksi ditahan. Bisa dilanjutkan kapan saja.')));
+          content: Text('Draft disimpan. Bisa dilanjutkan kapan saja.')));
       setState(() {
         _cart.clear();
         _preview = null;
-        _promoCode = '';
+        _discountCtrl.clear();
+        _notesCtrl.clear();
         _customerId = null;
+        _transactionDate = todayWib();
       });
       await _saveDraft();
       if (!mounted) return;
@@ -629,29 +863,46 @@ class _PosPageState extends State<PosPage> {
       final pending = await _client.pendingTransactions(branchId: branch);
       if (!mounted) return;
       if (pending.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Tidak ada transaksi yang ditahan')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Tidak ada draft')));
         return;
       }
       final picked = await showDialog<int>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Transaksi Ditahan'),
+          title: const Text('Draft'),
           content: SizedBox(
             width: double.maxFinite,
-            child: ListView(
+            child: ListView.separated(
               shrinkWrap: true,
-              children: [
-                for (final p in pending)
-                  ListTile(
+              itemCount: pending.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 6),
+              itemBuilder: (_, index) {
+                final p = pending[index];
+                final heldAt = DateTime.tryParse('${p['held_at']}')?.toLocal();
+                final heldLabel = heldAt == null
+                    ? 'Tanggal draft tidak tersedia'
+                    : '${heldAt.day.toString().padLeft(2, '0')}/${heldAt.month.toString().padLeft(2, '0')}/${heldAt.year} · ${heldAt.hour.toString().padLeft(2, '0')}:${heldAt.minute.toString().padLeft(2, '0')}';
+                final itemCount =
+                    p['items'] is List ? (p['items'] as List).length : 0;
+                return Card(
+                  margin: EdgeInsets.zero,
+                  child: ListTile(
                     dense: true,
+                    leading: CircleAvatar(
+                      radius: 17,
+                      child: Text('$itemCount',
+                          style: const TextStyle(fontSize: 12)),
+                    ),
                     title: Text(
-                        '${(p['items'] is List ? (p['items'] as List).length : 0).toString()} item'),
-                    subtitle: Text('Total ${fmtRp(asNum(p['subtotal']))}'),
+                        '$itemCount item · ${fmtRp(asNum(p['subtotal']))}',
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    subtitle: Text('Draft $heldLabel'),
                     onTap: () =>
                         Navigator.pop(ctx, int.tryParse(p['id'].toString())),
                   ),
-              ],
+                );
+              },
             ),
           ),
           actions: [
@@ -687,7 +938,10 @@ class _PosPageState extends State<PosPage> {
           ..clear()
           ..addAll(cart);
         _customerId = int.tryParse(resumed['customer_id']?.toString() ?? '');
-        _promoCode = '';
+        _discountCtrl.text =
+            asNum(resumed['discount_value']).toStringAsFixed(0);
+        _notesCtrl.text = resumed['notes']?.toString() ?? '';
+        _transactionDate = todayWib();
         _preview = null;
       });
       _schedulePreview();
@@ -701,21 +955,17 @@ class _PosPageState extends State<PosPage> {
 
   Future<void> _openCart() async {
     setState(() => _cartError = null);
-    // Pakai MediaQuery halaman POS, BUKAN context sheet: route bottom sheet
-    // memakai MediaQuery.removePadding sehingga padding di dalam sheet = 0.
-    // Ini kunci supaya max tinggi benar-benar berhenti di bawah Dynamic Island.
-    final media = MediaQuery.of(context);
-    final topRatio = media.padding.top / media.size.height;
+    final topInset = MediaQuery.of(context).padding.top;
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (sheetCtx) {
         return DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.78,
-          minChildSize: 0.38,
-          maxChildSize: (1 - topRatio).clamp(0.6, 1.0),
+          expand: true,
+          initialChildSize: 1.0,
+          minChildSize: 1.0,
+          maxChildSize: 1.0,
           builder: (context, scrollController) => StatefulBuilder(
             builder: (context, setSheetState) {
               _sheetRefresh = setSheetState;
@@ -726,10 +976,14 @@ class _PosPageState extends State<PosPage> {
                   color: Theme.of(context).colorScheme.surface,
                   child: _CartSheet(
                     scrollController: scrollController,
+                    topInset: topInset,
                     cart: _cart,
                     customers: _customers,
                     customerId: _customerId,
-                    promoCode: _promoCode,
+                    discountController: _discountCtrl,
+                    notesController: _notesCtrl,
+                    isOwner: _isOwner,
+                    transactionDate: _transactionDate,
                     preview: _preview,
                     previewFresh: _previewFresh,
                     error: _cartError,
@@ -739,15 +993,18 @@ class _PosPageState extends State<PosPage> {
                       _sheetRefresh?.call(() {});
                       _schedulePreview();
                     },
-                    onPromoChanged: (code) {
-                      setState(() => _promoCode = code);
-                      _sheetRefresh?.call(() {});
+                    onDiscountChanged: (_) {
                       _schedulePreview();
+                      _sheetRefresh?.call(() {});
                     },
-                    onQtyChanged: (item, delta) {
-                      setState(() => item.qty = math.max(1, item.qty + delta));
+                    onNotesChanged: (_) {
+                      unawaited(_saveDraft());
                       _sheetRefresh?.call(() {});
-                      _schedulePreview();
+                    },
+                    onTransactionDateChanged: (date) {
+                      setState(() => _transactionDate = date);
+                      _sheetRefresh?.call(() {});
+                      unawaited(_saveDraft());
                     },
                     onQtySet: (item, value) {
                       setState(() => item.qty = math.max(1, value));
@@ -755,7 +1012,6 @@ class _PosPageState extends State<PosPage> {
                       _schedulePreview();
                     },
                     onHold: _holdCart,
-                    onResume: _resumeCart,
                     onRemove: (item) {
                       setState(() => _cart.remove(item));
                       _sheetRefresh?.call(() {});
@@ -821,8 +1077,26 @@ class _PosPageState extends State<PosPage> {
           content: Text('Gudang belum dipilih. Muat ulang data toko.')));
       return;
     }
-    final grandTotal =
-        asNum(_previewFresh ? (_preview?['grand_total']) : _cartTotal);
+    if (!_previewFresh) {
+      await _doPreview();
+      if (!mounted) return;
+    }
+    if (!_previewFresh && !OfflineStatus.offline.value) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content:
+              Text(_cartError ?? 'Tunggu harga keranjang selesai dihitung')));
+      return;
+    }
+    final estimatedSubtotal =
+        _previewFresh ? asNum(_preview?['subtotal']) : _cartTotal;
+    if (_manualDiscount > estimatedSubtotal) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Diskon tidak boleh melebihi subtotal')));
+      return;
+    }
+    final grandTotal = _previewFresh
+        ? asNum(_preview?['grand_total'])
+        : math.max(0, estimatedSubtotal - _manualDiscount).toDouble();
     final payment = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
@@ -884,7 +1158,10 @@ class _PosPageState extends State<PosPage> {
       'allow_negative_stock': allowNegativeStock,
       ...payment,
       if (_customerId != null) 'customer_id': _customerId,
-      if (_promoCode.trim().isNotEmpty) 'promo_code': _promoCode.trim(),
+      if (_notesCtrl.text.trim().isNotEmpty) 'notes': _notesCtrl.text.trim(),
+      'discount_type': _manualDiscount > 0 ? 'nominal' : 'none',
+      'discount_value': _manualDiscount,
+      if (_isOwner) 'transaction_date': _transactionDate,
     };
     try {
       final result = await _client.createTransaction(payload);
@@ -892,8 +1169,10 @@ class _PosPageState extends State<PosPage> {
       final id = int.tryParse('${result['id']}');
       _cart.clear();
       _preview = null;
-      _promoCode = '';
+      _discountCtrl.clear();
+      _notesCtrl.clear();
       _customerId = null;
+      _transactionDate = todayWib();
       await _saveDraft();
       if (!mounted) return;
       await showDialog(
@@ -906,16 +1185,17 @@ class _PosPageState extends State<PosPage> {
             TextButton(
                 onPressed: () => Navigator.pop(ctx),
                 child: const Text('Selesai')),
-            FilledButton.icon(
-              onPressed: () {
-                Navigator.pop(ctx);
-                if (id != null) {
-                  printReceiptNow(context, () => _client.receipt(id));
-                }
-              },
-              icon: const Icon(Icons.print),
-              label: const Text('Cetak Struk'),
-            ),
+            if (!_autoPrint)
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  if (id != null) {
+                    printReceiptNow(context, () => _client.receipt(id));
+                  }
+                },
+                icon: const Icon(Icons.print),
+                label: const Text('Cetak Struk'),
+              ),
           ],
         ),
       );
@@ -959,15 +1239,23 @@ class _PosPageState extends State<PosPage> {
     final usePreview = _previewFresh;
     payload['subtotal'] =
         usePreview ? asNum(_preview?['subtotal']) : _cartTotal;
-    payload['discount'] = usePreview ? asNum(_preview?['discount']) : 0;
-    final offlineTotal =
-        usePreview ? asNum(_preview?['grand_total']) : _cartTotal;
+    final discount =
+        usePreview ? asNum(_preview?['discount']) : _manualDiscount;
+    payload['discount_type'] = discount > 0 ? 'nominal' : 'none';
+    payload['discount_value'] = discount;
+    payload['discount'] = discount;
+    if (_isOwner) payload['transaction_date'] = _transactionDate;
+    final offlineTotal = usePreview
+        ? asNum(_preview?['grand_total'])
+        : math.max(0, _cartTotal - discount).toDouble();
     await OfflineStore.insert(payload, tempInvoice, grandTotal: offlineTotal);
     if (!mounted) return;
     _cart.clear();
     _preview = null;
-    _promoCode = '';
+    _discountCtrl.clear();
+    _notesCtrl.clear();
     _customerId = null;
+    _transactionDate = todayWib();
     await _saveDraft();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -981,30 +1269,91 @@ class _PosPageState extends State<PosPage> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthStore>();
-    // Role gudang tidak butuh POS/Riwayat: diganti Dashboard & Keuangan.
+    // Gudang tetap memakai alur stok; peran penjualan mendapat Dashboard dan Keuangan.
     final isGudang = auth.role == 'gudang';
-    final pages = <Widget>[
-      if (isGudang) DashboardPage(api: _client) else _buildKasir(),
-      if (isGudang)
-        InventoryPage(api: _client, branchId: _branchId, role: auth.role)
-      else
-        HistoryTab(api: _client, role: auth.role),
-      if (isGudang)
-        InventoryPage(
+    final pages = isGudang
+        ? <Widget>[
+            DashboardPage(api: _client),
+            if (_visitedTabs.contains(1))
+              InventoryPage(
+                  api: _client,
+                  branchId: _branchId,
+                  role: auth.role,
+                  initialSection: 'stok')
+            else
+              const SizedBox.shrink(),
+            if (_visitedTabs.contains(2))
+              InventoryPage(
+                  api: _client,
+                  branchId: _branchId,
+                  role: auth.role,
+                  initialSection: 'mutasi')
+            else
+              const SizedBox.shrink(),
+          ]
+        : <Widget>[
+            _buildKasir(),
+            if (_visitedTabs.contains(1))
+              ReportsPage(api: _client, role: auth.role, dashboardMode: true)
+            else
+              const SizedBox.shrink(),
+            if (_visitedTabs.contains(2))
+              HistoryTab(api: _client, role: auth.role)
+            else
+              const SizedBox.shrink(),
+            if (_visitedTabs.contains(3))
+              FinancePage(api: _client, role: auth.role)
+            else
+              const SizedBox.shrink(),
+          ];
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_pageTitle(auth.role),
+            style: const TextStyle(fontWeight: FontWeight.w700)),
+        centerTitle: true,
+        backgroundColor: kTaskDark,
+        foregroundColor: Colors.white,
+        titleTextStyle: TextStyle(
+            fontSize: 19, fontWeight: FontWeight.w700, color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
+        systemOverlayStyle: SystemUiOverlayStyle.light,
+        surfaceTintColor: Colors.transparent,
+        actions: [
+          if (!isGudang && _tab == 0)
+            Tooltip(
+              message: 'Buka Draft',
+              child: IconButton(
+                onPressed: _resumeCart,
+                icon: const Icon(Icons.description_outlined, size: 18),
+              ),
+            ),
+        ],
+      ),
+      drawer: Drawer(
+        width: math.min(MediaQuery.sizeOf(context).width * .84, 340.0),
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? kTaskDarkBg
+            : kTaskSidebarBg,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.only(
+            topRight: Radius.circular(24),
+            bottomRight: Radius.circular(24),
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        surfaceTintColor: Colors.transparent,
+        child: SafeArea(
+          child: MorePage(
             api: _client,
             branchId: _branchId,
             role: auth.role,
-            initialSection: 'mutasi')
-      else
-        InventoryPage(api: _client, branchId: _branchId, role: auth.role),
-      // Role gudang tidak pakai Laporan (backend menolak) -> tab dihapus.
-      if (!isGudang) ReportsPage(api: _client, role: auth.role),
-      MorePage(api: _client, branchId: _branchId, role: auth.role),
-    ];
-    return Scaffold(
-      // Tanpa AppBar utama (header dihapus).
+            currentTab: _tab,
+            onNavigateTab: (index) => _selectTab(index, isGudang: isGudang),
+          ),
+        ),
+      ),
       body: SafeArea(
-        top: true,
+        top: false,
         bottom: false,
         child: Column(
           children: [
@@ -1031,29 +1380,6 @@ class _PosPageState extends State<PosPage> {
               child: Stack(
                 children: [
                   IndexedStack(index: _tab, children: pages),
-                  // Navbar overlay: area di luar pil benar-benar transparan,
-                  // konten halaman tetap terlihat/mengalir di belakangnya.
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: GlassNavBar(
-                      current: _tab,
-                      onSelect: (i) => setState(() {
-                        _tab = i;
-                        if (_tab == 0 && !isGudang) {
-                          _loadData(silent: true);
-                        } else if (_tab == 1 && !isGudang) {
-                          // Riwayat di-refresh (tetap simpan filter).
-                          HistoryTab.reloadTick.value++;
-                        } else if (_tab == 3 && !isGudang) {
-                          // Laporan ikut di-refresh (ringkasan/penutupan).
-                          ReportsPage.reloadTick.value++;
-                        }
-                      }),
-                      items: AppNavigation.forRole(auth.role),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -1091,25 +1417,64 @@ class _PosPageState extends State<PosPage> {
       );
     }
     final bottomPad = MediaQuery.of(context).padding.bottom;
-    final categories = _products
-        .map((p) => p['category_name']?.toString())
-        .whereType<String>()
+    final categoriesByName = <String, Map<String, dynamic>>{};
+    final productCategoryNames = _products
+        .map((product) => product['category_name']?.toString().trim() ?? '')
         .where((name) => name.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
+        .toSet();
+    for (var index = 0; index < _categoryCatalog.length; index++) {
+      final category = _categoryCatalog[index];
+      final name = category['name']?.toString().trim() ?? '';
+      if (name.isEmpty || !productCategoryNames.contains(name)) continue;
+      categoriesByName[name] = {
+        'name': name,
+        // /products/categories already returns rows in the saved settings
+        // order. Preserve that response order instead of trusting stale or
+        // duplicated sort_order values on cached rows.
+        'sort': index,
+        'color': category['color']?.toString(),
+      };
+    }
+    for (final product in _products) {
+      final name = product['category_name']?.toString().trim() ?? '';
+      if (name.isEmpty) continue;
+      final sortOrder =
+          int.tryParse('${product['category_sort_order']}') ?? 1 << 30;
+      final storedColor = product['category_color']?.toString();
+      final existing = categoriesByName[name];
+      // If the category endpoint has this category, its order and color are
+      // authoritative. Product fields are only a compatibility fallback for
+      // cached/legacy product rows whose category is missing from the catalog.
+      if (existing == null) {
+        categoriesByName[name] = {
+          'name': name,
+          'sort': sortOrder,
+          'color': storedColor,
+        };
+      }
+    }
+    final categories = categoriesByName.values.toList()
+      ..sort((a, b) {
+        final order = (a['sort'] as int).compareTo(b['sort'] as int);
+        if (order != 0) return order;
+        return (a['name'] as String).compareTo(b['name'] as String);
+      });
     final width = MediaQuery.sizeOf(context).width;
     final columns = width < 600
-        ? 2
+        ? 3
         : width < 900
             ? 3
             : 4;
+    final cardWidth = (width - 24 - (columns - 1) * 10) / columns;
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    // Reserve the 4 px category accent without adding a visible blank block.
+    final footerHeight = 44.0 * textScale + 16.0;
     return Stack(
       children: [
         Positioned.fill(
           child: RefreshIndicator(
-            onRefresh: () => _loadData(silent: true),
-            color: kTaskDark,
+            onRefresh: () => _loadData(silent: true, force: true),
+            color: Theme.of(context).colorScheme.primary,
             child: CustomScrollView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               physics: const AlwaysScrollableScrollPhysics(),
@@ -1121,21 +1486,7 @@ class _PosPageState extends State<PosPage> {
                       isOwner: context.read<AuthStore>().role == 'owner',
                       branches: _branches,
                       posBranchId: _posBranchId,
-                      onBranchChanged: (v) async {
-                        await _saveDraft();
-                        if (!mounted) return;
-                        setState(() {
-                          _posBranchId = v;
-                          _warehouseId = '';
-                          _cart.clear();
-                          _preview = null;
-                          _customerId = null;
-                          _promoCode = '';
-                          _draftBranch = null;
-                          _category = null;
-                        });
-                        _loadData();
-                      },
+                      onBranchChanged: (v) => unawaited(BranchScope.set(v)),
                       warehouses: _warehouses,
                       warehouseId: _warehouseId,
                       onWarehouseChanged: (v) =>
@@ -1154,17 +1505,43 @@ class _PosPageState extends State<PosPage> {
                             scrollDirection: Axis.horizontal,
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             children: [
-                              for (final name in <String?>[null, ...categories])
-                                Padding(
+                              for (final option in <Map<String, dynamic>?>[
+                                null,
+                                ...categories
+                              ])
+                                Builder(builder: (context) {
+                                  final name = option?['name']?.toString();
+                                  final color = name == null
+                                      ? kTaskDark
+                                      : categoryColorFor(
+                                          name: name,
+                                          storedHex:
+                                              option?['color']?.toString());
+                                  final selected = _category == name;
+                                  return Padding(
                                     padding: const EdgeInsets.only(right: 8),
                                     child: ChoiceChip(
+                                      key: ValueKey(
+                                          'pos-category-chip-${name ?? 'all'}'),
                                       label: Text(name ?? 'Semua'),
-                                      selected: _category == name,
+                                      selected: selected,
+                                      selectedColor: color,
+                                      backgroundColor:
+                                          color.withValues(alpha: .10),
+                                      side: BorderSide(
+                                          color: color.withValues(alpha: .38)),
+                                      labelStyle: TextStyle(
+                                        color: selected ? Colors.white : color,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                       onSelected: (_) {
                                         _category = name;
                                         _applyFilter();
                                       },
-                                    )),
+                                    ),
+                                  );
+                                }),
                             ],
                           ))),
                 if (_visible.isEmpty)
@@ -1176,16 +1553,16 @@ class _PosPageState extends State<PosPage> {
                   )
                 else
                   SliverPadding(
-                    padding: EdgeInsets.fromLTRB(12, 12, 12, 178 + bottomPad),
+                    padding: EdgeInsets.fromLTRB(
+                        12, 12, 12, (_cart.isNotEmpty ? 148 : 16) + bottomPad),
                     sliver: SliverGrid(
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: columns,
                         mainAxisSpacing: 10,
                         crossAxisSpacing: 10,
-                        mainAxisExtent:
-                            ((width - 24 - (columns - 1) * 10) / columns) *
-                                    1.15 +
-                                100 * MediaQuery.textScalerOf(context).scale(1),
+                        // Foto tetap persegi; footer mengikuti lebar kartu dan
+                        // skala font supaya tidak menyisakan ruang kosong besar.
+                        mainAxisExtent: cardWidth + footerHeight,
                       ),
                       delegate: SliverChildBuilderDelegate(
                         (_, i) => RepaintBoundary(
@@ -1209,26 +1586,47 @@ class _PosPageState extends State<PosPage> {
           Positioned(
             left: 12,
             right: 12,
-            bottom: 98 + bottomPad,
-            child: AnimatedScale(
-              scale: 1,
-              duration: const Duration(milliseconds: 180),
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52)),
-                onPressed: _openCart,
-                icon: const Icon(Icons.shopping_cart),
-                label: Row(children: [
-                  Expanded(
-                      child: Text('Keranjang · ${cartTotalPcs(_cart)} pcs')),
-                  Text(fmtRp(_cartTotal)),
-                ]),
+            bottom: 12 + bottomPad,
+            child: GlassCard(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(children: [
+                    Expanded(
+                        child: Text('Keranjang · ${cartTotalPcs(_cart)} pcs',
+                            style: TextStyle(color: taskMuted(context)))),
+                    Text(fmtRp(_cartTotal),
+                        style: TextStyle(
+                            color: ink(context), fontWeight: FontWeight.w800)),
+                  ]),
+                  const SizedBox(height: 8),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48)),
+                    onPressed: _openCart,
+                    icon: const Icon(Icons.shopping_cart_outlined),
+                    label: const Text('Bayar'),
+                  ),
+                ],
               ),
             ),
           ),
       ],
     );
   }
+}
+
+Color _posStockColor(BuildContext context, int stock) {
+  final dark = Theme.of(context).brightness == Brightness.dark;
+  if (stock <= 0) {
+    return dark ? const Color(0xffFCA5A5) : kTaskStockEmpty;
+  }
+  if (stock < 5) {
+    return dark ? const Color(0xffFDBA74) : kTaskStockLow;
+  }
+  return dark ? const Color(0xff86EFAC) : kTaskStockGood;
 }
 
 class _ProductCard extends StatelessWidget {
@@ -1247,53 +1645,81 @@ class _ProductCard extends StatelessWidget {
     final name = productDisplayName(product);
     final price = asNum(product['price']);
     final stock = int.tryParse('${product['stock'] ?? 0}') ?? 0;
-    final variantCount = int.tryParse('${product['variant_count'] ?? 0}') ?? 0;
+    final categoryAccent = categoryColorFor(
+      name: product['category_name']?.toString(),
+      storedHex: product['category_color']?.toString(),
+    );
+    final stockColor = _posStockColor(context, stock);
     final photo = mediaUrl(product['photo_path']?.toString());
-    return GlassCard(
-      radius: 12,
-      padding: EdgeInsets.zero,
-      onTap: onTap,
-      // Grid = puluhan kartu sekaligus; blur per kartu bikin scroll berat.
-      frosted: false,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: UiProductPhoto(
-              path: photo,
-              baseUrl: '',
-              fit: BoxFit.cover,
-              label: 'Foto $name',
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 4),
-                Text(fmtRp(price),
-                    style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: ink(context))),
-                const SizedBox(height: 3),
-                Text(
-                    variantCount > 0
-                        ? '$variantCount varian · stok $stock'
-                        : 'Stok $stock',
-                    style: TextStyle(
-                        fontSize: 10.8,
-                        color: Theme.of(context).colorScheme.outline)),
-              ],
-            ),
-          ),
+    return DecoratedBox(
+      key: ValueKey('pos-product-card-decoration-${product['id']}'),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x220F172A), blurRadius: 10, offset: Offset(0, 3)),
         ],
+      ),
+      child: GlassCard(
+        radius: 12,
+        padding: EdgeInsets.zero,
+        onTap: onTap,
+        // Grid = puluhan kartu sekaligus; blur per kartu bikin scroll berat.
+        frosted: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              key: ValueKey('pos-product-category-accent-${product['id']}'),
+              height: 4,
+              color: categoryAccent,
+            ),
+            AspectRatio(
+              aspectRatio: 1,
+              child: UiProductPhoto(
+                path: photo,
+                baseUrl: '',
+                fit: BoxFit.cover,
+                label: 'Foto $name',
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text(fmtRp(price),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: ink(context))),
+                      ),
+                      const SizedBox(width: 4),
+                      Text('$stock',
+                          key: ValueKey('pos-product-stock-${product['id']}'),
+                          style: TextStyle(
+                              fontSize: 10.8,
+                              fontWeight: FontWeight.w700,
+                              color: stockColor)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1355,20 +1781,6 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, c) {
-      final total = c.maxWidth;
-      const gap = 10.0;
-      final double branchW;
-      if (!_hasBranch) {
-        branchW = 0;
-      } else if (_active == 'search') {
-        branchW = 0;
-      } else if (_active == 'branch') {
-        branchW = total - gap;
-      } else {
-        branchW = total * 0.36;
-      }
-      final searchW = total - gap - branchW;
-
       final branchName = widget.branches
           .firstWhere((b) => int.tryParse('${b['id']}') == widget.posBranchId,
               orElse: () => const {})['name']
@@ -1381,13 +1793,14 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
           children: [
             DropdownButtonFormField<int?>(
               initialValue: widget.posBranchId,
-              style: const TextStyle(fontSize: 12.5, color: kTaskDark),
-              decoration: const InputDecoration(
+              isExpanded: true,
+              style: TextStyle(fontSize: 14, color: ink(context)),
+              decoration: InputDecoration(
                   labelText: 'Toko / Gudang',
-                  labelStyle: TextStyle(color: kTaskSecondary),
-                  prefixIcon: Icon(Icons.store, size: 18, color: kTaskDark),
+                  labelStyle: TextStyle(color: taskMuted(context)),
+                  prefixIcon: Icon(Icons.store,
+                      size: 18, color: Theme.of(context).colorScheme.primary),
                   filled: true,
-                  fillColor: Colors.white,
                   border: OutlineInputBorder(),
                   contentPadding:
                       EdgeInsets.symmetric(horizontal: 12, vertical: 13)),
@@ -1407,12 +1820,12 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
               DropdownButtonFormField<String>(
                 initialValue:
                     widget.warehouseId.isEmpty ? null : widget.warehouseId,
-                style: const TextStyle(fontSize: 12.5, color: kTaskDark),
-                decoration: const InputDecoration(
+                isExpanded: true,
+                style: TextStyle(fontSize: 14, color: ink(context)),
+                decoration: InputDecoration(
                     labelText: 'Gudang',
-                    labelStyle: TextStyle(color: kTaskSecondary),
+                    labelStyle: TextStyle(color: taskMuted(context)),
                     filled: true,
-                    fillColor: Colors.white,
                     border: OutlineInputBorder(),
                     contentPadding:
                         EdgeInsets.symmetric(horizontal: 12, vertical: 13)),
@@ -1429,7 +1842,7 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
         );
       } else {
         branchArea = Material(
-          color: Colors.white,
+          color: taskSurface(context),
           borderRadius: BorderRadius.circular(12),
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
@@ -1438,22 +1851,21 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
               height: 48,
               padding: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
-                border: Border.all(color: kTaskBorder),
+                border: Border.all(color: taskBorder(context)),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.store, size: 17, color: kTaskDark),
+                  Icon(Icons.store,
+                      size: 17, color: Theme.of(context).colorScheme.primary),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(branchName ?? 'Toko / Gudang',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style:
-                            const TextStyle(fontSize: 12.5, color: kTaskDark)),
+                        style: TextStyle(fontSize: 12.5, color: ink(context))),
                   ),
-                  const Icon(Icons.expand_more,
-                      size: 18, color: kTaskSecondary),
+                  Icon(Icons.expand_more, size: 18, color: taskMuted(context)),
                 ],
               ),
             ),
@@ -1461,42 +1873,27 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
         );
       }
 
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (_hasBranch)
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeInOut,
-              width: branchW,
-              child: AnimatedSize(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeInOut,
-                child: branchArea,
+          if (_hasBranch) ...[
+            branchArea,
+            const SizedBox(height: 12),
+          ],
+          TextField(
+            controller: widget.searchController,
+            focusNode: _searchFocus,
+            onChanged: widget.onSearchChanged,
+            onTap: () => setState(() => _active = 'search'),
+            decoration: InputDecoration(
+              labelText: 'Cari produk',
+              hintText: 'Nama / SKU / barcode',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: IconButton(
+                onPressed: widget.onScan,
+                icon: const Icon(Icons.qr_code_scanner),
+                tooltip: 'Scan barcode',
               ),
-            ),
-          if (_hasBranch) const SizedBox(width: gap),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeInOut,
-            width: searchW,
-            child: TextField(
-              controller: widget.searchController,
-              focusNode: _searchFocus,
-              onChanged: widget.onSearchChanged,
-              onTap: () => setState(() => _active = 'search'),
-              style: const TextStyle(fontSize: 12.5),
-              decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.search),
-                  hintText: 'Cari nama / SKU / barcode',
-                  border: const OutlineInputBorder(),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
-                  suffixIcon: IconButton(
-                    onPressed: widget.onScan,
-                    icon: const Icon(Icons.qr_code_scanner),
-                    tooltip: 'Scan barcode',
-                  )),
             ),
           ),
         ],
@@ -1548,8 +1945,15 @@ class _QtyInputState extends State<_QtyInput> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 40,
+    return Container(
+      width: 44,
+      height: 36,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: taskSurface(context),
+        border: Border.all(color: taskBorder(context)),
+        borderRadius: BorderRadius.circular(9),
+      ),
       child: TextField(
         controller: _c,
         focusNode: _fn,
@@ -1557,28 +1961,16 @@ class _QtyInputState extends State<_QtyInput> {
         textInputAction: TextInputAction.done,
         onSubmitted: (_) => _fn.unfocus(),
         textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
-        decoration: InputDecoration(
+        cursorHeight: 16,
+        style: TextStyle(
+            fontSize: 13, fontWeight: FontWeight.w800, color: ink(context)),
+        decoration: const InputDecoration(
           isDense: true,
-          filled: true,
-          fillColor: Theme.of(context).brightness == Brightness.dark
-              ? kTaskDarkSurface
-              : kTaskSand,
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xff334155)
-                      : kTaskBorder)),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xffCBD5E1)
-                      : kTaskDark,
-                  width: 1.4)),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          filled: false,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: EdgeInsets.zero,
         ),
         onChanged: (t) {
           final v = int.tryParse(t);
@@ -1592,43 +1984,51 @@ class _QtyInputState extends State<_QtyInput> {
 class _CartSheet extends StatefulWidget {
   const _CartSheet({
     this.scrollController,
+    required this.topInset,
     required this.cart,
     required this.customers,
     required this.customerId,
-    required this.promoCode,
+    required this.discountController,
+    required this.notesController,
+    required this.isOwner,
+    required this.transactionDate,
     required this.preview,
     required this.previewFresh,
     required this.error,
     required this.saving,
     required this.onCustomerChanged,
-    required this.onPromoChanged,
-    required this.onQtyChanged,
+    required this.onDiscountChanged,
+    required this.onNotesChanged,
+    required this.onTransactionDateChanged,
     required this.onQtySet,
     required this.onRemove,
     required this.onEditPrice,
     required this.onPay,
     required this.onHold,
-    required this.onResume,
   });
 
   final ScrollController? scrollController;
+  final double topInset;
   final List<CartItem> cart;
   final List<Map<String, dynamic>> customers;
   final int? customerId;
-  final String promoCode;
+  final TextEditingController discountController;
+  final TextEditingController notesController;
+  final bool isOwner;
+  final String transactionDate;
   final Map<String, dynamic>? preview;
   final bool previewFresh;
   final String? error;
   final bool saving;
   final ValueChanged<int?> onCustomerChanged;
-  final ValueChanged<String> onPromoChanged;
-  final void Function(CartItem, int) onQtyChanged;
+  final ValueChanged<String> onDiscountChanged;
+  final ValueChanged<String> onNotesChanged;
+  final ValueChanged<String> onTransactionDateChanged;
   final void Function(CartItem, int) onQtySet;
   final ValueChanged<CartItem> onRemove;
   final ValueChanged<CartItem> onEditPrice;
   final VoidCallback onPay;
   final VoidCallback onHold;
-  final VoidCallback onResume;
 
   @override
   State<_CartSheet> createState() => _CartSheetState();
@@ -1636,6 +2036,31 @@ class _CartSheet extends StatefulWidget {
 
 class _CartSheetState extends State<_CartSheet> {
   bool _showOptions = false;
+  bool _showActions = false;
+
+  double _parseDiscount() =>
+      asNum(widget.discountController.text.replaceAll(RegExp(r'[^0-9]'), ''));
+
+  String _dateLabel(String value) {
+    final date = DateTime.tryParse(value);
+    if (date == null) return value;
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  Future<void> _pickTransactionDate() async {
+    final today = DateTime.parse(todayWib());
+    final current = DateTime.tryParse(widget.transactionDate) ?? today;
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: current.isAfter(today) ? today : current,
+      firstDate: DateTime(2020),
+      lastDate: today,
+    );
+    if (selected == null) return;
+    final value =
+        '${selected.year.toString().padLeft(4, '0')}-${selected.month.toString().padLeft(2, '0')}-${selected.day.toString().padLeft(2, '0')}';
+    widget.onTransactionDateChanged(value);
+  }
 
   String _customerName() {
     for (final c in widget.customers) {
@@ -1646,182 +2071,363 @@ class _CartSheetState extends State<_CartSheet> {
     return '';
   }
 
+  Future<void> _editNotes() async {
+    final controller = TextEditingController(text: widget.notesController.text);
+    final value = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Catatan transaksi'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 3,
+          textInputAction: TextInputAction.newline,
+          decoration: const InputDecoration(
+            hintText: 'Contoh: kirim ke toko cabang',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (value == null || !mounted) return;
+    widget.notesController.text = value.trim();
+    widget.onNotesChanged(widget.notesController.text);
+    setState(() {});
+  }
+
+  Widget _actionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback? onPressed,
+  }) {
+    final color = onPressed == null ? taskMuted(context) : kTaskDark;
+    return Expanded(
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: color,
+          side: BorderSide(
+              color: onPressed == null ? taskBorder(context) : kTaskDark),
+          minimumSize: const Size(0, 60),
+          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 5),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 19),
+            const SizedBox(height: 3),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(label,
+                  maxLines: 1, style: const TextStyle(fontSize: 11)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = widget.cart;
     final localSubtotal = cartSubtotal(cart);
     final subtotal = asNum(
         widget.previewFresh ? (widget.preview?['subtotal']) : localSubtotal);
-    final discount =
-        asNum(widget.previewFresh ? (widget.preview?['discount']) : 0);
-    final grandTotal = asNum(
-        widget.previewFresh ? (widget.preview?['grand_total']) : subtotal);
+    final discount = asNum(widget.previewFresh
+        ? (widget.preview == null ? null : widget.preview!['discount'])
+        : _parseDiscount());
+    final grandTotal = asNum(widget.previewFresh
+        ? (widget.preview == null ? null : widget.preview!['grand_total'])
+        : math.max(0, subtotal - discount));
     final customerName = _customerName();
-    final hasExtra = customerName.isNotEmpty || widget.promoCode.isNotEmpty;
+    final invalidDiscount = discount > subtotal;
     final totalPcs = cartTotalPcs(cart);
 
-    final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
-    // Geser sheet ke atas saat keyboard muncul supaya Bayar tidak tertutup.
+    // Geser sheet ke atas saat keyboard muncul supaya input qty tetap terlihat.
     return AnimatedPadding(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOutCubic,
       padding:
           EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Judul: fokus daftar barang + jumlah item aktif.
-              Center(
-                  child: Container(
-                      width: 36,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                          color: taskBorder(context),
-                          borderRadius: BorderRadius.circular(4)))),
-              Row(
+        top: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              key: const ValueKey('cart-sheet-header'),
+              color: kTaskDark,
+              padding: EdgeInsets.fromLTRB(4, widget.topInset + 6, 14, 8),
+              child: Row(
                 children: [
-                  Expanded(
-                    child: Text('Keranjang (${cart.length} item)',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w800)),
+                  IconButton(
+                    tooltip: 'Tutup keranjang',
+                    onPressed: () => Navigator.of(context).pop(),
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints.tightFor(width: 40, height: 48),
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
                   ),
-                  if (keyboardOpen)
-                    TextButton(
-                      onPressed: () =>
-                          FocusManager.instance.primaryFocus?.unfocus(),
-                      child: const Text('Selesai'),
+                  const Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text('Keranjang',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800)),
                     ),
-                  TextButton.icon(
+                  ),
+                  IconButton(
+                    tooltip: _showActions
+                        ? 'Sembunyikan menu aksi'
+                        : 'Tampilkan menu aksi',
                     onPressed: () =>
-                        setState(() => _showOptions = !_showOptions),
-                    icon: Icon(_showOptions ? Icons.expand_less : Icons.tune),
-                    label: Text(_showOptions ? 'Tutup Opsi' : 'Opsi'),
+                        setState(() => _showActions = !_showActions),
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints.tightFor(width: 40, height: 48),
+                    icon: Icon(
+                        _showActions ? Icons.expand_less : Icons.expand_more,
+                        color: Colors.white),
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              // Opsi (pelanggan/promo/tahan) hanya muncul saat dibuka.
-              if (_showOptions) ...[
-                if (widget.customers.isNotEmpty)
-                  DropdownButtonFormField<int?>(
-                    initialValue: widget.customerId,
-                    decoration: const InputDecoration(
-                        isDense: true,
-                        labelText: 'Pelanggan (opsional)',
-                        border: OutlineInputBorder()),
-                    items: [
-                      const DropdownMenuItem<int?>(
-                          value: null, child: Text('Tanpa pelanggan')),
-                      for (final c in widget.customers)
-                        DropdownMenuItem<int?>(
-                            value: int.tryParse('${c['id']}'),
-                            child: Text(
-                                '${c['name']}${c['phone'] != null && (c['phone'] as String).isNotEmpty ? ' · ${c['phone']}' : ''}')),
-                    ],
-                    onChanged: widget.onCustomerChanged,
-                  ),
-                const SizedBox(height: 8),
-                TextField(
-                  decoration: const InputDecoration(
-                      isDense: true,
-                      labelText: 'Kode promo (opsional)',
-                      border: OutlineInputBorder()),
-                  onChanged: widget.onPromoChanged,
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: widget.onHold,
-                        icon: const Icon(Icons.pause_circle_outline, size: 18),
-                        label: const Text('Tahan'),
+            ),
+            Expanded(
+              child: ListView(
+                controller: widget.scrollController,
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                children: [
+                  if (customerName.isNotEmpty) ...[
+                    Material(
+                      color: taskSurface(context),
+                      shape: RoundedRectangleBorder(
+                        side: BorderSide(color: taskBorder(context)),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: widget.customers.isEmpty
+                            ? null
+                            : () => setState(() => _showOptions = true),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 12),
+                          child: Row(
+                            children: [
+                              Icon(Icons.person_outline,
+                                  color: kTaskDark, size: 22),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(customerName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w700)),
+                              ),
+                              if (widget.customers.isNotEmpty)
+                                Icon(Icons.expand_more,
+                                    color: taskMuted(context)),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: widget.onResume,
-                        icon: const Icon(Icons.play_circle_outline, size: 18),
-                        label: const Text('Ambil Tahan'),
+                    const SizedBox(height: 12),
+                  ],
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                    decoration: BoxDecoration(
+                      color: taskSurface(context),
+                      border: Border(
+                        top: BorderSide(color: taskBorder(context)),
+                        bottom: BorderSide(color: taskBorder(context)),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                            flex: 5,
+                            child: Text('Nama',
+                                style: TextStyle(fontWeight: FontWeight.w800))),
+                        SizedBox(
+                            width: 58,
+                            child: Text('Qty',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w800))),
+                        const SizedBox(
+                            width: 82,
+                            child: Text('Total',
+                                textAlign: TextAlign.right,
+                                style: TextStyle(fontWeight: FontWeight.w800))),
+                        const SizedBox(width: 44),
+                      ],
+                    ),
+                  ),
+                  for (final item in cart)
+                    _CartLine(
+                      item: item,
+                      onQtySet: widget.onQtySet,
+                      onRemove: widget.onRemove,
+                      onEditPrice: widget.onEditPrice,
+                    ),
+                  if (widget.isOwner) ...[
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _pickTransactionDate,
+                      icon: const Icon(Icons.calendar_today_outlined, size: 18),
+                      label: Text(
+                          'Tanggal transaksi: ${_dateLabel(widget.transactionDate)}'),
+                    ),
+                  ],
+                  if (_showOptions) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: taskSurface(context),
+                        border: Border.all(color: taskBorder(context)),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (widget.customers.isNotEmpty)
+                            DropdownButtonFormField<int?>(
+                              initialValue: widget.customerId,
+                              decoration: const InputDecoration(
+                                  isDense: true,
+                                  labelText: 'Pelanggan (opsional)',
+                                  border: OutlineInputBorder()),
+                              items: [
+                                const DropdownMenuItem<int?>(
+                                    value: null,
+                                    child: Text('Tanpa pelanggan')),
+                                for (final c in widget.customers)
+                                  DropdownMenuItem<int?>(
+                                      value: int.tryParse('${c['id']}'),
+                                      child: Text('${c['name']}')),
+                              ],
+                              onChanged: widget.onCustomerChanged,
+                            ),
+                          if (widget.customers.isNotEmpty)
+                            const SizedBox(height: 8),
+                          TextField(
+                            controller: widget.discountController,
+                            keyboardType: TextInputType.number,
+                            onChanged: widget.onDiscountChanged,
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              labelText: 'Diskon (Rp)',
+                              prefixText: 'Rp ',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
+                ],
+              ),
+            ),
+            if (_showActions)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                child: Row(
+                  children: [
+                    _actionButton(
+                        icon: Icons.local_offer_outlined,
+                        label: 'Diskon',
+                        onPressed: () => setState(() => _showOptions = true)),
+                    const SizedBox(width: 4),
+                    _actionButton(
+                        icon: Icons.notes_outlined,
+                        label: 'Catatan',
+                        onPressed: _editNotes),
+                    const SizedBox(width: 4),
+                    _actionButton(
+                        icon: Icons.pause_circle_outline,
+                        label: 'Tahan',
+                        onPressed: cart.isEmpty ? null : widget.onHold),
+                    const SizedBox(width: 4),
+                    _actionButton(
+                        icon: Icons.more_horiz,
+                        label: 'Lainnya',
+                        onPressed: () =>
+                            setState(() => _showOptions = !_showOptions)),
+                  ],
                 ),
-                const SizedBox(height: 10),
-              ] else if (hasExtra)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
+              ),
+            Container(
+              key: const ValueKey('cart-summary-footer'),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              decoration: BoxDecoration(
+                color: taskSurface(context),
+                border: Border(top: BorderSide(color: taskBorder(context))),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
                     children: [
-                      if (customerName.isNotEmpty)
-                        Chip(
-                          avatar: const Icon(Icons.person_outline, size: 15),
-                          label: Text(customerName,
-                              style: const TextStyle(fontSize: 11)),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      if (widget.promoCode.isNotEmpty)
-                        Chip(
-                          avatar:
-                              const Icon(Icons.local_offer_outlined, size: 15),
-                          label: Text(widget.promoCode,
-                              style: const TextStyle(fontSize: 11)),
-                          visualDensity: VisualDensity.compact,
-                        ),
+                      Text('$totalPcs pcs',
+                          style: const TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w800)),
                     ],
                   ),
-                ),
-              Expanded(
-                child: ListView(
-                  controller: widget.scrollController,
-                  children: [
-                    for (final item in cart)
-                      _CartLine(
-                        item: item,
-                        onQtyChanged: widget.onQtyChanged,
-                        onQtySet: widget.onQtySet,
-                        onRemove: widget.onRemove,
-                        onEditPrice: widget.onEditPrice,
-                      ),
+                  if (discount > 0)
+                    Text('Diskon: -${fmtRp(discount)}',
+                        style: TextStyle(color: taskMuted(context))),
+                  if (invalidDiscount)
+                    Text('Diskon melebihi subtotal',
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.error)),
+                  if (widget.error != null) ...[
+                    const SizedBox(height: 4),
+                    Text(widget.error!,
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.error)),
                   ],
-                ),
+                  const SizedBox(height: 8),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(52)),
+                    onPressed: widget.saving ||
+                            cart.isEmpty ||
+                            invalidDiscount ||
+                            widget.error != null
+                        ? null
+                        : widget.onPay,
+                    child: widget.saving
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : Text('Bayar · ${fmtRp(grandTotal)}',
+                            style: const TextStyle(
+                                fontSize: 17, fontWeight: FontWeight.w800)),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              Text('Total pcs: $totalPcs pcs',
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
-              if (discount > 0) Text('Diskon: -${fmtRp(discount)}'),
-              if (widget.error != null) ...[
-                const SizedBox(height: 6),
-                Text(widget.error!,
-                    style:
-                        TextStyle(color: Theme.of(context).colorScheme.error)),
-              ],
-              const SizedBox(height: 10),
-              // Tombol bayar = jumlah total orderan (tap tetap lanjut bayar).
-              FilledButton(
-                style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52)),
-                onPressed: widget.saving || cart.isEmpty ? null : widget.onPay,
-                child: widget.saving
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : Text(fmtRp(grandTotal),
-                        style: const TextStyle(
-                            fontSize: 17, fontWeight: FontWeight.w800)),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1831,126 +2437,121 @@ class _CartSheetState extends State<_CartSheet> {
 class _CartLine extends StatelessWidget {
   const _CartLine({
     required this.item,
-    required this.onQtyChanged,
     required this.onQtySet,
     required this.onRemove,
     required this.onEditPrice,
   });
 
   final CartItem item;
-  final void Function(CartItem, int) onQtyChanged;
   final void Function(CartItem, int) onQtySet;
   final ValueChanged<CartItem> onRemove;
   final ValueChanged<CartItem> onEditPrice;
 
-  Widget _action({
-    required BuildContext context,
-    required String label,
-    required IconData icon,
-    required VoidCallback onPressed,
-  }) {
-    return Semantics(
-      button: true,
-      label: label,
-      child: IconButton(
-        onPressed: onPressed,
-        tooltip: label,
-        icon: Icon(icon, size: 19),
-      ),
-    );
-  }
-
   Widget _info(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(item.name,
-              softWrap: true,
-              style: const TextStyle(fontWeight: FontWeight.w700, height: 1.2)),
-          const SizedBox(height: 2),
-          Text(fmtRp(item.priceOverride ?? item.price),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w700, height: 1.2)),
+          Text(
+              '${fmtRp(item.priceOverride ?? item.price)}${item.variantLabel != null && item.variantLabel!.isNotEmpty ? ' · ${item.variantLabel}' : ''}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: ink(context))),
-          if (item.variantLabel != null && item.variantLabel!.isNotEmpty)
-            Text(item.variantLabel!,
-                style: TextStyle(
-                    fontSize: 10,
-                    color: Theme.of(context).colorScheme.outline)),
-        ],
-      );
-
-  Widget _controls(BuildContext context) => Row(
-        children: [
-          _action(
-            context: context,
-            label: 'Kurangi jumlah ${item.name}',
-            icon: Icons.remove_circle_outline,
-            onPressed: () => onQtyChanged(item, -1),
-          ),
-          _QtyInput(value: item.qty, onChanged: (v) => onQtySet(item, v)),
-          _action(
-            context: context,
-            label: 'Tambah jumlah ${item.name}',
-            icon: Icons.add_circle_outline,
-            onPressed: () => onQtyChanged(item, 1),
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerRight,
-              child: Text(
-                fmtRp((item.priceOverride ?? item.price) * item.qty),
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: ink(context)),
-              ),
-            ),
-          ),
-          _action(
-            context: context,
-            label: 'Ubah harga ${item.name}',
-            icon: Icons.edit_outlined,
-            onPressed: () => onEditPrice(item),
-          ),
+                  fontWeight: FontWeight.w700,
+                  color: taskMuted(context))),
         ],
       );
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return GlassCard(
-          padding: const EdgeInsets.all(10),
-          frosted: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    final lineTotal = (item.priceOverride ?? item.price) * item.qty;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Column(
+        children: [
+          Row(
             children: [
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: UiProductPhoto(
-                        path: item.photo,
-                        baseUrl: '',
-                        width: 52,
-                        height: 66,
-                        label: 'Foto ${item.name}')),
-                const SizedBox(width: 10),
-                Expanded(child: _info(context)),
-                _action(
-                    context: context,
-                    label: 'Hapus ${item.name} dari keranjang',
-                    icon: Icons.delete_outline,
-                    onPressed: () => onRemove(item)),
-              ]),
-              const SizedBox(height: 4),
-              _controls(context),
+              Expanded(flex: 5, child: _info(context)),
+              SizedBox(
+                width: 58,
+                child: Center(
+                  child: _QtyInput(
+                    value: item.qty,
+                    onChanged: (value) => onQtySet(item, value),
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 82,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(fmtRp(lineTotal),
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                            fontWeight: FontWeight.w800, color: ink(context))),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 2),
+              SizedBox(
+                key: const ValueKey('cart-line-menu-hit-area'),
+                width: 44,
+                height: 44,
+                child: PopupMenuButton<String>(
+                  tooltip: 'Opsi ${item.name}: ubah harga atau hapus',
+                  padding: EdgeInsets.zero,
+                  iconSize: 22,
+                  icon: Icon(Icons.more_vert, color: ink(context)),
+                  color: taskSurface(context),
+                  onSelected: (value) {
+                    if (value == 'price') onEditPrice(item);
+                    if (value == 'remove') onRemove(item);
+                  },
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      value: 'price',
+                      height: 48,
+                      child: Row(children: [
+                        Icon(Icons.edit_outlined,
+                            size: 19,
+                            color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 10),
+                        Text('Ubah harga',
+                            style: TextStyle(
+                                color: ink(context),
+                                fontWeight: FontWeight.w700)),
+                      ]),
+                    ),
+                    PopupMenuItem(
+                      value: 'remove',
+                      height: 48,
+                      child: Row(children: [
+                        Icon(Icons.delete_outline,
+                            size: 19,
+                            color: Theme.of(context).colorScheme.error),
+                        const SizedBox(width: 10),
+                        Text('Hapus item',
+                            style: TextStyle(
+                                color: Theme.of(context).colorScheme.error,
+                                fontWeight: FontWeight.w700)),
+                      ]),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-        );
-      },
+          Divider(height: 8, thickness: 1, color: taskBorder(context)),
+        ],
+      ),
     );
   }
 }

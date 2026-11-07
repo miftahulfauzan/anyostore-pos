@@ -13,6 +13,7 @@ class InventoryApi extends ApiClient {
   bool failTransfer = false;
   bool missingRevision = false;
   bool missingStockPhoto = false;
+  bool missingTargetWarehouseName = false;
   List<dynamic>? fallbackProducts;
   Completer<Map<String, dynamic>>? pendingStock;
 
@@ -42,12 +43,16 @@ class InventoryApi extends ApiClient {
             'out_of_stock': 0,
           }
         },
-      '/inventory/warehouses' => [
+      '/inventory/warehouses' || '/inventory/warehouses/all' => [
           {'id': 1, 'name': 'Gudang A'},
           {'id': 2, 'name': 'Gudang B'},
         ],
       '/inventory-control/store-targets' => [
-          {'warehouse_id': 2, 'name': 'Toko B', 'warehouse_name': 'Gudang B'},
+          {
+            'warehouse_id': 2,
+            'name': 'Toko B',
+            'warehouse_name': missingTargetWarehouseName ? null : 'Gudang B',
+          },
         ],
       '/inventory/stock' => [
           {
@@ -144,7 +149,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(MaterialApp(
         home: Scaffold(
-            body: InventoryPage(api: api, branchId: 4, role: 'admin'))));
+            body: InventoryPage(api: api, branchId: 4, role: 'gudang'))));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('inventory-section-selector')));
@@ -173,7 +178,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(MaterialApp(
         home: Scaffold(
-            body: InventoryPage(api: api, branchId: 4, role: 'admin'))));
+            body: InventoryPage(api: api, branchId: 4, role: 'gudang'))));
     await tester.pumpAndSettle();
 
     expect(find.text('Stok'), findsWidgets);
@@ -187,13 +192,21 @@ void main() {
 
     await tester.tap(find.text('Stok masuk'));
     await tester.pumpAndSettle();
-    expect(find.text('Barang MASUK ke gudang'), findsOneWidget);
+    expect(find.text('Stok Masuk'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Cari produk'), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('inventory-inout-cart-bar')), findsOneWidget);
+    expect(find.text('Barang MASUK ke gudang'), findsNothing);
     expect(find.text('Simpan stok masuk'), findsOneWidget);
     await tester.pageBack();
     await tester.pumpAndSettle();
     await tester.tap(find.text('Stok keluar'));
     await tester.pumpAndSettle();
-    expect(find.text('Barang KELUAR dari gudang'), findsOneWidget);
+    expect(find.text('Stok Keluar'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Cari produk'), findsOneWidget);
+    expect(find.text('Barang KELUAR dari gudang'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('inventory-inout-details')));
+    await tester.pumpAndSettle();
     expect(find.text('Saluran'), findsOneWidget);
     await tester.pageBack();
     await tester.pumpAndSettle();
@@ -327,6 +340,17 @@ void main() {
     ]);
   });
 
+  testWidgets('opname picker shows the server quantity as system stock',
+      (tester) async {
+    final api = InventoryApi();
+    await openSection(tester, api, 'Opname');
+    await tester.tap(find.text('Tambah Produk'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('SKU D10 · stok sistem 8'), findsOneWidget);
+    expect(find.text('SKU D10 · stok sistem 0'), findsNothing);
+  });
+
   testWidgets('opname blank count stays in dialog with an error',
       (tester) async {
     final api = InventoryApi();
@@ -399,5 +423,15 @@ void main() {
     await tester.tap(find.text('Buat Transfer'));
     await tester.pumpAndSettle();
     expect(api.posts[2].$2['client_transfer_id'], isNot(firstId));
+  });
+
+  testWidgets('transfer destination does not display a null location',
+      (tester) async {
+    final api = InventoryApi()..missingTargetWarehouseName = true;
+    await openSection(tester, api, 'Transfer');
+
+    expect(find.text('Toko B · null'), findsNothing);
+    expect(find.text('Toko B'), findsOneWidget);
+    expect(find.text('null'), findsNothing);
   });
 }

@@ -10,10 +10,12 @@ class UiTaskBody extends StatelessWidget {
       {super.key,
       required this.children,
       required this.action,
+      this.footer,
       this.summary,
       this.topPadding = 16});
   final List<Widget> children;
   final Widget action;
+  final Widget? footer;
   final String? summary;
   final double topPadding;
 
@@ -37,6 +39,10 @@ class UiTaskBody extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (footer != null) ...[
+                        footer!,
+                        const SizedBox(height: 10),
+                      ],
                       if (summary != null) ...[
                         Text(summary!,
                             style: TextStyle(
@@ -89,7 +95,7 @@ class UiProductPhoto extends StatelessWidget {
 
   Widget _placeholder(BuildContext context) => ColoredBox(
         color: Theme.of(context).brightness == Brightness.dark
-            ? const Color(0xff263241)
+            ? kTaskDarkSurface
             : kTaskSand,
         child: Center(
           child: Icon(Icons.image_not_supported_outlined,

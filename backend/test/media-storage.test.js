@@ -12,6 +12,7 @@ process.env.JWT_REFRESH_SECRET = 'test';
 const { decodeDataUpload, decodeMediaFromStorage, encodeMediaForStorage } = require('../src/media-storage');
 
 const onePixelPng = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+const tinyJpeg = Buffer.from([0xff, 0xd8, 0xff, 0x00]).toString('base64');
 
 test('decodeDataUpload preserves valid PNG bytes', () => {
   const file = decodeDataUpload(
@@ -31,6 +32,15 @@ test('decodeDataUpload rejects mismatched binary signatures', () => {
     ),
     /Isi file tidak sesuai/
   );
+});
+
+test('decodeDataUpload uses the detected image type when the client MIME is stale', () => {
+  const file = decodeDataUpload(
+    { filename: 'logo', content_type: 'image/png', data_url: `data:image/png;base64,${tinyJpeg}` },
+    { fileSize: 1024, mimeTypes: ['image/jpeg', 'image/png'] }
+  );
+  assert.equal(file.mimetype, 'image/jpeg');
+  assert.equal(file.originalname, 'logo.jpg');
 });
 
 test('database encoding round-trip preserves non-ASCII media bytes', () => {

@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import AppShell from '../../components/AppShell';
 import SafeImage from '../../components/SafeImage';
 import StockVariantPicker from '../../components/StockVariantPicker';
@@ -14,6 +15,8 @@ const { normalizeQuantity } = mutationQuantity;
 
 export function MutationPage({ initialMode = null, separatePage = false } = {}) {
   const { user, activeBranchId } = useAppSession();
+  const router = useRouter();
+  const canManageStockMutations = ['owner', 'gudang'].includes(user?.role);
   const [mode, setMode] = useState(initialMode || 'in');
   const [stores, setStores] = useState([]);
   const [allWarehouses, setAllWarehouses] = useState([]);
@@ -68,6 +71,11 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
   }
 
   useEffect(() => {
+    if (!user?.role) return undefined;
+    if (!canManageStockMutations) {
+      router.replace('/inventory');
+      return undefined;
+    }
     /* sesi via httpOnly cookie */
     const queryMode = new URLSearchParams(window.location.search).get('mode');
     if (!initialMode && (queryMode === 'in' || queryMode === 'out')) setMode(queryMode);
@@ -80,7 +88,7 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
       setAllWarehouses(whs);
       setLocationsLoaded(true);
     }).catch((e) => setMessage(e.message));
-  }, []);
+  }, [canManageStockMutations, router, user?.role]);
 
   useEffect(() => {
     if (!locationsLoaded || !user?.role) return;
@@ -288,6 +296,15 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
       setCartOpen(false);
       loadProducts(store, warehouse);
     } catch (e) { setMessage(e.message); } finally { setSaving(false); }
+  }
+
+  if (user && !canManageStockMutations) {
+    return <AppShell title="Mutasi Stok" eyebrow="PRODUK & INVENTORI">
+      <section className="panel" role="alert">
+        <h2>Akses mutasi stok dibatasi</h2>
+        <p className="muted">Hanya owner dan admin gudang yang dapat mencatat stok masuk atau stok keluar.</p>
+      </section>
+    </AppShell>;
   }
 
   return <AppShell title={mode === 'in' ? 'Stok Masuk' : 'Stok Keluar'} eyebrow="PRODUK & INVENTORI" actions={<a className="button-link" href="/inventory">Lihat Stok</a>}>

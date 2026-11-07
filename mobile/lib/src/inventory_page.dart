@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
 import 'api_client.dart';
+import 'app_navigation.dart';
+import 'branch_scope.dart';
 import 'format.dart';
 import 'printer_service.dart';
 import 'product_form_page.dart';
@@ -20,6 +22,13 @@ const _inventorySections = <({String value, IconData icon, String label})>[
   (value: 'opname', icon: Icons.fact_check, label: 'Opname'),
   (value: 'barcode', icon: Icons.qr_code_scanner, label: 'Barcode'),
 ];
+
+List<({String value, IconData icon, String label})> _inventorySectionsForRole(
+        String? role) =>
+    _inventorySections
+        .where(
+            (entry) => entry.value != 'mutasi' || canManageStockMutations(role))
+        .toList(growable: false);
 
 enum InventoryStockLevel { good, low, empty }
 
@@ -68,6 +77,7 @@ class InventoryPage extends StatefulWidget {
   final String initialSection;
 
   bool get isOwner => role == 'owner';
+  bool get canManageMutations => canManageStockMutations(role);
 
   @override
   State<InventoryPage> createState() => _InventoryPageState();
@@ -79,10 +89,30 @@ class _InventoryPageState extends State<InventoryPage> {
   @override
   void initState() {
     super.initState();
-    _section = widget.initialSection;
+    _section = widget.initialSection == 'mutasi' && !widget.canManageMutations
+        ? 'stok'
+        : widget.initialSection;
+    if (widget.isOwner) BranchScope.active.addListener(_onBranchScopeChanged);
+  }
+
+  int get _activeBranchId => widget.isOwner
+      ? BranchScope.active.value ?? widget.branchId
+      : widget.branchId;
+
+  void _onBranchScopeChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    if (widget.isOwner) {
+      BranchScope.active.removeListener(_onBranchScopeChanged);
+    }
+    super.dispose();
   }
 
   void _selectSection(String value) {
+    if (value == 'mutasi' && !widget.canManageMutations) return;
     if (value == 'transfer' || value == 'opname') {
       Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => Scaffold(
@@ -93,10 +123,10 @@ class _InventoryPageState extends State<InventoryPage> {
                 body: value == 'transfer'
                     ? _TransferSection(
                         api: widget.api,
-                        branchId: widget.branchId,
+                        branchId: _activeBranchId,
                         isOwner: widget.isOwner)
                     : _OpnameSection(
-                        api: widget.api, branchId: widget.branchId),
+                        api: widget.api, branchId: _activeBranchId),
               )));
       return;
     }
@@ -105,6 +135,42 @@ class _InventoryPageState extends State<InventoryPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.initialSection == 'incoming' ||
+        widget.initialSection == 'outgoing') {
+      if (!widget.canManageMutations) {
+        return ColoredBox(
+          color: pageBg(context),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.lock_outline, size: 42, color: taskMuted(context)),
+                  const SizedBox(height: 12),
+                  Text('Akses mutasi stok dibatasi',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: ink(context),
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 6),
+                  Text(
+                      'Hanya owner dan admin gudang yang dapat mencatat stok masuk atau stok keluar.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: taskMuted(context))),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+      return _InOutForm(
+        api: widget.api,
+        branchId: _activeBranchId,
+        kind: widget.initialSection,
+      );
+    }
     return ColoredBox(
       color: pageBg(context),
       child: Stack(
@@ -115,24 +181,29 @@ class _InventoryPageState extends State<InventoryPage> {
               _InventorySectionSelector(
                 selected: _section,
                 onChanged: _selectSection,
+                sections: _inventorySectionsForRole(widget.role),
               ),
               Expanded(
                 child: switch (_section) {
                   'stok' => _StockSection(
+                      key: ValueKey(_activeBranchId),
                       api: widget.api,
-                      branchId: widget.branchId,
-                      isOwner: widget.isOwner),
-                  'mutasi' =>
-                    _MutasiSection(api: widget.api, branchId: widget.branchId),
+                      branchId: _activeBranchId,
+                      isOwner: widget.isOwner,
+                      canViewAllWarehouses: widget.role == 'gudang'),
+                  'mutasi' => _MutasiSection(
+                      key: ValueKey(_activeBranchId),
+                      api: widget.api,
+                      branchId: _activeBranchId),
                   'transfer' => _TransferSection(
-                      key: ValueKey(widget.branchId),
+                      key: ValueKey(_activeBranchId),
                       api: widget.api,
-                      branchId: widget.branchId,
+                      branchId: _activeBranchId,
                       isOwner: widget.isOwner),
                   'opname' => _OpnameSection(
-                      key: ValueKey(widget.branchId),
+                      key: ValueKey(_activeBranchId),
                       api: widget.api,
-                      branchId: widget.branchId),
+                      branchId: _activeBranchId),
                   _ => _BarcodeSection(api: widget.api),
                 },
               ),
@@ -146,15 +217,18 @@ class _InventoryPageState extends State<InventoryPage> {
 
 class _InventorySectionSelector extends StatelessWidget {
   const _InventorySectionSelector(
-      {required this.selected, required this.onChanged});
+      {required this.selected,
+      required this.onChanged,
+      required this.sections});
   final String selected;
   final ValueChanged<String> onChanged;
+  final List<({String value, IconData icon, String label})> sections;
 
   @override
   Widget build(BuildContext context) {
-    final item = _inventorySections.firstWhere(
+    final item = sections.firstWhere(
       (entry) => entry.value == selected,
-      orElse: () => _inventorySections.first,
+      orElse: () => sections.first,
     );
     return Column(children: [
       Padding(
@@ -167,7 +241,7 @@ class _InventorySectionSelector extends StatelessWidget {
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           onSelected: onChanged,
           itemBuilder: (context) => [
-            for (final entry in _inventorySections)
+            for (final entry in sections)
               PopupMenuItem<String>(
                 value: entry.value,
                 child: Row(
@@ -211,7 +285,7 @@ class _InventorySectionSelector extends StatelessWidget {
       Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(children: [
-            for (final entry in _inventorySections)
+            for (final entry in sections)
               Expanded(
                   child: Semantics(
                       selected: entry.value == selected,
@@ -250,10 +324,15 @@ class _InventorySectionSelector extends StatelessWidget {
 
 class _StockSection extends StatefulWidget {
   const _StockSection(
-      {required this.api, required this.branchId, this.isOwner = false});
+      {super.key,
+      required this.api,
+      required this.branchId,
+      this.isOwner = false,
+      this.canViewAllWarehouses = false});
   final ApiClient api;
   final int branchId;
   final bool isOwner;
+  final bool canViewAllWarehouses;
 
   @override
   State<_StockSection> createState() => _StockSectionState();
@@ -283,12 +362,21 @@ class _StockSectionState extends State<_StockSection> {
   }
 
   String get _selectedWarehouseName {
+    if (_warehouseId.isEmpty && widget.canViewAllWarehouses) {
+      return 'Semua gudang';
+    }
     for (final warehouse in _warehouses) {
       if ('${warehouse['id']}' == _warehouseId) {
-        return warehouse['name']?.toString() ?? 'Gudang';
+        return _warehouseLabel(warehouse);
       }
     }
     return 'Gudang';
+  }
+
+  String _warehouseLabel(Map<String, dynamic> warehouse) {
+    final name = warehouse['name']?.toString() ?? 'Gudang';
+    final branch = warehouse['branch_name']?.toString();
+    return branch == null || branch.isEmpty ? name : '$branch · $name';
   }
 
   void _openSearch() {
@@ -385,12 +473,17 @@ class _StockSectionState extends State<_StockSection> {
       ),
     );
     if (v == null || !mounted) return;
+    final selectedBranch =
+        v == 'all' ? null : int.tryParse(v.replaceFirst('branch-', ''));
     setState(() {
       _branchMode = v;
-      _branchId =
-          v == 'all' ? null : int.tryParse(v.replaceFirst('branch-', ''));
+      _branchId = selectedBranch;
       _warehouseId = '';
     });
+    if (selectedBranch != null && BranchScope.active.value != selectedBranch) {
+      await BranchScope.set(selectedBranch);
+      return;
+    }
     await _loadWarehouses();
     _load();
   }
@@ -398,6 +491,10 @@ class _StockSectionState extends State<_StockSection> {
   @override
   void initState() {
     super.initState();
+    if (widget.canViewAllWarehouses) _branchMode = 'all';
+    if (widget.isOwner) {
+      _branchId = BranchScope.active.value ?? widget.branchId;
+    }
     _loadBranches();
     _initializeStockScope();
   }
@@ -446,7 +543,7 @@ class _StockSectionState extends State<_StockSection> {
   }
 
   Future<void> _loadWarehouses() async {
-    if (_branchMode == 'all') {
+    if (_branchMode == 'all' && !widget.canViewAllWarehouses) {
       if (mounted) {
         setState(() {
           _warehouses = [];
@@ -456,12 +553,15 @@ class _StockSectionState extends State<_StockSection> {
       return;
     }
     try {
-      final rows = await widget.api.warehouses(_branchId ?? widget.branchId);
+      final rows = widget.canViewAllWarehouses
+          ? await widget.api.allWarehouses()
+          : await widget.api.warehouses(_branchId ?? widget.branchId);
       if (!mounted) return;
       final warehouses = rows.cast<Map<String, dynamic>>();
       setState(() {
         _warehouses = warehouses;
-        if (!warehouses.any((row) => '${row['id']}' == _warehouseId)) {
+        if (!widget.canViewAllWarehouses &&
+            !warehouses.any((row) => '${row['id']}' == _warehouseId)) {
           _warehouseId = warehouses.isEmpty ? '' : '${warehouses.first['id']}';
         }
       });
@@ -480,8 +580,7 @@ class _StockSectionState extends State<_StockSection> {
           branchId: _branchId ?? widget.branchId,
           search: _search.text.trim(),
           allBranches: _branchMode == 'all',
-          warehouseId:
-              _branchMode == 'all' ? null : int.tryParse(_warehouseId));
+          warehouseId: int.tryParse(_warehouseId));
       var rows =
           ((data['products'] as List?) ?? []).cast<Map<String, dynamic>>();
 
@@ -604,8 +703,8 @@ class _StockSectionState extends State<_StockSection> {
                                   const EdgeInsets.fromLTRB(12, 0, 12, 104),
                               itemCount: _sorted.length,
                               gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
+                                  const SliverGridDelegateWithMaxCrossAxisExtent(
+                                maxCrossAxisExtent: 260,
                                 mainAxisSpacing: 10,
                                 crossAxisSpacing: 10,
                                 childAspectRatio: 0.8,
@@ -885,10 +984,9 @@ class _StockEditBadge extends StatelessWidget {
           width: 30,
           height: 30,
           decoration: BoxDecoration(
-            color: dark ? const Color(0xff263241) : kTaskSurface,
+            color: dark ? kTaskDarkSurface : kTaskSurface,
             borderRadius: BorderRadius.circular(10),
-            border:
-                Border.all(color: dark ? const Color(0xff475569) : kTaskBorder),
+            border: Border.all(color: dark ? kTaskDarkBorder : kTaskBorder),
             boxShadow: const [
               BoxShadow(
                   color: Color(0x180F172A), blurRadius: 5, offset: Offset(0, 2))
@@ -956,7 +1054,7 @@ class _StatCell extends StatelessWidget {
 }
 
 class _MutasiSection extends StatefulWidget {
-  const _MutasiSection({required this.api, required this.branchId});
+  const _MutasiSection({super.key, required this.api, required this.branchId});
   final ApiClient api;
   final int branchId;
 
@@ -1014,7 +1112,7 @@ class _MutasiSectionState extends State<_MutasiSection> {
                   child: FilledButton.icon(
                 onPressed: () => _openForm('incoming'),
                 style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xff2E7E4F),
+                    backgroundColor: kTaskTeal,
                     foregroundColor: Colors.white,
                     minimumSize: const Size(0, 64)),
                 icon: const Icon(Icons.move_to_inbox_outlined),
@@ -1025,7 +1123,7 @@ class _MutasiSectionState extends State<_MutasiSection> {
                   child: FilledButton.icon(
                 onPressed: () => _openForm('outgoing'),
                 style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xffC2410C),
+                    backgroundColor: kTaskTerracotta,
                     foregroundColor: Colors.white,
                     minimumSize: const Size(0, 64)),
                 icon: const Icon(Icons.outbox_outlined),
@@ -1138,13 +1236,16 @@ String _inOutLabel(String kind) =>
 class _InOutFormState extends State<_InOutForm> {
   List<Map<String, dynamic>> _warehouses = [];
   List<Map<String, dynamic>> _channels = [];
+  List<Map<String, dynamic>> _catalog = [];
   String _warehouseId = '';
   String _channel = 'toko';
   String _transactionDate = todayWib();
   String _batch = '';
   String _notes = '';
+  String _catalogQuery = '';
   final List<Map<String, dynamic>> _items = [];
   bool _loading = true;
+  bool _catalogLoading = true;
   bool _saving = false;
   String? _error;
 
@@ -1156,48 +1257,333 @@ class _InOutFormState extends State<_InOutForm> {
 
   Future<void> _load() async {
     try {
+      final warehouses = (await widget.api.warehouses(widget.branchId))
+          .cast<Map<String, dynamic>>();
+      final warehouseId = warehouses.isEmpty ? '' : '${warehouses.first['id']}';
       final results = await Future.wait([
-        widget.api.warehouses(widget.branchId),
+        widget.api.incomingProducts(
+            branchId: widget.branchId, warehouseId: int.tryParse(warehouseId)),
         if (widget.kind == 'outgoing') widget.api.channels(),
       ]);
       if (!mounted) return;
       setState(() {
-        _warehouses = results[0].cast<Map<String, dynamic>>();
+        _warehouses = warehouses;
+        _catalog = results[0].cast<Map<String, dynamic>>();
         if (widget.kind == 'outgoing') {
           _channels = results[1].cast<Map<String, dynamic>>();
         }
-        if (_warehouses.isNotEmpty && _warehouseId.isEmpty) {
-          _warehouseId = '${_warehouses.first['id']}';
-        }
+        _warehouseId = warehouseId;
+        _catalogLoading = false;
       });
     } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (mounted) {
+        setState(() {
+          _error = e.message;
+          _catalogLoading = false;
+        });
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _pickItem() async {
-    final catalog = await widget.api.incomingProducts(
-        branchId: widget.branchId, warehouseId: int.tryParse(_warehouseId));
-    if (!mounted) return;
-    final result = await Navigator.of(context).push<List<Map<String, dynamic>>>(
-      MaterialPageRoute(
-        builder: (_) => _CatalogPicker(
-          products: catalog.cast<Map<String, dynamic>>(),
-          withCost: widget.kind == 'incoming',
-          accent: _inOutAccent(widget.kind),
-          title: _inOutLabel(widget.kind),
-          mediaUrl: _mediaUrl,
-        ),
-      ),
-    );
-    if (result == null || result.isEmpty) return;
-    setState(() => _items.addAll(result));
+  List<Map<String, dynamic>> get _filteredCatalog {
+    final query = _catalogQuery.trim().toLowerCase();
+    if (query.isEmpty) return _catalog;
+    return _catalog.where((product) {
+      return (product['name'] ?? '').toString().toLowerCase().contains(query) ||
+          (product['sku'] ?? '').toString().toLowerCase().contains(query);
+    }).toList();
   }
 
   String _mediaUrl(String? path) {
     return stockProductMediaUrl(path, baseUrl: widget.api.baseUrl);
+  }
+
+  String _displayDate(String value) {
+    final date = DateTime.tryParse(value);
+    if (date == null) return value;
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des'
+    ];
+    return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
+  }
+
+  Future<void> _reloadCatalog(String warehouseId) async {
+    if (warehouseId.isEmpty) return;
+    setState(() {
+      _catalogLoading = true;
+      _catalogQuery = '';
+      _items.clear();
+    });
+    try {
+      final products = await widget.api.incomingProducts(
+          branchId: widget.branchId, warehouseId: int.tryParse(warehouseId));
+      if (!mounted) return;
+      setState(() {
+        _catalog = products.cast<Map<String, dynamic>>();
+        _catalogLoading = false;
+      });
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          _catalogLoading = false;
+          _error = e.message;
+        });
+      }
+    }
+  }
+
+  Future<void> _addCatalogProduct(Map<String, dynamic> product) async {
+    final variants =
+        ((product['variants'] as List?) ?? []).cast<Map<String, dynamic>>();
+    var variantId = variants.isEmpty ? null : variants.first['id'] as int?;
+    final qty = TextEditingController(text: '1');
+    final cost = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(productDisplayName(product)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (variants.isNotEmpty) ...[
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final variant in variants)
+                      ChoiceChip(
+                        label: Text(variant['color']?.toString() ?? ''),
+                        selected: variant['id'] == variantId,
+                        onSelected: (_) => setDialogState(
+                            () => variantId = variant['id'] as int?),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
+              TextField(
+                controller: qty,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                    labelText: 'Jumlah', border: OutlineInputBorder()),
+              ),
+              if (widget.kind == 'incoming') ...[
+                const SizedBox(height: 8),
+                TextField(
+                  controller: cost,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                      labelText: 'Harga beli (opsional)',
+                      border: OutlineInputBorder(),
+                      prefixText: 'Rp '),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Batal')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Tambah')),
+          ],
+        ),
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final quantity = int.tryParse(qty.text) ?? 0;
+    if (quantity <= 0) return;
+    final variantLabel = variants
+        .where((variant) => variant['id'] == variantId)
+        .map((variant) => variant['color']?.toString() ?? '')
+        .join(', ');
+    setState(() {
+      _items.add({
+        'product_id': product['id'],
+        if (variantId != null) 'variant_id': variantId,
+        'name': product['name'],
+        'photo_path': stockProductPhotoPath(product),
+        'variant_label': variantLabel,
+        'quantity': quantity,
+        if (widget.kind == 'incoming' && cost.text.trim().isNotEmpty)
+          'cost': double.tryParse(cost.text.replaceAll('.', '')) ?? 0,
+      });
+    });
+  }
+
+  int get _totalQuantity =>
+      _items.fold<int>(0, (sum, item) => sum + asNum(item['quantity']).round());
+
+  Widget _cartBar(BuildContext context) {
+    final accent = _inOutAccent(widget.kind);
+    return GlassCard(
+      key: const ValueKey('inventory-inout-cart-bar'),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      radius: 16,
+      onTap: _items.isEmpty ? null : _showCartSheet,
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child:
+                Icon(Icons.shopping_basket_outlined, size: 19, color: accent),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Keranjang · ${_items.length} produk',
+                    style: TextStyle(
+                        color: accent,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800)),
+                Text(
+                    _items.isEmpty
+                        ? 'Belum ada produk dipilih'
+                        : '$_totalQuantity pcs',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: taskMuted(context))),
+              ],
+            ),
+          ),
+          Text('Lihat',
+              style: TextStyle(
+                  color: accent, fontSize: 11, fontWeight: FontWeight.w800)),
+          const SizedBox(width: 3),
+          Icon(Icons.chevron_right, color: accent),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showCartSheet() async {
+    final accent = _inOutAccent(widget.kind);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: StatefulBuilder(
+          builder: (sheetContext, setSheetState) => Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: ConstrainedBox(
+              key: const ValueKey('inventory-inout-cart-sheet'),
+              constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(sheetContext).height * .62),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text('Keranjang · ${_items.length} produk',
+                            style: TextStyle(
+                                color: accent,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800)),
+                      ),
+                      Text('$_totalQuantity pcs',
+                          style: TextStyle(
+                              color: taskMuted(sheetContext),
+                              fontWeight: FontWeight.w700)),
+                      IconButton(
+                        onPressed: () => Navigator.pop(sheetContext),
+                        icon: const Icon(Icons.close),
+                        tooltip: 'Tutup keranjang',
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 8),
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: _items.length,
+                      separatorBuilder: (_, __) => const Divider(height: 8),
+                      itemBuilder: (_, index) {
+                        final item = _items[index];
+                        final variant =
+                            (item['variant_label'] ?? '').toString();
+                        return Row(
+                          children: [
+                            _InventoryThumbnail(
+                                path: _mediaUrl(stockProductPhotoPath(item)),
+                                size: const Size(38, 46)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(productDisplayName(item),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700)),
+                                  Text(
+                                      '${variant.isEmpty ? '' : '$variant · '}${item['quantity']} pcs',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: taskMuted(sheetContext))),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () async {
+                                await _editItem(item,
+                                    withCost: widget.kind == 'incoming');
+                                if (mounted) setSheetState(() {});
+                              },
+                              icon: const Icon(Icons.edit_outlined, size: 18),
+                              tooltip: 'Ubah jumlah',
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                setState(() => _items.removeAt(index));
+                                setSheetState(() {});
+                              },
+                              icon: const Icon(Icons.delete_outline, size: 18),
+                              tooltip: 'Hapus dari keranjang',
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _addChannel() async {
@@ -1255,8 +1641,7 @@ class _InOutFormState extends State<_InOutForm> {
             children: [
               if ((item['variant_label'] ?? '').toString().isNotEmpty)
                 Text((item['variant_label'] ?? '').toString(),
-                    style:
-                        const TextStyle(fontSize: 11, color: kTaskSecondary)),
+                    style: TextStyle(fontSize: 12, color: taskMuted(context))),
               const SizedBox(height: 10),
               TextField(
                 controller: qty,
@@ -1297,6 +1682,15 @@ class _InOutFormState extends State<_InOutForm> {
         item['cost'] = double.tryParse(cost.text.replaceAll('.', '')) ?? 0;
       }
     });
+  }
+
+  String get _selectedWarehouseName {
+    for (final warehouse in _warehouses) {
+      if ('${warehouse['id']}' == _warehouseId) {
+        return warehouse['name']?.toString() ?? 'Gudang';
+      }
+    }
+    return 'Pilih gudang';
   }
 
   Future<void> _submit() async {
@@ -1342,15 +1736,27 @@ class _InOutFormState extends State<_InOutForm> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: kTaskDark,
         elevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle.light,
         foregroundColor: Colors.white,
         // Judul dijamin putih (theme global memakai denim).
         titleTextStyle: const TextStyle(
             color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
-        flexibleSpace: Container(color: accent),
-        title: Text(_inOutLabel(widget.kind)),
+        flexibleSpace: Container(color: kTaskDark),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(_inOutLabel(widget.kind),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+            Text('${_items.length} item',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700)),
+          ],
+        ),
       ),
       body: _loading
           ? const UiLoadingState(label: 'Memuat formulir…')
@@ -1359,8 +1765,7 @@ class _InOutFormState extends State<_InOutForm> {
               : UiTaskBody(
                   topPadding:
                       MediaQuery.of(context).padding.top + kToolbarHeight + 12,
-                  summary:
-                      '${_items.length} produk · ${_items.fold<num>(0, (sum, item) => sum + asNum(item['quantity']))} pcs',
+                  footer: _cartBar(context),
                   action: FilledButton(
                     style: FilledButton.styleFrom(
                         minimumSize: const Size.fromHeight(52),
@@ -1377,117 +1782,145 @@ class _InOutFormState extends State<_InOutForm> {
                             : 'Simpan stok keluar'),
                   ),
                   children: [
-                    // Banner pembeda warna solid + teks putih.
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: accent,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                              widget.kind == 'incoming'
-                                  ? Icons.move_to_inbox
-                                  : Icons.move_to_inbox_outlined,
-                              size: 20,
-                              color: Colors.white),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              widget.kind == 'incoming'
-                                  ? 'Barang MASUK ke gudang'
-                                  : 'Barang KELUAR dari gudang',
-                              style: const TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white),
-                            ),
+                    GlassCard(
+                      padding: EdgeInsets.zero,
+                      radius: 16,
+                      child: Theme(
+                        data: Theme.of(context)
+                            .copyWith(dividerColor: Colors.transparent),
+                        child: ExpansionTile(
+                          key: const ValueKey('inventory-inout-details'),
+                          initiallyExpanded: false,
+                          tilePadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 2),
+                          childrenPadding:
+                              const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                          leading:
+                              Icon(Icons.inventory_2_outlined, color: accent),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(_selectedWarehouseName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800)),
+                              ),
+                              Text(_displayDate(_transactionDate),
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700)),
+                            ],
                           ),
-                        ],
+                          subtitle: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                  _batch.trim().isEmpty && _notes.trim().isEmpty
+                                      ? 'Batch / catatan'
+                                      : '${_batch.trim().isEmpty ? 'Tanpa batch' : _batch.trim()}${_notes.trim().isEmpty ? '' : ' · ${_notes.trim()}'}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis),
+                            ],
+                          ),
+                          iconColor: accent,
+                          collapsedIconColor: accent,
+                          children: [
+                            InkWell(
+                              onTap: () async {
+                                final picked = await showDatePicker(
+                                    context: context,
+                                    initialDate:
+                                        DateTime.parse(_transactionDate),
+                                    firstDate: DateTime(2020),
+                                    lastDate: DateTime.now()
+                                        .add(const Duration(days: 366)));
+                                if (picked == null || !mounted) return;
+                                setState(() => _transactionDate =
+                                    '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}');
+                              },
+                              child: InputDecorator(
+                                  decoration: const InputDecoration(
+                                      labelText: 'Tanggal',
+                                      suffixIcon:
+                                          Icon(Icons.calendar_today_outlined)),
+                                  child: Text(_transactionDate)),
+                            ),
+                            const SizedBox(height: 8),
+                            DropdownButtonFormField<String>(
+                              initialValue:
+                                  _warehouseId.isEmpty ? null : _warehouseId,
+                              decoration: const InputDecoration(
+                                  labelText: 'Gudang',
+                                  border: OutlineInputBorder()),
+                              items: [
+                                for (final w in _warehouses)
+                                  DropdownMenuItem(
+                                      value: '${w['id']}',
+                                      child: Text(w['name']?.toString() ?? '')),
+                              ],
+                              onChanged: (v) async {
+                                final next = v ?? '';
+                                setState(() => _warehouseId = next);
+                                await _reloadCatalog(next);
+                              },
+                            ),
+                            if (widget.kind == 'outgoing') ...[
+                              const SizedBox(height: 8),
+                              DropdownButtonFormField<String>(
+                                initialValue: _channel,
+                                decoration: InputDecoration(
+                                    labelText: 'Saluran',
+                                    border: const OutlineInputBorder(),
+                                    suffixIcon: IconButton(
+                                      onPressed: _addChannel,
+                                      icon: const Icon(Icons.add_circle_outline,
+                                          size: 20, color: kTaskTerracotta),
+                                      tooltip: 'Tambah saluran',
+                                    )),
+                                items: [
+                                  for (final c in _channels)
+                                    DropdownMenuItem(
+                                        value: c['name']?.toString() ?? '',
+                                        child:
+                                            Text(c['name']?.toString() ?? '')),
+                                  if (_channels.isEmpty)
+                                    const DropdownMenuItem(
+                                        value: 'toko', child: Text('toko')),
+                                ],
+                                onChanged: (v) =>
+                                    setState(() => _channel = v ?? 'toko'),
+                              ),
+                            ],
+                            const SizedBox(height: 8),
+                            TextField(
+                              decoration: const InputDecoration(
+                                  labelText: 'Nomor batch / nota (opsional)',
+                                  border: OutlineInputBorder()),
+                              onChanged: (v) => _batch = v,
+                            ),
+                            const SizedBox(height: 8),
+                            TextField(
+                              decoration: const InputDecoration(
+                                  labelText: 'Keterangan',
+                                  border: OutlineInputBorder()),
+                              onChanged: (v) => _notes = v,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    InkWell(
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                            context: context,
-                            initialDate: DateTime.parse(_transactionDate),
-                            firstDate: DateTime(2020),
-                            lastDate:
-                                DateTime.now().add(const Duration(days: 366)));
-                        if (picked == null || !mounted) return;
-                        setState(() => _transactionDate =
-                            '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}');
-                      },
-                      child: InputDecorator(
-                          decoration: const InputDecoration(
-                              labelText: 'Tanggal',
-                              suffixIcon: Icon(Icons.calendar_today_outlined)),
-                          child: Text(_transactionDate)),
-                    ),
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: _warehouseId.isEmpty ? null : _warehouseId,
-                      decoration: const InputDecoration(
-                          labelText: 'Gudang', border: OutlineInputBorder()),
-                      items: [
-                        for (final w in _warehouses)
-                          DropdownMenuItem(
-                              value: '${w['id']}',
-                              child: Text(w['name']?.toString() ?? '')),
-                      ],
-                      onChanged: (v) => setState(() => _warehouseId = v ?? ''),
-                    ),
-                    const SizedBox(height: 8),
-                    if (widget.kind == 'outgoing') ...[
-                      DropdownButtonFormField<String>(
-                        initialValue: _channel,
-                        decoration: InputDecoration(
-                            labelText: 'Saluran',
-                            border: const OutlineInputBorder(),
-                            suffixIcon: IconButton(
-                              onPressed: _addChannel,
-                              icon: const Icon(Icons.add_circle_outline,
-                                  size: 20, color: kTaskTerracotta),
-                              tooltip: 'Tambah saluran',
-                            )),
-                        items: [
-                          for (final c in _channels)
-                            DropdownMenuItem(
-                                value: c['name']?.toString() ?? '',
-                                child: Text(c['name']?.toString() ?? '')),
-                          if (_channels.isEmpty)
-                            const DropdownMenuItem(
-                                value: 'toko', child: Text('toko')),
-                        ],
-                        onChanged: (v) =>
-                            setState(() => _channel = v ?? 'toko'),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
                     TextField(
+                      onChanged: (value) =>
+                          setState(() => _catalogQuery = value),
                       decoration: const InputDecoration(
-                          labelText: 'Nomor batch / nota (opsional)',
+                          prefixIcon: Icon(Icons.search),
+                          isDense: true,
+                          hintText: 'Cari produk',
                           border: OutlineInputBorder()),
-                      onChanged: (v) => _batch = v,
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      decoration: const InputDecoration(
-                          labelText: 'Keterangan',
-                          border: OutlineInputBorder()),
-                      onChanged: (v) => _notes = v,
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton.icon(
-                      onPressed: _pickItem,
-                      style: FilledButton.styleFrom(
-                          backgroundColor: accent,
-                          foregroundColor: Colors.white),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Tambah Produk'),
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: 8),
@@ -1495,40 +1928,100 @@ class _InOutFormState extends State<_InOutForm> {
                           style: TextStyle(
                               color: Theme.of(context).colorScheme.error)),
                     ],
-                    const SizedBox(height: 8),
-                    for (final item in _items)
+                    const SizedBox(height: 10),
+                    if (_catalogLoading)
+                      const SizedBox(
+                          height: 180,
+                          child: UiLoadingState(label: 'Memuat produk…'))
+                    else if (_filteredCatalog.isEmpty)
                       GlassCard(
+                        padding: const EdgeInsets.all(20),
+                        child: Text('Produk tidak ditemukan',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: taskMuted(context))),
+                      )
+                    else
+                      GridView.builder(
+                        key: const ValueKey('inventory-inout-catalog'),
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
                         padding: EdgeInsets.zero,
-                        child: ListTile(
-                          dense: true,
-                          leading: _InventoryThumbnail(
-                              path: stockProductMediaUrl(
-                                  stockProductPhotoPath(item),
-                                  baseUrl: widget.api.baseUrl),
-                              size: const Size(42, 56)),
-                          onTap: () => _editItem(item,
-                              withCost: widget.kind == 'incoming'),
-                          title: Text(item['name']?.toString() ?? ''),
-                          subtitle: Text(
-                              '${item['variant_label'] ?? ''} · ${item['quantity']} pcs${widget.kind == 'incoming' ? '\nHarga beli ${fmtRp(asNum(item['cost']))}' : ''}'),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                onPressed: () => _editItem(item,
-                                    withCost: widget.kind == 'incoming'),
-                                icon: const Icon(Icons.edit_outlined, size: 18),
-                                tooltip: 'Ubah jumlah',
-                              ),
-                              IconButton(
-                                onPressed: () =>
-                                    setState(() => _items.remove(item)),
-                                icon: const Icon(Icons.delete_outline),
-                              ),
-                            ],
-                          ),
+                        itemCount: _filteredCatalog.length,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                          childAspectRatio: .68,
                         ),
+                        itemBuilder: (_, index) {
+                          final product = _filteredCatalog[index];
+                          return GlassCard(
+                            padding: EdgeInsets.zero,
+                            radius: 14,
+                            onTap: () => _addCatalogProduct(product),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(
+                                  child: ClipRRect(
+                                    borderRadius: const BorderRadius.vertical(
+                                        top: Radius.circular(14)),
+                                    child: UiProductPhoto(
+                                      path: _mediaUrl(
+                                          stockProductPhotoPath(product)),
+                                      baseUrl: '',
+                                      fit: BoxFit.cover,
+                                      label:
+                                          'Foto ${productDisplayName(product)}',
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(7, 6, 6, 6),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(productDisplayName(product),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w800)),
+                                      const SizedBox(height: 3),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                                'Stok ${product['stock'] ?? 0}',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                    fontSize: 10.5,
+                                                    color: taskMuted(context))),
+                                          ),
+                                          Container(
+                                            width: 24,
+                                            height: 24,
+                                            decoration: BoxDecoration(
+                                                color: accent,
+                                                shape: BoxShape.circle),
+                                            child: const Icon(Icons.add,
+                                                size: 16, color: Colors.white),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
+                    const SizedBox(height: 96),
                   ],
                 ),
     );
@@ -1576,6 +2069,7 @@ class _CatalogPicker extends StatefulWidget {
 class _CatalogPickerState extends State<_CatalogPicker> {
   final List<Map<String, dynamic>> _added = [];
   String _q = '';
+  bool _cartExpanded = false;
 
   List<Map<String, dynamic>> get _filtered {
     final q = _q.trim().toLowerCase();
@@ -1668,19 +2162,219 @@ class _CatalogPickerState extends State<_CatalogPicker> {
     });
   }
 
+  Future<void> _editAddedItem(int index) async {
+    final item = _added[index];
+    final qty = TextEditingController(text: '${item['quantity']}');
+    final cost = TextEditingController(
+        text: widget.withCost ? '${asNum(item['cost'] ?? 0)}' : '');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(item['name']?.toString() ?? 'Ubah Produk'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if ((item['variant_label'] ?? '').toString().isNotEmpty)
+              Text((item['variant_label'] ?? '').toString(),
+                  style: TextStyle(fontSize: 12, color: taskMuted(context))),
+            const SizedBox(height: 10),
+            TextField(
+              controller: qty,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                  labelText: 'Jumlah *', border: OutlineInputBorder()),
+            ),
+            if (widget.withCost) ...[
+              const SizedBox(height: 8),
+              TextField(
+                controller: cost,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                    labelText: 'Harga beli (opsional)',
+                    border: OutlineInputBorder(),
+                    prefixText: 'Rp '),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Batal')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Simpan')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final newQty = int.tryParse(qty.text) ?? 0;
+    if (newQty <= 0) return;
+    setState(() {
+      item['quantity'] = newQty;
+      if (widget.withCost) {
+        item['cost'] = double.tryParse(cost.text.replaceAll('.', '')) ?? 0;
+      }
+    });
+  }
+
+  int get _totalQuantity =>
+      _added.fold<int>(0, (sum, item) => sum + asNum(item['quantity']).round());
+
+  Widget _cartBar(BuildContext context) {
+    return GlassCard(
+      key: const ValueKey('inventory-picker-cart-bar'),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      radius: 18,
+      onTap: _added.isEmpty ? null : () => setState(() => _cartExpanded = true),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: widget.accent.withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(Icons.shopping_basket_outlined,
+                size: 19, color: widget.accent),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Keranjang',
+                    style: TextStyle(
+                        color: widget.accent,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800)),
+                Text(
+                    _added.isEmpty
+                        ? 'Belum ada produk dipilih'
+                        : '${_added.length} produk · $_totalQuantity pcs',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: taskMuted(context))),
+              ],
+            ),
+          ),
+          Icon(Icons.keyboard_arrow_up,
+              color: _added.isEmpty ? taskMuted(context) : widget.accent),
+        ],
+      ),
+    );
+  }
+
+  Widget _cartPanel(BuildContext context) {
+    final maxHeight = MediaQuery.sizeOf(context).height * .42;
+    return GlassCard(
+      key: const ValueKey('inventory-picker-cart-panel'),
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 8),
+      radius: 18,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight.clamp(220, 340)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.shopping_basket_outlined,
+                    size: 19, color: widget.accent),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Keranjang · ${_added.length} produk',
+                      style: TextStyle(
+                          color: widget.accent,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800)),
+                ),
+                IconButton(
+                  onPressed: () => setState(() => _cartExpanded = false),
+                  icon: const Icon(Icons.keyboard_arrow_down),
+                  tooltip: 'Tutup keranjang',
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+            const Divider(height: 8),
+            Expanded(
+              child: ListView.separated(
+                shrinkWrap: true,
+                padding: const EdgeInsets.only(top: 2),
+                itemCount: _added.length,
+                separatorBuilder: (_, __) => const Divider(height: 8),
+                itemBuilder: (_, index) {
+                  final item = _added[index];
+                  final variant = (item['variant_label'] ?? '').toString();
+                  return Row(
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: widget.accent.withValues(alpha: .12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.inventory_2_outlined,
+                            size: 17, color: widget.accent),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(item['name']?.toString() ?? '',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontSize: 12, fontWeight: FontWeight.w700)),
+                            Text(
+                                '${variant.isEmpty ? '' : '$variant · '}${item['quantity']} pcs',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: 11, color: taskMuted(context))),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => _editAddedItem(index),
+                        icon: const Icon(Icons.edit_outlined, size: 18),
+                        tooltip: 'Ubah jumlah di keranjang',
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      IconButton(
+                        onPressed: () => setState(() => _added.removeAt(index)),
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        tooltip: 'Hapus dari keranjang',
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: kTaskDark,
         elevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle.light,
         foregroundColor: Colors.white,
         titleTextStyle: const TextStyle(
             color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
-        flexibleSpace: Container(color: widget.accent),
-        title: Text('Pilih Produk: ${widget.title}'),
+        flexibleSpace: Container(color: kTaskDark),
+        title: Text(widget.title),
         actions: [
           TextButton(
             onPressed:
@@ -1690,79 +2384,93 @@ class _CatalogPickerState extends State<_CatalogPicker> {
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-                12,
-                MediaQuery.of(context).padding.top + kToolbarHeight + 12,
-                12,
-                0),
-            child: TextField(
-              onChanged: (v) => setState(() => _q = v),
-              decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search),
-                  isDense: true,
-                  hintText: 'Cari produk',
-                  border: OutlineInputBorder()),
-            ),
-          ),
-          Expanded(
-            child: _filtered.isEmpty
-                ? const Center(child: Text('Produk tidak ditemukan'))
-                : GridView.builder(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
-                    itemCount: _filtered.length,
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 10,
-                      crossAxisSpacing: 10,
-                      childAspectRatio: 0.85,
-                    ),
-                    itemBuilder: (_, i) {
-                      final p = _filtered[i];
-                      return GlassCard(
-                        padding: EdgeInsets.zero,
-                        radius: 18,
-                        onTap: () => _add(p),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Expanded(
-                              child: UiProductPhoto(
-                                path: widget.mediaUrl(stockProductPhotoPath(p)),
-                                baseUrl: '',
-                                fit: BoxFit.cover,
-                                label: 'Foto ${productDisplayName(p)}',
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(8),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(productDisplayName(p),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700)),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                      'SKU ${p['sku'] ?? ''} · stok ${p['stock'] ?? 0}',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                          fontSize: 10, color: kTaskSecondary)),
-                                ],
-                              ),
-                            ),
-                          ],
+          Column(
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                    12,
+                    MediaQuery.of(context).padding.top + kToolbarHeight + 12,
+                    12,
+                    0),
+                child: TextField(
+                  onChanged: (v) => setState(() => _q = v),
+                  decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.search),
+                      isDense: true,
+                      hintText: 'Cari produk',
+                      border: OutlineInputBorder()),
+                ),
+              ),
+              Expanded(
+                child: _filtered.isEmpty
+                    ? const Center(child: Text('Produk tidak ditemukan'))
+                    : GridView.builder(
+                        padding: EdgeInsets.fromLTRB(
+                            12, 0, 12, _cartExpanded ? 284 : 96),
+                        itemCount: _filtered.length,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                          childAspectRatio: 0.72,
                         ),
-                      );
-                    },
-                  ),
+                        itemBuilder: (_, i) {
+                          final p = _filtered[i];
+                          return GlassCard(
+                            padding: EdgeInsets.zero,
+                            radius: 18,
+                            onTap: () => _add(p),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(
+                                  child: UiProductPhoto(
+                                    path: widget
+                                        .mediaUrl(stockProductPhotoPath(p)),
+                                    baseUrl: '',
+                                    fit: BoxFit.cover,
+                                    label: 'Foto ${productDisplayName(p)}',
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(8),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(productDisplayName(p),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700)),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                          'SKU ${p['sku'] ?? ''} · stok ${p['stock'] ?? 0}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                              fontSize: 11,
+                                              color: taskMuted(context))),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+          Positioned(
+            left: 12,
+            right: 12,
+            bottom: 12 + MediaQuery.paddingOf(context).bottom,
+            child: _cartExpanded ? _cartPanel(context) : _cartBar(context),
           ),
         ],
       ),
@@ -1796,6 +2504,16 @@ class _TransferSectionState extends State<_TransferSection> {
   bool _loading = true;
   bool _saving = false;
   String? _error;
+
+  String _targetLabel(Map<String, dynamic> target) {
+    final branchName = target['name']?.toString().trim();
+    final warehouseName = target['warehouse_name']?.toString().trim();
+    final labels = [
+      if (branchName != null && branchName.isNotEmpty) branchName,
+      if (warehouseName != null && warehouseName.isNotEmpty) warehouseName,
+    ];
+    return labels.isEmpty ? 'Lokasi tujuan' : labels.join(' · ');
+  }
 
   @override
   void initState() {
@@ -1864,8 +2582,7 @@ class _TransferSectionState extends State<_TransferSection> {
             children: [
               if ((item['variant_label'] ?? '').toString().isNotEmpty)
                 Text((item['variant_label'] ?? '').toString(),
-                    style:
-                        const TextStyle(fontSize: 11, color: kTaskSecondary)),
+                    style: TextStyle(fontSize: 12, color: taskMuted(context))),
               const SizedBox(height: 10),
               TextField(
                 controller: qty,
@@ -2002,8 +2719,7 @@ class _TransferSectionState extends State<_TransferSection> {
           items: [
             for (final t in _targets)
               DropdownMenuItem<String>(
-                  value: '${t['warehouse_id']}',
-                  child: Text('${t['name']} · ${t['warehouse_name']}')),
+                  value: '${t['warehouse_id']}', child: Text(_targetLabel(t))),
           ],
           onChanged: _saving ? null : (v) => setState(() => _to = v ?? ''),
         ),
@@ -2448,7 +3164,7 @@ class _OpnamePickerState extends State<_OpnamePicker> {
                     leading: _InventoryThumbnail(path: photo),
                     title: Text(productDisplayName(p)),
                     subtitle: Text(
-                        'SKU ${p['sku'] ?? ''} · stok sistem ${p['stock'] ?? 0}'),
+                        'SKU ${p['sku'] ?? ''} · stok sistem ${p['quantity'] ?? p['stock'] ?? 0}'),
                     trailing: const Icon(Icons.add_circle_outline),
                     onTap: () => _add(p),
                   ),
@@ -2616,7 +3332,7 @@ class _InvHeaderSegment extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         border: Border.all(
-            color: active ? fg : (dark ? const Color(0xff334155) : kTaskBorder),
+            color: active ? fg : (dark ? kTaskDarkBorder : kTaskBorder),
             width: active ? 1.5 : 1),
         borderRadius: BorderRadius.circular(12),
       ),
@@ -2632,7 +3348,7 @@ class _InvHeaderSegment extends StatelessWidget {
                     fontSize: 12.5, fontWeight: FontWeight.w700, color: fg)),
           ),
           if (showChevron)
-            const Icon(Icons.expand_more, size: 18, color: kTaskSecondary),
+            Icon(Icons.expand_more, size: 18, color: taskMuted(context)),
         ],
       ),
     );
@@ -2676,8 +3392,7 @@ class _BranchIconButton extends StatelessWidget {
               height: 48,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                    color: dark ? const Color(0xff334155) : kTaskBorder),
+                border: Border.all(color: dark ? kTaskDarkBorder : kTaskBorder),
               ),
               child: Icon(Icons.store_outlined,
                   size: 20, color: Theme.of(context).colorScheme.primary),
@@ -2712,6 +3427,17 @@ class _WarehouseMenuButton extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       onSelected: onChanged,
       itemBuilder: (context) => [
+        if (warehouses.isNotEmpty)
+          const PopupMenuItem<String>(
+            value: '',
+            child: Row(
+              children: [
+                Icon(Icons.all_inclusive, size: 18),
+                SizedBox(width: 10),
+                Text('Semua gudang'),
+              ],
+            ),
+          ),
         for (final warehouse in warehouses)
           PopupMenuItem<String>(
             value: '${warehouse['id']}',
@@ -2720,7 +3446,7 @@ class _WarehouseMenuButton extends StatelessWidget {
                 const Icon(Icons.warehouse_outlined, size: 18),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(warehouse['name']?.toString() ?? 'Gudang'),
+                  child: Text(_warehouseLabel(warehouse)),
                 ),
                 if ('${warehouse['id']}' == selectedId)
                   const Icon(Icons.check, size: 18, color: kTaskStockGood),
@@ -2738,12 +3464,19 @@ class _WarehouseMenuButton extends StatelessWidget {
   }
 
   String get _selectedName {
+    if (selectedId.isEmpty && warehouses.isNotEmpty) return 'Semua gudang';
     for (final warehouse in warehouses) {
       if ('${warehouse['id']}' == selectedId) {
-        return warehouse['name']?.toString() ?? 'Gudang';
+        return _warehouseLabel(warehouse);
       }
     }
     return 'Gudang';
+  }
+
+  String _warehouseLabel(Map<String, dynamic> warehouse) {
+    final name = warehouse['name']?.toString() ?? 'Gudang';
+    final branch = warehouse['branch_name']?.toString();
+    return branch == null || branch.isEmpty ? name : '$branch · $name';
   }
 }
 
@@ -2782,7 +3515,8 @@ class _SortMenuButton extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(child: Text(item.label)),
                 if (item.value == sort)
-                  const Icon(Icons.check, size: 18, color: kTaskDark),
+                  Icon(Icons.check,
+                      size: 18, color: Theme.of(context).colorScheme.primary),
               ],
             ),
           ),
@@ -2791,10 +3525,9 @@ class _SortMenuButton extends StatelessWidget {
         width: 48,
         height: 46,
         decoration: BoxDecoration(
-          color: dark ? const Color(0xff263241) : kTaskSurface,
+          color: dark ? kTaskDarkSurface : kTaskSurface,
           borderRadius: BorderRadius.circular(14),
-          border:
-              Border.all(color: dark ? const Color(0xff334155) : kTaskBorder),
+          border: Border.all(color: dark ? kTaskDarkBorder : kTaskBorder),
         ),
         child: Icon(Icons.sort, size: 21, color: taskMuted(context)),
       ),
@@ -2819,7 +3552,7 @@ class _ViewModeButton extends StatelessWidget {
         button: true,
         label: grid ? 'Tampilan grid aktif' : 'Tampilan kartu aktif',
         child: Material(
-          color: dark ? const Color(0xff263241) : kTaskSurface,
+          color: dark ? kTaskDarkSurface : kTaskSurface,
           borderRadius: BorderRadius.circular(14),
           child: InkWell(
             borderRadius: BorderRadius.circular(14),
@@ -2829,8 +3562,7 @@ class _ViewModeButton extends StatelessWidget {
               height: 46,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                    color: dark ? const Color(0xff334155) : kTaskBorder),
+                border: Border.all(color: dark ? kTaskDarkBorder : kTaskBorder),
               ),
               child: Icon(
                   grid ? Icons.view_agenda_outlined : Icons.grid_view_outlined,

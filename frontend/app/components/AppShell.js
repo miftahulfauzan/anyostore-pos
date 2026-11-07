@@ -53,8 +53,8 @@ const navigation = [
         label: 'Mutasi Stok',
         icon: ArrowRightLeft,
         children: [
-          { href: '/inventory/incoming', label: 'Stok Masuk', icon: ArrowDownToLine, roles: ['owner', 'manager', 'admin', 'gudang'] },
-          { href: '/inventory/outgoing', label: 'Stok Keluar', icon: ArrowUpFromLine, roles: ['owner', 'manager', 'admin', 'gudang'] },
+          { href: '/inventory/incoming', label: 'Stok Masuk', icon: ArrowDownToLine, roles: ['owner', 'gudang'] },
+          { href: '/inventory/outgoing', label: 'Stok Keluar', icon: ArrowUpFromLine, roles: ['owner', 'gudang'] },
           { href: '/inventory/transfers', label: 'Transfer Stok', icon: ArrowRightLeft, roles: ['owner', 'manager', 'admin', 'gudang'] },
           { href: '/inventory/opname', label: 'Stok Opname', icon: ClipboardCheck, roles: ['owner', 'manager', 'admin', 'gudang'] },
         ],

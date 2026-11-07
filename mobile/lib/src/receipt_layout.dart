@@ -23,8 +23,10 @@ class ReceiptLayout {
 
   factory ReceiptLayout.fromReceipt(Map<String, dynamic> receipt) {
     final store = (receipt['store'] as Map<String, dynamic>?) ?? {};
-    final size = store['printer_size']?.toString() ?? '80';
-    return ReceiptLayout._(size == '58' ? 32 : 48);
+    final size = (store['printer_size']?.toString() ?? '80')
+        .replaceAll(RegExp(r'\s+'), '')
+        .toLowerCase();
+    return ReceiptLayout._(size.startsWith('58') ? 32 : 48);
   }
 
   final int width;
@@ -47,63 +49,90 @@ class ReceiptLayout {
       }
     }
 
-    void pair(String label, String value) {
-      final right = _fit(value, width);
+    void pair(String label, String value,
+        {bool bold = false, bool large = false}) {
+      // Leave one column for the label even when the amount is long. The
+      // previous width-sized right column could produce width + 1 characters
+      // and make thermal printers wrap the row unexpectedly.
+      final right = _fit(value, width - 1);
       final maxLabel = width - right.length - 1;
       final safeLabel = _fit(label, maxLabel < 1 ? 1 : maxLabel);
-      result.add(
-          ReceiptLine('${safeLabel.padRight(width - right.length)}$right'));
+      result.add(ReceiptLine(
+          '${safeLabel.padRight(width - right.length)}$right',
+          bold: bold,
+          large: large));
     }
 
     centered(_value(store, 'store_name', fallback: 'Anyostore'),
         bold: true, large: true);
+    _optionalMultiline(store['receipt_header'], centered);
     _optionalCentered(store['store_address'], centered);
     _optionalCentered(_value(store, 'store_phone', prefix: 'Telp: '), centered);
     _optionalCentered(
         _value(store, 'store_tax_id', prefix: 'NPWP: '), centered);
-    _optionalMultiline(store['receipt_header'], centered);
     left(_separator());
 
-    centered('${data['invoice_no'] ?? ''}', bold: true);
-    centered('${data['created_at'] ?? ''}');
+    left('INFORMASI TRANSAKSI', bold: true);
+    pair('Invoice', '${data['invoice_no'] ?? ''}');
+    final transactionDate = _transactionDateLabel(data);
+    if (transactionDate.isNotEmpty) pair('Tanggal', transactionDate);
     _optionalLeft(_value(data, 'cashier', prefix: 'Kasir: '), left);
     _optionalLeft(_value(data, 'customer_name', prefix: 'Pelanggan: '), left);
     left(_separator());
 
+    left('PRODUK', bold: true);
     final rawItems = (data['items'] as List?) ?? [];
     for (final raw in rawItems) {
       final item = (raw as Map).cast<String, dynamic>();
       final name =
           item['product_name']?.toString() ?? item['name']?.toString() ?? '';
+      final sku = item['sku']?.toString().trim() ?? '';
       final variant = item['variant_detail']?.toString() ?? '';
       final qty = asNum(item['quantity']).toInt();
       final price = asNum(item['price']);
       final subtotal = asNum(item['subtotal']);
-      left(name, bold: true);
-      if (variant.trim().isNotEmpty) left('  ${variant.trim()}');
-      pair('$qty x ${fmtRp(price)}', fmtRp(subtotal));
+      pair(name, fmtRp(subtotal), bold: true);
+      final details =
+          [sku, variant.trim()].where((value) => value.isNotEmpty).join(' · ');
+      if (details.isNotEmpty) left(details);
+      left('$qty x ${fmtRp(price)}');
     }
     left(_separator());
     pair('Subtotal', fmtRp(asNum(data['subtotal'])));
     final discount = asNum(data['discount']);
-    if (discount > 0) pair('Diskon', fmtRp(discount));
-    pair('TOTAL', fmtRp(asNum(data['grand_total'])));
+    if (discount > 0) pair('Diskon', '-${fmtRp(discount)}');
+    pair('Total', fmtRp(asNum(data['grand_total'])), bold: true);
     left(_separator());
 
-    final payments = (data['payments'] as List?) ?? [];
+    var payments = (data['payments'] as List?) ?? [];
+    if (payments.isEmpty && data['payment_method'] != null) {
+      payments = [
+        {
+          'payment_method': data['payment_method'],
+          'amount': asNum(data['grand_total']),
+        }
+      ];
+    }
     for (final raw in payments) {
       final payment = (raw as Map).cast<String, dynamic>();
-      pair((payment['payment_method']?.toString() ?? '').toUpperCase(),
+      pair(_paymentLabel(payment['payment_method']),
           fmtRp(asNum(payment['amount'])));
     }
+    final paymentTotal = payments.fold<num>(
+        0, (total, raw) => total + asNum((raw as Map)['amount']));
+    final paid = asNum(data['amount_paid']) > 0
+        ? asNum(data['amount_paid'])
+        : paymentTotal > 0
+            ? paymentTotal
+            : asNum(data['grand_total']);
+    pair('Dibayar', fmtRp(paid));
     final change = asNum(data['change']);
-    if (change > 0) pair('Kembalian', fmtRp(change));
+    pair('Kembalian', fmtRp(change));
 
-    result.add(const ReceiptLine(''));
-    _optionalMultiline(store['receipt_note'], centered);
-    _optionalMultiline(store['receipt_footer'], centered);
+    left(_separator());
     centered('Terima kasih, sampai jumpa lagi!');
-    result.add(const ReceiptLine(''));
+    _optionalMultiline(store['receipt_footer'], centered);
+    _optionalMultiline(store['receipt_note'], centered);
     result.add(const ReceiptLine(''));
     return result;
   }
@@ -114,6 +143,49 @@ class ReceiptLayout {
       {String fallback = '', String prefix = ''}) {
     final value = source is Map ? source[key]?.toString() ?? '' : '';
     return value.isEmpty ? fallback : '$prefix$value';
+  }
+
+  static String _transactionDateLabel(Map<String, dynamic> data) {
+    final rawBusinessDate = data['transaction_date']?.toString() ?? '';
+    var date = _slashDate(rawBusinessDate);
+    final parsed = DateTime.tryParse(data['created_at']?.toString() ?? '');
+    if (parsed != null) {
+      final wib = parsed.toUtc().add(const Duration(hours: 7));
+      date = date.isEmpty
+          ? '${_twoDigit(wib.day)}/${_twoDigit(wib.month)}/${wib.year}'
+          : date;
+      return '$date · ${_twoDigit(wib.hour)}:${_twoDigit(wib.minute)}';
+    }
+    return date;
+  }
+
+  static String _slashDate(String value) {
+    final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(value);
+    if (match == null) return '';
+    return '${match.group(3)}/${match.group(2)}/${match.group(1)}';
+  }
+
+  static String _twoDigit(int value) => value.toString().padLeft(2, '0');
+
+  static String _paymentLabel(dynamic value) {
+    switch (value?.toString().trim().toLowerCase()) {
+      case 'cash':
+        return 'Tunai';
+      case 'qris':
+        return 'QRIS';
+      case 'transfer':
+        return 'Transfer';
+      case 'debit':
+        return 'Debit';
+      case 'credit':
+        return 'Kredit';
+      case 'split':
+        return 'Pembayaran terpisah';
+      default:
+        return value?.toString().trim().isNotEmpty == true
+            ? value.toString()
+            : 'Pembayaran';
+    }
   }
 
   static void _optionalCentered(

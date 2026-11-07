@@ -48,6 +48,8 @@ CREATE TABLE categories (
     slug VARCHAR(100) UNIQUE,
     sku_prefix VARCHAR(10),
     description TEXT,
+    sort_order INT NOT NULL DEFAULT 0,
+    color VARCHAR(7) NULL,
     is_active BOOLEAN DEFAULT TRUE
 );
 

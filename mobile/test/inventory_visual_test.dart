@@ -132,7 +132,7 @@ void main() {
               tester,
               api,
               InventoryPage(
-                  api: api, branchId: 4, role: 'admin', initialSection: kind),
+                  api: api, branchId: 4, role: 'gudang', initialSection: kind),
               width,
               brightness);
           final details = find.byKey(const ValueKey('inventory-inout-details'));

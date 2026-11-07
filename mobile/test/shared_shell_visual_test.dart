@@ -62,17 +62,10 @@ void main() {
         await tester.pump(const Duration(milliseconds: 400));
         final drawer = tester.widget<Drawer>(find.byType(Drawer));
         expect(drawer.backgroundColor,
-            brightness == Brightness.dark ? kTaskDarkSurface : kTaskSurface);
+            brightness == Brightness.dark ? kTaskDarkBg : kTaskSidebarBg);
+        expect(drawer.shape, isNotNull);
         expect(find.text('Pemilik Toko'), findsOneWidget);
-        final profileCard = tester.widget<GlassCard>(
-          find
-              .ancestor(
-                of: find.text('Pemilik Toko'),
-                matching: find.byType(GlassCard),
-              )
-              .first,
-        );
-        expect(profileCard.radius, 16);
+        expect(find.byKey(const ValueKey('sidebar-profile')), findsOneWidget);
         expect(find.text('Toko/Gudang aktif'), findsOneWidget);
         expect(find.text('Anyostore Metro'), findsOneWidget);
         expect(find.text('AKSES CEPAT'), findsNothing);
@@ -80,7 +73,7 @@ void main() {
         final posIcon = find.byIcon(Icons.point_of_sale).last;
         final selectedColor = brightness == Brightness.dark
             ? kTaskDarkSurface
-            : kTaskSurfaceMuted;
+            : kTaskSidebarActive;
         final activeRow = tester
             .widgetList<Container>(
                 find.ancestor(of: posIcon, matching: find.byType(Container)))
@@ -88,10 +81,45 @@ void main() {
                 container.decoration is BoxDecoration &&
                 (container.decoration as BoxDecoration).color == selectedColor);
         expect((activeRow.decoration as BoxDecoration).color, selectedColor);
+        final sidebarList = tester.widget<ListView>(
+            find.byKey(const ValueKey('mobile-more-menu-list')));
+        expect(sidebarList.padding,
+            const EdgeInsets.fromLTRB(16, 8, 16, 12));
+        final operationalCard = tester.getRect(
+            find.byKey(const ValueKey('more-menu-card-Operasional')));
+        final productsCard = tester.getRect(find.byKey(
+            const ValueKey('more-menu-card-Produk & Inventori')));
+        expect(productsCard.top - operationalCard.bottom, 14);
+        expect(activeRow.margin,
+            const EdgeInsets.symmetric(horizontal: 0, vertical: 0));
+        final row = find
+            .ancestor(of: posIcon, matching: find.byType(InkWell))
+            .first;
+        expect(tester.getRect(row).height, greaterThanOrEqualTo(52));
+        final iconCircle = tester.widget<Container>(find
+            .ancestor(of: posIcon, matching: find.byType(Container))
+            .first);
+        final iconDecoration = iconCircle.decoration as BoxDecoration;
+        expect(iconDecoration.color,
+            brightness == Brightness.dark
+                ? kTaskSidebarDarkIconBg
+                : kTaskSidebarIconBg);
+        final groupHeader = find
+            .ancestor(of: find.text('Operasional'), matching: find.byType(InkWell))
+            .first;
+        expect(tester.getRect(groupHeader).height, greaterThanOrEqualTo(44));
         expect(
           tester.widget<Icon>(find.byIcon(Icons.point_of_sale).first).color,
           theme.colorScheme.primary,
         );
+        final sidebarListFinder =
+            find.byKey(const ValueKey('mobile-more-menu-list'));
+        final logoutFinder = find.byKey(const ValueKey('sidebar-logout'));
+        for (var i = 0; i < 6 && logoutFinder.evaluate().isEmpty; i++) {
+          await tester.drag(sidebarListFinder, const Offset(0, -500));
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        expect(logoutFinder, findsOneWidget);
         expect(tester.takeException(), isNull);
       });
     }

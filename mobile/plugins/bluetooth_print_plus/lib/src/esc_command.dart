@@ -137,9 +137,14 @@ class EscCommand {
   Future<void> image({
     required Uint8List image,
     Alignment alignment = Alignment.left,
+    int? maxWidth,
   }) async {
     int align = EnumTool.getAlignment(alignment);
-    Map<String, dynamic> params = {"image": image, "alignment": align};
+    Map<String, dynamic> params = {
+      "image": image,
+      "alignment": align,
+      if (maxWidth != null) "maxWidth": maxWidth,
+    };
     await methodChannel.invokeMethod<void>('image', params);
   }
 

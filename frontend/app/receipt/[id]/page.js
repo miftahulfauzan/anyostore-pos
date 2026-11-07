@@ -33,7 +33,8 @@ export default function Receipt({ params }) {
 
   if (!data) return <main className="workspace"><p>{message || 'Memuat struk…'}</p></main>;
 
-  const logo = data.store.store_logo ? api.replace('/api', '') + data.store.store_logo : '';
+  const logoPath = data.store.invoice_logo || data.store.store_logo;
+  const logo = logoPath ? api.replace('/api', '') + logoPath : '';
   const printerSize = String(data.store.printer_size || '80mm').includes('58') ? '58mm' : '80mm';
   const date = new Date(data.created_at);
   const businessDate = String(data.transaction_date || data.created_at).slice(0, 10).split('-').reverse().join('/');

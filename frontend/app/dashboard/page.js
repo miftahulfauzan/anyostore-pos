@@ -132,7 +132,7 @@ export default function DashboardPage() {
             </div>
           </div>
         </section>
-        <WarehouseDashboard data={data} start={range.start} end={range.end} />
+        <WarehouseDashboard data={data} start={range.start} end={range.end} canMutateStock={isGudang} />
       </>
     ) : role === 'kasir' ? <>
       <section className="dashboard-report-layout">

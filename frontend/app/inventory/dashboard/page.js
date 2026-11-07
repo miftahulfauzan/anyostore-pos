@@ -105,7 +105,7 @@ export default function StockDashboardPage() {
       </div>
     </section>
     {message && <p className="message" role="alert">{message}</p>}
-    {loading && !data ? <section className="panel"><p>Memuat dashboard stok…</p></section> : data ? <WarehouseDashboard data={data} dashboardKey={dashboardKey} start={range.start} end={range.end} /> : !message ? <section className="panel"><p>Menyiapkan dashboard stok…</p></section> : null}
+    {loading && !data ? <section className="panel"><p>Memuat dashboard stok…</p></section> : data ? <WarehouseDashboard data={data} dashboardKey={dashboardKey} start={range.start} end={range.end} canMutateStock={role === 'owner' || role === 'gudang'} /> : !message ? <section className="panel"><p>Menyiapkan dashboard stok…</p></section> : null}
     {loading && data && <p className="muted" role="status">Memperbarui data stok…</p>}
   </AppShell>;
 }

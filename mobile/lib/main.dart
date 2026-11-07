@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -12,11 +11,16 @@ import 'src/backup_service.dart';
 import 'src/login_page.dart';
 import 'src/notification_service.dart';
 import 'src/pos_page.dart';
+import 'src/font_scale_controller.dart';
 import 'src/theme_controller.dart';
 import 'src/task_ui.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  PaintingBinding.instance.imageCache
+    ..maximumSize = 160
+    ..maximumSizeBytes = 48 << 20;
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
@@ -32,6 +36,7 @@ Future<void> main() async {
   final auth = AuthStore(ApiClient());
   await auth.restore();
   await ThemeController.load();
+  await FontScaleController.load();
   await BranchScope.load();
   await NotificationService.init();
   if (auth.isAuthenticated) {
@@ -90,22 +95,23 @@ class _FadeSlideTransitionsBuilder extends PageTransitionsBuilder {
 
 ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
   final dark = brightness == Brightness.dark;
-  final fontFamily = defaultTargetPlatform == TargetPlatform.iOS
-      ? 'CupertinoSystemText'
-      : 'Roboto';
-  const seed = kTaskDark;
+  const fontFamily = 'Plus Jakarta Sans';
+  final primary = dark ? kTaskAccentDark : kTaskDark;
+  final accent = dark ? kTaskAccentDark : kTaskAccent;
   final scheme = ColorScheme.fromSeed(
-    seedColor: seed,
+    seedColor: kTaskDark,
     brightness: brightness,
     surface: dark ? kTaskDarkSurface : kTaskSurface,
   ).copyWith(
-    primary: dark ? const Color(0xff7FA8CF) : kTaskDark,
+    primary: primary,
     onPrimary: dark ? kTaskDarkBg : Colors.white,
-    secondary: dark ? const Color(0xff45B6A2) : kTaskTeal,
-    onSecondary: Colors.white,
-    tertiary: dark ? const Color(0xffF2B8A5) : kTaskTerracotta,
-    error: dark ? const Color(0xffF2B8A5) : kTaskTerracotta,
-    outline: const Color(0xff64748B),
+    secondary: accent,
+    onSecondary: dark ? kTaskDarkBg : Colors.white,
+    tertiary: dark ? kTaskDarkSurface : kTaskSurfaceMuted,
+    onTertiary: dark ? kTaskDarkInk : kTaskInk,
+    error: dark ? const Color(0xffFCA5A5) : const Color(0xffB42318),
+    outline: dark ? kTaskDarkBorder : kTaskBorder,
+    outlineVariant: dark ? kTaskDarkBorder : kTaskBorder,
   );
   return ThemeData(
     useMaterial3: true,
@@ -123,36 +129,37 @@ ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
     fontFamily: fontFamily,
     textTheme: TextTheme(
       bodyLarge: TextStyle(
-          fontSize: 16,
-          height: 1.35,
-          color: dark ? const Color(0xffE7ECF4) : kTaskInk),
+          fontSize: 16, height: 1.35, color: dark ? kTaskDarkInk : kTaskInk),
       bodyMedium: TextStyle(
-          fontSize: 14,
-          height: 1.35,
-          color: dark ? const Color(0xffCBD5E1) : kTaskInk),
+          fontSize: 14, height: 1.35, color: dark ? kTaskDarkInk : kTaskInk),
       bodySmall: TextStyle(
           fontSize: 12,
           height: 1.35,
-          color: dark ? const Color(0xffA7B4C7) : kTaskGray),
+          color: dark ? kTaskDarkSecondary : kTaskSecondary),
       labelLarge: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w700,
-          color: dark ? const Color(0xffF1F5FB) : kTaskInk),
+          color: dark ? kTaskDarkInk : kTaskInk),
       titleMedium: TextStyle(
-          fontSize: 20,
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: dark ? kTaskDarkInk : kTaskInk),
+      titleLarge: TextStyle(
+          fontSize: 22,
           fontWeight: FontWeight.w800,
-          color: dark ? const Color(0xffF1F5FB) : kTaskInk),
+          color: dark ? kTaskDarkInk : kTaskInk),
     ),
     appBarTheme: AppBarTheme(
-      backgroundColor: dark ? kTaskDarkSurface : kTaskSurface,
+      backgroundColor: kTaskDark,
+      foregroundColor: Colors.white,
+      systemOverlayStyle: SystemUiOverlayStyle.light,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: true,
       titleTextStyle: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w700,
-          color: dark ? const Color(0xffF1F5F9) : kTaskInk),
+          fontSize: 19, fontWeight: FontWeight.w700, color: Colors.white),
+      iconTheme: const IconThemeData(color: Colors.white),
     ),
     cardTheme: CardThemeData(
       elevation: 0,
@@ -161,7 +168,7 @@ ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: dark ? const Color(0xff334155) : kTaskBorder),
+        side: BorderSide(color: dark ? kTaskDarkBorder : kTaskBorder),
       ),
     ),
     iconButtonTheme: IconButtonThemeData(
@@ -180,7 +187,7 @@ ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: dark ? kTaskDarkSurface : kTaskSurface,
       surfaceTintColor: Colors.transparent,
-      indicatorColor: dark ? kTaskDark : kTaskSand,
+      indicatorColor: dark ? kTaskDarkBorder : kTaskSurfaceMuted,
       elevation: 0,
       height: 68,
       labelTextStyle: const WidgetStatePropertyAll(
@@ -188,40 +195,51 @@ ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        minimumSize: const Size(0, 48),
+        backgroundColor: scheme.primary,
+        foregroundColor: scheme.onPrimary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        minimumSize: const Size(0, 50),
         textStyle: TextStyle(
             fontSize: 15, fontWeight: FontWeight.w700, fontFamily: fontFamily),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        minimumSize: const Size(0, 46),
+        foregroundColor: dark ? scheme.primary : kTaskDark,
+        side: BorderSide(color: dark ? kTaskDarkBorder : kTaskBorder),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        minimumSize: const Size(0, 48),
         textStyle: TextStyle(
             fontSize: 15, fontWeight: FontWeight.w700, fontFamily: fontFamily),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        foregroundColor: dark ? scheme.primary : kTaskDark,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         textStyle:
             TextStyle(fontWeight: FontWeight.w600, fontFamily: fontFamily),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: dark ? const Color(0xff263241) : kTaskSurface,
+      fillColor: dark ? kTaskDarkSurface : kTaskSurfaceMuted,
+      hintStyle: TextStyle(color: dark ? kTaskDarkSecondary : kTaskSecondary),
       border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide:
-              BorderSide(color: dark ? const Color(0xff334155) : kTaskBorder)),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: dark ? kTaskDarkBorder : kTaskBorder)),
       enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xff64748B))),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: dark ? kTaskDarkBorder : kTaskBorder)),
       focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: scheme.primary, width: 2)),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: accent, width: 2)),
+      errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: scheme.error)),
+      focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: scheme.error, width: 2)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     ),
     bottomSheetTheme: BottomSheetThemeData(
@@ -252,6 +270,27 @@ ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
           fontSize: 12,
           fontWeight: FontWeight.w600),
     ),
+    dividerTheme: DividerThemeData(
+      color: dark ? kTaskDarkBorder : kTaskBorder,
+      thickness: 1,
+      space: 20,
+    ),
+    textSelectionTheme: TextSelectionThemeData(
+      cursorColor: accent,
+      selectionColor: accent.withValues(alpha: .22),
+      selectionHandleColor: accent,
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith((states) =>
+          states.contains(WidgetState.selected) ? scheme.onPrimary : null),
+      trackColor: WidgetStateProperty.resolveWith((states) =>
+          states.contains(WidgetState.selected) ? scheme.primary : null),
+    ),
+    checkboxTheme: CheckboxThemeData(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+      side: BorderSide(color: dark ? kTaskDarkBorder : kTaskBorder, width: 1.5),
+    ),
+    progressIndicatorTheme: ProgressIndicatorThemeData(color: scheme.primary),
   );
 }
 
@@ -263,16 +302,33 @@ class PosMobileApp extends StatelessWidget {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeController.mode,
       builder: (context, themeMode, _) {
-        return MaterialApp(
-          title: 'Anyostore App',
-          debugShowCheckedModeBanner: false,
-          theme: buildAnyostoreTheme(brightness: Brightness.light),
-          darkTheme: buildAnyostoreTheme(brightness: Brightness.dark),
-          themeMode: themeMode,
-          home: Consumer<AuthStore>(
-            builder: (_, auth, __) => auth.isAuthenticated
-                ? PosPage(key: ValueKey(auth.userId))
-                : const LoginPage(),
+        return ValueListenableBuilder<double>(
+          valueListenable: FontScaleController.scale,
+          builder: (context, fontScale, _) => MaterialApp(
+            title: 'Anyostore App',
+            debugShowCheckedModeBanner: false,
+            theme: buildAnyostoreTheme(brightness: Brightness.light),
+            darkTheme: buildAnyostoreTheme(brightness: Brightness.dark),
+            themeMode: themeMode,
+            builder: (context, child) {
+              final media = MediaQuery.maybeOf(context);
+              if (media == null) return child ?? const SizedBox.shrink();
+              final systemScale = media.textScaler.scale(1);
+              final effective = FontScaleController.effectiveScale(
+                  fontScale * systemScale, media.size.width);
+              return MediaQuery(
+                key: const ValueKey('font-scale-media-query'),
+                data: media.copyWith(
+                  textScaler: TextScaler.linear(effective),
+                ),
+                child: child ?? const SizedBox.shrink(),
+              );
+            },
+            home: Consumer<AuthStore>(
+              builder: (_, auth, __) => auth.isAuthenticated
+                  ? PosPage(key: ValueKey(auth.userId))
+                  : const LoginPage(),
+            ),
           ),
         );
       },

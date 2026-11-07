@@ -29,7 +29,7 @@ function WarehouseTrend({ daily }) {
   </div>;
 }
 
-export default function WarehouseDashboard({ data, start, end, dashboardKey = 'warehouse_dashboard' }) {
+export default function WarehouseDashboard({ data, start, end, dashboardKey = 'warehouse_dashboard', canMutateStock = false }) {
   const dashboard = data?.[dashboardKey] || {};
   const summary = dashboard.summary || {};
   const daily = useMemo(() => dateRangeDays(start, end, dashboard.daily), [start, end, dashboard.daily]);
@@ -41,8 +41,10 @@ export default function WarehouseDashboard({ data, start, end, dashboardKey = 'w
   const maxCategory = Math.max(1, ...(dashboard.categories || []).map((item) => Number(item.total || 0)));
   const maxOut = Math.max(1, ...(dashboard.top_products_out || []).map((item) => Number(item.total || 0)));
   const actionItems = [
-    { href: '/inventory/incoming', label: 'Stock Masuk', icon: ArrowDownToLine, tone: 'green' },
-    { href: '/inventory/outgoing', label: 'Stock Keluar', icon: ArrowUpFromLine, tone: 'red' },
+    ...(canMutateStock ? [
+      { href: '/inventory/incoming', label: 'Stock Masuk', icon: ArrowDownToLine, tone: 'green' },
+      { href: '/inventory/outgoing', label: 'Stock Keluar', icon: ArrowUpFromLine, tone: 'red' },
+    ] : []),
     { href: '/inventory/opname', label: 'Opname', icon: ClipboardCheck, tone: 'cyan' },
     { href: '/inventory/transfers', label: 'Transfer', icon: ArrowRightLeft, tone: 'blue' },
     { href: '/products', label: 'Master Produk', icon: Package, tone: 'purple' },
