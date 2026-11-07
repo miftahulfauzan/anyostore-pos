@@ -305,11 +305,15 @@ CREATE TABLE stock_transfers (
     created_by INT NOT NULL,
     approved_by INT DEFAULT NULL,
     approved_at TIMESTAMP NULL,
+    cancelled_by INT DEFAULT NULL,
+    cancelled_at TIMESTAMP NULL,
+    cancellation_reason VARCHAR(255) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (from_warehouse_id) REFERENCES warehouses(id),
     FOREIGN KEY (to_warehouse_id) REFERENCES warehouses(id),
     FOREIGN KEY (branch_id) REFERENCES branches(id),
-    FOREIGN KEY (created_by) REFERENCES users(id)
+    FOREIGN KEY (created_by) REFERENCES users(id),
+    FOREIGN KEY (cancelled_by) REFERENCES users(id)
 );
 
 -- ============================================

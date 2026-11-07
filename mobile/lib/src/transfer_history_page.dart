@@ -5,8 +5,9 @@ import 'task_ui.dart';
 import 'ui_kit.dart';
 
 class TransferHistoryPage extends StatefulWidget {
-  const TransferHistoryPage({super.key, required this.api});
+  const TransferHistoryPage({super.key, required this.api, this.role});
   final ApiClient api;
+  final String? role;
 
   @override
   State<TransferHistoryPage> createState() => _TransferHistoryPageState();
@@ -22,7 +23,10 @@ class _TransferHistoryPageState extends State<TransferHistoryPage> {
   bool _loading = true;
   bool _loadingMore = false;
   String? _error;
+  int? _cancellingId;
   int _generation = 0;
+
+  bool get _canCancel => widget.role == 'owner' || widget.role == 'gudang';
 
   @override
   void initState() {
@@ -85,6 +89,62 @@ class _TransferHistoryPageState extends State<TransferHistoryPage> {
         '${date.month.toString().padLeft(2, '0')}/${date.year} '
         '${date.hour.toString().padLeft(2, '0')}:'
         '${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _cancelTransfer(Map<String, dynamic> transfer) async {
+    final id = int.tryParse('${transfer['id'] ?? ''}');
+    if (id == null || id <= 0) return;
+    var reasonValue = '';
+    final reason = await showDialog<String?>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Batalkan transfer?'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                  'Stok akan dikembalikan ke lokasi asal. Transfer tetap tersimpan di riwayat.'),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('transfer-cancel-reason'),
+                maxLength: 255,
+                textCapitalization: TextCapitalization.sentences,
+                onChanged: (value) => reasonValue = value,
+                decoration: const InputDecoration(
+                  labelText: 'Alasan (opsional)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Kembali')),
+          FilledButton(
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(reasonValue.trim()),
+              child: const Text('Batalkan')),
+        ],
+      ),
+    );
+    if (reason == null || !mounted) return;
+
+    setState(() {
+      _cancellingId = id;
+      _error = null;
+    });
+    try {
+      await widget.api.cancelTransfer(id, reason: reason);
+      if (mounted) await _load();
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _cancellingId = null);
+    }
   }
 
   @override
@@ -303,6 +363,29 @@ class _TransferHistoryPageState extends State<TransferHistoryPage> {
             if (lines.length > 5)
               Text('+${lines.length - 5} produk lain',
                   style: TextStyle(color: taskMuted(context), fontSize: 11)),
+          ],
+          if (status == 'cancelled' &&
+              '${transfer['cancellation_reason'] ?? ''}'.trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Alasan pembatalan: ${transfer['cancellation_reason']}',
+              style: TextStyle(color: taskMuted(context), fontSize: 12),
+            ),
+          ],
+          if (_canCancel && status == 'completed') ...[
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton(
+                key: ValueKey('transfer-cancel-${transfer['id']}'),
+                onPressed: _cancellingId == int.tryParse('${transfer['id']}')
+                    ? null
+                    : () => _cancelTransfer(transfer),
+                child: Text(_cancellingId == int.tryParse('${transfer['id']}')
+                    ? 'Membatalkan…'
+                    : 'Batalkan transfer'),
+              ),
+            ),
           ],
         ],
       ),

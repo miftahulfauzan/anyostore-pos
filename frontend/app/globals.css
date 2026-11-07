@@ -410,6 +410,9 @@ a, .photo-upload { color:var(--expressive-secondary); }
 .transfer-history-detail-line small { color: var(--muted-foreground); font-size: .75rem; overflow-wrap: anywhere; }
 .transfer-history-detail-line > div > strong { overflow-wrap: anywhere; }
 .transfer-history-detail-line > strong { flex: 0 0 auto; color: var(--primary); font-variant-numeric: tabular-nums; }
+.transfer-history-actions { display: flex; justify-content: flex-end; padding-top: 2px; }
+.transfer-history-actions .danger { border-color: #fca5a5; background: #fff1f2; color: #b91c1c; }
+.transfer-history-actions .danger:hover { border-color: #ef4444; background: #fee2e2; color: #991b1b; }
 .transfer-history-pagination { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 4px 0 16px; }
 .transfer-history-pagination span { color: var(--muted-foreground); font-size: .82rem; }
 .barcode-picker { min-height: 0; }

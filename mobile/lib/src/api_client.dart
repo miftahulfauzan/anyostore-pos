@@ -811,6 +811,9 @@ class ApiClient {
         if (end != null) 'end': end,
       });
 
+  Future<Map<String, dynamic>> cancelTransfer(int id, {String reason = ''}) =>
+      post('/inventory-control/transfers/$id/cancel', {'reason': reason});
+
   Future<Map<String, dynamic>> createOpname(Map<String, dynamic> body) =>
       post('/inventory-control/opnames', body);
 

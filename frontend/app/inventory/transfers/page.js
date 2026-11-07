@@ -46,6 +46,9 @@ function TransferHistory({
   onApply,
   onRefresh,
   onPage,
+  canCancelTransfer,
+  onCancel,
+  cancellingTransferId,
 }) {
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const [period, setPeriod] = useState('');
@@ -140,6 +143,9 @@ function TransferHistory({
                 </div>
 
                 {row.notes && <p className="transfer-history-note"><strong>Keterangan:</strong> {row.notes}</p>}
+                {row.status === 'cancelled' && row.cancellation_reason && (
+                  <p className="transfer-history-note"><strong>Alasan pembatalan:</strong> {row.cancellation_reason}</p>
+                )}
                 <details className="transfer-history-details">
                   <summary>Lihat rincian barang</summary>
                   <div className="transfer-history-detail-grid">
@@ -147,6 +153,18 @@ function TransferHistory({
                     <TransferDetailColumn title={`Masuk ke ${destination.warehouse_name || 'lokasi tujuan'}`} lines={toLines} />
                   </div>
                 </details>
+                {canCancelTransfer && row.status === 'completed' && (
+                  <div className="transfer-history-actions">
+                    <button
+                      type="button"
+                      className="danger"
+                      disabled={cancellingTransferId === row.id}
+                      onClick={() => onCancel(row)}
+                    >
+                      {cancellingTransferId === row.id ? 'Membatalkan…' : 'Batalkan transfer'}
+                    </button>
+                  </div>
+                )}
               </article>
             );
           })}
@@ -204,11 +222,13 @@ export default function TransferPage() {
   const [historyPage, setHistoryPage] = useState(1);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyMessage, setHistoryMessage] = useState('');
+  const [cancellingTransferId, setCancellingTransferId] = useState(null);
   const [historyFilters, setHistoryFilters] = useState({ start: '', end: '', direction: '', status: '', search: '' });
   const [historyAppliedFilters, setHistoryAppliedFilters] = useState({ start: '', end: '', direction: '', status: '', search: '' });
   const productsLoadSequence = useRef(createRequestSequence());
   const historyLoadSequence = useRef(createRequestSequence());
   const h = () => ({ 'Content-Type': 'application/json'});
+  const canCancelTransfer = ['owner', 'gudang'].includes(user?.role);
   useUnsavedWork('stock-transfer', cart.length > 0 || Boolean(notes.trim()));
 
   const targets = useMemo(() => warehouses.filter((w) => String(w.id) !== String(from)), [warehouses, from]);
@@ -257,6 +277,30 @@ export default function TransferPage() {
       if (historyLoadSequence.current.isCurrent(requestId)) setHistoryLoading(false);
     }
   }, [user?.role, activeBranchId]);
+
+  const cancelTransfer = useCallback(async (row) => {
+    if (!window.confirm(`Batalkan ${row.number || 'transfer ini'}? Stok akan dikembalikan ke lokasi asal.`)) return;
+    const rawReason = window.prompt('Alasan pembatalan (opsional):', '');
+    if (rawReason === null) return;
+    const reason = rawReason.trim().slice(0, 255);
+    setCancellingTransferId(row.id);
+    setHistoryMessage('');
+    try {
+      const response = await fetch(`${api}/inventory-control/transfers/${row.id}/cancel`, {
+        method: 'POST',
+        headers: h(),
+        body: JSON.stringify({ reason }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message || 'Transfer tidak dapat dibatalkan.');
+      await loadHistory(historyAppliedFilters, historyPage);
+      setHistoryMessage(`${row.number || 'Transfer'} berhasil dibatalkan.`);
+    } catch (error) {
+      setHistoryMessage(error.message);
+    } finally {
+      setCancellingTransferId(null);
+    }
+  }, [historyAppliedFilters, historyPage, loadHistory]);
 
   function changeView(nextView) {
     setView(nextView);
@@ -563,6 +607,9 @@ export default function TransferPage() {
       onApply={(next = historyFilters) => { setHistoryAppliedFilters(next); setHistoryPage(1); }}
       onRefresh={() => loadHistory(historyAppliedFilters, historyPage)}
       onPage={setHistoryPage}
+      canCancelTransfer={canCancelTransfer}
+      onCancel={cancelTransfer}
+      cancellingTransferId={cancellingTransferId}
     />}
   </AppShell>;
 }

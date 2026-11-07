@@ -12,6 +12,11 @@ const {
   toTransferNumber,
   groupTransferMovements,
 } = require("../transfer-history");
+const {
+  buildTransferCancellationMovements,
+  canCancelTransfer,
+  validateTransferStatus,
+} = require("../transfer-cancellation");
 const { validateOpnameItems, assertStockSnapshot, matchingVariant, validateTransferItems } = require("../inventory-safety");
 const { beginTransferRequest, finishTransferRequest } = require("../transfer-request");
 const router = express.Router();
@@ -35,6 +40,7 @@ async function change(
   type,
   refType,
   refId,
+  notes = null,
 ) {
   const row = await balance(c, warehouseId, productId, variantId);
   const before = Number(row?.quantity ?? 0);
@@ -50,6 +56,7 @@ async function change(
     type,
     referenceType: refType,
     referenceId: refId,
+    notes,
   });
 }
 
@@ -277,6 +284,9 @@ router.get(
            st.status,
            st.notes,
            st.created_at,
+           st.cancelled_by,
+           st.cancelled_at,
+           st.cancellation_reason,
            wf.id AS source_warehouse_id,
            wf.name AS source_warehouse_name,
            bf.id AS source_branch_id,
@@ -288,16 +298,20 @@ router.get(
            bt.name AS destination_branch_name,
            bt.type AS destination_branch_type,
            u.name AS admin_name,
+           canceller.name AS cancelled_by_name,
            COUNT(DISTINCT sti.id) AS product_count,
            COALESCE(SUM(sti.quantity), 0) AS total_qty
          FROM stock_transfers st
          ${joins}
          LEFT JOIN users u ON u.id = st.created_by
+         LEFT JOIN users canceller ON canceller.id = st.cancelled_by
          LEFT JOIN stock_transfer_items sti ON sti.transfer_id = st.id
          WHERE ${whereSql}
          GROUP BY st.id, st.status, st.notes, st.created_at,
+           st.cancelled_by, st.cancelled_at, st.cancellation_reason,
            wf.id, wf.name, bf.id, bf.name,
-           bf.type, wt.id, wt.name, bt.id, bt.name, bt.type, u.name
+           bf.type, wt.id, wt.name, bt.id, bt.name, bt.type, u.name,
+           canceller.name
          ORDER BY st.created_at DESC, st.id DESC
          LIMIT ${limit} OFFSET ${offset}`,
         params,
@@ -353,6 +367,10 @@ router.get(
           status: row.status,
           notes: row.notes || "",
           admin: row.admin_name || "Sistem",
+          cancelled_by: row.cancelled_by || null,
+          cancelled_at: row.cancelled_at || null,
+          cancelled_by_name: row.cancelled_by_name || null,
+          cancellation_reason: row.cancellation_reason || "",
           source: {
             branch_id: row.source_branch_id,
             branch_name: row.source_branch_name,
@@ -383,6 +401,111 @@ router.get(
       });
     } catch (e) {
       next(e);
+    }
+  },
+);
+
+router.post(
+  "/transfers/:id/cancel",
+  authorize("owner", "gudang"),
+  async (req, res, next) => {
+    const c = await db.getConnection();
+    try {
+      const transferId = Number(req.params.id);
+      if (!Number.isSafeInteger(transferId) || transferId <= 0) {
+        throw fail(400, "ID transfer tidak valid");
+      }
+      const reason = typeof req.body?.reason === "string"
+        ? req.body.reason.trim().slice(0, 255)
+        : "";
+
+      await c.beginTransaction();
+      const [transferRows] = await c.execute(
+        `SELECT
+           st.id,
+           st.status,
+           st.created_by,
+           st.created_at,
+           wf.id AS source_warehouse_id,
+           wf.branch_id AS source_branch_id,
+           wt.id AS destination_warehouse_id,
+           wt.branch_id AS destination_branch_id
+         FROM stock_transfers st
+         JOIN warehouses wf ON wf.id = st.from_warehouse_id
+         JOIN warehouses wt ON wt.id = st.to_warehouse_id
+         WHERE st.id = ?
+         FOR UPDATE`,
+        [transferId],
+      );
+      const transfer = transferRows[0];
+      if (!transfer) throw fail(404, "Transfer tidak ditemukan");
+      if (!canCancelTransfer(req.user, transfer)) throw fail(403, "Akses ditolak");
+      validateTransferStatus(transfer.status);
+
+      const [items] = await c.execute(
+        `SELECT
+           product_id,
+           variant_id,
+           destination_product_id,
+           destination_variant_id,
+           quantity
+         FROM stock_transfer_items
+         WHERE transfer_id = ?
+         ORDER BY id
+         FOR UPDATE`,
+        [transferId],
+      );
+      if (!items.length) throw fail(400, "Transfer tidak memiliki rincian barang");
+
+      const movements = buildTransferCancellationMovements(
+        { ...transfer, number: toTransferNumber(transfer.created_at, transfer.id) },
+        items,
+        reason,
+      );
+      for (const movement of movements) {
+        await change(
+          c,
+          movement.branchId,
+          movement.warehouseId,
+          movement.productId,
+          movement.variantId,
+          movement.delta,
+          req.user.id,
+          movement.type,
+          movement.referenceType,
+          movement.referenceId,
+          movement.notes,
+        );
+      }
+
+      const [updated] = await c.execute(
+        `UPDATE stock_transfers
+         SET status = 'cancelled',
+             cancelled_by = ?,
+             cancelled_at = NOW(),
+             cancellation_reason = ?
+         WHERE id = ? AND status = 'completed'`,
+        [req.user.id, reason || null, transferId],
+      );
+      if (updated.affectedRows !== 1) throw fail(409, "Transfer sudah berubah status");
+
+      await c.execute(
+        "INSERT INTO activity_logs (user_id, action, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)",
+        [
+          req.user.id,
+          "transfer_cancel",
+          `Transfer ${toTransferNumber(transfer.created_at, transfer.id)} dibatalkan${reason ? `: ${reason}` : ""}`,
+          req.ip,
+          req.get("user-agent") || null,
+        ],
+      );
+      await c.commit();
+      res.json({ success: true, data: { id: transferId, status: "cancelled" } });
+    } catch (e) {
+      await c.rollback();
+      next(e);
+    } finally {
+      c.release();
     }
   },
 );

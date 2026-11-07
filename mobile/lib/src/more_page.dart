@@ -292,7 +292,7 @@ class MorePage extends StatelessWidget {
                 kTaskSand,
                 kTaskDark,
                 () => _open(context, 'Riwayat Transfer',
-                    TransferHistoryPage(api: api))),
+                    TransferHistoryPage(api: api, role: auth.role))),
           ]),
           _group(context, 'LAINNYA', [
             _row(
@@ -482,7 +482,7 @@ class MorePage extends StatelessWidget {
                   kTaskSand,
                   kTaskDark,
                   () => _open(context, 'Riwayat Transfer',
-                      TransferHistoryPage(api: api))),
+                      TransferHistoryPage(api: api, role: auth.role))),
               _divider(context),
             ],
             _row(
