@@ -3,7 +3,7 @@
 // ada di test/closing-math.test.js.
 const { money } = require('./money');
 
-function buildClosingMethods({ payments, returnsData, movementsNet }) {
+function buildClosingMethods({ payments, returnsData, movementsNet, financeCashNet = 0 }) {
   const methods = {};
   let totalGross = 0;
   for (const p of payments) {
@@ -37,7 +37,9 @@ function buildClosingMethods({ payments, returnsData, movementsNet }) {
       );
     }
   }
-  if (methods.cash) methods.cash.cash_in_out = Number(movementsNet || 0);
+  if (methods.cash) {
+    methods.cash.cash_in_out = money(Number(movementsNet || 0) + Number(financeCashNet || 0));
+  }
   let expectedTotal = 0;
   for (const m of Object.keys(methods)) {
     const v = methods[m];

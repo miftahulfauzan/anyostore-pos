@@ -441,6 +441,11 @@ export default function PosPage() {
     setMessage('');
     setPaymentSheetOpen(true);
   }
+  function toggleCartActions() {
+    const next = !showCartActions;
+    setShowCartActions(next);
+    setShowCartOptions(next);
+  }
   async function checkout() {
     if (!storeId || !warehouseId || !cart.length) return setMessage('Pilih toko, gudang, dan tambahkan produk ke keranjang.');
     if (user?.role === 'owner' && !transactionDate) return setMessage('Pilih tanggal transaksi.');
@@ -529,7 +534,7 @@ export default function PosPage() {
           <div className="cart-mobile-header">
             <button type="button" className="cart-back-button" onClick={() => setMobileCartOpen(false)} aria-label="Tutup keranjang"><ArrowLeft aria-hidden="true" size={21} /></button>
             <h2>Keranjang</h2>
-            <button type="button" className="cart-actions-toggle" onClick={() => setShowCartActions((current) => !current)} aria-label="Tampilkan aksi keranjang" aria-expanded={showCartActions}><MoreVertical aria-hidden="true" size={21} /></button>
+            <button type="button" className="cart-actions-toggle" onClick={toggleCartActions} aria-label="Tampilkan aksi keranjang" aria-expanded={showCartActions}><MoreVertical aria-hidden="true" size={21} /></button>
           </div>
           <div className="pos-cart-scroll">
           {selectedCustomer && <button type="button" className="pos-cart-customer" onClick={() => setShowCartOptions(true)}><UserRound aria-hidden="true" size={19} /><span>{selectedCustomer.name}</span><ChevronDown aria-hidden="true" size={17} /></button>}

@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { SALES_STATUSES_SQL } = require('../sales-status');
 const { buildClosingMethods } = require('../closing-math');
+const { cashFlowNet } = require('../cash-flow');
 const { authenticate, authorize } = require('../auth');
 const { parseOwnerBranchId } = require('../dashboard-stock-scope');
 
@@ -77,12 +78,24 @@ router.get('/daily-closing', async (req, res, next) => {
        FROM expenses e WHERE e.branch_id=? AND e.status='approved' AND e.expense_date=?`,
       [branchId, date]
     );
+    const [cashFinanceRows] = await db.execute(
+      `SELECT COALESCE(SUM(CASE WHEN e.type='expense' THEN e.amount ELSE 0 END), 0) AS expense,
+              COALESCE(SUM(CASE WHEN e.type='income' THEN e.amount ELSE 0 END), 0) AS income
+       FROM expenses e
+       WHERE e.branch_id=? AND e.status='approved' AND e.payment_method = 'cash' AND e.expense_date=?`,
+      [branchId, date]
+    );
 
     const returnCount = returnsData.reduce((sum, row) => sum + Number(row.cnt || 0), 0);
+    const financeCashNet = cashFlowNet({
+      financeIncome: Number(cashFinanceRows[0].income || 0),
+      financeExpense: Number(cashFinanceRows[0].expense || 0),
+    });
     const { methods, expected_total: expectedTotal } = buildClosingMethods({
       payments,
       returnsData,
       movementsNet: Number(movements[0].net || 0),
+      financeCashNet,
     });
 
     res.json({

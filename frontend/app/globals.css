@@ -4029,6 +4029,32 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
 
 /* Final mobile POS cart overrides: keep legacy mobile rules from shrinking the sheet. */
 @media (max-width: 820px) {
+  .catalog-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .product-tile {
+    min-width: 0;
+    min-height: 0;
+    gap: 3px;
+    padding: 6px;
+    border-radius: 8px;
+  }
+  .product-tile img,
+  .product-tile .pos-photo-placeholder {
+    width: calc(100% + 12px);
+    margin: -6px -6px 4px;
+    border-radius: 7px 7px 0 0;
+  }
+  .product-tile strong {
+    font-size: 10px;
+    line-height: 1.25;
+  }
+  .product-tile span,
+  .product-tile small {
+    font-size: 9px;
+    line-height: 1.2;
+  }
   .pos-layout .cart {
     position: fixed;
     inset: 0;
@@ -4056,7 +4082,48 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
     color: #fff;
   }
   .cart-mobile-header h2 { color: #fff; text-align: center; }
-  .pos-cart-scroll { min-height: 0; overflow-y: auto; }
-  .pos-cart-footer { z-index: 2; }
+  .pos-cart-scroll {
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+    overscroll-behavior-x: none;
+    padding: 8px 12px 10px;
+  }
+  .cart-lines {
+    gap: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  .cart-lines-header { display: none; }
+  .cart-lines article {
+    grid-template-columns: minmax(0, 1fr) 44px minmax(72px, auto) 30px;
+    gap: 4px;
+    min-width: 0;
+    min-height: 48px;
+    padding: 6px 0;
+  }
+  .cart-item-info { gap: 1px; min-width: 0; }
+  .cart-item-info strong { font-size: 12px; line-height: 1.2; }
+  .cart-item-info span { font-size: 10px; line-height: 1.2; }
+  .cart-lines .quantity input {
+    width: 44px;
+    height: 34px;
+    min-height: 34px;
+    font-size: 14px;
+  }
+  .cart-lines .cart-line-total { font-size: 11px; }
+  .cart-line-menu {
+    width: 30px;
+    height: 34px;
+    min-height: 34px;
+  }
+  .pos-cart-footer {
+    z-index: 2;
+    gap: 5px;
+    padding: 8px 12px max(10px, env(safe-area-inset-bottom));
+  }
+  .pos-cart-footer button { min-height: 46px; font-size: 14px; }
   .pos-layout .cart::before { display: none; }
 }

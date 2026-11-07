@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { SALES_STATUSES_SQL } = require('../sales-status');
 const { authenticate, authorize } = require('../auth');
+const { cashFlowNet } = require('../cash-flow');
 const router = express.Router();
 router.use(authenticate);
 const fail = (status, message) => Object.assign(new Error(message), { status });
@@ -23,7 +24,19 @@ async function expectedCash(connection, drawer) {
     `SELECT COALESCE(SUM(CASE WHEN type = 'cash_in' THEN amount ELSE -amount END), 0) AS amount
      FROM cash_drawer_movements WHERE cash_drawer_id = ?`, [drawer.id]
   );
-  return amount(Number(drawer.opening_amount) + Number(sales[0].amount) + Number(moves[0].amount));
+  const [finance] = await connection.execute(
+    `SELECT COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE 0 END), 0) AS income,
+            COALESCE(SUM(CASE WHEN type='expense' THEN amount ELSE 0 END), 0) AS expense
+     FROM expenses
+     WHERE branch_id=? AND status='approved' AND payment_method = 'cash'
+       AND created_at >= ? AND created_at <= NOW()`,
+    [drawer.branch_id, drawer.opened_at]
+  );
+  const financeNet = cashFlowNet({
+    financeIncome: Number(finance[0]?.income || 0),
+    financeExpense: Number(finance[0]?.expense || 0),
+  });
+  return amount(Number(drawer.opening_amount) + Number(sales[0].amount) + Number(moves[0].amount) + financeNet);
 }
 
 router.post('/open', authorize('owner', 'manager', 'admin', 'kasir'), async (req, res, next) => {

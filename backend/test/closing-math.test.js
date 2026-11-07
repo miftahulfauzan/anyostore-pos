@@ -60,3 +60,20 @@ test('penutupan: kas masuk/keluar manual hanya memengaruhi metode cash', () => {
   assert.equal(methods.cash.cash_in_out, 25000);
   assert.equal(methods.cash.total, 125000);
 });
+
+test('penutupan: pengeluaran tunai mengurangi kas penjualan melalui finance cash net', () => {
+  const { methods, expected_total } = buildClosingMethods({
+    payments: [
+      { payment_method: 'cash', sales: 1205000, cancellations: 0 },
+      { payment_method: 'qris', sales: 1210000, cancellations: 0 },
+    ],
+    returnsData: [],
+    movementsNet: 0,
+    financeCashNet: -760000,
+  });
+
+  assert.equal(methods.cash.cash_in_out, -760000);
+  assert.equal(methods.cash.total, 445000);
+  assert.equal(methods.qris.total, 1210000);
+  assert.equal(expected_total, 1655000);
+});
