@@ -313,7 +313,7 @@ CREATE TABLE stock_transfers (
     FOREIGN KEY (to_warehouse_id) REFERENCES warehouses(id),
     FOREIGN KEY (branch_id) REFERENCES branches(id),
     FOREIGN KEY (created_by) REFERENCES users(id),
-    FOREIGN KEY (cancelled_by) REFERENCES users(id)
+    CONSTRAINT fk_stock_transfers_cancelled_by FOREIGN KEY (cancelled_by) REFERENCES users(id)
 );
 
 -- ============================================

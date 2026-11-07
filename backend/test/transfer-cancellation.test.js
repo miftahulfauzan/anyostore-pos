@@ -16,6 +16,109 @@ const {
   validateTransferStatus,
 } = require('../src/transfer-cancellation');
 const router = require('../src/routes/inventory-control');
+const db = require('../src/db');
+
+function response() {
+  return {
+    statusCode: 200,
+    body: null,
+    status(code) { this.statusCode = code; return this; },
+    json(body) { this.body = body; return this; },
+  };
+}
+
+function cancelHandler() {
+  const layer = router.stack.find((item) =>
+    item.route?.path === '/transfers/:id/cancel' && item.route.methods.post);
+  assert.ok(layer, 'POST /transfers/:id/cancel harus ada');
+  return layer.route.stack.at(-1).handle;
+}
+
+function fakeConnection({ status = 'completed', destinationStock = 5 } = {}) {
+  const stocks = new Map([
+    ['10:21:null', 0],
+    ['11:121:null', destinationStock],
+  ]);
+  const state = {
+    stocks,
+    began: false,
+    committed: false,
+    rolledBack: false,
+    mutationCount: 0,
+    lastBalanceKey: null,
+  };
+  const transfer = {
+    id: 42,
+    status,
+    created_by: 77,
+    created_at: new Date('2026-11-07T03:00:00Z'),
+    source_warehouse_id: 10,
+    source_branch_id: 4,
+    destination_warehouse_id: 11,
+    destination_branch_id: 9,
+  };
+  const items = [{
+    product_id: 21,
+    variant_id: null,
+    destination_product_id: 121,
+    destination_variant_id: null,
+    quantity: 4,
+  }];
+  return {
+    state,
+    async beginTransaction() { state.began = true; },
+    async commit() { state.committed = true; },
+    async rollback() { state.rolledBack = true; },
+    release() {},
+    async execute(sql, params = []) {
+      if (sql.includes('FROM stock_transfers st')) return [[transfer]];
+      if (sql.includes('FROM stock_transfer_items')) return [items];
+      if (sql.includes('CAST(revision AS CHAR)')) {
+        const key = `${params[0]}:${params[1]}:${params[2] == null ? 'null' : params[2]}`;
+        state.lastBalanceKey = key;
+        return [[{ id: 1, quantity: state.stocks.get(key) ?? 0, revision: '0' }]];
+      }
+      if (sql.includes('FROM warehouse_stocks') && sql.includes('revision')) {
+        const key = `${params[0]}:${params[1]}:${params[2] == null ? 'null' : params[2]}`;
+        state.lastBalanceKey = key;
+        return [[{ id: 1, quantity: state.stocks.get(key) ?? 0, revision: 0 }]];
+      }
+      if (sql.startsWith('UPDATE warehouse_stocks SET quantity')) {
+        const [quantity] = params;
+        state.stocks.set(state.lastBalanceKey, quantity);
+        return [{ affectedRows: 1 }];
+      }
+      if (sql.startsWith('INSERT INTO warehouse_stocks')) return [{ insertId: 1 }];
+      if (sql.startsWith('UPDATE products') || sql.startsWith('UPDATE product_variants')) return [{ affectedRows: 1 }];
+      if (sql.startsWith('INSERT INTO stock_mutations')) {
+        state.mutationCount += 1;
+        return [{ insertId: state.mutationCount }];
+      }
+      if (sql.startsWith('UPDATE stock_transfers')) return [{ affectedRows: 1 }];
+      if (sql.startsWith('INSERT INTO activity_logs')) return [{ insertId: 1 }];
+      throw new Error(`Unexpected fake query: ${sql}`);
+    },
+  };
+}
+
+async function invokeCancel(connection, user = { id: 77, role: 'owner', branch_id: 4 }) {
+  const original = db.getConnection;
+  db.getConnection = async () => connection;
+  let nextError = null;
+  const res = response();
+  try {
+    await cancelHandler()({
+      user,
+      params: { id: '42' },
+      body: { reason: 'Salah pilih gudang' },
+      ip: 'test',
+      get: () => null,
+    }, res, (error) => { nextError = error; });
+  } finally {
+    db.getConnection = original;
+  }
+  return { res, nextError };
+}
 
 test('transfer cancellation is limited to owner and gudang', () => {
   assert.deepEqual([...TRANSFER_CANCELLATION_ROLES], ['owner', 'gudang']);
@@ -124,6 +227,41 @@ test('cancel route exists and is protected for owner/gudang', () => {
     assert.equal(nextCalled, false, `${role} tidak boleh membatalkan transfer`);
     assert.equal(res.statusCode, 403);
   }
+});
+
+test('insufficient destination stock rolls back without mutating either side', async () => {
+  const connection = fakeConnection({ destinationStock: 2 });
+  const result = await invokeCancel(connection);
+
+  assert.equal(result.nextError?.status, 400);
+  assert.equal(connection.state.rolledBack, true);
+  assert.equal(connection.state.committed, false);
+  assert.equal(connection.state.mutationCount, 0);
+  assert.equal(connection.state.stocks.get('10:21:null'), 0);
+  assert.equal(connection.state.stocks.get('11:121:null'), 2);
+});
+
+test('successful cancellation commits both compensating movements', async () => {
+  const connection = fakeConnection({ destinationStock: 5 });
+  const result = await invokeCancel(connection);
+
+  assert.equal(result.nextError, null);
+  assert.equal(result.res.body.data.status, 'cancelled');
+  assert.equal(connection.state.began, true);
+  assert.equal(connection.state.committed, true);
+  assert.equal(connection.state.rolledBack, false);
+  assert.equal(connection.state.mutationCount, 2);
+  assert.equal(connection.state.stocks.get('10:21:null'), 4);
+  assert.equal(connection.state.stocks.get('11:121:null'), 1);
+});
+
+test('repeated cancellation returns conflict without another mutation', async () => {
+  const connection = fakeConnection({ status: 'cancelled', destinationStock: 5 });
+  const result = await invokeCancel(connection);
+
+  assert.equal(result.nextError?.status, 409);
+  assert.equal(connection.state.rolledBack, true);
+  assert.equal(connection.state.mutationCount, 0);
 });
 
 test('route keeps rollback guard and uses compensating mutation reference', () => {
