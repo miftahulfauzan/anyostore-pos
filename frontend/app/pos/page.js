@@ -546,7 +546,30 @@ export default function PosPage() {
                 <span>{rupiah(cartPrice(item))}{item.variant_color ? ` · ${item.variant_color}` : ''}</span>
               </div>
               <div className="quantity">
-                <input type="number" min="1" value={item.quantity} onChange={(event) => quantity(item.cart_id, Number(event.target.value) || 1)} aria-label={`Jumlah ${item.name}${item.variant_color ? ` ${item.variant_color}` : ''}`} />
+                <input
+                  type="number"
+                  min="1"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  enterKeyHint="done"
+                  value={item.quantity}
+                  onChange={(event) => {
+                    const next = Number.parseInt(event.target.value, 10);
+                    quantity(item.cart_id, Number.isSafeInteger(next) && next > 0 ? next : 1);
+                  }}
+                  onFocus={(event) => event.currentTarget.select()}
+                  onBlur={(event) => {
+                    const next = Number.parseInt(event.currentTarget.value, 10);
+                    const normalized = Number.isSafeInteger(next) && next > 0 ? next : 1;
+                    if (normalized !== item.quantity) quantity(item.cart_id, normalized);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter') return;
+                    event.preventDefault();
+                    event.currentTarget.blur();
+                  }}
+                  aria-label={`Jumlah ${item.name}${item.variant_color ? ` ${item.variant_color}` : ''}`}
+                />
               </div>
               <strong className="cart-line-total">{rupiah(cartSubtotal(item))}</strong>
               <div className="cart-line-actions">

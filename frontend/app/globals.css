@@ -4092,7 +4092,7 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
     padding: 8px 12px 10px;
   }
   .cart-lines {
-    gap: 0;
+    gap: 8px;
     max-width: 100%;
     overflow-x: hidden;
   }
@@ -4101,8 +4101,10 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
     grid-template-columns: minmax(0, 1fr) 44px minmax(72px, auto) 30px;
     gap: 4px;
     min-width: 0;
-    min-height: 48px;
-    padding: 6px 0;
+    height: 72px;
+    min-height: 72px;
+    padding: 8px 0;
+    box-sizing: border-box;
   }
   .cart-item-info { gap: 1px; min-width: 0; }
   .cart-item-info strong { font-size: 12px; line-height: 1.2; }
@@ -4120,10 +4122,31 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
     min-height: 34px;
   }
   .pos-cart-footer {
+    position: sticky;
+    bottom: 0;
     z-index: 2;
     gap: 5px;
     padding: 8px 12px max(10px, env(safe-area-inset-bottom));
   }
   .pos-cart-footer button { min-height: 46px; font-size: 14px; }
+  .pos-transaction-date {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: 10px;
+    min-height: 44px;
+    margin: 0;
+    padding: 0;
+  }
+  .pos-transaction-date input {
+    width: 100%;
+    height: 44px;
+    min-height: 44px;
+    padding: 0 10px;
+  }
+  .pos-transaction-date small {
+    grid-column: 1 / -1;
+    font-size: 10px;
+    line-height: 1.2;
+  }
   .pos-layout .cart::before { display: none; }
 }
