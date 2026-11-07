@@ -3433,6 +3433,127 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
   .branch-switcher-options > button { min-height: 60px; }
 }
 
+/* Owner POS selector: keep the store context readable above the compact nav links. */
+@media (max-width: 820px) {
+  .pos-standalone-header nav > .branch-switcher {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+  }
+  .pos-standalone-header nav > .branch-switcher .branch-switcher-trigger {
+    display: flex;
+    width: 100%;
+    max-width: none;
+    justify-content: space-between;
+  }
+  .pos-standalone-header nav > .branch-switcher .branch-switcher-trigger > span {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-align: left;
+  }
+}
+
+/* Dedicated expense history page. */
+.finance-history-callout-content,
+.expense-history-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.finance-history-callout-content > div { display: grid; gap: 5px; min-width: 0; }
+.finance-history-callout-content h2 { margin: 0; }
+.finance-history-callout-content p { margin: 0; }
+.expense-history-toolbar,
+.expense-history-results { gap: 16px; }
+.expense-history-total { flex: 0 0 auto; color: var(--primary); }
+.expense-history-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end;
+  gap: 12px;
+}
+.expense-history-filters label { min-width: 0; }
+.expense-history-search { grid-column: span 2; }
+.expense-history-filter-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.expense-history-filter-actions button { min-height: 44px; }
+.expense-history-note { display: block; margin-top: 4px; color: var(--muted-foreground); font-size: 11px; }
+.expense-history-pagination { justify-content: center; padding-top: 4px; }
+.expense-history-pagination span { color: var(--muted-foreground); font-size: 13px; }
+
+/* Android-style payment sheet used by the compact PWA cart. */
+.pos-payment-sheet-backdrop {
+  position: fixed;
+  z-index: 180;
+  inset: 0;
+  display: grid;
+  align-items: end;
+  padding: 0;
+  background: rgba(15, 23, 42, .58);
+}
+.pos-payment-sheet {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: 100%;
+  max-height: min(92dvh, 760px);
+  overflow: hidden;
+  border-radius: 18px 18px 0 0;
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 -18px 55px rgba(15, 23, 42, .24);
+}
+.pos-payment-sheet-header {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 10px;
+  min-height: 64px;
+  padding: max(8px, env(safe-area-inset-top)) 12px 8px;
+  background: #1e3a5f;
+  color: #fff;
+}
+.pos-payment-sheet-header > div { display: grid; gap: 2px; text-align: center; }
+.pos-payment-sheet-header span { color: rgba(255,255,255,.72); font-size: 11px; }
+.pos-payment-sheet-header button { display: grid; width: 44px; height: 44px; min-height: 44px; place-items: center; padding: 0; border: 1px solid rgba(255,255,255,.32); border-radius: 8px; background: transparent; color: #fff; }
+.pos-payment-sheet-body { overflow-y: auto; padding: 16px; }
+.pos-payment-total { margin-bottom: 16px; color: var(--primary); font-size: clamp(28px, 8vw, 36px); font-weight: 800; text-align: center; }
+.pos-payment-controls { display: grid; gap: 12px; }
+.pos-payment-controls .payment-methods { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pos-payment-sheet-footer { display: grid; gap: 8px; padding: 12px 16px max(14px, env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: var(--card); }
+.pos-payment-sheet-footer button { min-height: 52px; }
+.pos-payment-sheet-backdrop .message { margin: 0; }
+.pos-inline-payment { display: grid; gap: 12px; }
+
+@media (max-width: 700px) {
+  .finance-history-callout-content { align-items: stretch; flex-direction: column; }
+  .finance-history-callout-content .button-link { width: 100%; justify-content: center; }
+  .expense-history-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .expense-history-search { grid-column: 1 / -1; }
+  .expense-history-filter-actions { grid-column: 1 / -1; }
+  .expense-history-filter-actions button { flex: 1 1 0; }
+}
+@media (max-width: 520px) {
+  .expense-history-filters { grid-template-columns: minmax(0, 1fr); }
+  .expense-history-search,
+  .expense-history-filter-actions { grid-column: auto; }
+  .expense-history-filter-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .expense-history-pagination { align-items: stretch; flex-direction: column; }
+  .expense-history-pagination button { width: 100%; }
+}
+@media (min-width: 821px) {
+  .pos-payment-sheet-backdrop { display: none; }
+}
+@media (max-width: 820px) {
+  .pos-inline-payment { display: none; }
+  .pos-cart-date { margin-top: 2px; }
+}
+.dark .finance-history-callout-content h2,
+.dark .expense-history-total,
+.dark .pos-payment-total { color: var(--text-primary); }
+.dark .pos-payment-sheet,
+.dark .pos-payment-sheet-footer { background: var(--surface-primary); color: var(--text-primary); }
+
 .barcode-print-dialog {
   display: flex;
   flex-direction: column;

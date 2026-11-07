@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useAppSession } from '../components/AppStateProvider';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const localToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
@@ -16,19 +17,28 @@ const shortStamp = (s) => {
 };
 
 export default function ClosingPage() {
+  const { user, activeBranchId, resolved } = useAppSession();
   const [data, setData] = useState(null);
   const [date, setDate] = useState(localToday());
   const [message, setMessage] = useState('');
   const [printed, setPrinted] = useState(false);
 
   useEffect(() => {
-    /* sesi via httpOnly cookie */
+    if (!resolved || !user || !activeBranchId) return undefined;
     setData(null);
     setPrinted(false);
-    fetch(`${api}/reports/daily-closing?date=${date}`, { headers: {} })
+    setMessage('');
+    if (user.role === 'owner' && activeBranchId === 'all') {
+      setMessage('Pilih satu toko di pemilih toko sebelum membuka penutupan.');
+      return undefined;
+    }
+    const query = new URLSearchParams({ date });
+    if (user.role === 'owner') query.set('branch_id', activeBranchId);
+    fetch(`${api}/reports/daily-closing?${query.toString()}`, { headers: {} })
       .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setData(b.data); })
       .catch((e) => setMessage(e.message));
-  }, [date]);
+    return undefined;
+  }, [date, user, activeBranchId, resolved]);
 
   useEffect(() => {
     if (data && !printed) {
@@ -83,6 +93,8 @@ export default function ClosingPage() {
               <div className="receipt-summary-row"><span>Pengembalian</span><b>{data.return_count}</b></div>
               <div className="receipt-summary-row strong"><span>Total Penjualan</span><b>{rp(data.total_sales)}</b></div>
               <div className="receipt-summary-row"><span>Subtotal</span><b>{rp(data.subtotal)}</b></div>
+              <div className="receipt-summary-row"><span>Pengeluaran</span><b>{rp(data.expenses)}</b></div>
+              <div className="receipt-summary-row"><span>Pemasukan</span><b>{rp(data.income)}</b></div>
             </section>
 
             <section className="receipt-section">

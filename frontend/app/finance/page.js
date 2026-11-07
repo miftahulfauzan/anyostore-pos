@@ -3,18 +3,14 @@ import { localDateString } from '../lib/local-date';
 import { useEffect, useRef, useState } from 'react';
 import AppShell from '../components/AppShell';
 import { useAppSession } from '../components/AppStateProvider';
-import { labelFor, paymentLabels, statusLabels } from '../lib/ui-labels';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-const rupiah = (value) => `Rp${Number(value || 0).toLocaleString('id-ID')}`;
 
 const blank = (type) => ({ category_id: '', name: '', amount: '', payment_method: 'cash', expense_date: '', notes: '', type });
 
 export default function Finance() {
   const { user, activeBranchId } = useAppSession();
   const [categories, setCategories] = useState([]);
-  const [expenses, setExpenses] = useState([]);
-  const [income, setIncome] = useState([]);
   const [active, setActive] = useState('expense');
   const [form, setForm] = useState(blank('expense'));
   const [newCategory, setNewCategory] = useState({ name: '', account_code: '5-1000', type: 'expense' });
@@ -23,25 +19,13 @@ export default function Finance() {
   const loadSequence = useRef(0);
   const headers = () => ({ 'Content-Type': 'application/json'});
 
-  function branchQuery(extra = {}) {
-    const params = new URLSearchParams(extra);
-    if (user?.role === 'owner' && activeBranchId) params.set('branch_id', activeBranchId);
-    return `?${params.toString()}`;
-  }
-
   async function load() {
     const requestId = ++loadSequence.current;
-    const [catRes, expRes, incRes] = await Promise.all([
-      fetch(api + '/finance/expense-categories', { headers: headers() }),
-      fetch(api + '/finance/expenses' + branchQuery({ type: 'expense' }), { headers: headers() }),
-      fetch(api + '/finance/expenses' + branchQuery({ type: 'income' }), { headers: headers() }),
-    ]);
-    const c = await catRes.json(), e = await expRes.json(), i = await incRes.json();
-    if (!catRes.ok || !expRes.ok || !incRes.ok) throw new Error(c.message || e.message || i.message);
+    const catRes = await fetch(api + '/finance/expense-categories', { headers: headers() });
+    const c = await catRes.json();
+    if (!catRes.ok) throw new Error(c.message || 'Kategori tidak dapat dimuat.');
     if (requestId !== loadSequence.current) return;
     setCategories(c.data);
-    setExpenses(e.data);
-    setIncome(i.data);
   }
   useEffect(() => {
     if (!user) return;
@@ -82,18 +66,8 @@ export default function Finance() {
       await load();
     } catch (e) { setMessage(e.message); } finally { setSaving(false); }
   }
-  async function approve(id) {
-    try {
-      const r = await fetch(`${api}/finance/expenses/${id}/approve${branchQuery()}`, { method: 'PUT', headers: headers() });
-      const b = await r.json();
-      if (!r.ok) throw new Error(b.message);
-      setMessage('Disetujui: ' + b.data.journal_no);
-      load();
-    } catch (e) { setMessage(e.message); }
-  }
-
   return (
-    <AppShell title="Keuangan" eyebrow="BISNIS & KEUANGAN">
+    <AppShell title="Keuangan" eyebrow="BISNIS & KEUANGAN" actions={<a className="button-link" href="/expenses">Riwayat Pengeluaran</a>}>
       <div className="tabs">
         <button type="button" className={active === 'expense' ? 'active' : ''} onClick={() => setActive('expense')}>Pengeluaran</button>
         <button type="button" className={active === 'income' ? 'active' : ''} onClick={() => setActive('income')}>Pemasukan</button>
@@ -132,29 +106,14 @@ export default function Finance() {
           <button type="submit">Tambah Kategori</button>
         </form>
       </section>
-      <section className="panel">
-        <h2>Riwayat {active === 'income' ? 'Pemasukan' : 'Pengeluaran'}</h2>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Tanggal</th><th>Kategori</th>{user?.role === 'owner' && activeBranchId === 'all' && <th>Toko</th>}<th>Keterangan</th><th>Metode</th><th>Jumlah</th><th>Status</th><th>Aksi</th></tr>
-            </thead>
-            <tbody>
-              {(active === 'income' ? income : expenses).map((row) => (
-                <tr key={row.id}>
-                  <td>{row.expense_date}</td>
-                  <td>{row.category}</td>
-                  {user?.role === 'owner' && activeBranchId === 'all' && <td>{row.branch_name}</td>}
-                  <td>{row.name || '-'}</td>
-                  <td>{labelFor(paymentLabels, row.payment_method)}</td>
-                  <td>{rupiah(row.amount)}</td>
-                  <td>{labelFor(statusLabels, row.status)}</td>
-                  <td>{row.status === 'pending' ? <button type="button" onClick={() => approve(row.id)}>Setujui</button> : '-'}</td>
-                </tr>
-              ))}
-              {(active === 'income' ? income : expenses).length === 0 && <tr><td colSpan={user?.role === 'owner' && activeBranchId === 'all' ? 8 : 7}>Belum ada data.</td></tr>}
-            </tbody>
-          </table>
+      <section className="panel finance-history-callout">
+        <div className="finance-history-callout-content">
+          <div>
+            <p className="eyebrow">HISTORI KEUANGAN</p>
+            <h2>Riwayat pengeluaran</h2>
+            <p className="muted">Gunakan filter periode, kategori, metode pembayaran, dan pencarian agar data lebih mudah ditelusuri.</p>
+          </div>
+          <a className="button-link" href="/expenses">Buka riwayat</a>
         </div>
       </section>
     </AppShell>

@@ -48,13 +48,56 @@ router.get('/expenses', async (req, res, next) => {
   try {
     const type = req.query.type === 'income' ? 'income' : 'expense';
     const scope = await branchScope(req, req.query.branch_id, 'e.branch_id');
+    const where = [scope.sql, 'e.type = ?'];
+    const params = [...scope.params, type];
+    const dateFrom = String(req.query.date_from || '').trim();
+    const dateTo = String(req.query.date_to || '').trim();
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+    if (dateFrom && !datePattern.test(dateFrom)) throw fail(400, 'Tanggal mulai tidak valid');
+    if (dateTo && !datePattern.test(dateTo)) throw fail(400, 'Tanggal akhir tidak valid');
+    if (dateFrom && dateTo && dateFrom > dateTo) throw fail(400, 'Rentang tanggal tidak valid');
+    if (dateFrom) { where.push('e.expense_date >= ?'); params.push(dateFrom); }
+    if (dateTo) { where.push('e.expense_date <= ?'); params.push(dateTo); }
+
+    const categoryId = Number(req.query.category_id);
+    if (req.query.category_id != null && (!Number.isInteger(categoryId) || categoryId <= 0)) {
+      throw fail(400, 'Kategori tidak valid');
+    }
+    if (Number.isInteger(categoryId) && categoryId > 0) {
+      where.push('e.category_id = ?');
+      params.push(categoryId);
+    }
+
+    const paymentMethod = String(req.query.payment_method || '').trim();
+    if (paymentMethod && !['cash', 'transfer', 'debit'].includes(paymentMethod)) {
+      throw fail(400, 'Metode pembayaran tidak valid');
+    }
+    if (paymentMethod) { where.push('e.payment_method = ?'); params.push(paymentMethod); }
+
+    const search = String(req.query.search || '').trim().slice(0, 100);
+    if (search) {
+      const term = `%${search}%`;
+      where.push('(e.name LIKE ? OR e.notes LIKE ? OR c.name LIKE ?)');
+      params.push(term, term, term);
+    }
+
+    const hasPagination = req.query.page != null || req.query.limit != null;
+    const rawLimit = Number.parseInt(req.query.limit, 10);
+    const limit = Math.min(100, Math.max(1, Number.isFinite(rawLimit) ? rawLimit : (hasPagination ? 20 : 100)));
+    const rawPage = Number.parseInt(req.query.page, 10);
+    const page = Math.max(1, Number.isFinite(rawPage) ? rawPage : 1);
+    const offset = (page - 1) * limit;
+    const from = 'FROM expenses e JOIN expense_categories c ON c.id = e.category_id JOIN branches b ON b.id = e.branch_id';
+    const filterSql = where.join(' AND ');
+    const [[countRow]] = await db.execute(`SELECT COUNT(*) AS total ${from} WHERE ${filterSql}`, params);
     const [r] = await db.execute(
-      `SELECT e.id, e.name, e.amount, e.type, e.payment_method, e.expense_date, e.status, c.name AS category, c.type AS category_type, b.name AS branch_name
-       FROM expenses e JOIN expense_categories c ON c.id = e.category_id JOIN branches b ON b.id = e.branch_id
-       WHERE ${scope.sql} AND e.type = ? ORDER BY e.expense_date DESC LIMIT 100`,
-      [...scope.params, type]
+      `SELECT e.id, e.name, e.amount, e.type, e.payment_method, e.expense_date, e.notes, e.status, c.name AS category, c.type AS category_type, b.name AS branch_name
+       ${from}
+       WHERE ${filterSql} ORDER BY e.expense_date DESC, e.id DESC LIMIT ${limit} OFFSET ${offset}`,
+      params
     );
-    res.json({ success: true, data: r });
+    const total = Number(countRow?.total || 0);
+    res.json({ success: true, data: r, page, limit, total, totalPages: Math.ceil(total / limit) });
   } catch (e) { next(e); }
 });
 

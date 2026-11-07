@@ -23,6 +23,8 @@ export default function PosPage() {
   const [selectedPaymentMethods, setSelectedPaymentMethods] = useState(['cash']);
   const [cash, setCash] = useState('');
   const [paymentAmounts, setPaymentAmounts] = useState({});
+  const [paymentSheetOpen, setPaymentSheetOpen] = useState(false);
+  const [compactViewport, setCompactViewport] = useState(false);
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [manualDiscount, setManualDiscount] = useState('');
@@ -84,6 +86,7 @@ export default function PosPage() {
       setCart([]);
       setSelectedPaymentMethods(['cash']);
       setPaymentAmounts({});
+      setPaymentSheetOpen(false);
       setCash('');
       setManualDiscount('');
       setCustomerId('');
@@ -103,6 +106,7 @@ export default function PosPage() {
     setSelectedPaymentMethods(['cash']);
     setCash('');
     setPaymentAmounts({});
+    setPaymentSheetOpen(false);
     setVariantProduct(null);
     setCustomerId('');
     setPriceTier('retail');
@@ -133,6 +137,20 @@ export default function PosPage() {
       window.removeEventListener('keydown', closeOnEscape);
     };
   }, [mobileCartOpen]);
+
+  useEffect(() => {
+    const updateViewport = () => setCompactViewport(window.matchMedia('(max-width: 820px)').matches);
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    return () => window.removeEventListener('resize', updateViewport);
+  }, []);
+
+  useEffect(() => {
+    if (!paymentSheetOpen) return undefined;
+    const closeOnEscape = (event) => { if (event.key === 'Escape') setPaymentSheetOpen(false); };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [paymentSheetOpen]);
 
   useEffect(() => {
     if (!draftsOpen && !priceEditItem && !openItemMenuId) return undefined;
@@ -416,6 +434,13 @@ export default function PosPage() {
       return nextAmounts;
     });
   }
+  function openPaymentFlow() {
+    if (!compactViewport) return checkout();
+    if (!cart.length) return setMessage('Tambahkan produk ke keranjang terlebih dahulu.');
+    if (!cash) setCash(String(Math.ceil(total)));
+    setMessage('');
+    setPaymentSheetOpen(true);
+  }
   async function checkout() {
     if (!storeId || !warehouseId || !cart.length) return setMessage('Pilih toko, gudang, dan tambahkan produk ke keranjang.');
     if (user?.role === 'owner' && !transactionDate) return setMessage('Pilih tanggal transaksi.');
@@ -442,7 +467,7 @@ export default function PosPage() {
       const response = await fetch(`${apiUrl}/transactions`, { method: 'POST', headers: headers(), body: JSON.stringify(bodyPayload) });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message || 'Transaksi gagal');
-      setCart([]); setCash(''); setManualDiscount(''); setSelectedPaymentMethods(['cash']); setPaymentAmounts({}); setMobileCartOpen(false); setCustomerId(''); setNotes(''); setShowCartActions(false); setShowCartOptions(false); setPriceTier('retail'); setTransactionDate(localDateString());
+      setCart([]); setCash(''); setManualDiscount(''); setSelectedPaymentMethods(['cash']); setPaymentAmounts({}); setPaymentSheetOpen(false); setMobileCartOpen(false); setCustomerId(''); setNotes(''); setShowCartActions(false); setShowCartOptions(false); setPriceTier('retail'); setTransactionDate(localDateString());
       pendingTransactionId.current = null;
       setPrintPrompt(body.data);
       loadStore(storeId).catch(() => setMessage('Transaksi berhasil, tetapi stok terbaru belum dapat dimuat. Muat ulang halaman untuk memperbarui stok.'));
@@ -462,6 +487,18 @@ export default function PosPage() {
     localStorage.removeItem('pos_access_token');
     localStorage.removeItem('pos_refresh_token');
     router.replace('/');
+  }
+
+  function renderPaymentControls(className) {
+    return <div className={className}>
+      <fieldset className="payment-methods">
+        <legend>Metode pembayaran</legend>
+        <small className="payment-method-hint">Pilih beberapa metode untuk membagi pembayaran.</small>
+        { [['cash', 'Tunai'], ['qris', 'QRIS'], ['debit', 'Debit'], ['transfer', 'Transfer']].map(([value, label]) => <button type="button" className={selectedPaymentMethods.includes(value) ? 'payment-option selected' : 'payment-option'} key={value} onClick={() => togglePaymentMethod(value)} aria-pressed={selectedPaymentMethods.includes(value)}>{label}</button>)}
+      </fieldset>
+      {isSplitPayment ? <div className="payment-breakdown" aria-label="Nominal per metode pembayaran"><div className="payment-breakdown-fields">{selectedPaymentMethods.map((method) => <label key={method} htmlFor={`payment-amount-${method}`}>{method === 'cash' ? 'Tunai' : method.toUpperCase()} (Rp)<input id={`payment-amount-${method}`} type="number" inputMode="numeric" min="1" step="1" value={paymentAmounts[method] || ''} onChange={(event) => setPaymentAmounts((current) => ({ ...current, [method]: event.target.value }))} placeholder="0" disabled={submitting} /></label>)}</div><p className={`payment-breakdown-status${splitPaymentsValid ? ' is-valid' : ''}`} role="status" aria-live="polite">{splitPaymentStatus}</p></div> : paymentMethod === 'cash' ? <label>Tunai diterima<input type="number" min="0" value={cash} onChange={(event) => setCash(event.target.value)} placeholder="0" /></label> : <p>Pembayaran {paymentMethod.toUpperCase()}: <strong>{rupiah(total)}</strong></p>}
+      {paymentMethod === 'cash' && <p>Kembalian: <strong>{rupiah(change)}</strong></p>}
+    </div>;
   }
 
   return (
@@ -515,7 +552,8 @@ export default function PosPage() {
                 </div>}
               </div>
             </article>
-          ))}</div> : <p className="cart-empty">Keranjang masih kosong.</p>}
+              ))}</div> : <p className="cart-empty">Keranjang masih kosong.</p>}
+              {user?.role === 'owner' && <label className="pos-cart-date pos-transaction-date"><span>Tanggal transaksi</span><input type="date" value={transactionDate} max={localDateString()} onChange={(event) => setTransactionDate(event.target.value)} disabled={loadingStore || submitting} /><small>Tanggal default hari ini.</small></label>}
           {showCartActions && <div className="pos-cart-actions" aria-label="Aksi keranjang">
             <button type="button" onClick={() => setShowCartOptions(true)}><Tag aria-hidden="true" size={18} /> Diskon</button>
             <button type="button" onClick={() => setShowCartOptions(true)}><StickyNote aria-hidden="true" size={18} /> Catatan</button>
@@ -524,21 +562,14 @@ export default function PosPage() {
           </div>}
           {showCartOptions && <section className="pos-cart-options" aria-label="Opsi transaksi">
             {customers.length > 0 && <label className="pos-customer-select"><span>Pelanggan</span><select value={customerId} onChange={changeCustomer} disabled={loadingStore}><option value="">Tanpa pelanggan</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name} {customer.phone ? `(${customer.phone})` : ''}{tiersEnabled ? ` : ${tierLabel[customer.price_tier || 'retail']}` : ''}</option>)}</select></label>}
-            {user?.role === 'owner' && <label className="pos-transaction-date"><span>Tanggal transaksi</span><input type="date" value={transactionDate} max={localDateString()} onChange={(event) => setTransactionDate(event.target.value)} disabled={loadingStore || submitting} /><small>Tanggal default hari ini.</small></label>}
             <label className="pos-discount-field" htmlFor="pos-manual-discount"><span>Diskon (Rp)</span><span className="pos-discount-input"><span aria-hidden="true">Rp</span><input id="pos-manual-discount" type="number" inputMode="numeric" min="0" step="1" max={Math.floor(subtotal)} value={manualDiscount} onChange={(event) => { const value = event.target.value; if (value === '' || (Number.isFinite(Number(value)) && Number(value) >= 0)) setManualDiscount(value); }} placeholder="0" disabled={loadingStore || !cart.length} aria-describedby={discountExceedsSubtotal ? 'pos-discount-error' : undefined} /></span>{discountExceedsSubtotal && <small id="pos-discount-error" className="pos-discount-error" role="alert">Diskon melebihi subtotal {rupiah(subtotal)}.</small>}</label>
             <label className="pos-notes-field" htmlFor="pos-transaction-notes"><span>Catatan</span><textarea id="pos-transaction-notes" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Catatan transaksi (opsional)" rows="2" /></label>
           </section>}
-          <fieldset className="payment-methods">
-            <legend>Metode pembayaran</legend>
-            <small className="payment-method-hint">Pilih beberapa metode untuk membagi pembayaran.</small>
-            { [['cash', 'Tunai'], ['qris', 'QRIS'], ['debit', 'Debit'], ['transfer', 'Transfer']].map(([value, label]) => <button type="button" className={selectedPaymentMethods.includes(value) ? 'payment-option selected' : 'payment-option'} key={value} onClick={() => togglePaymentMethod(value)} aria-pressed={selectedPaymentMethods.includes(value)}>{label}</button>)}
-          </fieldset>
-          {isSplitPayment ? <div className="payment-breakdown" aria-label="Nominal per metode pembayaran"><div className="payment-breakdown-fields">{selectedPaymentMethods.map((method) => <label key={method} htmlFor={`payment-amount-${method}`}>{method === 'cash' ? 'Tunai' : method.toUpperCase()} (Rp)<input id={`payment-amount-${method}`} type="number" inputMode="numeric" min="1" step="1" value={paymentAmounts[method] || ''} onChange={(event) => setPaymentAmounts((current) => ({ ...current, [method]: event.target.value }))} placeholder="0" disabled={submitting} /></label>)}</div><p className={`payment-breakdown-status${splitPaymentsValid ? ' is-valid' : ''}`} role="status" aria-live="polite">{splitPaymentStatus}</p></div> : paymentMethod === 'cash' ? <label>Tunai diterima<input type="number" min="0" value={cash} onChange={(event) => setCash(event.target.value)} placeholder="0" /></label> : <p>Pembayaran {paymentMethod.toUpperCase()}: <strong>{rupiah(total)}</strong></p>}
-          {paymentMethod === 'cash' && <p>Kembalian: <strong>{rupiah(change)}</strong></p>}
+              {!compactViewport && renderPaymentControls('pos-inline-payment')}
           </div>
           <div className="pos-cart-footer">
             <div className="pos-cart-footer-meta"><strong>{cart.reduce((sum, item) => sum + item.quantity, 0)} pcs</strong>{discount > 0 && <span>Diskon: -{rupiah(discount)}</span>}{discountExceedsSubtotal && <span className="pos-discount-error">Diskon melebihi subtotal.</span>}{message && <span className="message" role="status">{message}</span>}</div>
-            <button type="button" disabled={loadingStore || submitting || !cart.length || discountExceedsSubtotal || (isSplitPayment && !splitPaymentsValid)} onClick={checkout}>{submitting ? 'Memproses…' : `Bayar · ${rupiah(total)}`}</button>
+                <button type="button" disabled={loadingStore || submitting || !cart.length || discountExceedsSubtotal} onClick={openPaymentFlow}>{submitting ? 'Memproses…' : `Bayar · ${rupiah(total)}`}</button>
           </div>
         </aside>
         </section>
@@ -555,6 +586,11 @@ export default function PosPage() {
         })}</div>}
       </section></div>}
       {priceEditItem && <div className="pos-price-dialog-backdrop" role="presentation" onMouseDown={() => setPriceEditItem(null)}><form className="pos-price-dialog" role="dialog" aria-modal="true" aria-labelledby="pos-price-title" onMouseDown={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); savePriceEditor(); }}><div className="pos-drafts-heading"><div><strong id="pos-price-title">Ubah harga</strong><span>{priceEditItem.name}</span></div><button type="button" onClick={() => setPriceEditItem(null)} aria-label="Tutup ubah harga"><X aria-hidden="true" size={19} /></button></div><label htmlFor="pos-price-editor">Harga satuan<input id="pos-price-editor" type="number" min="0" inputMode="numeric" value={priceEditValue} onChange={(event) => setPriceEditValue(event.target.value)} autoFocus /></label><div className="pos-price-dialog-actions"><button type="button" className="secondary" onClick={() => setPriceEditItem(null)}>Batal</button><button type="submit">Simpan</button></div></form></div>}
+          {paymentSheetOpen && <div className="pos-payment-sheet-backdrop" role="presentation" onMouseDown={() => setPaymentSheetOpen(false)}><section className="pos-payment-sheet" role="dialog" aria-modal="true" aria-labelledby="pos-payment-title" onMouseDown={(event) => event.stopPropagation()}>
+            <header className="pos-payment-sheet-header"><button type="button" onClick={() => setPaymentSheetOpen(false)} aria-label="Kembali ke keranjang"><ArrowLeft aria-hidden="true" size={21} /></button><div><strong id="pos-payment-title">Pembayaran</strong><span>Total pembayaran</span></div><button type="button" onClick={() => setPaymentSheetOpen(false)} aria-label="Tutup pembayaran"><X aria-hidden="true" size={19} /></button></header>
+            <div className="pos-payment-sheet-body"><div className="pos-payment-total">{rupiah(total)}</div>{renderPaymentControls('pos-payment-controls')}{message && <p className="message" role="status">{message}</p>}</div>
+            <footer className="pos-payment-sheet-footer"><button type="button" disabled={submitting || !cart.length || discountExceedsSubtotal} onClick={checkout}>{submitting ? 'Memproses…' : 'Selesaikan pembayaran'}</button><button type="button" className="secondary" onClick={() => setPaymentSheetOpen(false)}>Kembali ke keranjang</button></footer>
+          </section></div>}
       {variantProduct && <div className="pos-variant-modal-backdrop" role="presentation" onMouseDown={() => setVariantProduct(null)}><section className="pos-variant-modal" role="dialog" aria-modal="true" aria-labelledby="variant-dialog-title" onMouseDown={(event) => event.stopPropagation()}><div className="pos-variant-heading"><div><strong id="variant-dialog-title">Pilih warna</strong><span>{variantProduct.name}</span></div><button type="button" onClick={() => setVariantProduct(null)} aria-label="Tutup pilihan warna"><X aria-hidden="true" size={16} /></button></div><div className="pos-variant-options">{variantProduct.variants?.map((variant) => <button type="button" key={variant.id} className={Number(variant.stock) <= 0 ? 'out-of-stock' : ''} onClick={() => addToCart(variantProduct, variant)}>{variant.photo_path ? <img src={mediaUrl(variant.photo_path)} alt="" /> : <span className="variant-color-dot" aria-hidden="true" />}<strong>{variant.color}</strong><small>{rupiah(variant.price == null ? variantProduct.price : variant.price)} · Stok {variant.stock}{Number(variant.stock) <= 0 ? ' (habis)' : ''}</small></button>)}</div></section></div>}
       {printPrompt && <div className="pos-variant-modal-backdrop" role="presentation" onMouseDown={() => finishPayment(false)}><section className="pos-print-modal" role="dialog" aria-modal="true" aria-labelledby="print-dialog-title" onMouseDown={(event) => event.stopPropagation()}><div className="pos-variant-heading"><div><strong id="print-dialog-title">Transaksi berhasil</strong><span>{printPrompt.invoice_no}</span></div><button type="button" onClick={() => finishPayment(false)} aria-label="Tutup tanpa mencetak"><X aria-hidden="true" size={16} /></button></div><p>Transaksi sudah disimpan. Apakah struk ingin dicetak sekarang?</p><strong className="print-prompt-total">{rupiah(printPrompt.grand_total)}</strong><div className="print-prompt-actions"><button type="button" className="secondary" onClick={() => finishPayment(false)}>Tidak, selesai</button><button type="button" onClick={() => finishPayment(true)}>Cetak struk</button></div></section></div>}
     </div>
