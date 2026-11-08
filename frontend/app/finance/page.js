@@ -67,7 +67,7 @@ export default function Finance() {
     } catch (e) { setMessage(e.message); } finally { setSaving(false); }
   }
   return (
-    <AppShell title="Keuangan" eyebrow="BISNIS & KEUANGAN" actions={<a className="button-link" href="/expenses">Riwayat Pengeluaran</a>}>
+    <AppShell title="Keuangan" eyebrow="BISNIS & KEUANGAN" actions={<a className="button-link" href="/expenses">Riwayat Keuangan</a>}>
       <div className="tabs">
         <button type="button" className={active === 'expense' ? 'active' : ''} onClick={() => setActive('expense')}>Pengeluaran</button>
         <button type="button" className={active === 'income' ? 'active' : ''} onClick={() => setActive('income')}>Pemasukan</button>
@@ -110,8 +110,8 @@ export default function Finance() {
         <div className="finance-history-callout-content">
           <div>
             <p className="eyebrow">HISTORI KEUANGAN</p>
-            <h2>Riwayat pengeluaran</h2>
-            <p className="muted">Gunakan filter periode, kategori, metode pembayaran, dan pencarian agar data lebih mudah ditelusuri.</p>
+            <h2>Riwayat keuangan</h2>
+            <p className="muted">Gunakan filter periode, jenis, kategori, metode pembayaran, dan pencarian agar data lebih mudah ditelusuri.</p>
           </div>
           <a className="button-link" href="/expenses">Buka riwayat</a>
         </div>

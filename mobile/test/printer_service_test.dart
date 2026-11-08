@@ -121,7 +121,7 @@ void main() {
     final methods = calls.map((call) => call.method).toList();
     expect(methods, contains('image'));
     final image = calls.firstWhere((call) => call.method == 'image');
-    expect((image.arguments as Map)['maxWidth'], 180);
+    expect((image.arguments as Map)['maxWidth'], 144);
     final feedIndex = methods.indexOf('print');
     final cutIndex = methods.indexOf('cutPaper');
     expect(feedIndex, greaterThan(-1));
@@ -159,7 +159,7 @@ void main() {
     });
 
     final image = calls.firstWhere((call) => call.method == 'image');
-    expect((image.arguments as Map)['maxWidth'], 260);
+    expect((image.arguments as Map)['maxWidth'], 208);
   });
 
   test('continues printing when the invoice logo cannot be loaded', () async {
@@ -195,5 +195,38 @@ void main() {
     expect(methods, contains('print'));
     expect(methods, contains('cutPaper'));
     expect(methods, isNot(contains('image')));
+  });
+
+  test('prints expenses and income in the closing report', () async {
+    final texts = <String>[];
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    const escChannel = MethodChannel('bluetooth_print_plus_esc');
+    const bluetoothChannel = MethodChannel('bluetooth_print_plus/methods');
+    messenger.setMockMethodCallHandler(escChannel, (call) async {
+      if (call.method == 'text') {
+        final args = call.arguments as Map<dynamic, dynamic>;
+        texts.add('${args['content']}');
+      }
+      if (call.method == 'getCommand') return Uint8List.fromList([1]);
+      return null;
+    });
+    messenger.setMockMethodCallHandler(bluetoothChannel, (call) async => null);
+    addTearDown(() {
+      messenger.setMockMethodCallHandler(escChannel, null);
+      messenger.setMockMethodCallHandler(bluetoothChannel, null);
+    });
+
+    await PrinterService().printClosing({
+      'store': {'printer_size': '58', 'store_name': 'BASIK PGMTA'},
+      'date': '2026-11-08',
+      'expenses': 30000,
+      'income': 10000,
+      'expected_total': 80000,
+      'methods': <String, dynamic>{},
+    });
+
+    expect(texts.any((value) => value.contains('Pengeluaran')), isTrue);
+    expect(texts.any((value) => value.contains('Pemasukan')), isTrue);
   });
 }

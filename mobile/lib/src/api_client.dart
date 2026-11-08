@@ -373,10 +373,12 @@ class ApiClient {
     String? dateTo,
     String? status,
     String? search,
+    bool allBranches = false,
   }) async {
     final res = await get('/transactions', {
       'page': '$page',
       'limit': '$limit',
+      if (allBranches) 'branch_id': 'all',
       if (dateFrom != null) 'date_from': dateFrom,
       if (dateTo != null) 'date_to': dateTo,
       if (status != null && status.isNotEmpty) 'status': status,
@@ -663,6 +665,30 @@ class ApiClient {
     return (res['data'] as List?) ?? [];
   }
 
+  Future<Map<String, dynamic>> expensesPage({
+    String type = 'expense',
+    String? dateFrom,
+    String? dateTo,
+    int? categoryId,
+    String? paymentMethod,
+    String? search,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    final res = await get('/finance/expenses', {
+      'type': type,
+      if (dateFrom != null && dateFrom.isNotEmpty) 'date_from': dateFrom,
+      if (dateTo != null && dateTo.isNotEmpty) 'date_to': dateTo,
+      if (categoryId != null) 'category_id': '$categoryId',
+      if (paymentMethod != null && paymentMethod.isNotEmpty)
+        'payment_method': paymentMethod,
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+      'page': '$page',
+      'limit': '$limit',
+    });
+    return res;
+  }
+
   Future<Map<String, dynamic>> createExpense(Map<String, dynamic> body) =>
       post('/finance/expenses', body);
 
@@ -729,8 +755,17 @@ class ApiClient {
     return rows;
   }
 
-  Future<Map<String, dynamic>> createChannel(String name) =>
-      post('/inventory/channels', {'name': name});
+  Future<Map<String, dynamic>> createChannel(String name) {
+    final displayName = name.trim();
+    final value = displayName.toLowerCase().replaceAll(
+          RegExp(r'[^a-z0-9_]'),
+          '_',
+        );
+    return post('/inventory/channels', {
+      'value': value,
+      'name': displayName,
+    });
+  }
 
   Future<Map<String, dynamic>> mutationsSummary({
     String? start,
@@ -855,17 +890,25 @@ class ApiClient {
     final res = await get('/reports/overview', {
       'start': start,
       'end': end,
-      if (allBranches) 'branch_id': 'all',
-      if (branchId != null) 'branch_id': '$branchId',
+      if (allBranches)
+        'branch_id': 'all'
+      else if (branchId != null)
+        'branch_id': '$branchId',
     });
     return (res['data'] as Map<String, dynamic>?) ?? {};
   }
 
-  Future<Map<String, dynamic>> reportDailyClosing(
-      {required String date, int? branchId}) async {
+  Future<Map<String, dynamic>> reportDailyClosing({
+    required String date,
+    int? branchId,
+    bool allBranches = false,
+  }) async {
     final res = await get('/reports/daily-closing', {
       'date': date,
-      if (branchId != null) 'branch_id': '$branchId',
+      if (allBranches)
+        'branch_id': 'all'
+      else if (branchId != null)
+        'branch_id': '$branchId',
     });
     return (res['data'] as Map<String, dynamic>?) ?? {};
   }

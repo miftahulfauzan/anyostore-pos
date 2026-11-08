@@ -160,7 +160,7 @@ class PrinterService {
   }
 
   int _receiptLogoMaxWidth(Map<String, dynamic> receipt) =>
-      ReceiptLayout.fromReceipt(receipt).width <= 32 ? 180 : 260;
+      ReceiptLayout.fromReceipt(receipt).width <= 32 ? 144 : 208;
 
   Future<void> printBarcode({required String code, String? label}) async {
     final esc = EscCommand();
@@ -292,6 +292,10 @@ class PrinterService {
         fmtRp(asNum(closing['total_sales'])).padLeft(28));
     await line(
         'Retur'.padRight(20) + '${closing['return_count'] ?? 0}'.padLeft(28));
+    await line('Pengeluaran'.padRight(20) +
+        fmtRp(asNum(closing['expenses'])).padLeft(28));
+    await line('Pemasukan'.padRight(20) +
+        fmtRp(asNum(closing['income'])).padLeft(28));
     await line('TOTAL KASIR'.padRight(20) +
         fmtRp(asNum(closing['expected_total'])).padLeft(28));
     await line('--------------------------------');

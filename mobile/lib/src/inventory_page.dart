@@ -1271,6 +1271,12 @@ class _InOutFormState extends State<_InOutForm> {
         _catalog = results[0].cast<Map<String, dynamic>>();
         if (widget.kind == 'outgoing') {
           _channels = results[1].cast<Map<String, dynamic>>();
+          if (!_channels.any((channel) =>
+              channel['value']?.toString() == _channel)) {
+            _channel = _channels.isEmpty
+                ? 'toko'
+                : (_channels.first['value']?.toString() ?? 'toko');
+          }
         }
         _warehouseId = warehouseId;
         _catalogLoading = false;
@@ -1609,12 +1615,19 @@ class _InOutFormState extends State<_InOutForm> {
     );
     if (name == null || name.isEmpty || !mounted) return;
     try {
-      await widget.api.createChannel(name);
+      final created = await widget.api.createChannel(name);
       final ch = await widget.api.channels();
       if (!mounted) return;
+      final createdData = created['data'];
+      final createdValue = createdData is Map
+          ? createdData['value']?.toString()
+          : null;
       setState(() {
         _channels = ch.cast<Map<String, dynamic>>();
-        _channel = name;
+        _channel = createdValue ??
+            (_channels.isEmpty
+                ? 'toko'
+                : (_channels.first['value']?.toString() ?? 'toko'));
       });
     } on ApiException catch (e) {
       if (mounted) {
@@ -1883,7 +1896,7 @@ class _InOutFormState extends State<_InOutForm> {
                                 items: [
                                   for (final c in _channels)
                                     DropdownMenuItem(
-                                        value: c['name']?.toString() ?? '',
+                                        value: c['value']?.toString() ?? '',
                                         child:
                                             Text(c['name']?.toString() ?? '')),
                                   if (_channels.isEmpty)

@@ -25,6 +25,7 @@ export default function ClosingPage() {
   const [date, setDate] = useState(previousLocalDate());
   const [message, setMessage] = useState('');
   const [preview, setPreview] = useState(false);
+  const selectedBranchQuery = activeBranchId === 'all' ? 'all' : activeBranchId;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -37,12 +38,11 @@ export default function ClosingPage() {
     if (!resolved || !user || !activeBranchId) return undefined;
     setData(null);
     setMessage('');
-    if (user.role === 'owner' && activeBranchId === 'all') {
-      setMessage('Pilih satu toko di pemilih toko sebelum membuka penutupan.');
-      return undefined;
-    }
     const query = new URLSearchParams({ date });
-    if (user.role === 'owner') query.set('branch_id', activeBranchId);
+    if (user.role === 'owner') {
+      if (selectedBranchQuery === 'all') query.set('branch_id', 'all');
+      else query.set('branch_id', activeBranchId);
+    }
     fetch(`${api}/reports/daily-closing?${query.toString()}`, { headers: {} })
       .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setData(b.data); })
       .catch((e) => setMessage(e.message));
@@ -51,7 +51,10 @@ export default function ClosingPage() {
 
   function openPdfPreview() {
     const query = new URLSearchParams({ date, preview: '1' });
-    if (user?.role === 'owner') query.set('branch_id', activeBranchId);
+    if (user?.role === 'owner') {
+      if (selectedBranchQuery === 'all') query.set('branch_id', 'all');
+      else query.set('branch_id', activeBranchId);
+    }
     window.open(`/closing?${query.toString()}`, '_blank');
   }
 
@@ -76,6 +79,7 @@ export default function ClosingPage() {
         <a className="button-link" href="/dashboard">← Kembali ke Dasbor</a>
       </div>
       {message && <p className="message" role="status">{message}</p>}
+      {user?.role === 'owner' && (activeBranchId === 'all' || activeBranchId == null) && !preview && <p className="muted no-print">Pilih satu toko untuk melihat rincian per toko; mode Semua tetap menampilkan gabungan.</p>}
       {!data && !message && <p>Memuat laporan…</p>}
       {data && (
         <main className="receipt">

@@ -8,6 +8,41 @@ const { parseOwnerBranchId, stockDashboardScope } = require('../dashboard-stock-
 const router = express.Router();
 router.use(authenticate);
 
+function buildDailyTrend(rows, start, end) {
+  const byDate = new Map((rows || []).map((row) => [
+    row.date instanceof Date
+      ? localDateString(row.date)
+      : String(row.date || '').slice(0, 10),
+    { sales: Number(row.sales || 0), transactions: Number(row.transactions || 0) },
+  ]));
+  const startDate = new Date(`${start}T00:00:00+07:00`);
+  const endDate = new Date(`${end}T00:00:00+07:00`);
+  const days = Math.max(0, Math.floor((endDate - startDate) / 86400000) + 1);
+  const pointCount = Math.min(days, 366);
+  const bucketSize = pointCount ? Math.ceil(days / pointCount) : 1;
+  return Array.from({ length: pointCount }, (_, index) => {
+    const date = new Date(startDate);
+    date.setDate(date.getDate() + index * bucketSize);
+    const bucketEnd = Math.min(days, (index + 1) * bucketSize);
+    let sales = 0;
+    let transactions = 0;
+    for (let offset = index * bucketSize; offset < bucketEnd; offset += 1) {
+      const bucketDate = new Date(startDate);
+      bucketDate.setDate(bucketDate.getDate() + offset);
+      const value = byDate.get(localDateString(bucketDate));
+      sales += value?.sales || 0;
+      transactions += value?.transactions || 0;
+    }
+    return {
+      date: localDateString(date),
+      label: date.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }),
+      sales,
+      transactions,
+      bucket_days: bucketSize,
+    };
+  });
+}
+
 router.get('/', async (req, res, next) => {
   try {
     const owner = req.user.role === 'owner';
@@ -15,6 +50,14 @@ router.get('/', async (req, res, next) => {
     if (owner && selectedBranchId !== null) {
       const [activeBranches] = await db.execute('SELECT id FROM branches WHERE id = ? AND is_active = TRUE LIMIT 1', [selectedBranchId]);
       if (!activeBranches.length) return res.status(404).json({ success: false, message: 'Toko tidak ditemukan atau sudah tidak aktif.' });
+    }
+    const validDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
+    const selectedEnd = validDate(req.query.end) ? req.query.end : localDateString();
+    const defaultStartDate = new Date(`${selectedEnd}T00:00:00+07:00`);
+    defaultStartDate.setDate(defaultStartDate.getDate() - 6);
+    const selectedStart = validDate(req.query.start) ? req.query.start : localDateString(defaultStartDate);
+    if (selectedStart > selectedEnd) {
+      return res.status(400).json({ success: false, message: 'Rentang tanggal tidak valid.' });
     }
     const transactionScope = owner
       ? (selectedBranchId === null ? '' : ' AND t.branch_id = ?')
@@ -47,7 +90,7 @@ router.get('/', async (req, res, next) => {
       'FROM transactions t JOIN users u ON u.id = t.user_id JOIN branches b ON b.id = t.branch_id ' +
       'WHERE 1 = 1' + transactionScope + ' ORDER BY t.transaction_date DESC, t.created_at DESC LIMIT 6';
     const trendSql =
-      "SELECT DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS date, COALESCE(SUM(t.grand_total - t.cancelled_amount - t.refunded_amount), 0) AS sales " +
+      "SELECT DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS date, COUNT(*) AS transactions, COALESCE(SUM(t.grand_total - t.cancelled_amount - t.refunded_amount), 0) AS sales " +
       `FROM transactions t WHERE t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)` +
       transactionScope + ' GROUP BY t.transaction_date ORDER BY date';
     const paymentSql =
@@ -58,12 +101,47 @@ router.get('/', async (req, res, next) => {
       `WHERE t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)` +
       transactionScope + ' GROUP BY tp.payment_method ORDER BY amount DESC';
 
+    // Data dashboard yang mengikuti rentang pilihan user. Field legacy di atas
+    // tetap dipertahankan untuk caller lama, tetapi web dan Android memakai
+    // kontrak selected_* agar angka tidak kembali ke hari/bulan server.
+    const selectedSalesSql =
+      'SELECT COUNT(*) AS transactions, COALESCE(SUM(t.grand_total - t.cancelled_amount - t.refunded_amount), 0) AS sales ' +
+      `FROM transactions t WHERE t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?` + transactionScope;
+    const selectedProductsSoldSql =
+      'SELECT COALESCE(SUM(ti.quantity - ti.cancelled_qty - ti.returned_qty), 0) AS products_sold ' +
+      'FROM transaction_items ti JOIN transactions t ON t.id = ti.transaction_id ' +
+      `WHERE t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?` + transactionScope;
+    const selectedExpensesSql =
+      "SELECT COALESCE(SUM(e.amount), 0) AS expenses FROM expenses e WHERE e.status = 'approved' AND e.expense_date BETWEEN ? AND ?" + expenseScope;
+    const selectedRecentSql =
+      "SELECT t.id, t.invoice_no, t.grand_total, t.payment_method, t.created_at, DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS transaction_date, u.name AS cashier, b.name AS branch_name " +
+      'FROM transactions t JOIN users u ON u.id = t.user_id JOIN branches b ON b.id = t.branch_id ' +
+      `WHERE t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?` + transactionScope +
+      ' ORDER BY t.transaction_date DESC, t.created_at DESC LIMIT 6';
+    const selectedTrendSql =
+      "SELECT DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS date, COUNT(*) AS transactions, COALESCE(SUM(t.grand_total - t.cancelled_amount - t.refunded_amount), 0) AS sales " +
+      `FROM transactions t WHERE t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?` +
+      transactionScope + ' GROUP BY t.transaction_date ORDER BY date';
+    const selectedPaymentSql =
+      'SELECT tp.payment_method, COALESCE(SUM(tp.amount - ((t.cancelled_amount + t.refunded_amount) * tp.amount / NULLIF(t.grand_total, 0))), 0) AS amount ' +
+      'FROM transaction_payments tp JOIN transactions t ON t.id = tp.transaction_id ' +
+      `WHERE t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?` +
+      transactionScope + ' GROUP BY tp.payment_method ORDER BY amount DESC';
+
     let salesRows;
     let expenseRows;
     let recent;
     let salesTrend;
     let payments;
     let productsSold;
+    let selectedSales;
+    let selectedExpenses;
+    let selectedRecent;
+    let selectedTrend;
+    let selectedPayments;
+    let selectedProductsSold;
+    const selectedTransactionParams = [selectedStart, selectedEnd, ...transactionParams];
+    const selectedExpenseParams = [selectedStart, selectedEnd, ...expenseParams];
     if (req.user.role === 'gudang') {
       // Dashboard gudang hanya memakai data stok. Hindari query penjualan,
       // pembayaran, dan pengeluaran yang tidak dipakai oleh halaman ini.
@@ -83,14 +161,26 @@ router.get('/', async (req, res, next) => {
       salesTrend = emptyResult([]);
       payments = emptyResult([]);
       productsSold = emptyResult([{ products_sold: 0 }]);
+      selectedSales = emptyResult([{ transactions: 0, sales: 0 }]);
+      selectedExpenses = emptyResult([{ expenses: 0 }]);
+      selectedRecent = emptyResult([]);
+      selectedTrend = emptyResult([]);
+      selectedPayments = emptyResult([]);
+      selectedProductsSold = emptyResult([{ products_sold: 0 }]);
     } else {
-      [salesRows, expenseRows, recent, salesTrend, payments, productsSold] = await Promise.all([
+      [salesRows, expenseRows, recent, salesTrend, payments, productsSold, selectedSales, selectedExpenses, selectedRecent, selectedTrend, selectedPayments, selectedProductsSold] = await Promise.all([
         db.execute(salesSql, transactionParams),
         db.execute(expensesSql, expenseParams),
         db.execute(recentSql, transactionParams),
         db.execute(trendSql, transactionParams),
         db.execute(paymentSql, transactionParams),
-        db.execute(productsSoldSql, transactionParams)
+        db.execute(productsSoldSql, transactionParams),
+        db.execute(selectedSalesSql, selectedTransactionParams),
+        db.execute(selectedExpensesSql, selectedExpenseParams),
+        db.execute(selectedRecentSql, selectedTransactionParams),
+        db.execute(selectedTrendSql, selectedTransactionParams),
+        db.execute(selectedPaymentSql, selectedTransactionParams),
+        db.execute(selectedProductsSoldSql, selectedTransactionParams)
       ]);
     }
 
@@ -128,11 +218,28 @@ router.get('/', async (req, res, next) => {
        FROM branches b WHERE b.is_active = TRUE${storeScope} ORDER BY b.id`,
       selectedBranchId === null ? [] : [selectedBranchId]
     ))[0] : [];
+    const selectedStores = owner ? (await db.execute(
+      `SELECT b.id, b.name, b.address,
+        COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount - t.refunded_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?), 0) AS selected_sales,
+        COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id AND e.status = 'approved' AND e.expense_date BETWEEN ? AND ?), 0) AS selected_expenses,
+        COALESCE((SELECT COUNT(*) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?), 0) AS selected_transactions,
+        (SELECT COUNT(*) FROM products p WHERE p.branch_id = b.id AND p.is_active = TRUE) AS products
+       FROM branches b WHERE b.is_active = TRUE${storeScope} ORDER BY b.id`,
+      selectedBranchId === null
+        ? [selectedStart, selectedEnd, selectedStart, selectedEnd, selectedStart, selectedEnd]
+        : [selectedStart, selectedEnd, selectedStart, selectedEnd, selectedStart, selectedEnd, selectedBranchId]
+    ))[0] : [];
 
     const summary = {
       ...salesRows[0][0],
       ...expenseRows[0][0],
       products_sold: Number(productsSold[0][0]?.products_sold || 0),
+    };
+    const selectedSummary = {
+      sales: Number(selectedSales[0][0]?.sales || 0),
+      transactions: Number(selectedSales[0][0]?.transactions || 0),
+      expenses: Number(selectedExpenses[0][0]?.expenses || 0),
+      products_sold: Number(selectedProductsSold[0][0]?.products_sold || 0),
     };
 
     // Ringkasan stok tersedia terpisah untuk Owner dan petugas toko/gudang.
@@ -148,11 +255,8 @@ router.get('/', async (req, res, next) => {
       });
       const stockBranchFilter = stockScope.branchFilter;
       const stockWarehouseBranchFilter = stockScope.warehouseBranchFilter;
-      const validDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
-      const dashboardEnd = validDate(req.query.end) ? req.query.end : localDateString();
-      const defaultStartDate = new Date(`${dashboardEnd}T00:00:00+07:00`);
-      defaultStartDate.setDate(defaultStartDate.getDate() - 6);
-      const dashboardStart = validDate(req.query.start) ? req.query.start : localDateString(defaultStartDate);
+      const dashboardStart = selectedStart;
+      const dashboardEnd = selectedEnd;
 
       const [stockRows] = await db.execute(
         `SELECT COUNT(DISTINCT ws.product_id) AS total_products,
@@ -292,6 +396,8 @@ router.get('/', async (req, res, next) => {
       if (owner) ownerStockDashboard = warehouseDashboard;
     }
 
+    const selectedSalesTrend = buildDailyTrend(selectedTrend[0], selectedStart, selectedEnd);
+
     res.json({
       success: true,
       data: {
@@ -301,6 +407,12 @@ router.get('/', async (req, res, next) => {
         sales_trend: sevenDayTrend,
         payment_breakdown: payments[0],
         stores,
+        selected_period: { start: selectedStart, end: selectedEnd },
+        selected_summary: selectedSummary,
+        selected_sales_trend: selectedSalesTrend,
+        selected_payment_breakdown: selectedPayments[0],
+        selected_recent_transactions: selectedRecent[0],
+        selected_stores: selectedStores,
         branch_context_id: owner ? (selectedBranchId === null ? 'all' : selectedBranchId) : req.user.branch_id,
         stock_summary: stockSummary,
         warehouse_dashboard: warehouseDashboard,

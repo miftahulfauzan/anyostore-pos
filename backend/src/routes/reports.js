@@ -41,78 +41,75 @@ router.get('/daily-closing', async (req, res, next) => {
     // Penutupan default adalah hari bisnis WIB sebelumnya. Web dan Android
     // harus membuka tanggal yang sama ketika kasir baru mulai bekerja.
     const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : previousLocalDateString();
-    const branchId = req.user.role === 'owner' ? (Number(req.query.branch_id) || req.user.branch_id) : req.user.branch_id;
-    const [[branchRows], [userRows]] = await Promise.all([
-      db.execute('SELECT id, name, address, phone FROM branches WHERE id=?', [branchId]),
-      db.execute('SELECT name FROM users WHERE id=?', [req.user.id]),
-    ]);
-    const branch = branchRows[0];
-    if (!branch) return res.status(404).json({ success: false, message: 'Toko tidak ditemukan' });
+    const [userRows] = await db.execute('SELECT name FROM users WHERE id=?', [req.user.id]);
 
-    const [salesData] = await db.execute(
-      `SELECT COUNT(*) AS receipt_count, COALESCE(SUM(grand_total - cancelled_amount - refunded_amount), 0) AS total_sales
-       FROM transactions WHERE branch_id=? AND status IN (${SALES_STATUSES_SQL}) AND transaction_date=?`,
-      [branchId, date]
-    );
-    const [returnsData] = await db.execute(
-      `SELECT refund_method, COUNT(*) AS cnt, COALESCE(SUM(refund_amount), 0) AS refund
-       FROM returns WHERE branch_id=? AND DATE(CONVERT_TZ(created_at, @@session.time_zone, '+07:00'))=? GROUP BY refund_method`,
-      [branchId, date]
-    );
-    const [payments] = await db.execute(
-      `SELECT tp.payment_method,
-              COALESCE(SUM(tp.amount), 0) AS sales,
-              COALESCE(SUM(t.cancelled_amount * tp.amount / NULLIF(t.grand_total, 0)), 0) AS cancellations
-       FROM transaction_payments tp JOIN transactions t ON t.id = tp.transaction_id
-       WHERE t.branch_id=? AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date=?
-       GROUP BY tp.payment_method ORDER BY tp.payment_method`,
-      [branchId, date]
-    );
-    // Kas masuk/keluar hanya untuk catatan MANUAL. Refund pembatalan &
-    // retur sudah dihitung via payments.cancellations / returns — kalau ikut
-    // dihitung lagi di sini hasilnya minus dua kali (total kasir jadi negatif).
-    const [movements] = await db.execute(
-      `SELECT COALESCE(SUM(CASE WHEN cdm.type='cash_in' THEN cdm.amount ELSE -cdm.amount END), 0) AS net
-       FROM cash_drawer_movements cdm JOIN cash_drawers cd ON cd.id = cdm.cash_drawer_id
-       WHERE cd.branch_id=? AND DATE(CONVERT_TZ(cdm.created_at, @@session.time_zone, '+07:00'))=?
-         AND (cdm.reason IS NULL OR (cdm.reason NOT LIKE 'Refund %' AND cdm.reason NOT LIKE 'Retur %'))`,
-      [branchId, date]
-    );
-    const [expenseRows] = await db.execute(
-      `SELECT COALESCE(SUM(CASE WHEN e.type='expense' THEN e.amount ELSE 0 END), 0) AS expense,
-              COALESCE(SUM(CASE WHEN e.type='income' THEN e.amount ELSE 0 END), 0) AS income
-       FROM expenses e WHERE e.branch_id=? AND e.status='approved' AND e.expense_date=?`,
-      [branchId, date]
-    );
-    const [cashFinanceRows] = await db.execute(
-      `SELECT COALESCE(SUM(CASE WHEN e.type='expense' THEN e.amount ELSE 0 END), 0) AS expense,
-              COALESCE(SUM(CASE WHEN e.type='income' THEN e.amount ELSE 0 END), 0) AS income
-       FROM expenses e
-       WHERE e.branch_id=? AND e.status='approved' AND e.payment_method = 'cash' AND e.expense_date=?`,
-      [branchId, date]
-    );
+    async function buildClosing(branchId) {
+      const [[branchRows]] = await Promise.all([
+        db.execute('SELECT id, name, address, phone FROM branches WHERE id=?', [branchId]),
+      ]);
+      const branch = branchRows[0];
+      if (!branch) return null;
 
-    const returnCount = returnsData.reduce((sum, row) => sum + Number(row.cnt || 0), 0);
-    const financeCashNet = cashFlowNet({
-      financeIncome: Number(cashFinanceRows[0].income || 0),
-      financeExpense: Number(cashFinanceRows[0].expense || 0),
-    });
-    const { methods, expected_total: expectedTotal } = buildClosingMethods({
-      payments,
-      returnsData,
-      movementsNet: Number(movements[0].net || 0),
-      financeCashNet,
-    });
+      const [salesData] = await db.execute(
+        `SELECT COUNT(*) AS receipt_count, COALESCE(SUM(grand_total - cancelled_amount - refunded_amount), 0) AS total_sales
+         FROM transactions WHERE branch_id=? AND status IN (${SALES_STATUSES_SQL}) AND transaction_date=?`,
+        [branchId, date]
+      );
+      const [returnsData] = await db.execute(
+        `SELECT refund_method, COUNT(*) AS cnt, COALESCE(SUM(refund_amount), 0) AS refund
+         FROM returns WHERE branch_id=? AND DATE(CONVERT_TZ(created_at, @@session.time_zone, '+07:00'))=? GROUP BY refund_method`,
+        [branchId, date]
+      );
+      const [payments] = await db.execute(
+        `SELECT tp.payment_method,
+                COALESCE(SUM(tp.amount), 0) AS sales,
+                COALESCE(SUM(t.cancelled_amount * tp.amount / NULLIF(t.grand_total, 0)), 0) AS cancellations
+         FROM transaction_payments tp JOIN transactions t ON t.id = tp.transaction_id
+         WHERE t.branch_id=? AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date=?
+         GROUP BY tp.payment_method ORDER BY tp.payment_method`,
+        [branchId, date]
+      );
+      // Kas masuk/keluar hanya untuk catatan MANUAL. Refund pembatalan &
+      // retur sudah dihitung via payments.cancellations / returns — kalau ikut
+      // dihitung lagi di sini hasilnya minus dua kali (total kasir jadi negatif).
+      const [movements] = await db.execute(
+        `SELECT COALESCE(SUM(CASE WHEN cdm.type='cash_in' THEN cdm.amount ELSE -cdm.amount END), 0) AS net
+         FROM cash_drawer_movements cdm JOIN cash_drawers cd ON cd.id = cdm.cash_drawer_id
+         WHERE cd.branch_id=? AND DATE(CONVERT_TZ(cdm.created_at, @@session.time_zone, '+07:00'))=?
+           AND (cdm.reason IS NULL OR (cdm.reason NOT LIKE 'Refund %' AND cdm.reason NOT LIKE 'Retur %'))`,
+        [branchId, date]
+      );
+      const [expenseRows] = await db.execute(
+        `SELECT COALESCE(SUM(CASE WHEN e.type='expense' THEN e.amount ELSE 0 END), 0) AS expense,
+                COALESCE(SUM(CASE WHEN e.type='income' THEN e.amount ELSE 0 END), 0) AS income
+         FROM expenses e WHERE e.branch_id=? AND e.status='approved' AND e.expense_date=?`,
+        [branchId, date]
+      );
+      const [cashFinanceRows] = await db.execute(
+        `SELECT COALESCE(SUM(CASE WHEN e.type='expense' THEN e.amount ELSE 0 END), 0) AS expense,
+                COALESCE(SUM(CASE WHEN e.type='income' THEN e.amount ELSE 0 END), 0) AS income
+         FROM expenses e
+         WHERE e.branch_id=? AND e.status='approved' AND e.payment_method = 'cash' AND e.expense_date=?`,
+        [branchId, date]
+      );
 
-    res.json({
-      success: true,
-      data: {
+      const returnCount = returnsData.reduce((sum, row) => sum + Number(row.cnt || 0), 0);
+      const financeCashNet = cashFlowNet({
+        financeIncome: Number(cashFinanceRows[0].income || 0),
+        financeExpense: Number(cashFinanceRows[0].expense || 0),
+      });
+      const { methods, expected_total: expectedTotal } = buildClosingMethods({
+        payments,
+        returnsData,
+        movementsNet: Number(movements[0].net || 0),
+        financeCashNet,
+      });
+
+      return {
         document: 'Penutupan Penjualan',
         branch_id: branchId,
         store: branch.name,
         store_address: branch.address || '',
-        printed_at: new Date().toISOString(),
-        printed_by: userRows[0]?.name || req.user.id,
         date,
         receipt_count: Number(salesData[0].receipt_count),
         return_count: returnCount,
@@ -122,6 +119,66 @@ router.get('/daily-closing', async (req, res, next) => {
         income: money(Number(expenseRows[0].income)),
         methods,
         expected_total: expectedTotal,
+      };
+    }
+
+    const allBranches = req.user.role === 'owner' && req.query.branch_id === 'all';
+    const branchId = req.user.role === 'owner'
+      ? (allBranches ? null : (Number(req.query.branch_id) || req.user.branch_id))
+      : req.user.branch_id;
+    if (!allBranches) {
+      const data = await buildClosing(branchId);
+      if (!data) return res.status(404).json({ success: false, message: 'Toko tidak ditemukan' });
+      res.json({
+        success: true,
+        data: {
+          ...data,
+          printed_at: new Date().toISOString(),
+          printed_by: userRows[0]?.name || req.user.id,
+        },
+      });
+      return;
+    }
+
+    const [branches] = await db.execute(
+      'SELECT id, name, address, phone FROM branches WHERE is_active = TRUE ORDER BY id'
+    );
+    const reports = (await Promise.all(branches.map((branch) => buildClosing(branch.id)))).filter(Boolean);
+    const numericFields = ['receipt_count', 'return_count', 'total_sales', 'subtotal', 'expenses', 'income', 'expected_total'];
+    const methods = {};
+    const combined = {
+      document: 'Penutupan Penjualan',
+      branch_id: 'all',
+      store: 'Semua Toko/Gudang',
+      store_address: '',
+      date,
+      receipt_count: 0,
+      return_count: 0,
+      total_sales: 0,
+      subtotal: 0,
+      expenses: 0,
+      income: 0,
+      methods,
+      expected_total: 0,
+    };
+    for (const report of reports) {
+      for (const field of numericFields) combined[field] += Number(report[field] || 0);
+      for (const [method, values] of Object.entries(report.methods || {})) {
+        const target = methods[method] || (methods[method] = {});
+        for (const field of ['sales', 'returns', 'cancellations', 'cash_in_out', 'total']) {
+          target[field] = Number(target[field] || 0) + Number(values[field] || 0);
+        }
+      }
+    }
+    for (const field of ['total_sales', 'subtotal', 'expenses', 'income', 'expected_total']) {
+      combined[field] = money(combined[field]);
+    }
+    res.json({
+      success: true,
+      data: {
+        ...combined,
+        printed_at: new Date().toISOString(),
+        printed_by: userRows[0]?.name || req.user.id,
       },
     });
   } catch (error) { next(error); }

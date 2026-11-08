@@ -7,6 +7,7 @@ import 'branch_scope.dart';
 import 'format.dart';
 import 'offline_status.dart';
 import 'offline_store.dart';
+import 'report_filter.dart';
 import 'task_ui.dart';
 
 class FinancePage extends StatefulWidget {
@@ -26,9 +27,36 @@ class _FinancePageState extends State<FinancePage> {
   bool _loading = true;
   String? _error;
   int? _branchId;
+  String _preset = 'month';
+  DateTime? _customStart;
+  DateTime? _customEnd;
+  String _categoryId = '';
+  String _paymentMethod = '';
+  final _search = TextEditingController();
+  int _page = 1;
+  int _totalPages = 1;
+  int _total = 0;
+  int _loadGeneration = 0;
   bool get _isOwner => widget.role == 'owner';
   bool get _canManageCategories =>
       ['owner', 'manager', 'admin'].contains(widget.role);
+
+  DateTimeRange get _range {
+    final now = DateTime.now().toUtc().add(const Duration(hours: 7));
+    return mobileDateFilterRange(
+      preset: _preset,
+      now: now,
+      customStart: _customStart,
+      customEnd: _customEnd,
+    );
+  }
+
+  String _dateString(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+
+  List<Map<String, dynamic>> get _visibleCategories => _categories
+      .where((category) => (category['type'] ?? 'expense') == _tab)
+      .toList();
 
   @override
   void initState() {
@@ -50,6 +78,7 @@ class _FinancePageState extends State<FinancePage> {
     if (branchId == _branchId) return;
     _branchId = branchId;
     widget.api.activeBranchId = branchId;
+    _page = 1;
     _load();
   }
 
@@ -64,64 +93,116 @@ class _FinancePageState extends State<FinancePage> {
     OfflineStatus.syncTick.removeListener(_onSyncTick);
     FinancePage.reloadTick.removeListener(_onReloadTick);
     if (_isOwner) BranchScope.active.removeListener(_onBranchChanged);
+    _search.dispose();
     super.dispose();
   }
 
+  Future<List<Map<String, dynamic>>> _offlineRows({
+    required int? activeBranch,
+    required String dateFrom,
+    required String dateTo,
+  }) async {
+    final pending = await OfflineStore.pendingExpenses();
+    final search = _search.text.trim().toLowerCase();
+    final categoryId = int.tryParse(_categoryId);
+    final localRows = <Map<String, dynamic>>[];
+    for (final row in pending) {
+      try {
+        final payload = jsonDecode(row['payload'] as String? ?? '{}')
+            as Map<String, dynamic>;
+        if (payload['type']?.toString() != _tab) continue;
+        final branch = payload['branch_id'] == null
+            ? null
+            : int.tryParse('${payload['branch_id']}');
+        if (activeBranch != null && branch != activeBranch) continue;
+        final explicitDate = payload['expense_date']?.toString() ?? '';
+        final created = DateTime.tryParse(row['created_at']?.toString() ?? '');
+        final date = RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(explicitDate)
+            ? explicitDate
+            : created == null
+                ? ''
+                : _dateString(created.toUtc().add(const Duration(hours: 7)));
+        if (date.isEmpty ||
+            date.compareTo(dateFrom) < 0 ||
+            date.compareTo(dateTo) > 0) {
+          continue;
+        }
+        final payloadCategory = int.tryParse('${payload['category_id']}');
+        if (categoryId != null && payloadCategory != categoryId) continue;
+        if (_paymentMethod.isNotEmpty &&
+            payload['payment_method']?.toString() != _paymentMethod) {
+          continue;
+        }
+        if (search.isNotEmpty) {
+          final haystack = [
+            payload['name'],
+            payload['notes'],
+            payload['category'],
+          ].whereType<Object>().join(' ').toLowerCase();
+          if (!haystack.contains(search)) continue;
+        }
+        localRows.add({
+          ...payload,
+          'expense_date': date,
+          'offline': true,
+          'local_id': row['id'],
+        });
+      } catch (_) {}
+    }
+    return localRows;
+  }
+
   Future<void> _load({bool silent = false}) async {
+    final generation = ++_loadGeneration;
+    bool isCurrent() => mounted && generation == _loadGeneration;
     if (!silent) {
       setState(() {
         _loading = true;
         _error = null;
       });
     }
-    final cacheKey = 'finance-$_tab-${widget.api.activeBranchId ?? 'default'}';
+    final range = _range;
+    final dateFrom = _dateString(range.start);
+    final dateTo = _dateString(range.end);
+    final cacheKey =
+        'finance-$_tab-${widget.api.activeBranchId ?? 'all'}-$dateFrom-$dateTo-$_categoryId-$_paymentMethod-${_search.text.trim()}-$_page';
     try {
       final results = await Future.wait([
-        widget.api.expenses(type: _tab),
+        widget.api.expensesPage(
+          type: _tab,
+          dateFrom: dateFrom,
+          dateTo: dateTo,
+          categoryId: int.tryParse(_categoryId),
+          paymentMethod: _paymentMethod,
+          search: _search.text.trim(),
+          page: _page,
+          limit: 20,
+        ),
         widget.api.expenseCategories(),
       ]);
-      if (!mounted) return;
-      // Tampilkan antrean offline dan batasi menurut cabang aktif.
+      if (!isCurrent()) return;
       final activeBranch = widget.api.activeBranchId;
-      final serverRows = (results[0] as List).cast<Map<String, dynamic>>();
-      final rawPending = await OfflineStore.pendingExpenses();
-      final pending = activeBranch == null
-          ? rawPending
-          : rawPending.where((r) {
-              try {
-                final p = jsonDecode(r['payload'] as String? ?? '{}')
-                    as Map<String, dynamic>;
-                final b = p['branch_id'] == null
-                    ? null
-                    : int.tryParse('${p['branch_id']}');
-                if (b == null) return false;
-                return b == activeBranch;
-              } catch (_) {
-                return false;
-              }
-            }).toList();
-      final localRows = <Map<String, dynamic>>[
-        for (final r in pending)
-          if ((jsonDecode(r['payload'] as String? ?? '{}')
-                  as Map<String, dynamic>)['type'] ==
-              _tab) ...[
-            {
-              ...(jsonDecode(r['payload'] as String? ?? '{}')
-                  as Map<String, dynamic>),
-              'offline': true,
-              'local_id': r['id'],
-            },
-          ],
-      ];
+      final response = results[0] as Map<String, dynamic>;
+      final serverRows =
+          ((response['data'] as List?) ?? []).cast<Map<String, dynamic>>();
+      final localRows = await _offlineRows(
+        activeBranch: activeBranch,
+        dateFrom: dateFrom,
+        dateTo: dateTo,
+      );
+      if (!isCurrent()) return;
       setState(() {
         _rows = [...localRows, ...serverRows];
         _categories = (results[1] as List).cast<Map<String, dynamic>>();
+        final serverTotal = int.tryParse('${response['total']}');
+        _total = (serverTotal ?? serverRows.length) + localRows.length;
+        _totalPages = int.tryParse('${response['totalPages'] ?? 1}') ?? 1;
       });
       // Simpan cache keuangan untuk mode offline.
       await OfflineStore.cacheSet(
           cacheKey,
           jsonEncode({
-            'rows': results[0],
+            'response': response,
             'categories': results[1],
           }));
     } on ApiException catch (e) {
@@ -129,23 +210,64 @@ class _FinancePageState extends State<FinancePage> {
         // Offline: pakai cache keuangan terakhir.
         try {
           final cached = await OfflineStore.cacheGet(cacheKey);
-          if (cached != null && mounted) {
+          if (cached != null && isCurrent()) {
             final payload = cached['payload'] as Map<String, dynamic>;
+            final response = (payload['response'] as Map<String, dynamic>?) ??
+                {
+                  'data': payload['rows'] ?? [],
+                  'total': (payload['rows'] as List?)?.length ?? 0,
+                  'totalPages': 1,
+                };
+            final localRows = await _offlineRows(
+              activeBranch: widget.api.activeBranchId,
+              dateFrom: dateFrom,
+              dateTo: dateTo,
+            );
+            if (!isCurrent()) return;
             setState(() {
-              _rows = ((payload['rows'] as List?) ?? [])
-                  .cast<Map<String, dynamic>>();
+              _rows = [
+                ...localRows,
+                ...((response['data'] as List?) ?? [])
+                    .cast<Map<String, dynamic>>()
+              ];
               _categories = ((payload['categories'] as List?) ?? [])
                   .cast<Map<String, dynamic>>();
+              final cachedRows = ((response['data'] as List?) ?? []).length;
+              final cachedTotal = int.tryParse('${response['total']}');
+              _total = cachedTotal ?? cachedRows;
+              _totalPages = int.tryParse('${response['totalPages'] ?? 1}') ?? 1;
               _error = null;
             });
             return;
           }
         } catch (_) {}
       }
-      if (mounted) setState(() => _error = e.message);
+      if (isCurrent()) setState(() => _error = e.message);
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (isCurrent()) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _pickCustomRange() async {
+    final now = DateTime.now().toUtc().add(const Duration(hours: 7));
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(now.year, now.month, now.day),
+      initialDateRange: DateTimeRange(
+        start: _customStart ?? now.subtract(const Duration(days: 6)),
+        end: _customEnd ?? now,
+      ),
+      helpText: 'Pilih rentang keuangan',
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _customStart = picked.start;
+      _customEnd = picked.end;
+      _preset = 'custom';
+    });
+    _page = 1;
+    _load();
   }
 
   Future<void> _form([Map<String, dynamic>? existing]) async {
@@ -320,7 +442,9 @@ class _FinancePageState extends State<FinancePage> {
     final name = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Tambah Kategori Pengeluaran'),
+        title: Text(_tab == 'income'
+            ? 'Tambah Kategori Pemasukan'
+            : 'Tambah Kategori Pengeluaran'),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -343,7 +467,7 @@ class _FinancePageState extends State<FinancePage> {
     controller.dispose();
     if (name == null || name.isEmpty || !mounted) return;
     try {
-      await widget.api.createExpenseCategory({'name': name, 'type': 'expense'});
+      await widget.api.createExpenseCategory({'name': name, 'type': _tab});
       await _load(silent: true);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -393,6 +517,7 @@ class _FinancePageState extends State<FinancePage> {
 
   @override
   Widget build(BuildContext context) {
+    final visibleCategories = _visibleCategories;
     return Column(
       children: [
         Padding(
@@ -408,9 +533,125 @@ class _FinancePageState extends State<FinancePage> {
             ],
             selected: _tab,
             onChanged: (v) {
-              setState(() => _tab = v);
+              setState(() {
+                _tab = v;
+                _categoryId = '';
+                _page = 1;
+              });
               _load();
             },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _preset,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Periode',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      items: [
+                        for (final option in kMobileDateFilterOptions)
+                          DropdownMenuItem(
+                              value: option.value, child: Text(option.label)),
+                      ],
+                      onChanged: (value) {
+                        final next = value ?? 'month';
+                        setState(() => _preset = next);
+                        if (next == 'custom') {
+                          _pickCustomRange();
+                        } else {
+                          _page = 1;
+                          _load();
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: visibleCategories.any(
+                              (category) => '${category['id']}' == _categoryId)
+                          ? _categoryId
+                          : '',
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Kategori',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      items: [
+                        const DropdownMenuItem(
+                            value: '', child: Text('Semua kategori')),
+                        for (final category in visibleCategories)
+                          DropdownMenuItem(
+                            value: '${category['id']}',
+                            child: Text(category['name']?.toString() ?? ''),
+                          ),
+                      ],
+                      onChanged: (value) {
+                        setState(() => _categoryId = value ?? '');
+                        _page = 1;
+                        _load();
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _paymentMethod,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Metode',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                            value: '', child: Text('Semua metode')),
+                        DropdownMenuItem(value: 'cash', child: Text('Tunai')),
+                        DropdownMenuItem(
+                            value: 'transfer', child: Text('Transfer')),
+                        DropdownMenuItem(value: 'debit', child: Text('Debit')),
+                      ],
+                      onChanged: (value) {
+                        setState(() => _paymentMethod = value ?? '');
+                        _page = 1;
+                        _load();
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _search,
+                      textInputAction: TextInputAction.search,
+                      decoration: const InputDecoration(
+                        labelText: 'Cari keterangan',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                      onSubmitted: (_) {
+                        _page = 1;
+                        _load();
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
         Padding(
@@ -427,7 +668,7 @@ class _FinancePageState extends State<FinancePage> {
                     ? 'Tambah Pemasukan'
                     : 'Tambah Pengeluaran'),
               ),
-              if (_canManageCategories && _tab == 'expense')
+              if (_canManageCategories)
                 OutlinedButton.icon(
                   onPressed: _addExpenseCategory,
                   icon: const Icon(Icons.category_outlined),
@@ -469,7 +710,7 @@ class _FinancePageState extends State<FinancePage> {
                       : ListView.separated(
                           padding: EdgeInsets.fromLTRB(12, 12, 12,
                               16 + MediaQuery.of(context).padding.bottom),
-                          itemCount: _rows.length + 1,
+                          itemCount: _rows.length + (_totalPages > 1 ? 2 : 1),
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 8),
                           itemBuilder: (_, i) {
@@ -488,13 +729,39 @@ class _FinancePageState extends State<FinancePage> {
                                         style: TextStyle(
                                             color: taskMuted(context))),
                                     const SizedBox(height: 6),
-                                    Text('${_rows.length} catatan',
+                                    Text('$_total catatan',
                                         style: const TextStyle(
                                             fontSize: 32,
                                             fontWeight: FontWeight.w800,
                                             color: kTaskPurple)),
                                   ],
                                 ),
+                              );
+                            }
+                            if (i == _rows.length + 1) {
+                              return Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  IconButton(
+                                    onPressed: _page > 1
+                                        ? () {
+                                            _page--;
+                                            _load();
+                                          }
+                                        : null,
+                                    icon: const Icon(Icons.chevron_left),
+                                  ),
+                                  Text('Halaman $_page dari $_totalPages'),
+                                  IconButton(
+                                    onPressed: _page < _totalPages
+                                        ? () {
+                                            _page++;
+                                            _load();
+                                          }
+                                        : null,
+                                    icon: const Icon(Icons.chevron_right),
+                                  ),
+                                ],
                               );
                             }
                             final row = _rows[i - 1];

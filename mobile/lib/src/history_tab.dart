@@ -32,7 +32,10 @@ class _HistoryTabState extends State<HistoryTab> {
   bool _loading = true;
   String? _error;
 
-  String _preset = 'today'; // today | 7d | 30d | all
+  String _preset =
+      'thisMonth'; // today | yesterday | last7 | last30 | thisMonth | previousMonth | custom | all
+  DateTime? _customStart;
+  DateTime? _customEnd;
   String _status = '';
   int _loadGeneration = 0;
   int? _scopeBranchId;
@@ -85,45 +88,41 @@ class _HistoryTabState extends State<HistoryTab> {
   }
 
   (String?, String?) get _range {
+    final now = DateTime.now().toUtc().add(const Duration(hours: 7));
+    String d(DateTime x) =>
+        '${x.year.toString().padLeft(4, '0')}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
     switch (_preset) {
+      case 'last7':
       case '7d':
-        final now = DateTime.now().toUtc().add(const Duration(hours: 7));
-        final start = now.subtract(const Duration(days: 6));
-        String d(DateTime x) =>
-            '${x.year.toString().padLeft(4, '0')}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
-        return (d(start), d(now));
+        return (d(now.subtract(const Duration(days: 6))), d(now));
+      case 'last30':
       case '30d':
-        final now = DateTime.now().toUtc().add(const Duration(hours: 7));
-        final start = now.subtract(const Duration(days: 29));
-        String d(DateTime x) =>
-            '${x.year.toString().padLeft(4, '0')}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
-        return (d(start), d(now));
+        return (d(now.subtract(const Duration(days: 29))), d(now));
+      case 'yesterday':
       case 'kemarin':
-        final now = DateTime.now().toUtc().add(const Duration(hours: 7));
-        String d(DateTime x) =>
-            '${x.year.toString().padLeft(4, '0')}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
         final y = now.subtract(const Duration(days: 1));
         return (d(y), d(y));
+      case 'thisMonth':
       case 'bulan':
-        final now = DateTime.now().toUtc().add(const Duration(hours: 7));
-        String d(DateTime x) =>
-            '${x.year.toString().padLeft(4, '0')}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
         return (
           '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-01',
           d(now)
         );
+      case 'previousMonth':
       case 'bulan_lalu':
-        final now = DateTime.now().toUtc().add(const Duration(hours: 7));
-        String d(DateTime x) =>
-            '${x.year.toString().padLeft(4, '0')}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
         final firstThis = DateTime(now.year, now.month, 1);
         final lastLast = firstThis.subtract(const Duration(days: 1));
         final firstLast = DateTime(lastLast.year, lastLast.month, 1);
         return (d(firstLast), d(lastLast));
+      case 'custom':
+        return (
+          _customStart == null ? null : d(_customStart!),
+          _customEnd == null ? null : d(_customEnd!)
+        );
       case 'all':
         return (null, null);
       default:
-        return (todayWib(), todayWib());
+        return (d(now), d(now));
     }
   }
 
@@ -133,6 +132,31 @@ class _HistoryTabState extends State<HistoryTab> {
     );
     if (code == null || !mounted) return;
     setState(() => _search.text = code);
+    _page = 1;
+    _load();
+  }
+
+  Future<void> _pickCustomRange() async {
+    final now = DateTime.now().toUtc().add(const Duration(hours: 7));
+    final fallbackStart = now.subtract(const Duration(days: 6));
+    final currentStart = _customStart ?? fallbackStart;
+    final currentEnd = _customEnd ?? now;
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(now.year, now.month, now.day),
+      initialDateRange: DateTimeRange(
+        start: currentStart.isAfter(currentEnd) ? currentEnd : currentStart,
+        end: currentEnd,
+      ),
+      helpText: 'Pilih rentang transaksi',
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _customStart = picked.start;
+      _customEnd = picked.end;
+      _preset = 'custom';
+    });
     _page = 1;
     _load();
   }
@@ -168,7 +192,8 @@ class _HistoryTabState extends State<HistoryTab> {
       }
       final (rows, totalPages) = await widget.api.transactionsPage(
         page: _page,
-        limit: 50,
+        limit: 20,
+        allBranches: _isOwner && branchId == null,
         dateFrom: range.$1,
         dateTo: range.$2,
         status: _status,
@@ -247,20 +272,57 @@ class _HistoryTabState extends State<HistoryTab> {
       final pending = await OfflineStore.pending();
       if (pending.isEmpty) return rows;
       final offlineRows = <Map<String, dynamic>>[];
+      final selectedRange = _range;
+      String dateOnly(DateTime value) =>
+          '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+      String? businessDate(Map<String, dynamic> payload, String createdAt) {
+        final explicit = payload['transaction_date']?.toString().trim() ?? '';
+        if (RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(explicit)) {
+          return explicit;
+        }
+        final parsed = DateTime.tryParse(createdAt);
+        if (parsed == null) return null;
+        final wib = parsed.toUtc().add(const Duration(hours: 7));
+        return dateOnly(wib);
+      }
+
       for (final r in pending) {
         final payload =
             jsonDecode(r['payload'] as String? ?? '{}') as Map<String, dynamic>;
-        if (_isOwner &&
-            branchId != null &&
+        if (branchId != null &&
             int.tryParse('${payload['branch_id']}') != branchId) {
           continue;
+        }
+        final createdAt = r['created_at']?.toString() ?? '';
+        final transactionDate = businessDate(payload, createdAt);
+        if (selectedRange.$1 != null &&
+            (transactionDate == null ||
+                transactionDate.compareTo(selectedRange.$1!) < 0)) {
+          continue;
+        }
+        if (selectedRange.$2 != null &&
+            (transactionDate == null ||
+                transactionDate.compareTo(selectedRange.$2!) > 0)) {
+          continue;
+        }
+        if (_status.isNotEmpty) continue;
+        final search = _search.text.trim().toLowerCase();
+        if (search.isNotEmpty) {
+          final haystack = [
+            r['temp_invoice_no'],
+            payload['invoice_no'],
+            payload['customer_name'],
+            payload['customer'],
+          ].whereType<Object>().join(' ').toLowerCase();
+          if (!haystack.contains(search)) continue;
         }
         offlineRows.add({
           'offline': true,
           'branch_id': payload['branch_id'],
           'invoice_no': r['temp_invoice_no']?.toString() ?? '-',
           'grand_total': r['grand_total'],
-          'created_at': r['created_at']?.toString() ?? '',
+          'created_at': createdAt,
+          'transaction_date': transactionDate,
           'status': 'offline',
           'cashier': 'Belum sync',
         });
@@ -835,22 +897,31 @@ class _HistoryTabState extends State<HistoryTab> {
                                 DropdownMenuItem(
                                     value: 'today', child: Text('Hari ini')),
                                 DropdownMenuItem(
-                                    value: '7d', child: Text('7 hari')),
+                                    value: 'yesterday', child: Text('Kemarin')),
                                 DropdownMenuItem(
-                                    value: '30d', child: Text('30 hari')),
+                                    value: 'last7', child: Text('7 hari')),
                                 DropdownMenuItem(
-                                    value: 'kemarin', child: Text('Kemarin')),
+                                    value: 'last30', child: Text('30 hari')),
                                 DropdownMenuItem(
-                                    value: 'bulan', child: Text('Bulan ini')),
+                                    value: 'thisMonth',
+                                    child: Text('Bulan ini')),
                                 DropdownMenuItem(
-                                    value: 'bulan_lalu',
-                                    child: Text('Bulan kemarin')),
+                                    value: 'previousMonth',
+                                    child: Text('Bulan lalu')),
+                                DropdownMenuItem(
+                                    value: 'custom', child: Text('Kustom')),
                                 DropdownMenuItem(
                                     value: 'all', child: Text('Semua')),
                               ],
                               onChanged: (v) {
-                                setState(() => _preset = v ?? 'today');
-                                _load();
+                                final next = v ?? 'thisMonth';
+                                setState(() => _preset = next);
+                                if (next == 'custom') {
+                                  _pickCustomRange();
+                                } else {
+                                  _page = 1;
+                                  _load();
+                                }
                               },
                             ),
                           ),

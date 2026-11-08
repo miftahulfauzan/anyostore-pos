@@ -31,7 +31,7 @@ export default function HistoryPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [filters, setFilters] = useState({ search: '', date_from: '', date_to: '', status: '' });
-  const [preset, setPreset] = useState('');
+  const [preset, setPreset] = useState('thisMonth');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('retur'); // retur | cancel | info
   const [isMobile, setIsMobile] = useState(false);

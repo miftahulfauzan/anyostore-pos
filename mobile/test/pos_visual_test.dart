@@ -87,7 +87,8 @@ class PosVisualApi extends ApiClient {
           String? dateFrom,
           String? dateTo,
           String? status,
-          String? search}) async =>
+          String? search,
+          bool allBranches = false}) async =>
       (
         [
           {

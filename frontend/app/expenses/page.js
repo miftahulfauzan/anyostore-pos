@@ -26,6 +26,7 @@ export default function ExpensesPage() {
   const [pagination, setPagination] = useState({ total: 0, totalPages: 0, limit: 20 });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [currentType, setCurrentType] = useState('expense');
   const requestSequence = useRef(0);
 
   useEffect(() => {
@@ -44,16 +45,16 @@ export default function ExpensesPage() {
         if (!response.ok) throw new Error(body.message || 'Kategori tidak dapat dimuat.');
         return body.data || [];
       })
-      .then((items) => { if (active) setCategories(items.filter((item) => item.type === 'expense' || !item.type)); })
+      .then((items) => { if (active) setCategories(items.filter((item) => item.type === currentType || (!item.type && currentType === 'expense'))); })
       .catch((error) => { if (active) setMessage(error.message); });
     return () => { active = false; };
-  }, [user]);
+  }, [user, currentType]);
 
   useEffect(() => {
     if (!user || !filters.start || !filters.end) return undefined;
     const requestId = ++requestSequence.current;
     const query = new URLSearchParams({
-      type: 'expense',
+      type: currentType,
       date_from: filters.start,
       date_to: filters.end,
       page: String(page),
@@ -68,7 +69,7 @@ export default function ExpensesPage() {
     fetch(`${api}/finance/expenses?${query.toString()}`)
       .then(async (response) => {
         const body = await response.json();
-        if (!response.ok) throw new Error(body.message || 'Riwayat pengeluaran tidak dapat dimuat.');
+        if (!response.ok) throw new Error(body.message || `Riwayat ${currentType === 'income' ? 'pemasukan' : 'pengeluaran'} tidak dapat dimuat.`);
         return body;
       })
       .then((body) => {
@@ -79,7 +80,7 @@ export default function ExpensesPage() {
       .catch((error) => { if (requestId === requestSequence.current) setMessage(error.message); })
       .finally(() => { if (requestId === requestSequence.current) setLoading(false); });
     return () => { requestSequence.current += 1; };
-  }, [user, activeBranchId, filters, page]);
+  }, [user, activeBranchId, currentType, filters, page]);
 
   function setDraft(key, value) {
     setDraftFilters((current) => ({ ...current, [key]: value }));
@@ -115,10 +116,11 @@ export default function ExpensesPage() {
   }
 
   const showBranch = user?.role === 'owner' && activeBranchId === 'all';
+  const typeLabel = currentType === 'income' ? 'pemasukan' : 'pengeluaran';
 
   return (
     <AppShell
-      title="Riwayat Pengeluaran"
+      title={`Riwayat ${currentType === 'income' ? 'Pemasukan' : 'Pengeluaran'}`}
       eyebrow="KEUANGAN"
       actions={<a className="button-link" href="/finance">← Kembali ke Keuangan</a>}
     >
@@ -126,12 +128,16 @@ export default function ExpensesPage() {
         <div className="section-heading">
           <div>
             <p className="eyebrow">FILTER DATA</p>
-            <h2>Telusuri pengeluaran</h2>
+            <h2>Telusuri {typeLabel}</h2>
             <p className="muted">Pilih periode dan filter lain untuk melihat transaksi yang dibutuhkan.</p>
           </div>
           <strong className="expense-history-total">{pagination.total} data</strong>
         </div>
-        <DateRangePresets active={period} onPick={pickPeriod} label="Pilih periode riwayat pengeluaran" />
+        <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', margin: '.75rem 0' }} role="tablist" aria-label="Jenis keuangan">
+          <button type="button" className={currentType === 'expense' ? '' : 'secondary'} onClick={() => { setCurrentType('expense'); setPage(1); setFilters((current) => ({ ...current, categoryId: '' })); setDraftFilters((current) => ({ ...current, categoryId: '' })); }}>Pengeluaran</button>
+          <button type="button" className={currentType === 'income' ? '' : 'secondary'} onClick={() => { setCurrentType('income'); setPage(1); setFilters((current) => ({ ...current, categoryId: '' })); setDraftFilters((current) => ({ ...current, categoryId: '' })); }}>Pemasukan</button>
+        </div>
+        <DateRangePresets active={period} onPick={pickPeriod} label={`Pilih periode riwayat ${typeLabel}`} />
         <form className="expense-history-filters" onSubmit={applyFilters}>
           <label>Dari<input type="date" value={draftFilters.start} onChange={(event) => setDraft('start', event.target.value)} /></label>
           <label>Sampai<input type="date" value={draftFilters.end} onChange={(event) => setDraft('end', event.target.value)} /></label>
@@ -144,7 +150,7 @@ export default function ExpensesPage() {
 
       {message && <p className="message" role="status">{message}</p>}
       <section className="panel expense-history-results" aria-busy={loading}>
-        <div className="section-heading"><div><h2>Daftar pengeluaran</h2><p className="muted">{filters.start ? `${dateLabel(filters.start)} – ${dateLabel(filters.end)}` : 'Memuat periode…'}</p></div>{loading && <span className="muted">Memuat…</span>}</div>
+        <div className="section-heading"><div><h2>Daftar {typeLabel}</h2><p className="muted">{filters.start ? `${dateLabel(filters.start)} – ${dateLabel(filters.end)}` : 'Memuat periode…'}</p></div>{loading && <span className="muted">Memuat…</span>}</div>
         {rows.length ? <div className="table-wrap"><table>
           <thead><tr><th>Tanggal</th>{showBranch && <th>Toko</th>}<th>Kategori</th><th>Keterangan</th><th>Metode</th><th>Jumlah</th><th>Status</th></tr></thead>
           <tbody>{rows.map((row) => <tr key={row.id}>
@@ -156,7 +162,7 @@ export default function ExpensesPage() {
             <td><strong>{rupiah(row.amount)}</strong></td>
             <td><span className={`status ${row.status || ''}`}>{labelFor(statusLabels, row.status)}</span></td>
           </tr>)}</tbody>
-        </table></div> : <div className="empty-state"><strong>{loading ? 'Memuat data…' : 'Belum ada pengeluaran'}</strong><span>{loading ? 'Mohon tunggu sebentar.' : 'Coba ubah periode atau filter pencarian.'}</span></div>}
+        </table></div> : <div className="empty-state"><strong>{loading ? 'Memuat data…' : `Belum ada ${typeLabel}`}</strong><span>{loading ? 'Mohon tunggu sebentar.' : 'Coba ubah periode atau filter pencarian.'}</span></div>}
         {pagination.totalPages > 1 && <div className="expense-history-pagination"><button type="button" className="secondary" disabled={page <= 1 || loading} onClick={() => setPage((current) => current - 1)}>Sebelumnya</button><span>Halaman {page} dari {pagination.totalPages}</span><button type="button" className="secondary" disabled={page >= pagination.totalPages || loading} onClick={() => setPage((current) => current + 1)}>Berikutnya</button></div>}
       </section>
     </AppShell>

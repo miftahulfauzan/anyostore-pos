@@ -355,7 +355,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('cashier empty state keeps the fixed dashboard periods',
+  testWidgets('cashier empty state follows the selected dashboard period',
       (tester) async {
     final api = AnalyticsApi();
     await showAnalytics(
@@ -364,9 +364,10 @@ void main() {
         Brightness.light,
         320);
     await tester.pumpAndSettle();
-    expect(find.text('Belum ada penjualan hari ini.'), findsOneWidget);
+    expect(find.text('Belum ada penjualan pada periode ini.'), findsOneWidget);
     expect(find.text('Ubah periode'), findsNothing);
-    expect(find.text('Rp50.000'), findsNWidgets(2));
+    expect(
+        find.byKey(const ValueKey('reports-period-selector')), findsOneWidget);
     await tester.tap(find.widgetWithText(OutlinedButton, 'Muat ulang'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);

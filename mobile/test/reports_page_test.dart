@@ -39,6 +39,32 @@ class ReportsApi extends ApiClient {
             'products': <Object>[],
           },
         };
+      case '/dashboard':
+        return {
+          'success': true,
+          'data': {
+            'selected_period': {
+              'start': '2026-11-03',
+              'end': '2026-11-09',
+            },
+            'selected_summary': {
+              'transactions': 2,
+              'sales': 180000,
+              'expenses': 25000,
+              'products_sold': 4,
+            },
+            'selected_sales_trend': [
+              {
+                'date': '2026-11-09',
+                'label': '09/11',
+                'sales': 180000,
+                'transactions': 2,
+              },
+            ],
+            'selected_payment_breakdown': <Object>[],
+            'selected_recent_transactions': <Object>[],
+          },
+        };
       case '/reports/daily-closing':
         return {
           'success': true,
@@ -79,8 +105,10 @@ class ReportsApi extends ApiClient {
 void main() {
   test('offline report records are scoped to the selected business date', () {
     expect(reportDateInRange('2026-11-07', '2026-11-07', '2026-11-07'), isTrue);
-    expect(reportDateInRange('2026-11-06', '2026-11-07', '2026-11-07'), isFalse);
-    expect(reportDateInRange('2026-11-08', '2026-11-07', '2026-11-07'), isFalse);
+    expect(
+        reportDateInRange('2026-11-06', '2026-11-07', '2026-11-07'), isFalse);
+    expect(
+        reportDateInRange('2026-11-08', '2026-11-07', '2026-11-07'), isFalse);
   });
 
   testWidgets(
@@ -143,5 +171,26 @@ void main() {
     expect(request.$2['date'], expected);
     expect(find.byKey(const ValueKey('reports-closing-date')), findsOneWidget);
     expect(find.text('Rp2.415.000'), findsWidgets);
+  });
+
+  testWidgets('cashier dashboard uses the selected period contract',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final api = ReportsApi();
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+          body: ReportsPage(api: api, role: 'kasir', dashboardMode: true)),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(
+        find.byKey(const ValueKey('reports-period-selector')), findsOneWidget);
+    expect(find.text('Transaksi periode'), findsOneWidget);
+    expect(find.text('7 hari'), findsWidgets);
+    expect(find.text('Transaksi hari ini'), findsNothing);
   });
 }
