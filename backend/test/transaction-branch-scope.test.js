@@ -25,6 +25,7 @@ require.cache[dbPath] = { id: dbPath, filename: dbPath, loaded: true, exports: {
 const router = require('../src/routes/transactions');
 const returnsRouter = require('../src/routes/returns');
 const handler = (path) => router.stack.find((layer) => layer.route?.path === path && layer.route.methods.get).route.stack.at(-1).handle;
+const resumeHandler = router.stack.find((layer) => layer.route?.path === '/pending/:id/resume' && layer.route.methods.post).route.stack.at(-1).handle;
 
 async function invoke(path, user, query = {}, params = {}) {
   calls.length = 0;
@@ -71,4 +72,26 @@ test('pembatalan dan retur mencocokkan transaksi dengan cabang yang diizinkan', 
     await createReturn({ user, body: { branch_id: 2, transaction_id: 17, items: [{ transaction_item_id: 1, quantity: 1 }] } }, {}, () => {});
     assert.deepEqual(calls[0].params, [17, expectedBranch]);
   }
+});
+
+test('owner dapat melanjutkan draft pada cabang dari body request Android', async () => {
+  calls.length = 0;
+  const response = {
+    status(code) { this.statusCode = code; return this; },
+    json(body) { this.body = body; return this; },
+  };
+  let error;
+  await resumeHandler(
+    {
+      user: { role: 'owner', branch_id: 1 },
+      query: {},
+      params: { id: '17' },
+      body: { branch_id: 2 },
+    },
+    response,
+    (cause) => { error = cause; },
+  );
+  assert.equal(error, undefined);
+  assert.deepEqual(calls[0].params, ['17', 2]);
+  assert.equal(response.body.success, true);
 });

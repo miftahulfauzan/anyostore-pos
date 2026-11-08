@@ -3,14 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import AppShell from "../components/AppShell";
 import DateRangePresets from "../components/DateRangePresets";
-import { localDateString, localMonthStartString } from "../lib/local-date";
+import { getWarehousePeriodRange } from "../dashboard/warehouse-periods.mjs";
 import { labelFor, paymentLabels, statusLabels } from "../lib/ui-labels";
 import { useAppSession } from "../components/AppStateProvider";
 import { createRequestSequence } from "../components/app-state.cjs";
+import OlseraDashboardSections from "../dashboard/OlseraDashboardSections";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
-const todayStr = () => localDateString();
-const firstOfMonthStr = () => localMonthStartString();
 const rp = (value) => `Rp${Number(value || 0).toLocaleString("id-ID")}`;
 const formatBusinessDate = (value) => String(value || '').split('-').reverse().join('/');
 const formatRecordedAt = (value) => new Date(value).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'short', timeStyle: 'medium' });
@@ -76,7 +75,7 @@ function ReportTable({
 export default function ReportsPage() {
   const { user, activeBranchId } = useAppSession();
   const [period, setPeriod] = useState({ start: '', end: '' });
-  const [preset, setPreset] = useState("");
+  const [preset, setPreset] = useState("last7");
   const [report, setReport] = useState(null);
   const [storeContext, setStoreContext] = useState(null);
   const [message, setMessage] = useState("");
@@ -132,7 +131,7 @@ export default function ReportsPage() {
     return () => { reportLoadSequence.current.next(); };
   }, [period.start, period.end, activeBranchId, user?.role]);
 
-  useEffect(() => { if (!period.start) setPeriod({ start: firstOfMonthStr(), end: todayStr() }); }, []);
+  useEffect(() => { if (!period.start) setPeriod(getWarehousePeriodRange('last7')); }, []);
 
   const summary = report?.summary || {};
   const store = storeContext?.branchId === activeBranchId ? storeContext.data : null;
@@ -213,32 +212,16 @@ export default function ReportsPage() {
         </section>
       ) : (
         <>
-          <section className="metrics-grid report-metrics">
-            <article className="metric-card">
-              <span>Penjualan bersih</span>
-              <strong>{rp(summary.revenue)}</strong>
-              <small>{summary.transactions} transaksi</small>
-            </article>
-            <article className="metric-card">
-              <span>Laba kotor</span>
-              <strong>{rp(summary.gross_profit)}</strong>
-              <small>Setelah harga modal produk</small>
-            </article>
-            <article className="metric-card">
-              <span>Pengeluaran disetujui</span>
-              <strong>{rp(summary.expenses)}</strong>
-              <small>Periode yang dipilih</small>
-            </article>
-            <article className="metric-card">
-              <span>Pemasukan lain</span>
-              <strong>{rp(summary.income)}</strong>
-              <small>Kas masuk selain penjualan</small>
-            </article>
-            <article className="metric-card">
-              <span>Laba bersih</span>
-              <strong>{rp(summary.net_profit)}</strong>
-              <small>Diskon {rp(summary.discounts)}</small>
-            </article>
+          <div className="reports-android-summary">
+            <OlseraDashboardSections reportData={report} fallbackData={null} />
+          </div>
+          <section className="panel report-details-heading">
+            <div className="section-heading">
+              <div>
+                <h2>Laporan detail</h2>
+                <p>Rincian transaksi, produk, pembayaran, retur, dan analisis periode.</p>
+              </div>
+            </div>
           </section>
           <ReportTable
             title="Diskon, pembatalan, dan retur"

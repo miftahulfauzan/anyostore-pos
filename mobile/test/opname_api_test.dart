@@ -22,6 +22,20 @@ class _QueueClient extends http.BaseClient {
   }
 }
 
+class _CaptureClient extends http.BaseClient {
+  Uri? requestUri;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    requestUri = request.url;
+    return http.StreamedResponse(
+      Stream<List<int>>.value(utf8.encode('{"success":true,"data":{}}')),
+      200,
+      request: request,
+    );
+  }
+}
+
 void main() {
   test('createOpname menerima respons sukses tanpa body', () async {
     final transport = _QueueClient([http.Response('', 201)]);
@@ -44,5 +58,35 @@ void main() {
 
     expect(response, isEmpty);
     expect(transport.calls, 1);
+  });
+
+  test('resume draft mengirim cabang terpilih di query', () async {
+    final transport = _CaptureClient();
+    final api = ApiClient(
+      baseUrl: 'https://example.test/api',
+      httpClient: transport,
+    );
+
+    await api.resumeTransaction(17, branchId: 4);
+
+    expect(transport.requestUri?.queryParameters['branch_id'], '4');
+  });
+
+  test('resume draft mengembalikan item dari payload data API', () async {
+    final transport = _QueueClient([
+      http.Response(
+        '{"success":true,"data":{"items":[{"product_id":10,"quantity":4}]}}',
+        200,
+      ),
+    ]);
+    final api = ApiClient(
+      baseUrl: 'https://example.test/api',
+      httpClient: transport,
+    );
+
+    final resumed = await api.resumeTransaction(17, branchId: 4);
+
+    expect(resumed['items'], hasLength(1));
+    expect(resumed['items'].single['product_id'], 10);
   });
 }

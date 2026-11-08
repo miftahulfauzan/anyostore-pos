@@ -818,6 +818,8 @@ CREATE TABLE pending_transactions (
     notes TEXT,
     held_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     resumed_at TIMESTAMP NULL,
+    client_hold_id VARCHAR(128) NULL,
+    UNIQUE KEY uq_pending_transactions_client_hold_id (client_hold_id),
     FOREIGN KEY (branch_id) REFERENCES branches(id),
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (customer_id) REFERENCES customers(id)

@@ -19,6 +19,10 @@ function dateRange(query) {
   return { start, end };
 }
 
+function previousLocalDateString() {
+  return localDateString(new Date(Date.now() - 24 * 60 * 60 * 1000));
+}
+
 router.get('/sales', async (req, res, next) => {
   try {
     const { start, end } = dateRange(req.query);
@@ -34,7 +38,9 @@ router.get('/sales', async (req, res, next) => {
 // per metode pembayaran: sales, returns, cancellations, cash_in_out, total.
 router.get('/daily-closing', async (req, res, next) => {
   try {
-    const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : localDateString();
+    // Penutupan default adalah hari bisnis WIB sebelumnya. Web dan Android
+    // harus membuka tanggal yang sama ketika kasir baru mulai bekerja.
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : previousLocalDateString();
     const branchId = req.user.role === 'owner' ? (Number(req.query.branch_id) || req.user.branch_id) : req.user.branch_id;
     const [[branchRows], [userRows]] = await Promise.all([
       db.execute('SELECT id, name, address, phone FROM branches WHERE id=?', [branchId]),
@@ -50,7 +56,7 @@ router.get('/daily-closing', async (req, res, next) => {
     );
     const [returnsData] = await db.execute(
       `SELECT refund_method, COUNT(*) AS cnt, COALESCE(SUM(refund_amount), 0) AS refund
-       FROM returns WHERE branch_id=? AND DATE(created_at)=? GROUP BY refund_method`,
+       FROM returns WHERE branch_id=? AND DATE(CONVERT_TZ(created_at, @@session.time_zone, '+07:00'))=? GROUP BY refund_method`,
       [branchId, date]
     );
     const [payments] = await db.execute(
@@ -68,7 +74,7 @@ router.get('/daily-closing', async (req, res, next) => {
     const [movements] = await db.execute(
       `SELECT COALESCE(SUM(CASE WHEN cdm.type='cash_in' THEN cdm.amount ELSE -cdm.amount END), 0) AS net
        FROM cash_drawer_movements cdm JOIN cash_drawers cd ON cd.id = cdm.cash_drawer_id
-       WHERE cd.branch_id=? AND DATE(cdm.created_at)=?
+       WHERE cd.branch_id=? AND DATE(CONVERT_TZ(cdm.created_at, @@session.time_zone, '+07:00'))=?
          AND (cdm.reason IS NULL OR (cdm.reason NOT LIKE 'Refund %' AND cdm.reason NOT LIKE 'Retur %'))`,
       [branchId, date]
     );
@@ -102,6 +108,7 @@ router.get('/daily-closing', async (req, res, next) => {
       success: true,
       data: {
         document: 'Penutupan Penjualan',
+        branch_id: branchId,
         store: branch.name,
         store_address: branch.address || '',
         printed_at: new Date().toISOString(),
@@ -157,10 +164,19 @@ router.get('/overview', async (req, res, next) => {
         ? db.execute(`SELECT b.id AS branch_id, b.name AS branch_name, COALESCE(s.transactions, 0) AS transactions, COALESCE(s.revenue, 0) AS revenue, COALESCE(c.cost_of_goods, 0) AS cost_of_goods, COALESCE(f.expenses, 0) AS expenses, COALESCE(f.income, 0) AS income FROM branches b LEFT JOIN (SELECT branch_id, COUNT(*) AS transactions, SUM(grand_total - cancelled_amount - refunded_amount) AS revenue FROM transactions WHERE status IN (${SALES_STATUSES_SQL}) AND transaction_date BETWEEN ? AND ? GROUP BY branch_id) s ON s.branch_id = b.id LEFT JOIN (SELECT t.branch_id, SUM(ti.cost * (ti.quantity - ti.cancelled_qty - ti.returned_qty)) AS cost_of_goods FROM transactions t JOIN transaction_items ti ON ti.transaction_id = t.id WHERE t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ? GROUP BY t.branch_id) c ON c.branch_id = b.id LEFT JOIN (SELECT branch_id, SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) AS expenses, SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) AS income FROM expenses WHERE status = 'approved' AND expense_date BETWEEN ? AND ? GROUP BY branch_id) f ON f.branch_id = b.id WHERE b.is_active = TRUE AND b.type = 'toko' ORDER BY revenue DESC`, [start, end, start, end, start, end])
         : Promise.resolve([[]]),
     ]);
+    const [[dailyExpenses], [dailyIncome], [dailyReturns], [salesSources]] = await Promise.all([
+      db.execute(`SELECT DATE_FORMAT(expense_date, '%Y-%m-%d') AS date, COALESCE(SUM(amount), 0) AS amount FROM expenses WHERE branch_id ${scope} AND status = 'approved' AND type = 'expense' AND expense_date BETWEEN ? AND ? GROUP BY expense_date ORDER BY expense_date`, periodParams),
+      db.execute(`SELECT DATE_FORMAT(expense_date, '%Y-%m-%d') AS date, COALESCE(SUM(amount), 0) AS amount FROM expenses WHERE branch_id ${scope} AND status = 'approved' AND type = 'income' AND expense_date BETWEEN ? AND ? GROUP BY expense_date ORDER BY expense_date`, periodParams),
+      db.execute(`SELECT DATE_FORMAT(CONVERT_TZ(created_at, @@session.time_zone, '+07:00'), '%Y-%m-%d') AS date, COALESCE(SUM(refund_amount), 0) AS amount, COUNT(*) AS count FROM returns WHERE branch_id ${scope} AND status = 'approved' AND DATE(CONVERT_TZ(created_at, @@session.time_zone, '+07:00')) BETWEEN ? AND ? GROUP BY date ORDER BY date`, periodParams),
+      db.execute(`SELECT CASE WHEN source_system = 'olsera' THEN 'Olsera' ELSE 'POS' END AS name, COUNT(*) AS transactions, COALESCE(SUM(grand_total - cancelled_amount - refunded_amount), 0) AS revenue FROM transactions WHERE branch_id ${scope} AND status IN (${SALES_STATUSES_SQL}) AND transaction_date BETWEEN ? AND ? GROUP BY CASE WHEN source_system = 'olsera' THEN 'Olsera' ELSE 'POS' END ORDER BY revenue DESC`, periodParams),
+    ]);
     const revenue = money(Number(sales[0].revenue) + Number(expenses[0].income));
     const costOfGoods = Number(costs[0].cost_of_goods);
     const approvedExpenses = Number(expenses[0].amount);
     const income = Number(expenses[0].income);
+    const grossSales = Number(sales[0].revenue);
+    const grossProfit = revenue - costOfGoods;
+    const profitMarginPercent = grossSales > 0 ? money(grossProfit * 100 / grossSales) : 0;
     const discounts = money(Number(discountDetails[0][0].transaction_discount) + Number(discountDetails[0][0].item_discount));
     const branchRows = branchComparison[0].map((row) => ({
       ...row,
@@ -169,10 +185,18 @@ router.get('/overview', async (req, res, next) => {
     const branchName = owner && selectedBranchId === null
       ? 'Semua Toko/Gudang'
       : (await db.execute('SELECT name FROM branches WHERE id=? AND is_active = TRUE', [selectedBranchId]))[0][0]?.name || '';
+    const returnCount = returnSummary[0].reduce((total, row) => total + Number(row.returns_count || 0), 0);
+    const refundAmount = returnSummary[0].reduce((total, row) => total + Number(row.refund_amount || 0), 0);
+    const productsSold = priceTiers[0].reduce((total, row) => total + Number(row.products_sold || 0), 0);
+    const salesSourceTotal = salesSources.reduce((total, row) => total + Number(row.revenue || 0), 0);
+    const normalizedSalesSources = salesSources.map((row) => ({
+      ...row,
+      share: salesSourceTotal > 0 ? money(Number(row.revenue || 0) * 100 / salesSourceTotal) : 0,
+    }));
     res.json({ success: true, data: {
       start, end, branch_id: owner && selectedBranchId === null ? 'all' : selectedBranchId, branch_name: branchName,
-      summary: { transactions: sales[0].transactions, revenue, gross_sales: Number(sales[0].revenue), discounts, transaction_discounts: Number(discountDetails[0][0].transaction_discount), item_discounts: Number(discountDetails[0][0].item_discount), cost_of_goods: costOfGoods, gross_profit: revenue - costOfGoods, expenses: approvedExpenses, income, net_profit: money(revenue - costOfGoods - approvedExpenses), cancelled_transactions: Number(cancellations[0][0].transactions), cancelled_amount: Number(cancellations[0][0].amount), returns: returnSummary[0].reduce((total, row) => total + Number(row.returns_count || 0), 0), returned_quantity: returnSummary[0].reduce((total, row) => total + Number(row.quantity_returned || 0), 0), refund_amount: returnSummary[0].reduce((total, row) => total + Number(row.refund_amount || 0), 0) },
-      payment_methods: payments[0], products: products[0], categories: categories[0], cashiers: cashiers[0], customers: customers[0], low_stock: lowStock[0], daily_sales: dailySales[0], hourly_sales: hourlySales[0], price_tiers: priceTiers[0], transactions: transactions[0], cancellations: cancellationRows[0], return_summary: returnSummary[0], returns: returns[0], branch_comparison: branchRows
+      summary: { transactions: sales[0].transactions, revenue, gross_sales: grossSales, discounts, transaction_discounts: Number(discountDetails[0][0].transaction_discount), item_discounts: Number(discountDetails[0][0].item_discount), cost_of_goods: costOfGoods, gross_profit: grossProfit, profit_margin_percent: profitMarginPercent, expenses: approvedExpenses, income, net_profit: money(revenue - costOfGoods - approvedExpenses), products_sold: productsSold, cancelled_transactions: Number(cancellations[0][0].transactions), cancelled_amount: Number(cancellations[0][0].amount), returns: returnCount, return_count: returnCount, returned_quantity: returnSummary[0].reduce((total, row) => total + Number(row.quantity_returned || 0), 0), refund_amount: refundAmount, return_amount: refundAmount },
+      payment_methods: payments[0], products: products[0], categories: categories[0], cashiers: cashiers[0], customers: customers[0], low_stock: lowStock[0], daily_sales: dailySales[0], daily_expenses: dailyExpenses, daily_income: dailyIncome, daily_returns: dailyReturns, sales_sources: normalizedSalesSources, hourly_sales: hourlySales[0], price_tiers: priceTiers[0], transactions: transactions[0], cancellations: cancellationRows[0], return_summary: returnSummary[0], returns: returns[0], branch_comparison: branchRows
     } });
   } catch (error) { next(error); }
 });

@@ -40,8 +40,8 @@ class _TransferApi extends ApiClient {
   }
 
   @override
-  Future<Map<String, dynamic>> post(
-      String path, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body,
+      {Map<String, String>? query}) async {
     requests.add((path, body));
     rows.first['status'] = 'cancelled';
     return {

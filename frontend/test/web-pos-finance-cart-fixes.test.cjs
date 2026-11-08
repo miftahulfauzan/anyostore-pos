@@ -14,6 +14,21 @@ test('closing page follows shared owner branch context and renders finance total
   assert.match(page, /Pilih satu toko/);
   assert.match(page, /data\.expenses/);
   assert.match(page, /data\.income/);
+  assert.match(page, /Lihat PDF/);
+  assert.match(page, /Cetak Penutupan/);
+  assert.doesNotMatch(page, /setTimeout\(\(\) => window\.print\(\)/);
+});
+
+test('web sales report reuses the Android-style visual report sections', () => {
+  const page = read('reports/page.js');
+  const sections = read('dashboard/OlseraDashboardSections.js');
+  assert.match(page, /OlseraDashboardSections/);
+  assert.match(page, /reports-android-summary/);
+  assert.match(page, /Laporan detail/);
+  assert.match(sections, /profit_margin_percent/);
+  assert.match(sections, /Margin keuntungan/);
+  assert.match(page, /useState\("last7"\)/);
+  assert.match(page, /getWarehousePeriodRange\('last7'\)/);
 });
 
 test('mobile POS branch selector gets a full-width row and trigger', () => {

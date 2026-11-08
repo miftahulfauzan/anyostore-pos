@@ -55,4 +55,10 @@ test('daily closing includes approved cash finance entries in the cash adjustmen
   assert.equal(body.data.methods.cash.cash_in_out, -760000);
   assert.equal(body.data.methods.cash.total, 445000);
   assert.equal(body.data.expected_total, 1655000);
+  assert.equal(body.data.branch_id, 2);
+
+  const returnsCall = calls.find(({ sql }) => sql.includes('FROM returns'));
+  assert.match(returnsCall.sql, /CONVERT_TZ\(created_at/);
+  const movementCall = calls.find(({ sql }) => sql.includes('FROM cash_drawer_movements'));
+  assert.match(movementCall.sql, /CONVERT_TZ\(cdm\.created_at/);
 });

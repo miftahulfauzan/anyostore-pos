@@ -2925,15 +2925,17 @@ class _OpnameSectionState extends State<_OpnameSection> {
     }
     return UiTaskBody(
       summary: '${_items.length} produk dihitung',
-      action: FilledButton(
+      action: FilledButton.icon(
+        key: const ValueKey('opname-save-button'),
         style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
         onPressed: _saving ? null : _submit,
-        child: _saving
+        icon: _saving
             ? const SizedBox(
                 width: 22,
                 height: 22,
                 child: CircularProgressIndicator(strokeWidth: 2))
-            : const Text('Simpan Opname'),
+            : const Icon(Icons.save_outlined),
+        label: const Text('Simpan Opname'),
       ),
       children: [
         DropdownButtonFormField<String>(

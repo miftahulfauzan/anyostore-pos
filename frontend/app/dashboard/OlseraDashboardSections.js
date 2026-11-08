@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 const rupiah = (value) => 'Rp' + Number(value || 0).toLocaleString('id-ID');
 const number = (value) => Number(value || 0);
+const percent = (value) => `${number(value).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
 const dateLabel = (value) => {
   const raw = String(value || '');
   return raw.length >= 10 ? raw.slice(8, 10) : raw;
@@ -84,9 +85,11 @@ function SeriesSection({ title, icon, tone, color, rows, valueKey, emptyMessage 
 export default function OlseraDashboardSections({ reportData, fallbackData }) {
   if (!reportData) return <section className="panel dashboard-report-loading"><p>Memuat laporan toko…</p></section>;
   const summary = reportData.summary || fallbackData?.summary || {};
-  const productsSold = Array.isArray(reportData.products)
-    ? reportData.products.reduce((total, product) => total + number(product.quantity_sold), 0)
-    : (summary.products_sold ?? fallbackData?.summary?.products_sold ?? 0);
+  const productsSold = summary.products_sold != null
+    ? number(summary.products_sold)
+    : (Array.isArray(reportData.products)
+      ? reportData.products.reduce((total, product) => total + number(product.quantity_sold), 0)
+      : (fallbackData?.summary?.products_sold ?? 0));
   return <div className="dashboard-report-layout">
     <Section title="Ringkasan toko" description={reportData.branch_name || 'Ringkasan periode terpilih'} icon={BriefcaseBusiness} tone="denim" className="dashboard-report-glance">
       <MetricRow label="Pesanan" value={number(summary.transactions)} />
@@ -107,6 +110,7 @@ export default function OlseraDashboardSections({ reportData, fallbackData }) {
       <SeriesSection title="Return" icon={RotateCcw} tone="purple" color={colors.purple} rows={reportData.daily_returns} valueKey="amount" emptyMessage="Belum ada data retur pada periode ini." />
       <Section title="Hasil usaha" icon={CircleDollarSign} tone="denim" className="dashboard-report-profit">
         <MetricRow label="Laba kotor" value={rupiah(summary.gross_profit)} />
+        <MetricRow label="Margin keuntungan" value={percent(summary.profit_margin_percent)} />
         <MetricRow label="Laba bersih" value={rupiah(summary.net_profit)} />
         <MetricRow label="Retur disetujui" value={`${number(summary.return_count)} catatan`} />
       </Section>

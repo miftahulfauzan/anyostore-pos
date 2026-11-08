@@ -3,7 +3,10 @@ import { useEffect, useState } from 'react';
 import { useAppSession } from '../components/AppStateProvider';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-const localToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+const previousLocalDate = () => {
+  const value = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(value);
+};
 const methodLabel = { cash: 'Kas', qris: 'QRIS', debit: 'Debit', transfer: 'Transfer', split: 'Split' };
 const rp = (n) => {
   const v = Number(n || 0);
@@ -19,14 +22,20 @@ const shortStamp = (s) => {
 export default function ClosingPage() {
   const { user, activeBranchId, resolved } = useAppSession();
   const [data, setData] = useState(null);
-  const [date, setDate] = useState(localToday());
+  const [date, setDate] = useState(previousLocalDate());
   const [message, setMessage] = useState('');
-  const [printed, setPrinted] = useState(false);
+  const [preview, setPreview] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setPreview(params.get('preview') === '1');
+    const queryDate = params.get('date');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(queryDate || '')) setDate(queryDate);
+  }, []);
 
   useEffect(() => {
     if (!resolved || !user || !activeBranchId) return undefined;
     setData(null);
-    setPrinted(false);
     setMessage('');
     if (user.role === 'owner' && activeBranchId === 'all') {
       setMessage('Pilih satu toko di pemilih toko sebelum membuka penutupan.');
@@ -40,13 +49,11 @@ export default function ClosingPage() {
     return undefined;
   }, [date, user, activeBranchId, resolved]);
 
-  useEffect(() => {
-    if (data && !printed) {
-      setPrinted(true);
-      const t = setTimeout(() => window.print(), 500);
-      return () => clearTimeout(t);
-    }
-  }, [data, printed]);
+  function openPdfPreview() {
+    const query = new URLSearchParams({ date, preview: '1' });
+    if (user?.role === 'owner') query.set('branch_id', activeBranchId);
+    window.open(`/closing?${query.toString()}`, '_blank');
+  }
 
   const methods = data?.methods || {};
   const methodRows = (m, v) => {
@@ -61,10 +68,11 @@ export default function ClosingPage() {
   };
 
   return (
-    <div className="closing-wrap" style={{ maxWidth: 420, margin: '0 auto', padding: 24 }}>
+    <div className={`closing-wrap${preview ? ' closing-preview-mode' : ''}`} style={{ maxWidth: 420, margin: '0 auto', padding: 24 }}>
       <div className="no-print" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>Tanggal<input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ minHeight: 40 }} /></label>
-        <button type="button" onClick={() => window.print()} disabled={!data}>Cetak / Simpan PDF</button>
+        <button type="button" onClick={openPdfPreview} disabled={!data}>Lihat PDF</button>
+        <button type="button" onClick={() => window.print()} disabled={!data}>Cetak Penutupan</button>
         <a className="button-link" href="/dashboard">← Kembali ke Dasbor</a>
       </div>
       {message && <p className="message" role="status">{message}</p>}

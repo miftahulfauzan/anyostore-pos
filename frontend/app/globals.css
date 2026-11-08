@@ -508,10 +508,23 @@ a, .photo-upload { color:var(--expressive-secondary); }
 
 @media print {
   @page { size: A6 portrait; margin: 0; }
-  html:has(.transfer-print-root.is-active),
+  html:has(.transfer-print-root.is-active) {
+    width: 100% !important;
+    height: 148mm !important;
+    max-height: 148mm !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
   body:has(.transfer-print-root.is-active) {
     width: 100% !important;
+    height: 148mm !important;
+    min-height: 148mm !important;
+    max-height: 148mm !important;
     min-width: 0 !important;
+    overflow: hidden !important;
     margin: 0 !important;
     padding: 0 !important;
     background: #fff !important;
@@ -521,17 +534,28 @@ a, .photo-upload { color:var(--expressive-secondary); }
   body:has(.transfer-print-root.is-active) .transfer-print-root * { visibility: visible !important; }
   body:has(.transfer-print-root.is-active) .transfer-print-root {
     display: block !important;
-    position: absolute !important;
-    inset: 0 auto auto 0 !important;
+    position: fixed !important;
+    inset: 0 !important;
     width: 100% !important;
+    height: 148mm !important;
+    max-height: 148mm !important;
+    overflow: hidden !important;
     margin: 0 !important;
     padding: 0 !important;
   }
   body:has(.transfer-print-root.is-active) .transfer-print-sheet {
     display: block !important;
+    box-sizing: border-box !important;
     width: 100% !important;
-    min-height: 148mm !important;
+    height: 148mm !important;
+    min-height: 0 !important;
+    max-height: 148mm !important;
+    overflow: hidden !important;
     margin: 0 !important;
+    page-break-before: avoid !important;
+    page-break-after: avoid !important;
+    break-before: avoid !important;
+    break-after: avoid !important;
   }
 }
 @media print {

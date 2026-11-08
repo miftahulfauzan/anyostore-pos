@@ -55,6 +55,38 @@ class CartItem {
   double? priceOverride;
 }
 
+/// Decode the cart snapshot written to the local draft cache.
+///
+/// Keep this parser independent from the widget so both automatic restore on
+/// startup and the Draft quick action use exactly the same data rules.
+List<CartItem> cartItemsFromDraft(Map<String, dynamic>? draft) {
+  final rawItems = draft?['items'];
+  if (rawItems is! List) return <CartItem>[];
+  final items = <CartItem>[];
+  for (final raw in rawItems) {
+    if (raw is! Map) continue;
+    final row = Map<String, dynamic>.from(raw);
+    final productId = int.tryParse('${row['product_id']}');
+    final qty = int.tryParse('${row['qty']}');
+    if (productId == null || productId <= 0 || qty == null || qty <= 0) {
+      continue;
+    }
+    items.add(CartItem(
+      productId: productId,
+      variantId: int.tryParse('${row['variant_id']}'),
+      name: row['name']?.toString() ?? 'Produk',
+      price: asNum(row['price']),
+      qty: qty,
+      priceOverride:
+          row['price_override'] == null ? null : asNum(row['price_override']),
+      variantLabel: row['variant_label']?.toString(),
+      photo: row['photo']?.toString(),
+      stockAvailable: int.tryParse('${row['stock_available']}'),
+    ));
+  }
+  return items;
+}
+
 /// Satu-satunya sumber hitungan subtotal keranjang (harga satuan x qty,
 /// SEMUA item wajib masuk). Dipakai POS dan sheet keranjang supaya angka
 /// tidak mungkin beda.
@@ -77,7 +109,7 @@ class PosPage extends StatefulWidget {
   State<PosPage> createState() => _PosPageState();
 }
 
-class _PosPageState extends State<PosPage> {
+class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
   late final ApiClient _api;
   int _tab = 0;
   final List<int> _visitedTabs = [0];
@@ -114,6 +146,9 @@ class _PosPageState extends State<PosPage> {
   bool _loading = true;
   bool _saving = false;
   bool _autoPrint = true;
+  String? _clientHoldId;
+  String? _autoHeldClientHoldId;
+  Future<void>? _serverHoldInFlight;
   String? _error;
 
   /// Dipakai sheet keranjang untuk me-refresh dirinya saat _cart/_preview
@@ -132,6 +167,7 @@ class _PosPageState extends State<PosPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _transactionDate = todayWib();
     _api = context.read<AuthStore>().api;
     if (_isOwner) {
@@ -156,6 +192,24 @@ class _PosPageState extends State<PosPage> {
     });
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      // The local write is queued so the cart survives the app being put in
+      // the background before the process is reclaimed by Android.
+      unawaited(_saveDraft());
+    }
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      // Server hold is best-effort. The local snapshot above remains the
+      // fallback when Android kills the process before the request finishes.
+      unawaited(_autoHoldServerDraft());
+    }
+  }
+
   /// Unduh detail + varian semua produk cabang aktif ke cache lokal
   /// supaya offline langsung bisa pilih varian tanpa klik produk satu per satu.
   Future<void> _prefetchVariants() async {
@@ -175,6 +229,7 @@ class _PosPageState extends State<PosPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _previewTimer?.cancel();
     _searchDebounce?.cancel();
     _connSub?.cancel();
@@ -256,6 +311,8 @@ class _PosPageState extends State<PosPage> {
         _discountCtrl.clear();
         _notesCtrl.clear();
         _transactionDate = todayWib();
+        _clientHoldId = null;
+        _autoHeldClientHoldId = null;
         _draftBranch = null;
         _category = null;
         _search.clear();
@@ -481,9 +538,8 @@ class _PosPageState extends State<PosPage> {
   }
 
   void _applyCategoryRows(List<Map<String, dynamic>> rows) {
-    _categoryCatalog = rows
-        .map((category) => Map<String, dynamic>.from(category))
-        .toList();
+    _categoryCatalog =
+        rows.map((category) => Map<String, dynamic>.from(category)).toList();
     _products = _mergeProductsWithCategorySettings(_products, _categoryCatalog);
     _visible = _filteredProducts();
   }
@@ -522,6 +578,52 @@ class _PosPageState extends State<PosPage> {
   String _draftKey(int branch) =>
       'cart-draft-${context.read<AuthStore>().userId}-$branch';
 
+  String _newClientHoldId() {
+    final random = math.Random();
+    return 'android-${DateTime.now().microsecondsSinceEpoch}-${random.nextInt(1 << 32)}';
+  }
+
+  List<Map<String, dynamic>> _serverDraftItems() => _cart
+      .map((c) => {
+            'product_id': c.productId,
+            if (c.variantId != null) 'variant_id': c.variantId,
+            'quantity': c.qty,
+            'price': c.priceOverride ?? c.price,
+            if (c.priceOverride != null) 'price_override': c.priceOverride,
+            'name': c.name,
+            if (c.variantLabel != null) 'variant_label': c.variantLabel,
+            if (c.photo != null) 'photo': c.photo,
+          })
+      .toList();
+
+  Map<String, dynamic> _serverDraftPayload() {
+    final preview = _preview;
+    final clientHoldId = _clientHoldId ??= _newClientHoldId();
+    return {
+      'branch_id': _posBranchId ?? _branchId,
+      'client_hold_id': clientHoldId,
+      if (_customerId != null) 'customer_id': _customerId,
+      'items': _serverDraftItems(),
+      'subtotal': asNum(preview?['subtotal'] ?? _cartTotal),
+      'discount_type': preview?['discount_type'] ??
+          (_manualDiscount > 0 ? 'nominal' : 'none'),
+      'discount_value': asNum(preview?['discount'] ?? _manualDiscount),
+      if (_notesCtrl.text.trim().isNotEmpty) 'notes': _notesCtrl.text.trim(),
+    };
+  }
+
+  Future<void> _clearLocalDraft() {
+    final branch = _posBranchId ?? _branchId;
+    if (context.read<AuthStore>().userId == null || branch <= 0) {
+      return Future<void>.value();
+    }
+    final key = _draftKey(branch);
+    final write = _draftWrite.then<void>((_) => OfflineStore.cacheSet(
+        key, jsonEncode({'items': <Map<String, dynamic>>[]})));
+    _draftWrite = write.catchError((Object _) {});
+    return _draftWrite;
+  }
+
   Future<void> _saveDraft() {
     final branch = _posBranchId ?? _branchId;
     if (context.read<AuthStore>().userId == null || branch <= 0) {
@@ -534,6 +636,7 @@ class _PosPageState extends State<PosPage> {
       'manual_discount': _discountCtrl.text,
       'notes': _notesCtrl.text,
       'transaction_date': _transactionDate,
+      'client_hold_id': _clientHoldId,
       'items': [
         for (final item in _cart)
           {
@@ -555,52 +658,55 @@ class _PosPageState extends State<PosPage> {
     return _draftWrite;
   }
 
-  Future<void> _restoreDraft(int branch) async {
+  Future<Map<String, dynamic>?> _readLocalDraft(int branch) async {
     try {
       final saved = await OfflineStore.cacheGet(_draftKey(branch));
-      if (!mounted || _draftBranch != branch || _cart.isNotEmpty || _saving) {
-        return;
+      final draft = saved?['payload'];
+      if (draft is! Map) return null;
+      final normalized = Map<String, dynamic>.from(draft);
+      return cartItemsFromDraft(normalized).isEmpty ? null : normalized;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<bool> _restoreDraftPayload(
+      int branch, Map<String, dynamic> draft) async {
+    if (!mounted || _draftBranch != branch || _cart.isNotEmpty || _saving) {
+      return false;
+    }
+    final items = cartItemsFromDraft(draft);
+    if (items.isEmpty) return false;
+    setState(() {
+      _cart.addAll(items);
+      _clientHoldId = draft['client_hold_id']?.toString();
+      _customerId = int.tryParse('${draft['customer_id']}');
+      _discountCtrl.text = draft['manual_discount']?.toString() ?? '';
+      _notesCtrl.text = draft['notes']?.toString() ?? '';
+      final draftDate = draft['transaction_date']?.toString();
+      _transactionDate = draftDate != null &&
+              DateTime.tryParse(draftDate) != null &&
+              draftDate.compareTo(todayWib()) <= 0
+          ? draftDate
+          : todayWib();
+      final warehouse = draft['warehouse_id']?.toString();
+      if (_warehouses.any((row) => '${row['id']}' == warehouse)) {
+        _warehouseId = warehouse!;
       }
-      final draft = saved?['payload'] as Map<String, dynamic>?;
-      if (draft == null || draft['items'] is! List) return;
-      final items = <CartItem>[];
-      for (final row in draft['items'] as List) {
-        if (row is! Map) continue;
-        final id = int.tryParse('${row['product_id']}');
-        final qty = int.tryParse('${row['qty']}');
-        if (id == null || id <= 0 || qty == null || qty <= 0) continue;
-        items.add(CartItem(
-            productId: id,
-            variantId: int.tryParse('${row['variant_id']}'),
-            name: row['name']?.toString() ?? 'Produk',
-            price: asNum(row['price']),
-            qty: qty,
-            priceOverride: row['price_override'] == null
-                ? null
-                : asNum(row['price_override']),
-            variantLabel: row['variant_label']?.toString(),
-            photo: row['photo']?.toString(),
-            stockAvailable: int.tryParse('${row['stock_available']}')));
-      }
-      if (items.isEmpty) return;
-      setState(() {
-        _cart.addAll(items);
-        _customerId = int.tryParse('${draft['customer_id']}');
-        _discountCtrl.text = draft['manual_discount']?.toString() ?? '';
-        _notesCtrl.text = draft['notes']?.toString() ?? '';
-        final draftDate = draft['transaction_date']?.toString();
-        _transactionDate = draftDate != null &&
-                DateTime.tryParse(draftDate) != null &&
-                draftDate.compareTo(todayWib()) <= 0
-            ? draftDate
-            : todayWib();
-        final warehouse = draft['warehouse_id']?.toString();
-        if (_warehouses.any((row) => '${row['id']}' == warehouse)) {
-          _warehouseId = warehouse!;
-        }
-      });
-      _schedulePreview();
-    } catch (_) {/* An unreadable draft must not prevent catalogue loading. */}
+    });
+    _schedulePreview();
+    return true;
+  }
+
+  Future<bool> _restoreDraft(int branch) async {
+    try {
+      final draft = await _readLocalDraft(branch);
+      if (draft == null) return false;
+      return await _restoreDraftPayload(branch, draft);
+    } catch (_) {
+      // An unreadable draft must not prevent catalogue loading.
+      return false;
+    }
   }
 
   Timer? _searchDebounce;
@@ -760,6 +866,7 @@ class _PosPageState extends State<PosPage> {
 
   void _schedulePreview() {
     unawaited(_saveDraft());
+    _autoHeldClientHoldId = null;
     // Perubahan keranjang menandai preview lama TIDAK fresh sampai yang baru datang.
     _cartVersion++;
     _previewTimer?.cancel();
@@ -809,32 +916,30 @@ class _PosPageState extends State<PosPage> {
 
   double get _cartTotal => cartSubtotal(_cart);
 
+  Future<void> _autoHoldServerDraft() async {
+    if (_cart.isEmpty || _serverHoldInFlight != null) return;
+    final clientHoldId = _clientHoldId ??= _newClientHoldId();
+    if (_autoHeldClientHoldId == clientHoldId) return;
+    final request = _client.holdTransaction(_serverDraftPayload());
+    final inFlight = request.then<void>((_) {});
+    _serverHoldInFlight = inFlight;
+    try {
+      await inFlight;
+      _autoHeldClientHoldId = clientHoldId;
+      if (mounted) await _clearLocalDraft();
+    } on ApiException {
+      // Keep the local snapshot when the server cannot be reached.
+    } finally {
+      if (identical(_serverHoldInFlight, inFlight)) {
+        _serverHoldInFlight = null;
+      }
+    }
+  }
+
   Future<void> _holdCart() async {
     if (_cart.isEmpty) return;
-    final branch = _posBranchId ?? _branchId;
-    final preview = _preview;
-    final items = _cart
-        .map((c) => {
-              'product_id': c.productId,
-              if (c.variantId != null) 'variant_id': c.variantId,
-              'quantity': c.qty,
-              'price': c.priceOverride ?? c.price,
-              if (c.priceOverride != null) 'price_override': c.priceOverride,
-              'name': c.name,
-              if (c.variantLabel != null) 'variant_label': c.variantLabel,
-              if (c.photo != null) 'photo': c.photo,
-            })
-        .toList();
     try {
-      await _client.holdTransaction({
-        'branch_id': branch,
-        'items': items,
-        'subtotal': asNum(preview?['subtotal'] ?? _cartTotal),
-        'discount_type': preview?['discount_type'] ??
-            (_manualDiscount > 0 ? 'nominal' : 'none'),
-        'discount_value': asNum(preview?['discount'] ?? _manualDiscount),
-        if (_notesCtrl.text.trim().isNotEmpty) 'notes': _notesCtrl.text.trim(),
-      });
+      await _client.holdTransaction(_serverDraftPayload());
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Draft disimpan. Bisa dilanjutkan kapan saja.')));
@@ -845,6 +950,8 @@ class _PosPageState extends State<PosPage> {
         _notesCtrl.clear();
         _customerId = null;
         _transactionDate = todayWib();
+        _clientHoldId = null;
+        _autoHeldClientHoldId = null;
       });
       await _saveDraft();
       if (!mounted) return;
@@ -860,14 +967,34 @@ class _PosPageState extends State<PosPage> {
   Future<void> _resumeCart() async {
     try {
       final branch = _posBranchId ?? _branchId;
-      final pending = await _client.pendingTransactions(branchId: branch);
+      final localDraft = await _readLocalDraft(branch);
+      List<dynamic> pending = const [];
+      try {
+        pending = await _client.pendingTransactions(branchId: branch);
+      } on ApiException {
+        // A locally saved draft remains usable when the server is offline.
+        if (localDraft == null) rethrow;
+      }
       if (!mounted) return;
-      if (pending.isEmpty) {
+      final choices = <Map<String, dynamic>>[
+        if (localDraft != null)
+          {
+            'source': 'local',
+            'draft': localDraft,
+          },
+        for (final raw in pending)
+          if (raw is Map)
+            {
+              'source': 'server',
+              'pending': Map<String, dynamic>.from(raw),
+            },
+      ];
+      if (choices.isEmpty) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Tidak ada draft')));
         return;
       }
-      final picked = await showDialog<int>(
+      final picked = await showDialog<Map<String, dynamic>>(
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Draft'),
@@ -875,16 +1002,25 @@ class _PosPageState extends State<PosPage> {
             width: double.maxFinite,
             child: ListView.separated(
               shrinkWrap: true,
-              itemCount: pending.length,
+              itemCount: choices.length,
               separatorBuilder: (_, __) => const SizedBox(height: 6),
               itemBuilder: (_, index) {
-                final p = pending[index];
+                final choice = choices[index];
+                final isLocal = choice['source'] == 'local';
+                final p = isLocal
+                    ? const <String, dynamic>{}
+                    : (choice['pending'] as Map<String, dynamic>);
                 final heldAt = DateTime.tryParse('${p['held_at']}')?.toLocal();
                 final heldLabel = heldAt == null
                     ? 'Tanggal draft tidak tersedia'
                     : '${heldAt.day.toString().padLeft(2, '0')}/${heldAt.month.toString().padLeft(2, '0')}/${heldAt.year} · ${heldAt.hour.toString().padLeft(2, '0')}:${heldAt.minute.toString().padLeft(2, '0')}';
-                final itemCount =
-                    p['items'] is List ? (p['items'] as List).length : 0;
+                final itemCount = isLocal
+                    ? cartItemsFromDraft(
+                            choice['draft'] as Map<String, dynamic>)
+                        .length
+                    : p['items'] is List
+                        ? (p['items'] as List).length
+                        : 0;
                 return Card(
                   margin: EdgeInsets.zero,
                   child: ListTile(
@@ -895,11 +1031,14 @@ class _PosPageState extends State<PosPage> {
                           style: const TextStyle(fontSize: 12)),
                     ),
                     title: Text(
-                        '$itemCount item · ${fmtRp(asNum(p['subtotal']))}',
+                        isLocal
+                            ? '$itemCount item · Draft perangkat'
+                            : '$itemCount item · ${fmtRp(asNum(p['subtotal']))}',
                         style: const TextStyle(fontWeight: FontWeight.w700)),
-                    subtitle: Text('Draft $heldLabel'),
-                    onTap: () =>
-                        Navigator.pop(ctx, int.tryParse(p['id'].toString())),
+                    subtitle: Text(isLocal
+                        ? 'Tersimpan otomatis saat aplikasi ditutup'
+                        : 'Draft $heldLabel'),
+                    onTap: () => Navigator.pop(ctx, choice),
                   ),
                 );
               },
@@ -913,7 +1052,19 @@ class _PosPageState extends State<PosPage> {
         ),
       );
       if (picked == null || !mounted) return;
-      final resumed = await _client.resumeTransaction(picked,
+      if (picked['source'] == 'local') {
+        _draftBranch = branch;
+        final restored = await _restoreDraftPayload(
+            branch, picked['draft'] as Map<String, dynamic>);
+        if (restored && mounted) {
+          await _openCart();
+        }
+        return;
+      }
+      final serverPending = picked['pending'] as Map<String, dynamic>;
+      final id = int.tryParse('${serverPending['id']}');
+      if (id == null) return;
+      final resumed = await _client.resumeTransaction(id,
           branchId: _posBranchId ?? _branchId);
       if (!mounted) return;
       final items =
@@ -937,6 +1088,8 @@ class _PosPageState extends State<PosPage> {
         _cart
           ..clear()
           ..addAll(cart);
+        _clientHoldId = serverPending['client_hold_id']?.toString() ??
+            resumed['client_hold_id']?.toString();
         _customerId = int.tryParse(resumed['customer_id']?.toString() ?? '');
         _discountCtrl.text =
             asNum(resumed['discount_value']).toStringAsFixed(0);
@@ -945,6 +1098,7 @@ class _PosPageState extends State<PosPage> {
         _preview = null;
       });
       _schedulePreview();
+      if (mounted) await _openCart();
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)

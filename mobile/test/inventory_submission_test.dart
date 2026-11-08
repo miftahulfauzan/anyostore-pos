@@ -100,8 +100,8 @@ class InventoryApi extends ApiClient {
       fallbackProducts ?? const [];
 
   @override
-  Future<Map<String, dynamic>> post(
-      String path, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body,
+      {Map<String, String>? query}) async {
     posts.add((path, jsonDecode(jsonEncode(body)) as Map<String, dynamic>));
     if (failTransfer && path.contains('/transfers')) {
       throw ApiException('Respons terputus', isNetwork: true);
@@ -223,7 +223,28 @@ void main() {
     await tester.tap(find.text('Opname').last);
     await tester.pumpAndSettle();
     expect(find.text('Opname'), findsOneWidget);
-    expect(find.text('Simpan Opname'), findsOneWidget);
+    expect(find.byKey(const ValueKey('opname-save-button')), findsOneWidget);
+  });
+
+  testWidgets('opname save button stays reachable on a phone-sized screen',
+      (tester) async {
+    final api = InventoryApi();
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: InventoryPage(api: api, branchId: 4, role: 'admin'))));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('inventory-section-selector')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Opname').last);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('opname-save-button')).hitTestable(),
+        findsOneWidget);
   });
 
   testWidgets('kartu stok menampilkan ikon pensil sebagai affordance edit',

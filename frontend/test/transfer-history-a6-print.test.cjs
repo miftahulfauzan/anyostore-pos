@@ -50,3 +50,14 @@ test('print sheet hanya memuat rincian barang masuk dan memakai lebar halaman pe
   assert.match(styles, /body:has\(\.transfer-print-root\.is-active\) \.transfer-print-root\s*\{[^}]*width:\s*100%/s);
   assert.match(styles, /body:has\(\.transfer-print-root\.is-active\) \.transfer-print-sheet\s*\{[^}]*width:\s*100%/s);
 });
+
+test('print sheet dikunci satu halaman A6 dan tidak membuat halaman kosong', () => {
+  assert.match(styles, /body:has\(\.transfer-print-root\.is-active\)\s*\{[^}]*height:\s*148mm/s);
+  assert.match(styles, /body:has\(\.transfer-print-root\.is-active\)\s*\{[^}]*overflow:\s*hidden/s);
+  assert.match(styles, /body:has\(\.transfer-print-root\.is-active\) \.transfer-print-root\s*\{[^}]*position:\s*fixed/s);
+  assert.match(styles, /body:has\(\.transfer-print-root\.is-active\) \.transfer-print-root\s*\{[^}]*height:\s*148mm/s);
+  assert.match(styles, /body:has\(\.transfer-print-root\.is-active\) \.transfer-print-sheet\s*\{[^}]*height:\s*148mm/s);
+  assert.match(styles, /body:has\(\.transfer-print-root\.is-active\) \.transfer-print-sheet\s*\{[^}]*max-height:\s*148mm/s);
+  assert.match(styles, /body:has\(\.transfer-print-root\.is-active\) \.transfer-print-sheet\s*\{[^}]*overflow:\s*hidden/s);
+  assert.match(styles, /body:has\(\.transfer-print-root\.is-active\) \.transfer-print-sheet\s*\{[^}]*break-after:\s*avoid/s);
+});

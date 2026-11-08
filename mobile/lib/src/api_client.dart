@@ -346,10 +346,13 @@ class ApiClient {
     return (res['data'] as List?) ?? [];
   }
 
-  Future<Map<String, dynamic>> resumeTransaction(int id, {int? branchId}) =>
-      post('/transactions/pending/$id/resume', {}, query: {
-        if (branchId != null) 'branch_id': '$branchId',
-      });
+  Future<Map<String, dynamic>> resumeTransaction(int id,
+      {int? branchId}) async {
+    final res = await post('/transactions/pending/$id/resume', {}, query: {
+      if (branchId != null) 'branch_id': '$branchId',
+    });
+    return (res['data'] as Map<String, dynamic>?) ?? {};
+  }
 
   Future<Map<String, dynamic>> fetchBackup() async {
     final res = await get('/backup');

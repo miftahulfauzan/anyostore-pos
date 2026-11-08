@@ -66,8 +66,14 @@ test('reports overview exposes sales, profit, products and return sections', asy
   assert.equal(body.data.summary.gross_sales, 100000);
   assert.equal(body.data.summary.income, 30000);
   assert.equal(body.data.summary.revenue, 130000);
+  assert.equal(body.data.summary.profit_margin_percent, 90);
   assert.equal(body.data.summary.transaction_discounts, 5000);
   assert.equal(body.data.summary.refund_amount, 0);
+  assert.equal(body.data.summary.products_sold, 0);
+  assert.ok(Array.isArray(body.data.daily_expenses));
+  assert.ok(Array.isArray(body.data.daily_income));
+  assert.ok(Array.isArray(body.data.daily_returns));
+  assert.ok(Array.isArray(body.data.sales_sources));
   assert.equal(body.data.products[0].name, 'Denim');
   assert.equal(body.data.categories[0].category_name, 'Denim');
   assert.equal(body.data.payment_methods[0].payment_method, 'cash');

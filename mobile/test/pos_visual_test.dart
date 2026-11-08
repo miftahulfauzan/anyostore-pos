@@ -126,6 +126,53 @@ class PosVisualApi extends ApiClient {
       };
 }
 
+class DraftPosVisualApi extends PosVisualApi {
+  bool resumed = false;
+
+  @override
+  Future<List<dynamic>> pendingTransactions({int? branchId}) async => [
+        {
+          'id': 99,
+          'held_at': '2026-11-08T04:00:00.000Z',
+          'subtotal': 275000,
+          'items': [
+            {'product_id': 10, 'quantity': 1},
+          ],
+        },
+      ];
+
+  @override
+  Future<Map<String, dynamic>> resumeTransaction(int id,
+      {int? branchId}) async {
+    resumed = true;
+    return {
+      'id': id,
+      'items': [
+        {
+          'product_id': 10,
+          'name': 'Kemeja Denim',
+          'price': 275000,
+          'quantity': 1,
+        },
+      ],
+    };
+  }
+}
+
+class AutoHoldPosVisualApi extends PosVisualApi {
+  final List<Map<String, dynamic>> holdBodies = [];
+
+  @override
+  Future<Map<String, dynamic>> holdTransaction(
+      Map<String, dynamic> body) async {
+    holdBodies.add(Map<String, dynamic>.from(body));
+    return {
+      'success': true,
+      'data': {'id': 123},
+    };
+  }
+}
+
 class BasikStaffVisualApi extends PosVisualApi {
   @override
   Future<Map<String, dynamic>> storeSettings() async =>
@@ -302,6 +349,54 @@ void main() {
     expect(find.byTooltip('Buka Draft'), findsOneWidget);
     expect(find.text('Draft'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Draft quick action opens a draft and restores its cart',
+      (tester) async {
+    final api = DraftPosVisualApi();
+    final auth = AuthStore(api)
+      ..role = 'owner'
+      ..branchId = 4;
+    await showPosSurface(tester, const PosPage(), 320, Brightness.light,
+        auth: auth);
+
+    await tester.tap(find.byTooltip('Buka Draft'));
+    await tester.pumpAndSettle();
+    expect(find.text('Draft'), findsOneWidget);
+    expect(find.textContaining('1 item · Rp275.000'), findsOneWidget);
+
+    await tester.tap(find.textContaining('1 item · Rp275.000'));
+    await tester.pumpAndSettle();
+    expect(api.resumed, isTrue);
+    expect(find.byKey(const ValueKey('cart-sheet-header')), findsOneWidget);
+
+    await tester.tap(find.text('Bayar'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('cart-summary-footer')), findsOneWidget);
+    expect(find.text('1 pcs'), findsOneWidget);
+  });
+
+  testWidgets(
+      'app suspension sends one active cart to the server draft despite repeated lifecycle events',
+      (tester) async {
+    final api = AutoHoldPosVisualApi();
+    final auth = AuthStore(api)
+      ..role = 'owner'
+      ..branchId = 4;
+    await showPosSurface(tester, const PosPage(), 320, Brightness.light,
+        auth: auth);
+
+    await tester.tap(find.text('Kemeja Denim'));
+    await tester.pumpAndSettle();
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pumpAndSettle();
+
+    expect(api.holdBodies, hasLength(1));
+    expect(api.holdBodies.single['client_hold_id'], isNotEmpty);
+    expect(api.holdBodies.single['branch_id'], 4);
+    expect(api.holdBodies.single['items'], hasLength(1));
   });
 
   testWidgets(

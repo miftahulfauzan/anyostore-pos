@@ -18,6 +18,35 @@ import 'printer_setup.dart';
 import 'report_filter.dart';
 import 'task_ui.dart';
 
+String _previousWibDate() {
+  final date = DateTime.now().toUtc().add(const Duration(hours: 7)).subtract(
+        const Duration(days: 1),
+      );
+  return '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+}
+
+bool reportDateInRange(String? date, String start, String end) {
+  if (date == null || !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(date)) {
+    return false;
+  }
+  return date.compareTo(start) >= 0 && date.compareTo(end) <= 0;
+}
+
+String? _offlineBusinessDate(Map<String, dynamic> payload, dynamic createdAt,
+    {required String dateKey}) {
+  final explicit = payload[dateKey]?.toString();
+  if (explicit != null &&
+      RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(explicit)) {
+    return explicit;
+  }
+  final parsed = DateTime.tryParse(createdAt?.toString() ?? '');
+  if (parsed == null) return null;
+  final wib = parsed.toUtc().add(const Duration(hours: 7));
+  return '${wib.year.toString().padLeft(4, '0')}-${wib.month.toString().padLeft(2, '0')}-${wib.day.toString().padLeft(2, '0')}';
+}
+
+String _fmtPercent(dynamic value) => '${asNum(value).toStringAsFixed(2)}%';
+
 class ReportsPage extends StatefulWidget {
   const ReportsPage(
       {super.key,
@@ -38,6 +67,7 @@ class ReportsPage extends StatefulWidget {
 class _ReportsPageState extends State<ReportsPage> {
   String _section = 'ringkasan';
   String _preset = '7d';
+  String _closingDate = _previousWibDate();
   DateTime? _from;
   DateTime? _to;
   Map<String, dynamic>? _data;
@@ -112,7 +142,9 @@ class _ReportsPageState extends State<ReportsPage> {
       });
     }
     final (start, end) = _range;
-    final cacheKey = 'report-$_section-${_range.$1}-${_range.$2}-$_branchId';
+    final cacheKey = _section == 'penutupan'
+        ? 'report-$_section-$_closingDate-$_branchId'
+        : 'report-$_section-${_range.$1}-${_range.$2}-$_branchId';
     try {
       if (_isOwner && _branches.isEmpty) {
         try {
@@ -152,12 +184,12 @@ class _ReportsPageState extends State<ReportsPage> {
             if (_isOwner && _branchId == null && _branches.isNotEmpty) {
               final reports = await Future.wait(_branches.map((branch) =>
                   widget.api.reportDailyClosing(
-                      date: todayWib(),
+                      date: _closingDate,
                       branchId: int.tryParse('${branch['id']}'))));
               data = _combineClosings(reports);
             } else {
               data = await widget.api
-                  .reportDailyClosing(date: todayWib(), branchId: _branchId);
+                  .reportDailyClosing(date: _closingDate, branchId: _branchId);
             }
             break;
           case 'ppn':
@@ -219,7 +251,7 @@ class _ReportsPageState extends State<ReportsPage> {
     final combined = <String, dynamic>{
       'document': 'Penutupan Penjualan',
       'store': 'Semua toko/gudang',
-      'date': todayWib(),
+      'date': _closingDate,
       'receipt_count': 0,
       'return_count': 0,
       'total_sales': 0.0,
@@ -324,35 +356,43 @@ class _ReportsPageState extends State<ReportsPage> {
     try {
       final rawTxs = await OfflineStore.pending();
       final rawExps = await OfflineStore.pendingExpenses();
-      // Filter by cabang: owner ganti cabang tidak boleh masuk ringkasan cabang lain.
-      final txs = _branchId == null
-          ? rawTxs
-          : rawTxs.where((t) {
-              try {
-                final p = jsonDecode(t['payload'] as String? ?? '{}')
-                    as Map<String, dynamic>;
-                final b = int.tryParse('${p['branch_id']}');
-                return b == _branchId;
-              } catch (_) {
-                return false;
-              }
-            }).toList();
-      final exps = _branchId == null
-          ? rawExps
-          : rawExps.where((r) {
-              try {
-                final p = jsonDecode(r['payload'] as String? ?? '{}')
-                    as Map<String, dynamic>;
-                final b = p['branch_id'] == null
-                    ? null
-                    : int.tryParse('${p['branch_id']}');
-                // legacy tanpa branch_id dianggap milik cabang aktif filter -> jangan hitung kalau filter cabang spesifik
-                if (b == null) return false;
-                return b == _branchId;
-              } catch (_) {
-                return false;
-              }
-            }).toList();
+      final periodStart = _section == 'penutupan' ? _closingDate : _range.$1;
+      final periodEnd = _section == 'penutupan' ? _closingDate : _range.$2;
+      // Antrean lokal adalah data tambahan, bukan laporan global. Filter
+      // berdasarkan cabang DAN tanggal bisnis agar transaksi lama/offline
+      // tidak masuk ke penutupan atau periode yang sedang dilihat.
+      final txs = <Map<String, dynamic>>[];
+      for (final row in rawTxs) {
+        try {
+          final payload = jsonDecode(row['payload'] as String? ?? '{}')
+              as Map<String, dynamic>;
+          final branch = int.tryParse('${payload['branch_id']}');
+          final date = _offlineBusinessDate(payload, row['created_at'],
+              dateKey: 'transaction_date');
+          if ((_branchId == null || branch == _branchId) &&
+              reportDateInRange(date, periodStart, periodEnd)) {
+            txs.add(row);
+          }
+        } catch (_) {}
+      }
+      final exps = <Map<String, dynamic>>[];
+      for (final row in rawExps) {
+        try {
+          final payload = jsonDecode(row['payload'] as String? ?? '{}')
+              as Map<String, dynamic>;
+          final branch = payload['branch_id'] == null
+              ? null
+              : int.tryParse('${payload['branch_id']}');
+          final date = _offlineBusinessDate(payload, row['created_at'],
+              dateKey: 'expense_date');
+          // Legacy expense tanpa branch_id tidak boleh masuk laporan cabang
+          // tertentu karena asal datanya tidak dapat dipastikan.
+          if ((_branchId == null || branch == _branchId) &&
+              reportDateInRange(date, periodStart, periodEnd)) {
+            exps.add(row);
+          }
+        } catch (_) {}
+      }
       if (txs.isEmpty && exps.isEmpty) return data;
       double txTotal = 0;
       var offlinePcs = 0;
@@ -380,8 +420,8 @@ class _ReportsPageState extends State<ReportsPage> {
           byMethod[method] = (byMethod[method] ?? 0) + asNum(t['grand_total']);
           methodCounts[method] = (methodCounts[method] ?? 0) + 1;
         }
-        final date = p['transaction_date']?.toString() ??
-            t['created_at']?.toString().substring(0, 10) ??
+        final date = _offlineBusinessDate(p, t['created_at'],
+                dateKey: 'transaction_date') ??
             todayWib();
         final daily = byDate.putIfAbsent(
             date, () => {'date': date, 'transactions': 0, 'revenue': 0.0});
@@ -390,20 +430,24 @@ class _ReportsPageState extends State<ReportsPage> {
       }
       double expSum = 0;
       double incSum = 0;
+      double financeCashNet = 0;
       final incomeByDate = <String, double>{};
       final expenseByDate = <String, double>{};
       for (final r in exps) {
         final p =
             jsonDecode(r['payload'] as String? ?? '{}') as Map<String, dynamic>;
-        final date = p['expense_date']?.toString() ??
+        final date = _offlineBusinessDate(p, r['created_at'],
+                dateKey: 'expense_date') ??
             p['date']?.toString() ??
             todayWib();
         final amount = asNum(p['amount']);
         if (p['type'] == 'income') {
           incSum += amount;
+          if ((p['payment_method'] ?? 'cash') == 'cash') financeCashNet += amount;
           incomeByDate[date] = (incomeByDate[date] ?? 0) + amount;
         } else {
           expSum += amount;
+          if ((p['payment_method'] ?? 'cash') == 'cash') financeCashNet -= amount;
           expenseByDate[date] = (expenseByDate[date] ?? 0) + amount;
         }
       }
@@ -424,7 +468,16 @@ class _ReportsPageState extends State<ReportsPage> {
         copy['subtotal'] = asNum(copy['subtotal']) + txTotal;
         copy['expenses'] = asNum(copy['expenses']) + expSum;
         copy['income'] = asNum(copy['income']) + incSum;
-        copy['expected_total'] = asNum(copy['expected_total']) + txTotal;
+        if (financeCashNet != 0) {
+          final cash = Map<String, dynamic>.from(
+              (methods['cash'] as Map<String, dynamic>?) ?? {});
+          cash['cash_in_out'] = asNum(cash['cash_in_out']) + financeCashNet;
+          cash['total'] = asNum(cash['total']) + financeCashNet;
+          methods['cash'] = cash;
+          copy['methods'] = methods;
+        }
+        copy['expected_total'] =
+            asNum(copy['expected_total']) + txTotal + financeCashNet;
       } else {
         final summary = Map<String, dynamic>.from(
             (copy['summary'] as Map<String, dynamic>?) ?? {});
@@ -436,6 +489,11 @@ class _ReportsPageState extends State<ReportsPage> {
         summary['gross_profit'] = asNum(summary['gross_profit']) + txTotal;
         summary['net_profit'] =
             asNum(summary['net_profit']) + txTotal + incSum - expSum;
+        final grossSales = asNum(summary['gross_sales'] ?? summary['revenue']);
+        final grossProfit = asNum(summary['gross_profit']);
+        summary['profit_margin_percent'] = grossSales > 0
+            ? double.parse((grossProfit * 100 / grossSales).toStringAsFixed(2))
+            : 0;
         final productsSold = _totalProductsSold(copy);
         if (productsSold != null) {
           summary['products_sold'] = productsSold + offlinePcs;
@@ -795,6 +853,7 @@ class _ReportsPageState extends State<ReportsPage> {
         row(['Pendapatan', fmtRp(asNum(summary['revenue']))]);
         row(['HPP', fmtRp(asNum(summary['cost_of_goods']))]);
         row(['Laba kotor', fmtRp(asNum(summary['gross_profit']))]);
+        row(['Persentase keuntungan', _fmtPercent(summary['profit_margin_percent'])]);
         row(['Pengeluaran', fmtRp(asNum(summary['expenses']))]);
         row(['Laba bersih', fmtRp(asNum(summary['net_profit']))]);
         for (final m in ((_data?['payment_methods'] as List?) ?? [])
@@ -868,6 +927,25 @@ class _ReportsPageState extends State<ReportsPage> {
     await file.writeAsString(buf.toString());
     if (!mounted) return;
     await Share.shareXFiles([XFile(file.path)], subject: 'Laporan $_section');
+  }
+
+  Future<void> _pickClosingDate() async {
+    final selected = DateTime.tryParse(_closingDate) ?? DateTime.now();
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(now.year, now.month, now.day),
+      initialDate: selected.isAfter(now)
+          ? DateTime(now.year, now.month, now.day)
+          : selected,
+      helpText: 'Pilih tanggal penutupan',
+    );
+    if (picked == null || !mounted) return;
+    final date =
+        '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+    setState(() => _closingDate = date);
+    _load();
   }
 
   Widget _buildBody() {
@@ -999,6 +1077,9 @@ class _ReportsPageState extends State<ReportsPage> {
           _Row('Pendapatan',
               fmtRp(asNum(summary['gross_sales'] ?? summary['revenue']))),
           if (productsSold != null) _Row('Produk terjual', '$productsSold pcs'),
+          if (summary['profit_margin_percent'] != null)
+            _Row('Persentase keuntungan',
+                _fmtPercent(summary['profit_margin_percent'])),
           _Row('Pengeluaran', fmtRp(asNum(summary['expenses']))),
           _Row('Pengembalian', fmtRp(asNum(summary['return_amount']))),
         ],
@@ -1110,6 +1191,9 @@ class _ReportsPageState extends State<ReportsPage> {
         _Row('Pemasukan', fmtRp(asNum(summary['income']))),
         _Row('HPP', fmtRp(asNum(summary['cost_of_goods']))),
         _Row('Laba kotor', fmtRp(asNum(summary['gross_profit']))),
+        if (summary['profit_margin_percent'] != null)
+          _Row('Persentase keuntungan',
+              _fmtPercent(summary['profit_margin_percent'])),
         _Row('Pengeluaran', fmtRp(asNum(summary['expenses']))),
         _Row('Laba bersih', fmtRp(asNum(summary['net_profit']))),
       ]),
@@ -1155,6 +1239,9 @@ class _ReportsPageState extends State<ReportsPage> {
         _Row('Diskon', fmtRp(asNum(summary['discounts']))),
         _Row('Modal barang terjual', fmtRp(asNum(summary['cost_of_goods']))),
         _Row('Laba kotor', fmtRp(asNum(summary['gross_profit']))),
+        if (summary['profit_margin_percent'] != null)
+          _Row('Persentase keuntungan',
+              _fmtPercent(summary['profit_margin_percent'])),
         _Row('Laba bersih', fmtRp(asNum(summary['net_profit']))),
       ]),
       if (payments.isNotEmpty)
@@ -1231,6 +1318,17 @@ class _ReportsPageState extends State<ReportsPage> {
   List<Widget> _closing() {
     final methods = (_data?['methods'] as Map<String, dynamic>?) ?? {};
     return [
+      OutlinedButton.icon(
+        key: const ValueKey('reports-closing-date'),
+        onPressed: _pickClosingDate,
+        icon: const Icon(Icons.calendar_today_outlined, size: 17),
+        label: Text('Tanggal penutupan · $_closingDate'),
+        style: OutlinedButton.styleFrom(
+          alignment: Alignment.centerLeft,
+          minimumSize: const Size.fromHeight(44),
+        ),
+      ),
+      const SizedBox(height: 8),
       FilledButton.icon(
         onPressed: _isOwner && _branchId == null ? null : _printClosing,
         style: FilledButton.styleFrom(
