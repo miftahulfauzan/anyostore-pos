@@ -294,8 +294,8 @@ class PrinterService {
         'Retur'.padRight(20) + '${closing['return_count'] ?? 0}'.padLeft(28));
     await line('Pengeluaran'.padRight(20) +
         fmtRp(asNum(closing['expenses'])).padLeft(28));
-    await line('Pemasukan'.padRight(20) +
-        fmtRp(asNum(closing['income'])).padLeft(28));
+    await line(
+        'Pemasukan'.padRight(20) + fmtRp(asNum(closing['income'])).padLeft(28));
     await line('TOTAL KASIR'.padRight(20) +
         fmtRp(asNum(closing['expected_total'])).padLeft(28));
     await line('--------------------------------');

@@ -1271,8 +1271,8 @@ class _InOutFormState extends State<_InOutForm> {
         _catalog = results[0].cast<Map<String, dynamic>>();
         if (widget.kind == 'outgoing') {
           _channels = results[1].cast<Map<String, dynamic>>();
-          if (!_channels.any((channel) =>
-              channel['value']?.toString() == _channel)) {
+          if (!_channels
+              .any((channel) => channel['value']?.toString() == _channel)) {
             _channel = _channels.isEmpty
                 ? 'toko'
                 : (_channels.first['value']?.toString() ?? 'toko');
@@ -1619,9 +1619,8 @@ class _InOutFormState extends State<_InOutForm> {
       final ch = await widget.api.channels();
       if (!mounted) return;
       final createdData = created['data'];
-      final createdValue = createdData is Map
-          ? createdData['value']?.toString()
-          : null;
+      final createdValue =
+          createdData is Map ? createdData['value']?.toString() : null;
       setState(() {
         _channels = ch.cast<Map<String, dynamic>>();
         _channel = createdValue ??

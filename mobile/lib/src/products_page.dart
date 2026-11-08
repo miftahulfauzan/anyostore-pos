@@ -295,8 +295,10 @@ class _ProductsPageState extends State<ProductsPage> {
                                                 IconButton(
                                                   onPressed: () =>
                                                       _printLabel(r),
-                                                  constraints: const BoxConstraints(
-                                                      minWidth: 44, minHeight: 44),
+                                                  constraints:
+                                                      const BoxConstraints(
+                                                          minWidth: 44,
+                                                          minHeight: 44),
                                                   padding: EdgeInsets.zero,
                                                   tooltip: 'Cetak label harga',
                                                   icon: Icon(Icons.print,
@@ -305,8 +307,10 @@ class _ProductsPageState extends State<ProductsPage> {
                                                 ),
                                                 IconButton(
                                                   onPressed: () => _copy(r),
-                                                  constraints: const BoxConstraints(
-                                                      minWidth: 44, minHeight: 44),
+                                                  constraints:
+                                                      const BoxConstraints(
+                                                          minWidth: 44,
+                                                          minHeight: 44),
                                                   padding: EdgeInsets.zero,
                                                   tooltip: 'Salin produk',
                                                   icon: const Icon(
@@ -315,8 +319,10 @@ class _ProductsPageState extends State<ProductsPage> {
                                                 ),
                                                 IconButton(
                                                   onPressed: () => _delete(r),
-                                                  constraints: const BoxConstraints(
-                                                      minWidth: 44, minHeight: 44),
+                                                  constraints:
+                                                      const BoxConstraints(
+                                                          minWidth: 44,
+                                                          minHeight: 44),
                                                   padding: EdgeInsets.zero,
                                                   tooltip: 'Hapus produk',
                                                   icon: const Icon(

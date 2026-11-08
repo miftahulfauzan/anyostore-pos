@@ -178,8 +178,9 @@ class _PaymentSheetState extends State<PaymentSheet> {
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.arrow_back),
                     tooltip: 'Kembali ke keranjang'),
-                Expanded(child: Text('Pembayaran',
-                    style: Theme.of(context).textTheme.titleMedium)),
+                Expanded(
+                    child: Text('Pembayaran',
+                        style: Theme.of(context).textTheme.titleMedium)),
               ]),
               const SizedBox(height: 12),
               GlassCard(
@@ -187,10 +188,14 @@ class _PaymentSheetState extends State<PaymentSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Total pembayaran', style: TextStyle(color: taskMuted(context))),
+                    Text('Total pembayaran',
+                        style: TextStyle(color: taskMuted(context))),
                     const SizedBox(height: 4),
-                    Text(fmtRp(widget.grandTotal), style: TextStyle(
-                        color: ink(context), fontSize: 30, fontWeight: FontWeight.w800)),
+                    Text(fmtRp(widget.grandTotal),
+                        style: TextStyle(
+                            color: ink(context),
+                            fontSize: 30,
+                            fontWeight: FontWeight.w800)),
                   ],
                 ),
               ),
@@ -228,16 +233,23 @@ class _PaymentSheetState extends State<PaymentSheet> {
                                 ),
                               ),
                               child: Column(children: [
-                                Icon(icons[method], color: _selectedMethods.contains(method)
-                                    ? Theme.of(context).colorScheme.primary : taskMuted(context)),
+                                Icon(icons[method],
+                                    color: _selectedMethods.contains(method)
+                                        ? Theme.of(context).colorScheme.primary
+                                        : taskMuted(context)),
                                 const SizedBox(height: 6),
                                 FittedBox(
                                   fit: BoxFit.scaleDown,
                                   child: Text(labels[method]!,
                                       style: TextStyle(
-                                          fontSize: 12, fontWeight: FontWeight.w600,
-                                          color: _selectedMethods.contains(method)
-                                              ? Theme.of(context).colorScheme.primary : ink(context))),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color:
+                                              _selectedMethods.contains(method)
+                                                  ? Theme.of(context)
+                                                      .colorScheme
+                                                      .primary
+                                                  : ink(context))),
                                 ),
                               ]),
                             ),
@@ -265,7 +277,7 @@ class _PaymentSheetState extends State<PaymentSheet> {
                       controller: _splitReferences[method],
                       decoration: InputDecoration(
                         labelText: 'Referensi ${labels[method]} (opsional)',
-                        ),
+                      ),
                     ),
                   ],
                   const SizedBox(height: 10),
@@ -283,7 +295,8 @@ class _PaymentSheetState extends State<PaymentSheet> {
                     color:
                         _splitAmountsValid && _splitTotal == widget.grandTotal
                             ? (Theme.of(context).brightness == Brightness.dark
-                                ? kTaskDarkInk : kTaskStockGood)
+                                ? kTaskDarkInk
+                                : kTaskStockGood)
                             : taskMuted(context),
                   ),
                 ),
@@ -311,7 +324,7 @@ class _PaymentSheetState extends State<PaymentSheet> {
                     controller: _referenceCtrl,
                     decoration: const InputDecoration(
                       labelText: 'Referensi (opsional)',
-                      ),
+                    ),
                   ),
                 ],
               ],

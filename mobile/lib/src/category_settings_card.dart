@@ -207,7 +207,8 @@ class _CategorySettingsCardState extends State<CategorySettingsCard> {
   bool _serverMatchesSnapshot(
       List<Map<String, dynamic>> expected, dynamic serverRows) {
     final actual = _copyCategories(_categoryRowsFrom(serverRows));
-    final expectedIds = expected.map((category) => '${category['id']}').join(',');
+    final expectedIds =
+        expected.map((category) => '${category['id']}').join(',');
     final actualIds = actual.map((category) => '${category['id']}').join(',');
     if (expectedIds != actualIds) return false;
     final actualById = <String, Map<String, dynamic>>{

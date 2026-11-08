@@ -682,7 +682,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
                 child: TextButton.icon(
                   onPressed: () => _pickVariantPhoto(v),
                   icon: const Icon(Icons.add_photo_alternate, size: 16),
-                  label: const Text('Foto varian', overflow: TextOverflow.ellipsis),
+                  label: const Text('Foto varian',
+                      overflow: TextOverflow.ellipsis),
                 ),
               ),
               if (v.photoBytes != null)
