@@ -4083,70 +4083,84 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
   }
   .cart-mobile-header h2 { color: #fff; text-align: center; }
   .pos-cart-scroll {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
     min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
     touch-action: pan-y;
     overscroll-behavior: contain;
     overscroll-behavior-x: none;
-    padding: 8px 12px 10px;
+    gap: 12px;
+    padding: 8px 16px 12px;
   }
   .cart-lines {
+    display: grid;
     gap: 8px;
+    grid-auto-rows: 72px;
+    align-content: start;
+    flex: 0 0 auto;
     max-width: 100%;
     overflow-x: hidden;
   }
   .cart-lines-header { display: none; }
   .cart-lines article {
-    grid-template-columns: minmax(0, 1fr) 44px minmax(72px, auto) 30px;
-    gap: 4px;
+    grid-template-columns: minmax(0, 1fr) 56px minmax(80px, auto) 30px;
+    gap: 8px;
     min-width: 0;
     height: 72px;
     min-height: 72px;
     padding: 8px 0;
     box-sizing: border-box;
+    border-bottom: 1px solid #e2e8f0;
   }
   .cart-item-info { gap: 1px; min-width: 0; }
   .cart-item-info strong { font-size: 12px; line-height: 1.2; }
   .cart-item-info span { font-size: 10px; line-height: 1.2; }
   .cart-lines .quantity input {
-    width: 44px;
-    height: 34px;
-    min-height: 34px;
+    width: 56px;
+    height: 42px;
+    min-height: 42px;
+    padding-inline: 2px;
     font-size: 14px;
   }
   .cart-lines .cart-line-total { font-size: 11px; }
   .cart-line-menu {
     width: 30px;
-    height: 34px;
-    min-height: 34px;
+    height: 42px;
+    min-height: 42px;
   }
   .pos-cart-footer {
     position: sticky;
     bottom: 0;
     z-index: 2;
     gap: 5px;
-    padding: 8px 12px max(10px, env(safe-area-inset-bottom));
+    padding: 8px 16px max(10px, env(safe-area-inset-bottom));
   }
-  .pos-cart-footer button { min-height: 46px; font-size: 14px; }
+  .pos-cart-footer button { min-height: 48px; font-size: 14px; }
   .pos-transaction-date {
     grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
     column-gap: 10px;
-    min-height: 44px;
-    margin: 0;
+    min-height: 42px;
+    margin: 4px 0 0;
     padding: 0;
+    flex: 0 0 auto;
+    font-size: 13px;
+    font-weight: 600;
   }
   .pos-transaction-date input {
     width: 100%;
-    height: 44px;
-    min-height: 44px;
+    height: 42px;
+    min-height: 42px;
     padding: 0 10px;
+    font-size: 14px;
+    font-weight: 500;
   }
   .pos-transaction-date small {
-    grid-column: 1 / -1;
-    font-size: 10px;
-    line-height: 1.2;
+    display: none;
   }
   .pos-layout .cart::before { display: none; }
 }

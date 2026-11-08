@@ -557,7 +557,13 @@ export default function PosPage() {
                     const next = Number.parseInt(event.target.value, 10);
                     quantity(item.cart_id, Number.isSafeInteger(next) && next > 0 ? next : 1);
                   }}
-                  onFocus={(event) => event.currentTarget.select()}
+                  onFocus={(event) => {
+                    const input = event.currentTarget;
+                    input.select();
+                    window.requestAnimationFrame(() => {
+                      input.scrollIntoView({ block: 'center', inline: 'nearest' });
+                    });
+                  }}
                   onBlur={(event) => {
                     const next = Number.parseInt(event.currentTarget.value, 10);
                     const normalized = Number.isSafeInteger(next) && next > 0 ? next : 1;
