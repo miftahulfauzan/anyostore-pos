@@ -169,4 +169,63 @@ void main() {
           lines.any((line) => line.text.startsWith('Produk $index')), isTrue);
     }
   });
+
+  test('prints only the product name without SKU or variant details', () {
+    final receipt = <String, dynamic>{
+      'store': {'printer_size': '58'},
+      'items': [
+        {
+          'product_name': 'Kemeja A107 - Denim',
+          'sku': 'B1-A107',
+          'variant_detail': 'Biru / M',
+          'quantity': 4,
+          'price': 85000,
+          'subtotal': 340000,
+        },
+      ],
+    };
+
+    final text = ReceiptLayout.fromReceipt(receipt)
+        .build(receipt)
+        .map((line) => line.text)
+        .join('\n');
+
+    expect(text, contains('Kemeja A107 - Denim'));
+    expect(text, isNot(contains('B1-A107')));
+    expect(text, isNot(contains('Biru / M')));
+  });
+
+  test('prints multiline receipt contacts without overflowing the printer', () {
+    final receipt = <String, dynamic>{
+      'store': {
+        'printer_size': '58',
+        'store_name': 'BASIK PGMTA',
+        'store_phone': '081234567890',
+        'receipt_contacts':
+            'WA 1: 081234567890\nWA 2: 081398765432\nInstagram: @anyostore',
+      },
+      'invoice_no': 'INV-0001',
+      'items': [
+        {
+          'product_name': 'AC07',
+          'sku': 'B1-AC07',
+          'quantity': 1,
+          'price': 90000,
+          'subtotal': 90000,
+        },
+      ],
+      'subtotal': 90000,
+      'grand_total': 90000,
+    };
+
+    final layout = ReceiptLayout.fromReceipt(receipt);
+    final lines = layout.build(receipt);
+    final text = lines.map((line) => line.text).join('\n');
+
+    expect(text, contains('WA 1: 081234567890'));
+    expect(text, contains('WA 2: 081398765432'));
+    expect(text, contains('Instagram: @anyostore'));
+    expect(text, isNot(contains('B1-AC07')));
+    expect(lines.every((line) => line.text.length <= layout.width), isTrue);
+  });
 }

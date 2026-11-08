@@ -160,7 +160,7 @@ class PrinterService {
   }
 
   int _receiptLogoMaxWidth(Map<String, dynamic> receipt) =>
-      ReceiptLayout.fromReceipt(receipt).width <= 32 ? 384 : 576;
+      ReceiptLayout.fromReceipt(receipt).width <= 32 ? 180 : 260;
 
   Future<void> printBarcode({required String code, String? label}) async {
     final esc = EscCommand();

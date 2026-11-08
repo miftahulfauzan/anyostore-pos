@@ -121,12 +121,45 @@ void main() {
     final methods = calls.map((call) => call.method).toList();
     expect(methods, contains('image'));
     final image = calls.firstWhere((call) => call.method == 'image');
-    expect((image.arguments as Map)['maxWidth'], 384);
+    expect((image.arguments as Map)['maxWidth'], 180);
     final feedIndex = methods.indexOf('print');
     final cutIndex = methods.indexOf('cutPaper');
     expect(feedIndex, greaterThan(-1));
     expect(cutIndex, greaterThan(feedIndex));
     expect((calls[feedIndex].arguments as Map)['feedLines'], 4);
+  });
+
+  test('uses the compact logo cap for 80mm receipts', () async {
+    final calls = <MethodCall>[];
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    const escChannel = MethodChannel('bluetooth_print_plus_esc');
+    const bluetoothChannel = MethodChannel('bluetooth_print_plus/methods');
+    messenger.setMockMethodCallHandler(escChannel, (call) async {
+      calls.add(call);
+      if (call.method == 'getCommand') return Uint8List.fromList([1]);
+      return null;
+    });
+    messenger.setMockMethodCallHandler(bluetoothChannel, (call) async => null);
+    addTearDown(() {
+      messenger.setMockMethodCallHandler(escChannel, null);
+      messenger.setMockMethodCallHandler(bluetoothChannel, null);
+    });
+
+    await PrinterService(
+      logoLoader: (url) async => Uint8List.fromList([7, 8, 9]),
+    ).printReceipt({
+      'store': {
+        'printer_size': '80',
+        'store_name': 'BASIK PGMTA',
+        'invoice_logo': '/uploads/logo.png',
+      },
+      'invoice_no': 'INV-0001',
+      'grand_total': 10000,
+    });
+
+    final image = calls.firstWhere((call) => call.method == 'image');
+    expect((image.arguments as Map)['maxWidth'], 260);
   });
 
   test('continues printing when the invoice logo cannot be loaded', () async {

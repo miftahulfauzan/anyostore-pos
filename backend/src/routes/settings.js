@@ -5,7 +5,7 @@ const { assertValidUpload, createMediaUpload, decodeDataUpload, discardUploadedF
 
 const router = express.Router();
 router.use(authenticate);
-const allowed = new Set(['store_name','store_address','store_phone','store_email','store_tax_id','receipt_header','receipt_footer','receipt_note','printer_size','auto_print','theme','tax_rate','prices_include_tax','loyalty_enabled','loyalty_points_rate','loyalty_points_value','show_logo','show_qr','show_cashier','show_barcode','low_stock_alert','low_stock_email','order_prefix','invoice_prefix','whatsapp_number','whatsapp_number_2','whatsapp_number_3','whatsapp_numbers','landing_page_size','daily_email_enabled','daily_email_to','daily_email_from','daily_email_time','daily_email_api_url','daily_email_api_key']);
+const allowed = new Set(['store_name','store_address','store_phone','store_email','store_tax_id','receipt_header','receipt_contacts','receipt_footer','receipt_note','printer_size','auto_print','theme','tax_rate','prices_include_tax','loyalty_enabled','loyalty_points_rate','loyalty_points_value','show_logo','show_qr','show_cashier','show_barcode','low_stock_alert','low_stock_email','order_prefix','invoice_prefix','whatsapp_number','whatsapp_number_2','whatsapp_number_3','whatsapp_numbers','landing_page_size','daily_email_enabled','daily_email_to','daily_email_from','daily_email_time','daily_email_api_url','daily_email_api_key']);
 const allowedThemes = new Set(['green', 'blue', 'purple', 'teal', 'rose', 'amber']);
 const dailyEmailKeys = new Set(['daily_email_enabled','daily_email_to','daily_email_from','daily_email_time','daily_email_api_url','daily_email_api_key']);
 const DEFAULT_EMAIL_API_URL = 'https://api.resend.com/emails';
@@ -348,6 +348,24 @@ router.post('/logo-data', authorize('owner','manager','admin'), async (req, res,
     const oldPath = previous[0]?.value;
     if (oldPath?.startsWith('/uploads/logos/') && oldPath !== publicPath) await removeMedia(oldPath);
     res.status(201).json({ success: true, data: { [key]: publicPath } });
+  } catch (error) { next(error); }
+});
+
+router.delete('/logo', authorize('owner','manager','admin'), async (req, res, next) => {
+  try {
+    const id = branchId(req);
+    const key = String(req.query.key || req.body?.key || '').trim();
+    if (key !== 'invoice_logo') {
+      return res.status(400).json({ success: false, message: 'Logo yang dapat dihapus hanya logo invoice' });
+    }
+    const [previous] = await db.execute(
+      'SELECT `value` FROM store_settings WHERE branch_id=? AND `key`=? LIMIT 1',
+      [id, key],
+    );
+    await db.execute('DELETE FROM store_settings WHERE branch_id=? AND `key`=?', [id, key]);
+    const oldPath = previous[0]?.value;
+    if (oldPath?.startsWith('/uploads/logos/')) await removeMedia(oldPath);
+    res.json({ success: true, data: { key } });
   } catch (error) { next(error); }
 });
 

@@ -63,9 +63,10 @@ class ApiClient {
     return {...body, 'branch_id': activeBranchId};
   }
 
-  Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body) =>
+  Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body,
+          {Map<String, String>? query}) =>
       _request(
-        () => _httpClient.post(_uri(path),
+        () => _httpClient.post(_uri(path, query),
             headers: _headers, body: jsonEncode(_withBranch(body))),
         allowEmptyResponse: path == '/inventory-control/opnames',
       );
@@ -87,8 +88,9 @@ class ApiClient {
       _request(() => _httpClient.patch(_uri(path),
           headers: _headers, body: jsonEncode(_withBranch(body))));
 
-  Future<Map<String, dynamic>> delete(String path) =>
-      _request(() => _httpClient.delete(_uri(path), headers: _headers));
+  Future<Map<String, dynamic>> delete(String path,
+          [Map<String, String>? query]) =>
+      _request(() => _httpClient.delete(_uri(path, query), headers: _headers));
 
   Future<Map<String, dynamic>> get(String path, [Map<String, String>? query]) =>
       _request(() => _httpClient.get(_uri(path, query), headers: _headers));
@@ -345,8 +347,9 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> resumeTransaction(int id, {int? branchId}) =>
-      post('/transactions/pending/$id/resume',
-          {if (branchId != null) 'branch_id': '$branchId'});
+      post('/transactions/pending/$id/resume', {}, query: {
+        if (branchId != null) 'branch_id': '$branchId',
+      });
 
   Future<Map<String, dynamic>> fetchBackup() async {
     final res = await get('/backup');
@@ -556,6 +559,9 @@ class ApiClient {
         'data_url': 'data:$mime;base64,$base64',
         'key': key,
       });
+
+  Future<Map<String, dynamic>> deleteInvoiceLogo() =>
+      delete('/settings/logo', {'key': 'invoice_logo'});
 
   Future<Map<String, dynamic>> linkPageConfig(int branchId) =>
       get('/link-page/config', {'branch_id': '$branchId'});

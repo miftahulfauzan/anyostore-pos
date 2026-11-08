@@ -52,6 +52,7 @@ class _SettingsPageState extends State<SettingsPage> {
   final _npwp = TextEditingController();
   final _invoicePrefix = TextEditingController();
   final _receiptHeader = TextEditingController();
+  final _receiptContacts = TextEditingController();
   final _receiptFooter = TextEditingController();
   final _receiptNote = TextEditingController();
   String _printerSize = '80';
@@ -75,6 +76,7 @@ class _SettingsPageState extends State<SettingsPage> {
     _npwp.dispose();
     _invoicePrefix.dispose();
     _receiptHeader.dispose();
+    _receiptContacts.dispose();
     _receiptFooter.dispose();
     _receiptNote.dispose();
     super.dispose();
@@ -104,6 +106,7 @@ class _SettingsPageState extends State<SettingsPage> {
         _npwp.text = settings['store_tax_id']?.toString() ?? '';
         _invoicePrefix.text = settings['invoice_prefix']?.toString() ?? '';
         _receiptHeader.text = settings['receipt_header']?.toString() ?? '';
+        _receiptContacts.text = settings['receipt_contacts']?.toString() ?? '';
         _receiptFooter.text = settings['receipt_footer']?.toString() ?? '';
         _receiptNote.text = settings['receipt_note']?.toString() ?? '';
         _printerSize = settings['printer_size']?.toString() ?? '80';
@@ -144,6 +147,7 @@ class _SettingsPageState extends State<SettingsPage> {
         'store_tax_id': _npwp.text.trim(),
         'invoice_prefix': _invoicePrefix.text.trim(),
         'receipt_header': _receiptHeader.text.trim(),
+        'receipt_contacts': _receiptContacts.text.trim(),
         'receipt_footer': _receiptFooter.text.trim(),
         'receipt_note': _receiptNote.text.trim(),
         'printer_size': _printerSize,
@@ -349,6 +353,43 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<void> _removeInvoiceLogo() async {
+    final path = _settings['invoice_logo']?.toString().trim() ?? '';
+    if (path.isEmpty || _uploadingLogo) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus logo invoice?'),
+        content: const Text(
+            'Logo akan dihapus dari kepala struk. Logo bisa diunggah kembali kapan saja.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Batal')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Hapus')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _uploadingLogo = true);
+    try {
+      await widget.api.deleteInvoiceLogo();
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Logo invoice dihapus')));
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingLogo = false);
+    }
+  }
+
   Widget _logoPreview(String path) {
     if (path.isEmpty) {
       return Container(
@@ -541,6 +582,16 @@ class _SettingsPageState extends State<SettingsPage> {
               maxLines: 4,
               decoration: const InputDecoration(
                   labelText: 'Header struk (maks 4 baris)',
+                  border: OutlineInputBorder())),
+          const SizedBox(height: 8),
+          TextField(
+              controller: _receiptContacts,
+              minLines: 2,
+              maxLines: 5,
+              decoration: const InputDecoration(
+                  labelText: 'Kontak kepala nota',
+                  hintText: 'WA 1: 08...\nWA 2: 08...\nInstagram: @...',
+                  helperText: 'Satu baris untuk setiap kontak.',
                   border: OutlineInputBorder())),
           const SizedBox(height: 8),
           TextField(
@@ -737,6 +788,15 @@ class _SettingsPageState extends State<SettingsPage> {
             label:
                 Text(_uploadingLogo ? 'Mengunggah...' : 'Ganti Logo Invoice'),
           ),
+          if ((_settings['invoice_logo']?.toString().trim().isNotEmpty ??
+              false)) ...[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _uploadingLogo ? null : _removeInvoiceLogo,
+              icon: const Icon(Icons.delete_outline),
+              label: const Text('Hapus Logo Invoice'),
+            ),
+          ],
         ],
       ),
     );
@@ -964,6 +1024,16 @@ class _SettingsPageState extends State<SettingsPage> {
                       decoration: const InputDecoration(
                           labelText:
                               'Header struk (maks 4 baris, bisa beberapa no HP)',
+                          border: OutlineInputBorder())),
+                  const SizedBox(height: 8),
+                  TextField(
+                      controller: _receiptContacts,
+                      minLines: 2,
+                      maxLines: 5,
+                      decoration: const InputDecoration(
+                          labelText: 'Kontak kepala nota',
+                          hintText: 'WA 1: 08...\nWA 2: 08...\nInstagram: @...',
+                          helperText: 'Satu baris untuk setiap kontak.',
                           border: OutlineInputBorder())),
                   const SizedBox(height: 8),
                   TextField(
@@ -1216,6 +1286,18 @@ class _SettingsPageState extends State<SettingsPage> {
                     label: Text(
                         _uploadingLogo ? 'Mengunggah...' : 'Ganti Logo Toko'),
                   ),
+                  if ((_settings['invoice_logo']
+                          ?.toString()
+                          .trim()
+                          .isNotEmpty ??
+                      false)) ...[
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _uploadingLogo ? null : _removeInvoiceLogo,
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('Hapus Logo Invoice'),
+                    ),
+                  ],
                 ],
               ),
             ),

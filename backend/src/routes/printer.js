@@ -30,7 +30,7 @@ router.get('/invoice/:id', async (req, res, next) => {
     const [items] = await db.execute('SELECT product_name AS name, product_sku AS sku, variant_detail, quantity, price, discount, subtotal FROM transaction_items WHERE transaction_id = ? ORDER BY id', [req.params.id]);
     const [payments] = await db.execute('SELECT payment_method, amount, reference FROM transaction_payments WHERE transaction_id = ? ORDER BY id', [req.params.id]);
     const [settings] = await db.execute(
-      'SELECT `key`, `value` FROM store_settings WHERE branch_id = ? AND `key` IN (\'receipt_header\', \'receipt_footer\', \'receipt_note\', \'store_logo\', \'invoice_logo\', \'show_logo\', \'printer_size\')',
+      'SELECT `key`, `value` FROM store_settings WHERE branch_id = ? AND `key` IN (\'receipt_header\', \'receipt_contacts\', \'receipt_footer\', \'receipt_note\', \'store_logo\', \'invoice_logo\', \'show_logo\', \'printer_size\')',
       [transactions[0].branch_id]
     );
     const store = buildReceiptStore(transactions[0], settings);

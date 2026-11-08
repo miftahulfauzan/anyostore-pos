@@ -68,6 +68,7 @@ class ReceiptLayout {
     _optionalMultiline(store['receipt_header'], centered);
     _optionalCentered(store['store_address'], centered);
     _optionalCentered(_value(store, 'store_phone', prefix: 'Telp: '), centered);
+    _optionalMultiline(store['receipt_contacts'], centered);
     _optionalCentered(
         _value(store, 'store_tax_id', prefix: 'NPWP: '), centered);
     left(_separator());
@@ -86,15 +87,10 @@ class ReceiptLayout {
       final item = (raw as Map).cast<String, dynamic>();
       final name =
           item['product_name']?.toString() ?? item['name']?.toString() ?? '';
-      final sku = item['sku']?.toString().trim() ?? '';
-      final variant = item['variant_detail']?.toString() ?? '';
       final qty = asNum(item['quantity']).toInt();
       final price = asNum(item['price']);
       final subtotal = asNum(item['subtotal']);
       pair(name, fmtRp(subtotal), bold: true);
-      final details =
-          [sku, variant.trim()].where((value) => value.isNotEmpty).join(' · ');
-      if (details.isNotEmpty) left(details);
       left('$qty x ${fmtRp(price)}');
     }
     left(_separator());
