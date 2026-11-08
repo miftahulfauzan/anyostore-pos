@@ -1467,7 +1467,7 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
         centerTitle: true,
         backgroundColor: kTaskDark,
         foregroundColor: Colors.white,
-        titleTextStyle: TextStyle(
+        titleTextStyle: const TextStyle(
             fontSize: 19, fontWeight: FontWeight.w700, color: Colors.white),
         iconTheme: const IconThemeData(color: Colors.white),
         systemOverlayStyle: SystemUiOverlayStyle.light,
@@ -1955,9 +1955,9 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
                   prefixIcon: Icon(Icons.store,
                       size: 18, color: Theme.of(context).colorScheme.primary),
                   filled: true,
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
                   contentPadding:
-                      EdgeInsets.symmetric(horizontal: 12, vertical: 13)),
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 13)),
               items: [
                 for (final b in widget.branches)
                   DropdownMenuItem<int?>(
@@ -1980,9 +1980,9 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
                     labelText: 'Gudang',
                     labelStyle: TextStyle(color: taskMuted(context)),
                     filled: true,
-                    border: OutlineInputBorder(),
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12, vertical: 13)),
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 13)),
                 items: [
                   for (final w in widget.warehouses)
                     DropdownMenuItem(
@@ -2384,7 +2384,7 @@ class _CartSheetState extends State<_CartSheet> {
                               horizontal: 12, vertical: 12),
                           child: Row(
                             children: [
-                              Icon(Icons.person_outline,
+                              const Icon(Icons.person_outline,
                                   color: kTaskDark, size: 22),
                               const SizedBox(width: 10),
                               Expanded(
@@ -2414,9 +2414,9 @@ class _CartSheetState extends State<_CartSheet> {
                         bottom: BorderSide(color: taskBorder(context)),
                       ),
                     ),
-                    child: Row(
+                    child: const Row(
                       children: [
-                        const Expanded(
+                        Expanded(
                             flex: 5,
                             child: Text('Nama',
                                 style: TextStyle(fontWeight: FontWeight.w800))),
@@ -2424,14 +2424,13 @@ class _CartSheetState extends State<_CartSheet> {
                             width: 58,
                             child: Text('Qty',
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w800))),
-                        const SizedBox(
+                                style: TextStyle(fontWeight: FontWeight.w800))),
+                        SizedBox(
                             width: 82,
                             child: Text('Total',
                                 textAlign: TextAlign.right,
                                 style: TextStyle(fontWeight: FontWeight.w800))),
-                        const SizedBox(width: 44),
+                        SizedBox(width: 44),
                       ],
                     ),
                   ),

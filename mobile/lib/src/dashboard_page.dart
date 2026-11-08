@@ -1030,7 +1030,7 @@ class _MovementCard extends StatelessWidget {
             alignment: WrapAlignment.center,
             spacing: 12,
             runSpacing: 8,
-            children: [
+            children: const [
               _LegendDot(color: kTaskTeal, label: 'Stok Masuk'),
               _LegendDot(color: kTaskTerracotta, label: 'Stok Keluar'),
             ],

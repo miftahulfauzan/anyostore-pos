@@ -17,7 +17,9 @@ String? detectImageMime(List<int> bytes) {
     0x0a,
     0x1a,
     0x0a,
-  ])) return 'image/png';
+  ])) {
+    return 'image/png';
+  }
   if (startsWith(const [
         0x52,
         0x49,

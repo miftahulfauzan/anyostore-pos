@@ -149,7 +149,7 @@ ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
           fontWeight: FontWeight.w800,
           color: dark ? kTaskDarkInk : kTaskInk),
     ),
-    appBarTheme: AppBarTheme(
+    appBarTheme: const AppBarTheme(
       backgroundColor: kTaskDark,
       foregroundColor: Colors.white,
       systemOverlayStyle: SystemUiOverlayStyle.light,
@@ -159,7 +159,7 @@ ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
       centerTitle: true,
       titleTextStyle: TextStyle(
           fontSize: 19, fontWeight: FontWeight.w700, color: Colors.white),
-      iconTheme: const IconThemeData(color: Colors.white),
+      iconTheme: IconThemeData(color: Colors.white),
     ),
     cardTheme: CardThemeData(
       elevation: 0,
@@ -199,7 +199,7 @@ ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
         foregroundColor: scheme.onPrimary,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         minimumSize: const Size(0, 50),
-        textStyle: TextStyle(
+        textStyle: const TextStyle(
             fontSize: 15, fontWeight: FontWeight.w700, fontFamily: fontFamily),
       ),
     ),
@@ -209,7 +209,7 @@ ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
         side: BorderSide(color: dark ? kTaskDarkBorder : kTaskBorder),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         minimumSize: const Size(0, 48),
-        textStyle: TextStyle(
+        textStyle: const TextStyle(
             fontSize: 15, fontWeight: FontWeight.w700, fontFamily: fontFamily),
       ),
     ),
@@ -217,8 +217,8 @@ ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
       style: TextButton.styleFrom(
         foregroundColor: dark ? scheme.primary : kTaskDark,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        textStyle:
-            TextStyle(fontWeight: FontWeight.w600, fontFamily: fontFamily),
+        textStyle: const TextStyle(
+            fontWeight: FontWeight.w600, fontFamily: fontFamily),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
