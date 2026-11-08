@@ -510,8 +510,8 @@ a, .photo-upload { color:var(--expressive-secondary); }
   @page { size: A6 portrait; margin: 0; }
   html:has(.transfer-print-root.is-active),
   body:has(.transfer-print-root.is-active) {
-    width: 105mm !important;
-    min-width: 105mm !important;
+    width: 100% !important;
+    min-width: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
     background: #fff !important;
@@ -523,13 +523,13 @@ a, .photo-upload { color:var(--expressive-secondary); }
     display: block !important;
     position: absolute !important;
     inset: 0 auto auto 0 !important;
-    width: 105mm !important;
+    width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
   }
   body:has(.transfer-print-root.is-active) .transfer-print-sheet {
     display: block !important;
-    width: 105mm !important;
+    width: 100% !important;
     min-height: 148mm !important;
     margin: 0 !important;
   }

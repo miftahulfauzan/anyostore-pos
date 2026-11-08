@@ -8,7 +8,7 @@ Pengguna dapat mencetak rincian satu transfer stok dari halaman Riwayat Transfer
 
 - Tambahkan aksi **Print rincian** pada setiap kartu transfer.
 - Tampilkan print sheet khusus berisi nomor transfer, tanggal, status, admin, lokasi asal, lokasi tujuan, keterangan, alasan pembatalan bila ada, serta rincian produk.
-- Rincian produk mencakup nama, SKU, varian, jumlah, dan saldo stok sebelum/sesudah untuk mutasi keluar dan masuk.
+- Rincian produk mencakup nama, SKU, varian, jumlah, dan saldo stok sebelum/sesudah untuk barang masuk.
 - Gunakan dialog print browser dengan `@page { size: A6 portrait; }`.
 
 ## Batasan
@@ -23,4 +23,8 @@ Pendekatan yang dipilih adalah print sheet client-side dari row yang sudah dimua
 
 ## Format print
 
-Header terpusat, metadata transfer dua kolom, route asal → tujuan, catatan/audit status, lalu dua bagian rincian: **Barang keluar** dan **Barang masuk**. Setiap baris menjaga nama/SKU/varian, qty, dan stok sebelum → sesudah agar produk antarcabang yang memiliki SKU tujuan berbeda tetap terbaca apa adanya.
+Header terpusat, metadata transfer dua kolom, route asal → tujuan, catatan/audit status, lalu rincian **Barang masuk**. Setiap baris menjaga nama/SKU/varian, qty, dan stok sebelum → sesudah agar produk antarcabang yang memiliki SKU tujuan berbeda tetap terbaca apa adanya.
+
+## Revisi follow-up 8 November 2026
+
+Atas permintaan pengguna, print rincian difokuskan menjadi bukti barang yang diterima. Print sheet hanya menampilkan bagian **Barang masuk**; rincian **Barang keluar** tetap tersedia di layar riwayat dan data transfer, tetapi tidak dicetak. Sheet tetap memakai A6 portrait, namun lebarnya menggunakan 100% area halaman agar tidak menyisakan kolom kosong di sisi kanan.

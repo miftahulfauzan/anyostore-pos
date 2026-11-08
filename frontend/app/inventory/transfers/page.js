@@ -230,7 +230,6 @@ function TransferPrintDetailColumn({ title, lines }) {
 function TransferPrintSheet({ row }) {
   const source = row.source || {};
   const destination = row.destination || {};
-  const fromLines = row.details?.from || [];
   const toLines = row.details?.to || [];
   const status = transferStatusLabels[row.status] || row.status || 'Tidak diketahui';
 
@@ -258,7 +257,6 @@ function TransferPrintSheet({ row }) {
       {row.status === 'cancelled' && row.cancellation_reason && <p className="transfer-print-note"><strong>Alasan pembatalan:</strong> {row.cancellation_reason}</p>}
 
       <div className="transfer-print-details">
-        <TransferPrintDetailColumn title="Barang keluar" lines={fromLines} />
         <TransferPrintDetailColumn title="Barang masuk" lines={toLines} />
       </div>
 

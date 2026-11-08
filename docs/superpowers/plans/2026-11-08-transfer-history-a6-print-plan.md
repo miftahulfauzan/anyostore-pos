@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Print paper is A6 portrait: `105mm × 148mm`.
-- The print sheet includes transfer metadata plus both outgoing and incoming product details.
+- The print sheet includes transfer metadata plus incoming product details.
 - Existing transfer, cancellation, filtering, pagination, and on-screen history behavior must remain unchanged.
 - No new API endpoint or dependency.
 
@@ -87,3 +87,9 @@
 - [x] **Step 3: Commit and push to main**
 
   Commit with `feat: add a6 transfer history print` and push `HEAD:main`; wait for CI and Deploy workflows, then verify public `/api/health` and `/version` match the exact SHA.
+
+## Follow-up revision 8 November 2026
+
+- Print sheet hanya menampilkan rincian **Barang masuk** sesuai kebutuhan bukti penerimaan.
+- Rincian **Barang keluar** tidak dihapus dari data atau tampilan riwayat, hanya dikeluarkan dari media cetak.
+- Area print memakai `width: 100%` di dalam `@page` A6 portrait agar lebar kertas terpakai penuh.
