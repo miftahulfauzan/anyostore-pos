@@ -7,6 +7,7 @@ import { useAppSession, useUnsavedWork } from '../components/AppStateProvider';
 import BranchSwitcher from '../components/BranchSwitcher';
 import { createRequestSequence } from '../components/app-state.cjs';
 import { localDateString } from '../lib/local-date';
+import { defaultCartQuantity } from './cart-defaults.cjs';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rupiah = (amount) => `Rp${Number(amount || 0).toLocaleString('id-ID')}`;
@@ -260,7 +261,7 @@ export default function PosPage() {
     setCart((current) => {
       const found = current.find((item) => item.cart_id === cartId);
       if (found) return current.map((item) => item.cart_id === cartId ? { ...item, quantity: item.quantity + 1 } : item);
-      return [...current, { ...product, cart_id: cartId, variant_id: variant?.id || null, variant_color: variant?.color || '', price, quantity: 1, wholesale_prices: wholesalePrices, stock_available: variant ? Number(variant.stock ?? 0) : Number(product.stock ?? 0) }];
+      return [...current, { ...product, cart_id: cartId, variant_id: variant?.id || null, variant_color: variant?.color || '', price, quantity: defaultCartQuantity(selectedStore?.name), wholesale_prices: wholesalePrices, stock_available: variant ? Number(variant.stock ?? 0) : Number(product.stock ?? 0) }];
     });
     setVariantProduct(null);
   }

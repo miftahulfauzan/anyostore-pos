@@ -11,8 +11,8 @@ const quantityMarkup = page.match(/<div className="quantity">[\s\S]*?<\/div>/)?.
 
 test('PWA cart keeps fixed product rows and a sticky footer on mobile', () => {
   assert.match(finalMobile, /\.pos-layout \.cart\s*\{[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\) auto/s);
-  assert.match(finalMobile, /\.cart-lines\s*\{[^}]*gap:\s*8px/s);
-  assert.match(finalMobile, /\.cart-lines article\s*\{[^}]*height:\s*72px[^}]*min-height:\s*72px[^}]*padding:\s*8px\s+0/s);
+  assert.match(finalMobile, /\.cart-lines\s*\{[^}]*gap:\s*6px/s);
+  assert.match(finalMobile, /\.cart-lines article\s*\{[^}]*height:\s*64px[^}]*min-height:\s*64px[^}]*padding:\s*6px\s+0/s);
   assert.match(finalMobile, /\.pos-cart-footer\s*\{[^}]*position:\s*sticky/s);
 });
 

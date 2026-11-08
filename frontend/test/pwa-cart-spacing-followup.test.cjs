@@ -12,13 +12,13 @@ const quantityMarkup = page.match(/<div className="quantity">[\s\S]*?<\/div>/)?.
 test('mobile cart content stays start-aligned instead of stretching product rows', () => {
   assert.match(finalMobile, /\.pos-cart-scroll\s*\{[^}]*display:\s*flex[^}]*flex-direction:\s*column[^}]*justify-content:\s*flex-start/s);
   assert.match(finalMobile, /\.pos-cart-scroll\s*\{[^}]*padding:\s*8px\s+16px\s+12px/s);
-  assert.match(finalMobile, /\.cart-lines\s*\{[^}]*grid-auto-rows:\s*72px[^}]*align-content:\s*start/s);
-  assert.match(finalMobile, /\.cart-lines article\s*\{[^}]*height:\s*72px[^}]*min-height:\s*72px/s);
+  assert.match(finalMobile, /\.cart-lines\s*\{[^}]*grid-auto-rows:\s*64px[^}]*align-content:\s*start/s);
+  assert.match(finalMobile, /\.cart-lines article\s*\{[^}]*height:\s*64px[^}]*min-height:\s*64px/s);
 });
 
 test('mobile cart controls use compact aligned dimensions', () => {
-  assert.match(finalMobile, /\.cart-lines article\s*\{[^}]*padding:\s*8px\s+0[^}]*border-bottom:/s);
-  assert.match(finalMobile, /\.cart-lines \.quantity input\s*\{[^}]*width:\s*56px[^}]*height:\s*42px[^}]*min-height:\s*42px/s);
+  assert.match(finalMobile, /\.cart-lines article\s*\{[^}]*padding:\s*6px\s+0[^}]*border-bottom:/s);
+  assert.match(finalMobile, /\.cart-lines \.quantity input\s*\{[^}]*width:\s*56px[^}]*height:\s*40px[^}]*min-height:\s*40px/s);
   assert.match(finalMobile, /\.pos-transaction-date input\s*\{[^}]*height:\s*42px[^}]*min-height:\s*42px/s);
   assert.match(finalMobile, /\.pos-transaction-date small\s*\{[^}]*display:\s*none/s);
 });

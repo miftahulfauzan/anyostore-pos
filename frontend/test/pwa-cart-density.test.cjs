@@ -16,7 +16,7 @@ test('PWA POS catalog uses three compact product columns on mobile', () => {
 test('PWA cart allows vertical scrolling only and uses compact rows', () => {
   assert.match(finalMobile, /\.pos-cart-scroll\s*\{[^}]*overflow-y:\s*auto[^}]*overflow-x:\s*hidden[^}]*touch-action:\s*pan-y/s);
   assert.match(finalMobile, /\.cart-lines\s*\{[^}]*overflow-x:\s*hidden/s);
-  assert.match(finalMobile, /\.cart-lines article\s*\{[^}]*height:\s*72px[^}]*min-height:\s*72px[^}]*padding:\s*8px\s+0/s);
+  assert.match(finalMobile, /\.cart-lines article\s*\{[^}]*height:\s*64px[^}]*min-height:\s*64px[^}]*padding:\s*6px\s+0/s);
 });
 
 test('PWA cart keeps discount input and hold draft action reachable', () => {

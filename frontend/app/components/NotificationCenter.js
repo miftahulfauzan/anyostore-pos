@@ -18,6 +18,12 @@ function responseMessage(body, fallback) {
   return body.message || body.error || body.errors?.[0]?.message || fallback;
 }
 
+function isCompactPosRoute() {
+  return typeof window !== 'undefined'
+    && window.location.pathname === '/pos'
+    && window.matchMedia('(max-width: 820px)').matches;
+}
+
 export default function NotificationCenter() {
   const [notice, setNotice] = useState(null);
   const pendingRequests = useRef(new Set());
@@ -35,6 +41,11 @@ export default function NotificationCenter() {
   const show = useCallback((type, message, options = {}) => {
     const cleanMessage = String(message || '').trim();
     if (!cleanMessage) return;
+
+    if (isCompactPosRoute() && (type === 'loading' || type === 'success')) {
+      if (type === 'success') setNotice((current) => current?.type === 'loading' ? null : current);
+      return;
+    }
 
     const now = Date.now();
     if (type !== 'loading' && lastNotice.current.message === cleanMessage && now - lastNotice.current.at < 900) return;
