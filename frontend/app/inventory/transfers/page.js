@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Printer } from 'lucide-react';
 import AppShell from '../../components/AppShell';
 import { useAppSession, useUnsavedWork } from '../../components/AppStateProvider';
 import SafeImage from '../../components/SafeImage';
@@ -46,6 +47,7 @@ function TransferHistory({
   onApply,
   onRefresh,
   onPage,
+  onPrint,
   canCancelTransfer,
   onCancel,
   cancellingTransferId,
@@ -153,8 +155,12 @@ function TransferHistory({
                     <TransferDetailColumn title={`Masuk ke ${destination.warehouse_name || 'lokasi tujuan'}`} lines={toLines} />
                   </div>
                 </details>
-                {canCancelTransfer && row.status === 'completed' && (
-                  <div className="transfer-history-actions">
+                <div className="transfer-history-actions">
+                  <button type="button" className="secondary transfer-history-print" onClick={() => onPrint(row)}>
+                    <Printer aria-hidden="true" size={15} />
+                    Print rincian
+                  </button>
+                  {canCancelTransfer && row.status === 'completed' && (
                     <button
                       type="button"
                       className="danger"
@@ -163,8 +169,8 @@ function TransferHistory({
                     >
                       {cancellingTransferId === row.id ? 'Membatalkan…' : 'Batalkan transfer'}
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </article>
             );
           })}
@@ -201,6 +207,66 @@ function TransferDetailColumn({ title, lines }) {
   );
 }
 
+function TransferPrintDetailColumn({ title, lines }) {
+  return (
+    <section className="transfer-print-detail-column">
+      <h2>{title}</h2>
+      {!lines.length && <p className="transfer-print-muted">Tidak ada rincian mutasi.</p>}
+      {lines.map((line, index) => (
+        <div className="transfer-print-detail-line" key={`${line.id || 'product'}-${line.variant_id || 'general'}-${index}`}>
+          <div className="transfer-print-detail-name">
+            <strong>{line.name || 'Produk tidak ditemukan'}</strong>
+            <span>{line.sku || 'Tanpa SKU'}{line.variant_color ? ` · ${line.variant_color}` : ''}</span>
+            {(line.branch_name || line.warehouse_name) && <small>{[line.branch_name, line.warehouse_name].filter(Boolean).join(' · ')}</small>}
+            {line.stock_before != null && line.stock_after != null && <small>Stok {formatNumber(line.stock_before)} → {formatNumber(line.stock_after)}</small>}
+          </div>
+          <strong className="transfer-print-detail-qty">{formatNumber(line.qty)} pcs</strong>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function TransferPrintSheet({ row }) {
+  const source = row.source || {};
+  const destination = row.destination || {};
+  const fromLines = row.details?.from || [];
+  const toLines = row.details?.to || [];
+  const status = transferStatusLabels[row.status] || row.status || 'Tidak diketahui';
+
+  return (
+    <section className="transfer-print-sheet" aria-label={`Rincian transfer ${row.number || ''}`}>
+      <header className="transfer-print-heading">
+        <p>RINCIAN TRANSFER STOK</p>
+        <h1>{row.number || 'Transfer stok'}</h1>
+      </header>
+
+      <dl className="transfer-print-meta">
+        <div><dt>Tanggal</dt><dd>{formatHistoryDate(row.created_at)}</dd></div>
+        <div><dt>Status</dt><dd>{status}</dd></div>
+        <div><dt>Admin</dt><dd>{row.admin || 'Sistem'}</dd></div>
+        <div><dt>Total</dt><dd>{formatNumber(row.total_qty)} pcs · {formatNumber(row.product_count)} produk</dd></div>
+      </dl>
+
+      <section className="transfer-print-route">
+        <div><span>DARI</span><strong>{source.branch_name || 'Cabang tidak tersedia'}</strong><small>{source.warehouse_name || 'Gudang tidak tersedia'}</small></div>
+        <b aria-hidden="true">→</b>
+        <div><span>KE</span><strong>{destination.branch_name || 'Cabang tidak tersedia'}</strong><small>{destination.warehouse_name || 'Gudang tidak tersedia'}</small></div>
+      </section>
+
+      {row.notes && <p className="transfer-print-note"><strong>Keterangan:</strong> {row.notes}</p>}
+      {row.status === 'cancelled' && row.cancellation_reason && <p className="transfer-print-note"><strong>Alasan pembatalan:</strong> {row.cancellation_reason}</p>}
+
+      <div className="transfer-print-details">
+        <TransferPrintDetailColumn title="Barang keluar" lines={fromLines} />
+        <TransferPrintDetailColumn title="Barang masuk" lines={toLines} />
+      </div>
+
+      <footer className="transfer-print-footer">Dicetak dari Anyostore · {formatHistoryDate(new Date())}</footer>
+    </section>
+  );
+}
+
 export default function TransferPage() {
   const { user, activeBranchId } = useAppSession();
   const [view, setView] = useState('create');
@@ -223,6 +289,7 @@ export default function TransferPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyMessage, setHistoryMessage] = useState('');
   const [cancellingTransferId, setCancellingTransferId] = useState(null);
+  const [printingTransfer, setPrintingTransfer] = useState(null);
   const [historyFilters, setHistoryFilters] = useState({ start: '', end: '', direction: '', status: '', search: '' });
   const [historyAppliedFilters, setHistoryAppliedFilters] = useState({ start: '', end: '', direction: '', status: '', search: '' });
   const productsLoadSequence = useRef(createRequestSequence());
@@ -358,6 +425,17 @@ export default function TransferPage() {
   useEffect(() => {
     if (view === 'history') loadHistory(historyAppliedFilters, historyPage);
   }, [view, historyAppliedFilters, historyPage, loadHistory]);
+
+  useEffect(() => {
+    if (!printingTransfer) return undefined;
+    const clearPrintSheet = () => setPrintingTransfer(null);
+    window.addEventListener('afterprint', clearPrintSheet);
+    const timer = window.setTimeout(() => window.print(), 0);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('afterprint', clearPrintSheet);
+    };
+  }, [printingTransfer]);
 
   const visibleProducts = useMemo(() => {
     let list = products;
@@ -607,9 +685,11 @@ export default function TransferPage() {
       onApply={(next = historyFilters) => { setHistoryAppliedFilters(next); setHistoryPage(1); }}
       onRefresh={() => loadHistory(historyAppliedFilters, historyPage)}
       onPage={setHistoryPage}
+      onPrint={setPrintingTransfer}
       canCancelTransfer={canCancelTransfer}
       onCancel={cancelTransfer}
       cancellingTransferId={cancellingTransferId}
     />}
+    {printingTransfer && <div className="transfer-print-root is-active"><TransferPrintSheet row={printingTransfer} /></div>}
   </AppShell>;
 }
