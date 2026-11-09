@@ -162,3 +162,19 @@ test('Dasbor: kepala kartu periode tidak mengulang periode & nama toko', () => {
   assert.doesNotMatch(dashboard, /<span className="eyebrow">DASHBOARD GUDANG<\/span>/);
   assert.match(css, /\.period-toolbar-compact\s*\{[^}]*display:\s*block\s*!important/s);
 });
+
+test('katalog HP: 3 kartu per baris di stok masuk/keluar, transfer, dan daftar produk', () => {
+  assert.match(css, /@media \(max-width: 600px\)\s*\{[\s\S]{0,300}?\.stock-picker-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s);
+  assert.match(css, /@media \(max-width: 600px\)\s*\{[\s\S]{0,400}?\.product-list\.grid-view\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)\s*!important/s);
+  assert.match(css, /\.product-list\.grid-view \.product-card \.product-actions\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s);
+  const mutations = read('inventory/mutations/page.js');
+  assert.match(mutations, /stock-picker-variant-note/);
+});
+
+test('cetak transfer: teks lebih besar/tebal dan punya margin', () => {
+  assert.match(css, /\.transfer-print-sheet\s*\{[^}]*font-size:\s*9pt;/s);
+  assert.match(css, /\.transfer-print-sheet\s*\{[^}]*font-weight:\s*650;/s);
+  assert.match(css, /\.transfer-print-detail-name strong\s*\{[^}]*font-size:\s*9\.5pt;[^}]*font-weight:\s*800;/s);
+  assert.match(css, /body:has\(\.transfer-print-root\.is-active\) \.transfer-print-sheet\s*\{[^}]*padding:\s*9mm 8mm\s*!important/s);
+  assert.match(css, /body:has\(\.transfer-print-root\.is-active\)\s*\{[^}]*overflow:\s*visible\s*!important/s);
+});

@@ -47,13 +47,20 @@ const colors = {
   terracotta: '#C2410C',
 };
 
-function Section({ title, description, icon: Icon, tone = 'denim', children, className = '', ...props }) {
+function Section({ title, description, icon: Icon, tone = 'denim', meta, children, className = '', ...props }) {
   return <section className={`panel dashboard-report-section report-tone-${tone} ${className}`} {...props}>
-    <div className="section-heading dashboard-report-heading">
-      <div>
-        <h2>{Icon && <Icon aria-hidden="true" size={19} />}{title}</h2>
-        {description && <p>{description}</p>}
+    <div className="section-heading dashboard-report-heading section-head">
+      <div className="section-head-main">
+        <span className="section-accent" aria-hidden="true" />
+        {Icon && <Icon aria-hidden="true" size={17} />}
+        <h2>{title}</h2>
       </div>
+      {meta ? (
+        <span className="section-head-meta">
+          <strong>{meta.value}</strong>
+          {meta.sub ? <small> · {meta.sub}</small> : null}
+        </span>
+      ) : null}
     </div>
     {children}
   </section>;
@@ -150,8 +157,8 @@ function TrendChart({ rows, valueKey = 'revenue', color, emptyMessage, totalLabe
   </div>;
 }
 
-function ListCard({ title, icon, tone, items, emptyMessage, renderItem }) {
-  return <Section title={title} icon={icon} tone={tone} className="dashboard-list-card">
+function ListCard({ title, icon, tone, items, emptyMessage, renderItem, meta }) {
+  return <Section title={title} icon={icon} tone={tone} className="dashboard-list-card" meta={meta}>
     {items.length ? items.map((item, index) => <div className="dashboard-list-item" key={`${item.id || item.name || title}-${index}`}>
       {renderItem(item)}
     </div>) : <p className="dashboard-report-empty dashboard-list-empty">{emptyMessage}</p>}
@@ -211,6 +218,7 @@ export default function OlseraDashboardSections({ reportData, fallbackData, acti
       tone="denim"
       className="dashboard-overview-card"
       data-dashboard-section="summary"
+      meta={{ value: rupiah(summary.gross_sales), sub: `${number(summary.transactions)} pesanan` }}
     >
       <div className="dashboard-kpi-grid">
         <MetricTile label="Pendapatan" value={rupiah(summary.gross_sales)} icon={CircleDollarSign} tone="denim" change={changePercent(summary.gross_sales, previousSummary.gross_sales)} />
@@ -231,6 +239,7 @@ export default function OlseraDashboardSections({ reportData, fallbackData, acti
       tone="blue"
       className="dashboard-sales-summary"
       data-dashboard-section="sales"
+      meta={{ value: rupiah(summary.gross_sales), sub: `${number(summary.transactions)} trx` }}
     >
       <div className="dashboard-report-focal"><span>Total penjualan</span><strong>{rupiah(summary.gross_sales)}</strong><small>{number(summary.transactions)} pesanan</small></div>
       <TrendChart rows={dailySales} color={colors.blue} totalLabel="Total penjualan" emptyMessage="Belum ada data penjualan pada periode ini." />
@@ -248,6 +257,7 @@ export default function OlseraDashboardSections({ reportData, fallbackData, acti
         icon={ShoppingBag}
         tone="teal"
         items={products.slice(0, 5)}
+        meta={{ value: `${products.reduce((total, product) => total + number(product.quantity_sold), 0)} pcs` }}
         emptyMessage="Belum ada produk terlaris pada periode ini."
         renderItem={(product) => <>
           <div><strong>{product.name || '-'}</strong><span>{number(product.quantity_sold)} pcs</span></div>
@@ -259,6 +269,7 @@ export default function OlseraDashboardSections({ reportData, fallbackData, acti
         icon={AlertTriangle}
         tone="terracotta"
         items={lowStock.slice(0, 5)}
+        meta={{ value: `${lowStock.length} produk` }}
         emptyMessage="Tidak ada stok yang perlu diperiksa."
         renderItem={(product) => <>
           <div><strong>{product.name || '-'}</strong><span>{number(product.stock)} / min {number(product.min_stock)}</span></div>

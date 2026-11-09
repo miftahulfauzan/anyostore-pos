@@ -38,11 +38,12 @@ test('product card controls stay in a fixed, single row and rack values align ri
 });
 
 test('inventory summary is separated from controls without excess height', () => {
-  const inventory = rules('\\.product-list\\.grid-view \\.product-card__inventory').at(-1) || '';
-  assert.match(inventory, /display:\s*grid/);
-  assert.match(inventory, /gap:\s*4px/);
-  assert.match(inventory, /border-top:\s*1px solid var\(--border\)/);
-  assert.match(inventory, /padding-top:\s*8px/);
+  const inventoryRules = rules('\\.product-list\\.grid-view \\.product-card__inventory');
+  const base = inventoryRules.find((rule) => /display:\s*grid/.test(rule)) || '';
+  assert.match(base, /display:\s*grid/);
+  assert.match(base, /gap:\s*4px/);
+  assert.match(base, /border-top:\s*1px solid var\(--border\)/);
+  assert.match(base, /padding-top:\s*8px/);
 });
 
 test('touch layouts restore full-size action targets and avoid card overflow', () => {

@@ -159,14 +159,15 @@ function DetailGroup({ groupKey, title, description, icon: Icon, tone, count, ex
         aria-expanded={expanded}
         aria-controls={panelId}
         onClick={onToggle}
+        title={description}
       >
-        <span className="report-detail-accordion-icon"><Icon aria-hidden="true" size={19} /></span>
+        <span className="report-detail-accordion-accent" aria-hidden="true" />
+        <span className="report-detail-accordion-icon"><Icon aria-hidden="true" size={18} /></span>
         <span className="report-detail-accordion-copy">
           <strong>{title}</strong>
-          <small>{description}</small>
         </span>
         <span className="report-detail-accordion-meta">{count}</span>
-        <ChevronDown aria-hidden="true" className="report-detail-accordion-chevron" size={19} />
+        <ChevronDown aria-hidden="true" className="report-detail-accordion-chevron" size={18} />
       </button>
       {expanded && (
         <div id={panelId} className="report-detail-accordion-body">

@@ -41,8 +41,17 @@ Future<void> main() async {
   await NotificationService.init();
   if (auth.isAuthenticated) {
     // Cek stok menipis + backup otomatis + pengingat harian saat app dibuka.
-    unawaited(BackupService.checkLowStock(auth.api));
-    unawaited(_autoBackup(auth.api));
+    // /reports/overview dibatasi untuk owner/manager/admin, jadi role gudang
+    // (dan kasir) tidak boleh memanggilnya agar tidak muncul "Akses ditolak".
+    final role = auth.role;
+    final canReadReports = role == 'owner' || role == 'manager' || role == 'admin';
+    if (canReadReports) {
+      unawaited(BackupService.checkLowStock(auth.api));
+    }
+    // /backup hanya untuk owner.
+    if (role == 'owner') {
+      unawaited(_autoBackup(auth.api));
+    }
     unawaited(NotificationService.scheduleDailyReminder());
   }
   runApp(
