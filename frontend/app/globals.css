@@ -6428,3 +6428,41 @@ html[data-theme] .sidebar .nav-group-toggle:hover {
   .header-actions > .branch-switcher .branch-switcher-trigger { max-width: 46vw !important; }
   .header-actions > .branch-switcher .branch-switcher-name { font-size: 10.5px !important; }
 }
+
+/* ========================================================================
+   Tombol tutup drawer (×) di sidebar HP:
+   - blok denim tadi menimpa padding kanan brand sehingga teks "Anyostore"
+     masuk ke bawah tombol tutup;
+   - ukuran 44px terasa besar dan menonjol.
+   ======================================================================== */
+@media (max-width: 820px) {
+  html[data-theme] .sidebar .brand {
+    padding: 4px 52px 13px 6px !important;
+    min-height: 46px;
+  }
+  .sidebar .brand > span:last-child {
+    min-width: 0;
+    overflow: hidden;
+  }
+  .sidebar .brand strong,
+  .sidebar .brand small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .sidebar-close {
+    top: max(10px, env(safe-area-inset-top));
+    right: 8px;
+    width: 36px;
+    height: 36px;
+    border: 1px solid rgba(255,255,255,.18) !important;
+    border-radius: 9px !important;
+    background: rgba(255,255,255,.10) !important;
+    color: #fff !important;
+    box-shadow: none !important;
+  }
+  .sidebar-close svg { width: 18px; height: 18px; }
+}
+@media (max-width: 820px) {
+  .sidebar-close { min-height: 36px !important; min-width: 36px; }
+}

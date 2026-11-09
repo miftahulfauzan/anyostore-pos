@@ -132,3 +132,9 @@ test('header HP sejajar judul: satu baris, tema pindah ke menu bila ada aksi', (
   assert.match(css, /@media \(max-width: 520px\)\s*\{[\s\S]{0,400}?\.header-actions\.has-menu > \.theme-toggle\s*\{\s*display:\s*none\s*!important/s);
   assert.match(css, /@media \(max-width: 520px\)\s*\{[\s\S]{0,600}?\.header-actions\s*\{[^}]*display:\s*flex\s*!important/s);
 });
+
+test('sidebar HP: tombol tutup kecil dan tidak menimpa nama toko', () => {
+  assert.match(css, /@media \(max-width: 820px\)\s*\{[\s\S]{0,300}?html\[data-theme\] \.sidebar \.brand\s*\{[^}]*padding:\s*4px 52px 13px 6px\s*!important/s);
+  assert.match(css, /@media \(max-width: 820px\)\s*\{[\s\S]{0,900}?\.sidebar-close\s*\{[^}]*width:\s*36px;[^}]*height:\s*36px;/s);
+  assert.match(css, /\.sidebar \.brand small\s*\{[^}]*text-overflow:\s*ellipsis/s, 'teks brand harus dipotong rapi');
+});
