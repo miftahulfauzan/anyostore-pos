@@ -16,7 +16,7 @@ const manifestSource = readIfPresent('public/manifest.json');
 const manifest = manifestSource ? JSON.parse(manifestSource) : {};
 const serviceWorker = readIfPresent('public/sw.js');
 
-test('mobile dashboard actions use a stable two-row grid', () => {
+test('mobile header keeps the title and store switcher on one row', () => {
   assert.match(css, /@media\s*\(max-width:\s*520px\)[\s\S]*?\.header-actions\s*\{[^}]*display:\s*grid/s);
   assert.match(css, /\.header-actions\s*>\s*\.branch-switcher\s*\{[^}]*grid-column:\s*1/s);
   assert.match(css, /\.header-actions\s*>\s*\.theme-toggle\s*\{[^}]*grid-column:\s*2/s);
@@ -26,9 +26,10 @@ test('mobile dashboard actions use a stable two-row grid', () => {
   const finalMobileLayoutStart = css.lastIndexOf('/* Final mobile dashboard layout */');
   assert.notEqual(finalMobileLayoutStart, -1);
   const finalMobileLayout = css.slice(finalMobileLayoutStart);
-  assert.match(finalMobileLayout, /\.header-actions\s*\{[^}]*display:\s*grid/s);
-  assert.match(finalMobileLayout, /\.header-action-links\s*\{[^}]*grid-template-columns:\s*repeat\(3/s);
-  assert.doesNotMatch(finalMobileLayout, /\.header-actions\s*\{[^}]*display:\s*flex/s);
+  // Header HP sekarang satu baris: judul di kiri, pemilih toko + aksi di kanan.
+  assert.match(finalMobileLayout, /\.app-header\s*\{[^}]*flex-direction:\s*row\s*!important/s);
+  assert.match(finalMobileLayout, /\.header-actions\s*\{[^}]*display:\s*flex\s*!important/s);
+  assert.match(finalMobileLayout, /\.header-actions\s*\{[^}]*flex-wrap:\s*nowrap\s*!important/s);
 });
 
 test('mobile dashboard content stays centered within the viewport', () => {

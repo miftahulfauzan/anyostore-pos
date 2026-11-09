@@ -123,3 +123,12 @@ test('POS: kepala katalog dipadatkan jadi satu baris', () => {
   assert.match(css, /\.catalog-toolbar\s*\{[^}]*display:\s*flex/s);
   assert.match(css, /@media \(max-width: 430px\)\s*\{[^}]*\.catalog-count\s*\{\s*display:\s*none/s);
 });
+
+test('header HP sejajar judul: satu baris, tema pindah ke menu bila ada aksi', () => {
+  const shell = read('components/AppShell.js');
+  assert.match(shell, /header-actions\$\{actions \? ' has-menu' : ''\}/);
+  assert.match(shell, /header-actions-sheet-theme/);
+  assert.match(css, /@media \(max-width: 820px\)\s*\{[\s\S]{0,400}?\.app-header\s*\{[^}]*flex-direction:\s*row\s*!important/s);
+  assert.match(css, /@media \(max-width: 520px\)\s*\{[\s\S]{0,400}?\.header-actions\.has-menu > \.theme-toggle\s*\{\s*display:\s*none\s*!important/s);
+  assert.match(css, /@media \(max-width: 520px\)\s*\{[\s\S]{0,600}?\.header-actions\s*\{[^}]*display:\s*flex\s*!important/s);
+});

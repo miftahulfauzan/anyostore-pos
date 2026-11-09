@@ -359,7 +359,7 @@ export default function AppShell({ title, eyebrow, actions, children }) {
               <h1>{title}</h1>
             </div>
           </div>
-          <div className="header-actions">
+          <div className={`header-actions${actions ? ' has-menu' : ''}`}>
             <BranchSwitcher />
             <button type="button" className="theme-toggle" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Ganti ke mode terang' : 'Ganti ke mode gelap'}>
               {theme === 'dark' ? <Sun aria-hidden="true" size={18} /> : <Moon aria-hidden="true" size={18} />}
@@ -390,6 +390,10 @@ export default function AppShell({ title, eyebrow, actions, children }) {
                 </button>
               </div>
               <div className="header-actions-sheet-body">{actions}</div>
+              <button type="button" className="header-actions-sheet-theme" onClick={() => { toggleTheme(); setActionsOpen(false); }}>
+                {theme === 'dark' ? <Sun aria-hidden="true" size={18} /> : <Moon aria-hidden="true" size={18} />}
+                <span>{theme === 'dark' ? 'Mode terang' : 'Mode gelap'}</span>
+              </button>
             </div>
           </div>
         ) : null}

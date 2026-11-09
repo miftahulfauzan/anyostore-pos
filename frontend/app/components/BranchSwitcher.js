@@ -83,7 +83,7 @@ export default function BranchSwitcher() {
             : (selected?.name || 'A').trim().charAt(0).toUpperCase()}
         </span>
         <span className="branch-switcher-copy">
-          <strong className="branch-switcher-name">{currentLabel}</strong>
+          <strong className="branch-switcher-name">{activeBranchId === 'all' ? 'Semua Toko' : selected?.name || currentLabel}</strong>
           {selected?.address ? <small className="branch-switcher-address">{selected.address}</small> : null}
         </span>
         <ChevronDown aria-hidden="true" size={15} />
