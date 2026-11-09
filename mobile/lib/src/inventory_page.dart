@@ -3209,8 +3209,7 @@ class _OpnamePickerState extends State<_OpnamePicker> {
           TextButton(
             key: const ValueKey('opname-picker-done-button'),
             style: TextButton.styleFrom(foregroundColor: Colors.white),
-            onPressed:
-                _added.isEmpty ? null : () => Navigator.pop(context, _added),
+            onPressed: _finish,
             child: Text('Selesai (${_added.length})'),
           ),
         ],
@@ -3251,9 +3250,25 @@ class _OpnamePickerState extends State<_OpnamePicker> {
               },
             ),
           ),
+          SafeArea(
+            top: false,
+            minimum: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+            child: FilledButton.icon(
+              key: const ValueKey('opname-picker-done-bottom-button'),
+              onPressed: _added.isEmpty ? null : _finish,
+              icon: const Icon(Icons.check),
+              label: Text('Selesai memilih (${_added.length})'),
+              style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50)),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  void _finish() {
+    if (_added.isNotEmpty) Navigator.pop(context, _added);
   }
 }
 

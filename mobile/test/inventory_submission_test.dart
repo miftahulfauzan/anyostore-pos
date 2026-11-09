@@ -486,6 +486,11 @@ void main() {
     final action = tester
         .widget<TextButton>(find.widgetWithText(TextButton, 'Selesai (1)'));
     expect(action.style?.foregroundColor?.resolve({}), Colors.white);
+    expect(
+        find
+            .byKey(const ValueKey('opname-picker-done-bottom-button'))
+            .hitTestable(),
+        findsOneWidget);
   });
 
   testWidgets('opname blank count stays in dialog with an error',
