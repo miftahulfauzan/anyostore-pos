@@ -57,7 +57,11 @@ test('business dashboard and stock dashboard both fetch using the shared branch 
   assert.match(stock, /activeBranchId/);
   assert.doesNotMatch(stock, /useState\('all'\)/);
   assert.doesNotMatch(stock, /stock-dashboard-branch/);
-  assert.match(read('pos/page.js'), /user\?\.role !== 'owner' && <label htmlFor="pos-store-select"/);
+  const pos = read('pos/page.js');
+  assert.match(pos, /user\?\.role !== 'owner' && \(/);
+  assert.match(pos, /htmlFor="pos-store-select"/);
+  assert.doesNotMatch(pos, /pos-store-context/, 'info toko cukup sekali di header, bukan diulang di POS');
+  assert.doesNotMatch(pos, /Mengikuti pilihan toko di header/);
 });
 
 test('Owner opname requires an explicit branch and warehouse before loading stock', () => {

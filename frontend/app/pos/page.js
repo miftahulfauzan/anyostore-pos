@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ArrowUpRight, ChevronDown, Edit3, FileText, LayoutDashboard, LogOut, MoreVertical, PauseCircle, ShoppingCart, StickyNote, Store as StoreIcon, Tag, Trash2, UserRound, X } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, ChevronDown, Edit3, FileText, LayoutDashboard, LogOut, MoreVertical, PauseCircle, ShoppingCart, StickyNote, Tag, Trash2, UserRound, X } from 'lucide-react';
 import { useAppSession, useUnsavedWork } from '../components/AppStateProvider';
 import BranchSwitcher from '../components/BranchSwitcher';
 import { createRequestSequence } from '../components/app-state.cjs';
@@ -511,10 +511,14 @@ export default function PosPage() {
     <div className="pos-standalone">
       <header className="pos-standalone-header"><div className="pos-standalone-brand-wrap"><a className="pos-standalone-brand" href="/dashboard"><span>A</span><div><strong>Anyostore POS</strong><small>Kasir toko</small></div></a>{user?.role !== 'gudang' && <button type="button" className="pos-draft-button" onClick={openDrafts} aria-label="Buka Draft" title="Buka Draft"><FileText aria-hidden="true" size={18} /><span>Draft</span></button>}</div><nav><BranchSwitcher /><a href="/dashboard"><LayoutDashboard aria-hidden="true" size={15} /> Dasbor</a><a href="/history">Riwayat <ArrowUpRight aria-hidden="true" size={15} /></a><a href="/" target="_blank" rel="noopener noreferrer">Landing Page</a><button type="button" onClick={logout}><LogOut aria-hidden="true" size={15} /> Keluar</button></nav></header>
       <div className="pos-workspace">
-        <section className="pos-store-bar" aria-label="Toko aktif untuk transaksi">
-          <div className="pos-store-context"><span><StoreIcon aria-hidden="true" size={18} /></span><div><strong>{selectedStore?.name || (loadingStore ? 'Memuat toko…' : 'Pilih toko aktif')}</strong><small>{stores.length > 1 ? 'Mengikuti pilihan toko di header' : 'POS mengikuti toko akun ini'}</small></div></div>
-          {user?.role !== 'owner' && <label htmlFor="pos-store-select"><span>Toko transaksi</span><select id="pos-store-select" value={storeId} onChange={changeStore} disabled={loadingStore || stores.length <= 1}>{stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}</select></label>}
-        </section>
+        {/* Info toko hanya ditampilkan sekali di header (pemilih toko).
+            Baris ini hanya dipakai role non-owner yang butuh memilih toko
+            transaksi karena header tidak menampilkan pemilih toko. */}
+        {user?.role !== 'owner' && (
+          <section className="pos-store-bar" aria-label="Toko aktif untuk transaksi">
+            <label htmlFor="pos-store-select"><span>Toko transaksi</span><select id="pos-store-select" value={storeId} onChange={changeStore} disabled={loadingStore || stores.length <= 1}>{stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}</select></label>
+          </section>
+        )}
         <button type="button" className="mobile-cart-toggle" onClick={() => setMobileCartOpen(true)} aria-expanded={mobileCartOpen}>
           <ShoppingCart aria-hidden="true" size={19} />
           <span>Keranjang</span>
