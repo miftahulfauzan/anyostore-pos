@@ -9,6 +9,7 @@ export default function DateRangePresets({ active, onPick, label = 'Pilih rentan
         <button
           key={key}
           type="button"
+          className="period-chip"
           aria-pressed={active === key}
           onClick={() => onPick(key, getWarehousePeriodRange(key))}
         >

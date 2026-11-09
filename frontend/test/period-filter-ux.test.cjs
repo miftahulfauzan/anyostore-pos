@@ -42,6 +42,16 @@ test('semua halaman periode memakai default hari ini', () => {
   assert.match(read('expenses/page.js'), /useState\('today'\)/);
 });
 
+test('chip periode memakai class sendiri supaya tidak terkena aturan tombol global', () => {
+  assert.match(read('components/DateRangePresets.js'), /className="period-chip"/);
+  assert.match(read('dashboard/page.js'), /className="period-chip"/);
+  assert.match(read('inventory/dashboard/page.js'), /className="period-chip"/);
+  assert.match(read('inventory/mutation-report/page.js'), /className="period-chip"/);
+  assert.match(css, /\.period-chip\s*\{[^}]*background:\s*#fff;/s, 'chip netral harus putih');
+  assert.match(css, /\.period-chip\[aria-pressed="true"\]\s*\{[^}]*background:\s*var\(--action-bg/s, 'chip aktif memakai warna aksi');
+  assert.match(css, /\.period-filter-toggle\s*\{[^}]*background:\s*#fff;/s, 'toggle periode harus netral, bukan warna tombol aksi');
+});
+
 test('preset periode tampil sebagai chip satu baris yang bisa digeser', () => {
   assert.match(
     css,

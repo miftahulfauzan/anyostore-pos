@@ -96,7 +96,7 @@ export default function StockDashboardPage() {
       <div className="stock-dashboard-controls">
         <div className="warehouse-dashboard-periods stock-dashboard-periods" role="group" aria-label="Pilih periode dashboard stok">
           {WAREHOUSE_PERIOD_OPTIONS.map(({ key, label }) => (
-            <button type="button" key={key} aria-pressed={selectedPeriod === key} onClick={() => applyPeriod(key)}>
+            <button type="button" key={key} className="period-chip" aria-pressed={selectedPeriod === key} onClick={() => applyPeriod(key)}>
               {label}
             </button>
           ))}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, RefreshCw } from "lucide-react";
 import AppShell from "../components/AppShell";
 import DateRangePresets from "../components/DateRangePresets";
 import { getWarehousePeriodRange, WAREHOUSE_PERIOD_OPTIONS } from "../dashboard/warehouse-periods.mjs";
@@ -159,7 +159,10 @@ export default function ReportsPage() {
                 <input type="date" value={draftPeriod.end} onChange={(event) => setDraftPeriod((current) => ({ ...current, end: event.target.value }))} />
               </label>
             </div>
-            <p className="muted period-filter-hint">Perubahan periode langsung diterapkan.</p>
+            <p className="period-filter-hint">
+              <RefreshCw aria-hidden="true" size={14} />
+              Periode diterapkan otomatis
+            </p>
           </div>
         ) : null}
       </section>

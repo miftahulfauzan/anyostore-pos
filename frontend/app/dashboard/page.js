@@ -148,6 +148,7 @@ export default function DashboardPage() {
                     <button
                       type="button"
                       key={key}
+                      className="period-chip"
                       aria-pressed={selectedPeriod === key}
                       onClick={() => applyPeriod(key)}
                     >
@@ -188,7 +189,7 @@ export default function DashboardPage() {
             <div className="period-filter-body">
               <div className="dashboard-report-periods" role="group" aria-label="Pilih periode dashboard penjualan">
                 {WAREHOUSE_PERIOD_OPTIONS.map(({ key, label }) => (
-                  <button type="button" key={key} aria-pressed={selectedPeriod === key} onClick={() => applyPeriod(key)}>{label}</button>
+                  <button type="button" key={key} className="period-chip" aria-pressed={selectedPeriod === key} onClick={() => applyPeriod(key)}>{label}</button>
                 ))}
               </div>
               <div className="dashboard-report-date-filter">

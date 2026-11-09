@@ -170,7 +170,7 @@ export default function MutationReportPage() {
         <section className="panel no-print">
           <div className="warehouse-dashboard-periods stock-dashboard-periods mutation-report-periods" role="group" aria-label="Pilih periode laporan barang">
             {WAREHOUSE_PERIOD_OPTIONS.map(({ key, label }) => (
-              <button type="button" key={key} aria-pressed={preset === key} onClick={() => applyPreset(key)}>{label}</button>
+              <button type="button" key={key} className="period-chip" aria-pressed={preset === key} onClick={() => applyPreset(key)}>{label}</button>
             ))}
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'end' }}>
