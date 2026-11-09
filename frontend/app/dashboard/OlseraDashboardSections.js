@@ -18,7 +18,7 @@ const changePercent = (current, previous) => {
   if (previous == null) return null;
   const before = number(previous);
   const now = number(current);
-  if (before === 0) return now === 0 ? '—' : null;
+  if (before === 0) return now === 0 ? '0%' : null;
   const change = ((now - before) / Math.abs(before)) * 100;
   return `${change >= 0 ? '↑ +' : '↓ '}${Math.abs(change).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 };

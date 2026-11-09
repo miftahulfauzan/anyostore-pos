@@ -52,7 +52,7 @@ String? _changePercent(dynamic current, dynamic previous) {
   if (previous == null) return null;
   final before = asNum(previous);
   final now = asNum(current);
-  if (before == 0) return now == 0 ? '—' : null;
+  if (before == 0) return now == 0 ? '0%' : null;
   final change = (now - before) * 100 / before.abs();
   final arrow = change >= 0 ? '↑ +' : '↓ ';
   return '$arrow${change.abs().toStringAsFixed(1)}%';
