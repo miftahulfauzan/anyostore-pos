@@ -193,8 +193,8 @@ void main() {
 
     expect(
         find.byKey(const ValueKey('reports-period-selector')), findsOneWidget);
-    expect(find.text('Transaksi periode'), findsOneWidget);
-    expect(find.text('7 hari'), findsWidgets);
+    expect(find.text('Pesanan'), findsOneWidget);
+    expect(find.text('Produk terjual'), findsOneWidget);
     expect(find.text('Transaksi hari ini'), findsNothing);
   });
 }

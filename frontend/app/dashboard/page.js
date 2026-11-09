@@ -100,13 +100,9 @@ export default function DashboardPage() {
 
   const role = user?.role || null;
   const isGudang = role === 'gudang';
-  const selectedSummary = data?.selected_summary || data?.summary || {};
-  const selectedTrend = data?.selected_sales_trend || data?.sales_trend || [];
-  const selectedPayments = data?.selected_payment_breakdown || data?.payment_breakdown || [];
   const selectedRecent = data?.selected_recent_transactions || data?.recent_transactions || [];
   const selectedStores = data?.selected_stores || data?.stores || [];
   const selectedPeriodRange = data?.selected_period || range;
-  const cashierPeakSales = Math.max(1, ...selectedTrend.map((item) => Number(item.sales)));
 
   return <AppShell title="Dasbor" eyebrow={isGudang ? 'RINGKASAN GUDANG' : 'RINGKASAN TOKO'} actions={isGudang ? <><Link className="button-link" href="/inventory">Kelola Stok</Link><a className="button-link" href="/" target="_blank" rel="noopener noreferrer">Landing Page</a></> : <><a className="button-link" href="/" target="_blank" rel="noopener noreferrer">Landing Page</a><Link className="button-link" href="/closing">Cetak Penutupan</Link><Link className="button-link" href="/pos">Buka Kasir <ArrowUpRight aria-hidden="true" size={15} /></Link></>}>
     {message && <p className="message" role="status">{message}</p>}
@@ -141,19 +137,7 @@ export default function DashboardPage() {
         <WarehouseDashboard data={data} start={range.start} end={range.end} canMutateStock={isGudang} />
       </>
     ) : role === 'kasir' ? <>
-      <section className="dashboard-report-layout">
-        <section className="panel dashboard-report-section report-tone-blue">
-          <div className="section-heading dashboard-report-heading"><div><h2>Penjualan</h2><p>Ringkasan kasir sesuai periode yang dipilih.</p></div></div>
-          <div className="dashboard-report-focal"><span>Penjualan periode</span><strong>{rupiah(selectedSummary.sales)}</strong><small>{selectedSummary.transactions || 0} transaksi selesai</small></div>
-          <div className="dashboard-report-row"><span>Produk terjual</span><strong>{selectedSummary.products_sold || 0} pcs</strong></div>
-          <div className="dashboard-report-row"><span>Pengeluaran</span><strong>{rupiah(selectedSummary.expenses)}</strong></div>
-          <div className="dashboard-report-row"><span>Pembayaran</span><strong>{selectedPayments.map((item) => `${labelFor(paymentLabels, item.payment_method)} ${rupiah(item.amount)}`).join(' · ') || '-'}</strong></div>
-        </section>
-        <section className="panel dashboard-report-section report-tone-blue">
-          <div className="section-heading dashboard-report-heading"><div><h2>Tren penjualan</h2><p>Penjualan harian dari periode yang dipilih.</p></div></div>
-          <div className="bar-chart">{selectedTrend.map((item) => <div className="bar-column" key={item.date}><strong>{rupiah(item.sales)}</strong><span className="bar" style={{ height: Math.max(8, Number(item.sales) / cashierPeakSales * 150) + 'px' }} /><small>{item.label}</small></div>)}</div>
-        </section>
-      </section>
+      <OlseraDashboardSections reportData={null} fallbackData={data} />
       <section className="panel dashboard-recent"><div className="section-heading"><div><h2>Transaksi terbaru</h2><p>Aktivitas penjualan pada periode terpilih.</p></div><Link href="/history">Lihat semua</Link></div><div className="data-list">{selectedRecent.length ? selectedRecent.map((tx) => <article key={tx.id}><div><strong>{tx.invoice_no}</strong><span>{tx.cashier} · {transactionDateTime(tx)}</span></div><div><strong>{rupiah(tx.grand_total)}</strong><span className="tag">{labelFor(paymentLabels, tx.payment_method)}</span></div></article>) : <p>Belum ada transaksi.</p>}</div></section>
     </> : <>
       {role === 'owner' && activeBranchId === 'all' && <p className="dashboard-note"><Store aria-hidden="true" size={15} /> Menampilkan gabungan seluruh toko/gudang.</p>}

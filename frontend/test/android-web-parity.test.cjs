@@ -7,6 +7,7 @@ const root = path.resolve(__dirname, '..', '..');
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8');
 
 const webDashboard = read('frontend/app/dashboard/page.js');
+const webDashboardSections = read('frontend/app/dashboard/OlseraDashboardSections.js');
 const mobileReports = read('mobile/lib/src/reports_page.dart');
 const backendReports = read('backend/src/routes/reports.js');
 const webClosing = read('frontend/app/closing/page.js');
@@ -18,6 +19,7 @@ const webExpenses = read('frontend/app/expenses/page.js');
 const mobileFinance = read('mobile/lib/src/finance_page.dart');
 
 test('dashboard web and Android consume one selected-period contract', () => {
+  const webDashboardContract = `${webDashboard}\n${webDashboardSections}`;
   for (const field of [
     'selected_period',
     'selected_summary',
@@ -25,7 +27,7 @@ test('dashboard web and Android consume one selected-period contract', () => {
     'selected_payment_breakdown',
     'selected_recent_transactions',
   ]) {
-    assert.match(webDashboard, new RegExp(field), `web dashboard must use ${field}`);
+    assert.match(webDashboardContract, new RegExp(field), `web dashboard must use ${field}`);
   }
   for (const field of ['selected_period', 'selected_summary', 'selected_sales_trend']) {
     assert.match(mobileReports, new RegExp(field), `Android reports must use ${field}`);

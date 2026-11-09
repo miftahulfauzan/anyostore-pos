@@ -231,12 +231,20 @@ void main() {
             expect(find.text('Dashboard'), findsNothing);
             expect(find.byKey(const ValueKey('reports-dashboard-trend')),
                 findsOneWidget);
+            expect(find.byKey(const ValueKey('reports-merged-summary')),
+                findsOneWidget);
+            expect(find.byKey(const ValueKey('reports-merged-sales')),
+                findsOneWidget);
+            await expectReportKey(tester, 'reports-merged-products');
+            await expectReportKey(tester, 'reports-merged-low-stock');
             expect(find.byKey(const ValueKey('reports-shop-glance')),
-                findsOneWidget);
+                findsNothing);
             expect(find.byKey(const ValueKey('reports-sales-section')),
-                findsOneWidget);
-            await expectReportKey(tester, 'reports-expense-section');
-            await expectReportKey(tester, 'reports-return-section');
+                findsNothing);
+            expect(find.byKey(const ValueKey('reports-expense-section')),
+                findsNothing);
+            expect(find.byKey(const ValueKey('reports-return-section')),
+                findsNothing);
             await tester.drag(
                 find.byType(ListView).first, const Offset(0, 1600));
             await tester.pumpAndSettle();
@@ -246,6 +254,8 @@ void main() {
                 findsNothing);
             expect(find.text('Sekilas toko'), findsNothing);
             expect(find.text('Ringkasan toko'), findsOneWidget);
+            expect(find.text('Penjualan'), findsOneWidget);
+            expect(find.text('Laba bersih'), findsOneWidget);
             expect(find.text('Pelanggan baru'), findsNothing);
             expect(find.text('Pemasukan'), findsNothing);
             expect(find.text('Rata-rata transaksi'), findsNothing);
@@ -390,14 +400,10 @@ void main() {
     await tester.tap(find.text('Coba lagi'));
     await tester.pumpAndSettle();
     expect(find.text('Belum ada penjualan pada rentang ini.'), findsOneWidget);
-    for (final message in [
-      'Belum ada data pengeluaran pada periode ini.',
-      'Belum ada data retur pada periode ini.',
-    ]) {
-      final finder = find.text(message);
-      await scrollToFinder(tester, finder);
-      expect(finder, findsOneWidget);
-    }
+    final productMessage =
+        find.text('Belum ada produk terlaris pada periode ini.');
+    await scrollToFinder(tester, productMessage);
+    expect(productMessage, findsOneWidget);
     final changePeriod = find.text('Ubah periode');
     await scrollToFinder(tester, changePeriod, delta: 420);
     await tester.tap(changePeriod);

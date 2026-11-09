@@ -18,20 +18,33 @@ test('dashboard web uses the enriched reports overview', () => {
   assert.match(source, /Pilih periode dashboard penjualan/);
   for (const section of [
     'Ringkasan toko',
-    'Sales',
-    'Expense',
-    'Return',
-    'Hasil usaha',
+    'Penjualan',
+    'Produk terlaris',
+    'Stok rendah',
     'Produk terjual',
+    'Laba bersih',
   ]) {
     assert.match(sections, new RegExp(section));
   }
+  for (const mergedClass of [
+    'dashboard-merged',
+    'dashboard-kpi-grid',
+    'dashboard-sales-summary',
+    'dashboard-secondary-grid',
+  ]) {
+    assert.match(sections, new RegExp(mergedClass));
+  }
+  assert.match(sections, /fallbackData/);
+  assert.match(sections, /payment_methods/);
   for (const removed of [
     'Pelanggan baru',
     'Pemasukan',
     'Rata-rata transaksi',
     'title="Income"',
     'Top product groups',
+    'title="Sales"',
+    'title="Expense"',
+    'title="Return"',
   ]) {
     assert.doesNotMatch(sections, new RegExp(removed));
   }

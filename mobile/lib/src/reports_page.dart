@@ -5,7 +5,6 @@ import 'dart:convert';
 
 import 'dart:io';
 
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -978,31 +977,6 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   List<Widget> _dashboard() {
-    if (widget.role == 'kasir') {
-      final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
-      final payments = ((_data?['payment_methods'] as List?) ?? [])
-          .whereType<Map<String, dynamic>>()
-          .toList();
-      final daily = ((_data?['daily_sales'] as List?) ?? [])
-          .whereType<Map<String, dynamic>>()
-          .toList();
-      return [
-        _Card('Penjualan', [
-          _FocalMetric(_presetLabel(_preset), fmtRp(asNum(summary['revenue']))),
-          _Row('Transaksi periode', '${summary['transactions'] ?? 0}'),
-          _Row('Produk terjual', '${summary['products_sold'] ?? 0} pcs'),
-          _Row('Pengeluaran periode', fmtRp(asNum(summary['expenses']))),
-        ]),
-        if (daily.isNotEmpty) _SalesTrendCard(rows: daily),
-        if (payments.isNotEmpty)
-          _Card('Pembayaran · 30 hari', [
-            for (final payment in payments.take(5))
-              _Row((payment['payment_method'] ?? '').toString().toUpperCase(),
-                  fmtRp(asNum(payment['amount']))),
-          ]),
-      ];
-    }
-
     final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
     final methods = ((_data?['payment_methods'] as List?) ?? [])
         .whereType<Map<String, dynamic>>()
@@ -1016,94 +990,90 @@ class _ReportsPageState extends State<ReportsPage> {
     final daily = ((_data?['daily_sales'] as List?) ?? [])
         .whereType<Map<String, dynamic>>()
         .toList();
-    final dailyExpenses = _reportRows('daily_expenses');
-    final dailyReturns = _reportRows('daily_returns');
-    final salesSources = _reportRows('sales_sources');
     final productsSold = _totalProductsSold(_data);
+    final paymentTotal = methods.fold<double>(0,
+        (total, method) => total + asNum(method['amount'] ?? method['total']));
+    final hasProfit = summary['net_profit'] != null;
+    final fourthKpiLabel = hasProfit ? 'Laba bersih' : 'Pengeluaran';
+    final fourthKpiValue = hasProfit
+        ? fmtRp(asNum(summary['net_profit']))
+        : fmtRp(asNum(summary['expenses']));
     return [
       _ReportSection(
-        key: const ValueKey('reports-shop-glance'),
+        key: const ValueKey('reports-merged-summary'),
         title: 'Ringkasan toko',
         icon: Icons.storefront_outlined,
         color: kTaskDark,
         children: [
-          _Row('Pesanan', '${summary['transactions'] ?? 0}'),
-          _Row('Pendapatan',
-              fmtRp(asNum(summary['gross_sales'] ?? summary['revenue']))),
-          if (productsSold != null) _Row('Produk terjual', '$productsSold pcs'),
-          if (summary['profit_margin_percent'] != null)
-            _Row('Persentase keuntungan',
-                _fmtPercent(summary['profit_margin_percent'])),
+          _DashboardKpiGrid(
+            items: [
+              _DashboardKpiData(
+                  'Pendapatan',
+                  fmtRp(asNum(summary['gross_sales'] ?? summary['revenue'])),
+                  Icons.account_balance_wallet_outlined,
+                  kTaskDark),
+              _DashboardKpiData('Pesanan', '${summary['transactions'] ?? 0}',
+                  Icons.shopping_bag_outlined, kTaskAccent),
+              _DashboardKpiData('Produk terjual', '${productsSold ?? 0} pcs',
+                  Icons.inventory_2_outlined, kTaskTeal),
+              _DashboardKpiData(fourthKpiLabel, fourthKpiValue,
+                  Icons.savings_outlined, kTaskPurple),
+            ],
+          ),
+          _Row(
+              'Margin keuntungan',
+              summary['profit_margin_percent'] != null
+                  ? _fmtPercent(summary['profit_margin_percent'])
+                  : '-'),
           _Row('Pengeluaran', fmtRp(asNum(summary['expenses']))),
           _Row('Pengembalian', fmtRp(asNum(summary['return_amount']))),
         ],
       ),
       _ReportSection(
-        key: const ValueKey('reports-sales-section'),
-        title: 'Sales',
+        key: const ValueKey('reports-merged-sales'),
+        title: 'Penjualan',
         icon: Icons.trending_up,
         color: kTaskAccent,
         children: [
-          _FocalMetric('Total sales',
+          _FocalMetric('Total penjualan',
               fmtRp(asNum(summary['gross_sales'] ?? summary['revenue']))),
           if (daily.isNotEmpty)
             _SalesTrendCard(rows: daily)
           else
             const _ReportEmptySeries(
                 'Belum ada data penjualan pada periode ini.'),
+          _Row(
+              'Pembayaran',
+              paymentTotal > 0
+                  ? fmtRp(paymentTotal)
+                  : fmtRp(asNum(summary['gross_sales'] ?? summary['revenue']))),
+          _Row('Pengeluaran', fmtRp(asNum(summary['expenses']))),
+          _Row('Pengembalian', fmtRp(asNum(summary['return_amount']))),
         ],
       ),
-      _ReportSeriesSection(
-        key: const ValueKey('reports-expense-section'),
-        title: 'Expense',
-        icon: Icons.north_east,
+      _DashboardListCard(
+        key: const ValueKey('reports-merged-products'),
+        title: 'Produk terlaris',
+        icon: Icons.shopping_bag_outlined,
+        color: kTaskTeal,
+        items: products.take(5).toList(),
+        emptyMessage: 'Belum ada produk terlaris pada periode ini.',
+        value: (product) => '${product['quantity_sold'] ?? 0} pcs',
+        progress: (product) => asNum(product['quantity_sold']),
+      ),
+      _DashboardListCard(
+        key: const ValueKey('reports-merged-low-stock'),
+        title: 'Stok rendah',
+        icon: Icons.warning_amber_rounded,
         color: kTaskTerracotta,
-        rows: dailyExpenses,
-        valueKey: 'amount',
-        emptyMessage: 'Belum ada data pengeluaran pada periode ini.',
+        items: lowStock.take(5).toList(),
+        emptyMessage: 'Tidak ada stok yang perlu diperiksa.',
+        value: (product) =>
+            '${product['stock'] ?? 0} / min ${product['min_stock'] ?? 0}',
+        progress: (product) => asNum(product['stock']),
       ),
-      _ReportSeriesSection(
-        key: const ValueKey('reports-return-section'),
-        title: 'Return',
-        icon: Icons.keyboard_return,
-        color: kTaskPurple,
-        rows: dailyReturns,
-        valueKey: 'amount',
-        emptyMessage: 'Belum ada data retur pada periode ini.',
-      ),
-      if (salesSources.isNotEmpty)
-        _ReportSection(
-          title: 'Sumber penjualan',
-          icon: Icons.point_of_sale_outlined,
-          color: kTaskAccent,
-          children: [
-            for (final source in salesSources.take(5))
-              _ReportSourceRow(source: source),
-          ],
-        ),
-      if (methods.isNotEmpty)
-        _Card('Pembayaran per metode', [
-          for (final method in methods.take(5))
-            _Row((method['payment_method'] ?? '').toString().toUpperCase(),
-                fmtRp(asNum(method['amount']))),
-        ]),
-      if (products.isNotEmpty)
-        _Card('Produk terlaris', [
-          for (final product in products.take(6))
-            _Row('${product['name']} · ${product['quantity_sold']} pcs',
-                fmtRp(asNum(product['revenue']))),
-        ]),
-      if (lowStock.isNotEmpty)
-        _Card('Stok perlu diperiksa', [
-          for (final product in lowStock.take(6))
-            _Row('${product['name']}',
-                '${product['stock']} / min ${product['min_stock']}'),
-        ]),
     ];
   }
-
-  List<Map<String, dynamic>> _reportRows(String key) =>
-      ((_data?[key] as List?) ?? []).whereType<Map<String, dynamic>>().toList();
 
   List<Widget> _spaced(List<Widget> items) => [
         for (var i = 0; i < items.length; i++) ...[
@@ -1408,6 +1378,200 @@ class _ReportSection extends StatelessWidget {
   }
 }
 
+class _DashboardKpiData {
+  const _DashboardKpiData(this.label, this.value, this.icon, this.color);
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+}
+
+class _DashboardKpiGrid extends StatelessWidget {
+  const _DashboardKpiGrid({required this.items});
+
+  final List<_DashboardKpiData> items;
+
+  @override
+  Widget build(BuildContext context) => GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: items.length,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+          mainAxisExtent: 86,
+        ),
+        itemBuilder: (context, index) {
+          final item = items[index];
+          return Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: taskSurface(context),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: taskBorder(context)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: item.color.withValues(alpha: .12),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Icon(item.icon, size: 15, color: item.color),
+                  ),
+                ),
+                const Spacer(),
+                Text(item.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: taskMuted(context))),
+                const SizedBox(height: 3),
+                Text(item.value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        color: ink(context))),
+              ],
+            ),
+          );
+        },
+      );
+}
+
+class _DashboardListCard extends StatelessWidget {
+  const _DashboardListCard({
+    super.key,
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.items,
+    required this.emptyMessage,
+    required this.value,
+    required this.progress,
+  });
+
+  final String title;
+  final IconData icon;
+  final Color color;
+  final List<Map<String, dynamic>> items;
+  final String emptyMessage;
+  final String Function(Map<String, dynamic>) value;
+  final double Function(Map<String, dynamic>) progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final maxValue = items.fold<double>(
+        0, (max, item) => progress(item) > max ? progress(item) : max);
+    return GlassCard(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 20, color: color),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(title,
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: color)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (items.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              child: Text(emptyMessage,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: taskMuted(context))),
+            )
+          else
+            for (var i = 0; i < items.length; i++) ...[
+              if (i > 0)
+                Divider(height: 12, thickness: 1, color: taskBorder(context)),
+              _DashboardListItem(
+                item: items[i],
+                value: value(items[i]),
+                color: color,
+                progress: maxValue <= 0
+                    ? .05
+                    : (progress(items[i]) / maxValue).clamp(.05, 1.0),
+              ),
+            ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardListItem extends StatelessWidget {
+  const _DashboardListItem({
+    required this.item,
+    required this.value,
+    required this.color,
+    required this.progress,
+  });
+
+  final Map<String, dynamic> item;
+  final String value;
+  final Color color;
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text('${item['name'] ?? '-'}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: ink(context))),
+              ),
+              const SizedBox(width: 8),
+              Text(value,
+                  style: TextStyle(fontSize: 11, color: taskMuted(context))),
+            ],
+          ),
+          const SizedBox(height: 7),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: SizedBox(
+              height: 7,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ColoredBox(color: taskBorder(context)),
+                  FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: progress,
+                    child: ColoredBox(color: color),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+}
+
 class _ReportEmptySeries extends StatelessWidget {
   const _ReportEmptySeries(this.message);
 
@@ -1419,260 +1583,6 @@ class _ReportEmptySeries extends StatelessWidget {
         child: Text(message,
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12, color: taskMuted(context))),
-      );
-}
-
-class _ReportSeriesSection extends StatelessWidget {
-  const _ReportSeriesSection({
-    super.key,
-    required this.title,
-    required this.icon,
-    required this.color,
-    required this.rows,
-    required this.valueKey,
-    required this.emptyMessage,
-  });
-
-  final String title;
-  final IconData icon;
-  final Color color;
-  final List<Map<String, dynamic>> rows;
-  final String valueKey;
-  final String emptyMessage;
-
-  @override
-  Widget build(BuildContext context) => _ReportSection(
-        title: title,
-        icon: icon,
-        color: color,
-        children: [
-          if (rows.isEmpty)
-            _ReportEmptySeries(emptyMessage)
-          else
-            _ReportLineChart(rows: rows, valueKey: valueKey, color: color),
-        ],
-      );
-}
-
-class _ReportLineChart extends StatelessWidget {
-  const _ReportLineChart({
-    required this.rows,
-    required this.valueKey,
-    required this.color,
-  });
-
-  final List<Map<String, dynamic>> rows;
-  final String valueKey;
-  final Color color;
-
-  String _day(dynamic value) {
-    final raw = value?.toString() ?? '';
-    return raw.length >= 10 ? raw.substring(8, 10) : raw;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final visible = rows.length > 14 ? rows.sublist(rows.length - 14) : rows;
-    final valueRows =
-        visible.length > 7 ? visible.sublist(visible.length - 7) : visible;
-    final values = visible.map((row) => asNum(row[valueKey])).toList();
-    final maxValue =
-        values.fold<double>(0, (max, value) => value > max ? value : max);
-    final maxY = maxValue <= 0 ? 1.0 : maxValue * 1.2;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(
-          height: 182,
-          child: LineChart(
-            LineChartData(
-              minY: 0,
-              maxY: maxY,
-              gridData: FlGridData(
-                show: true,
-                drawVerticalLine: false,
-                getDrawingHorizontalLine: (_) => FlLine(
-                    color: taskBorder(context).withValues(alpha: .6),
-                    strokeWidth: .7),
-              ),
-              borderData: FlBorderData(show: false),
-              titlesData: FlTitlesData(
-                topTitles:
-                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                rightTitles:
-                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 38,
-                    interval: maxY / 4,
-                    getTitlesWidget: (value, meta) => Text(compactRp(value),
-                        style:
-                            TextStyle(fontSize: 9, color: taskMuted(context))),
-                  ),
-                ),
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 24,
-                    interval: 1,
-                    getTitlesWidget: (value, meta) {
-                      final index = value.toInt();
-                      if (index < 0 || index >= visible.length) {
-                        return const SizedBox.shrink();
-                      }
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 5),
-                        child: Text(_day(visible[index]['date']),
-                            style: TextStyle(
-                                fontSize: 9, color: taskMuted(context))),
-                      );
-                    },
-                  ),
-                ),
-              ),
-              lineTouchData: LineTouchData(
-                touchTooltipData: LineTouchTooltipData(
-                  getTooltipItems: (spots) => spots
-                      .map((spot) => LineTooltipItem(
-                          fmtRp(spot.y),
-                          const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 11)))
-                      .toList(),
-                ),
-              ),
-              lineBarsData: [
-                LineChartBarData(
-                  spots: [
-                    for (var i = 0; i < values.length; i++)
-                      FlSpot(i.toDouble(), values[i]),
-                  ],
-                  isCurved: true,
-                  curveSmoothness: .32,
-                  color: color,
-                  barWidth: 2.4,
-                  dotData: FlDotData(
-                    show: true,
-                    getDotPainter: (spot, percent, bar, index) =>
-                        FlDotCirclePainter(
-                      radius: 3,
-                      color: taskSurface(context),
-                      strokeWidth: 2,
-                      strokeColor: color,
-                    ),
-                  ),
-                  belowBarData: BarAreaData(
-                    show: true,
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        color.withValues(alpha: .2),
-                        color.withValues(alpha: 0)
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text('Nilai per tanggal',
-            style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: ink(context))),
-        const SizedBox(height: 6),
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 6,
-          childAspectRatio: 3.6,
-          children: [
-            for (final row in valueRows)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                decoration: BoxDecoration(
-                  color: taskSurface(context),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: taskBorder(context)),
-                ),
-                child: Row(
-                  children: [
-                    Text(_dateLabel(row['date']),
-                        style:
-                            TextStyle(fontSize: 10, color: taskMuted(context))),
-                    const SizedBox(width: 5),
-                    Expanded(
-                      child: Text(fmtRp(asNum(row[valueKey])),
-                          textAlign: TextAlign.right,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              color: ink(context))),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  String _dateLabel(dynamic value) {
-    final raw = value?.toString() ?? '';
-    return raw.length >= 10
-        ? '${raw.substring(8, 10)}/${raw.substring(5, 7)}'
-        : raw;
-  }
-
-  String compactRp(double value) {
-    if (value >= 1000000) return 'Rp${(value / 1000000).toStringAsFixed(1)}jt';
-    if (value >= 1000) return 'Rp${(value / 1000).round()}rb';
-    return 'Rp${value.round()}';
-  }
-}
-
-class _ReportSourceRow extends StatelessWidget {
-  const _ReportSourceRow({required this.source});
-
-  final Map<String, dynamic> source;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 7),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                    child: Text(source['name']?.toString() ?? 'POS',
-                        style: TextStyle(fontSize: 12, color: ink(context)))),
-                Text('${asNum(source['share']).round()}%',
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: taskMuted(context))),
-              ],
-            ),
-            const SizedBox(height: 5),
-            LinearProgressIndicator(
-              minHeight: 7,
-              value: (asNum(source['share']) / 100).clamp(0, 1),
-              borderRadius: BorderRadius.circular(99),
-              backgroundColor: taskBorder(context).withValues(alpha: .55),
-              valueColor: const AlwaysStoppedAnimation(kTaskAccent),
-            ),
-          ],
-        ),
       );
 }
 
