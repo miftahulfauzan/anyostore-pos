@@ -110,14 +110,17 @@ export default function ReportsPage() {
             onPick={(key, range) => { setPreset(key); if (range) setPeriod(range); }}
           />
         </div>
-        <label>
-          Mulai
-          <input type="date" value={period.start} onChange={(event) => { setPreset('custom'); setPeriod({ ...period, start: event.target.value }); }} />
-        </label>
-        <label>
-          Sampai
-          <input type="date" value={period.end} onChange={(event) => { setPreset('custom'); setPeriod({ ...period, end: event.target.value }); }} />
-        </label>
+        <div className="report-period-date-fields">
+          <label>
+            Mulai
+            <input type="date" value={period.start} onChange={(event) => { setPreset('custom'); setPeriod({ ...period, start: event.target.value }); }} />
+          </label>
+          <span aria-hidden="true">s/d</span>
+          <label>
+            Sampai
+            <input type="date" value={period.end} onChange={(event) => { setPreset('custom'); setPeriod({ ...period, end: event.target.value }); }} />
+          </label>
+        </div>
         <button type="button" onClick={() => load()} disabled={loading}>{loading ? "Memuat…" : "Tampilkan"}</button>
       </section>
       {message && <p className="message" role="status">{message}</p>}
@@ -126,7 +129,7 @@ export default function ReportsPage() {
       ) : (
         <>
           <div className="reports-android-summary">
-            <OlseraDashboardSections reportData={report} fallbackData={null} />
+            <OlseraDashboardSections reportData={report} fallbackData={null} activeBranchId={activeBranchId} period={period} />
           </div>
           <ReportDetailAccordions report={report} user={user} activeBranchId={activeBranchId} />
         </>

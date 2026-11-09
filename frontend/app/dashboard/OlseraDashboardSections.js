@@ -9,6 +9,7 @@ import {
   PackageSearch,
   ShoppingBag,
 } from 'lucide-react';
+import Link from 'next/link';
 import { useId, useState } from 'react';
 
 const rupiah = (value) => 'Rp' + Number(value || 0).toLocaleString('id-ID');
@@ -79,13 +80,15 @@ function MetricTile({ label, value, icon: Icon, tone = 'denim', change }) {
   </div>;
 }
 
-function FinanceRow({ label, value, icon: Icon, tone }) {
-  return <div className={`dashboard-finance-row dashboard-finance-${tone}`}>
+function FinanceRow({ label, value, icon: Icon, tone, href }) {
+  const content = <>
     <span className="dashboard-finance-icon"><Icon aria-hidden="true" size={16} /></span>
     <span>{label}</span>
     <strong>{value}</strong>
     <span className="dashboard-finance-chevron" aria-hidden="true">›</span>
-  </div>;
+  </>;
+  return href ? <Link className={`dashboard-finance-row dashboard-finance-row-link dashboard-finance-${tone}`} href={href} aria-label={`Lihat rincian ${label.toLowerCase()}`}>{content}</Link>
+    : <div className={`dashboard-finance-row dashboard-finance-${tone}`}>{content}</div>;
 }
 
 function TrendChart({ rows, valueKey = 'revenue', color, emptyMessage, totalLabel = 'Total' }) {
@@ -162,7 +165,7 @@ function normalizeRows(rows, fallbackRows) {
   }));
 }
 
-export default function OlseraDashboardSections({ reportData, fallbackData }) {
+export default function OlseraDashboardSections({ reportData, fallbackData, activeBranchId, period }) {
   const source = reportData || fallbackData;
   if (!source) return <section className="panel dashboard-report-loading"><p>Memuat laporan toko…</p></section>;
 
@@ -186,6 +189,19 @@ export default function OlseraDashboardSections({ reportData, fallbackData }) {
   const hasProfit = reportData?.summary?.net_profit != null;
   const fourthKpiLabel = hasProfit ? 'Laba bersih' : 'Pengeluaran';
   const fourthKpiValue = hasProfit ? rupiah(summary.net_profit) : rupiah(summary.expenses);
+  const detailPeriod = {
+    start: reportData?.start || period?.start || fallbackData?.selected_period?.start || '',
+    end: reportData?.end || period?.end || fallbackData?.selected_period?.end || '',
+  };
+  const detailBranch = reportData?.branch_id ?? activeBranchId ?? fallbackData?.selected_branch_id;
+  const canViewFinanceDetails = Boolean(reportData);
+  const detailHref = (type) => {
+    const query = new URLSearchParams({ type });
+    if (detailPeriod.start) query.set('start', detailPeriod.start);
+    if (detailPeriod.end) query.set('end', detailPeriod.end);
+    if (detailBranch != null && detailBranch !== '') query.set('branch_id', String(detailBranch));
+    return `/reports/cashflow?${query.toString()}`;
+  };
 
   return <div className="dashboard-report-layout dashboard-merged">
     <Section
@@ -220,9 +236,9 @@ export default function OlseraDashboardSections({ reportData, fallbackData }) {
       <TrendChart rows={dailySales} color={colors.blue} totalLabel="Total penjualan" emptyMessage="Belum ada data penjualan pada periode ini." />
       <span className="dashboard-report-legend"><i style={{ backgroundColor: colors.blue }} />Penjualan</span>
       <div className="dashboard-sales-metrics">
-        <FinanceRow label="Pembayaran" value={paymentTotal ? rupiah(paymentTotal) : rupiah(summary.gross_sales)} icon={CreditCard} tone="payment" />
-        <FinanceRow label="Pengeluaran" value={rupiah(summary.expenses)} icon={BriefcaseBusiness} tone="expense" />
-        <FinanceRow label="Pengembalian" value={rupiah(summary.return_amount)} icon={AlertTriangle} tone="return" />
+        <FinanceRow label="Pembayaran" value={paymentTotal ? rupiah(paymentTotal) : rupiah(summary.gross_sales)} icon={CreditCard} tone="payment" href={canViewFinanceDetails ? detailHref('payments') : undefined} />
+        <FinanceRow label="Pengeluaran" value={rupiah(summary.expenses)} icon={BriefcaseBusiness} tone="expense" href={canViewFinanceDetails ? detailHref('expenses') : undefined} />
+        <FinanceRow label="Pengembalian" value={rupiah(summary.return_amount)} icon={AlertTriangle} tone="return" href={canViewFinanceDetails ? detailHref('returns') : undefined} />
       </div>
     </Section>
 
