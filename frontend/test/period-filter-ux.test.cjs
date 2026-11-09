@@ -191,3 +191,8 @@ test('sidebar: submenu Mutasi Stok/Riwayat menutup saat pindah ke menu lain', ()
   assert.match(shell, /const shouldOpen = activeSubmenu === item;/);
   assert.match(shell, /if \(!shouldOpen && next\[key\]\) \{ next\[key\] = false; changed = true; \}/);
 });
+
+test('sidebar: grup yang dilipat benar-benar menyembunyikan isinya', () => {
+  assert.match(css, /\.nav-group:not\(\.nav-group-open\) > \.side-nav a,/);
+  assert.match(css, /\.nav-group:not\(\.nav-group-open\) > \.nav-subgroup\s*\{[^}]*display:\s*none\s*!important/s);
+});

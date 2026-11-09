@@ -6697,3 +6697,15 @@ html[data-theme] .sidebar .nav-group-toggle:hover {
   .product-list.grid-view .product-card__inventory > strong { font-size: .82rem !important; }
   .product-list.grid-view .product-card__inventory > span { font-size: .7rem !important; }
 }
+
+/* ========================================================================
+   Lipat grup navigasi sidebar: sebelumnya class `.nav-group-open` tidak
+   punya aturan CSS sehingga tombol grup hanya memutar chevron — isinya
+   (termasuk submenu Mutasi Stok & Riwayat) tetap terlihat.
+   ======================================================================== */
+.nav-group:not(.nav-group-open) > .side-nav a,
+.nav-group:not(.nav-group-open) > a,
+.nav-group:not(.nav-group-open) > .nav-subgroup {
+  display: none !important;
+}
+.nav-group:not(.nav-group-open) > .nav-group-toggle { margin-bottom: 0; }
