@@ -5548,3 +5548,59 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
     justify-content: start;
   }
 }
+
+/* ========================================================================
+   Satu warna aksi utama untuk semua tombol: denim gelap #1e3a5f.
+   Tema (blue/green/purple/...) tidak lagi menggeser warna tombol, tetapi
+   tombol sekunder/ikon/ghost tetap punya gayanya sendiri (class-specific).
+   ======================================================================== */
+:root { --action-bg: #1e3a5f; --action-bg-hover: #16304f; }
+.dark { --action-bg: #2e5d8f; --action-bg-hover: #3a6ea5; }
+
+button,
+.button-link,
+.payment-option.selected,
+.view-button.selected,
+.tabs button.active,
+.transfer-view-tabs button.active,
+.login-mode-button.selected,
+.picker-chip:has(input:checked) {
+  background-color: var(--action-bg);
+  border-color: var(--action-bg);
+  color: #fff;
+}
+button:hover:not(:disabled),
+.button-link:hover {
+  background-color: var(--action-bg-hover);
+  color: #fff;
+}
+html[data-theme] .app-main :where(button:not([class]), button[type="submit"], .button-link, .view-button.selected, .tabs button.active) {
+  background-color: var(--action-bg);
+  border-color: var(--action-bg);
+  color: #fff;
+}
+
+/* Chip periode aktif ikut satu warna aksi (termasuk mode gelap). */
+.date-range-presets button[aria-pressed="true"],
+.dashboard-report-periods button[aria-pressed="true"],
+.warehouse-dashboard-periods button[aria-pressed="true"],
+.stock-dashboard-periods button[aria-pressed="true"],
+.mutation-report-periods button[aria-pressed="true"],
+.dark .date-range-presets button[aria-pressed="true"],
+.dark .dashboard-report-periods button[aria-pressed="true"],
+.dark .warehouse-dashboard-periods button[aria-pressed="true"],
+.dark .stock-dashboard-periods button[aria-pressed="true"],
+.dark .mutation-report-periods button[aria-pressed="true"] {
+  background: var(--action-bg);
+  border-color: var(--action-bg);
+  color: #fff;
+}
+
+/* Tab non-aktif tetap terlihat non-aktif (putih), walau berada di halaman
+   bertema yang dulu ikut mewarnai semua <button> polos. */
+.tabs button:not(.active),
+html[data-theme] .app-main .tabs button:not(.active) {
+  background: var(--card);
+  color: var(--foreground);
+  border-color: var(--border);
+}
