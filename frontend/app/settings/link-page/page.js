@@ -655,7 +655,7 @@ export default function LinkPageSettings() {
                   </div>
 
                   <div>
-                    <strong style={{ fontSize: '.9rem' }}>Avatar</strong>
+                    <strong style={{ fontSize: 'var(--fs-md)' }}>Avatar</strong>
                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginTop: '.5rem', flexWrap: 'wrap' }}>
                       <div style={{ width: 72, height: 72, borderRadius: '50%', overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--card)', flexShrink: 0 }}>
                         {form.avatar ? <img src={mediaUrl(form.avatar)} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted-foreground)', fontSize: 28 }}>?</div>}
@@ -666,13 +666,13 @@ export default function LinkPageSettings() {
                   </div>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '.75rem', flexWrap: 'wrap' }}>
-                      <strong style={{ fontSize: '.9rem' }}>Bar ikon sosial ({form.social.length}/{8})</strong>
+                      <strong style={{ fontSize: 'var(--fs-md)' }}>Bar ikon sosial ({form.social.length}/{8})</strong>
                       <button type="button" className="small" onClick={addSocial} disabled={form.social.length >= 8} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                         <Plus style={{ width: 14, height: 14 }} /> Tambah ikon
                       </button>
                     </div>
-                    <p className="muted" style={{ fontSize: '.8rem', margin: '.35rem 0 .6rem' }}>Ikon kecil di bawah avatar, terpisah dari tombol utama. Maksimal 8.</p>
-                    {form.social.length === 0 && <p className="muted" style={{ fontSize: '.85rem' }}>Belum ada ikon sosial.</p>}
+                    <p className="muted" style={{ fontSize: 'var(--fs-sm)', margin: '.35rem 0 .6rem' }}>Ikon kecil di bawah avatar, terpisah dari tombol utama. Maksimal 8.</p>
+                    {form.social.length === 0 && <p className="muted" style={{ fontSize: 'var(--fs-sm)' }}>Belum ada ikon sosial.</p>}
                     <div style={{ display: 'grid', gap: '.55rem' }}>
                       {form.social.map((s, i) => (
                         <div key={s.id} className="link-settings-social-row" style={{ display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -680,7 +680,7 @@ export default function LinkPageSettings() {
                             {iconOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                           </select>
                           <input aria-label={`URL ikon sosial ${i + 1}`} value={s.url} onChange={(e) => updateSocial(i, { url: e.target.value })} placeholder="https://… atau /halaman-internal" maxLength={1000} style={{ flex: '1 1 260px', minWidth: 220 }} />
-                          <label style={{ display: 'inline-flex', gap: 4, alignItems: 'center', fontSize: '.82rem', cursor: 'pointer' }}>
+                          <label style={{ display: 'inline-flex', gap: 4, alignItems: 'center', fontSize: 'var(--fs-sm)', cursor: 'pointer' }}>
                             <input type="checkbox" checked={s.active} onChange={(e) => updateSocial(i, { active: e.target.checked })} /> Aktif
                           </label>
                           <button type="button" className="small secondary" onClick={() => removeSocial(i)} aria-label="Hapus ikon sosial" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#dc2626' }}>
@@ -701,13 +701,13 @@ export default function LinkPageSettings() {
                 </div>
                 <div className="link-settings-section-stack">
                   <div>
-                    <strong style={{ fontSize: '.9rem' }}>Background halaman</strong>
+                    <strong style={{ fontSize: 'var(--fs-md)' }}>Background halaman</strong>
                     <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', marginTop: '.5rem' }}>
                       {backgroundOptions.map(([value, label]) => (
                         <label key={value} className="link-option" style={linkOptionStyle(form.background_type === value)}>
                           <input type="radio" name="bgType" checked={form.background_type === value} onChange={() => setForm({ ...form, background_type: value })} style={hiddenRadioStyle} />
                           {form.background_type === value && <Check style={{ position: 'absolute', top: 8, right: 8, width: 14, height: 14, color: 'var(--accent)' }} aria-hidden="true" />}
-                          <span style={{ fontSize: '.85rem', fontWeight: 600 }}>{label}</span>
+                          <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600 }}>{label}</span>
                         </label>
                       ))}
                     </div>
@@ -722,12 +722,12 @@ export default function LinkPageSettings() {
                       <label style={{ marginTop: '.5rem', display: 'block' }}>CSS gradient<input value={form.background} onChange={(e) => setForm({ ...form, background: e.target.value })} placeholder="linear-gradient(135deg, #1e3a5f 0%, #e9eef5 100%)" /></label>
                     )}
                     {form.background_type === 'theme' && (
-                      <p className="muted" style={{ fontSize: '.8rem', margin: '.4rem 0 0' }}>Mengikuti tema yang dipilih (Denim / Hitam / Terang).</p>
+                      <p className="muted" style={{ fontSize: 'var(--fs-sm)', margin: '.4rem 0 0' }}>Mengikuti tema yang dipilih (Denim / Hitam / Terang).</p>
                     )}
                   </div>
 
                   <div>
-                    <strong style={{ fontSize: '.9rem' }}>Tema</strong>
+                    <strong style={{ fontSize: 'var(--fs-md)' }}>Tema</strong>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '.55rem', marginTop: '.5rem' }}>
                       {themeOptions.map((t) => (
                         <label key={t.id} className="link-option" style={linkOptionStyle(form.theme === t.id)}>
@@ -738,8 +738,8 @@ export default function LinkPageSettings() {
                             <span style={{ width: 18, height: 18, borderRadius: 6, background: t.colors[1], border: '1px solid rgba(0,0,0,.12)' }} />
                           </span>
                           <span style={{ minWidth: 0 }}>
-                            <span style={{ display: 'block', fontWeight: 700, fontSize: '.85rem' }}>{t.label}</span>
-                            <span className="muted" style={{ display: 'block', fontSize: '.72rem', lineHeight: 1.3 }}>{t.hint}</span>
+                            <span style={{ display: 'block', fontWeight: 700, fontSize: 'var(--fs-sm)' }}>{t.label}</span>
+                            <span className="muted" style={{ display: 'block', fontSize: 'var(--fs-xs)', lineHeight: 1.3 }}>{t.hint}</span>
                           </span>
                         </label>
                       ))}
@@ -747,8 +747,8 @@ export default function LinkPageSettings() {
                   </div>
 
                   <div>
-                    <strong style={{ fontSize: '.9rem' }}>Layout halaman (default)</strong>
-                    <p className="muted" style={{ fontSize: '.78rem', margin: '.2rem 0 .5rem' }}>Pilih default untuk semua link. Link yang diatur khusus di bawah akan menimpa default ini.</p>
+                    <strong style={{ fontSize: 'var(--fs-md)' }}>Layout halaman (default)</strong>
+                    <p className="muted" style={{ fontSize: 'var(--fs-sm)', margin: '.2rem 0 .5rem' }}>Pilih default untuk semua link. Link yang diatur khusus di bawah akan menimpa default ini.</p>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '.55rem' }}>
                       {layoutOptions.map((l) => (
                         <label key={l.id} className="link-option" style={linkOptionStyle(form.layout === l.id)}>
@@ -756,8 +756,8 @@ export default function LinkPageSettings() {
                           {form.layout === l.id && <Check style={{ position: 'absolute', top: 8, right: 8, width: 14, height: 14, color: 'var(--accent)' }} aria-hidden="true" />}
                           <l.Icon style={{ width: 17, height: 17, color: 'var(--muted-foreground)', flexShrink: 0 }} aria-hidden="true" />
                           <span style={{ minWidth: 0 }}>
-                            <span style={{ display: 'block', fontWeight: 700, fontSize: '.85rem' }}>{l.label}</span>
-                            <span className="muted" style={{ display: 'block', fontSize: '.72rem', lineHeight: 1.3 }}>{l.hint}</span>
+                            <span style={{ display: 'block', fontWeight: 700, fontSize: 'var(--fs-sm)' }}>{l.label}</span>
+                            <span className="muted" style={{ display: 'block', fontSize: 'var(--fs-xs)', lineHeight: 1.3 }}>{l.hint}</span>
                           </span>
                         </label>
                       ))}
@@ -775,7 +775,7 @@ export default function LinkPageSettings() {
                 <div className="link-settings-section-stack">
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '.75rem', flexWrap: 'wrap' }}>
-                      <strong style={{ fontSize: '.9rem' }}>Daftar item ({form.links.length})</strong>
+                      <strong style={{ fontSize: 'var(--fs-md)' }}>Daftar item ({form.links.length})</strong>
                       <div style={{ display: 'flex', gap: '.4rem', flexWrap: 'wrap' }}>
                         <button type="button" className="small" onClick={() => addItem('link')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                           <Plus style={{ width: 14, height: 14 }} /> Tautan
@@ -791,8 +791,8 @@ export default function LinkPageSettings() {
                         </button>
                       </div>
                     </div>
-                    <p className="muted" style={{ fontSize: '.8rem', margin: '.35rem 0 .6rem' }}>Seret handle untuk mengubah urutan. Item yang tidak aktif disembunyikan dari halaman.</p>
-                    {form.links.length === 0 && <p className="muted" style={{ fontSize: '.85rem' }}>Belum ada item. Tambahkan tautan, teks, atau pembatas.</p>}
+                    <p className="muted" style={{ fontSize: 'var(--fs-sm)', margin: '.35rem 0 .6rem' }}>Seret handle untuk mengubah urutan. Item yang tidak aktif disembunyikan dari halaman.</p>
+                    {form.links.length === 0 && <p className="muted" style={{ fontSize: 'var(--fs-sm)' }}>Belum ada item. Tambahkan tautan, teks, atau pembatas.</p>}
                     <div style={{ display: 'grid', gap: '.55rem' }}>
                       {form.links.map((link, i) => {
                         const type = link.type || 'link';
@@ -847,7 +847,7 @@ export default function LinkPageSettings() {
                               style={{ flex: '1 1 180px', minWidth: type === 'divider' ? 120 : 160 }}
                             />
 
-                            <label style={{ display: 'inline-flex', gap: 4, alignItems: 'center', fontSize: '.82rem', cursor: 'pointer' }} title="Aktif">
+                            <label style={{ display: 'inline-flex', gap: 4, alignItems: 'center', fontSize: 'var(--fs-sm)', cursor: 'pointer' }} title="Aktif">
                               <input type="checkbox" checked={link.active} onChange={(e) => updateLink(i, { active: e.target.checked })} /> Aktif
                             </label>
                             <button type="button" className="small secondary" onClick={() => removeLink(i)} aria-label="Hapus item" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#dc2626' }}>
@@ -867,7 +867,7 @@ export default function LinkPageSettings() {
                 <div className="section-heading">
                   <div>
                     <h2>Statistik</h2>
-                    <p className="muted" style={{ fontSize: '.85rem' }}>View dihitung setiap halaman dibuka, klik dihitung saat pengunjung menekan tombol.</p>
+                    <p className="muted" style={{ fontSize: 'var(--fs-sm)' }}>View dihitung setiap halaman dibuka, klik dihitung saat pengunjung menekan tombol.</p>
                   </div>
                   <div style={{ display: 'flex', gap: '.5rem', alignSelf: 'center', flexWrap: 'wrap' }}>
                     <button type="button" className="small secondary" onClick={exportStatsCsv} disabled={!stats} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -889,7 +889,7 @@ export default function LinkPageSettings() {
                     </span>
                     <div>
                       <div style={{ fontSize: 20, fontWeight: 800 }}>{stats?.total_views ?? 0}</div>
-                      <div className="muted" style={{ fontSize: '.8rem' }}>Total view halaman</div>
+                      <div className="muted" style={{ fontSize: 'var(--fs-sm)' }}>Total view halaman</div>
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.9rem', borderRadius: '.7rem', border: '1px solid var(--border)', background: 'var(--card)' }}>
@@ -898,20 +898,20 @@ export default function LinkPageSettings() {
                     </span>
                     <div>
                       <div style={{ fontSize: 20, fontWeight: 800 }}>{clickTotal}</div>
-                      <div className="muted" style={{ fontSize: '.8rem' }}>Total klik</div>
+                      <div className="muted" style={{ fontSize: 'var(--fs-sm)' }}>Total klik</div>
                     </div>
                   </div>
                 </div>
 
                 <div style={{ display: 'grid', gap: '1.25rem', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', marginTop: '1rem' }}>
                   <div>
-                    <h3 style={{ margin: '0 0 .6rem', fontSize: '.95rem' }}>View 14 hari terakhir</h3>
+                    <h3 style={{ margin: '0 0 .6rem', fontSize: 'var(--fs-md)' }}>View 14 hari terakhir</h3>
                     {(stats?.views_by_day || []).length === 0 ? (
-                      <p className="muted" style={{ fontSize: '.85rem' }}>Belum ada data view.</p>
+                      <p className="muted" style={{ fontSize: 'var(--fs-sm)' }}>Belum ada data view.</p>
                     ) : (
                       <div style={{ display: 'grid', gap: '.35rem' }}>
                         {[...(stats?.views_by_day || [])].reverse().map((d) => (
-                          <div key={d.date} style={{ display: 'flex', alignItems: 'center', gap: '.6rem', fontSize: '.84rem' }}>
+                          <div key={d.date} style={{ display: 'flex', alignItems: 'center', gap: '.6rem', fontSize: 'var(--fs-sm)' }}>
                             <span style={{ width: 96, flexShrink: 0, color: 'var(--muted-foreground)' }}>{String(d.date).slice(0, 10)}</span>
                             <div style={{ flex: 1, height: 16, borderRadius: 6, background: 'var(--muted)', overflow: 'hidden' }}>
                               <div style={{ width: `${Math.min(100, Math.round((d.views / Math.max(1, stats.total_views)) * 100))}%`, height: '100%', borderRadius: 6, background: 'var(--primary)' }} />
@@ -923,13 +923,13 @@ export default function LinkPageSettings() {
                     )}
                   </div>
                   <div>
-                    <h3 style={{ margin: '0 0 .6rem', fontSize: '.95rem' }}>Klik per item</h3>
+                    <h3 style={{ margin: '0 0 .6rem', fontSize: 'var(--fs-md)' }}>Klik per item</h3>
                     {(stats?.clicks || []).length === 0 ? (
-                      <p className="muted" style={{ fontSize: '.85rem' }}>Belum ada klik. Statistik mengikuti item yang sudah dihapus tetap tersimpan sampai direset.</p>
+                      <p className="muted" style={{ fontSize: 'var(--fs-sm)' }}>Belum ada klik. Statistik mengikuti item yang sudah dihapus tetap tersimpan sampai direset.</p>
                     ) : (
                       <div style={{ display: 'grid', gap: '.4rem' }}>
                         {stats.clicks.map((c) => (
-                          <div key={c.item_id} style={{ display: 'flex', alignItems: 'center', gap: '.6rem', fontSize: '.84rem' }}>
+                          <div key={c.item_id} style={{ display: 'flex', alignItems: 'center', gap: '.6rem', fontSize: 'var(--fs-sm)' }}>
                             <span style={{ flex: '0 0 42%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--muted-foreground)' }} title={c.label || c.item_id}>
                               {c.label || c.item_id}
                             </span>

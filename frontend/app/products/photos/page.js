@@ -201,16 +201,16 @@ export default function BulkPhotoUploadPage() {
           >
             <ImagePlus size={28} style={{ color: '#1e3a5f', margin: '0 auto 8px', display: 'block' }} />
             <strong style={{ fontSize: 14, color: '#1e293b' }}>{dragOver ? 'Lepaskan foto di sini' : 'Klik atau seret banyak foto ke sini'}</strong>
-            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>JPG, PNG, WebP. Bisa mengunggah puluhan file sekaligus.</p>
+            <p style={{ margin: '4px 0 0', fontSize: 'var(--fs-sm)', color: '#64748b' }}>JPG, PNG, WebP. Bisa mengunggah puluhan file sekaligus.</p>
             <input id="bulk-photo-input" type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display: 'none' }} onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
             <input ref={folderInputRef} id="bulk-folder-input" type="file" multiple style={{ display: 'none' }} onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 12 }}>
             <button type="button" className="secondary small" onClick={pickFolder}><ImagePlus size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} /> Pilih Folder</button>
-            <span style={{ fontSize: 11, color: '#64748b', alignSelf: 'center' }}>Pilih folder, atau seret folder langsung dari Finder ke area di atas.</span>
+            <span style={{ fontSize: 'var(--fs-xs)', color: '#64748b', alignSelf: 'center' }}>Pilih folder, atau seret folder langsung dari Finder ke area di atas.</span>
           </div>
 
-          {message && <p style={{ margin: '12px 0 0', fontSize: 13, color: failures.length ? '#dc2626' : '#16a34a', fontWeight: 600 }}>{message}</p>}
+          {message && <p style={{ margin: '12px 0 0', fontSize: 'var(--fs-md)', color: failures.length ? '#dc2626' : '#16a34a', fontWeight: 600 }}>{message}</p>}
 
           {files.length > 0 && (
             <div style={{ marginTop: 18 }}>
@@ -218,7 +218,7 @@ export default function BulkPhotoUploadPage() {
                 <strong style={{ fontSize: 14 }}>{files.length} file · {matchedCount} cocok dengan SKU · {unmatched.length} tidak cocok</strong>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button className="secondary small" disabled={uploading} onClick={() => { setFiles([]); setFailures([]); setMessage(''); setProgress({ done: 0, total: 0 }); }}>Bersihkan</button>
-                  <button disabled={uploading || !matchedCount} onClick={uploadAll} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 36, padding: '0 14px', borderRadius: 8, border: 'none', background: '#1e3a5f', color: '#fff', fontWeight: 700, fontSize: 13, cursor: uploading || !matchedCount ? 'not-allowed' : 'pointer', opacity: uploading || !matchedCount ? .55 : 1 }}>
+                  <button disabled={uploading || !matchedCount} onClick={uploadAll} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 36, padding: '0 14px', borderRadius: 8, border: 'none', background: '#1e3a5f', color: '#fff', fontWeight: 700, fontSize: 'var(--fs-md)', cursor: uploading || !matchedCount ? 'not-allowed' : 'pointer', opacity: uploading || !matchedCount ? .55 : 1 }}>
                     {uploading ? <Loader2 size={14} className="spin" /> : <Upload size={14} />} {uploading ? `Mengupload ${progress.done}/${progress.total}…` : `Upload ${matchedCount} Foto`}
                   </button>
                 </div>
@@ -237,15 +237,15 @@ export default function BulkPhotoUploadPage() {
                     <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 8, border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff' }}>
                       <img src={item.preview} alt="" style={{ width: 40, height: 50, objectFit: 'cover', borderRadius: 6, background: '#f1f5f9' }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <strong style={{ fontSize: 12, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.file.webkitRelativePath || item.file.name}</strong>
+                        <strong style={{ fontSize: 'var(--fs-sm)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.file.webkitRelativePath || item.file.name}</strong>
                         {product
-                          ? <span style={{ fontSize: 11, color: '#475569' }}>{product.name} · SKU {product.sku}</span>
-                          : <span style={{ fontSize: 11, color: '#dc2626' }}>Tidak cocok dengan SKU produk mana pun</span>}
+                          ? <span style={{ fontSize: 'var(--fs-xs)', color: '#475569' }}>{product.name} · SKU {product.sku}</span>
+                          : <span style={{ fontSize: 'var(--fs-xs)', color: '#dc2626' }}>Tidak cocok dengan SKU produk mana pun</span>}
                       </div>
                       {item.status === 'berhasil' ? <CheckCircle2 size={16} color="#16a34a" />
                         : item.status === 'gagal' ? <XCircle size={16} color="#dc2626" />
                           : item.status === 'mengupload' ? <Loader2 size={16} color="#1e3a5f" className="spin" />
-                            : <span style={{ fontSize: 11, color: statusColor[item.status] || '#64748b', fontWeight: 600 }}>{item.status === 'dilewati' ? 'Maks 10/produk' : 'Menunggu'}</span>}
+                            : <span style={{ fontSize: 'var(--fs-xs)', color: statusColor[item.status] || '#64748b', fontWeight: 600 }}>{item.status === 'dilewati' ? 'Maks 10/produk' : 'Menunggu'}</span>}
                     </div>
                   );
                 })}
@@ -254,7 +254,7 @@ export default function BulkPhotoUploadPage() {
           )}
 
           {!files.length && (
-            <div style={{ marginTop: 18, padding: 14, background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 12, color: '#475569' }}>
+            <div style={{ marginTop: 18, padding: 14, background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 'var(--fs-sm)', color: '#475569' }}>
               <strong style={{ display: 'block', marginBottom: 6, color: '#1e293b' }}>Contoh penamaan file</strong>
               <div style={{ display: 'grid', gap: 3 }}>
                 <span><code>A100.jpg</code> → produk A100</span>
@@ -267,8 +267,8 @@ export default function BulkPhotoUploadPage() {
 
           {failures.length > 0 && (
             <div style={{ marginTop: 12, padding: 12, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10 }}>
-              <strong style={{ fontSize: 13, color: '#991b1b' }}>Upload gagal</strong>
-              {failures.map((f) => <p key={f.name} style={{ margin: '4px 0 0', fontSize: 12, color: '#7f1d1d' }}>{f.name} ({f.sku}): {f.error}</p>)}
+              <strong style={{ fontSize: 'var(--fs-md)', color: '#991b1b' }}>Upload gagal</strong>
+              {failures.map((f) => <p key={f.name} style={{ margin: '4px 0 0', fontSize: 'var(--fs-sm)', color: '#7f1d1d' }}>{f.name} ({f.sku}): {f.error}</p>)}
             </div>
           )}
         </div>

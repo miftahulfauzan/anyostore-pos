@@ -602,10 +602,10 @@ export default function TransferPage() {
                   : <div className="stock-picker-ph">Tanpa foto</div>}
               </div>
               <div style={{ padding: 10, display: 'grid', gap: 6 }}>
-                <strong style={{ fontSize: 13, lineHeight: 1.3 }}>{p.name}</strong>
-                <span style={{ fontSize: 11, color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{p.sku || 'Tanpa SKU'}</span>
+                <strong style={{ fontSize: 'var(--fs-md)', lineHeight: 1.3 }}>{p.name}</strong>
+                <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{p.sku || 'Tanpa SKU'}</span>
                 <span className="stock-picker-badge">Stok asal: {Number(p.stock || 0)}</span>
-                {p.rack_position && <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>Posisi Rak: {p.rack_position}</span>}
+                {p.rack_position && <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>Posisi Rak: {p.rack_position}</span>}
                 {p.variants && p.variants.length > 0 && (
                   <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }} onClick={(e) => e.stopPropagation()}>
                     {p.variants.map((v) => (

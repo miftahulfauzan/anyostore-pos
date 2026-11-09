@@ -206,7 +206,7 @@ export default function ProductsPage() {
         <div><h2>Daftar Produk</h2><p>Cari nama, SKU, atau barcode. Kelola foto, video, varian, dan cetak barcode dari daftar ini.</p></div>
         <div className="catalog-view-controls">
           <span className="item-count">{loading ? 'Memuat…' : `${total} produk · ${products.length} ditampilkan`}</span>
-          <select value={sort} disabled={mutating} onChange={(event) => changeFilter('sort', event.target.value)} aria-label="Urutkan produk" style={{ minHeight: 36, padding: '0 .6rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--background)', fontSize: '.82rem', fontWeight: 600 }}>
+          <select value={sort} disabled={mutating} onChange={(event) => changeFilter('sort', event.target.value)} aria-label="Urutkan produk" style={{ minHeight: 36, padding: '0 .6rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--background)', fontSize: 'var(--fs-sm)', fontWeight: 600 }}>
             <option value="name">Nama A-Z</option><option value="name_desc">Nama Z-A</option><option value="newest">Terbaru</option><option value="oldest">Terlama</option><option value="price_asc">Harga termurah</option><option value="price_desc">Harga termahal</option><option value="stock_asc">Stok terendah</option><option value="stock_desc">Stok tertinggi</option>
           </select>
           <div className="view-segmented">
@@ -226,14 +226,14 @@ export default function ProductsPage() {
         )}
       </div>
       <div className={selected.size > 0 ? 'selection-toolbar active' : 'selection-toolbar'}>
-        <label style={{ display: 'inline-flex', gap: '.5rem', alignItems: 'center', fontSize: '.85rem', fontWeight: 600, cursor: 'pointer', minHeight: 36 }}>
+        <label style={{ display: 'inline-flex', gap: '.5rem', alignItems: 'center', fontSize: 'var(--fs-sm)', fontWeight: 600, cursor: 'pointer', minHeight: 36 }}>
           <input type="checkbox" disabled={loading || mutating || !deletableProducts.length} checked={deletableProducts.length > 0 && deletableProducts.every((row) => selected.has(row.id))} onChange={toggleSelectAll} style={{ width: 16, height: 16, accentColor: 'var(--primary)', cursor: 'pointer' }} />
           Pilih semua di halaman ini ({deletableProducts.length})
         </label>
         <span className="spacer" />
         {selected.size > 0 && (
           <>
-          <span style={{ padding: '.32rem .65rem', borderRadius: 999, background: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '.8rem', whiteSpace: 'nowrap' }}>
+          <span style={{ padding: '.32rem .65rem', borderRadius: 999, background: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: 'var(--fs-sm)', whiteSpace: 'nowrap' }}>
             {selected.size} dipilih
           </span>
           <button type="button" className="small secondary" disabled={mutating} onClick={() => { setSelected(new Set()); setFailures([]); }} style={{ minHeight: 34 }}>Batalkan</button>
@@ -283,7 +283,7 @@ export default function ProductsPage() {
             <strong style={{ fontSize: 15 }}>Cetak Barcode: {barcodeProduct.name}</strong>
             <button type="button" onClick={() => setBarcodeProduct(null)} aria-label="Tutup" style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: '#f1f5f9', fontSize: 16, cursor: 'pointer', color: '#475569' }}>×</button>
           </div>
-          <p style={{ margin: '0 0 8px', color: '#475569', fontSize: 12 }}>Pratinjau satu label. Cetak akan mengulang salinan pada lembar A6, 24 label per halaman.</p>
+          <p style={{ margin: '0 0 8px', color: '#475569', fontSize: 'var(--fs-sm)' }}>Pratinjau satu label. Cetak akan mengulang salinan pada lembar A6, 24 label per halaman.</p>
           {barcodePreview?.barcode_value ? <div className="barcode-print-area" aria-label="Pratinjau label barcode" style={{ display: 'flex', justifyContent: 'center' }}>
             <BarcodeLabel item={barcodePreview} />
           </div> : <p role="status" style={{ margin: '12px 0', color: '#475569' }}>Produk ini belum memiliki barcode atau SKU. Tambahkan salah satunya sebelum mencetak.</p>}

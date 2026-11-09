@@ -202,7 +202,7 @@ export default function MutationReportPage() {
 
         {!!breakdown.length && <section className="panel no-print">
           <h2 style={{ margin: 0, fontSize: 18 }}>{tab === 'out' ? 'Ringkasan Tujuan' : 'Ringkasan Keterangan'}</h2>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginTop: 10 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-md)', marginTop: 10 }}>
             <thead><tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
               <th style={{ padding: '8px 10px' }}>{tab === 'out' ? 'Tujuan' : 'Keterangan'}</th>
               <th style={{ padding: '8px 10px', textAlign: 'right' }}>Total Qty</th>
@@ -215,7 +215,7 @@ export default function MutationReportPage() {
         </section>}
 
         <section className="panel mutation-report-desktop" style={{ overflowX: 'auto' }}>
-          <table className="mutation-report-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <table className="mutation-report-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
                 <th style={{ padding: '8px 10px' }}>Tanggal</th>
@@ -233,7 +233,7 @@ export default function MutationReportPage() {
               {!loading && displayRows.map((r) => (
                 <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td style={{ padding: '10px' }}>{displayDate(r.date)}</td>
-                  <td style={{ padding: '10px', fontFamily: 'monospace', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{r.number}</td>
+                  <td style={{ padding: '10px', fontFamily: 'monospace', fontSize: 'var(--fs-xs)', fontWeight: 700, whiteSpace: 'nowrap' }}>{r.number}</td>
                   <td style={{ padding: '10px' }}><span className="warehouse-pill">{r.warehouse}</span></td>
                   <td style={{ padding: '10px', verticalAlign: 'top' }}>
                     <div className="movement-product-list">
@@ -247,7 +247,7 @@ export default function MutationReportPage() {
                   <td style={{ padding: '8px 10px' }}>{(tab === 'out' ? r.destination : r.description) || <span style={{ color: 'var(--muted-foreground)' }}>-</span>}</td>
                   <td style={{ padding: '8px 10px' }}>{r.admin}</td>
                   <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
-                    {r.deletable ? <button type="button" className="link-button danger" onClick={() => removeBatch(r)}>Hapus</button> : <span style={{ color: 'var(--muted-foreground)', fontSize: 11 }}>Import</span>}
+                    {r.deletable ? <button type="button" className="link-button danger" onClick={() => removeBatch(r)}>Hapus</button> : <span style={{ color: 'var(--muted-foreground)', fontSize: 'var(--fs-xs)' }}>Import</span>}
                   </td>
                 </tr>
               ))}

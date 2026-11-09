@@ -265,7 +265,7 @@ export default function HistoryPage() {
               {transactions.map((t) => (
                 <article key={t.id} role="button" tabIndex={0} onClick={() => inspect(t)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inspect(t); } }} style={{ cursor: 'pointer', border: selected?.id === t.id ? '1px solid #2563eb' : undefined, borderRadius: 6, padding: '.6rem', background: selected?.id === t.id ? '#eff6ff' : undefined }}>
                   <div>
-                    <strong style={{ fontSize: '.9rem' }}>{t.invoice_no}{t.source_system === 'olsera' ? <small className="muted"> · Olsera</small> : null}</strong>
+                    <strong style={{ fontSize: 'var(--fs-md)' }}>{t.invoice_no}{t.source_system === 'olsera' ? <small className="muted"> · Olsera</small> : null}</strong>
                     <span>{t.cashier} {t.customer ? `• ${t.customer} (${t.customer_tier})` : ''} • {transactionDateTime(t)}</span>
                   </div>
                   <div style={{ textAlign: 'right' }}>
@@ -280,7 +280,7 @@ export default function HistoryPage() {
             {totalPages > 1 && (
               <div style={{ display: 'flex', gap: '.5rem', justifyContent: 'center', marginTop: '1rem' }}>
                 <button type="button" disabled={page <= 1} onClick={() => load(page - 1)} className="small secondary">Sebelumnya</button>
-                <span className="muted" style={{ alignSelf: 'center', fontSize: '.85rem' }}>Hal {page} / {totalPages}</span>
+                <span className="muted" style={{ alignSelf: 'center', fontSize: 'var(--fs-sm)' }}>Hal {page} / {totalPages}</span>
                 <button type="button" disabled={page >= totalPages} onClick={() => load(page + 1)} className="small secondary">Berikutnya</button>
               </div>
             )}
@@ -319,12 +319,12 @@ export default function HistoryPage() {
                     {selected.items.map((it) => (
                       <div key={it.transaction_item_id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <strong style={{ fontSize: 13 }}>{it.product_name}</strong>
-                          <p style={{ margin: '2px 0 0', fontSize: 11, color: '#64748b' }}>{it.product_sku} {it.variant_detail ? `· ${it.variant_detail}` : ''}{it.cancelled_qty ? ` · batal ${it.cancelled_qty}` : ''}</p>
+                          <strong style={{ fontSize: 'var(--fs-md)' }}>{it.product_name}</strong>
+                          <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-xs)', color: '#64748b' }}>{it.product_sku} {it.variant_detail ? `· ${it.variant_detail}` : ''}{it.cancelled_qty ? ` · batal ${it.cancelled_qty}` : ''}</p>
                         </div>
                         <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          <div style={{ fontSize: 13, fontWeight: 600 }}>×{it.quantity}</div>
-                          <div style={{ fontSize: 12, color: '#64748b' }}>{rp(it.price)}</div>
+                          <div style={{ fontSize: 'var(--fs-md)', fontWeight: 600 }}>×{it.quantity}</div>
+                          <div style={{ fontSize: 'var(--fs-sm)', color: '#64748b' }}>{rp(it.price)}</div>
                         </div>
                       </div>
                     ))}
@@ -332,15 +332,15 @@ export default function HistoryPage() {
                 )}
                 {activeTab === 'retur' && selected.source_system !== 'olsera' && (
                   <div style={{ display: 'grid', gap: '.6rem' }}>
-                    <p className="muted" style={{ margin: 0, fontSize: '.85rem' }}>Pilih qty yang mau diretur. Stok akan kembali setelah approve.</p>
+                    <p className="muted" style={{ margin: 0, fontSize: 'var(--fs-sm)' }}>Pilih qty yang mau diretur. Stok akan kembali setelah approve.</p>
                     {selected.items.map((item) => {
                       const remaining = item.quantity - (item.cancelled_qty || 0) - (item.returned_qty || 0);
                       const qty = quantities[item.transaction_item_id] ?? 0;
                       return (
                         <div key={item.transaction_item_id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8, background: qty > 0 ? '#f0fdf4' : undefined }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <strong style={{ fontSize: 13 }}>{item.product_name}</strong>
-                            <p style={{ margin: '2px 0 0', fontSize: 11, color: '#64748b' }}>sisa {remaining}/{item.quantity} · Rp{Number(item.price || 0).toLocaleString('id-ID')}</p>
+                            <strong style={{ fontSize: 'var(--fs-md)' }}>{item.product_name}</strong>
+                            <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-xs)', color: '#64748b' }}>sisa {remaining}/{item.quantity} · Rp{Number(item.price || 0).toLocaleString('id-ID')}</p>
                           </div>
                           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                             <button type="button" onClick={() => setQuantities({ ...quantities, [item.transaction_item_id]: Math.max(0, qty - 1) })} disabled={qty <= 0} style={{ width: 32, height: 32, borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', color: '#0f172a', fontWeight: 700, cursor: qty <= 0 ? 'default' : 'pointer', opacity: qty <= 0 ? .4 : 1 }}>−</button>
@@ -365,7 +365,7 @@ export default function HistoryPage() {
                 {activeTab === 'cancel' && canCancel && selected.source_system !== 'olsera' && (
                   <div style={{ display: 'grid', gap: '.6rem' }}>
                     {selected.status === 'cancelled' ? <p className="message">Transaksi sudah batal total.</p> : <>
-                      <p className="muted" style={{ margin: 0, fontSize: '.85rem' }}>Batalkan sebagian atau semua item. Refund dihitung otomatis.</p>
+                      <p className="muted" style={{ margin: 0, fontSize: 'var(--fs-sm)' }}>Batalkan sebagian atau semua item. Refund dihitung otomatis.</p>
                       {selected.items.map((item) => {
                         const remaining = item.quantity - (item.cancelled_qty || 0) - (item.returned_qty || 0);
                         if (remaining <= 0) return null;
@@ -373,8 +373,8 @@ export default function HistoryPage() {
                         return (
                           <div key={item.transaction_item_id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8, background: qty > 0 ? '#fef2f2' : undefined }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <strong style={{ fontSize: 13 }}>{item.product_name}</strong>
-                              <p style={{ margin: '2px 0 0', fontSize: 11, color: '#64748b' }}>sisa {remaining} · Rp{Number(item.price || 0).toLocaleString('id-ID')}</p>
+                              <strong style={{ fontSize: 'var(--fs-md)' }}>{item.product_name}</strong>
+                              <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-xs)', color: '#64748b' }}>sisa {remaining} · Rp{Number(item.price || 0).toLocaleString('id-ID')}</p>
                             </div>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                               <button type="button" onClick={() => setCancelQuantities({ ...cancelQuantities, [item.transaction_item_id]: Math.max(0, qty - 1) })} disabled={qty <= 0} style={{ width: 32, height: 32, borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', color: '#0f172a', fontWeight: 700, cursor: qty <= 0 ? 'default' : 'pointer', opacity: qty <= 0 ? .4 : 1 }}>−</button>
@@ -384,7 +384,7 @@ export default function HistoryPage() {
                           </div>
                         );
                       })}
-                      <label style={{ fontSize: 13 }}>Alasan batal<input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Opsional, misalnya salah input" style={{ marginTop: 4 }} /></label>
+                      <label style={{ fontSize: 'var(--fs-md)' }}>Alasan batal<input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Opsional, misalnya salah input" style={{ marginTop: 4 }} /></label>
                       <button type="button" className="secondary" disabled={saving} onClick={cancelItems} style={{ minHeight: 44 }}>{saving ? '…' : 'Batalkan item'}</button>
                     </>}
                   </div>

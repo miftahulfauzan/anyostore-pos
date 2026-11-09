@@ -230,20 +230,20 @@ export default function StockReportSection() {
         {summary && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 12, marginBottom: 20 }}>
             <div style={{ padding: 16, borderRadius: 8, background: 'var(--muted)', textAlign: 'center' }}>
-              <p style={{ margin: 0, fontSize: 11, color: 'var(--muted-foreground)' }}>Total Produk</p>
+              <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>Total Produk</p>
               <strong style={{ fontSize: 24 }}>{money(summary.total_products)}</strong>
-              {(isOwner && activeBranchId === 'all' || isGudang && !branchId) && <p style={{ margin: '2px 0 0', fontSize: 10, color: 'var(--muted-foreground)' }}>{summary.total_branches} toko/gudang</p>}
+              {(isOwner && activeBranchId === 'all' || isGudang && !branchId) && <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>{summary.total_branches} toko/gudang</p>}
             </div>
             <div style={{ padding: 16, borderRadius: 8, background: 'var(--muted)', textAlign: 'center' }}>
-              <p style={{ margin: 0, fontSize: 11, color: 'var(--muted-foreground)' }}>Total Stok</p>
+              <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>Total Stok</p>
               <strong style={{ fontSize: 24, color: 'var(--primary)' }}>{money(summary.total_stock)}</strong>
             </div>
             <div style={{ padding: 16, borderRadius: 8, background: summary.low_stock > 0 ? '#fef2f2' : 'var(--muted)', textAlign: 'center' }}>
-              <p style={{ margin: 0, fontSize: 11, color: 'var(--muted-foreground)' }}>Stok Rendah</p>
+              <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>Stok Rendah</p>
               <strong style={{ fontSize: 24, color: summary.low_stock > 0 ? '#dc2626' : 'inherit' }}>{money(summary.low_stock)}</strong>
             </div>
             <div style={{ padding: 16, borderRadius: 8, background: summary.out_of_stock > 0 ? '#fef2f2' : 'var(--muted)', textAlign: 'center' }}>
-              <p style={{ margin: 0, fontSize: 11, color: 'var(--muted-foreground)' }}>Habis</p>
+              <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>Habis</p>
               <strong style={{ fontSize: 24, color: summary.out_of_stock > 0 ? '#dc2626' : 'inherit' }}>{money(summary.out_of_stock)}</strong>
             </div>
           </div>
@@ -267,7 +267,7 @@ export default function StockReportSection() {
 
         {/* Desktop & cetak: tabel matriks. Mobile: kartu (tanpa scroll samping). */}
         <div className="stock-table-wrap" style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-md)' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
                 <th style={{ padding: '8px 10px' }}>Produk</th>
@@ -288,7 +288,7 @@ export default function StockReportSection() {
                       <span>{g.name}</span>
                     </div>
                   </td>
-                  <td style={{ padding: '8px 10px' }}>{g.color ? <span style={{ padding: '1px 5px', borderRadius: 4, background: 'var(--muted)', fontSize: 10 }}>{g.color}</span> : <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>-</span>}</td>
+                  <td style={{ padding: '8px 10px' }}>{g.color ? <span style={{ padding: '1px 5px', borderRadius: 4, background: 'var(--muted)', fontSize: 'var(--fs-xs)' }}>{g.color}</span> : <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>-</span>}</td>
                   {whColumns.map((w) => <td key={w.id} style={{ padding: '8px 10px', textAlign: 'right' }}><strong>{money(g.qtyByWarehouse[String(w.id)] || 0)}</strong>{rackControl(g, w)}</td>)}
                   <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>{money(g.total)}</td>
                 </tr>
@@ -311,9 +311,9 @@ export default function StockReportSection() {
                   </div>
                   <div style={{ minWidth: 0 }}>
                     <strong style={{ fontSize: 14, display: 'block' }}>{g.name}</strong>
-                    <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>{g.sku || ''}</span>
+                    <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>{g.sku || ''}</span>
                   </div>
-                  <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>{g.color || 'Tanpa warna'}</span>
+                  <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>{g.color || 'Tanpa warna'}</span>
                 </div>
                 <strong style={{ fontSize: 16, color: '#1e3a5f', whiteSpace: 'nowrap' }}>{money(g.total)}</strong>
               </div>
@@ -321,7 +321,7 @@ export default function StockReportSection() {
                     {whColumns.map((w) => {
                       const qty = g.qtyByWarehouse[String(w.id)] || 0;
                       return (
-                        <div key={w.id} style={{ padding: '5px 8px', borderRadius: 8, background: qty > 0 ? '#eef2ff' : '#f1f5f9', color: qty > 0 ? '#1e3a5f' : '#94a3b8', fontSize: 11, fontWeight: 600 }}>
+                        <div key={w.id} style={{ padding: '5px 8px', borderRadius: 8, background: qty > 0 ? '#eef2ff' : '#f1f5f9', color: qty > 0 ? '#1e3a5f' : '#94a3b8', fontSize: 'var(--fs-xs)', fontWeight: 600 }}>
                           {w.name}: {money(qty)}{rackControl(g, w, true)}
                         </div>
                       );

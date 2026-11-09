@@ -314,7 +314,7 @@ export default function SettingsPage() {
             </div>
             <div className="form-actions">
               <button type="submit" disabled={creating}>{creating ? 'Membuat…' : 'Buat Toko'}</button>
-              <span className="muted" style={{ alignSelf: 'center', fontSize: '.85rem' }}>SKU baru B+ID-SKU • Stok 0 • Gudang auto</span>
+              <span className="muted" style={{ alignSelf: 'center', fontSize: 'var(--fs-sm)' }}>SKU baru B+ID-SKU • Stok 0 • Gudang auto</span>
             </div>
             {createMessage && <p className="message" role="status">{createMessage}</p>}
           </form>
@@ -325,7 +325,7 @@ export default function SettingsPage() {
       {isOwner && stores.length > 0 && (
         <section className="panel" style={{ gridColumn: '1 / -1' }}>
           <h2>Daftar Toko</h2>
-          <p className="muted" style={{ fontSize: '.85rem' }}>Atur semi grosir POS per toko. Pengaturan harga ini terpisah dari aturan komisi staf.</p>
+          <p className="muted" style={{ fontSize: 'var(--fs-sm)' }}>Atur semi grosir POS per toko. Pengaturan harga ini terpisah dari aturan komisi staf.</p>
           <div className="table-wrap settings-branch-table-wrap" style={{ marginTop: '.75rem' }}>
             <table className="settings-branch-table">
               <thead><tr><th>No</th><th>Nama</th><th>Tipe</th><th>Produk</th><th>User</th><th>Semi Grosir</th><th>Aktif</th><th>Aksi</th></tr></thead>
@@ -337,7 +337,7 @@ export default function SettingsPage() {
                     <td data-label="No">{idx + 1}</td>
                     <td data-label="Nama"><strong>{s.name}</strong>{String(s.id) === String(branch) ? <span className="tag" style={{ marginLeft: '.5rem' }}>dipilih</span> : null}<br /><small className="muted">{s.address || '-'}</small></td>
                     <td data-label="Tipe">
-                      <select value={s.type || 'toko'} disabled={String(s.id) === String(branch) || !s.is_active} style={{ padding: '.3rem .4rem', fontSize: '.78rem' }} onChange={async (e) => {
+                      <select value={s.type || 'toko'} disabled={String(s.id) === String(branch) || !s.is_active} style={{ padding: '.3rem .4rem', fontSize: 'var(--fs-sm)' }} onChange={async (e) => {
                         const next = e.target.value;
                         try {
                           const r = await fetch(`${api}/settings/branches/${s.id}/type`, { method: 'PUT', headers: jsonHeaders(), body: JSON.stringify({ type: next }) });
@@ -426,8 +426,8 @@ export default function SettingsPage() {
           {input('store_email', 'Email toko', 'email')}
         </div>
         <div style={{ display: 'grid', gap: '.5rem' }}>
-          <strong style={{ fontSize: '.9rem' }}>Nomor WhatsApp Admin</strong>
-          {waList.length === 0 && <p className="muted" style={{ fontSize: '.82rem', margin: 0 }}>Belum ada nomor. Tambah minimal 1 nomor untuk tombol chat di landing.</p>}
+          <strong style={{ fontSize: 'var(--fs-md)' }}>Nomor WhatsApp Admin</strong>
+          {waList.length === 0 && <p className="muted" style={{ fontSize: 'var(--fs-sm)', margin: 0 }}>Belum ada nomor. Tambah minimal 1 nomor untuk tombol chat di landing.</p>}
           {waList.map((num, i) => (
             <div key={i} style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
               <input type="tel" value={num} placeholder={`WA Admin ${i + 1}`} onChange={(e) => { const next = [...waList]; next[i] = e.target.value; setWaList(next); }} style={{ flex: 1 }} />
@@ -435,11 +435,11 @@ export default function SettingsPage() {
             </div>
           ))}
           <button type="button" onClick={() => setWaList([...waList, ''])} style={{ justifySelf: 'start', minHeight: 38, padding: '0 14px', borderRadius: '.45rem', border: '1px dashed #2563eb', background: '#eff6ff', color: '#1e3a5f', fontWeight: 700, cursor: 'pointer' }}>+ Tambah nomor WA</button>
-          <p className="muted" style={{ fontSize: '.8rem', margin: 0 }}>Nomor dipakai di landing grosir (bisa lebih dari 1 admin, tampil popup pilih admin). Format 08... otomatis jadi 62...</p>
+          <p className="muted" style={{ fontSize: 'var(--fs-sm)', margin: 0 }}>Nomor dipakai di landing grosir (bisa lebih dari 1 admin, tampil popup pilih admin). Format 08... otomatis jadi 62...</p>
         </div>
         {input('store_tax_id', 'NPWP')}
         <div style={{ marginTop: '.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
-          <h3 style={{ margin: '0 0 .75rem', fontSize: '.95rem' }}>Logo</h3>
+          <h3 style={{ margin: '0 0 .75rem', fontSize: 'var(--fs-md)' }}>Logo</h3>
           <div className="store-logo-upload">
             <div className="store-logo-preview">{form.store_logo ? <img src={mediaUrl(form.store_logo)} alt={'Logo'} /> : <span>Belum ada</span>}</div>
             <div><label className="media-upload">{uploadingLogo ? 'Mengunggah…' : 'Pilih logo'}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploadingLogo} onChange={(event) => uploadLogo(event.target.files?.[0])} /></label></div>
@@ -506,8 +506,8 @@ export default function SettingsPage() {
               autoComplete="new-password"
             />
           </label>
-          {emailKeySet && <p className="muted" style={{ margin: 0, fontSize: '.82rem' }}>API key tersimpan dan tidak pernah ditampilkan kembali.</p>}
-          <p className="muted" style={{ margin: 0, fontSize: '.82rem' }}>Provider yang didukung: Resend. Penerima dan jadwal mengikuti pengaturan pada toko yang dipilih; isi laporan menggabungkan semua toko dan gudang aktif.</p>
+          {emailKeySet && <p className="muted" style={{ margin: 0, fontSize: 'var(--fs-sm)' }}>API key tersimpan dan tidak pernah ditampilkan kembali.</p>}
+          <p className="muted" style={{ margin: 0, fontSize: 'var(--fs-sm)' }}>Provider yang didukung: Resend. Penerima dan jadwal mengikuti pengaturan pada toko yang dipilih; isi laporan menggabungkan semua toko dan gudang aktif.</p>
         </section>
       )}
 

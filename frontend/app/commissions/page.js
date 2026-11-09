@@ -214,7 +214,7 @@ export default function CommissionsPage() {
             <label style={{ minWidth: 150 }}>Dari<input type="date" value={reportPeriod.start} onChange={(e) => { setReportPreset('custom'); setReportPeriod({ ...reportPeriod, start: e.target.value }); }} /></label>
             <label style={{ minWidth: 150 }}>Sampai<input type="date" value={reportPeriod.end} onChange={(e) => { setReportPreset('custom'); setReportPeriod({ ...reportPeriod, end: e.target.value }); }} /></label>
             <button type="button" onClick={() => loadReport()} style={{ minHeight: 40 }}>Tampilkan</button>
-            <span className="muted" style={{ fontSize: '.85rem', alignSelf: 'center' }}>{report?.period_start} → {report?.period_end} {report?.branch_id ? `• Cabang ${report.branch_id}` : ''}</span>
+            <span className="muted" style={{ fontSize: 'var(--fs-sm)', alignSelf: 'center' }}>{report?.period_start} → {report?.period_end} {report?.branch_id ? `• Cabang ${report.branch_id}` : ''}</span>
           </div>
           {report ? (
             <div className="table-wrap" style={{ marginTop: '1rem' }}>
@@ -235,7 +235,7 @@ export default function CommissionsPage() {
                       <td>{r.total_qty}</td>
                       <td>{rupiah(r.total_sales)}</td>
                       <td><strong>{rupiah(r.commission)}</strong></td>
-                      <td style={{ fontSize: '.8rem' }}>{r.breakdown.map((b) => `${b.name}: ${rupiah(b.commission)}`).join(' • ')}</td>
+                      <td style={{ fontSize: 'var(--fs-sm)' }}>{r.breakdown.map((b) => `${b.name}: ${rupiah(b.commission)}`).join(' • ')}</td>
                     </tr>
                   )) : <tr><td colSpan={9}>Tidak ada komisi di periode ini.</td></tr>}
                 </tbody>
@@ -250,7 +250,7 @@ export default function CommissionsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '1rem', alignItems: 'start' }}>
           <section className="panel">
             <h2>Aturan Komisi Baru</h2>
-            <p className="muted" style={{ marginTop: 0, fontSize: '.9rem' }}>Untuk manager: pakai tipe <strong>Per pcs by customer tier</strong>, isi 3000/3000/1000 per pcs.</p>
+            <p className="muted" style={{ marginTop: 0, fontSize: 'var(--fs-md)' }}>Untuk manager: pakai tipe <strong>Per pcs by customer tier</strong>, isi 3000/3000/1000 per pcs.</p>
             <form onSubmit={createRule} style={{ display: 'grid', gap: '.75rem', marginTop: '.75rem' }}>
               <label>Toko
                 <select value={selectedBranch} onChange={(e) => { setSelectedBranch(e.target.value); load(e.target.value); loadReport(e.target.value); }}>
@@ -258,7 +258,7 @@ export default function CommissionsPage() {
                   {branches.map((b) => <option key={b.id} value={b.id}>{b.name} (ID {b.id})</option>)}
                 </select>
               </label>
-              <p className="muted" style={{ margin: 0, fontSize: '.8rem' }}>Pilih toko untuk aturan khusus cabang (misal manager Toko B). Kosongkan untuk aturan global.</p>
+              <p className="muted" style={{ margin: 0, fontSize: 'var(--fs-sm)' }}>Pilih toko untuk aturan khusus cabang (misal manager Toko B). Kosongkan untuk aturan global.</p>
               <label>Nama aturan*<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Contoh: Komisi manager per pcs" required /></label>
               <div className="two-fields">
                 <label>Berlaku untuk
@@ -328,7 +328,7 @@ export default function CommissionsPage() {
                       <td><strong>{r.name}</strong><br /><small className="muted">{r.staff_name || r.role || 'semua'}</small></td>
                       <td>{r.applies_to}{r.role ? `:${r.role}` : ''}</td>
                       <td>{r.calculation_type}</td>
-                      <td style={{ fontSize: '.85rem' }}>
+                      <td style={{ fontSize: 'var(--fs-sm)' }}>
                         {r.calculation_type === 'per_pcs_customer_tier'
                           ? `Reg ${rupiah(r.commission_reguler_per_pcs)}/pcs • Semi ${rupiah(r.commission_semi_grosir_per_pcs)} • Grosir ${rupiah(r.commission_grosir_seri_per_pcs)}`
                           : r.calculation_type.startsWith('percentage') ? `${r.percentage}%` : rupiah(r.flat_amount)

@@ -32,10 +32,10 @@ export default function FloatingWA({ phone, phones, message }) {
     <div style={{ position: 'fixed', zIndex: 90, right: 16, bottom: 16, display: 'grid', gap: 8, justifyItems: 'end' }}>
       {open && (
         <div style={{ display: 'grid', gap: 8, padding: 10, borderRadius: 12, background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 12px 28px rgba(0,0,0,.18)', minWidth: 200 }}>
-          <strong style={{ fontSize: 12 }}>Pilih Admin</strong>
+          <strong style={{ fontSize: 'var(--fs-sm)' }}>Pilih Admin</strong>
           {list.map((ph, i) => {
             const url = `https://wa.me/${cleanNum(ph)}?text=${encodeURIComponent(defaultMsg)}`;
-            return <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', borderRadius: 8, background: '#e6f4f1', color: '#0f766e', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>Admin {i + 1} <span>{ph}</span></a>;
+            return <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', borderRadius: 8, background: '#e6f4f1', color: '#0f766e', fontWeight: 700, fontSize: 'var(--fs-md)', textDecoration: 'none' }}>Admin {i + 1} <span>{ph}</span></a>;
           })}
         </div>
       )}

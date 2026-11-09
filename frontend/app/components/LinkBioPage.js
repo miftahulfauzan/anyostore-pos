@@ -151,7 +151,7 @@ function TextItem({ item, theme, layout }) {
       key={item.id}
       style={{
         margin: layout === 'grid' ? '18px 4px 8px' : '20px 0 8px',
-        fontSize: 13,
+        fontSize: 'var(--fs-md)',
         fontWeight: 800,
         letterSpacing: '.08em',
         textTransform: 'uppercase',
@@ -201,7 +201,7 @@ function LinkCard({ item, theme, layout, onLinkClick }) {
         }}
       >
         <CardIcon item={item} size={42} iconSize={21} theme={theme} />
-        <span style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.35 }}>{item.label}</span>
+        <span style={{ fontSize: 'var(--fs-md)', fontWeight: 700, lineHeight: 1.35 }}>{item.label}</span>
       </a>
     );
   }
@@ -355,7 +355,7 @@ export default function LinkBioPage({ config, onLinkClick }) {
         {info.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 18 }}>
             {info.map(({ key, value, Icon }) => (
-              <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 999, fontSize: 12.5, fontWeight: 600, ...theme.chip }}>
+              <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 999, fontSize: 'var(--fs-md)', fontWeight: 600, ...theme.chip }}>
                 <Icon style={{ width: 14, height: 14, flexShrink: 0 }} aria-hidden="true" />
                 {value}
               </span>
@@ -409,7 +409,7 @@ export default function LinkBioPage({ config, onLinkClick }) {
           })}
         </nav>
 
-        <p style={{ margin: '36px 0 0', fontSize: 12, color: theme.footer, textAlign: 'center' }}>
+        <p style={{ margin: '36px 0 0', fontSize: 'var(--fs-sm)', color: theme.footer, textAlign: 'center' }}>
           {config?.title || 'Anyostore'} · Katalog grosir denim wanita
         </p>
       </div>

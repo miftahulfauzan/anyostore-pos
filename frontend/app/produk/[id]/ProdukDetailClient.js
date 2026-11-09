@@ -144,7 +144,7 @@ export default function ProdukDetail() {
       <header style={{ background: C.white, borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, zIndex: 40 }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <a href="/" style={{ fontSize: 14, fontWeight: 600, color: C.ink, textDecoration: 'none' }}>← Katalog</a>
-          <span style={{ fontSize: 13, color: C.muted }}>{product.branch_name || ''}</span>
+          <span style={{ fontSize: 'var(--fs-md)', color: C.muted }}>{product.branch_name || ''}</span>
         </div>
       </header>
 
@@ -168,9 +168,9 @@ export default function ProdukDetail() {
         {/* info */}
         <div style={{ display: 'grid', gap: 16 }} className="m-fade-up">
           <div>
-            <p style={{ margin: 0, color: C.muted, fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' }}>{product.category_name || 'Denim'}</p>
+            <p style={{ margin: 0, color: C.muted, fontSize: 'var(--fs-xs)', fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' }}>{product.category_name || 'Denim'}</p>
             <h1 style={{ margin: '6px 0 0', fontFamily: "'DM Sans', sans-serif", fontSize: 26, fontWeight: 700, lineHeight: 1.2, color: C.ink }}>{product.name}</h1>
-            <p style={{ margin: '6px 0 0', color: C.muted, fontSize: 13 }}>{product.sku || ''}</p>
+            <p style={{ margin: '6px 0 0', color: C.muted, fontSize: 'var(--fs-md)' }}>{product.sku || ''}</p>
           </div>
 
           <strong style={{ fontSize: 24, color: C.accent }}>Rp{displayPrice.toLocaleString('id-ID')}</strong>
@@ -178,7 +178,7 @@ export default function ProdukDetail() {
           <div style={{ padding: 16, borderRadius: 10, background: C.white, border: `1px solid ${C.border}`, display: 'grid', gap: 14 }}>
             {variants.length > 0 && (
               <div>
-                <strong style={{ fontSize: 13, color: C.ink }}>Pilih varian</strong>
+                <strong style={{ fontSize: 'var(--fs-md)', color: C.ink }}>Pilih varian</strong>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                   {variants.map((v) => {
                     const active = v.id === selectedVariantId;
@@ -200,11 +200,11 @@ export default function ProdukDetail() {
                             if (idx >= 0) setActiveImg(idx);
                           }
                         }}
-                        style={{ padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${active ? C.accent : C.border}`, background: active ? C.accent : C.white, color: active ? '#fff' : C.ink, fontWeight: 600, fontSize: 12, cursor: Number(v.available_stock || 0) <= 0 ? 'not-allowed' : 'pointer', opacity: Number(v.available_stock || 0) <= 0 ? .5 : 1 }}
+                        style={{ padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${active ? C.accent : C.border}`, background: active ? C.accent : C.white, color: active ? '#fff' : C.ink, fontWeight: 600, fontSize: 'var(--fs-sm)', cursor: Number(v.available_stock || 0) <= 0 ? 'not-allowed' : 'pointer', opacity: Number(v.available_stock || 0) <= 0 ? .5 : 1 }}
                       >
                         {v.color || 'Varian'}
-                        <span style={{ display: 'block', fontSize: 11, opacity: .8 }}>Stok {Number(v.available_stock || 0)}</span>
-                        {Number(v.price) > 0 && Number(v.price) !== Number(product.price) && <span style={{ display: 'block', fontSize: 11, opacity: .85 }}>Rp{Number(v.price).toLocaleString('id-ID')}</span>}
+                        <span style={{ display: 'block', fontSize: 'var(--fs-xs)', opacity: .8 }}>Stok {Number(v.available_stock || 0)}</span>
+                        {Number(v.price) > 0 && Number(v.price) !== Number(product.price) && <span style={{ display: 'block', fontSize: 'var(--fs-xs)', opacity: .85 }}>Rp{Number(v.price).toLocaleString('id-ID')}</span>}
                       </button>
                     );
                   })}
@@ -213,22 +213,22 @@ export default function ProdukDetail() {
             )}
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <strong style={{ fontSize: 13, color: C.ink, minWidth: 56 }}>Jumlah</strong>
+              <strong style={{ fontSize: 'var(--fs-md)', color: C.ink, minWidth: 56 }}>Jumlah</strong>
               <button type="button" onClick={() => { setQty((q) => Math.max(1, q - 1)); setStockError(''); }} aria-label="Kurangi jumlah" style={{ width: 36, height: 36, padding: 0, borderRadius: 8, border: 'none', background: C.accent, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><I.minus style={{ width: 16, height: 16 }} /></button>
               <input type="number" min="1" max={selectedAvailableStock} value={qty} onChange={(e) => { setQty(Math.max(1, Math.min(selectedAvailableStock, Number(e.target.value) || 1))); setStockError(''); }} aria-label="Jumlah" style={{ width: 56, height: 36, textAlign: 'center', border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 700, fontSize: 15 }} />
               <button type="button" disabled={qty >= selectedAvailableStock} onClick={() => setQty((q) => Math.min(selectedAvailableStock, q + 1))} aria-label="Tambah jumlah" style={{ width: 36, height: 36, padding: 0, borderRadius: 8, border: 'none', background: C.accent, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: qty >= selectedAvailableStock ? 'not-allowed' : 'pointer', opacity: qty >= selectedAvailableStock ? .55 : 1 }}><I.plus style={{ width: 16, height: 16 }} /></button>
             </div>
 
-            {stockError && <p role="alert" style={{ margin: '-8px 0 0', color: '#b91c1c', fontSize: 12, fontWeight: 600 }}>{stockError}</p>}
+            {stockError && <p role="alert" style={{ margin: '-8px 0 0', color: '#b91c1c', fontSize: 'var(--fs-sm)', fontWeight: 600 }}>{stockError}</p>}
             <button type="button" onClick={addToCart} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 46, borderRadius: 10, border: 'none', background: C.accent, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
               {added ? <I.check style={{ width: 17, height: 17 }} /> : <I.cart style={{ width: 17, height: 17 }} />} {added ? 'Ditambahkan ke Keranjang' : 'Tambah ke Keranjang'}
             </button>
             {added && (
-              <p style={{ margin: 0, fontSize: 12, color: '#16a34a', textAlign: 'center' }}>
+              <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: '#16a34a', textAlign: 'center' }}>
                 Masuk keranjang. <a href="/" style={{ color: C.accent, fontWeight: 700 }}>Lihat Keranjang ({cartCount})</a>
               </p>
             )}
-            <p style={{ margin: 0, fontSize: 11, color: C.muted, textAlign: 'center' }}>Minimal 4 pcs per model. Varian boleh dicampur.</p>
+            <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: C.muted, textAlign: 'center' }}>Minimal 4 pcs per model. Varian boleh dicampur.</p>
           </div>
 
           {/* CTA */}
@@ -239,14 +239,14 @@ export default function ProdukDetail() {
               </a>
             ))}
           </div>
-          <p style={{ margin: 0, fontSize: 11, color: C.muted, textAlign: 'center' }}>Chat admin untuk harga grosir, stok, warna ready.</p>
+          <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: C.muted, textAlign: 'center' }}>Chat admin untuk harga grosir, stok, warna ready.</p>
 
           {/* trust strip */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
             {[{ icon: I.box, label: 'Min 4 pcs/model' }, { icon: I.truck, label: 'Kirim Nasional' }, { icon: I.store, label: 'Ready Stock' }].map((it, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 6, background: C.white, justifyContent: 'center' }}>
                 <it.icon style={{ width: 15, height: 15, color: C.muted }} />
-                <span style={{ fontSize: 11, fontWeight: 600, color: C.ink }}>{it.label}</span>
+                <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: C.ink }}>{it.label}</span>
               </div>
             ))}
           </div>
@@ -265,7 +265,7 @@ export default function ProdukDetail() {
       {cartCount > 0 && (
         <a href="/" aria-label="Buka keranjang" style={{ position: 'fixed', right: 16, bottom: 82, zIndex: 95, width: 56, height: 56, borderRadius: '50%', background: C.accent, color: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 12px 28px rgba(15,23,42,.25)', textDecoration: 'none' }}>
           <I.cart style={{ width: 22, height: 22 }} />
-          <span style={{ position: 'absolute', top: -2, right: -2, minWidth: 20, height: 20, borderRadius: 999, background: '#dc2626', color: '#fff', fontSize: 11, fontWeight: 800, display: 'grid', placeItems: 'center', padding: '0 5px', border: '2px solid #fff' }}>{cartCount}</span>
+          <span style={{ position: 'absolute', top: -2, right: -2, minWidth: 20, height: 20, borderRadius: 999, background: '#dc2626', color: '#fff', fontSize: 'var(--fs-xs)', fontWeight: 800, display: 'grid', placeItems: 'center', padding: '0 5px', border: '2px solid #fff' }}>{cartCount}</span>
         </a>
       )}
 

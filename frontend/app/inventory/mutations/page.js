@@ -359,8 +359,8 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
           </div>
           {channels.map((c) => (
             <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ flex: 1, fontSize: 13 }}>{c.name}<small style={{ display: 'block', color: 'var(--muted-foreground)' }}>{c.value}{c.is_active === false ? ' · nonaktif' : ''}</small></span>
-              <button type="button" className="button-link" style={{ minHeight: 28, padding: '0 8px', fontSize: 12 }} onClick={async () => {
+              <span style={{ flex: 1, fontSize: 'var(--fs-md)' }}>{c.name}<small style={{ display: 'block', color: 'var(--muted-foreground)' }}>{c.value}{c.is_active === false ? ' · nonaktif' : ''}</small></span>
+              <button type="button" className="button-link" style={{ minHeight: 28, padding: '0 8px', fontSize: 'var(--fs-sm)' }} onClick={async () => {
                 const next = window.prompt('Nama saluran:', c.name);
                 if (!next?.trim() || next.trim() === c.name) return;
                 try {
@@ -371,7 +371,7 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
                   loadChannels();
                 } catch (e) { setMessage(e.message); }
               }}>Edit</button>
-              <button type="button" className="button-link" style={{ minHeight: 28, padding: '0 8px', fontSize: 12 }} onClick={async () => {
+              <button type="button" className="button-link" style={{ minHeight: 28, padding: '0 8px', fontSize: 'var(--fs-sm)' }} onClick={async () => {
                 try {
                   const r = await fetch(api + '/inventory/channels/' + c.id, { method: 'PUT', headers: h(), body: JSON.stringify({ is_active: c.is_active === false }) });
                   const b = await r.json();
@@ -380,7 +380,7 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
                   loadChannels();
                 } catch (e) { setMessage(e.message); }
               }}>{c.is_active === false ? 'Aktifkan' : 'Nonaktifkan'}</button>
-              <button type="button" className="button-link" style={{ minHeight: 28, padding: '0 8px', fontSize: 12, color: '#dc2626' }} onClick={async () => {
+              <button type="button" className="button-link" style={{ minHeight: 28, padding: '0 8px', fontSize: 'var(--fs-sm)', color: '#dc2626' }} onClick={async () => {
                 if (!window.confirm('Hapus saluran "' + c.name + '"?')) return;
                 try {
                   const r = await fetch(api + '/inventory/channels/' + c.id, { method: 'DELETE', headers: h() });
@@ -415,10 +415,10 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
                   : <div className="stock-picker-ph">Tanpa foto</div>}
               </div>
               <div style={{ padding: 10, display: 'grid', gap: 6 }}>
-                <strong style={{ fontSize: 13, lineHeight: 1.3 }}>{p.name}</strong>
-                <span style={{ fontSize: 11, color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{p.sku || 'Tanpa SKU'}</span>
+                <strong style={{ fontSize: 'var(--fs-md)', lineHeight: 1.3 }}>{p.name}</strong>
+                <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{p.sku || 'Tanpa SKU'}</span>
                 <span className="stock-picker-badge">Stok: {Number(p.stock || 0)}</span>
-                {p.rack_position && <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>Posisi Rak: {p.rack_position}</span>}
+                {p.rack_position && <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>Posisi Rak: {p.rack_position}</span>}
                 {p.variants && p.variants.length > 0 && (
                   <>
                     <span className="stock-picker-variant-note">{p.variants.length} warna · ketuk untuk pilih</span>

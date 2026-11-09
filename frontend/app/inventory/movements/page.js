@@ -89,18 +89,18 @@ export default function StockMovementsPage() {
           <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <strong style={{ fontSize: 14 }}>{row.product_name}</strong>
-              <span className={`mutation-type ${row.qty >= 0 ? 'increase' : 'decrease'}`} style={{ padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: row.qty >= 0 ? '#dcfce7' : '#fef2f2', color: row.qty >= 0 ? '#16a34a' : '#dc2626' }}>{typeLabels[row.type] || row.type}</span>
+              <span className={`mutation-type ${row.qty >= 0 ? 'increase' : 'decrease'}`} style={{ padding: '2px 8px', borderRadius: 999, fontSize: 'var(--fs-xs)', fontWeight: 600, background: row.qty >= 0 ? '#dcfce7' : '#fef2f2', color: row.qty >= 0 ? '#16a34a' : '#dc2626' }}>{typeLabels[row.type] || row.type}</span>
             </div>
-            <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>
+            <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: '#64748b' }}>
               {row.product_sku || ''}{row.variant_color ? ` · ${row.variant_color}` : ''} • {new Date(row.created_at).toLocaleString('id-ID')}
             </p>
-            <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>
+            <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: '#64748b' }}>
               {row.user_name || 'Sistem'}{row.channel ? ` · ${channels[row.channel] || row.channel}` : ''}{row.notes ? ` · ${row.notes}` : ''}{row.warehouse_name ? ` · ${row.warehouse_name}` : ''}
             </p>
           </div>
           <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: row.qty >= 0 ? '#16a34a' : '#dc2626' }}>{row.qty >= 0 ? '+' : ''}{row.qty}</div>
-            <div style={{ fontSize: 11, color: '#94a3b8' }}>{row.stock_before ?? '-'} → {row.stock_after ?? '-'}</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: '#94a3b8' }}>{row.stock_before ?? '-'} → {row.stock_after ?? '-'}</div>
           </div>
         </article>
       ))}

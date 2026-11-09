@@ -268,7 +268,7 @@ function AdjModal({ photo, mediaUrl, onClose, onSave }) {
     }
   }
 
-  const toolBtn = { display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 36, padding: '0 12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#1e293b', fontSize: 12, fontWeight: 600, cursor: 'pointer' };
+  const toolBtn = { display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 36, padding: '0 12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#1e293b', fontSize: 'var(--fs-sm)', fontWeight: 600, cursor: 'pointer' };
   const toolBtnActive = { ...toolBtn, background: ACCENT, borderColor: ACCENT, color: '#fff' };
 
   return (
@@ -277,7 +277,7 @@ function AdjModal({ photo, mediaUrl, onClose, onSave }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #eef1f5' }}>
           <div>
             <strong style={{ fontSize: 16, color: '#0f172a' }}>Ubah Foto Produk</strong>
-            <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94a3b8' }}>Geser untuk posisi · gulir / pinch untuk zoom · hasil 1200×1600 (3:4)</p>
+            <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-xs)', color: '#94a3b8' }}>Geser untuk posisi · gulir / pinch untuk zoom · hasil 1200×1600 (3:4)</p>
           </div>
           <button type="button" onClick={onClose} disabled={saving} aria-label="Tutup" style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#f1f5f9', fontSize: 16, lineHeight: 1, cursor: 'pointer', color: '#475569', display: 'grid', placeItems: 'center' }}>×</button>
         </div>
@@ -297,8 +297,8 @@ function AdjModal({ photo, mediaUrl, onClose, onSave }) {
               style={{ position: 'relative', width: '100%', maxWidth: 440, margin: '0 auto', aspectRatio: '3/4', overflow: 'hidden', borderRadius: 12, background: '#0f172a', border: '1px solid #e2e8f0', cursor: 'grab', touchAction: 'none', userSelect: 'none' }}
             >
               <canvas ref={cropCanvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
-              {status === 'loading' && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#94a3b8', fontSize: 13, background: '#0f172a' }}>Memuat foto…</div>}
-              {status === 'error' && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#fca5a5', fontSize: 13, padding: 20, textAlign: 'center', background: '#0f172a' }}>Foto tidak dapat dimuat. Silakan pilih foto lain.</div>}
+              {status === 'loading' && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#94a3b8', fontSize: 'var(--fs-md)', background: '#0f172a' }}>Memuat foto…</div>}
+              {status === 'error' && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#fca5a5', fontSize: 'var(--fs-md)', padding: 20, textAlign: 'center', background: '#0f172a' }}>Foto tidak dapat dimuat. Silakan pilih foto lain.</div>}
               <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
                 <div style={{ position: 'absolute', left: '33.33%', top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,.32)' }} />
                 <div style={{ position: 'absolute', left: '66.66%', top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,.32)' }} />
@@ -311,11 +311,11 @@ function AdjModal({ photo, mediaUrl, onClose, onSave }) {
 
           {/* Kanan: preview realtime */}
           <div style={{ flex: '1 1 220px', minWidth: 0, display: 'grid', gap: 8, alignContent: 'start' }}>
-            <strong style={{ fontSize: 12, color: '#334155', textTransform: 'uppercase', letterSpacing: '.05em' }}>Preview · 1200×1600</strong>
+            <strong style={{ fontSize: 'var(--fs-sm)', color: '#334155', textTransform: 'uppercase', letterSpacing: '.05em' }}>Preview · 1200×1600</strong>
             <div ref={previewRef} style={{ position: 'relative', width: '100%', maxWidth: 180, margin: '0 auto', aspectRatio: '3/4', overflow: 'hidden', borderRadius: 10, background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 4px 16px rgba(15,23,42,.12)' }}>
               <canvas ref={previewCanvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
             </div>
-            <p style={{ margin: 0, fontSize: 11, color: '#64748b', textAlign: 'center' }}>Hasil crop otomatis mengikuti preview. Tersimpan sebagai JPEG 1200×1600.</p>
+            <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: '#64748b', textAlign: 'center' }}>Hasil crop otomatis mengikuti preview. Tersimpan sebagai JPEG 1200×1600.</p>
           </div>
         </div>
 
@@ -323,7 +323,7 @@ function AdjModal({ photo, mediaUrl, onClose, onSave }) {
         <div style={{ padding: '14px 20px 18px', borderTop: '1px solid #eef1f5', display: 'grid', gap: 12 }}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <button type="button" onClick={() => zoomBy(1 / 1.2)} style={toolBtn}><ZoomOut size={15} /> Perkecil</button>
-            <span style={{ fontSize: 12, color: '#475569', minWidth: 46, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{zoom.toFixed(2)}×</span>
+            <span style={{ fontSize: 'var(--fs-sm)', color: '#475569', minWidth: 46, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{zoom.toFixed(2)}×</span>
             <button type="button" onClick={() => zoomBy(1.2)} style={toolBtn}><ZoomIn size={15} /> Perbesar</button>
             <span style={{ width: 1, height: 24, background: '#e2e8f0' }} />
             <button type="button" onClick={() => setRotation((r) => (r + 270) % 360)} style={toolBtn}><RotateCcw size={15} /> Putar Kiri</button>
@@ -332,9 +332,9 @@ function AdjModal({ photo, mediaUrl, onClose, onSave }) {
             <button type="button" onClick={() => setFlipV((v) => !v)} style={flipV ? toolBtnActive : toolBtn}><FlipVertical2 size={15} /> Vertikal</button>
             <button type="button" onClick={reset} style={toolBtn}>Reset</button>
           </div>
-          {error && <p style={{ margin: 0, color: '#b91c1c', fontSize: 12 }}>{error}</p>}
+          {error && <p style={{ margin: 0, color: '#b91c1c', fontSize: 'var(--fs-sm)' }}>{error}</p>}
           <div style={{ display: 'flex', gap: 10 }}>
-            <button type="button" onClick={onClose} disabled={saving} style={{ minHeight: 44, padding: '0 18px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#fff', color: '#1e293b', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Tutup</button>
+            <button type="button" onClick={onClose} disabled={saving} style={{ minHeight: 44, padding: '0 18px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#fff', color: '#1e293b', fontWeight: 600, fontSize: 'var(--fs-md)', cursor: 'pointer' }}>Tutup</button>
             <button type="button" onClick={handleSave} disabled={!image || saving || status !== 'ready'} style={{ flex: 1, minHeight: 44, borderRadius: 10, border: 'none', background: ACCENT, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: !image || status !== 'ready' ? .55 : 1 }}>{saving ? 'Menyimpan…' : 'Simpan Hasil Crop'}</button>
           </div>
         </div>
@@ -561,7 +561,7 @@ export default function EditProductPage() {
         {!form ? <section className="panel"><p>Memuat data produk…</p>{message && <p className="message">{message}</p>}</section> : (
           <form className="panel product-form" onSubmit={submit}>
             <div><h2>{product.name}</h2><p className="muted">Stok saat ini {product.stock}. Ubah stok melalui menu inventori agar mutasi tercatat.</p></div>
-            <section className="media-manager"><div className="section-heading"><div><h3>Media produk</h3><p>Isi hingga 10 foto dan 1 video, seret & lepas dari Finder/Explorer, atau tempel gambar (Ctrl/Cmd+V). Kotak pertama akan menjadi foto utama katalog.</p></div><span className="media-counter">{productImages.length}/10 foto · {productVideo ? '1/1 video' : '0/1 video'}</span></div>            <div className={`media-grid${dropFilesOver ? ' drop-files-over' : ''}`} onDragOver={mediaDragOver} onDragLeave={mediaDragLeave} onDrop={mediaDrop}>{dropFilesOver && <div className="media-drop-hint">Lepaskan foto/video di sini</div>}{Array.from({ length: 10 }, (_, index) => { const item = productImages[index]; return item ? <figure key={item.id} draggable onDragStart={onDragStart(index)} onDragEnd={onDragEnd} onDragOver={onDragOver(index)} onDrop={onDrop(index)} className={`media-draggable${dragFrom === index ? ' is-dragging' : ''}${dropTarget === index && dragFrom !== index ? ' drop-target' : ''}`}>          <img src={mediaUrl(item.path)} alt={`Foto ${index + 1} ${product.name}`} style={{ width: '100%', height: '100%', ...thumbStyle(item) }} /><span className="media-drag-handle" aria-hidden="true"><GripVertical size={14} /></span><button type="button" className="media-delete" aria-label={`Hapus foto ${index + 1}`} onClick={() => deleteMedia(item.id)}><X aria-hidden="true" size={14} /></button><button type="button" onClick={() => openAdj(item)} style={{ position: 'absolute', left: 4, bottom: 4, padding: '2px 6px', borderRadius: 4, border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 9, cursor: 'pointer' }}>Atur</button><figcaption>{index === 0 ? 'Foto utama' : `Foto ${index + 1}`}</figcaption></figure> : <label className="media-slot" key={`slot-${index}`}><ImagePlus aria-hidden="true" size={18} /><span>Foto {index + 1}</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={mediaUploading} onChange={(event) => uploadMedia(event.target.files)} /></label>; })}<label className="media-slot video-slot">{productVideo ? <video controls preload="metadata" src={mediaUrl(productVideo.path)} /> : <><Video aria-hidden="true" size={18} /><span>Video produk</span></>}<input type="file" accept="video/mp4,video/webm" disabled={mediaUploading || Boolean(productVideo)} onChange={(event) => uploadMedia(event.target.files)} /></label></div>{mediaUploading && <p className="muted">Mengunggah media…</p>}</section>
+            <section className="media-manager"><div className="section-heading"><div><h3>Media produk</h3><p>Isi hingga 10 foto dan 1 video, seret & lepas dari Finder/Explorer, atau tempel gambar (Ctrl/Cmd+V). Kotak pertama akan menjadi foto utama katalog.</p></div><span className="media-counter">{productImages.length}/10 foto · {productVideo ? '1/1 video' : '0/1 video'}</span></div>            <div className={`media-grid${dropFilesOver ? ' drop-files-over' : ''}`} onDragOver={mediaDragOver} onDragLeave={mediaDragLeave} onDrop={mediaDrop}>{dropFilesOver && <div className="media-drop-hint">Lepaskan foto/video di sini</div>}{Array.from({ length: 10 }, (_, index) => { const item = productImages[index]; return item ? <figure key={item.id} draggable onDragStart={onDragStart(index)} onDragEnd={onDragEnd} onDragOver={onDragOver(index)} onDrop={onDrop(index)} className={`media-draggable${dragFrom === index ? ' is-dragging' : ''}${dropTarget === index && dragFrom !== index ? ' drop-target' : ''}`}>          <img src={mediaUrl(item.path)} alt={`Foto ${index + 1} ${product.name}`} style={{ width: '100%', height: '100%', ...thumbStyle(item) }} /><span className="media-drag-handle" aria-hidden="true"><GripVertical size={14} /></span><button type="button" className="media-delete" aria-label={`Hapus foto ${index + 1}`} onClick={() => deleteMedia(item.id)}><X aria-hidden="true" size={14} /></button><button type="button" onClick={() => openAdj(item)} style={{ position: 'absolute', left: 4, bottom: 4, padding: '2px 6px', borderRadius: 4, border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 'var(--fs-2xs)', cursor: 'pointer' }}>Atur</button><figcaption>{index === 0 ? 'Foto utama' : `Foto ${index + 1}`}</figcaption></figure> : <label className="media-slot" key={`slot-${index}`}><ImagePlus aria-hidden="true" size={18} /><span>Foto {index + 1}</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={mediaUploading} onChange={(event) => uploadMedia(event.target.files)} /></label>; })}<label className="media-slot video-slot">{productVideo ? <video controls preload="metadata" src={mediaUrl(productVideo.path)} /> : <><Video aria-hidden="true" size={18} /><span>Video produk</span></>}<input type="file" accept="video/mp4,video/webm" disabled={mediaUploading || Boolean(productVideo)} onChange={(event) => uploadMedia(event.target.files)} /></label></div>{mediaUploading && <p className="muted">Mengunggah media…</p>}</section>
             <label>Nama produk<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></label>
             <label>Kategori<select value={form.category_id} onChange={(event) => setForm({ ...form, category_id: event.target.value })} required><option value="">Pilih kategori</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
             <div className="two-fields"><label>SKU<input value={form.sku} onChange={(event) => setForm({ ...form, sku: event.target.value })} /></label><label>Barcode<input value={form.barcode} onChange={(event) => setForm({ ...form, barcode: event.target.value })} /></label></div>

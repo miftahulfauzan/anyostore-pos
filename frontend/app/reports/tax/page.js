@@ -112,7 +112,7 @@ export default function TaxReportPage() {
 
           <div className="tax-report-tabs">
             {[{ id: 'ppn', label: 'PPN (VAT)' }, { id: 'faktur', label: 'Faktur Pajak' }, { id: 'pph23', label: 'PPh 23' }].map((t) => (
-              <button className="tax-report-tab" type="button" key={t.id} onClick={() => loadTab(t.id)} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: tab === t.id ? '#1e3a5f' : 'transparent', color: tab === t.id ? '#fff' : '#475569', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>{t.label}</button>
+              <button className="tax-report-tab" type="button" key={t.id} onClick={() => loadTab(t.id)} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: tab === t.id ? '#1e3a5f' : 'transparent', color: tab === t.id ? '#fff' : '#475569', fontWeight: 700, fontSize: 'var(--fs-md)', cursor: 'pointer' }}>{t.label}</button>
             ))}
           </div>
 
@@ -123,25 +123,25 @@ export default function TaxReportPage() {
             <div>
               <div className="tax-report-summary-grid">
                 <div className="panel tax-report-summary-card" style={{ padding: 16 }}>
-                  <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>PPN Keluaran (dari Penjualan)</p>
+                  <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: '#64748b' }}>PPN Keluaran (dari Penjualan)</p>
                   <strong style={{ fontSize: 22, color: '#1e3a5f' }}>Rp{money(ppn.ppn_keluaran.ppn_amount)}</strong>
-                  <p style={{ margin: '4px 0 0', fontSize: 11, color: '#94a3b8' }}>Dasar PPN: Rp{money(ppn.ppn_keluaran.ppn_base)} · {ppn.ppn_keluaran.transactions} transaksi</p>
+                  <p style={{ margin: '4px 0 0', fontSize: 'var(--fs-xs)', color: '#94a3b8' }}>Dasar PPN: Rp{money(ppn.ppn_keluaran.ppn_base)} · {ppn.ppn_keluaran.transactions} transaksi</p>
                 </div>
                 <div className="panel tax-report-summary-card" style={{ padding: 16 }}>
-                  <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>PPN Masukan (dari Pembelian)</p>
+                  <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: '#64748b' }}>PPN Masukan (dari Pembelian)</p>
                   <strong style={{ fontSize: 22, color: '#16a34a' }}>Rp{money(ppn.ppn_masukan.ppn_amount)}</strong>
-                  <p style={{ margin: '4px 0 0', fontSize: 11, color: '#94a3b8' }}>Dasar PPN: Rp{money(ppn.ppn_masukan.total_purchase)} · {ppn.ppn_masukan.orders} order</p>
+                  <p style={{ margin: '4px 0 0', fontSize: 'var(--fs-xs)', color: '#94a3b8' }}>Dasar PPN: Rp{money(ppn.ppn_masukan.total_purchase)} · {ppn.ppn_masukan.orders} order</p>
                 </div>
                 <div className="panel tax-report-summary-card" style={{ padding: 16, background: ppn.net_ppn > 0 ? '#fef2f2' : '#f0fdf4' }}>
-                  <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>PPN Net (terutang)</p>
+                  <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: '#64748b' }}>PPN Net (terutang)</p>
                   <strong style={{ fontSize: 22, color: ppn.net_ppn > 0 ? '#dc2626' : '#16a34a' }}>Rp{money(ppn.net_ppn)}</strong>
-                  <p style={{ margin: '4px 0 0', fontSize: 11, color: '#94a3b8' }}>PPN Keluaran − PPN Masukan</p>
+                  <p style={{ margin: '4px 0 0', fontSize: 'var(--fs-xs)', color: '#94a3b8' }}>PPN Keluaran − PPN Masukan</p>
                 </div>
               </div>
 
               <h3 style={{ margin: '0 0 8px', fontSize: 14 }}>Breakdown per Bulan</h3>
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-md)' }}>
                   <thead>
                     <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
                       <th style={{ padding: '8px 12px' }}>Bulan</th>
@@ -165,7 +165,7 @@ export default function TaxReportPage() {
                   </tbody>
                 </table>
               </div>
-              <p style={{ marginTop: 12, fontSize: 11, color: '#94a3b8' }}>Tarif PPN: {ppn.tax_rate}% · Harga {ppn.prices_include_tax ? 'sudah termasuk' : 'belum termasuk'} PPN</p>
+              <p style={{ marginTop: 12, fontSize: 'var(--fs-xs)', color: '#94a3b8' }}>Tarif PPN: {ppn.tax_rate}% · Harga {ppn.prices_include_tax ? 'sudah termasuk' : 'belum termasuk'} PPN</p>
             </div>
           )}
 
@@ -174,22 +174,22 @@ export default function TaxReportPage() {
             <div>
               <div className="tax-report-summary-grid">
                 <div className="panel tax-report-summary-card" style={{ padding: 16 }}>
-                  <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Total Faktur</p>
+                  <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: '#64748b' }}>Total Faktur</p>
                   <strong style={{ fontSize: 22 }}>{faktur.total_faktur}</strong>
                 </div>
                 <div className="panel tax-report-summary-card" style={{ padding: 16 }}>
-                  <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Total PPN</p>
+                  <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: '#64748b' }}>Total PPN</p>
                   <strong style={{ fontSize: 22, color: '#1e3a5f' }}>Rp{money(faktur.total_ppn)}</strong>
                 </div>
                 <div className="panel tax-report-summary-card" style={{ padding: 16 }}>
-                  <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Toko</p>
+                  <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: '#64748b' }}>Toko</p>
                   <strong style={{ fontSize: 14 }}>{faktur.store?.name || '-'}</strong>
-                  <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94a3b8' }}>NPWP: {faktur.store?.npwp || '-'}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-xs)', color: '#94a3b8' }}>NPWP: {faktur.store?.npwp || '-'}</p>
                 </div>
               </div>
 
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
                   <thead>
                     <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
                       <th style={{ padding: '8px 8px' }}>#</th>
@@ -205,7 +205,7 @@ export default function TaxReportPage() {
                     {faktur.faktur.map((f) => (
                       <tr key={f.id} style={{ borderBottom: '1px solid var(--border)' }}>
                         <td style={{ padding: '6px 8px' }}>{f.no}</td>
-                        <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontSize: 11 }}>{f.faktur_no}</td>
+                        <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontSize: 'var(--fs-xs)' }}>{f.faktur_no}</td>
                         <td style={{ padding: '6px 8px' }}>{f.date?.slice(0, 10)}</td>
                         <td style={{ padding: '6px 8px' }}>{f.customer}</td>
                         <td style={{ padding: '6px 8px', textAlign: 'right' }}>Rp{money(f.gross_amount)}</td>
@@ -225,17 +225,17 @@ export default function TaxReportPage() {
             <div>
               <div className="tax-report-summary-grid">
                 <div className="panel tax-report-summary-card" style={{ padding: 16 }}>
-                  <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Total Pengeluaran</p>
+                  <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: '#64748b' }}>Total Pengeluaran</p>
                   <strong style={{ fontSize: 22 }}>{pph23.total_expenses}</strong>
                 </div>
                 <div className="panel tax-report-summary-card" style={{ padding: 16 }}>
-                  <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Total PPh 23</p>
+                  <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: '#64748b' }}>Total PPh 23</p>
                   <strong style={{ fontSize: 22, color: '#dc2626' }}>Rp{money(pph23.total_pph23)}</strong>
                 </div>
               </div>
 
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
                   <thead>
                     <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
                       <th style={{ padding: '8px 8px' }}>#</th>

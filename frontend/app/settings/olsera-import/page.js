@@ -134,7 +134,7 @@ export default function OlseraImportPage() {
         <label>File Excel (.xlsx)
           <input key={sourceProfile} type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple onChange={(event) => { setFiles(Array.from(event.target.files || [])); setPreview(null); setDone(null); setMappings({}); setMessage(''); }} />
         </label>
-        <p className="muted" style={{ margin: 0, fontSize: '.9rem' }}>{files.length} file dipilih · {(selectedBytes / (1024 * 1024)).toFixed(1)} MB · Maksimum 80 file dan 20 MB. Periode {currentProfile.start}–{currentProfile.end}; file hanya diproses sementara saat tombol ditekan.</p>
+        <p className="muted" style={{ margin: 0, fontSize: 'var(--fs-md)' }}>{files.length} file dipilih · {(selectedBytes / (1024 * 1024)).toFixed(1)} MB · Maksimum 80 file dan 20 MB. Periode {currentProfile.start}–{currentProfile.end}; file hanya diproses sementara saat tombol ditekan.</p>
         {files.length > 0 && <details>
           <summary>Lihat nama file</summary>
           <ul style={{ maxHeight: 180, overflow: 'auto', margin: '.5rem 0', paddingLeft: '1.25rem' }}>

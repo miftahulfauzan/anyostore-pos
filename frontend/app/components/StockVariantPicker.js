@@ -15,17 +15,17 @@ export default function StockVariantPicker({ product, onClose, onAdd }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
           <div style={{ minWidth: 0 }}>
             <strong style={{ fontSize: 15, display: 'block' }}>{product.name}</strong>
-            <span style={{ fontSize: 11, color: '#64748b', fontFamily: 'monospace' }}>{product.sku || 'Tanpa SKU'}</span>
+            <span style={{ fontSize: 'var(--fs-xs)', color: '#64748b', fontFamily: 'monospace' }}>{product.sku || 'Tanpa SKU'}</span>
           </div>
           <button type="button" onClick={onClose} aria-label="Tutup" style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#1e3a5f', color: '#fff', display: 'grid', placeItems: 'center', padding: 0, cursor: 'pointer', flexShrink: 0 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
           </button>
         </div>
         <div>
-          <strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Pilih varian (warna)</strong>
+          <strong style={{ fontSize: 'var(--fs-sm)', display: 'block', marginBottom: 6 }}>Pilih varian (warna)</strong>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {(product.variants || []).map((v) => (
-              <button key={v.id} type="button" onClick={() => setVariantId(v.id)} style={{ padding: '7px 12px', borderRadius: 999, border: v.id === variantId ? '1.5px solid #1e3a5f' : '1px solid #d1d5db', background: v.id === variantId ? '#1e3a5f' : '#f8fafc', color: v.id === variantId ? '#ffffff' : '#334155', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+              <button key={v.id} type="button" onClick={() => setVariantId(v.id)} style={{ padding: '7px 12px', borderRadius: 999, border: v.id === variantId ? '1.5px solid #1e3a5f' : '1px solid #d1d5db', background: v.id === variantId ? '#1e3a5f' : '#f8fafc', color: v.id === variantId ? '#ffffff' : '#334155', fontWeight: 700, fontSize: 'var(--fs-sm)', cursor: 'pointer' }}>
                 {v.color} <span style={{ opacity: .75, fontWeight: 600 }}>({v.stock})</span>
               </button>
             ))}

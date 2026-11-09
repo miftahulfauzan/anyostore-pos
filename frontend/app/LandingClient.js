@@ -72,7 +72,7 @@ function ProductCard({ product, onWa, onAdd, inCart }) {
     <article className="pcard" onMouseEnter={onEnter} onMouseLeave={onLeave}>
       <a href={`/produk/${product.id}`} className="pcard-img" onFocus={onEnter} onBlur={onLeave}>
         <SafeImage key={photo?.path || 'none'} src={photo ? `${api.replace('/api', '')}${photo.path}` : ''} alt={product.name} style={photoStyle(product.photo_transform, { width: '100%', height: '100%' })} />
-        {!photos.length && <span style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: T.muted, fontSize: 12, background: '#f3f4f6' }}>Tanpa foto</span>}
+        {!photos.length && <span style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: T.muted, fontSize: 'var(--fs-sm)', background: '#f3f4f6' }}>Tanpa foto</span>}
         {photos.length > 1 && (
           <span className="pcard-dots">
             {photos.map((p, i) => (
@@ -344,7 +344,7 @@ export default function LandingPage() {
       {stockNotice && <div role="status" aria-live="polite" style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 160, width: 'min(520px, calc(100% - 32px))', padding: '12px 16px', borderRadius: 10, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontSize: 14, fontWeight: 700, boxShadow: '0 8px 24px rgba(15,23,42,.16)' }}>{stockNotice}</div>}
       <h1 style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }}>Anyostore - Grosir Pakaian Denim Wanita</h1>
       {/* 1. Top bar */}
-      <div style={{ background: T.black, color: '#fff', textAlign: 'center', padding: '6px 16px', fontSize: 11, fontWeight: 500, letterSpacing: '.04em' }}>
+      <div style={{ background: T.black, color: '#fff', textAlign: 'center', padding: '6px 16px', fontSize: 'var(--fs-xs)', fontWeight: 500, letterSpacing: '.04em' }}>
         Minimal 4 pcs per model · Grosir langsung dari supplier
       </div>
 
@@ -353,8 +353,8 @@ export default function LandingPage() {
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <a href="/" style={{ fontSize: 18, fontWeight: 800, color: T.black, textDecoration: 'none', letterSpacing: '-.02em' }}>ANYOSTORE</a>
           <nav style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-            <a href="#produk" style={{ fontSize: 13, fontWeight: 500, color: T.muted, textDecoration: 'none', padding: '8px 12px', borderRadius: 6, transition: 'color .2s' }} onMouseOver={(e) => e.target.style.color = T.black} onMouseOut={(e) => e.target.style.color = T.muted}>Produk</a>
-            <button type="button" onClick={() => pickWa('')} style={{ fontSize: 13, fontWeight: 600, color: '#fff', background: T.blue, padding: '9px 18px', borderRadius: 6, textDecoration: 'none', transition: 'all .2s', boxShadow: '0 2px 8px rgba(30,58,95,.25)' }} className="hero-btn">Hubungi Admin</button>
+            <a href="#produk" style={{ fontSize: 'var(--fs-md)', fontWeight: 500, color: T.muted, textDecoration: 'none', padding: '8px 12px', borderRadius: 6, transition: 'color .2s' }} onMouseOver={(e) => e.target.style.color = T.black} onMouseOut={(e) => e.target.style.color = T.muted}>Produk</a>
+            <button type="button" onClick={() => pickWa('')} style={{ fontSize: 'var(--fs-md)', fontWeight: 600, color: '#fff', background: T.blue, padding: '9px 18px', borderRadius: 6, textDecoration: 'none', transition: 'all .2s', boxShadow: '0 2px 8px rgba(30,58,95,.25)' }} className="hero-btn">Hubungi Admin</button>
           </nav>
         </div>
       </header>
@@ -378,9 +378,9 @@ export default function LandingPage() {
       {/* 5. Category chips */}
       {categories.length > 0 && (
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '8px 16px 4px', display: 'flex', gap: 8, overflowX: 'auto' }}>
-          <button type="button" onClick={() => { setCat(''); setPage(1); }} style={{ padding: '8px 16px', borderRadius: 999, border: `1px solid ${!cat ? T.black : T.border}`, background: !cat ? T.black : T.card, color: !cat ? T.white : T.muted, fontSize: 13, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, transition: 'all .2s' }}>Semua</button>
+          <button type="button" onClick={() => { setCat(''); setPage(1); }} style={{ padding: '8px 16px', borderRadius: 999, border: `1px solid ${!cat ? T.black : T.border}`, background: !cat ? T.black : T.card, color: !cat ? T.white : T.muted, fontSize: 'var(--fs-md)', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, transition: 'all .2s' }}>Semua</button>
           {categories.map((c) => (
-            <button type="button" key={c.id} onClick={() => { setCat(String(c.id)); setPage(1); }} style={{ padding: '8px 16px', borderRadius: 999, border: `1px solid ${String(c.id) === cat ? T.black : T.border}`, background: String(c.id) === cat ? T.black : T.card, color: String(c.id) === cat ? T.white : T.muted, fontSize: 13, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, transition: 'all .2s' }}>{c.name}</button>
+            <button type="button" key={c.id} onClick={() => { setCat(String(c.id)); setPage(1); }} style={{ padding: '8px 16px', borderRadius: 999, border: `1px solid ${String(c.id) === cat ? T.black : T.border}`, background: String(c.id) === cat ? T.black : T.card, color: String(c.id) === cat ? T.white : T.muted, fontSize: 'var(--fs-md)', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, transition: 'all .2s' }}>{c.name}</button>
           ))}
         </div>
       )}
@@ -396,11 +396,11 @@ export default function LandingPage() {
             <I.search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 16, height: 16, color: T.muted, pointerEvents: 'none' }} />
             <input aria-label="Cari produk" placeholder="Cari produk…" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} style={{ width: '100%', height: 44, paddingLeft: 40, paddingRight: 14, borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, fontSize: 14 }} />
           </div>
-          <select value={cat} onChange={(e) => { setCat(e.target.value); setPage(1); }} style={{ height: 44, minWidth: 140, borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, fontSize: 13, padding: '0 12px' }}>
+          <select value={cat} onChange={(e) => { setCat(e.target.value); setPage(1); }} style={{ height: 44, minWidth: 140, borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, fontSize: 'var(--fs-md)', padding: '0 12px' }}>
             <option value="">Semua kategori</option>
             {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <select value={sort} onChange={(e) => { setSort(e.target.value); setPage(1); }} style={{ height: 44, minWidth: 140, borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, fontSize: 13, padding: '0 12px' }}>
+          <select value={sort} onChange={(e) => { setSort(e.target.value); setPage(1); }} style={{ height: 44, minWidth: 140, borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, fontSize: 'var(--fs-md)', padding: '0 12px' }}>
             {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
         </div>
@@ -470,7 +470,7 @@ export default function LandingPage() {
                 <a key={idx} href={waLink(ph, waMsg)} target="_blank" rel="noopener noreferrer" onClick={() => setWaPicker(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 46, borderRadius: 8, background: T.blue, color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none', boxShadow: '0 2px 8px rgba(30,58,95,.2)', transition: 'all .2s' }}><I.chat style={{ width: 16, height: 16 }} /> Admin {idx + 1}: {ph}</a>
               ))}
             </div>
-            <p style={{ margin: '16px 0 0', fontSize: 12, color: T.muted, textAlign: 'center' }}>Pilih admin untuk chat harga grosir & stok.</p>
+            <p style={{ margin: '16px 0 0', fontSize: 'var(--fs-sm)', color: T.muted, textAlign: 'center' }}>Pilih admin untuk chat harga grosir & stok.</p>
           </div>
         </div>
       )}
@@ -487,7 +487,7 @@ export default function LandingPage() {
         <div onClick={() => setCartOpen(false)} role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'grid', placeItems: 'center', zIndex: 120, padding: 16, backdropFilter: 'blur(4px)' }}>
           <div onClick={(e) => e.stopPropagation()} className="wa-modal-in" style={{ background: T.card, borderRadius: 14, maxWidth: 480, width: '100%', maxHeight: 'min(640px, 88vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 48px rgba(0,0,0,.18)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 20px 12px' }}>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.black }}>Keranjang <span style={{ color: T.muted, fontWeight: 500, fontSize: 13 }}>{cartPcs} pcs</span></h3>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.black }}>Keranjang <span style={{ color: T.muted, fontWeight: 500, fontSize: 'var(--fs-md)' }}>{cartPcs} pcs</span></h3>
               <button type="button" onClick={() => setCartOpen(false)} aria-label="Tutup" style={{ width: 34, height: 34, padding: 0, borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, cursor: 'pointer', color: T.muted, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}><I.close style={{ width: 16, height: 16, display: 'block' }} /></button>
             </div>
             <div style={{ overflowY: 'auto', padding: '4px 20px', display: 'grid', gap: 4 }}>
@@ -497,9 +497,9 @@ export default function LandingPage() {
                     ? <img src={`${api.replace('/api', '')}${it.photo}`} alt={it.name} style={{ width: 52, height: 64, objectFit: 'cover', borderRadius: 8 }} />
                     : <div style={{ width: 52, height: 64, borderRadius: 8, background: '#f3f4f6' }} />}
                   <div style={{ minWidth: 0 }}>
-                    <strong style={{ fontSize: 13, display: 'block', color: T.black }}>{it.name}</strong>
-                    {it.variantLabel && <span style={{ fontSize: 11, color: T.muted }}>{it.variantLabel}</span>}
-                    <div style={{ fontSize: 12, color: T.blue, fontWeight: 700, marginTop: 2 }}>{fmtRp(it.price)}/pcs</div>
+                    <strong style={{ fontSize: 'var(--fs-md)', display: 'block', color: T.black }}>{it.name}</strong>
+                    {it.variantLabel && <span style={{ fontSize: 'var(--fs-xs)', color: T.muted }}>{it.variantLabel}</span>}
+                    <div style={{ fontSize: 'var(--fs-sm)', color: T.blue, fontWeight: 700, marginTop: 2 }}>{fmtRp(it.price)}/pcs</div>
                   </div>
                   <div style={{ display: 'grid', gap: 6, justifyItems: 'end' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -507,7 +507,7 @@ export default function LandingPage() {
                       <input type="number" min="1" value={it.qty} onChange={(e) => setItemQty(it.key, Math.max(1, Number(e.target.value) || 1))} aria-label={`Jumlah ${it.name}`} className="qty-input" />
                       <button type="button" className="qty-btn small" onClick={() => setItemQty(it.key, it.qty + 1)} aria-label="Tambah jumlah"><I.plus style={{ width: 14, height: 14, color: '#fff' }} /></button>
                     </div>
-                    <button type="button" onClick={() => removeItem(it.key)} style={{ border: 0, background: 'none', color: '#dc2626', fontSize: 11, cursor: 'pointer', padding: 0 }}>Hapus</button>
+                    <button type="button" onClick={() => removeItem(it.key)} style={{ border: 0, background: 'none', color: '#dc2626', fontSize: 'var(--fs-xs)', cursor: 'pointer', padding: 0 }}>Hapus</button>
                   </div>
                 </div>
               ))}
@@ -519,10 +519,10 @@ export default function LandingPage() {
               </div>
               {cartWarnings.length > 0 && (
                 <div style={{ display: 'grid', gap: 3 }}>
-                  {cartWarnings.map((w) => <p key={w.name} style={{ margin: 0, fontSize: 11, color: '#b45309' }}>{w.qty < MIN_ORDER_QTY ? `${w.name} ${w.qty} pcs. Minimum ${MIN_ORDER_QTY} pcs per model.` : `${w.name}: jumlah pesanan melebihi stok tersedia (${Number(w.available || 0)} pcs).`}</p>)}
+                  {cartWarnings.map((w) => <p key={w.name} style={{ margin: 0, fontSize: 'var(--fs-xs)', color: '#b45309' }}>{w.qty < MIN_ORDER_QTY ? `${w.name} ${w.qty} pcs. Minimum ${MIN_ORDER_QTY} pcs per model.` : `${w.name}: jumlah pesanan melebihi stok tersedia (${Number(w.available || 0)} pcs).`}</p>)}
                 </div>
               )}
-              <p style={{ margin: 0, fontSize: 11, color: T.muted }}>Minimal pembelian 4 pcs per model. Varian boleh dicampur.</p>
+              <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: T.muted }}>Minimal pembelian 4 pcs per model. Varian boleh dicampur.</p>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button type="button" onClick={clearCart} disabled={!cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', minWidth: 110 }}>Kosongkan</button>
                 <button type="button" onClick={sendOrder} disabled={!cart.length || hasMinimumWarning || orderChecking} className="pcard-btn primary" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44 }}><I.chat style={{ width: 15, height: 15 }} /> {orderChecking ? 'Memeriksa stok…' : 'Chat Pesanan via WhatsApp'}</button>
@@ -542,11 +542,11 @@ export default function LandingPage() {
             </div>
             {pickerPhoto
               ? <img src={`${api.replace('/api', '')}${pickerPhoto}`} alt={picker.product.name} style={{ width: '100%', height: 200, objectFit: 'cover', borderRadius: 10, display: 'block', marginBottom: 16, background: '#f3f4f6' }} />
-              : <div style={{ width: '100%', height: 200, borderRadius: 10, background: '#f3f4f6', display: 'grid', placeItems: 'center', color: T.muted, fontSize: 13, marginBottom: 16 }}>Tanpa foto</div>}
-            {pickerLoading && <p style={{ color: T.muted, fontSize: 13 }}>Memuat varian…</p>}
+              : <div style={{ width: '100%', height: 200, borderRadius: 10, background: '#f3f4f6', display: 'grid', placeItems: 'center', color: T.muted, fontSize: 'var(--fs-md)', marginBottom: 16 }}>Tanpa foto</div>}
+            {pickerLoading && <p style={{ color: T.muted, fontSize: 'var(--fs-md)' }}>Memuat varian…</p>}
             {!pickerLoading && picker.variants.length > 0 && (
               <>
-                <strong style={{ fontSize: 12, color: T.muted, textTransform: 'uppercase', letterSpacing: '.05em' }}>Pilih varian</strong>
+                <strong style={{ fontSize: 'var(--fs-sm)', color: T.muted, textTransform: 'uppercase', letterSpacing: '.05em' }}>Pilih varian</strong>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 8, margin: '10px 0 18px' }}>
                   {picker.variants.map((v) => {
                     const active = v.id === pickVariantId;
@@ -554,24 +554,24 @@ export default function LandingPage() {
                     const inVariant = cart.filter((item) => item.key === `${picker.product.id}-${v.id}`).reduce((sum, item) => sum + Number(item.qty || 0), 0);
                     const variantRemaining = Math.max(0, Number(v.available_stock || 0) - inVariant);
                     return (
-                      <button key={v.id} type="button" disabled={variantRemaining <= 0} onClick={() => { setPickVariantId(v.id); setPickQty((current) => Math.max(1, Math.min(current, variantRemaining, modelStockRemaining))); }} title={variantRemaining <= 0 ? 'Stok varian habis untuk pesanan ini' : `Stok ${variantRemaining} pcs tersedia untuk pesanan ini`} style={{ padding: '9px 10px', borderRadius: 8, border: `1.5px solid ${active ? T.blue : T.border}`, background: active ? T.blue : T.card, color: active ? '#fff' : T.black, fontWeight: 600, fontSize: 12, cursor: variantRemaining <= 0 ? 'not-allowed' : 'pointer', opacity: variantRemaining <= 0 ? .5 : 1, transition: 'all .2s' }}>
+                      <button key={v.id} type="button" disabled={variantRemaining <= 0} onClick={() => { setPickVariantId(v.id); setPickQty((current) => Math.max(1, Math.min(current, variantRemaining, modelStockRemaining))); }} title={variantRemaining <= 0 ? 'Stok varian habis untuk pesanan ini' : `Stok ${variantRemaining} pcs tersedia untuk pesanan ini`} style={{ padding: '9px 10px', borderRadius: 8, border: `1.5px solid ${active ? T.blue : T.border}`, background: active ? T.blue : T.card, color: active ? '#fff' : T.black, fontWeight: 600, fontSize: 'var(--fs-sm)', cursor: variantRemaining <= 0 ? 'not-allowed' : 'pointer', opacity: variantRemaining <= 0 ? .5 : 1, transition: 'all .2s' }}>
                         {label}
-                        <span style={{ display: 'block', fontSize: 11, opacity: .75 }}>Stok {variantRemaining}</span>
-                        {Number(v.price) > 0 && Number(v.price) !== Number(picker.product.price) && <span style={{ display: 'block', fontSize: 11, opacity: .85 }}>{fmtRp(v.price)}</span>}
+                        <span style={{ display: 'block', fontSize: 'var(--fs-xs)', opacity: .75 }}>Stok {variantRemaining}</span>
+                        {Number(v.price) > 0 && Number(v.price) !== Number(picker.product.price) && <span style={{ display: 'block', fontSize: 'var(--fs-xs)', opacity: .85 }}>{fmtRp(v.price)}</span>}
                       </button>
                     );
                   })}
                 </div>
               </>
             )}
-            <strong style={{ fontSize: 12, color: T.muted, textTransform: 'uppercase', letterSpacing: '.05em' }}>Jumlah</strong>
+            <strong style={{ fontSize: 'var(--fs-sm)', color: T.muted, textTransform: 'uppercase', letterSpacing: '.05em' }}>Jumlah</strong>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '10px 0 18px' }}>
               <button type="button" className="qty-btn" onClick={() => setPickQty((q) => Math.max(1, q - 1))} aria-label="Kurangi jumlah"><I.minus style={{ width: 18, height: 18, color: '#fff' }} /></button>
               <input type="number" min="1" max={pickMax} value={pickQty} onChange={(e) => setPickQty(Math.max(1, Math.min(pickMax, Number(e.target.value) || 1)))} aria-label="Jumlah" className="qty-input" style={{ width: 60, height: 36, fontSize: 16 }} />
               <button type="button" className="qty-btn" disabled={pickQty >= pickMax} onClick={() => setPickQty((q) => Math.min(pickMax, q + 1))} aria-label="Tambah jumlah"><I.plus style={{ width: 18, height: 18, color: '#fff' }} /></button>
             </div>
             <button type="button" onClick={addFromPicker} disabled={!pickMax || pickerLoading} className="pcard-btn primary" style={{ width: '100%', minHeight: 46, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 14 }}><I.cart style={{ width: 16, height: 16 }} /> Tambah ke Keranjang</button>
-            <p style={{ margin: '12px 0 0', fontSize: 12, color: T.muted, textAlign: 'center' }}>Minimal 4 pcs per model. Varian boleh dicampur.</p>
+            <p style={{ margin: '12px 0 0', fontSize: 'var(--fs-sm)', color: T.muted, textAlign: 'center' }}>Minimal 4 pcs per model. Varian boleh dicampur.</p>
           </div>
         </div>
       )}

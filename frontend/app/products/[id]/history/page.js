@@ -150,8 +150,8 @@ export default function ProductHistoryPage() {
               const qty = Number(row.qty || 0);
               return <article key={row.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(150px, 1fr) minmax(120px, 2fr) auto', gap: 14, alignItems: 'center', padding: '13px 14px', border: '1px solid var(--border)', borderRadius: 12, background: 'var(--surface)' }}>
                 <div style={{ display: 'grid', gap: 5 }}>
-                  <span style={{ width: 'fit-content', padding: '4px 8px', borderRadius: 999, background: tone.background, color: tone.color, fontSize: 11, fontWeight: 800 }}>{stockHistoryLabel(row)}</span>
-                  <strong style={{ fontSize: 12 }}>{formatDate(row.created_at)}</strong>
+                  <span style={{ width: 'fit-content', padding: '4px 8px', borderRadius: 999, background: tone.background, color: tone.color, fontSize: 'var(--fs-xs)', fontWeight: 800 }}>{stockHistoryLabel(row)}</span>
+                  <strong style={{ fontSize: 'var(--fs-sm)' }}>{formatDate(row.created_at)}</strong>
                   <small className="muted">{row.user_name || 'Sistem'}{row.branch_name ? ` · ${row.branch_name}` : ''}</small>
                 </div>
                 <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
