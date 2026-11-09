@@ -44,7 +44,8 @@ Future<void> main() async {
     // /reports/overview dibatasi untuk owner/manager/admin, jadi role gudang
     // (dan kasir) tidak boleh memanggilnya agar tidak muncul "Akses ditolak".
     final role = auth.role;
-    final canReadReports = role == 'owner' || role == 'manager' || role == 'admin';
+    final canReadReports =
+        role == 'owner' || role == 'manager' || role == 'admin';
     if (canReadReports) {
       unawaited(BackupService.checkLowStock(auth.api));
     }

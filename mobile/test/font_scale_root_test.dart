@@ -6,10 +6,9 @@ import 'package:pos_pakaian_mobile/src/api_client.dart';
 import 'package:pos_pakaian_mobile/src/auth_store.dart';
 import 'package:pos_pakaian_mobile/src/font_scale_controller.dart';
 
-MediaQueryData _rootMediaQuery(WidgetTester tester) =>
-    tester.widget<MediaQuery>(
-            find.byKey(const ValueKey('font-scale-media-query')))
-        .data;
+MediaQueryData _rootMediaQuery(WidgetTester tester) => tester
+    .widget<MediaQuery>(find.byKey(const ValueKey('font-scale-media-query')))
+    .data;
 
 void main() {
   setUp(() {
@@ -32,7 +31,8 @@ void main() {
 
     expect(_rootMediaQuery(tester).textScaler.scale(10), 10);
     final material = tester.widget<MaterialApp>(find.byType(MaterialApp));
-    expect(material.theme?.textTheme.bodyMedium?.fontFamily, 'Plus Jakarta Sans');
+    expect(
+        material.theme?.textTheme.bodyMedium?.fontFamily, 'Plus Jakarta Sans');
 
     FontScaleController.scale.value = 1.4;
     await tester.pump();
@@ -41,7 +41,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('root keeps Android text scale and caps large text on narrow screens',
+  testWidgets(
+      'root keeps Android text scale and caps large text on narrow screens',
       (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;

@@ -38,6 +38,22 @@ const kTaskSidebarLine = Color(0xffD4DFEE);
 const kTaskSidebarMuted = Color(0xff60738A);
 const kTaskSidebarDarkIconBg = Color(0xff243B53);
 
+// ==== Drawer Android disamakan dengan sidebar web (denim gelap) ====
+const kDrawerTop = Color(0xff22456E);
+const kDrawerMid = Color(0xff1B3355);
+const kDrawerBottom = Color(0xff182C49);
+const kDrawerTopDark = Color(0xff1B3556);
+const kDrawerMidDark = Color(0xff142945);
+const kDrawerBottomDark = Color(0xff101F33);
+const kDrawerText = Color(0xDBFFFFFF); // putih 86%
+const kDrawerIcon = Color(0x8CFFFFFF); // putih 55%
+const kDrawerLabel = Color(0x73FFFFFF); // putih 45%
+const kDrawerBorder = Color(0x1AFFFFFF); // putih 10%
+const kDrawerDivider = Color(0x12FFFFFF); // putih 7%
+const kDrawerActiveBg = Color(0x24FFFFFF); // putih 14%
+const kDrawerActiveBar = Color(0xFF93C5FD);
+const kDrawerActiveIcon = Color(0xFFBFDBFE);
+
 // Status stok mengikuti mockup mobile: tersedia (teal), menipis (oranye),
 // dan habis (merah). Teks status tetap ditampilkan sehingga warna bukan satu-
 // satunya penanda kondisi.

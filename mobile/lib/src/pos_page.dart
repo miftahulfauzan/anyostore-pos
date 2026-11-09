@@ -1547,9 +1547,8 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
       ),
       drawer: Drawer(
         width: math.min(MediaQuery.sizeOf(context).width * .84, 340.0),
-        backgroundColor: Theme.of(context).brightness == Brightness.dark
-            ? kTaskDarkBg
-            : kTaskSidebarBg,
+        // Drawer selalu memakai permukaan denim seperti sidebar web.
+        backgroundColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.only(
             topRight: Radius.circular(24),
@@ -1558,13 +1557,33 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
         ),
         clipBehavior: Clip.antiAlias,
         surfaceTintColor: Colors.transparent,
-        child: SafeArea(
-          child: MorePage(
-            api: _client,
-            branchId: _branchId,
-            role: auth.role,
-            currentTab: _tab,
-            onNavigateTab: (index) => _selectTab(index, isGudang: isGudang),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              stops: const [0, .42, 1],
+              colors: Theme.of(context).brightness == Brightness.dark
+                  ? const [kDrawerTopDark, kDrawerMidDark, kDrawerBottomDark]
+                  : const [kDrawerTop, kDrawerMid, kDrawerBottom],
+            ),
+          ),
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              brightness: Brightness.dark,
+              colorScheme: Theme.of(context)
+                  .colorScheme
+                  .copyWith(brightness: Brightness.dark),
+            ),
+            child: SafeArea(
+              child: MorePage(
+                api: _client,
+                branchId: _branchId,
+                role: auth.role,
+                currentTab: _tab,
+                onNavigateTab: (index) => _selectTab(index, isGudang: isGudang),
+              ),
+            ),
           ),
         ),
       ),

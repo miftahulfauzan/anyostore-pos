@@ -28,7 +28,6 @@ import 'task_ui.dart';
 import 'transfer_history_page.dart';
 
 const _kInk = kTaskInk;
-const _kMuted = kTaskSecondary;
 
 class MorePage extends StatelessWidget {
   const MorePage({
@@ -133,14 +132,8 @@ class MorePage extends StatelessWidget {
         Container(
           key: const ValueKey('sidebar-profile'),
           padding: const EdgeInsets.fromLTRB(4, 12, 4, 16),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? kTaskDarkBorder
-                    : kTaskSidebarLine,
-              ),
-            ),
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: kDrawerBorder)),
           ),
           child: Row(
             children: [
@@ -151,10 +144,10 @@ class MorePage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(name,
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: ink(context))),
+                        style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white)),
                     const SizedBox(height: 3),
                     Text(
                         switch (auth.role) {
@@ -165,16 +158,12 @@ class MorePage extends StatelessWidget {
                           _ => 'Kasir',
                         },
                         style:
-                            TextStyle(color: taskMuted(context), fontSize: 12)),
+                            const TextStyle(color: kDrawerLabel, fontSize: 11)),
                     if (email.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(email,
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? const Color(0xffCBD5E1)
-                                  : _kMuted)),
+                          style: const TextStyle(
+                              fontSize: 11, color: kDrawerIcon)),
                     ],
                   ],
                 ),
@@ -646,53 +635,28 @@ class MorePage extends StatelessWidget {
         // Keluar di paling bawah.
         Container(
           key: const ValueKey('sidebar-logout'),
-          padding: const EdgeInsets.only(top: 12),
+          margin: const EdgeInsets.only(top: 12),
           decoration: BoxDecoration(
-            border: Border(
-              top: BorderSide(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? kTaskDarkBorder
-                    : kTaskSidebarLine,
-              ),
-            ),
+            border: Border.all(color: kDrawerBorder),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(8),
               onTap: () => _confirmLogout(context, auth),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 11),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? kTaskSidebarDarkIconBg
-                            : kTaskSidebarIconBg,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(Icons.logout,
-                          size: 18,
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? kTaskDarkSecondary
-                              : kTaskDark),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text('Keluar',
-                          style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: ink(context))),
-                    ),
-                    Icon(Icons.chevron_right,
-                        size: 20,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? kTaskDarkSecondary
-                            : kTaskSidebarMuted),
+                    Icon(Icons.logout, size: 18, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text('Keluar',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white)),
                   ],
                 ),
               ),
@@ -703,71 +667,59 @@ class MorePage extends StatelessWidget {
           padding: EdgeInsets.only(top: 12, bottom: 8),
           child: Text('Anyostore App v0.2.0',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 10,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xff8A8F98)
-                      : _kMuted)),
+              style: const TextStyle(fontSize: 10, color: kDrawerLabel)),
         ),
       ],
     );
   }
 
-  Widget _divider(BuildContext context) => Divider(
-        height: 1,
-        thickness: 1,
-        color: Theme.of(context).brightness == Brightness.dark
-            ? kTaskDarkBorder
-            : kTaskSidebarLine,
-        indent: 58,
-        endIndent: 12,
-      );
+  // Web tidak memakai garis pemisah antar item; cukup jarak antar grup.
+  Widget _divider(BuildContext context) => const SizedBox.shrink();
 
+  // Gaya sama dengan sidebar web: ikon polos, item aktif = tint putih 14%
+  // dengan garis kiri 3px biru muda; tanpa kotak ikon.
   Widget _row(BuildContext context, IconData icon, String title, Color chipBg,
       Color chipFg, VoidCallback onTap,
       {bool selected = false}) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final active = dark ? kTaskAccentDark : kTaskDark;
-    final fg =
-        selected ? active : (dark ? kTaskDarkSecondary : kTaskSidebarMuted);
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: onTap,
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 52),
-        margin: EdgeInsets.zero,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: selected
-            ? BoxDecoration(
-                color: dark ? kTaskDarkSurface : kTaskSidebarActive,
-                borderRadius: BorderRadius.circular(14),
-              )
-            : null,
-        child: Row(
-          children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: dark ? kTaskSidebarDarkIconBg : kTaskSidebarIconBg,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, size: 19, color: fg),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(title,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 40),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+          decoration: selected
+              ? const BoxDecoration(
+                  color: kDrawerActiveBg,
+                  borderRadius: BorderRadius.only(
+                    topRight: Radius.circular(8),
+                    bottomRight: Radius.circular(8),
+                  ),
+                  border: Border(
+                    left: BorderSide(color: kDrawerActiveBar, width: 3),
+                  ),
+                )
+              : null,
+          child: Row(
+            children: [
+              Icon(icon,
+                  size: 19, color: selected ? kDrawerActiveIcon : kDrawerIcon),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                      color: selected ? active : ink(context))),
-            ),
-            Icon(Icons.chevron_right,
-                size: 20,
-                color: selected
-                    ? active
-                    : (dark ? kTaskDarkSecondary : kTaskSidebarMuted)),
-          ],
+                    fontSize: 13,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                    color: selected ? Colors.white : kDrawerText,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -811,14 +763,14 @@ class _MoreMenuGroupState extends State<_MoreMenuGroup> {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final active = dark ? kTaskAccentDark : kTaskDark;
-
     return Padding(
-      padding: const EdgeInsets.only(top: 14),
+      padding: const EdgeInsets.only(top: 10),
       child: Container(
         key: ValueKey('more-menu-card-${widget.title}'),
-        padding: EdgeInsets.zero,
+        padding: const EdgeInsets.only(top: 8),
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: kDrawerDivider)),
+        ),
         child: Column(
           children: [
             InkWell(
@@ -827,36 +779,25 @@ class _MoreMenuGroupState extends State<_MoreMenuGroup> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 44),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(
                     children: [
-                      Icon(widget.icon, size: 22, color: active),
-                      const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           widget.title,
-                          style: TextStyle(
-                            fontSize: 11,
+                          style: const TextStyle(
+                            fontSize: 10,
                             fontWeight: FontWeight.w800,
-                            letterSpacing: 1.05,
-                            color:
-                                dark ? kTaskDarkSecondary : kTaskSidebarMuted,
+                            letterSpacing: 1.2,
+                            color: kDrawerLabel,
                           ),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: Divider(
-                          height: 1,
-                          thickness: 1,
-                          color: dark ? kTaskDarkBorder : kTaskSidebarLine,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Icon(
                         _expanded ? Icons.expand_less : Icons.expand_more,
-                        size: 21,
-                        color: _expanded ? active : taskMuted(context),
+                        size: 20,
+                        color: kDrawerIcon,
                       ),
                     ],
                   ),
@@ -906,13 +847,12 @@ class _OfflineTileState extends State<_OfflineTile> {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       key: const ValueKey('sidebar-offline'),
       decoration: BoxDecoration(
-        color: dark ? kTaskDarkSurface : kTaskSurface,
-        border: Border.all(color: dark ? kTaskDarkBorder : kTaskSidebarLine),
-        borderRadius: BorderRadius.circular(14),
+        color: const Color(0x12FFFFFF),
+        border: Border.all(color: kDrawerBorder),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Material(
         color: Colors.transparent,
@@ -933,38 +873,36 @@ class _OfflineTileState extends State<_OfflineTile> {
                   width: 34,
                   height: 34,
                   decoration: BoxDecoration(
-                    color: dark ? kTaskSidebarDarkIconBg : kTaskSidebarIconBg,
-                    borderRadius: BorderRadius.circular(12),
+                    color: kDrawerActiveBg,
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(Icons.cloud_off,
-                      size: 17, color: dark ? kTaskDarkSecondary : kTaskDark),
+                  child:
+                      const Icon(Icons.cloud_off, size: 17, color: kDrawerIcon),
                 ),
                 const SizedBox(width: 12),
-                Expanded(
+                const Expanded(
                   child: Text('Antrean Offline',
                       style: TextStyle(
-                          fontSize: 13,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: ink(context))),
+                          color: kDrawerText)),
                 ),
                 if (_count > 0)
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: dark ? kTaskAccentDark : kTaskDark,
+                      color: kDrawerActiveBar,
                       borderRadius: BorderRadius.circular(99),
                     ),
                     child: Text('$_count',
-                        style: TextStyle(
+                        style: const TextStyle(
                             fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: dark ? kTaskDarkBg : Colors.white)),
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F2540))),
                   )
                 else
-                  Icon(Icons.chevron_right,
-                      size: 18,
-                      color: dark ? kTaskDarkSecondary : kTaskSidebarMuted),
+                  const Icon(Icons.chevron_right, size: 18, color: kDrawerIcon),
               ],
             ),
           ),
@@ -1026,9 +964,9 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
       key: const ValueKey('sidebar-branch-scope'),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: dark ? kTaskDarkSurface : kTaskSurface,
-        border: Border.all(color: dark ? kTaskDarkBorder : kTaskSidebarLine),
-        borderRadius: BorderRadius.circular(14),
+        color: const Color(0x12FFFFFF),
+        border: Border.all(color: kDrawerBorder),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         children: [

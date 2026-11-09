@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -61,8 +63,14 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 400));
         final drawer = tester.widget<Drawer>(find.byType(Drawer));
-        expect(drawer.backgroundColor,
-            brightness == Brightness.dark ? kTaskDarkBg : kTaskSidebarBg);
+        // Drawer memakai gradien denim (sama seperti sidebar web), jadi
+        // backgroundColor transparan dan warna diambil dari gradient.
+        expect(drawer.backgroundColor, Colors.transparent);
+        // Warna permukaan diambil dari gradien denim di pos_page.dart.
+        final drawerSource = File('lib/src/pos_page.dart').readAsStringSync();
+        expect(drawerSource, contains('kDrawerTop'));
+        expect(drawerSource, contains('kDrawerBottom'));
+        expect(drawerSource, contains('LinearGradient'));
         expect(drawer.shape, isNotNull);
         expect(find.text('Pemilik Toko'), findsOneWidget);
         expect(find.byKey(const ValueKey('sidebar-profile')), findsOneWidget);
@@ -71,47 +79,41 @@ void main() {
         expect(find.text('AKSES CEPAT'), findsNothing);
         expect(find.text('Operasional'), findsOneWidget);
         final posIcon = find.byIcon(Icons.point_of_sale).last;
-        final selectedColor = brightness == Brightness.dark
-            ? kTaskDarkSurface
-            : kTaskSidebarActive;
+        // Gaya baru (sama dengan sidebar web): item aktif = tint putih dengan
+        // garis kiri biru muda, tanpa kotak ikon.
         final activeRow = tester
             .widgetList<Container>(
                 find.ancestor(of: posIcon, matching: find.byType(Container)))
-            .firstWhere((container) =>
-                container.decoration is BoxDecoration &&
-                (container.decoration as BoxDecoration).color == selectedColor);
-        expect((activeRow.decoration as BoxDecoration).color, selectedColor);
+            .firstWhere((container) {
+          final decoration = container.decoration;
+          return decoration is BoxDecoration &&
+              decoration.color == kDrawerActiveBg;
+        });
+        final activeDecoration = activeRow.decoration as BoxDecoration;
+        expect(activeDecoration.color, kDrawerActiveBg);
+        expect(
+            (activeDecoration.border as Border?)?.left.color, kDrawerActiveBar);
         final sidebarList = tester.widget<ListView>(
             find.byKey(const ValueKey('mobile-more-menu-list')));
-        expect(sidebarList.padding,
-            const EdgeInsets.fromLTRB(16, 8, 16, 12));
-        final operationalCard = tester.getRect(
-            find.byKey(const ValueKey('more-menu-card-Operasional')));
-        final productsCard = tester.getRect(find.byKey(
-            const ValueKey('more-menu-card-Produk & Inventori')));
-        expect(productsCard.top - operationalCard.bottom, 14);
-        expect(activeRow.margin,
-            const EdgeInsets.symmetric(horizontal: 0, vertical: 0));
-        final row = find
-            .ancestor(of: posIcon, matching: find.byType(InkWell))
-            .first;
-        expect(tester.getRect(row).height, greaterThanOrEqualTo(52));
-        final iconCircle = tester.widget<Container>(find
-            .ancestor(of: posIcon, matching: find.byType(Container))
-            .first);
-        final iconDecoration = iconCircle.decoration as BoxDecoration;
-        expect(iconDecoration.color,
-            brightness == Brightness.dark
-                ? kTaskSidebarDarkIconBg
-                : kTaskSidebarIconBg);
-        final groupHeader = find
-            .ancestor(of: find.text('Operasional'), matching: find.byType(InkWell))
-            .first;
-        expect(tester.getRect(groupHeader).height, greaterThanOrEqualTo(44));
+        expect(sidebarList.padding, const EdgeInsets.fromLTRB(16, 8, 16, 12));
+        final operationalCard = tester
+            .getRect(find.byKey(const ValueKey('more-menu-card-Operasional')));
+        final productsCard = tester.getRect(
+            find.byKey(const ValueKey('more-menu-card-Produk & Inventori')));
+        expect(productsCard.top - operationalCard.bottom, 10);
+        final row =
+            find.ancestor(of: posIcon, matching: find.byType(InkWell)).first;
+        expect(tester.getRect(row).height, greaterThanOrEqualTo(40));
+        // Ikon memakai warna drawer (putih transparan / biru muda saat aktif).
         expect(
           tester.widget<Icon>(find.byIcon(Icons.point_of_sale).first).color,
-          theme.colorScheme.primary,
+          kDrawerActiveIcon,
         );
+        final groupHeader = find
+            .ancestor(
+                of: find.text('Operasional'), matching: find.byType(InkWell))
+            .first;
+        expect(tester.getRect(groupHeader).height, greaterThanOrEqualTo(28));
         final sidebarListFinder =
             find.byKey(const ValueKey('mobile-more-menu-list'));
         final logoutFinder = find.byKey(const ValueKey('sidebar-logout'));

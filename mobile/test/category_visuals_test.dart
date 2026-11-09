@@ -10,7 +10,8 @@ void main() {
     );
   });
 
-  test('falls back to the existing name accent for missing or invalid colors', () {
+  test('falls back to the existing name accent for missing or invalid colors',
+      () {
     expect(
       categoryColorFor(name: 'Kemeja'),
       const Color(0xff0f9d9a),

@@ -23,8 +23,7 @@ void main() {
     expect(FontScaleController.scale.value, 1.0);
   });
 
-  test('reads a legacy string preference safely',
-      () async {
+  test('reads a legacy string preference safely', () async {
     SharedPreferences.setMockInitialValues({'pos_font_scale': '1.2'});
 
     await FontScaleController.load();
