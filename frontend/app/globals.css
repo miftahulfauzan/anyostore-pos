@@ -6177,3 +6177,40 @@ html[data-theme] .sidebar .nav-group-toggle:hover {
   .pos-standalone-header nav > .branch-switcher .branch-switcher-name { max-width: 84px !important; }
   .pos-standalone-header nav > .branch-switcher .branch-switcher-trigger { padding: 0 7px !important; }
 }
+
+/* ========================================================================
+   Mode gelap: badge perubahan, tile ikon KPI, dan pemisah "s/d" masih memakai
+   latar terang dari mode terang sehingga teksnya tenggelam. Diberi versi
+   gelap dengan kontras yang cukup.
+   ======================================================================== */
+.dark .dashboard-kpi-change {
+  background: rgba(34, 197, 94, .16) !important;
+  color: #6ee7b7 !important;
+}
+.dark .dashboard-kpi-change.is-down {
+  background: rgba(251, 146, 60, .18) !important;
+  color: #fdba74 !important;
+}
+.dark .dashboard-kpi-icon {
+  background: rgba(255, 255, 255, .12) !important;
+  color: #e2e8f0 !important;
+}
+.dark .report-period-date-fields > span,
+.dark .dashboard-report-date-filter > span,
+.dark .warehouse-date-filter > span,
+.dark .source-detail-date-form > span {
+  background: #22304b !important;
+  color: #cbd5e1 !important;
+}
+.dark .dashboard-kpi-label { color: #94a3b8 !important; }
+.dark .dashboard-kpi-tile strong { color: #f1f5f9 !important; }
+/* Badge/pil lain yang berlatar terang di halaman laporan & dasbor. */
+.dark .report-detail-accordion-icon {
+  background: rgba(255, 255, 255, .10);
+}
+.dark .dashboard-report-values-toggle,
+.dark .report-detail-values-toggle {
+  border-color: #475569;
+  background: #182135;
+  color: #bfdbfe;
+}

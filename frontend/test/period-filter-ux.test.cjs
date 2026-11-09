@@ -106,3 +106,10 @@ test('POS: navigasi satu baris dan pemilih toko tanpa avatar', () => {
   assert.match(css, /\.pos-standalone-header nav\s*\{[^}]*overflow-x:\s*auto/s);
   assert.match(css, /\.pos-standalone-header nav > \.branch-switcher \.branch-switcher-avatar\s*\{[^}]*display:\s*none/s);
 });
+
+test('mode gelap: badge, tile ikon, dan pemisah s/d punya kontras', () => {
+  assert.match(css, /\.dark \.dashboard-kpi-change\s*\{[^}]*color:\s*#6ee7b7\s*!important/s);
+  assert.match(css, /\.dark \.dashboard-kpi-change\.is-down\s*\{[^}]*color:\s*#fdba74\s*!important/s);
+  assert.match(css, /\.dark \.dashboard-kpi-icon\s*\{[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*\.12\)\s*!important/s);
+  assert.match(css, /\.dark \.report-period-date-fields > span,[\s\S]{0,200}?background:\s*#22304b\s*!important/s);
+});
