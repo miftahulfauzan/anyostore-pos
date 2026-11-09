@@ -6733,3 +6733,16 @@ html[data-theme] .sidebar .nav-group-toggle:hover {
     --fs-xl: 26px;
   }
 }
+
+/* Blok periode (toggle + chip + tanggal) perlu jarak antar baris.
+   Sebelumnya `.period-filter` tidak punya aturan sehingga chip menempel
+   pada bar "PERIODE …" (terlihat dempet). */
+.period-filter {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.period-filter .period-filter-body { gap: 10px; }
+@media (max-width: 520px) {
+  .period-filter { gap: 8px; }
+}
