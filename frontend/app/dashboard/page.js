@@ -129,11 +129,7 @@ export default function DashboardPage() {
     {message && <p className="message" role="status">{message}</p>}
     {!data ? <section className="panel"><p>Memuat ringkasan toko…</p></section> : isGudang ? (
       <>
-        <section className="warehouse-dashboard-toolbar">
-          <div>
-            <span className="eyebrow">DASHBOARD GUDANG</span>
-            <h2>Periode {fullDate(range.start)} – {fullDate(range.end)}</h2>
-          </div>
+        <section className="warehouse-dashboard-toolbar period-toolbar-compact">
           <div className="warehouse-dashboard-range-controls">
             <button type="button" className="period-filter-toggle period-filter-toggle-compact" onClick={togglePeriod} aria-expanded={periodOpen}>
               <span className="period-filter-label">Periode</span>
@@ -172,12 +168,7 @@ export default function DashboardPage() {
       <section className="panel dashboard-recent"><div className="section-heading"><div><h2>Transaksi terbaru</h2><p>Aktivitas penjualan pada periode terpilih.</p></div><Link href="/history">Lihat semua</Link></div><div className="data-list dashboard-recent-list">{selectedRecent.length ? selectedRecent.map((tx) => <article className="dashboard-recent-item" key={tx.id}><div className="dashboard-recent-item__main"><strong>{tx.invoice_no}</strong><span className="dashboard-recent-item__meta">{tx.cashier} · {transactionDateTime(tx)}</span></div><div className="dashboard-recent-item__amount"><strong>{rupiah(tx.grand_total)}</strong><span className="tag">{labelFor(paymentLabels, tx.payment_method)}</span></div></article>) : <p>Belum ada transaksi.</p>}</div></section>
     </> : <>
       {role === 'owner' && activeBranchId === 'all' && <p className="dashboard-note"><Store aria-hidden="true" size={15} /> Menampilkan gabungan seluruh toko/gudang.</p>}
-      <section className="dashboard-report-toolbar">
-        <div>
-          <span className="eyebrow">DASHBOARD PENJUALAN</span>
-          <h2>Periode {fullDate(selectedPeriodRange.start)} – {fullDate(selectedPeriodRange.end)}</h2>
-          {reportData?.branch_name && <p>{reportData.branch_name}</p>}
-        </div>
+      <section className="dashboard-report-toolbar period-toolbar-compact">
         <div className="dashboard-report-range-controls">
           <button type="button" className="period-filter-toggle period-filter-toggle-compact" onClick={togglePeriod} aria-expanded={periodOpen}>
             <span className="period-filter-label">Periode</span>

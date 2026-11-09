@@ -6484,3 +6484,20 @@ html[data-theme] .sidebar .nav-group-toggle:hover {
   .history-filter-row > button { flex: 1 1 100%; }
   .history-filter .period-filter-value { font-size: 12px; }
 }
+
+/* ========================================================================
+   Dasbor: kepala kartu penjualan/gudang tidak perlu mengulang periode dan
+   nama toko (sudah ada di bar periode + pemilih toko pada header).
+   Sisakan hanya bar periode yang bisa dilipat.
+   ======================================================================== */
+.period-toolbar-compact {
+  display: block !important;
+  padding: 10px 12px !important;
+  margin-bottom: 10px;
+}
+.period-toolbar-compact .dashboard-report-range-controls,
+.period-toolbar-compact .warehouse-dashboard-range-controls {
+  width: 100%;
+  justify-items: stretch;
+}
+.period-toolbar-compact .period-filter-toggle { min-height: 40px; }

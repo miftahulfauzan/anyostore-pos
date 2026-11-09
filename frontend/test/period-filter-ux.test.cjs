@@ -154,3 +154,11 @@ test('sidebar: menu pelanggan tidak lagi berlabel "Transaksi"', () => {
   assert.match(shell, /href: '\/customers', label: 'Pelanggan'/);
   assert.doesNotMatch(shell, /href: '\/customers', label: 'Transaksi'/);
 });
+
+test('Dasbor: kepala kartu periode tidak mengulang periode & nama toko', () => {
+  const dashboard = read('dashboard/page.js');
+  assert.match(dashboard, /period-toolbar-compact/);
+  assert.doesNotMatch(dashboard, /<span className="eyebrow">DASHBOARD PENJUALAN<\/span>/);
+  assert.doesNotMatch(dashboard, /<span className="eyebrow">DASHBOARD GUDANG<\/span>/);
+  assert.match(css, /\.period-toolbar-compact\s*\{[^}]*display:\s*block\s*!important/s);
+});
