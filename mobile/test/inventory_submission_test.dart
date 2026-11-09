@@ -110,6 +110,41 @@ class InventoryApi extends ApiClient {
   }
 }
 
+class ChannelInventoryApi extends InventoryApi {
+  final channelRows = <Map<String, dynamic>>[];
+  bool failChannelRefreshAfterCreate = false;
+
+  @override
+  Future<Map<String, dynamic>> get(String path,
+      [Map<String, String>? query]) async {
+    if (path == '/inventory/channels') {
+      if (failChannelRefreshAfterCreate && channelRows.isNotEmpty) {
+        throw ApiException('Daftar saluran belum dapat dimuat ulang');
+      }
+      return {'success': true, 'data': channelRows};
+    }
+    return super.get(path, query);
+  }
+
+  @override
+  Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body,
+      {Map<String, String>? query}) async {
+    if (path == '/inventory/channels') {
+      posts.add((path, jsonDecode(jsonEncode(body)) as Map<String, dynamic>));
+      final row = {
+        'id': channelRows.length + 10,
+        'value': body['value'],
+        'name': body['name'],
+        'is_active': true,
+      };
+      channelRows.add(row);
+      failChannelRefreshAfterCreate = true;
+      return {'success': true, 'data': row};
+    }
+    return super.post(path, body, query: query);
+  }
+}
+
 Future<void> openSection(
     WidgetTester tester, InventoryApi api, String section) async {
   tester.view.physicalSize = const Size(900, 1800);
@@ -224,6 +259,69 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Opname'), findsOneWidget);
     expect(find.byKey(const ValueKey('opname-save-button')), findsOneWidget);
+  });
+
+  testWidgets('outgoing form adds and selects a new channel', (tester) async {
+    final api = ChannelInventoryApi();
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: InventoryPage(
+                api: api,
+                branchId: 4,
+                role: 'gudang',
+                initialSection: 'outgoing'))));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('inventory-inout-details')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Tambah saluran'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Nama saluran'), 'Marketplace');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Tambah'));
+    await tester.pumpAndSettle();
+
+    expect(api.posts.single.$2, {
+      'value': 'marketplace',
+      'name': 'Marketplace',
+    });
+    expect(find.text('Marketplace'), findsOneWidget);
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets('outgoing form keeps a created channel when refresh is delayed',
+      (tester) async {
+    final api = ChannelInventoryApi();
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: InventoryPage(
+                api: api,
+                branchId: 4,
+                role: 'gudang',
+                initialSection: 'outgoing'))));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('inventory-inout-details')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Tambah saluran'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Nama saluran'), 'Marketplace');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Tambah'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Marketplace'), findsOneWidget);
+    expect(find.text('Daftar saluran belum dapat dimuat ulang'), findsNothing);
   });
 
   testWidgets('opname save button stays reachable on a phone-sized screen',
@@ -370,6 +468,24 @@ void main() {
 
     expect(find.text('SKU D10 · stok sistem 8'), findsOneWidget);
     expect(find.text('SKU D10 · stok sistem 0'), findsNothing);
+  });
+
+  testWidgets('opname picker keeps the completion action visible',
+      (tester) async {
+    final api = InventoryApi();
+    await openSection(tester, api, 'Opname');
+    await tester.tap(find.text('Tambah Produk'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Denim').first);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Stok fisik (dihitung)'), '5');
+    await tester.tap(find.text('Tambah'));
+    await tester.pumpAndSettle();
+
+    final action = tester
+        .widget<TextButton>(find.widgetWithText(TextButton, 'Selesai (1)'));
+    expect(action.style?.foregroundColor?.resolve({}), Colors.white);
   });
 
   testWidgets('opname blank count stays in dialog with an error',

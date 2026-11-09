@@ -1593,40 +1593,47 @@ class _InOutFormState extends State<_InOutForm> {
   }
 
   Future<void> _addChannel() async {
-    final controller = TextEditingController();
     final name = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Tambah Saluran'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-              hintText: 'Nama saluran', border: OutlineInputBorder()),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-              child: const Text('Tambah')),
-        ],
-      ),
+      builder: (_) => const _AddChannelDialog(),
     );
     if (name == null || name.isEmpty || !mounted) return;
     try {
       final created = await widget.api.createChannel(name);
-      final ch = await widget.api.channels();
       if (!mounted) return;
       final createdData = created['data'];
+      final createdRow = createdData is Map
+          ? Map<String, dynamic>.from(createdData)
+          : <String, dynamic>{};
       final createdValue =
-          createdData is Map ? createdData['value']?.toString() : null;
+          (createdRow['value']?.toString().trim().isNotEmpty ?? false)
+              ? createdRow['value'].toString().trim()
+              : _channelValue(name);
+      createdRow['value'] = createdValue;
+      createdRow['name'] =
+          createdRow['name']?.toString().trim().isNotEmpty == true
+              ? createdRow['name'].toString().trim()
+              : name;
+
+      List<Map<String, dynamic>> channels = [];
+      try {
+        final ch = await widget.api.channels();
+        channels = ch
+            .whereType<Map>()
+            .map((row) => Map<String, dynamic>.from(row))
+            .toList();
+      } on ApiException {
+        // POST sudah berhasil. Pertahankan item dari respons POST ketika
+        // refresh GET tertunda atau gagal sesaat.
+      }
+      if (!mounted) return;
+      if (!channels
+          .any((row) => row['value']?.toString().trim() == createdValue)) {
+        channels.add(createdRow);
+      }
       setState(() {
-        _channels = ch.cast<Map<String, dynamic>>();
-        _channel = createdValue ??
-            (_channels.isEmpty
-                ? 'toko'
-                : (_channels.first['value']?.toString() ?? 'toko'));
+        _channels = channels;
+        _channel = createdValue;
       });
     } on ApiException catch (e) {
       if (mounted) {
@@ -1634,6 +1641,16 @@ class _InOutFormState extends State<_InOutForm> {
             .showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
+  }
+
+  String _channelValue(String name) {
+    final normalized = name
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+        .replaceAll(RegExp(r'^_+|_+$'), '');
+    return normalized.length > 30
+        ? normalized.substring(0, 30).replaceFirst(RegExp(r'_+$'), '')
+        : normalized;
   }
 
   /// Edit jumlah (dan harga beli untuk masuk) item yang sudah dipilih.
@@ -3006,6 +3023,52 @@ class _OpnameSectionState extends State<_OpnameSection> {
   }
 }
 
+class _AddChannelDialog extends StatefulWidget {
+  const _AddChannelDialog();
+
+  @override
+  State<_AddChannelDialog> createState() => _AddChannelDialogState();
+}
+
+class _AddChannelDialogState extends State<_AddChannelDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final name = _controller.text.trim();
+    if (name.isNotEmpty) Navigator.pop(context, name);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final canSubmit = _controller.text.trim().isNotEmpty;
+    return AlertDialog(
+      title: const Text('Tambah Saluran'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        textInputAction: TextInputAction.done,
+        onChanged: (_) => setState(() {}),
+        onSubmitted: (_) => _submit(),
+        decoration: const InputDecoration(
+            hintText: 'Nama saluran', border: OutlineInputBorder()),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal')),
+        FilledButton(
+            onPressed: canSubmit ? _submit : null, child: const Text('Tambah')),
+      ],
+    );
+  }
+}
+
 class _OpnamePicker extends StatefulWidget {
   const _OpnamePicker({required this.products, required this.baseUrl});
   final List<Map<String, dynamic>> products;
@@ -3144,6 +3207,8 @@ class _OpnamePickerState extends State<_OpnamePicker> {
         title: const Text('Pilih Produk Opname'),
         actions: [
           TextButton(
+            key: const ValueKey('opname-picker-done-button'),
+            style: TextButton.styleFrom(foregroundColor: Colors.white),
             onPressed:
                 _added.isEmpty ? null : () => Navigator.pop(context, _added),
             child: Text('Selesai (${_added.length})'),

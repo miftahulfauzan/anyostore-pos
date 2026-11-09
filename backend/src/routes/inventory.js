@@ -5,6 +5,7 @@ const { localDateString } = require('../local-date');
 const { adjustStock } = require('../stock');
 const { CHANNEL_MANAGEMENT_ROLES } = require('../permissions');
 const { normalizeRackPosition } = require('../rack-position');
+const { normalizeChannelValue } = require('../channel-value');
 
 const router = express.Router();
 router.use(authenticate);
@@ -496,12 +497,15 @@ router.get('/channels', async (req, res, next) => {
 router.post('/channels', authorize(...CHANNEL_MANAGEMENT_ROLES), async (req, res, next) => {
   try {
     const { value, name } = req.body;
-    const val = String(value || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
-    if (!val || !name?.trim()) return res.status(400).json({ success: false, message: 'Nilai dan nama saluran wajib diisi' });
+    const displayName = typeof name === 'string' ? name.trim() : '';
+    // Older Android builds sent only `name`; keep that request compatible and
+    // derive the internal value on the server instead of rejecting it.
+    const val = normalizeChannelValue(value, displayName);
+    if (!val || !displayName) return res.status(400).json({ success: false, message: 'Nama saluran wajib diisi' });
     const [exists] = await db.execute('SELECT id FROM sales_channels WHERE value=?', [val]);
     if (exists[0]) return res.status(400).json({ success: false, message: 'Nilai saluran sudah ada' });
-    const [r] = await db.execute('INSERT INTO sales_channels (value, name, sort_order) VALUES (?,?,?)', [val, name.trim(), 99]);
-    res.status(201).json({ success: true, data: { id: r.insertId, value: val, name: name.trim() } });
+    const [r] = await db.execute('INSERT INTO sales_channels (value, name, sort_order) VALUES (?,?,?)', [val, displayName, 99]);
+    res.status(201).json({ success: true, data: { id: r.insertId, value: val, name: displayName } });
   } catch (error) { next(error); }
 });
 
