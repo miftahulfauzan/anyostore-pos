@@ -5702,3 +5702,24 @@ button.period-filter-toggle .period-filter-range { color: #64748b; }
   color: #fff;
 }
 .dark button.period-filter-toggle .period-filter-value { color: #bfdbfe; }
+
+/* Backdrop (overlay) juga <button>, jadi :hover global (#1e40af) menempel di
+   HP setelah tombol pemicu disentuh dan membuat seluruh layar jadi biru.
+   Kunci warnanya agar overlay selalu berupa lapisan gelap transparan. */
+button.header-actions-sheet-backdrop,
+button.header-actions-sheet-backdrop:hover,
+button.header-actions-sheet-backdrop:active,
+button.header-actions-sheet-backdrop:focus {
+  background: rgba(15,23,42,.42);
+  -webkit-tap-highlight-color: transparent;
+}
+button.sidebar-backdrop,
+button.sidebar-backdrop:hover,
+button.sidebar-backdrop:active {
+  background: rgba(15,23,42,.45);
+  -webkit-tap-highlight-color: transparent;
+}
+button.pos-mobile-cart-backdrop:hover,
+button.pos-mobile-cart-backdrop:active {
+  -webkit-tap-highlight-color: transparent;
+}
