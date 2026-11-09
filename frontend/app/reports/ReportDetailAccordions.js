@@ -57,7 +57,7 @@ function DetailTable({ title, subtitle, columns, rows, empty = 'Belum ada data u
                 }
               >
                 {columns.map((column) => (
-                  <td key={column.label}>{column.render ? column.render(row) : row[column.key]}</td>
+                  <td key={column.label} data-label={column.label}>{column.render ? column.render(row) : row[column.key]}</td>
                 ))}
               </tr>
             )) : (

@@ -4487,3 +4487,200 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
   }
   .pos-layout .cart::before { display: none; }
 }
+
+/* PWA mobile alignment pass: equal action tracks and readable card reflow. */
+@media (max-width: 700px) {
+  .header-action-links {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    align-items: stretch;
+    width: 100%;
+    gap: 8px;
+  }
+  .header-action-links > * {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    min-height: 52px;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    line-height: 1.2;
+    text-align: center;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+  .header-action-links > a.button-link,
+  .header-action-links > button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .report-detail-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 8px;
+  }
+  .report-detail-action {
+    width: 100%;
+    min-width: 0;
+    min-height: 46px;
+    padding: 8px;
+    line-height: 1.2;
+    text-align: center;
+  }
+  .report-detail-links .button-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 8px;
+  }
+  .report-detail-links .button-row > * {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    min-height: 46px;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    line-height: 1.2;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  .report-detail-table-wrap {
+    margin-inline: 0;
+    padding: 0;
+    overflow: visible;
+  }
+  .report-detail-table {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    border-collapse: separate;
+    font-size: 13px;
+  }
+  .report-detail-table thead,
+  .settings-branch-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .report-detail-table tbody,
+  .settings-branch-table tbody {
+    display: block;
+  }
+  .report-detail-table tbody tr,
+  .settings-branch-table tbody tr {
+    display: block;
+    padding: 8px 0;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .report-detail-table tbody tr:last-child,
+  .settings-branch-table tbody tr:last-child {
+    border-bottom: 0;
+  }
+  .report-detail-table td {
+    display: grid;
+    grid-template-columns: minmax(108px, .72fr) minmax(0, 1.28fr);
+    align-items: start;
+    gap: 8px;
+    min-width: 0;
+    padding: 5px 0;
+    border: 0;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+  .report-detail-table td::before,
+  .settings-branch-table td::before {
+    content: attr(data-label);
+    min-width: 0;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .report-detail-table td[colspan] {
+    display: block;
+    padding: 10px 0;
+  }
+  .report-detail-table td[colspan]::before {
+    content: none;
+  }
+  .report-detail-table td > *,
+  .settings-branch-table td > * {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  .report-detail-table td .button-link {
+    width: 100%;
+    min-height: 40px;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .settings-branch-table-wrap {
+    margin-inline: 0 !important;
+    padding: 0;
+    overflow: visible;
+  }
+  .settings-branch-table {
+    display: block;
+    width: 100%;
+    min-width: 0 !important;
+    border-collapse: separate;
+  }
+  .settings-branch-table td {
+    display: grid;
+    grid-template-columns: minmax(88px, .4fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 6px 0;
+    border: 0;
+  }
+  .settings-branch-table td[data-label="Nama"] {
+    align-items: start;
+  }
+  .settings-branch-table td[data-label="Aksi"] button,
+  .settings-branch-table td[data-label="Semi grosir"] button,
+  .settings-branch-table td[data-label="Tipe"] select {
+    width: 100%;
+  }
+  .settings-branch-table td[data-label="Aksi"] button {
+    white-space: normal;
+  }
+
+  .settings-save-bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(150px, .75fr);
+    align-items: center;
+    gap: 10px;
+  }
+  .settings-save-bar p {
+    min-width: 0;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+  .settings-save-bar button {
+    width: 100%;
+    min-height: 48px;
+  }
+}
+
+@media (max-width: 420px) {
+  .report-detail-links .button-row,
+  .report-detail-actions {
+    grid-template-columns: 1fr;
+  }
+  .settings-save-bar {
+    grid-template-columns: 1fr;
+  }
+}

@@ -326,17 +326,17 @@ export default function SettingsPage() {
         <section className="panel" style={{ gridColumn: '1 / -1' }}>
           <h2>Daftar Toko</h2>
           <p className="muted" style={{ fontSize: '.85rem' }}>Atur semi grosir POS per toko. Pengaturan harga ini terpisah dari aturan komisi staf.</p>
-          <div className="table-wrap" style={{ marginTop: '.75rem' }}>
-            <table>
+          <div className="table-wrap settings-branch-table-wrap" style={{ marginTop: '.75rem' }}>
+            <table className="settings-branch-table">
               <thead><tr><th>No</th><th>Nama</th><th>Tipe</th><th>Produk</th><th>User</th><th>Semi Grosir</th><th>Aktif</th><th>Aksi</th></tr></thead>
               <tbody>
                 {stores.map((s, idx) => {
                   const semiGrosirEnabled = isSemiGrosirEnabled(s);
                   return (
                   <tr key={s.id}>
-                    <td>{idx + 1}</td>
-                    <td><strong>{s.name}</strong>{String(s.id) === String(branch) ? <span className="tag" style={{ marginLeft: '.5rem' }}>dipilih</span> : null}<br /><small className="muted">{s.address || '-'}</small></td>
-                    <td>
+                    <td data-label="No">{idx + 1}</td>
+                    <td data-label="Nama"><strong>{s.name}</strong>{String(s.id) === String(branch) ? <span className="tag" style={{ marginLeft: '.5rem' }}>dipilih</span> : null}<br /><small className="muted">{s.address || '-'}</small></td>
+                    <td data-label="Tipe">
                       <select value={s.type || 'toko'} disabled={String(s.id) === String(branch) || !s.is_active} style={{ padding: '.3rem .4rem', fontSize: '.78rem' }} onChange={async (e) => {
                         const next = e.target.value;
                         try {
@@ -351,13 +351,13 @@ export default function SettingsPage() {
                         <option value="gudang">Gudang</option>
                       </select>
                     </td>
-                    <td>{s.product_count ?? '-'}</td>
-                    <td>{s.user_count ?? '-'}</td>
-                    <td>
+                    <td data-label="Produk">{s.product_count ?? '-'}</td>
+                    <td data-label="User">{s.user_count ?? '-'}</td>
+                    <td data-label="Semi grosir">
                       <button type="button" className="small secondary" aria-pressed={semiGrosirEnabled} aria-label={`${semiGrosirEnabled ? 'Nonaktifkan' : 'Aktifkan'} semi grosir untuk ${s.name}`} disabled={!s.is_active || pricingBranchSaving === String(s.id)} onClick={() => toggleBranchSemiGrosir(s)}>{pricingBranchSaving === String(s.id) ? 'Menyimpan…' : semiGrosirEnabled ? 'Aktif' : 'Nonaktif'}</button>
                     </td>
-                    <td>{s.is_active ? <span className="status paid">aktif</span> : <span className="status pending">nonaktif</span>}</td>
-                    <td>
+                    <td data-label="Aktif">{s.is_active ? <span className="status paid">aktif</span> : <span className="status pending">nonaktif</span>}</td>
+                    <td data-label="Aksi">
                       <button type="button" className="small secondary" disabled={String(s.id) === String(branch)} onClick={async () => {
                         const isPermanent = !s.is_active;
                         const msg = isPermanent
