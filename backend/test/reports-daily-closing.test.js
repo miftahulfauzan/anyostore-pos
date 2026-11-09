@@ -34,6 +34,7 @@ require.cache[dbPath] = {
 };
 
 const router = require('../src/routes/reports');
+const { localDateString } = require('../src/local-date');
 const layer = router.stack.find((item) => item.route?.path === '/daily-closing');
 const handler = layer.route.stack.at(-1).handle;
 
@@ -61,4 +62,18 @@ test('daily closing includes approved cash finance entries in the cash adjustmen
   assert.match(returnsCall.sql, /CONVERT_TZ\(created_at/);
   const movementCall = calls.find(({ sql }) => sql.includes('FROM cash_drawer_movements'));
   assert.match(movementCall.sql, /CONVERT_TZ\(cdm\.created_at/);
+});
+
+test('daily closing tanpa tanggal memakai hari bisnis WIB saat ini', async () => {
+  calls.length = 0;
+  let body;
+  await handler(
+    { user: { id: 11, role: 'owner', branch_id: 2 }, query: { branch_id: '2' } },
+    { json(value) { body = value; }, status() { return this; } },
+    (error) => { throw error; },
+  );
+
+  const salesCall = calls.find(({ sql }) => sql.includes('receipt_count'));
+  assert.equal(salesCall.params[1], localDateString());
+  assert.equal(body.data.date, localDateString());
 });

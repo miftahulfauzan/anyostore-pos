@@ -3,9 +3,8 @@ import { useEffect, useState } from 'react';
 import { useAppSession } from '../components/AppStateProvider';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-const previousLocalDate = () => {
-  const value = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(value);
+const currentLocalDate = () => {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 };
 const methodLabel = { cash: 'Kas', qris: 'QRIS', debit: 'Debit', transfer: 'Transfer', split: 'Split' };
 const rp = (n) => {
@@ -22,7 +21,7 @@ const shortStamp = (s) => {
 export default function ClosingPage() {
   const { user, activeBranchId, resolved } = useAppSession();
   const [data, setData] = useState(null);
-  const [date, setDate] = useState(previousLocalDate());
+  const [date, setDate] = useState(currentLocalDate());
   const [message, setMessage] = useState('');
   const [preview, setPreview] = useState(false);
   const selectedBranchQuery = activeBranchId === 'all' ? 'all' : activeBranchId;

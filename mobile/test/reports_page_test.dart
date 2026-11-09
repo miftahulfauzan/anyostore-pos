@@ -147,7 +147,8 @@ void main() {
     expect(find.text('Terapkan Filter'), findsOneWidget);
   });
 
-  testWidgets('penutupan memakai tanggal bisnis WIB sebelumnya dan bisa diubah',
+  testWidgets(
+      'penutupan default memakai tanggal bisnis WIB hari ini dan bisa diubah',
       (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
@@ -163,9 +164,8 @@ void main() {
     await tester.pumpAndSettle();
 
     final nowWib = DateTime.now().toUtc().add(const Duration(hours: 7));
-    final previous = nowWib.subtract(const Duration(days: 1));
     final expected =
-        '${previous.year.toString().padLeft(4, '0')}-${previous.month.toString().padLeft(2, '0')}-${previous.day.toString().padLeft(2, '0')}';
+        '${nowWib.year.toString().padLeft(4, '0')}-${nowWib.month.toString().padLeft(2, '0')}-${nowWib.day.toString().padLeft(2, '0')}';
     final request =
         api.requests.lastWhere((item) => item.$1 == '/reports/daily-closing');
     expect(request.$2['date'], expected);

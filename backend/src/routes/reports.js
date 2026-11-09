@@ -19,10 +19,6 @@ function dateRange(query) {
   return { start, end };
 }
 
-function previousLocalDateString() {
-  return localDateString(new Date(Date.now() - 24 * 60 * 60 * 1000));
-}
-
 router.get('/sales', async (req, res, next) => {
   try {
     const { start, end } = dateRange(req.query);
@@ -38,9 +34,9 @@ router.get('/sales', async (req, res, next) => {
 // per metode pembayaran: sales, returns, cancellations, cash_in_out, total.
 router.get('/daily-closing', async (req, res, next) => {
   try {
-    // Penutupan default adalah hari bisnis WIB sebelumnya. Web dan Android
-    // harus membuka tanggal yang sama ketika kasir baru mulai bekerja.
-    const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : previousLocalDateString();
+    // Penutupan default mengikuti hari bisnis WIB saat ini. Klien tetap dapat
+    // mengirim tanggal lain untuk mencetak penutupan hari sebelumnya.
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : localDateString();
     const [userRows] = await db.execute('SELECT name FROM users WHERE id=?', [req.user.id]);
 
     async function buildClosing(branchId) {

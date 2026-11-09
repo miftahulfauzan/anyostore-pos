@@ -18,13 +18,6 @@ import 'printer_setup.dart';
 import 'report_filter.dart';
 import 'task_ui.dart';
 
-String _previousWibDate() {
-  final date = DateTime.now().toUtc().add(const Duration(hours: 7)).subtract(
-        const Duration(days: 1),
-      );
-  return '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-}
-
 bool reportDateInRange(String? date, String start, String end) {
   if (date == null || !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(date)) {
     return false;
@@ -66,7 +59,7 @@ class ReportsPage extends StatefulWidget {
 class _ReportsPageState extends State<ReportsPage> {
   String _section = 'ringkasan';
   String _preset = '7d';
-  String _closingDate = _previousWibDate();
+  String _closingDate = todayWib();
   DateTime? _from;
   DateTime? _to;
   Map<String, dynamic>? _data;
