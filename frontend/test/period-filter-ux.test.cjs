@@ -116,12 +116,12 @@ test('mode gelap: badge, tile ikon, dan pemisah s/d punya kontras', () => {
 
 test('POS: kepala katalog dipadatkan jadi satu baris', () => {
   const pos = read('pos/page.js');
-  assert.match(pos, /catalog-toolbar/);
-  assert.match(pos, /catalog-count/);
-  assert.match(pos, /catalog-search/);
+  assert.match(pos, /pos-catalog-toolbar/);
+  assert.match(pos, /pos-catalog-count/);
+  assert.match(pos, /pos-catalog-search/);
   assert.doesNotMatch(pos, /className="warehouse-label"/);
-  assert.match(css, /\.catalog-toolbar\s*\{[^}]*display:\s*flex/s);
-  assert.match(css, /@media \(max-width: 430px\)\s*\{[^}]*\.catalog-count\s*\{\s*display:\s*none/s);
+  assert.match(css, /\.pos-catalog-toolbar\s*\{[^}]*display:\s*flex/s);
+  assert.match(css, /@media \(max-width: 430px\)\s*\{[^}]*\.pos-catalog-count\s*\{\s*display:\s*none/s);
 });
 
 test('header HP sejajar judul: satu baris, tema pindah ke menu bila ada aksi', () => {
