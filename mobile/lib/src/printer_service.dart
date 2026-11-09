@@ -257,6 +257,41 @@ class PrinterService {
     if (bytes != null) await _writeBytes(bytes);
   }
 
+  /// Cetak rincian laporan sebagai daftar yang aman untuk kertas thermal.
+  Future<void> printReport({
+    required String title,
+    required List<List<String>> lines,
+  }) async {
+    final esc = EscCommand();
+    await esc.cleanCommand();
+    Future<void> line(String text,
+        {Alignment alignment = Alignment.left,
+        EscTextStyle style = EscTextStyle.default_}) async {
+      await esc.text(content: text, alignment: alignment, style: style);
+      await esc.newline();
+    }
+
+    await line('ANYOSTORE',
+        alignment: Alignment.center, style: EscTextStyle.bold);
+    await line(title.toUpperCase(),
+        alignment: Alignment.center, style: EscTextStyle.bold);
+    await line('--------------------------------');
+    for (final row in lines) {
+      final label = row.isNotEmpty ? row.first : '';
+      final value = row.length > 1 ? row[1] : '';
+      final note = row.length > 2 ? row[2] : '';
+      await line(label);
+      if (value.isNotEmpty) await line(value, style: EscTextStyle.bold);
+      if (note.isNotEmpty) await line(note);
+      await line('--------------------------------');
+    }
+    await line('Terima kasih, sampai jumpa lagi!', alignment: Alignment.center);
+    await esc.print(feedLines: 4);
+    await esc.cutPaper();
+    final bytes = await esc.getCommand();
+    if (bytes != null) await _writeBytes(bytes);
+  }
+
   /// Cetak laporan penutupan harian.
   Future<void> printClosing(Map<String, dynamic> closing) async {
     final esc = EscCommand();

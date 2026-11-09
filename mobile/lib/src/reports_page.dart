@@ -6,6 +6,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 
 import 'api_client.dart';
@@ -1108,34 +1110,484 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   List<Widget> _sales() {
-    final cashiers =
-        ((_data?['cashiers'] as List?) ?? []).cast<Map<String, dynamic>>();
-    final customers =
-        ((_data?['customers'] as List?) ?? []).cast<Map<String, dynamic>>();
-    final transactions =
-        ((_data?['transactions'] as List?) ?? []).cast<Map<String, dynamic>>();
+    final cashiers = _reportList('cashiers');
+    final customers = _reportList('customers');
+    final transactions = _reportList('transactions');
     return [
       ..._dashboard(),
-      if (cashiers.isNotEmpty)
-        _Card('Penjualan per kasir', [
-          for (final c in cashiers.take(20))
-            _Row('${c['name']} · ${c['role']}',
-                '${c['transactions']} trx · ${fmtRp(asNum(c['revenue']))}'),
-        ]),
-      if (customers.isNotEmpty)
-        _Card('Penjualan per pelanggan', [
-          for (final c in customers.take(20))
-            _Row('${c['name']} · ${c['phone'] ?? '-'}',
-                '${c['transactions']} trx · ${fmtRp(asNum(c['revenue']))}'),
-        ]),
-      if (transactions.isNotEmpty)
-        _Card('Transaksi terbaru', [
-          for (final t in transactions.take(30))
-            _Row(
-                '${t['invoice_no']} · ${_displayDate(t['transaction_date'])}\n${t['cashier']} · ${t['branch_name']} · ${(t['payment_method'] ?? '').toString().toUpperCase()}',
-                '${fmtRp(asNum(t['grand_total']))}\n${t['status']}'),
-        ]),
+      _ReportDetailHeading(key: const ValueKey('reports-detail-heading')),
+      _ReportDetailAccordion(
+        key: const ValueKey('reports-detail-transactions'),
+        title: 'Transaksi',
+        description: 'Penjualan, diskon, pembatalan, dan invoice.',
+        icon: Icons.receipt_long_outlined,
+        color: kTaskDark,
+        count:
+            '${transactions.length + _reportList('cancellations').length} transaksi',
+        initiallyExpanded: true,
+        onPdf: () => _exportDetailPdf('transactions'),
+        onPrint: () => _printDetail('transactions'),
+        child: _transactionsDetail(),
+      ),
+      _ReportDetailAccordion(
+        key: const ValueKey('reports-detail-products'),
+        title: 'Produk',
+        description: 'Produk terjual, kategori, stok rendah, dan tier harga.',
+        icon: Icons.inventory_2_outlined,
+        color: kTaskTeal,
+        count:
+            '${_reportList('products').length + _reportList('categories').length + _reportList('low_stock').length + _reportList('price_tiers').length} data',
+        onPdf: () => _exportDetailPdf('products'),
+        onPrint: () => _printDetail('products'),
+        child: _productsDetail(),
+      ),
+      _ReportDetailAccordion(
+        key: const ValueKey('reports-detail-payments'),
+        title: 'Pembayaran',
+        description: 'Metode bayar, kasir, dan pelanggan terbaik.',
+        icon: Icons.credit_card_outlined,
+        color: kTaskAccent,
+        count:
+            '${_reportList('payment_methods').length + cashiers.length + customers.length} data',
+        onPdf: () => _exportDetailPdf('payments'),
+        onPrint: () => _printDetail('payments'),
+        child: _paymentsDetail(),
+      ),
+      _ReportDetailAccordion(
+        key: const ValueKey('reports-detail-returns'),
+        title: 'Retur',
+        description: 'Ringkasan dan rincian barang yang dikembalikan.',
+        icon: Icons.refresh_outlined,
+        color: kTaskPurple,
+        count:
+            '${_reportList('return_summary').length + _reportList('returns').length} data',
+        onPdf: () => _exportDetailPdf('returns'),
+        onPrint: () => _printDetail('returns'),
+        child: _returnsDetail(),
+      ),
+      _ReportDetailAccordion(
+        key: const ValueKey('reports-detail-analysis'),
+        title: 'Analisis periode',
+        description: 'Tren harian, jam pencatatan, cabang, dan stok.',
+        icon: Icons.analytics_outlined,
+        color: kTaskTerracotta,
+        count:
+            '${_reportList('daily_sales').length + _reportList('hourly_sales').length + _reportList('branch_comparison').length} grafik',
+        onPdf: () => _exportDetailPdf('analysis'),
+        onPrint: () => _printDetail('analysis'),
+        child: _analysisDetail(),
+      ),
     ];
+  }
+
+  List<Map<String, dynamic>> _reportList(String key) =>
+      ((_data?[key] as List?) ?? []).whereType<Map<String, dynamic>>().toList();
+
+  List<Widget> _detailSpaced(List<Widget> children) => [
+        for (var i = 0; i < children.length; i++) ...[
+          if (i > 0) const SizedBox(height: 10),
+          children[i],
+        ],
+      ];
+
+  Widget _transactionsDetail() {
+    final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
+    final transactions = _reportList('transactions');
+    final cancellations = _reportList('cancellations');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: _detailSpaced([
+        _ReportDetailTable(
+          title: 'Diskon, pembatalan, dan retur',
+          subtitle: 'Nilai ringkasan pada periode yang dipilih.',
+          rows: [
+            _ReportDetailRow(
+                'Total diskon', fmtRp(asNum(summary['discounts']))),
+            _ReportDetailRow(
+                'Diskon item', fmtRp(asNum(summary['item_discounts']))),
+            _ReportDetailRow('Diskon transaksi',
+                fmtRp(asNum(summary['transaction_discounts']))),
+            _ReportDetailRow(
+                'Pembatalan (${summary['cancelled_transactions'] ?? 0} transaksi)',
+                fmtRp(asNum(summary['cancelled_amount']))),
+            _ReportDetailRow('Refund retur (${summary['returns'] ?? 0} retur)',
+                fmtRp(asNum(summary['refund_amount']))),
+          ],
+        ),
+        _ReportDetailTable(
+          title: 'Daftar transaksi',
+          subtitle:
+              'Tanggal, invoice, kasir, metode, status, dan total bersih.',
+          rows: [
+            for (final row in transactions)
+              _ReportDetailRow(
+                '${row['invoice_no'] ?? '-'} · ${_displayDate(row['transaction_date'])}',
+                fmtRp(asNum(row['grand_total']) -
+                    asNum(row['cancelled_amount']) -
+                    asNum(row['refunded_amount'])),
+                '${row['cashier'] ?? '-'} · ${(row['payment_method'] ?? '-').toString().toUpperCase()} · ${row['status'] ?? '-'}',
+              ),
+          ],
+        ),
+        _ReportDetailTable(
+          title: 'Daftar pembatalan',
+          subtitle: 'Transaksi yang memiliki pembatalan pada periode ini.',
+          rows: [
+            for (final row in cancellations)
+              _ReportDetailRow(
+                '${row['invoice_no'] ?? '-'} · ${_displayDate(row['transaction_date'])}',
+                fmtRp(asNum(row['cancelled_amount'])),
+                '${row['cashier'] ?? '-'} · ${row['cancelled_qty'] ?? 0} qty · ${row['cancel_reason'] ?? '-'}',
+              ),
+          ],
+        ),
+      ]),
+    );
+  }
+
+  Widget _productsDetail() {
+    final products = _reportList('products');
+    final categories = _reportList('categories');
+    final lowStock = _reportList('low_stock');
+    final tiers = _reportList('price_tiers');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: _detailSpaced([
+        _ReportDetailTable(
+          title: 'Produk terjual',
+          subtitle: 'Produk dan varian berdasarkan pendapatan.',
+          rows: [
+            for (final row in products)
+              _ReportDetailRow(
+                '${row['name'] ?? '-'} · ${row['sku'] ?? 'Tanpa SKU'}',
+                '${row['quantity_sold'] ?? 0} pcs',
+                '${row['category_name'] ?? 'Tanpa kategori'} · Omzet ${fmtRp(asNum(row['revenue']))} · Laba ${fmtRp(asNum(row['profit']))}',
+              ),
+          ],
+        ),
+        _ReportDetailTable(
+          title: 'Penjualan berdasarkan kategori',
+          subtitle: 'Kategori mengikuti katalog produk saat ini.',
+          rows: [
+            for (final row in categories)
+              _ReportDetailRow(
+                '${row['category_name'] ?? 'Tanpa kategori'}',
+                '${row['quantity_sold'] ?? 0} pcs',
+                'Omzet ${fmtRp(asNum(row['revenue']))} · Modal ${fmtRp(asNum(row['cost_of_goods']))} · Laba ${fmtRp(asNum(row['profit']))}',
+              ),
+          ],
+        ),
+        _ReportDetailTable(
+          title: 'Stok perlu perhatian',
+          subtitle: 'Produk yang stoknya sama atau di bawah stok minimum.',
+          rows: [
+            for (final row in lowStock)
+              _ReportDetailRow(
+                  '${row['name'] ?? '-'} · ${row['sku'] ?? '-'}',
+                  '${row['stock'] ?? 0} pcs',
+                  'Minimum ${row['min_stock'] ?? 0} pcs'),
+          ],
+        ),
+        _ReportDetailTable(
+          title: 'Ringkasan tier harga',
+          subtitle: 'Penjualan berdasarkan tier harga transaksi.',
+          rows: [
+            for (final row in tiers)
+              _ReportDetailRow(
+                  '${row['price_tier'] ?? '-'}',
+                  '${row['products_sold'] ?? 0} pcs',
+                  '${row['transactions'] ?? 0} transaksi · ${fmtRp(asNum(row['revenue']))}'),
+          ],
+        ),
+      ]),
+    );
+  }
+
+  Widget _paymentsDetail() {
+    final methods = _reportList('payment_methods');
+    final cashiers = _reportList('cashiers');
+    final customers = _reportList('customers');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: _detailSpaced([
+        _ReportDetailTable(
+          title: 'Metode pembayaran',
+          subtitle: 'Nilai per metode yang dipakai pada transaksi.',
+          rows: [
+            for (final row in methods)
+              _ReportDetailRow(
+                  '${row['payment_method'] ?? '-'}'.toUpperCase(),
+                  fmtRp(asNum(row['amount'])),
+                  '${row['transactions'] ?? 0} transaksi'),
+          ],
+        ),
+        _ReportDetailTable(
+          title: 'Laporan kasir',
+          subtitle: 'Penjualan per staf.',
+          rows: [
+            for (final row in cashiers)
+              _ReportDetailRow(
+                  '${row['name'] ?? '-'} · ${row['role'] ?? ''}',
+                  fmtRp(asNum(row['revenue'])),
+                  '${row['transactions'] ?? 0} transaksi'),
+          ],
+        ),
+        _ReportDetailTable(
+          title: 'Pelanggan terbaik',
+          subtitle: 'Pelanggan dengan nilai belanja tertinggi.',
+          rows: [
+            for (final row in customers)
+              _ReportDetailRow(
+                  '${row['name'] ?? '-'} · ${row['phone'] ?? 'Tanpa telepon'}',
+                  fmtRp(asNum(row['revenue'])),
+                  '${row['transactions'] ?? 0} transaksi'),
+          ],
+        ),
+      ]),
+    );
+  }
+
+  Widget _returnsDetail() {
+    final summary = _reportList('return_summary');
+    final returns = _reportList('returns');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: _detailSpaced([
+        _ReportDetailTable(
+          title: 'Ringkasan retur',
+          subtitle: 'Retur berdasarkan status dan tanggal pencatatan.',
+          rows: [
+            for (final row in summary)
+              _ReportDetailRow(
+                  '${row['status'] ?? '-'}',
+                  '${row['quantity_returned'] ?? 0} pcs',
+                  '${row['returns_count'] ?? 0} retur · Refund ${fmtRp(asNum(row['refund_amount']))}'),
+          ],
+        ),
+        _ReportDetailTable(
+          title: 'Daftar retur',
+          subtitle: 'Rincian retur yang dicatat pada periode ini.',
+          rows: [
+            for (final row in returns)
+              _ReportDetailRow(
+                  '${row['return_no'] ?? '-'} · ${row['invoice_no'] ?? '-'}',
+                  '${row['quantity_returned'] ?? 0} pcs',
+                  '${row['created_by_name'] ?? '-'} · ${row['status'] ?? '-'} · Refund ${fmtRp(asNum(row['refund_amount']))}'),
+          ],
+        ),
+      ]),
+    );
+  }
+
+  Widget _analysisDetail() {
+    final daily = _reportList('daily_sales');
+    final hourly = _reportList('hourly_sales');
+    final branches = _reportList('branch_comparison');
+    final widgets = <Widget>[
+      _ReportDetailTable(
+        title: 'Penjualan harian',
+        subtitle: 'Ringkasan transaksi per hari.',
+        rows: [
+          for (final row in daily)
+            _ReportDetailRow(
+                _displayDate(row['date']),
+                fmtRp(asNum(row['revenue'])),
+                '${row['transactions'] ?? 0} transaksi'),
+        ],
+      ),
+      _ReportDetailTable(
+        title: 'Penjualan per jam pencatatan',
+        subtitle: 'Dikelompokkan menurut waktu WIB saat transaksi disimpan.',
+        rows: [
+          for (final row in hourly)
+            _ReportDetailRow(
+                '${row['hour'] ?? '-'} WIB',
+                fmtRp(asNum(row['revenue'])),
+                '${row['transactions'] ?? 0} transaksi'),
+        ],
+      ),
+    ];
+    if (_isOwner && _branchId == null) {
+      widgets.add(_ReportDetailTable(
+        title: 'Perbandingan antar toko',
+        subtitle: 'Semua toko aktif untuk periode yang dipilih.',
+        rows: [
+          for (final row in branches)
+            _ReportDetailRow(
+                '${row['branch_name'] ?? '-'}',
+                fmtRp(asNum(row['revenue'])),
+                '${row['transactions'] ?? 0} transaksi · Laba ${fmtRp(asNum(row['net_profit']))}'),
+        ],
+      ));
+    }
+    widgets.add(GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Laporan stok',
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: ink(context))),
+          const SizedBox(height: 6),
+          Text('Stok saat ini, mutasi, dan tren tersedia di halaman inventori.',
+              style: TextStyle(fontSize: 12, color: taskMuted(context))),
+        ],
+      ),
+    ));
+    return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: _detailSpaced(widgets));
+  }
+
+  Future<void> _exportDetailPdf(String detail) async {
+    final rows = _detailExportRows(detail);
+    final document = pw.Document();
+    document.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.all(28),
+      build: (_) => [
+        pw.Text('Laporan ${_detailTitle(detail)}',
+            style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+        pw.SizedBox(height: 6),
+        pw.Text('Periode ${_range.$1} s.d. ${_range.$2}',
+            style: const pw.TextStyle(fontSize: 9)),
+        pw.SizedBox(height: 16),
+        pw.TableHelper.fromTextArray(
+          headers: const ['Rincian', 'Nilai', 'Keterangan'],
+          data: [
+            for (final row in rows)
+              [row[0], row[1], row.length > 2 ? row[2] : '']
+          ],
+          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+          cellStyle: const pw.TextStyle(fontSize: 8),
+          headerDecoration:
+              const pw.BoxDecoration(color: PdfColors.blueGrey100),
+          cellPadding:
+              const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+        ),
+      ],
+    ));
+    final bytes = await document.save();
+    final file = File('${Directory.systemTemp.path}/laporan-$detail.pdf');
+    await file.writeAsBytes(bytes, flush: true);
+    if (!mounted) return;
+    await Share.shareXFiles([XFile(file.path)],
+        subject: 'Laporan ${_detailTitle(detail)}');
+  }
+
+  Future<void> _printDetail(String detail) => printNow(
+        context,
+        (printer, device) => printer.printReport(
+          title: _detailTitle(detail),
+          lines: _detailExportRows(detail),
+        ),
+        title: 'Cetak ${_detailTitle(detail)}',
+      );
+
+  String _detailTitle(String detail) => switch (detail) {
+        'transactions' => 'Transaksi',
+        'products' => 'Produk',
+        'payments' => 'Pembayaran',
+        'returns' => 'Retur',
+        _ => 'Analisis periode',
+      };
+
+  List<List<String>> _detailExportRows(String detail) {
+    final rows = <List<String>>[];
+    void add(String label, dynamic value, [dynamic note = '']) => rows.add([
+          label,
+          value?.toString() ?? '-',
+          note?.toString() ?? '',
+        ]);
+    final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
+    if (detail == 'transactions') {
+      add('Total diskon', fmtRp(asNum(summary['discounts'])));
+      add('Diskon item', fmtRp(asNum(summary['item_discounts'])));
+      add('Diskon transaksi', fmtRp(asNum(summary['transaction_discounts'])));
+      add('Pembatalan', fmtRp(asNum(summary['cancelled_amount'])),
+          '${summary['cancelled_transactions'] ?? 0} transaksi');
+      add('Refund retur', fmtRp(asNum(summary['refund_amount'])),
+          '${summary['returns'] ?? 0} retur');
+      for (final row in _reportList('transactions')) {
+        add(
+            'Transaksi ${row['invoice_no'] ?? '-'}',
+            fmtRp(asNum(row['grand_total']) -
+                asNum(row['cancelled_amount']) -
+                asNum(row['refunded_amount'])),
+            '${row['transaction_date'] ?? '-'} · ${row['cashier'] ?? '-'} · ${row['payment_method'] ?? '-'} · ${row['status'] ?? '-'}');
+      }
+      for (final row in _reportList('cancellations')) {
+        add(
+            'Pembatalan ${row['invoice_no'] ?? '-'}',
+            fmtRp(asNum(row['cancelled_amount'])),
+            '${row['transaction_date'] ?? '-'} · ${row['cancelled_qty'] ?? 0} qty · ${row['cancel_reason'] ?? '-'}');
+      }
+    } else if (detail == 'products') {
+      for (final row in _reportList('products')) {
+        add('Produk ${row['name'] ?? '-'}', '${row['quantity_sold'] ?? 0} pcs',
+            '${row['sku'] ?? '-'} · ${row['category_name'] ?? '-'} · Omzet ${fmtRp(asNum(row['revenue']))} · Modal ${fmtRp(asNum(row['cost_of_goods']))} · Laba ${fmtRp(asNum(row['profit']))}');
+      }
+      for (final row in _reportList('categories')) {
+        add(
+            'Kategori ${row['category_name'] ?? '-'}',
+            '${row['quantity_sold'] ?? 0} pcs',
+            'Omzet ${fmtRp(asNum(row['revenue']))} · Modal ${fmtRp(asNum(row['cost_of_goods']))} · Laba ${fmtRp(asNum(row['profit']))}');
+      }
+      for (final row in _reportList('low_stock')) {
+        add('Stok rendah ${row['name'] ?? '-'}', '${row['stock'] ?? 0} pcs',
+            'SKU ${row['sku'] ?? '-'} · Minimum ${row['min_stock'] ?? 0} pcs');
+      }
+      for (final row in _reportList('price_tiers')) {
+        add(
+            'Tier ${row['price_tier'] ?? '-'}',
+            '${row['products_sold'] ?? 0} pcs',
+            '${row['transactions'] ?? 0} transaksi · ${fmtRp(asNum(row['revenue']))}');
+      }
+    } else if (detail == 'payments') {
+      for (final row in _reportList('payment_methods')) {
+        add(
+            'Metode ${(row['payment_method'] ?? '-').toString().toUpperCase()}',
+            fmtRp(asNum(row['amount'])),
+            '${row['transactions'] ?? 0} transaksi');
+      }
+      for (final row in _reportList('cashiers')) {
+        add('Kasir ${row['name'] ?? '-'}', fmtRp(asNum(row['revenue'])),
+            '${row['transactions'] ?? 0} transaksi · ${row['role'] ?? '-'}');
+      }
+      for (final row in _reportList('customers')) {
+        add('Pelanggan ${row['name'] ?? '-'}', fmtRp(asNum(row['revenue'])),
+            '${row['transactions'] ?? 0} transaksi · ${row['phone'] ?? '-'}');
+      }
+    } else if (detail == 'returns') {
+      for (final row in _reportList('return_summary')) {
+        add(
+            'Retur ${row['status'] ?? '-'}',
+            '${row['quantity_returned'] ?? 0} pcs',
+            '${row['returns_count'] ?? 0} retur · Refund ${fmtRp(asNum(row['refund_amount']))}');
+      }
+      for (final row in _reportList('returns')) {
+        add(
+            'Retur ${row['return_no'] ?? '-'}',
+            '${row['quantity_returned'] ?? 0} pcs',
+            '${row['invoice_no'] ?? '-'} · ${row['created_by_name'] ?? '-'} · ${row['status'] ?? '-'} · Refund ${fmtRp(asNum(row['refund_amount']))}');
+      }
+    } else {
+      for (final row in _reportList('daily_sales')) {
+        add('Harian ${row['date'] ?? '-'}', fmtRp(asNum(row['revenue'])),
+            '${row['transactions'] ?? 0} transaksi');
+      }
+      for (final row in _reportList('hourly_sales')) {
+        add('Jam ${row['hour'] ?? '-'} WIB', fmtRp(asNum(row['revenue'])),
+            '${row['transactions'] ?? 0} transaksi');
+      }
+      for (final row in _reportList('branch_comparison')) {
+        add('Toko ${row['branch_name'] ?? '-'}', fmtRp(asNum(row['revenue'])),
+            '${row['transactions'] ?? 0} transaksi · Pengeluaran ${fmtRp(asNum(row['expenses']))} · Pemasukan ${fmtRp(asNum(row['income']))} · Laba ${fmtRp(asNum(row['net_profit']))}');
+      }
+      add('Laporan stok', 'Dashboard stok', 'inventori');
+    }
+    return rows;
   }
 
   String _displayDate(dynamic value) {
@@ -1252,6 +1704,280 @@ class _ReportsPageState extends State<ReportsPage> {
         ]),
     ];
   }
+}
+
+class _ReportDetailHeading extends StatelessWidget {
+  const _ReportDetailHeading({super.key});
+
+  @override
+  Widget build(BuildContext context) => GlassCard(
+        child: Row(
+          children: [
+            Icon(Icons.shopping_bag_outlined, size: 20, color: kTaskAccent),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Laporan detail',
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: ink(context))),
+                  const SizedBox(height: 3),
+                  Text(
+                      'Rincian transaksi, produk, pembayaran, retur, dan analisis periode.',
+                      style:
+                          TextStyle(fontSize: 12, color: taskMuted(context))),
+                ],
+              ),
+            ),
+            Icon(Icons.analytics_outlined,
+                size: 24, color: taskBorder(context)),
+          ],
+        ),
+      );
+}
+
+class _ReportDetailAccordion extends StatefulWidget {
+  const _ReportDetailAccordion({
+    super.key,
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.color,
+    required this.count,
+    required this.child,
+    required this.onPdf,
+    required this.onPrint,
+    this.initiallyExpanded = false,
+  });
+
+  final String title;
+  final String description;
+  final IconData icon;
+  final Color color;
+  final String count;
+  final Widget child;
+  final VoidCallback onPdf;
+  final VoidCallback onPrint;
+  final bool initiallyExpanded;
+
+  @override
+  State<_ReportDetailAccordion> createState() => _ReportDetailAccordionState();
+}
+
+class _ReportDetailAccordionState extends State<_ReportDetailAccordion> {
+  late bool _expanded = widget.initiallyExpanded;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = Theme.of(context).brightness == Brightness.dark &&
+            widget.color == kTaskDark
+        ? kTaskAccentDark
+        : widget.color;
+    return GlassCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Semantics(
+            button: true,
+            expanded: _expanded,
+            label: '${widget.title}, ${_expanded ? 'tutup' : 'buka'}',
+            child: InkWell(
+              onTap: () => setState(() => _expanded = !_expanded),
+              borderRadius: BorderRadius.circular(14),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 13, 12, 13),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: .12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(widget.icon, size: 19, color: accent),
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(widget.title,
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  color: accent)),
+                          const SizedBox(height: 2),
+                          Text(widget.description,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 10, color: taskMuted(context))),
+                        ],
+                      ),
+                    ),
+                    Text(widget.count,
+                        style:
+                            TextStyle(fontSize: 10, color: taskMuted(context))),
+                    const SizedBox(width: 4),
+                    Icon(
+                        _expanded
+                            ? Icons.keyboard_arrow_up
+                            : Icons.keyboard_arrow_down,
+                        size: 21,
+                        color: accent),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (_expanded) ...[
+            Divider(height: 1, color: taskBorder(context)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: widget.onPdf,
+                          icon: const Icon(Icons.picture_as_pdf_outlined,
+                              size: 16),
+                          label: const Text('Lihat PDF'),
+                          style: OutlinedButton.styleFrom(
+                              minimumSize: const Size.fromHeight(42)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: widget.onPrint,
+                          icon: const Icon(Icons.print_outlined, size: 16),
+                          label: const Text('Cetak'),
+                          style: FilledButton.styleFrom(
+                              minimumSize: const Size.fromHeight(42)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  widget.child,
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ReportDetailRow {
+  const _ReportDetailRow(this.label, this.value, [this.meta = '']);
+
+  final String label;
+  final String value;
+  final String meta;
+}
+
+class _ReportDetailTable extends StatelessWidget {
+  const _ReportDetailTable({
+    required this.title,
+    required this.subtitle,
+    required this.rows,
+  });
+
+  final String title;
+  final String subtitle;
+  final List<_ReportDetailRow> rows;
+
+  @override
+  Widget build(BuildContext context) => GlassCard(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: ink(context))),
+                      const SizedBox(height: 3),
+                      Text(subtitle,
+                          style: TextStyle(
+                              fontSize: 10, color: taskMuted(context))),
+                    ],
+                  ),
+                ),
+                Text('${rows.length} data',
+                    style: TextStyle(fontSize: 10, color: taskMuted(context))),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (rows.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Text('Belum ada data untuk periode ini.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11, color: taskMuted(context))),
+              )
+            else
+              for (var i = 0; i < rows.length; i++) ...[
+                if (i > 0) Divider(height: 1, color: taskBorder(context)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 7),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(rows[i].label,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: ink(context))),
+                            if (rows[i].meta.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(rows[i].meta,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontSize: 10, color: taskMuted(context))),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(rows[i].value,
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: ink(context))),
+                    ],
+                  ),
+                ),
+              ],
+          ],
+        ),
+      );
 }
 
 typedef _ReportFilterApply = void Function(int? branchId);

@@ -229,4 +229,43 @@ void main() {
     expect(texts.any((value) => value.contains('Pengeluaran')), isTrue);
     expect(texts.any((value) => value.contains('Pemasukan')), isTrue);
   });
+
+  test('prints report detail rows with a thermal-safe header and cut',
+      () async {
+    final texts = <String>[];
+    final methods = <String>[];
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    const escChannel = MethodChannel('bluetooth_print_plus_esc');
+    const bluetoothChannel = MethodChannel('bluetooth_print_plus/methods');
+    messenger.setMockMethodCallHandler(escChannel, (call) async {
+      methods.add(call.method);
+      if (call.method == 'text') {
+        final args = call.arguments as Map<dynamic, dynamic>;
+        texts.add('${args['content']}');
+      }
+      if (call.method == 'getCommand') return Uint8List.fromList([1]);
+      return null;
+    });
+    messenger.setMockMethodCallHandler(bluetoothChannel, (call) async => null);
+    addTearDown(() {
+      messenger.setMockMethodCallHandler(escChannel, null);
+      messenger.setMockMethodCallHandler(bluetoothChannel, null);
+    });
+
+    await PrinterService().printReport(
+      title: 'Produk',
+      lines: [
+        ['Kemeja Denim', '48 pcs', 'Kategori Kemeja · Laba Rp1.000.000'],
+      ],
+    );
+
+    expect(texts, contains('ANYOSTORE'));
+    expect(texts, contains('PRODUK'));
+    expect(texts, contains('Kemeja Denim'));
+    expect(texts, contains('48 pcs'));
+    expect(texts, contains('Kategori Kemeja · Laba Rp1.000.000'));
+    expect(methods, contains('print'));
+    expect(methods, contains('cutPaper'));
+  });
 }

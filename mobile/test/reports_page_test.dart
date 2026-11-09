@@ -227,4 +227,42 @@ void main() {
     expect(find.text('Produk terjual'), findsOneWidget);
     expect(find.text('Transaksi hari ini'), findsNothing);
   });
+
+  testWidgets('report details expose five icon-led groups and actions',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final api = ReportsApi();
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: ReportsPage(api: api, role: 'owner')),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ringkasan toko'), findsOneWidget);
+    final detailHeading = find.byKey(const ValueKey('reports-detail-heading'));
+    final reportScroll = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(detailHeading, 600,
+        scrollable: reportScroll);
+    expect(find.text('Laporan detail'), findsOneWidget);
+    for (final entry in {
+      'Transaksi': 'reports-detail-transactions',
+      'Produk': 'reports-detail-products',
+      'Pembayaran': 'reports-detail-payments',
+      'Retur': 'reports-detail-returns',
+      'Analisis periode': 'reports-detail-analysis',
+    }.entries) {
+      final group = find.byKey(ValueKey(entry.value));
+      await tester.scrollUntilVisible(group, 600, scrollable: reportScroll);
+      expect(find.descendant(of: group, matching: find.text(entry.key)),
+          findsOneWidget);
+    }
+    await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('reports-detail-transactions')), 600,
+        scrollable: reportScroll);
+    expect(find.text('Lihat PDF'), findsOneWidget);
+    expect(find.text('Cetak'), findsOneWidget);
+  });
 }

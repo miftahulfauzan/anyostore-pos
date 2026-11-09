@@ -51,7 +51,7 @@ class _TransferApi extends ApiClient {
   }
 }
 
-Future<void> showHistory(WidgetTester tester, _TransferApi api,
+Future<void> _showHistory(WidgetTester tester, _TransferApi api,
     {required String role}) async {
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1;
@@ -76,7 +76,7 @@ void main() {
   testWidgets('owner can cancel completed transfer and history reloads',
       (tester) async {
     final api = _TransferApi();
-    await showHistory(tester, api, role: 'owner');
+    await _showHistory(tester, api, role: 'owner');
 
     expect(find.text('Batalkan transfer'), findsOneWidget);
     await tester.tap(find.text('Batalkan transfer'));
@@ -98,7 +98,7 @@ void main() {
   testWidgets('manager does not see transfer cancellation action',
       (tester) async {
     final api = _TransferApi();
-    await showHistory(tester, api, role: 'manager');
+    await _showHistory(tester, api, role: 'manager');
 
     expect(find.text('Batalkan transfer'), findsNothing);
   });

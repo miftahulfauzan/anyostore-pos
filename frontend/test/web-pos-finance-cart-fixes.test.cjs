@@ -21,10 +21,12 @@ test('closing page follows shared owner branch context and renders finance total
 
 test('web sales report reuses the Android-style visual report sections', () => {
   const page = read('reports/page.js');
+  const detail = read('reports/ReportDetailAccordions.js');
   const sections = read('dashboard/OlseraDashboardSections.js');
   assert.match(page, /OlseraDashboardSections/);
   assert.match(page, /reports-android-summary/);
-  assert.match(page, /Laporan detail/);
+  assert.match(detail, /Laporan detail/);
+  assert.match(page, /ReportDetailAccordions/);
   assert.match(page, /Laporan Penjualan/);
   assert.doesNotMatch(page, /Laporan Ringkasan Toko/);
   assert.match(sections, /dashboard-kpi-change/);
