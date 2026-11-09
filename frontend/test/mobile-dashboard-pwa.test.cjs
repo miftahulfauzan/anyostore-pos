@@ -41,8 +41,8 @@ test('mobile dashboard content stays centered within the viewport', () => {
 
 test('mobile dashboard date filter keeps separator aligned and apply full width', () => {
   assert.match(css, /@media\s*\(max-width:\s*520px\)[\s\S]*?\.dashboard-report-date-filter\s*\{[^}]*display:\s*grid/s);
-  assert.match(css, /\.dashboard-report-date-filter\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto\s+minmax\(0,\s*1fr\)/s);
-  assert.match(css, /\.dashboard-report-date-filter\s*>\s*span\s*\{[^}]*align-self:\s*end/s);
+  assert.match(css, /\.dashboard-report-date-filter\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+38px\s+minmax\(0,\s*1fr\)/s);
+  assert.match(css, /\.dashboard-report-date-filter\s*>\s*span\s*\{[^}]*align-self:\s*end[^}]*justify-self:\s*center[^}]*background:\s*#eef3f8[^}]*color:\s*#1e3a5f/s);
   assert.match(css, /\.dashboard-report-date-filter\s*>\s*button\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/s);
 });
 

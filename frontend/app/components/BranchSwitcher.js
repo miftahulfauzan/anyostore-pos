@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Building2, Check, ChevronDown, Store, X } from 'lucide-react';
 import { useAppSession } from './AppStateProvider';
 
@@ -80,7 +81,7 @@ export default function BranchSwitcher() {
         <span>{currentLabel}</span>
         <ChevronDown aria-hidden="true" size={15} />
       </button>
-      {open && <>
+      {open && typeof document !== 'undefined' && createPortal(<>
         <button type="button" className="branch-switcher-backdrop" aria-label="Tutup pilihan toko" onClick={() => setOpen(false)} />
         <section ref={panel} className="branch-switcher-panel" role="dialog" aria-modal="true" aria-label="Pilih toko atau gudang">
           <header className="branch-switcher-heading">
@@ -104,7 +105,7 @@ export default function BranchSwitcher() {
             {!branches.length && !message && <p className="branch-switcher-loading">Memuat daftar toko…</p>}
           </div>
         </section>
-      </>}
+      </>, document.body)}
     </div>
   );
 }

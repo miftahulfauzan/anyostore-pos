@@ -2712,12 +2712,21 @@ html[data-theme="green"] .link-button.danger:hover, html[data-theme="blue"] .lin
   }
   .dashboard-report-date-filter {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 38px minmax(0, 1fr);
     width: 100%;
   }
   .dashboard-report-date-filter label { min-width: 0; }
   .dashboard-report-date-filter input { width: 100%; min-width: 0; }
-  .dashboard-report-date-filter > span { align-self: end; }
+  .dashboard-report-date-filter > span {
+    width: 38px;
+    min-width: 38px;
+    min-height: 36px;
+    align-self: end;
+    justify-self: center;
+    border-radius: 7px;
+    background: #eef3f8;
+    color: #1e3a5f;
+  }
   .dashboard-report-date-filter > button { grid-column: 1 / -1; width: 100%; }
   .dashboard-report-series-grid,
   .dashboard-report-detail-grid { grid-template-columns: 1fr; }
@@ -2771,7 +2780,7 @@ html[data-theme="green"] .link-button.danger:hover, html[data-theme="blue"] .lin
   .dashboard-report-section { padding: 14px; }
   .dashboard-report-date-filter {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 38px minmax(0, 1fr);
     align-items: end;
     gap: 8px;
   }
@@ -3677,6 +3686,7 @@ html.dark body {
   background: var(--card);
   color: var(--foreground);
   box-shadow: 0 18px 55px rgba(15, 23, 42, .2);
+  box-sizing: border-box;
 }
 .branch-switcher-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 4px 12px; }
 .branch-switcher-heading > div { display: grid; gap: 4px; }
@@ -3787,6 +3797,7 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
   }
   .branch-switcher-heading { flex: 0 0 auto; }
   .branch-switcher-options {
+    flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -3797,6 +3808,30 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
   .branch-switcher-heading { padding: 4px 2px 14px; }
   .branch-switcher-heading strong { font-size: 16px; }
   .branch-switcher-close { display: grid; width: 44px; height: 44px; place-items: center; padding: 0; border: 1px solid var(--border); background: var(--card); color: var(--foreground); }
+  .branch-switcher-options > button { min-height: 60px; }
+}
+
+/* POS has a blurred sticky header, so the portal-backed picker must still fill the viewport on small tablets. */
+@media (min-width: 701px) and (max-width: 820px) {
+  .branch-switcher-panel {
+    position: fixed;
+    z-index: 150;
+    inset: 16px;
+    width: auto;
+    height: calc(100dvh - 32px);
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+  .branch-switcher-options {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .branch-switcher-close { display: grid; width: 44px; height: 44px; place-items: center; padding: 0; }
   .branch-switcher-options > button { min-height: 60px; }
 }
 
@@ -4955,6 +4990,81 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
 }
 
 /* Latest PWA report pass: bounded date controls, source drill-downs, and compact rows. */
+.tax-report-page,
+.tax-report-panel,
+.tax-report-panel > * {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.tax-report-panel { overflow: hidden; }
+.tax-report-filter { display: grid; gap: 12px; min-width: 0; margin-bottom: 16px; }
+.tax-report-presets { min-width: 0; }
+.tax-report-date-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+  min-width: 0;
+}
+.tax-report-date-fields label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.tax-report-date-fields input {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+}
+.tax-report-date-fields > span {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  min-width: 38px;
+  min-height: 44px;
+  align-self: end;
+  border-radius: 8px;
+  background: #eef3f8;
+  color: #1e3a5f;
+  font-size: .78rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+.tax-report-load-button { min-width: 90px; min-height: 44px; white-space: nowrap; }
+.tax-report-tabs {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+  overflow-x: auto;
+}
+.tax-report-tab { flex: 1 1 0; min-width: 0; white-space: nowrap; }
+.tax-report-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  min-width: 0;
+  margin-bottom: 20px;
+}
+.tax-report-summary-card { min-width: 0; overflow: hidden; }
+.dark .tax-report-date-fields > span { background: #22304b; color: #dbeafe; }
+
+@media (max-width: 760px) {
+  .tax-report-date-fields { grid-template-columns: minmax(0, 1fr) 38px minmax(0, 1fr); }
+  .tax-report-load-button { grid-column: 1 / -1; width: 100%; }
+  .tax-report-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible; }
+  .tax-report-tab { width: 100%; padding-inline: 4px !important; font-size: 11px !important; }
+  .tax-report-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+}
+@media (max-width: 420px) {
+  .tax-report-summary-grid { grid-template-columns: 1fr; }
+}
+
 .report-period-date-fields {
   display: grid;
   grid-column: 1 / -1;

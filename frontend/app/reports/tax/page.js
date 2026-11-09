@@ -74,10 +74,10 @@ export default function TaxReportPage() {
 
   return (
     <AppShell title="Laporan Pajak" eyebrow="PELAPORAN">
-      <section className="form-page" style={{ maxWidth: 1100 }}>
-        <div className="panel">
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end', marginBottom: 16 }}>
-            <div style={{ width: '100%', marginBottom: 4 }}>
+      <section className="form-page tax-report-page" style={{ maxWidth: 1100 }}>
+        <div className="panel tax-report-panel">
+          <div className="tax-report-filter">
+            <div className="tax-report-presets">
               <DateRangePresets active={preset} onPick={(key, range) => {
                 setPreset(key);
                 if (range) {
@@ -90,20 +90,23 @@ export default function TaxReportPage() {
                 }
               }} />
             </div>
-            <label style={{ flex: 1, minWidth: 140 }}>
+            <div className="tax-report-date-fields">
+              <label>
               Dari
               <input type="date" value={start} onChange={(e) => { setPreset('custom'); setStart(e.target.value); setPpn(null); setFaktur(null); setPph23(null); }} />
-            </label>
-            <label style={{ flex: 1, minWidth: 140 }}>
+              </label>
+              <span aria-hidden="true">s/d</span>
+              <label>
               Sampai
               <input type="date" value={end} onChange={(e) => { setPreset('custom'); setEnd(e.target.value); setPpn(null); setFaktur(null); setPph23(null); }} />
-            </label>
-            <button type="button" onClick={() => refresh()} disabled={loading} style={{ minWidth: 100 }}>{loading ? 'Memuat…' : 'Muat'}</button>
+              </label>
+              <button className="tax-report-load-button" type="button" onClick={() => refresh()} disabled={loading}>{loading ? 'Memuat…' : 'Muat'}</button>
+            </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
+          <div className="tax-report-tabs">
             {[{ id: 'ppn', label: 'PPN (VAT)' }, { id: 'faktur', label: 'Faktur Pajak' }, { id: 'pph23', label: 'PPh 23' }].map((t) => (
-              <button type="button" key={t.id} onClick={() => loadTab(t.id)} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: tab === t.id ? '#1e3a5f' : 'transparent', color: tab === t.id ? '#fff' : '#475569', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>{t.label}</button>
+              <button className="tax-report-tab" type="button" key={t.id} onClick={() => loadTab(t.id)} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: tab === t.id ? '#1e3a5f' : 'transparent', color: tab === t.id ? '#fff' : '#475569', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>{t.label}</button>
             ))}
           </div>
 
@@ -112,18 +115,18 @@ export default function TaxReportPage() {
           {/* PPN Report */}
           {tab === 'ppn' && ppn && (
             <div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12, marginBottom: 20 }}>
-                <div className="panel" style={{ padding: 16 }}>
+              <div className="tax-report-summary-grid">
+                <div className="panel tax-report-summary-card" style={{ padding: 16 }}>
                   <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>PPN Keluaran (dari Penjualan)</p>
                   <strong style={{ fontSize: 22, color: '#1e3a5f' }}>Rp{money(ppn.ppn_keluaran.ppn_amount)}</strong>
                   <p style={{ margin: '4px 0 0', fontSize: 11, color: '#94a3b8' }}>Dasar PPN: Rp{money(ppn.ppn_keluaran.ppn_base)} · {ppn.ppn_keluaran.transactions} transaksi</p>
                 </div>
-                <div className="panel" style={{ padding: 16 }}>
+                <div className="panel tax-report-summary-card" style={{ padding: 16 }}>
                   <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>PPN Masukan (dari Pembelian)</p>
                   <strong style={{ fontSize: 22, color: '#16a34a' }}>Rp{money(ppn.ppn_masukan.ppn_amount)}</strong>
                   <p style={{ margin: '4px 0 0', fontSize: 11, color: '#94a3b8' }}>Dasar PPN: Rp{money(ppn.ppn_masukan.total_purchase)} · {ppn.ppn_masukan.orders} order</p>
                 </div>
-                <div className="panel" style={{ padding: 16, background: ppn.net_ppn > 0 ? '#fef2f2' : '#f0fdf4' }}>
+                <div className="panel tax-report-summary-card" style={{ padding: 16, background: ppn.net_ppn > 0 ? '#fef2f2' : '#f0fdf4' }}>
                   <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>PPN Net (terutang)</p>
                   <strong style={{ fontSize: 22, color: ppn.net_ppn > 0 ? '#dc2626' : '#16a34a' }}>Rp{money(ppn.net_ppn)}</strong>
                   <p style={{ margin: '4px 0 0', fontSize: 11, color: '#94a3b8' }}>PPN Keluaran − PPN Masukan</p>
@@ -163,16 +166,16 @@ export default function TaxReportPage() {
           {/* Faktur Pajak */}
           {tab === 'faktur' && faktur && (
             <div>
-              <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-                <div className="panel" style={{ padding: 16, flex: 1, minWidth: 180 }}>
+              <div className="tax-report-summary-grid">
+                <div className="panel tax-report-summary-card" style={{ padding: 16 }}>
                   <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Total Faktur</p>
                   <strong style={{ fontSize: 22 }}>{faktur.total_faktur}</strong>
                 </div>
-                <div className="panel" style={{ padding: 16, flex: 1, minWidth: 180 }}>
+                <div className="panel tax-report-summary-card" style={{ padding: 16 }}>
                   <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Total PPN</p>
                   <strong style={{ fontSize: 22, color: '#1e3a5f' }}>Rp{money(faktur.total_ppn)}</strong>
                 </div>
-                <div className="panel" style={{ padding: 16, flex: 1, minWidth: 180 }}>
+                <div className="panel tax-report-summary-card" style={{ padding: 16 }}>
                   <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Toko</p>
                   <strong style={{ fontSize: 14 }}>{faktur.store?.name || '-'}</strong>
                   <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94a3b8' }}>NPWP: {faktur.store?.npwp || '-'}</p>
@@ -214,12 +217,12 @@ export default function TaxReportPage() {
           {/* PPh 23 */}
           {tab === 'pph23' && pph23 && (
             <div>
-              <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-                <div className="panel" style={{ padding: 16, flex: 1, minWidth: 180 }}>
+              <div className="tax-report-summary-grid">
+                <div className="panel tax-report-summary-card" style={{ padding: 16 }}>
                   <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Total Pengeluaran</p>
                   <strong style={{ fontSize: 22 }}>{pph23.total_expenses}</strong>
                 </div>
-                <div className="panel" style={{ padding: 16, flex: 1, minWidth: 180 }}>
+                <div className="panel tax-report-summary-card" style={{ padding: 16 }}>
                   <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Total PPh 23</p>
                   <strong style={{ fontSize: 22, color: '#dc2626' }}>Rp{money(pph23.total_pph23)}</strong>
                 </div>
