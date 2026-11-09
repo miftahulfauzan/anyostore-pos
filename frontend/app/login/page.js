@@ -13,7 +13,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   function homeFor(role) {
-    return role === 'gudang' ? '/dashboard' : '/pos';
+    // Owner & admin gudang mendarat di dashboard; kasir/manajer/admin tetap POS.
+    if (role === 'owner' || role === 'gudang') return '/dashboard';
+    return '/pos';
   }
 
   async function submit(event) {

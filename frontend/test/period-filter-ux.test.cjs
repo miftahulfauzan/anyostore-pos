@@ -178,3 +178,9 @@ test('cetak transfer: teks lebih besar/tebal dan punya margin', () => {
   assert.match(css, /body:has\(\.transfer-print-root\.is-active\) \.transfer-print-sheet\s*\{[^}]*padding:\s*9mm 8mm\s*!important/s);
   assert.match(css, /body:has\(\.transfer-print-root\.is-active\)\s*\{[^}]*overflow:\s*visible\s*!important/s);
 });
+
+test('owner mendarat di dashboard setelah login', () => {
+  const login = read('login/page.js');
+  assert.match(login, /role === 'owner' \|\| role === 'gudang'\) return '\/dashboard'/);
+  assert.doesNotMatch(login, /return role === 'gudang' \? '\/dashboard' : '\/pos'/);
+});
