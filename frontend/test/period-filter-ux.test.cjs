@@ -113,3 +113,13 @@ test('mode gelap: badge, tile ikon, dan pemisah s/d punya kontras', () => {
   assert.match(css, /\.dark \.dashboard-kpi-icon\s*\{[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*\.12\)\s*!important/s);
   assert.match(css, /\.dark \.report-period-date-fields > span,[\s\S]{0,200}?background:\s*#22304b\s*!important/s);
 });
+
+test('POS: kepala katalog dipadatkan jadi satu baris', () => {
+  const pos = read('pos/page.js');
+  assert.match(pos, /catalog-toolbar/);
+  assert.match(pos, /catalog-count/);
+  assert.match(pos, /catalog-search/);
+  assert.doesNotMatch(pos, /className="warehouse-label"/);
+  assert.match(css, /\.catalog-toolbar\s*\{[^}]*display:\s*flex/s);
+  assert.match(css, /@media \(max-width: 430px\)\s*\{[^}]*\.catalog-count\s*\{\s*display:\s*none/s);
+});

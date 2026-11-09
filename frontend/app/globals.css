@@ -6214,3 +6214,100 @@ html[data-theme] .sidebar .nav-group-toggle:hover {
   background: #182135;
   color: #bfdbfe;
 }
+
+/* ========================================================================
+   POS: kepala katalog dipadatkan. Sebelumnya tiga blok (gudang aktif,
+   judul, keterangan + pencarian) memakan ~150px. Sekarang satu baris judul
+   dengan meta, lalu kolom pencarian — hemat ±90px.
+   ======================================================================== */
+.panel.catalog { padding: 12px 14px; gap: 10px; }
+.catalog-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.catalog-toolbar-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.catalog-toolbar-title h2 {
+  margin: 0;
+  font-size: 15px;
+  letter-spacing: -.01em;
+}
+.catalog-count {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #eef3f8;
+  color: #1e3a5f;
+  font-size: 10.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.catalog-warehouse {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  color: #64748b;
+  font-size: 10.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.catalog-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.catalog-search input {
+  width: 100%;
+  min-height: 40px;
+  padding-right: 38px;
+}
+.catalog-search-clear {
+  position: absolute;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #eef3f8 !important;
+  color: #1e3a5f !important;
+  font-size: 15px;
+  font-weight: 700;
+  box-shadow: none !important;
+}
+.dark .catalog-warehouse { color: #94a3b8; }
+.dark .catalog-count { background: #22304b; color: #cbd5e1; }
+.dark .catalog-search-clear { background: #22304b !important; color: #cbd5e1 !important; }
+@media (max-width: 700px) {
+  .catalog-toolbar { gap: 6px; flex-wrap: nowrap; }
+  .catalog-toolbar-title { gap: 6px; flex-wrap: nowrap; min-width: 0; }
+  .catalog-toolbar-title h2 { font-size: 13px; white-space: nowrap; }
+  .catalog-count { padding: 1px 6px; font-size: 9.5px; }
+  /* Nama gudang sudah tampil di pemilih toko pada header POS. */
+  .catalog-warehouse { display: none; }
+  .catalog-search { flex: 1 1 120px; }
+  .catalog-search input { min-height: 38px; font-size: 13px; }
+  .panel.catalog { padding: 10px; gap: 8px; }
+}
+
+/* HP sangat sempit: sembunyikan badge jumlah agar kolom pencarian lega
+   (jumlah produk tetap terbaca di grid dan saat mencari). */
+@media (max-width: 430px) {
+  .catalog-count { display: none; }
+  .catalog-search { flex: 1 1 auto; }
+}

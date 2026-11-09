@@ -527,11 +527,19 @@ export default function PosPage() {
         <button type="button" className={`pos-mobile-cart-backdrop ${mobileCartOpen ? 'visible' : ''}`} onClick={() => setMobileCartOpen(false)} aria-label="Tutup keranjang" tabIndex={mobileCartOpen ? 0 : -1} />
         <section className="pos-layout">
         <section className="panel catalog" aria-busy={loadingStore}>
-          <p className="warehouse-label">Gudang aktif: <strong>{loadingStore ? 'Memuat…' : warehouses.find((warehouse) => String(warehouse.id) === String(warehouseId))?.name || 'Belum tersedia'}</strong></p>
-          <div className="section-heading"><div><h2>Pilih Produk</h2><p>{filteredProducts.length} / {products.length} produk • ketik untuk cari</p></div></div>
-          <div style={{ display: 'flex', gap: '.5rem', marginBottom: '.75rem' }}>
-            <input aria-label="Cari nama, SKU, atau barcode" style={{ flex: 1, minHeight: 44 }} placeholder="Cari nama / SKU / barcode" value={search} onChange={(e) => setSearch(e.target.value)} />
-            {search && <button type="button" className="small secondary" onClick={() => setSearch('')}>Hapus pencarian</button>}
+          <div className="catalog-toolbar">
+            <div className="catalog-toolbar-title">
+              <h2>Pilih Produk</h2>
+              <span className="catalog-count">{filteredProducts.length}/{products.length} produk</span>
+              <span className="catalog-warehouse">
+                <span aria-hidden="true">•</span>
+                {loadingStore ? 'Memuat gudang…' : warehouses.find((warehouse) => String(warehouse.id) === String(warehouseId))?.name || 'Gudang belum tersedia'}
+              </span>
+            </div>
+            <div className="catalog-search">
+              <input aria-label="Cari nama, SKU, atau barcode" placeholder="Cari nama / SKU / barcode" value={search} onChange={(e) => setSearch(e.target.value)} />
+              {search && <button type="button" className="catalog-search-clear" onClick={() => setSearch('')} aria-label="Hapus pencarian">×</button>}
+            </div>
           </div>
           <div className="catalog-grid">{filteredProducts.map((product) => { const hasVariants = Number(product.variant_count) > 0; const availableStock = hasVariants ? Number(product.variant_stock_total || 0) : Number(product.stock || 0); return <button type="button" className="product-tile" key={product.id} onClick={() => chooseProduct(product)} disabled={loadingStore} aria-label={`${product.name}, ${rupiah(product.price)}, stok ${availableStock}`}>{product.photo_path ? <img src={mediaUrl(product.photo_path)} alt="" loading="lazy" /> : <span className="pos-photo-placeholder">Tanpa foto</span>}<strong>{product.name}</strong><span>{rupiah(product.price)}</span><small>{hasVariants ? `${product.variant_count} warna · Stok: ${availableStock}` : `Stok: ${availableStock}`}</small></button>; })}{!filteredProducts.length && <p className="muted">Tidak ada produk cocok "{search}"</p>}</div>
         </section>
