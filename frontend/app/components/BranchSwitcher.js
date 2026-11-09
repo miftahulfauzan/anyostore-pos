@@ -66,7 +66,7 @@ export default function BranchSwitcher() {
   }
 
   return (
-    <div className="branch-switcher">
+    <div className={`branch-switcher${open ? ' is-open' : ''}`}>
       <button
         ref={trigger}
         type="button"

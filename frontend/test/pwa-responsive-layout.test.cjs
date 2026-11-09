@@ -6,9 +6,11 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, 'app', file), 'utf8');
 
-test('mobile reports expose table labels for card-style reflow', () => {
+test('mobile reports expose disclosure rows for compact detail reflow', () => {
   const component = read('reports/ReportDetailAccordions.js');
-  assert.match(component, /data-label=\{column\.label\}/);
+  assert.match(component, /className="report-detail-disclosures"/);
+  assert.match(component, /className="report-product-disclosure report-detail-disclosure"/);
+  assert.match(component, /className="report-detail-disclosure-body"/);
 });
 
 test('mobile settings store table exposes responsive card hooks', () => {

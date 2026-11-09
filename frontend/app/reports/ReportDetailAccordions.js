@@ -30,7 +30,48 @@ const formatRecordedAt = (value) => {
   });
 };
 
-function DetailTable({ title, subtitle, columns, rows, empty = 'Belum ada data untuk periode ini.', className = '' }) {
+function detailCell(column, row) {
+  const value = column.render ? column.render(row) : row[column.key];
+  return value ?? '-';
+}
+
+function detailRowKey(row, index) {
+  return row.key || row.id ||
+    (row.product_id != null ? `${row.product_id}-${row.variant_detail || ''}` : null) ||
+    row.category_id || row.payment_method || row.date || index;
+}
+
+function DetailDisclosureList({ columns, rows, empty, summary, summaryValue }) {
+  const firstColumn = columns[0];
+  const lastColumn = columns[columns.length - 1];
+  return (
+    <div className="report-detail-disclosures">
+      {rows?.length ? rows.map((row, index) => (
+        <details className="report-product-disclosure report-detail-disclosure" key={detailRowKey(row, index)}>
+          <summary>
+            <span className="report-product-disclosure-title">
+              {summary ? summary(row) : <strong>{detailCell(firstColumn, row)}</strong>}
+            </span>
+            <span className="report-product-disclosure-total">
+              {summaryValue ? summaryValue(row) : <strong>{detailCell(lastColumn, row)}</strong>}
+            </span>
+            <ChevronDown aria-hidden="true" size={18} />
+          </summary>
+          <div className="report-detail-disclosure-body">
+            {columns.map((column) => (
+              <div key={column.label}>
+                <span>{column.label}</span>
+                <div className="report-detail-disclosure-value">{detailCell(column, row)}</div>
+              </div>
+            ))}
+          </div>
+        </details>
+      )) : <p className="report-product-empty">{empty}</p>}
+    </div>
+  );
+}
+
+function DetailTable({ title, subtitle, columns, rows, empty = 'Belum ada data untuk periode ini.', className = '', summary, summaryValue }) {
   return (
     <section className={`report-detail-table-block ${className}`}>
       <div className="report-detail-table-heading">
@@ -40,33 +81,7 @@ function DetailTable({ title, subtitle, columns, rows, empty = 'Belum ada data u
         </div>
         <span className="report-detail-table-count">{rows?.length || 0} data</span>
       </div>
-      <div className="table-wrap report-detail-table-wrap">
-        <table className="report-detail-table">
-          <caption className="sr-only">{title}</caption>
-          <thead>
-            <tr>
-              {columns.map((column) => <th scope="col" key={column.label}>{column.label}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {rows?.length ? rows.map((row, index) => (
-              <tr
-                key={
-                  row.key || row.id ||
-                  (row.product_id != null ? `${row.product_id}-${row.variant_detail || ''}` : null) ||
-                  row.category_id || row.payment_method || row.date || index
-                }
-              >
-                {columns.map((column) => (
-                  <td key={column.label} data-label={column.label}>{column.render ? column.render(row) : row[column.key]}</td>
-                ))}
-              </tr>
-            )) : (
-              <tr><td colSpan={columns.length}>{empty}</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DetailDisclosureList columns={columns} rows={rows} empty={empty} summary={summary} summaryValue={summaryValue} />
     </section>
   );
 }
@@ -295,6 +310,8 @@ export default function ReportDetailAccordions({ report, user, activeBranchId })
               { label: 'Total', render: (row) => rp(Number(row.grand_total) - Number(row.cancelled_amount || 0) - Number(row.refunded_amount || 0)) },
               { label: 'Aksi', render: (row) => <a className="button-link" href={`/receipt/${row.id}`}>Cetak resi</a> },
             ]}
+            summary={(row) => <><strong>{row.invoice_no || 'Tanpa invoice'}</strong><small>{formatBusinessDate(row.transaction_date)} · {row.cashier || 'Kasir'}</small></>}
+            summaryValue={(row) => <><strong>{rp(Number(row.grand_total) - Number(row.cancelled_amount || 0) - Number(row.refunded_amount || 0))}</strong><small>{labelFor(paymentLabels, row.payment_method)}</small></>}
           />
           <DetailTable
             title="Daftar pembatalan"
@@ -309,6 +326,8 @@ export default function ReportDetailAccordions({ report, user, activeBranchId })
               { label: 'Alasan', render: (row) => row.cancel_reason || '-' },
               { label: 'Nilai', render: (row) => rp(row.cancelled_amount) },
             ]}
+            summary={(row) => <><strong>{row.invoice_no || 'Tanpa invoice'}</strong><small>{formatBusinessDate(row.transaction_date)} · {row.cashier || 'Kasir'}</small></>}
+            summaryValue={(row) => <strong>{rp(row.cancelled_amount)}</strong>}
           />
         </DetailGroup>
       );
@@ -334,6 +353,7 @@ export default function ReportDetailAccordions({ report, user, activeBranchId })
             subtitle="Produk yang stoknya sama atau di bawah stok minimum."
             rows={lowStock}
             columns={[{ label: 'Produk', key: 'name' }, { label: 'SKU', key: 'sku' }, { label: 'Stok', key: 'stock' }, { label: 'Stok minimum', key: 'min_stock' }]}
+            summaryValue={(row) => <><strong>{row.stock || 0} pcs</strong><small>Min. {row.min_stock || 0} pcs</small></>}
           />
           <DetailTable
             title="Ringkasan tier harga"

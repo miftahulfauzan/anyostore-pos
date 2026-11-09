@@ -2596,6 +2596,19 @@ html[data-theme="green"] .link-button.danger:hover, html[data-theme="blue"] .lin
 .dashboard-report-date-filter { display: flex; align-items: end; gap: 7px; color: #64748b; font-size: 10px; font-weight: 700; }
 .dashboard-report-date-filter label { display: grid; gap: 4px; }
 .dashboard-report-date-filter input { min-height: 36px; width: 132px; margin: 0; font-size: 11px; }
+.dashboard-report-date-filter > span {
+  display: grid;
+  min-width: 26px;
+  min-height: 36px;
+  align-self: end;
+  place-items: center;
+  padding: 0 3px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
 .dashboard-report-date-filter button { min-height: 36px; padding: 7px 12px; border: 1px solid #1e3a5f; border-radius: 6px; background: #1e3a5f; color: #fff; font: inherit; font-size: 11px; font-weight: 700; }
 .dashboard-report-date-filter button:disabled { cursor: not-allowed; opacity: .45; }
 .dashboard-report-section { margin: 0; border-top: 3px solid var(--report-tone, #1e3a5f); }
@@ -2682,7 +2695,10 @@ html[data-theme="green"] .link-button.danger:hover, html[data-theme="blue"] .lin
 .dark .dashboard-product-track { background: #334155; }
 
 @media (max-width: 820px) {
-  .dashboard-report-toolbar { display: grid; }
+  .dashboard-report-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
   .dashboard-report-range-controls {
     width: 100%;
     justify-items: stretch;
@@ -2701,7 +2717,7 @@ html[data-theme="green"] .link-button.danger:hover, html[data-theme="blue"] .lin
   }
   .dashboard-report-date-filter label { min-width: 0; }
   .dashboard-report-date-filter input { width: 100%; min-width: 0; }
-  .dashboard-report-date-filter > span { align-self: end; padding-bottom: 13px; }
+  .dashboard-report-date-filter > span { align-self: end; }
   .dashboard-report-date-filter > button { grid-column: 1 / -1; width: 100%; }
   .dashboard-report-series-grid,
   .dashboard-report-detail-grid { grid-template-columns: 1fr; }
@@ -2761,7 +2777,7 @@ html[data-theme="green"] .link-button.danger:hover, html[data-theme="blue"] .lin
   }
   .dashboard-report-date-filter label { min-width: 0; }
   .dashboard-report-date-filter input { width: 100%; min-width: 0; }
-  .dashboard-report-date-filter > span { align-self: end; padding-bottom: 13px; }
+  .dashboard-report-date-filter > span { align-self: end; }
   .dashboard-report-date-filter > button { grid-column: 1 / -1; width: 100%; }
   .dashboard-report-chart { min-height: 190px; }
   .dashboard-report-chart-plot { height: 155px; }
@@ -3616,7 +3632,8 @@ html.dark body {
 }
 
 /* Shared owner store switcher: anchored popover on desktop, touch sheet on phones. */
-.branch-switcher { position: relative; z-index: 150; }
+.branch-switcher { position: relative; z-index: 60; }
+.branch-switcher.is-open { z-index: 150; }
 .branch-switcher-trigger {
   display: inline-flex;
   align-items: center;
@@ -3756,14 +3773,24 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
     position: fixed;
     /* Keep the owner picker above the POS sticky cart so every option remains tappable. */
     z-index: 150;
-    inset: auto 0 0;
-    width: 100%;
-    max-height: min(88dvh, 760px);
+    inset: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+    width: auto;
+    height: auto;
+    max-height: none;
     padding: 16px 16px max(18px, env(safe-area-inset-bottom));
-    border-radius: 20px 20px 0 0;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    border-radius: 20px;
+    overflow: hidden;
     overscroll-behavior: contain;
     box-shadow: 0 -18px 55px rgba(15, 23, 42, .22);
+  }
+  .branch-switcher-heading { flex: 0 0 auto; }
+  .branch-switcher-options {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    align-content: start;
   }
   .branch-switcher-backdrop,
   .branch-switcher-backdrop:hover:not(:disabled) { z-index: 149; background: rgba(15, 23, 42, .46); color: transparent; }
@@ -4734,6 +4761,10 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
   display: grid;
   gap: 6px;
 }
+.report-detail-disclosures {
+  display: grid;
+  gap: 6px;
+}
 .report-product-disclosure {
   min-width: 0;
   overflow: hidden;
@@ -4801,6 +4832,40 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
   overflow-wrap: anywhere;
   white-space: normal;
 }
+.report-detail-disclosure-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid #e5e7eb;
+  background: #f8fbff;
+}
+.report-detail-disclosure-body > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.report-detail-disclosure-body > div > span {
+  color: #64748b;
+  font-size: .68rem;
+  font-weight: 700;
+}
+.report-detail-disclosure-value {
+  min-width: 0;
+  color: #334155;
+  font-size: .76rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.report-detail-disclosure-value .button-link {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 32px;
+  align-items: center;
+  padding: 6px 9px;
+  font-size: .72rem;
+}
 .report-product-empty { margin: 0; color: #64748b; font-size: .8rem; }
 .dark .report-detail-accordion.is-expanded .report-detail-accordion-trigger {
   background: #22304b;
@@ -4819,6 +4884,10 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
 .dark .report-product-disclosure-body { border-top-color: #334155; background: #182135; }
 .dark .report-product-disclosure-body span { color: #94a3b8; }
 .dark .report-product-disclosure-body strong { color: #e2e8f0; }
+.dark .report-detail-disclosure { border-color: #334155; background: #111827; }
+.dark .report-detail-disclosure-body { border-top-color: #334155; background: #182135; }
+.dark .report-detail-disclosure-body > div > span { color: #94a3b8; }
+.dark .report-detail-disclosure-value { color: #e2e8f0; }
 
 @media (max-width: 700px) {
   .dashboard-report-chart-ylabels {
@@ -4851,6 +4920,11 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
     gap: 7px 10px;
     padding: 9px 10px 10px;
   }
+  .report-detail-disclosure-body {
+    grid-template-columns: 1fr;
+    gap: 7px;
+    padding: 9px 10px 10px;
+  }
 }
 
 @media print {
@@ -4871,13 +4945,20 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
     border-top: 0;
     background: #fff;
   }
+  .report-detail-disclosure-body {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 4px 0 7px;
+    border-top: 0;
+    background: #fff;
+  }
 }
 
 /* Latest PWA report pass: bounded date controls, source drill-downs, and compact rows. */
 .report-period-date-fields {
   display: grid;
   grid-column: 1 / -1;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 38px minmax(0, 1fr);
   align-items: end;
   gap: 10px;
   width: 100%;
@@ -4895,11 +4976,18 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
   margin: 0;
 }
 .report-period-date-fields > span {
+  display: grid;
+  place-items: center;
+  min-width: 38px;
+  min-height: 44px;
   align-self: end;
-  padding-bottom: 13px;
-  color: #64748b;
+  padding: 0;
+  border-radius: 8px;
+  background: #eef3f8;
+  color: #1e3a5f;
   font-size: .78rem;
-  font-weight: 700;
+  font-weight: 800;
+  line-height: 1;
   white-space: nowrap;
 }
 .report-filter > button { grid-column: 1 / -1; width: 100%; }
