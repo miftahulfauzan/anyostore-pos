@@ -5678,3 +5678,27 @@ html[data-theme] .app-main .tabs button:not(.active) {
 }
 .period-filter-hint svg { flex: 0 0 auto; color: #64748b; }
 .dark .period-filter-hint { border-color: #475569; color: #94a3b8; }
+
+/* Di layar sentuh, :hover menempel setelah tombol disentuh (Chrome mobile).
+   Aturan global `button:hover:not(:disabled)` (#1e40af) bisa mengalahkan
+   .period-filter-toggle:hover, sehingga bar periode berubah biru dengan teks
+   gelap. Selector di bawah sengaja lebih spesifik agar tetap netral. */
+button.period-filter-toggle:hover:not(:disabled),
+button.period-filter-toggle:focus-visible {
+  background: #f2f6fb;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+button.period-filter-toggle .period-filter-label,
+button.period-filter-toggle .period-filter-value,
+button.period-filter-toggle .period-filter-range { color: inherit; }
+button.period-filter-toggle .period-filter-label { color: #64748b; }
+button.period-filter-toggle .period-filter-value { color: #1e3a5f; }
+button.period-filter-toggle .period-filter-range { color: #64748b; }
+.dark button.period-filter-toggle:hover:not(:disabled),
+.dark button.period-filter-toggle:focus-visible {
+  background: #22304b;
+  border-color: #64748b;
+  color: #fff;
+}
+.dark button.period-filter-toggle .period-filter-value { color: #bfdbfe; }
