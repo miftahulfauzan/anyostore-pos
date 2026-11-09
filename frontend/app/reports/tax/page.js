@@ -12,7 +12,7 @@ const money = (v) => Number(v || 0).toLocaleString('id-ID', { minimumFractionDig
 export default function TaxReportPage() {
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
-  const [preset, setPreset] = useState('');
+  const [preset, setPreset] = useState('today');
   const [tab, setTab] = useState('ppn');
   const [ppn, setPpn] = useState(null);
   const [faktur, setFaktur] = useState(null);
@@ -24,9 +24,9 @@ export default function TaxReportPage() {
 
   useEffect(() => {
     if (start && end) return;
-    const d = new Date();
-    setStart(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`);
-    setEnd(localDateString(d));
+    const today = localDateString();
+    setStart(today);
+    setEnd(today);
   }, [start, end]);
 
   async function fetchPpn(range = { start, end }) {
@@ -66,6 +66,12 @@ export default function TaxReportPage() {
     else if (t === 'pph23' && !pph23) fetchPph23();
   }
 
+  useEffect(() => {
+    if (!start || !end || start > end) return undefined;
+    const timer = setTimeout(() => { refresh({ start, end }); }, 400);
+    return () => clearTimeout(timer);
+  }, [start, end, tab]);
+
   function refresh(range = { start, end }) {
     if (tab === 'ppn') fetchPpn(range);
     else if (tab === 'faktur') fetchFaktur(range);
@@ -100,7 +106,7 @@ export default function TaxReportPage() {
               Sampai
               <input type="date" value={end} onChange={(e) => { setPreset('custom'); setEnd(e.target.value); setPpn(null); setFaktur(null); setPph23(null); }} />
               </label>
-              <button className="tax-report-load-button" type="button" onClick={() => refresh()} disabled={loading}>{loading ? 'Memuat…' : 'Muat'}</button>
+              <span className="period-filter-loading" role="status">{loading ? 'Memuat…' : 'Perubahan periode langsung diterapkan.'}</span>
             </div>
           </div>
 

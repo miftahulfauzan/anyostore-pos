@@ -18,6 +18,7 @@ import {
   LogOut,
   Menu,
   Moon,
+  MoreHorizontal,
   Package,
   ReceiptText,
   Receipt,
@@ -135,6 +136,7 @@ export default function AppShell({ title, eyebrow, actions, children }) {
   const role = user?.role || null;
   const userName = user?.name || '';
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const mainRef = useRef(null);
   const sidebarRef = useRef(null);
@@ -190,6 +192,15 @@ export default function AppShell({ title, eyebrow, actions, children }) {
     setSearch(window.location.search);
     window.requestAnimationFrame(() => mainRef.current?.focus({ preventScroll: true }));
   }, [pathname]);
+
+  useEffect(() => {
+    if (!actionsOpen) return undefined;
+    const closeOnEscape = (event) => { if (event.key === 'Escape') setActionsOpen(false); };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [actionsOpen]);
+
+  useEffect(() => { setActionsOpen(false); }, [pathname]);
 
   useEffect(() => {
     const activeSubmenu = navigation.flatMap((group) => group.items).find((item) => item.children?.some((child) => {
@@ -353,9 +364,35 @@ export default function AppShell({ title, eyebrow, actions, children }) {
             <button type="button" className="theme-toggle" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Ganti ke mode terang' : 'Ganti ke mode gelap'}>
               {theme === 'dark' ? <Sun aria-hidden="true" size={18} /> : <Moon aria-hidden="true" size={18} />}
             </button>
+            {actions ? (
+              <button
+                type="button"
+                className="header-actions-menu"
+                onClick={() => setActionsOpen(true)}
+                aria-label="Aksi halaman"
+                aria-haspopup="dialog"
+                aria-expanded={actionsOpen}
+              >
+                <MoreHorizontal aria-hidden="true" size={20} />
+              </button>
+            ) : null}
             <div className="header-action-links">{actions}</div>
           </div>
         </header>
+        {actions && actionsOpen ? (
+          <div className="header-actions-sheet" role="dialog" aria-modal="true" aria-label="Aksi halaman">
+            <button type="button" className="header-actions-sheet-backdrop" aria-label="Tutup aksi halaman" onClick={() => setActionsOpen(false)} />
+            <div className="header-actions-sheet-panel">
+              <div className="header-actions-sheet-head">
+                <strong>Aksi halaman</strong>
+                <button type="button" className="header-actions-sheet-close" onClick={() => setActionsOpen(false)} aria-label="Tutup">
+                  <X aria-hidden="true" size={18} />
+                </button>
+              </div>
+              <div className="header-actions-sheet-body">{actions}</div>
+            </div>
+          </div>
+        ) : null}
         <div className="app-content">{children}</div>
       </main>
     </div>

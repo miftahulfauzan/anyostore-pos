@@ -35,8 +35,10 @@ test('web sales report reuses the Android-style visual report sections', () => {
   assert.match(sections, /Pengeluaran/);
   assert.match(sections, /profit_margin_percent/);
   assert.match(sections, /Margin keuntungan/);
-  assert.match(page, /useState\("last7"\)/);
-  assert.match(page, /getWarehousePeriodRange\('last7'\)/);
+  assert.match(page, /useState\("today"\)/);
+  assert.match(page, /getWarehousePeriodRange\('today'\)/);
+  assert.match(page, /period-filter-toggle/);
+  assert.doesNotMatch(page, />Tampilkan</);
 });
 
 test('mobile POS branch selector gets a full-width row and trigger', () => {

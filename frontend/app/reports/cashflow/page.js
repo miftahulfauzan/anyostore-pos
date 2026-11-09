@@ -41,13 +41,13 @@ export default function CashflowDetailsPage() {
   const [requestedBranchId, setRequestedBranchId] = useState('');
   const [period, setPeriod] = useState({ start: '', end: '' });
   const [draftPeriod, setDraftPeriod] = useState({ start: '', end: '' });
-  const [preset, setPreset] = useState('last7');
+  const [preset, setPreset] = useState('today');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    const fallback = getWarehousePeriodRange('last7');
+    const fallback = getWarehousePeriodRange('today');
     const params = new URLSearchParams(window.location.search);
     const nextType = normalizeType(params.get('type'));
     const nextPeriod = {
@@ -101,8 +101,21 @@ export default function CashflowDetailsPage() {
 
   function applyPreset(key, range) {
     setPreset(key);
-    if (range) setDraftPeriod(range);
+    if (!range) return;
+    setDraftPeriod(range);
+    setPeriod(range);
   }
+
+  // Tanggal diketik → terapkan otomatis setelah jeda singkat.
+  useEffect(() => {
+    if (!draftPeriod.start || !draftPeriod.end || draftPeriod.start > draftPeriod.end) return undefined;
+    if (draftPeriod.start === period.start && draftPeriod.end === period.end) return undefined;
+    const timer = setTimeout(() => {
+      setPreset('custom');
+      setPeriod(draftPeriod);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [draftPeriod, period.start, period.end]);
 
   function applyPeriod(event) {
     event.preventDefault();
@@ -135,7 +148,7 @@ export default function CashflowDetailsPage() {
           <label>Mulai<input type="date" value={draftPeriod.start} onChange={(event) => setDraftPeriod((current) => ({ ...current, start: event.target.value }))} /></label>
           <span aria-hidden="true">s/d</span>
           <label>Sampai<input type="date" value={draftPeriod.end} onChange={(event) => setDraftPeriod((current) => ({ ...current, end: event.target.value }))} /></label>
-          <button type="submit">Tampilkan</button>
+          <span className="period-filter-loading" role="status">{loading ? 'Memuat…' : 'Perubahan periode langsung diterapkan.'}</span>
         </form>
       </section>
 

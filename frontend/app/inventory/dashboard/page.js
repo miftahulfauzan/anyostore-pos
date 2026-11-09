@@ -29,12 +29,12 @@ export default function StockDashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [selectedPeriod, setSelectedPeriod] = useState('last7');
+  const [selectedPeriod, setSelectedPeriod] = useState('today');
   const role = user?.role || '';
   const refreshVersion = useDashboardRefresh(Boolean(role));
 
   useEffect(() => {
-    const initialRange = getWarehousePeriodRange('last7');
+    const initialRange = getWarehousePeriodRange('today');
     setRange(initialRange);
     setDraftStart(initialRange.start);
     setDraftEnd(initialRange.end);
@@ -42,18 +42,23 @@ export default function StockDashboardPage() {
 
   useEffect(() => { setData(null); }, [role, activeBranchId, range]);
 
+  // Tanggal diketik → terapkan otomatis setelah jeda singkat (tanpa tombol).
+  useEffect(() => {
+    if (!draftStart || !draftEnd || draftStart > draftEnd) return undefined;
+    if (draftStart === range.start && draftEnd === range.end) return undefined;
+    const timer = setTimeout(() => {
+      setSelectedPeriod('custom');
+      setRange({ start: draftStart, end: draftEnd });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [draftStart, draftEnd, range.start, range.end]);
+
   const applyPeriod = (period) => {
     const nextRange = getWarehousePeriodRange(period);
     setSelectedPeriod(period);
     setRange(nextRange);
     setDraftStart(nextRange.start);
     setDraftEnd(nextRange.end);
-  };
-
-  const applyCustomRange = () => {
-    if (!draftStart || !draftEnd || draftStart > draftEnd) return;
-    setSelectedPeriod('custom');
-    setRange({ start: draftStart, end: draftEnd });
   };
 
   useEffect(() => {
@@ -97,10 +102,9 @@ export default function StockDashboardPage() {
           ))}
         </div>
         <div className="warehouse-date-filter stock-dashboard-date-filter">
-          <label>Dari<input type="date" value={draftStart} onChange={(event) => { setDraftStart(event.target.value); setSelectedPeriod('custom'); }} /></label>
+          <label>Dari<input type="date" value={draftStart} onChange={(event) => setDraftStart(event.target.value)} /></label>
           <span>s/d</span>
-          <label>Sampai<input type="date" value={draftEnd} onChange={(event) => { setDraftEnd(event.target.value); setSelectedPeriod('custom'); }} /></label>
-          <button type="button" onClick={applyCustomRange} disabled={!draftStart || !draftEnd || draftStart > draftEnd}>Terapkan</button>
+          <label>Sampai<input type="date" value={draftEnd} onChange={(event) => setDraftEnd(event.target.value)} /></label>
         </div>
       </div>
     </section>

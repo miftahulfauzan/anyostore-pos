@@ -1,5 +1,5 @@
 'use client';
-import { localDateString, localMonthStartString } from '../lib/local-date';
+import { localDateString } from '../lib/local-date';
 
 import { useEffect, useState } from 'react';
 import AppShell from '../components/AppShell';
@@ -8,7 +8,6 @@ import DateRangePresets from '../components/DateRangePresets';
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rp = (n) => `Rp${Number(n || 0).toLocaleString('id-ID')}`;
 
-const firstOfMonthStr = () => localMonthStartString();
 const todayStr = () => localDateString();
 
 export default function MyAccount() {
@@ -53,7 +52,7 @@ export default function MyAccount() {
   }
 
   useEffect(() => {
-    setRange({ start: firstOfMonthStr(), end: todayStr() });
+    setRange({ start: todayStr(), end: todayStr() });
   }, []);
   useEffect(() => {
     fetch(`${api}/auth/me`, { headers: {} })

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowUpRight, Store } from 'lucide-react';
+import { ArrowUpRight, ChevronDown, Store } from 'lucide-react';
 import AppShell from '../components/AppShell';
 import { useAppSession } from '../components/AppStateProvider';
 import { createRequestSequence } from '../components/app-state.cjs';
@@ -29,14 +29,41 @@ export default function DashboardPage() {
   const [draftEnd, setDraftEnd] = useState('');
   const dashboardLoadSequence = useRef(createRequestSequence());
   const refreshVersion = useDashboardRefresh(user?.role === 'gudang');
-  const [selectedPeriod, setSelectedPeriod] = useState('last7');
+  const [selectedPeriod, setSelectedPeriod] = useState('today');
+  const [periodOpen, setPeriodOpen] = useState(true);
 
   useEffect(() => {
-    const initialRange = getWarehousePeriodRange('last7');
+    const initialRange = getWarehousePeriodRange('today');
     setRange(initialRange);
     setDraftStart(initialRange.start);
     setDraftEnd(initialRange.end);
   }, []);
+
+  useEffect(() => {
+    if (window.localStorage.getItem('pos_period_filter_open') === '0') setPeriodOpen(false);
+  }, []);
+
+  function togglePeriod() {
+    setPeriodOpen((open) => {
+      window.localStorage.setItem('pos_period_filter_open', open ? '0' : '1');
+      return !open;
+    });
+  }
+
+  // Tanggal diketik → terapkan otomatis setelah jeda singkat (tanpa tombol).
+  useEffect(() => {
+    if (!draftStart || !draftEnd || draftStart > draftEnd) return undefined;
+    if (draftStart === range.start && draftEnd === range.end) return undefined;
+    const timer = setTimeout(() => {
+      setSelectedPeriod('custom');
+      setRange({ start: draftStart, end: draftEnd });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [draftStart, draftEnd, range.start, range.end]);
+
+  const activePeriodLabel = selectedPeriod === 'custom'
+    ? 'Rentang kustom'
+    : (WAREHOUSE_PERIOD_OPTIONS.find((option) => option.key === selectedPeriod)?.label || 'Hari ini');
 
   useEffect(() => { setData(null); setReportData(null); }, [range, activeBranchId, user?.role]);
 
@@ -46,12 +73,6 @@ export default function DashboardPage() {
     setRange(nextRange);
     setDraftStart(nextRange.start);
     setDraftEnd(nextRange.end);
-  };
-
-  const applyCustomRange = () => {
-    if (!draftStart || !draftEnd || draftStart > draftEnd) return;
-    setSelectedPeriod('custom');
-    setRange({ start: draftStart, end: draftEnd });
   };
 
   useEffect(() => {
@@ -114,24 +135,33 @@ export default function DashboardPage() {
             <h2>Periode {fullDate(range.start)} – {fullDate(range.end)}</h2>
           </div>
           <div className="warehouse-dashboard-range-controls">
-            <div className="warehouse-dashboard-periods" role="group" aria-label="Pilih periode dashboard gudang">
-              {WAREHOUSE_PERIOD_OPTIONS.map(({ key, label }) => (
-                <button
-                  type="button"
-                  key={key}
-                  aria-pressed={selectedPeriod === key}
-                  onClick={() => applyPeriod(key)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <div className="warehouse-date-filter">
-              <label>Dari<input type="date" value={draftStart} onChange={(event) => { setDraftStart(event.target.value); setSelectedPeriod('custom'); }} /></label>
-              <span>s/d</span>
-              <label>Sampai<input type="date" value={draftEnd} onChange={(event) => { setDraftEnd(event.target.value); setSelectedPeriod('custom'); }} /></label>
-              <button type="button" onClick={applyCustomRange} disabled={!draftStart || !draftEnd || draftStart > draftEnd}>Terapkan</button>
-            </div>
+            <button type="button" className="period-filter-toggle period-filter-toggle-compact" onClick={togglePeriod} aria-expanded={periodOpen}>
+              <span className="period-filter-label">Periode</span>
+              <strong className="period-filter-value">{activePeriodLabel}</strong>
+              <span className="period-filter-range">{fullDate(range.start)} – {fullDate(range.end)}</span>
+              <ChevronDown aria-hidden="true" size={16} className={periodOpen ? 'chevron-open' : ''} />
+            </button>
+            {periodOpen ? (
+              <div className="period-filter-body">
+                <div className="warehouse-dashboard-periods" role="group" aria-label="Pilih periode dashboard gudang">
+                  {WAREHOUSE_PERIOD_OPTIONS.map(({ key, label }) => (
+                    <button
+                      type="button"
+                      key={key}
+                      aria-pressed={selectedPeriod === key}
+                      onClick={() => applyPeriod(key)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="warehouse-date-filter">
+                  <label>Dari<input type="date" value={draftStart} onChange={(event) => setDraftStart(event.target.value)} /></label>
+                  <span>s/d</span>
+                  <label>Sampai<input type="date" value={draftEnd} onChange={(event) => setDraftEnd(event.target.value)} /></label>
+                </div>
+              </div>
+            ) : null}
           </div>
         </section>
         <WarehouseDashboard data={data} start={range.start} end={range.end} canMutateStock={isGudang} />
@@ -148,17 +178,26 @@ export default function DashboardPage() {
           {reportData?.branch_name && <p>{reportData.branch_name}</p>}
         </div>
         <div className="dashboard-report-range-controls">
-          <div className="dashboard-report-periods" role="group" aria-label="Pilih periode dashboard penjualan">
-            {WAREHOUSE_PERIOD_OPTIONS.map(({ key, label }) => (
-              <button type="button" key={key} aria-pressed={selectedPeriod === key} onClick={() => applyPeriod(key)}>{label}</button>
-            ))}
-          </div>
-          <div className="dashboard-report-date-filter">
-            <label>Dari<input type="date" value={draftStart} onChange={(event) => { setDraftStart(event.target.value); setSelectedPeriod('custom'); }} /></label>
-            <span>s/d</span>
-            <label>Sampai<input type="date" value={draftEnd} onChange={(event) => { setDraftEnd(event.target.value); setSelectedPeriod('custom'); }} /></label>
-            <button type="button" onClick={applyCustomRange} disabled={!draftStart || !draftEnd || draftStart > draftEnd}>Terapkan</button>
-          </div>
+          <button type="button" className="period-filter-toggle period-filter-toggle-compact" onClick={togglePeriod} aria-expanded={periodOpen}>
+            <span className="period-filter-label">Periode</span>
+            <strong className="period-filter-value">{activePeriodLabel}</strong>
+            <span className="period-filter-range">{fullDate(range.start)} – {fullDate(range.end)}</span>
+            <ChevronDown aria-hidden="true" size={16} className={periodOpen ? 'chevron-open' : ''} />
+          </button>
+          {periodOpen ? (
+            <div className="period-filter-body">
+              <div className="dashboard-report-periods" role="group" aria-label="Pilih periode dashboard penjualan">
+                {WAREHOUSE_PERIOD_OPTIONS.map(({ key, label }) => (
+                  <button type="button" key={key} aria-pressed={selectedPeriod === key} onClick={() => applyPeriod(key)}>{label}</button>
+                ))}
+              </div>
+              <div className="dashboard-report-date-filter">
+                <label>Dari<input type="date" value={draftStart} onChange={(event) => setDraftStart(event.target.value)} /></label>
+                <span>s/d</span>
+                <label>Sampai<input type="date" value={draftEnd} onChange={(event) => setDraftEnd(event.target.value)} /></label>
+              </div>
+            </div>
+          ) : null}
         </div>
       </section>
       <OlseraDashboardSections reportData={reportData} fallbackData={data} activeBranchId={activeBranchId} period={range} />

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import AppShell from '../components/AppShell';
 import { useAppSession } from '../components/AppStateProvider';
 import DateRangePresets from '../components/DateRangePresets';
-import { localDateString, localMonthStartString } from '../lib/local-date';
+import { localDateString } from '../lib/local-date';
 import { labelFor, paymentLabels, statusLabels } from '../lib/ui-labels';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -21,7 +21,7 @@ export default function ExpensesPage() {
   const [rows, setRows] = useState([]);
   const [filters, setFilters] = useState({ start: '', end: '', categoryId: '', paymentMethod: '', search: '' });
   const [draftFilters, setDraftFilters] = useState({ start: '', end: '', categoryId: '', paymentMethod: '', search: '' });
-  const [period, setPeriod] = useState('thisMonth');
+  const [period, setPeriod] = useState('today');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 0, limit: 20 });
   const [loading, setLoading] = useState(false);
@@ -30,10 +30,9 @@ export default function ExpensesPage() {
   const requestSequence = useRef(0);
 
   useEffect(() => {
-    const start = localMonthStartString();
-    const end = localDateString();
-    setFilters((current) => ({ ...current, start, end }));
-    setDraftFilters((current) => ({ ...current, start, end }));
+    const today = localDateString();
+    setFilters((current) => ({ ...current, start: today, end: today }));
+    setDraftFilters((current) => ({ ...current, start: today, end: today }));
   }, []);
 
   useEffect(() => {
@@ -106,10 +105,9 @@ export default function ExpensesPage() {
   }
 
   function resetFilters() {
-    const start = localMonthStartString();
-    const end = localDateString();
-    const next = { start, end, categoryId: '', paymentMethod: '', search: '' };
-    setPeriod('thisMonth');
+    const today = localDateString();
+    const next = { start: today, end: today, categoryId: '', paymentMethod: '', search: '' };
+    setPeriod('today');
     setDraftFilters(next);
     setFilters(next);
     setPage(1);

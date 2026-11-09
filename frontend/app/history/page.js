@@ -1,5 +1,5 @@
 'use client';
-import { localDateString, localMonthStartString } from '../lib/local-date';
+import { localDateString } from '../lib/local-date';
 import { useEffect, useRef, useState } from 'react';
 import AppShell from '../components/AppShell';
 import { useAppSession } from '../components/AppStateProvider';
@@ -9,7 +9,6 @@ import { labelFor, paymentLabels, statusLabels } from '../lib/ui-labels';
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rp = (n) => 'Rp' + Number(n || 0).toLocaleString('id-ID');
 const todayStr = () => localDateString();
-const firstOfMonthStr = () => localMonthStartString();
 const transactionDateTime = (transaction) => {
   const date = String(transaction.transaction_date || transaction.created_at || '').slice(0, 10);
   const time = transaction.created_at ? new Date(transaction.created_at).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' }) : '';
@@ -31,7 +30,7 @@ export default function HistoryPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [filters, setFilters] = useState({ search: '', date_from: '', date_to: '', status: '' });
-  const [preset, setPreset] = useState('thisMonth');
+  const [preset, setPreset] = useState('today');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('retur'); // retur | cancel | info
   const [isMobile, setIsMobile] = useState(false);
@@ -72,7 +71,7 @@ export default function HistoryPage() {
     }
   }
 
-  useEffect(() => { if (!filters.date_from || !filters.date_to) setFilters((f) => ({ ...f, date_from: f.date_from || firstOfMonthStr(), date_to: f.date_to || todayStr() })); }, []);
+  useEffect(() => { if (!filters.date_from || !filters.date_to) setFilters((f) => ({ ...f, date_from: f.date_from || todayStr(), date_to: f.date_to || todayStr() })); }, []);
 
   useEffect(() => {
     if (!user?.role || !activeBranchId) return;
@@ -81,7 +80,7 @@ export default function HistoryPage() {
     setTransactions([]);
     setTotal(0);
     setMessage('');
-    load(1, { ...filters, date_from: filters.date_from || firstOfMonthStr(), date_to: filters.date_to || todayStr() });
+    load(1, { ...filters, date_from: filters.date_from || todayStr(), date_to: filters.date_to || todayStr() });
     return () => { loadSeq.current += 1; detailSeq.current += 1; };
   }, [user?.role, activeBranchId]);
 

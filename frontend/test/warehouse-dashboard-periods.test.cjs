@@ -19,7 +19,8 @@ test('warehouse dashboard exposes quick periods while retaining custom dates', (
   assert.match(dashboardPage, /WAREHOUSE_PERIOD_OPTIONS\.map/);
   assert.match(dashboardPage, /aria-pressed=/);
   assert.match(dashboardPage, /type="date"/);
-  assert.match(dashboardPage, /Terapkan/);
+  assert.doesNotMatch(dashboardPage, />Terapkan</);
+  assert.match(dashboardPage, /setTimeout\(/, 'tanggal harus diterapkan otomatis setelah jeda');
 });
 
 test('stock dashboard exposes quick periods alongside its custom date range', () => {
@@ -28,7 +29,8 @@ test('stock dashboard exposes quick periods alongside its custom date range', ()
   assert.match(stockDashboardPage, /aria-label="Pilih periode dashboard stok"/);
   assert.match(stockDashboardPage, /aria-pressed=/);
   assert.match(stockDashboardPage, /type="date"/);
-  assert.match(stockDashboardPage, /Terapkan/);
+  assert.doesNotMatch(stockDashboardPage, />Terapkan</);
+  assert.match(stockDashboardPage, /setTimeout\(/, 'tanggal harus diterapkan otomatis setelah jeda');
 });
 
 test('barang masuk/keluar report applies quick periods in one click and keeps custom dates', () => {

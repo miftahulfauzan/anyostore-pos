@@ -1,5 +1,5 @@
 'use client';
-import { localDateString, localMonthStartString } from '../lib/local-date';
+import { localDateString } from '../lib/local-date';
 
 import { useEffect, useState } from 'react';
 import AppShell from '../components/AppShell';
@@ -9,7 +9,6 @@ import { labelFor, statusLabels } from '../lib/ui-labels';
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rupiah = (value) => `Rp${Number(value || 0).toLocaleString('id-ID')}`;
 const todayStr = () => localDateString();
-const firstOfMonthStr = () => localMonthStartString();
 
 export default function CommissionsPage() {
   const [rules, setRules] = useState([]);
@@ -88,8 +87,8 @@ export default function CommissionsPage() {
   }
 
   useEffect(() => {
-    setPeriod((p) => ({ period_start: p.period_start || firstOfMonthStr(), period_end: p.period_end || todayStr() }));
-    setReportPeriod((p) => ({ start: p.start || firstOfMonthStr(), end: p.end || todayStr() }));
+    setPeriod((p) => ({ period_start: p.period_start || todayStr(), period_end: p.period_end || todayStr() }));
+    setReportPeriod((p) => ({ start: p.start || todayStr(), end: p.end || todayStr() }));
   }, []);
   useEffect(() => {
     /* sesi via httpOnly cookie */

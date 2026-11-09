@@ -45,8 +45,9 @@ test('owner all-closing and Android closing print share the same contract', () =
   assert.match(mobilePrinter, /Pemasukan/);
 });
 
-test('transaction history uses current-month default and twenty-row pages on both clients', () => {
-  assert.match(webHistory, /localMonthStartString/);
+test('transaction history defaults to today and uses twenty-row pages on both clients', () => {
+  assert.match(webHistory, /useState\('today'\)/);
+  assert.match(webHistory, /date_from \|\| todayStr\(\)/);
   assert.match(webHistory, /limit:\s*['"]20['"]/);
   assert.match(mobileHistory, /String\s+_preset\s*=\s*['"]thisMonth['"]/);
   assert.match(mobileHistory, /limit:\s*20/);

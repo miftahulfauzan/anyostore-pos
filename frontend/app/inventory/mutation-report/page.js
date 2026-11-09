@@ -26,8 +26,8 @@ function displayDate(value) {
 export default function MutationReportPage() {
   const { user, activeBranchId } = useAppSession();
   const [tab, setTab] = useState('in');
-  const [preset, setPreset] = useState('last7');
-  const [start, setStart] = useState(presetDate(7));
+  const [preset, setPreset] = useState('today');
+  const [start, setStart] = useState(localDate());
   const [end, setEnd] = useState(localDate());
   const [stores, setStores] = useState([]);
   const [store, setStore] = useState('');
@@ -98,8 +98,8 @@ export default function MutationReportPage() {
 
   function applyFilter() { load(); }
   function resetFilter() {
-    const range = getWarehousePeriodRange('last7');
-    setPreset('last7'); setStart(range.start); setEnd(range.end); setDesc(''); setStore('');
+    const range = getWarehousePeriodRange('today');
+    setPreset('today'); setStart(range.start); setEnd(range.end); setDesc(''); setStore('');
     load({ start: range.start, end: range.end, desc: '', store: '' });
   }
   function applyPreset(key) {

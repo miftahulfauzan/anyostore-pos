@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import AppShell from "../components/AppShell";
 import DateRangePresets from "../components/DateRangePresets";
-import { getWarehousePeriodRange } from "../dashboard/warehouse-periods.mjs";
+import { getWarehousePeriodRange, WAREHOUSE_PERIOD_OPTIONS } from "../dashboard/warehouse-periods.mjs";
 import { useAppSession } from "../components/AppStateProvider";
 import { createRequestSequence } from "../components/app-state.cjs";
 import OlseraDashboardSections from "../dashboard/OlseraDashboardSections";
@@ -11,11 +12,15 @@ import ReportDetailAccordions from "./ReportDetailAccordions";
 import { openPrintView } from "../lib/print-utils";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+const PERIOD_FILTER_STORAGE_KEY = "pos_period_filter_open";
+const formatBusinessDate = (value) => String(value || '').split('-').reverse().join('/');
 
 export default function ReportsPage() {
   const { user, activeBranchId } = useAppSession();
   const [period, setPeriod] = useState({ start: '', end: '' });
-  const [preset, setPreset] = useState("last7");
+  const [draftPeriod, setDraftPeriod] = useState({ start: '', end: '' });
+  const [preset, setPreset] = useState("today");
+  const [filterOpen, setFilterOpen] = useState(true);
   const [report, setReport] = useState(null);
   const [storeContext, setStoreContext] = useState(null);
   const [message, setMessage] = useState("");
@@ -70,8 +75,36 @@ export default function ReportsPage() {
   }, [period.start, period.end, activeBranchId, user?.role]);
 
   useEffect(() => {
-    if (!period.start) setPeriod(getWarehousePeriodRange('last7'));
+    if (!period.start) setPeriod(getWarehousePeriodRange('today'));
   }, []);
+
+  // Simpan pilihan buka/tutup filter periode; default terbuka.
+  useEffect(() => {
+    if (window.localStorage.getItem(PERIOD_FILTER_STORAGE_KEY) === '0') setFilterOpen(false);
+  }, []);
+
+  function toggleFilter() {
+    setFilterOpen((open) => {
+      window.localStorage.setItem(PERIOD_FILTER_STORAGE_KEY, open ? '0' : '1');
+      return !open;
+    });
+  }
+
+  // Tanggal diketik → terapkan otomatis setelah jeda singkat (tanpa tombol).
+  useEffect(() => { setDraftPeriod(period); }, [period.start, period.end]);
+  useEffect(() => {
+    if (!draftPeriod.start || !draftPeriod.end || draftPeriod.start > draftPeriod.end) return undefined;
+    if (draftPeriod.start === period.start && draftPeriod.end === period.end) return undefined;
+    const timer = setTimeout(() => {
+      setPreset('custom');
+      setPeriod(draftPeriod);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [draftPeriod, period.start, period.end]);
+
+  const activePresetLabel = preset === 'custom'
+    ? 'Rentang kustom'
+    : (WAREHOUSE_PERIOD_OPTIONS.find((option) => option.key === preset)?.label || 'Hari ini');
 
   const store = storeContext?.branchId === activeBranchId ? storeContext.data : null;
   const reportStore = String(report?.branch_id ?? '') === String(activeBranchId) ? report : null;
@@ -95,33 +128,40 @@ export default function ReportsPage() {
         <div>
           <strong>{storeName}</strong>
           <span>{store?.store_address || ""}</span>
-          <small>Periode {period.start} sampai {period.end}</small>
         </div>
         <h1 className="report-title">Laporan Penjualan</h1>
       </div>
-      <section className="report-filter panel">
-        <div>
-          <h2>Periode laporan</h2>
-          <p className="muted">Gunakan periode yang sama untuk semua laporan.</p>
-        </div>
-        <div style={{ gridColumn: "1 / -1" }}>
-          <DateRangePresets
-            active={preset}
-            onPick={(key, range) => { setPreset(key); if (range) setPeriod(range); }}
-          />
-        </div>
-        <div className="report-period-date-fields">
-          <label>
-            Mulai
-            <input type="date" value={period.start} onChange={(event) => { setPreset('custom'); setPeriod({ ...period, start: event.target.value }); }} />
-          </label>
-          <span aria-hidden="true">s/d</span>
-          <label>
-            Sampai
-            <input type="date" value={period.end} onChange={(event) => { setPreset('custom'); setPeriod({ ...period, end: event.target.value }); }} />
-          </label>
-        </div>
-        <button type="button" onClick={() => load()} disabled={loading}>{loading ? "Memuat…" : "Tampilkan"}</button>
+      <section className={`report-filter panel period-filter${filterOpen ? "" : " period-filter-collapsed"}`}>
+        <button type="button" className="period-filter-toggle" onClick={toggleFilter} aria-expanded={filterOpen}>
+          <span className="period-filter-label">Periode</span>
+          <strong className="period-filter-value">{activePresetLabel}</strong>
+          <span className="period-filter-range">
+            {formatBusinessDate(period.start) || "-"} – {formatBusinessDate(period.end) || "-"}
+          </span>
+          {loading ? <span className="period-filter-loading" role="status">Memuat…</span> : null}
+          <ChevronDown aria-hidden="true" size={17} className={filterOpen ? "chevron-open" : ""} />
+        </button>
+        {filterOpen ? (
+          <div className="period-filter-body">
+            <DateRangePresets
+              active={preset}
+              onPick={(key, range) => { setPreset(key); if (range) setPeriod(range); }}
+              label="Pilih periode laporan"
+            />
+            <div className="report-period-date-fields">
+              <label>
+                Mulai
+                <input type="date" value={draftPeriod.start} onChange={(event) => setDraftPeriod((current) => ({ ...current, start: event.target.value }))} />
+              </label>
+              <span aria-hidden="true">s/d</span>
+              <label>
+                Sampai
+                <input type="date" value={draftPeriod.end} onChange={(event) => setDraftPeriod((current) => ({ ...current, end: event.target.value }))} />
+              </label>
+            </div>
+            <p className="muted period-filter-hint">Perubahan periode langsung diterapkan.</p>
+          </div>
+        ) : null}
       </section>
       {message && <p className="message" role="status">{message}</p>}
       {!report ? (
