@@ -24,6 +24,9 @@ require.cache[dbPath] = {
       if (sql.includes('UPDATE pending_transactions SET')) {
         return [{ affectedRows: 1 }, []];
       }
+      if (sql.includes('DELETE FROM pending_transactions')) {
+        return [{ affectedRows: 1 }, []];
+      }
       if (sql.includes('INSERT INTO pending_transactions')) {
         return [{ insertId: 99 }, []];
       }

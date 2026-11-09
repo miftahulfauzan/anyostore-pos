@@ -226,6 +226,19 @@ router.get('/pending', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+router.delete('/pending/:id', authorize('owner', 'manager', 'admin', 'kasir'), async (req, res, next) => {
+  try {
+    const requestedBranch = Number(req.query.branch_id ?? req.body?.branch_id);
+    const branchId = req.user.role === 'owner' && Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
+    const [result] = await db.execute(
+      'DELETE FROM pending_transactions WHERE id = ? AND branch_id = ? AND resumed_at IS NULL',
+      [req.params.id, branchId]
+    );
+    if (!result.affectedRows) return res.status(404).json({ success: false, message: 'Transaksi hold tidak ditemukan' });
+    res.json({ success: true, data: { id: Number(req.params.id) } });
+  } catch (error) { next(error); }
+});
+
 router.post('/pending/:id/resume', authorize('owner', 'manager', 'admin', 'kasir'), async (req, res, next) => {
   try {
     // Android sends the selected branch in the JSON body. Keep query support

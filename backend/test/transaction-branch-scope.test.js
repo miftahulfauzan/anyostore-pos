@@ -9,12 +9,14 @@ process.env.JWT_SECRET ||= 'test-access-secret';
 process.env.JWT_REFRESH_SECRET ||= 'test-refresh-secret';
 
 const calls = [];
+let deleteAffectedRows = 1;
 const dbPath = require.resolve('../src/db');
 require.cache[dbPath] = { id: dbPath, filename: dbPath, loaded: true, exports: {
   execute: async (sql, params) => {
     calls.push({ sql, params });
     if (sql.includes('COUNT(*) AS total')) return [[{ total: 1 }]];
     if (sql.includes('FROM transaction_items')) return [[]];
+    if (sql.includes('DELETE FROM pending_transactions')) return [{ affectedRows: deleteAffectedRows }];
     return [[{ id: 17, branch_id: 2 }]];
   },
   getConnection: async () => ({
@@ -26,12 +28,21 @@ const router = require('../src/routes/transactions');
 const returnsRouter = require('../src/routes/returns');
 const handler = (path) => router.stack.find((layer) => layer.route?.path === path && layer.route.methods.get).route.stack.at(-1).handle;
 const resumeHandler = router.stack.find((layer) => layer.route?.path === '/pending/:id/resume' && layer.route.methods.post).route.stack.at(-1).handle;
+const deletePendingHandler = router.stack.find((layer) => layer.route?.path === '/pending/:id' && layer.route.methods.delete).route.stack.at(-1).handle;
 
 async function invoke(path, user, query = {}, params = {}) {
   calls.length = 0;
   const response = { status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } };
   let error;
   await handler(path)({ user, query, params }, response, (cause) => { error = cause; });
+  return { response, error, calls: [...calls] };
+}
+
+async function invokeDelete(user, query = {}, params = {}) {
+  calls.length = 0;
+  const response = { status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } };
+  let error;
+  await deletePendingHandler({ user, query, params }, response, (cause) => { error = cause; });
   return { response, error, calls: [...calls] };
 }
 
@@ -94,4 +105,41 @@ test('owner dapat melanjutkan draft pada cabang dari body request Android', asyn
   assert.equal(error, undefined);
   assert.deepEqual(calls[0].params, ['17', 2]);
   assert.equal(response.body.success, true);
+});
+
+test('owner dapat menghapus draft pada cabang yang dipilih', async () => {
+  deleteAffectedRows = 1;
+  const result = await invokeDelete(
+    { role: 'owner', branch_id: 1 },
+    { branch_id: '2' },
+    { id: '17' },
+  );
+  assert.equal(result.error, undefined);
+  assert.equal(result.response.body.success, true);
+  assert.deepEqual(result.calls[0].params, ['17', 2]);
+});
+
+test('pegawai hanya dapat menghapus draft pada cabangnya sendiri', async () => {
+  deleteAffectedRows = 1;
+  const result = await invokeDelete(
+    { role: 'kasir', branch_id: 1 },
+    { branch_id: '2' },
+    { id: '17' },
+  );
+  assert.equal(result.error, undefined);
+  assert.equal(result.response.body.success, true);
+  assert.deepEqual(result.calls[0].params, ['17', 1]);
+});
+
+test('hapus draft yang sudah diambil atau bukan milik cabang mengembalikan 404', async () => {
+  deleteAffectedRows = 0;
+  const result = await invokeDelete(
+    { role: 'owner', branch_id: 1 },
+    { branch_id: '2' },
+    { id: '17' },
+  );
+  assert.equal(result.error, undefined);
+  assert.equal(result.response.statusCode, 404);
+  assert.equal(result.response.body.success, false);
+  deleteAffectedRows = 1;
 });

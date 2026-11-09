@@ -24,10 +24,12 @@ class _QueueClient extends http.BaseClient {
 
 class _CaptureClient extends http.BaseClient {
   Uri? requestUri;
+  String? requestMethod;
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     requestUri = request.url;
+    requestMethod = request.method;
     return http.StreamedResponse(
       Stream<List<int>>.value(utf8.encode('{"success":true,"data":{}}')),
       200,
@@ -88,5 +90,19 @@ void main() {
 
     expect(resumed['items'], hasLength(1));
     expect(resumed['items'].single['product_id'], 10);
+  });
+
+  test('delete draft mengirim ID dan cabang terpilih', () async {
+    final transport = _CaptureClient();
+    final api = ApiClient(
+      baseUrl: 'https://example.test/api',
+      httpClient: transport,
+    );
+
+    await api.deletePendingTransaction(17, branchId: 4);
+
+    expect(transport.requestMethod, 'DELETE');
+    expect(transport.requestUri?.path, '/api/transactions/pending/17');
+    expect(transport.requestUri?.queryParameters['branch_id'], '4');
   });
 }

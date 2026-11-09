@@ -88,8 +88,11 @@ class ApiClient {
       _request(() => _httpClient.patch(_uri(path),
           headers: _headers, body: jsonEncode(_withBranch(body))));
 
-  Future<Map<String, dynamic>> delete(String path,
-          [Map<String, String>? query]) =>
+  Future<Map<String, dynamic>> delete(String path) =>
+      _request(() => _httpClient.delete(_uri(path), headers: _headers));
+
+  Future<Map<String, dynamic>> deleteWithQuery(
+          String path, Map<String, String> query) =>
       _request(() => _httpClient.delete(_uri(path, query), headers: _headers));
 
   Future<Map<String, dynamic>> get(String path, [Map<String, String>? query]) =>
@@ -354,6 +357,14 @@ class ApiClient {
     return (res['data'] as Map<String, dynamic>?) ?? {};
   }
 
+  Future<Map<String, dynamic>> deletePendingTransaction(int id,
+      {int? branchId}) async {
+    final res = await deleteWithQuery('/transactions/pending/$id', {
+      if (branchId != null) 'branch_id': '$branchId',
+    });
+    return (res['data'] as Map<String, dynamic>?) ?? {};
+  }
+
   Future<Map<String, dynamic>> fetchBackup() async {
     final res = await get('/backup');
     return res;
@@ -566,7 +577,7 @@ class ApiClient {
       });
 
   Future<Map<String, dynamic>> deleteInvoiceLogo() =>
-      delete('/settings/logo', {'key': 'invoice_logo'});
+      deleteWithQuery('/settings/logo', {'key': 'invoice_logo'});
 
   Future<Map<String, dynamic>> linkPageConfig(int branchId) =>
       get('/link-page/config', {'branch_id': '$branchId'});

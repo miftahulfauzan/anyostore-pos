@@ -129,6 +129,7 @@ class PosVisualApi extends ApiClient {
 
 class DraftPosVisualApi extends PosVisualApi {
   bool resumed = false;
+  final deletedDraftIds = <int>[];
 
   @override
   Future<List<dynamic>> pendingTransactions({int? branchId}) async => [
@@ -156,6 +157,16 @@ class DraftPosVisualApi extends PosVisualApi {
           'quantity': 1,
         },
       ],
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> deletePendingTransaction(int id,
+      {int? branchId}) async {
+    deletedDraftIds.add(id);
+    return {
+      'success': true,
+      'data': {'id': id}
     };
   }
 }
@@ -375,6 +386,26 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('cart-summary-footer')), findsOneWidget);
     expect(find.text('1 pcs'), findsOneWidget);
+  });
+
+  testWidgets('Draft list can delete a server draft', (tester) async {
+    final api = DraftPosVisualApi();
+    final auth = AuthStore(api)
+      ..role = 'owner'
+      ..branchId = 4;
+    await showPosSurface(tester, const PosPage(), 320, Brightness.light,
+        auth: auth);
+
+    await tester.tap(find.byTooltip('Buka Draft'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Hapus draft'));
+    await tester.pumpAndSettle();
+    expect(find.text('Hapus draft?'), findsOneWidget);
+    await tester.tap(find.text('Hapus'));
+    await tester.pumpAndSettle();
+
+    expect(api.deletedDraftIds, [99]);
+    expect(find.textContaining('1 item · Rp275.000'), findsNothing);
   });
 
   testWidgets(

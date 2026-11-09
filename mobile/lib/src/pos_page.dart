@@ -996,59 +996,73 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
       }
       final picked = await showDialog<Map<String, dynamic>>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Draft'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView.separated(
-              shrinkWrap: true,
-              itemCount: choices.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 6),
-              itemBuilder: (_, index) {
-                final choice = choices[index];
-                final isLocal = choice['source'] == 'local';
-                final p = isLocal
-                    ? const <String, dynamic>{}
-                    : (choice['pending'] as Map<String, dynamic>);
-                final heldAt = DateTime.tryParse('${p['held_at']}')?.toLocal();
-                final heldLabel = heldAt == null
-                    ? 'Tanggal draft tidak tersedia'
-                    : '${heldAt.day.toString().padLeft(2, '0')}/${heldAt.month.toString().padLeft(2, '0')}/${heldAt.year} · ${heldAt.hour.toString().padLeft(2, '0')}:${heldAt.minute.toString().padLeft(2, '0')}';
-                final itemCount = isLocal
-                    ? cartItemsFromDraft(
-                            choice['draft'] as Map<String, dynamic>)
-                        .length
-                    : p['items'] is List
-                        ? (p['items'] as List).length
-                        : 0;
-                return Card(
-                  margin: EdgeInsets.zero,
-                  child: ListTile(
-                    dense: true,
-                    leading: CircleAvatar(
-                      radius: 17,
-                      child: Text('$itemCount',
-                          style: const TextStyle(fontSize: 12)),
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            title: const Text('Draft'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: choices.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 6),
+                itemBuilder: (_, index) {
+                  final choice = choices[index];
+                  final isLocal = choice['source'] == 'local';
+                  final p = isLocal
+                      ? const <String, dynamic>{}
+                      : (choice['pending'] as Map<String, dynamic>);
+                  final heldAt =
+                      DateTime.tryParse('${p['held_at']}')?.toLocal();
+                  final heldLabel = heldAt == null
+                      ? 'Tanggal draft tidak tersedia'
+                      : '${heldAt.day.toString().padLeft(2, '0')}/${heldAt.month.toString().padLeft(2, '0')}/${heldAt.year} · ${heldAt.hour.toString().padLeft(2, '0')}:${heldAt.minute.toString().padLeft(2, '0')}';
+                  final itemCount = isLocal
+                      ? cartItemsFromDraft(
+                              choice['draft'] as Map<String, dynamic>)
+                          .length
+                      : p['items'] is List
+                          ? (p['items'] as List).length
+                          : 0;
+                  return Card(
+                    margin: EdgeInsets.zero,
+                    child: ListTile(
+                      dense: true,
+                      leading: CircleAvatar(
+                        radius: 17,
+                        child: Text('$itemCount',
+                            style: const TextStyle(fontSize: 12)),
+                      ),
+                      title: Text(
+                          isLocal
+                              ? '$itemCount item · Draft perangkat'
+                              : '$itemCount item · ${fmtRp(asNum(p['subtotal']))}',
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                      subtitle: Text(isLocal
+                          ? 'Tersimpan otomatis saat aplikasi ditutup'
+                          : 'Draft $heldLabel'),
+                      trailing: IconButton(
+                        tooltip: 'Hapus draft',
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () => _deleteDraftChoice(
+                          dialogContext: ctx,
+                          setDialogState: setDialogState,
+                          choices: choices,
+                          index: index,
+                          branch: branch,
+                        ),
+                      ),
+                      onTap: () => Navigator.pop(ctx, choice),
                     ),
-                    title: Text(
-                        isLocal
-                            ? '$itemCount item · Draft perangkat'
-                            : '$itemCount item · ${fmtRp(asNum(p['subtotal']))}',
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
-                    subtitle: Text(isLocal
-                        ? 'Tersimpan otomatis saat aplikasi ditutup'
-                        : 'Draft $heldLabel'),
-                    onTap: () => Navigator.pop(ctx, choice),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Batal')),
+            ],
           ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Batal')),
-          ],
         ),
       );
       if (picked == null || !mounted) return;
@@ -1099,6 +1113,54 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
       });
       _schedulePreview();
       if (mounted) await _openCart();
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
+  Future<void> _deleteDraftChoice({
+    required BuildContext dialogContext,
+    required StateSetter setDialogState,
+    required List<Map<String, dynamic>> choices,
+    required int index,
+    required int branch,
+  }) async {
+    final choice = choices[index];
+    final confirmed = await showDialog<bool>(
+      context: dialogContext,
+      builder: (confirmContext) => AlertDialog(
+        title: const Text('Hapus draft?'),
+        content:
+            const Text('Draft ini akan dihapus dan tidak dapat dipulihkan.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(confirmContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(confirmContext, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      if (choice['source'] == 'local') {
+        await _clearLocalDraft();
+      } else {
+        final pending = choice['pending'] as Map<String, dynamic>;
+        final id = int.tryParse('${pending['id']}');
+        if (id == null) throw ApiException('ID draft tidak valid');
+        await _client.deletePendingTransaction(id, branchId: branch);
+      }
+      choices.removeAt(index);
+      if (!dialogContext.mounted) return;
+      setDialogState(() {});
+      if (choices.isEmpty) Navigator.pop(dialogContext);
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
