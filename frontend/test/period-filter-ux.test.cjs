@@ -79,3 +79,15 @@ test('sheet aksi halaman ada di AppShell dan bisa ditutup', () => {
   assert.match(shell, /aria-modal="true"/);
   assert.match(shell, /event\.key === 'Escape'/);
 });
+
+test('sidebar memakai gaya denim dengan hierarki jelas', () => {
+  assert.match(css, /html\[data-theme\] \.sidebar:not\(\.sidebar-warehouse\)\s*\{[^}]*linear-gradient\(180deg, #22456e/s);
+  assert.match(css, /html\[data-theme\] \.sidebar \.nav-group-toggle\s*\{[^}]*color: rgba\(255,255,255,\.45\)/s, 'label grup harus redup');
+  assert.match(css, /html\[data-theme\] \.sidebar \.side-nav a\.active[\s\S]{0,120}?rgba\(255,255,255,\.14\)/s, 'item aktif pakai tint, bukan blok biru menyala');
+  assert.match(css, /@media \(hover: none\)\s*\{[\s\S]*?\.sidebar \.side-nav a:hover:not\(\.active\)/s, 'hover tidak boleh menempel di layar sentuh');
+});
+
+test('mode gelap: judul dan sub-judul kartu laporan detail dibedakan', () => {
+  assert.match(css, /\.dark \.app-main \.report-detail-accordion-copy strong\s*\{[^}]*#f8fafc/s);
+  assert.match(css, /\.dark \.app-main \.report-detail-accordion-copy small\s*\{[^}]*#94a3b8/s);
+});
