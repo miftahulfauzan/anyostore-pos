@@ -899,10 +899,10 @@ a, .photo-upload { color:var(--expressive-secondary); }
 .catalog-view-controls { align-items: center; }
 .view-button { min-height: 34px; border: 1px solid #bfdbfe; border-radius: 4px; font-size: 10px; }
 .view-button.selected { border-color: #1e3a5f; }
-.catalog-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .8rem; align-items: end; margin-bottom: .85rem; }
-.catalog-toolbar label { display: grid; gap: .35rem; }
-.catalog-toolbar input,
-.catalog-toolbar select { min-height: 44px; border-radius: .5rem; padding: 0 .7rem; border: 1px solid var(--border); background: #fff; font-size: .9rem; width: 100%; }
+.pos-catalog-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .8rem; align-items: end; margin-bottom: .85rem; }
+.pos-catalog-toolbar label { display: grid; gap: .35rem; }
+.pos-catalog-toolbar input,
+.pos-catalog-toolbar select { min-height: 44px; border-radius: .5rem; padding: 0 .7rem; border: 1px solid var(--border); background: #fff; font-size: .9rem; width: 100%; }
 .view-segmented { display: inline-flex; border: 1px solid var(--border); border-radius: .5rem; overflow: hidden; background: #fff; }
 .view-segmented .view-button { min-height: 36px; border: 0; border-radius: 0; background: transparent; color: var(--muted-foreground); font-size: .78rem; font-weight: 600; }
 .view-segmented .view-button.selected { background: var(--primary); color: #fff; border: 0; }
@@ -911,7 +911,7 @@ a, .photo-upload { color:var(--expressive-secondary); }
 .selection-toolbar.active { background: rgba(30,58,95,.06); border-color: rgba(30,58,95,.35); }
 .selection-toolbar .spacer { flex: 1; }
 @media (max-width: 700px) {
-  .catalog-toolbar { grid-template-columns: 1fr; }
+  .pos-catalog-toolbar { grid-template-columns: 1fr; }
 }
 .product-list.grid-view article {
   border-color: #dbe3ee;
@@ -2520,8 +2520,8 @@ html[data-theme="purple"] .sidebar .side-nav a.active { background: #8b5cf6 !imp
 .dark .icon-action:hover { background: #253347; border-color: #60a5fa; color: #fff; }
 .dark .icon-action.danger:hover { border-color: #f87171; color: #f87171; background: rgba(220,38,38,.14); }
 .dark .catalog-search input,
-.dark .catalog-toolbar select,
-.dark .catalog-toolbar input,
+.dark .pos-catalog-toolbar select,
+.dark .pos-catalog-toolbar input,
 .dark .movement-filter input,
 .dark .movement-filter select,
 .dark .pos-store-bar select,
@@ -2557,7 +2557,7 @@ html[data-theme="purple"] .sidebar .side-nav a.active { background: #8b5cf6 !imp
 .dark .store-summary-grid header { background: #182135; border-bottom-color: #2a3a52; }
 .dark .store-summary-grid dd { color: #e2e8f0; }
 .dark .item-count { background: #1a2e23; color: #6ee7b7; }
-.dark .catalog-toolbar label,
+.dark .pos-catalog-toolbar label,
 .dark .movement-filter label { color: #94a3b8; }
 .dark .edit-photo-row { background: #182135; border-color: #2a3a52; }
 .dark .wholesale-row { background: #182135; }
@@ -6223,25 +6223,25 @@ html[data-theme] .sidebar .nav-group-toggle:hover {
    dengan meta, lalu kolom pencarian — hemat ±90px.
    ======================================================================== */
 .panel.catalog { padding: 12px 14px; gap: 10px; }
-.catalog-toolbar {
+.pos-catalog-toolbar {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
 }
-.catalog-toolbar-title {
+.pos-catalog-title {
   display: flex;
   align-items: baseline;
   gap: 8px;
   flex-wrap: wrap;
   min-width: 0;
 }
-.catalog-toolbar-title h2 {
+.pos-catalog-title h2 {
   margin: 0;
   font-size: 15px;
   letter-spacing: -.01em;
 }
-.catalog-count {
+.pos-catalog-count {
   padding: 1px 8px;
   border-radius: 999px;
   background: #eef3f8;
@@ -6251,7 +6251,7 @@ html[data-theme] .sidebar .nav-group-toggle:hover {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.catalog-warehouse {
+.pos-catalog-warehouse {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -6275,7 +6275,7 @@ html[data-theme] .sidebar .nav-group-toggle:hover {
   min-height: 40px;
   padding-right: 38px;
 }
-.catalog-search-clear {
+.pos-catalog-search-clear {
   position: absolute;
   right: 6px;
   display: grid;
@@ -6292,25 +6292,25 @@ html[data-theme] .sidebar .nav-group-toggle:hover {
   font-weight: 700;
   box-shadow: none !important;
 }
-.dark .catalog-warehouse { color: #94a3b8; }
-.dark .catalog-count { background: #22304b; color: #cbd5e1; }
-.dark .catalog-search-clear { background: #22304b !important; color: #cbd5e1 !important; }
+.dark .pos-catalog-warehouse { color: #94a3b8; }
+.dark .pos-catalog-count { background: #22304b; color: #cbd5e1; }
+.dark .pos-catalog-search-clear { background: #22304b !important; color: #cbd5e1 !important; }
 @media (max-width: 700px) {
-  .catalog-toolbar { gap: 6px; flex-wrap: nowrap; }
-  .catalog-toolbar-title { gap: 6px; flex-wrap: nowrap; min-width: 0; }
-  .catalog-toolbar-title h2 { font-size: 13px; white-space: nowrap; }
-  .catalog-count { padding: 1px 6px; font-size: var(--fs-2xs); }
+  .pos-catalog-toolbar { gap: 6px; flex-wrap: nowrap; }
+  .pos-catalog-title { gap: 6px; flex-wrap: nowrap; min-width: 0; }
+  .pos-catalog-title h2 { font-size: 13px; white-space: nowrap; }
+  .pos-catalog-count { padding: 1px 6px; font-size: var(--fs-2xs); }
   /* Nama gudang sudah tampil di pemilih toko pada header POS. */
-  .catalog-warehouse { display: none; }
-  .catalog-search { flex: 1 1 120px; }
-  .catalog-search input { min-height: 38px; font-size: 13px; }
+  .pos-catalog-warehouse { display: none; }
+  .pos-catalog-search { flex: 1 1 120px; }
+  .pos-catalog-search input { min-height: 38px; font-size: 13px; }
   .panel.catalog { padding: 10px; gap: 8px; }
 }
 
 /* HP sangat sempit: sembunyikan badge jumlah agar kolom pencarian lega
    (jumlah produk tetap terbaca di grid dan saat mencari). */
 @media (max-width: 430px) {
-  .catalog-count { display: none; }
+  .pos-catalog-count { display: none; }
   .catalog-search { flex: 1 1 auto; }
 }
 
@@ -6745,4 +6745,45 @@ html[data-theme] .sidebar .nav-group-toggle:hover {
 .period-filter .period-filter-body { gap: 10px; }
 @media (max-width: 520px) {
   .period-filter { gap: 8px; }
+}
+
+/* ========================================================================
+   Halaman Produk: rapikan kepala katalog. Dropdown urut tidak lagi melar
+   selebar sisa ruang, kontrol rata kanan, dan kolom cari memakai lebar penuh.
+   ======================================================================== */
+.catalog-panel .section-heading {
+  align-items: flex-start !important;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.catalog-panel .catalog-view-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.catalog-panel .catalog-view-controls select {
+  width: auto !important;
+  min-width: 150px;
+  max-width: 220px;
+}
+.catalog-panel .catalog-toolbar {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+.catalog-panel .catalog-toolbar > label { min-width: 0; }
+.catalog-panel .catalog-toolbar input { width: 100%; }
+@media (max-width: 700px) {
+  .catalog-panel .catalog-view-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .catalog-panel .catalog-view-controls select {
+    flex: 1 1 150px;
+    max-width: none;
+  }
+  .catalog-panel .catalog-toolbar { grid-template-columns: 1fr; }
 }
