@@ -3836,7 +3836,11 @@ html[data-theme="green"] { --expressive-primary:#17603d; --expressive-secondary:
 html[data-theme="teal"] { --expressive-primary:#0f6669; --expressive-secondary:#0f6669; --primary:#0f6669; --ring:#0f6669; }
 html[data-theme="rose"] { --expressive-primary:#a3335c; --expressive-secondary:#a3335c; --primary:#a3335c; --ring:#a3335c; }
 html[data-theme="amber"] { --expressive-primary:#875414; --expressive-secondary:#875414; --primary:#875414; --ring:#875414; }
-html[data-theme] .app-main :where(button:not([class]), button[type="submit"], .button-link, .view-button.selected, .tabs button.active) { background-color: var(--expressive-primary); color: #fff; }
+/* Tombol tanpa class TIDAK lagi diwarnai di sini: banyak komponen (mis. baris
+   pemilih toko) memakai <button> tanpa class dengan latar sendiri; aturan
+   ini membuat latarnya navy dengan teks gelap. Warna aksi diatur di
+   blok --action-bg lewat selector `button` biasa. */
+html[data-theme] .app-main :where(button[type="submit"], .button-link, .view-button.selected, .tabs button.active) { background-color: var(--expressive-primary); color: #fff; }
 html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-primary) !important; }
 
 @media (max-width: 700px) {
@@ -5574,7 +5578,7 @@ button:hover:not(:disabled),
   background-color: var(--action-bg-hover);
   color: #fff;
 }
-html[data-theme] .app-main :where(button:not([class]), button[type="submit"], .button-link, .view-button.selected, .tabs button.active) {
+html[data-theme] .app-main :where(button[type="submit"], .button-link, .view-button.selected, .tabs button.active) {
   background-color: var(--action-bg);
   border-color: var(--action-bg);
   color: #fff;
@@ -5856,3 +5860,102 @@ html[data-theme] .sidebar .nav-group-toggle:hover {
 @media (hover: none) {
   .sidebar a:hover:not(.active) { color: rgba(255,255,255,.86) !important; }
 }
+
+/* Kartu brand laporan: hanya untuk cetak/PDF. Di layar, info toko sudah
+   ada di chip pemilih toko sehingga tidak perlu diulang. */
+@media screen {
+  .report-brand-print-only { display: none !important; }
+}
+
+/* Chip pemilih toko: avatar + nama (dan alamat di layar lebar). */
+.branch-switcher-trigger {
+  gap: 9px;
+  min-height: 46px;
+  padding: 0 11px;
+}
+.branch-switcher-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #2e4a6d;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  font-style: italic;
+  line-height: 1;
+}
+.branch-switcher-copy {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+  text-align: left;
+}
+.branch-switcher-name {
+  font-size: 11.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.branch-switcher-address {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 210px;
+}
+.dark .branch-switcher-avatar { background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.22); }
+.dark .branch-switcher-address { color: #94a3b8; }
+@media (max-width: 700px) {
+  .branch-switcher-address { display: none; }
+  .branch-switcher-trigger { min-height: 44px; }
+  .branch-switcher-name { font-size: 12px; }
+}
+
+/* Panel penutupan kas di halaman Laporan. */
+.report-closing { display: grid; gap: 14px; margin-top: 4px; }
+.report-closing-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.report-closing-head h2 { margin: 2px 0 0; font-size: 1.05rem; letter-spacing: -.01em; }
+.report-closing-head p { margin: 4px 0 0; font-size: .78rem; }
+.report-closing-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.report-closing-actions .button-link,
+.report-closing-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.report-closing-body { display: grid; gap: 14px; }
+.report-closing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.report-closing-grid > div {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #fff;
+}
+.report-closing-grid span { font-size: 10px; font-weight: 700; letter-spacing: .06em; color: #64748b; text-transform: uppercase; }
+.report-closing-grid strong { font-size: 13.5px; color: #0f172a; font-variant-numeric: tabular-nums; }
+.report-closing-grid .is-total { background: #1e3a5f; border-color: #1e3a5f; }
+.report-closing-grid .is-total span { color: rgba(255,255,255,.7); }
+.report-closing-grid .is-total strong { color: #fff; }
+.report-closing-methods { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.report-closing-methods article { border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px; background: #fff; }
+.report-closing-methods header { display: flex; justify-content: space-between; gap: 8px; padding-bottom: 6px; border-bottom: 1px solid #eef2f7; }
+.report-closing-methods header strong { font-size: 12px; }
+.report-closing-methods header b { font-size: 12px; font-variant-numeric: tabular-nums; }
+.report-closing-methods article > div { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; font-size: 11px; color: #475569; }
+.dark .report-closing-grid > div,
+.dark .report-closing-methods article { background: #182135; border-color: #334155; }
+.dark .report-closing-grid strong { color: #e2e8f0; }
+.dark .report-closing-grid .is-total { background: #1e3a5f; }

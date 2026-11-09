@@ -77,8 +77,15 @@ export default function BranchSwitcher() {
         aria-label={`Toko aktif: ${currentLabel}. Ganti toko`}
         onClick={() => setOpen((value) => !value)}
       >
-        {selected?.type === 'gudang' ? <Building2 aria-hidden="true" size={17} /> : <Store aria-hidden="true" size={17} />}
-        <span>{currentLabel}</span>
+        <span className="branch-switcher-avatar" aria-hidden="true">
+          {activeBranchId === 'all'
+            ? <Building2 size={15} />
+            : (selected?.name || 'A').trim().charAt(0).toUpperCase()}
+        </span>
+        <span className="branch-switcher-copy">
+          <strong className="branch-switcher-name">{currentLabel}</strong>
+          {selected?.address ? <small className="branch-switcher-address">{selected.address}</small> : null}
+        </span>
         <ChevronDown aria-hidden="true" size={15} />
       </button>
       {open && typeof document !== 'undefined' && createPortal(<>

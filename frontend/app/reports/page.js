@@ -9,6 +9,7 @@ import { useAppSession } from "../components/AppStateProvider";
 import { createRequestSequence } from "../components/app-state.cjs";
 import OlseraDashboardSections from "../dashboard/OlseraDashboardSections";
 import ReportDetailAccordions from "./ReportDetailAccordions";
+import ReportClosingPanel from "./ReportClosingPanel";
 import { openPrintView } from "../lib/print-utils";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
@@ -123,7 +124,7 @@ export default function ReportsPage() {
         </>
       }
     >
-      <div className="report-brand">
+      <div className="report-brand report-brand-print-only">
         {logo && String(store?.show_logo) !== "false" && <img src={logo} alt={`Logo ${storeName}`} />}
         <div>
           <strong>{storeName}</strong>
@@ -175,6 +176,7 @@ export default function ReportsPage() {
             <OlseraDashboardSections reportData={report} fallbackData={null} activeBranchId={activeBranchId} period={period} />
           </div>
           <ReportDetailAccordions report={report} user={user} activeBranchId={activeBranchId} />
+          <ReportClosingPanel date={period.end} branchId={activeBranchId} role={user?.role} />
         </>
       )}
     </AppShell>

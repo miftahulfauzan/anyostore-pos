@@ -91,3 +91,12 @@ test('mode gelap: judul dan sub-judul kartu laporan detail dibedakan', () => {
   assert.match(css, /\.dark \.app-main \.report-detail-accordion-copy strong\s*\{[^}]*#f8fafc/s);
   assert.match(css, /\.dark \.app-main \.report-detail-accordion-copy small\s*\{[^}]*#94a3b8/s);
 });
+
+test('baris pemilih toko tidak ikut diwarnai sebagai tombol aksi', () => {
+  assert.doesNotMatch(
+    css,
+    /html\[data-theme\] \.app-main :where\(button:not\(\[class\]\)/,
+    'aturan tema tidak boleh mewarnai semua <button> tanpa class (merusak baris pemilih toko)',
+  );
+  assert.match(css, /\.branch-switcher-options > button \{[^}]*background: transparent/s);
+});
