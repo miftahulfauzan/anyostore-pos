@@ -100,3 +100,9 @@ test('baris pemilih toko tidak ikut diwarnai sebagai tombol aksi', () => {
   );
   assert.match(css, /\.branch-switcher-options > button \{[^}]*background: transparent/s);
 });
+
+test('POS: navigasi satu baris dan pemilih toko tanpa avatar', () => {
+  assert.match(css, /\.pos-standalone-header nav\s*\{[^}]*flex-wrap:\s*nowrap\s*!important/s);
+  assert.match(css, /\.pos-standalone-header nav\s*\{[^}]*overflow-x:\s*auto/s);
+  assert.match(css, /\.pos-standalone-header nav > \.branch-switcher \.branch-switcher-avatar\s*\{[^}]*display:\s*none/s);
+});
