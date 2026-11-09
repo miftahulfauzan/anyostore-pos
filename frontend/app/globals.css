@@ -2511,9 +2511,14 @@ html[data-theme="green"] .link-button.danger:hover, html[data-theme="blue"] .lin
 .dashboard-report-focal strong { color: #2563eb; font-size: clamp(28px, 4vw, 42px); line-height: 1.05; letter-spacing: -.04em; }
 .dashboard-report-focal small { color: #64748b; font-size: 11px; }
 .dashboard-report-chart { position: relative; min-height: 215px; padding: 12px 10px 10px 44px; border-radius: 10px; background: #f8fafc; }
-.dashboard-report-chart svg { display: block; width: 100%; height: 180px; overflow: visible; }
-.dashboard-report-chart-ylabels { position: absolute; top: 13px; bottom: 44px; left: 6px; display: flex; flex-direction: column; justify-content: space-between; color: #64748b; font-size: 9px; line-height: 1; }
-.dashboard-report-chart .chart-grid { stroke: #dbe3ee; stroke-width: .6; vector-effect: non-scaling-stroke; }
+.dashboard-report-chart-plot { position: relative; height: 180px; }
+.dashboard-report-chart svg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; overflow: visible; }
+.dashboard-report-chart-area { pointer-events: none; }
+.dashboard-report-chart-line { stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.dashboard-report-chart-points { position: absolute; inset: 0; pointer-events: none; }
+.dashboard-report-chart-point { position: absolute; width: 9px; height: 9px; transform: translate(-50%, -50%); border: 2px solid #fff; border-radius: 50%; }
+.dashboard-report-chart-ylabels { position: absolute; top: 21px; right: calc(100% + 38px); bottom: 10px; left: auto; display: flex; flex-direction: column; justify-content: space-between; color: #64748b; font-size: 9px; line-height: 1; white-space: nowrap; }
+.dashboard-report-chart .chart-grid { stroke: #dbe3ee; stroke-width: .55; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
 .dashboard-report-chart .chart-axis { stroke: #94a3b8; stroke-width: .8; vector-effect: non-scaling-stroke; }
 .dashboard-report-axis-labels { display: flex; justify-content: space-between; gap: 8px; overflow: hidden; color: #64748b; font-size: 10px; }
 .dashboard-report-axis-labels span { min-width: 0; }
@@ -2629,7 +2634,7 @@ html[data-theme="green"] .link-button.danger:hover, html[data-theme="blue"] .lin
   .dashboard-report-date-filter > span { align-self: end; padding-bottom: 13px; }
   .dashboard-report-date-filter > button { grid-column: 1 / -1; width: 100%; }
   .dashboard-report-chart { min-height: 190px; }
-  .dashboard-report-chart svg { height: 155px; }
+  .dashboard-report-chart-plot { height: 155px; }
 }
 
 /* Merged dashboard: summary and sales share one compact visual hierarchy. */

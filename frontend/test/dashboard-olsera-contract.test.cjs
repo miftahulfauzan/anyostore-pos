@@ -56,3 +56,11 @@ test('dashboard web uses the enriched reports overview', () => {
   assert.match(sections, /aria-expanded=\{showValues\}/);
   assert.match(sections, /products_sold/);
 });
+
+test('web sales chart uses the same smooth area treatment as Android', () => {
+  assert.match(sections, /buildSmoothPath/);
+  assert.match(sections, /className="dashboard-report-chart-area"/);
+  assert.match(sections, /className="dashboard-report-chart-line"/);
+  assert.match(sections, /dashboard-report-chart-point/);
+  assert.doesNotMatch(sections, /<polyline points=\{points\}/);
+});

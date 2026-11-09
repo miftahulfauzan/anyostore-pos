@@ -9,7 +9,7 @@ import {
   PackageSearch,
   ShoppingBag,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
 const rupiah = (value) => 'Rp' + Number(value || 0).toLocaleString('id-ID');
 const number = (value) => Number(value || 0);
@@ -25,6 +25,18 @@ const changePercent = (current, previous) => {
 const dateLabel = (value) => {
   const raw = String(value || '');
   return raw.length >= 10 ? raw.slice(8, 10) : raw;
+};
+const buildSmoothPath = (points) => {
+  if (!points.length) return '';
+  const [firstX, firstY] = points[0];
+  let path = `M ${firstX},${firstY}`;
+  for (let index = 1; index < points.length; index += 1) {
+    const [previousX, previousY] = points[index - 1];
+    const [currentX, currentY] = points[index];
+    const midpointX = (previousX + currentX) / 2;
+    path += ` C ${midpointX},${previousY} ${midpointX},${currentY} ${currentX},${currentY}`;
+  }
+  return path;
 };
 
 const colors = {
@@ -79,36 +91,43 @@ function FinanceRow({ label, value, icon: Icon, tone }) {
 function TrendChart({ rows, valueKey = 'revenue', color, emptyMessage, totalLabel = 'Total' }) {
   const visible = (rows || []).slice(-14);
   const [showValues, setShowValues] = useState(false);
+  const chartId = useId().replace(/:/g, '');
   const values = visible.map((row) => number(row[valueKey] ?? row.sales));
   if (!visible.length) return <p className="dashboard-report-empty">{emptyMessage}</p>;
   const max = Math.max(1, ...values);
-  const points = values.map((value, index) => {
+  const chartPoints = values.map((value, index) => {
     const x = visible.length === 1 ? 50 : (index / (visible.length - 1)) * 100;
     const y = 94 - (value / max) * 82;
-    return `${x},${y}`;
-  }).join(' ');
-  const area = `0,94 ${points} 100,94`;
+    return [x, y];
+  });
+  const linePath = buildSmoothPath(chartPoints);
+  const areaPath = `${linePath} L ${chartPoints.at(-1)[0]},94 L ${chartPoints[0][0]},94 Z`;
   return <div className="dashboard-report-chart" aria-label="Grafik tren laporan">
-    <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Grafik tren penjualan">
+    <div className="dashboard-report-chart-plot">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Grafik tren penjualan">
       <defs>
-        <linearGradient id="sales-area-gradient" x1="0" x2="0" y1="0" y2="1">
+        <linearGradient id={`sales-area-gradient-${chartId}`} x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity=".28" />
           <stop offset="100%" stopColor={color} stopOpacity=".03" />
         </linearGradient>
       </defs>
       <line x1="0" y1="94" x2="100" y2="94" className="chart-axis" />
-      <line x1="0" y1="53" x2="100" y2="53" className="chart-grid" />
+      <line x1="0" y1="66.67" x2="100" y2="66.67" className="chart-grid" />
+      <line x1="0" y1="39.33" x2="100" y2="39.33" className="chart-grid" />
       <line x1="0" y1="12" x2="100" y2="12" className="chart-grid" />
-      <polygon points={area} fill="url(#sales-area-gradient)" />
-      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-      {values.map((value, index) => {
-        const x = visible.length === 1 ? 50 : (index / (visible.length - 1)) * 100;
-        const y = 94 - (value / max) * 82;
-        return <circle key={`${visible[index].date}-${index}`} cx={x} cy={y} r="1.7" fill="#fff" stroke={color} strokeWidth="1" vectorEffect="non-scaling-stroke" />;
-      })}
-    </svg>
-    <div className="dashboard-report-chart-ylabels" aria-hidden="true">
-      <span>{rupiah(max)}</span><span>{rupiah(Math.round(max / 2))}</span><span>Rp0</span>
+      <path className="dashboard-report-chart-area" d={areaPath} fill={`url(#sales-area-gradient-${chartId})`} />
+      <path className="dashboard-report-chart-line" d={linePath} fill="none" stroke={color} strokeWidth="2.2" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <div className="dashboard-report-chart-points" aria-hidden="true">
+        {chartPoints.map(([x, y], index) => <span
+          key={`${visible[index].date}-${index}`}
+          className="dashboard-report-chart-point"
+          style={{ left: `${x}%`, top: `${y}%`, backgroundColor: color, boxShadow: `0 0 0 1px ${color}` }}
+        />)}
+      </div>
+      <div className="dashboard-report-chart-ylabels" aria-hidden="true">
+        <span>{rupiah(max)}</span><span>{rupiah(Math.round(max / 2))}</span><span>Rp0</span>
+      </div>
     </div>
     <div className="dashboard-report-axis-labels">
       {visible.map((row) => <span key={row.date}>{dateLabel(row.date)}</span>)}
