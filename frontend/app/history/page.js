@@ -38,7 +38,7 @@ export default function HistoryPage() {
     ? 'Rentang kustom'
     : ({ today: 'Hari ini', yesterday: 'Kemarin', last7: '7 hari', last30: '30 hari', thisMonth: 'Bulan ini', previousMonth: 'Bulan lalu' }[preset] || 'Hari ini');
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('retur'); // retur | cancel | info
+  const [activeTab, setActiveTab] = useState('info'); // info | retur | cancel
   const [isMobile, setIsMobile] = useState(false);
   const loadSeq = useRef(0);
   const detailSeq = useRef(0);
@@ -147,7 +147,7 @@ export default function HistoryPage() {
       setCancelQuantities(Object.fromEntries(b.data.items.map((i) => [i.transaction_item_id, 0])));
       setRefundMethod('');
       setCancelReason('');
-      setActiveTab(b.data.source_system === 'olsera' ? 'info' : 'retur');
+      setActiveTab('info');
     } catch (e) { if (seq === detailSeq.current) setMessage(e.message); }
   }
 
@@ -300,17 +300,52 @@ export default function HistoryPage() {
                   <button type="button" className="small secondary" data-dialog-close onClick={() => setSelected(null)}>Tutup</button>
                 </div>
 
-              <div style={{ display: 'flex', gap: '.4rem', marginTop: '.75rem' }}>
+              <div className="history-detail-tabs" style={{ display: 'flex', gap: '.4rem', marginTop: '.75rem', flexWrap: 'wrap' }}>
                 <button type="button" className={activeTab === 'info' ? 'small' : 'small secondary'} onClick={() => setActiveTab('info')}>Info</button>
                 {selected.source_system !== 'olsera' && <button type="button" className={activeTab === 'retur' ? 'small' : 'small secondary'} onClick={() => setActiveTab('retur')}>Retur</button>}
-                {canCancel && selected.source_system !== 'olsera' && <button type="button" className={activeTab === 'cancel' ? 'small' : 'small secondary'} onClick={() => setActiveTab('cancel')}>Batal</button>}
-                <a className="small secondary" href={'/receipt/' + selected.id + '?print=1'} target="_blank" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>Cetak ulang</a>
+                {canCancel && selected.source_system !== 'olsera' && (
+                  <button
+                    type="button"
+                    className={activeTab === 'cancel' ? 'small' : 'small secondary'}
+                    onClick={() => setActiveTab('cancel')}
+                    style={activeTab === 'cancel' ? { background: '#b42318', color: '#fff', borderColor: '#b42318' } : { color: '#b42318', borderColor: '#fca5a5' }}
+                  >Batal</button>
+                )}
               </div>
 
               <div style={{ marginTop: '1rem' }}>
                 {activeTab === 'info' && (
                   <div style={{ display: 'grid', gap: '.5rem' }}>
-                    <p className="muted" style={{ margin: 0 }}>Klik Cetak ulang untuk struk. {selected.source_system === 'olsera' ? `Riwayat impor Olsera · nomor sumber ${selected.source_order_no || selected.offline_invoice_no || '-'}. Retur stok dan pembatalan dinonaktifkan untuk data lama.` : ''} {selected.status !== 'completed' ? `Status: ${labelFor(statusLabels, selected.status)}. Alasan: ${selected.cancel_reason || '-'}` : ''}</p>
+                    <div className="history-primary-actions" style={{ display: 'grid', gap: '.5rem' }}>
+                      <a
+                        className="button-link"
+                        href={'/receipt/' + selected.id + '?print=1'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 48 }}
+                      >Cetak ulang struk</a>
+                      <a
+                        href={'/receipt/' + selected.id}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="small secondary"
+                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 44, textDecoration: 'none' }}
+                      >Lihat rincian lengkap</a>
+                      {(selected.source_system !== 'olsera' || canCancel) && (
+                        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '.25rem' }}>
+                          {selected.source_system !== 'olsera' && (
+                            <button type="button" onClick={() => setActiveTab('retur')} style={{ border: 0, background: 'none', padding: 0, color: '#1e3a5f', fontWeight: 700, fontSize: 'var(--fs-sm)', cursor: 'pointer' }}>Buat retur…</button>
+                          )}
+                          {canCancel && selected.source_system !== 'olsera' && (
+                            <button type="button" onClick={() => setActiveTab('cancel')} style={{ border: 0, background: 'none', padding: 0, color: '#b42318', fontWeight: 700, fontSize: 'var(--fs-sm)', cursor: 'pointer' }}>Batalkan transaksi…</button>
+                          )}
+                        </div>
+                      )}
+                      <div style={{ borderTop: '1px solid var(--border)', margin: '.25rem 0 0' }} />
+                    </div>
+                    {selected.source_system === 'olsera' || selected.status !== 'completed' ? (
+                      <p className="muted" style={{ margin: 0 }}>{selected.source_system === 'olsera' ? `Riwayat impor Olsera · nomor sumber ${selected.source_order_no || selected.offline_invoice_no || '-'}. Retur stok dan pembatalan dinonaktifkan untuk data lama.` : ''} {selected.status !== 'completed' ? `Status: ${labelFor(statusLabels, selected.status)}. Alasan: ${selected.cancel_reason || '-'}` : ''}</p>
+                    ) : null}
                     {canEditTransactionDate && <div style={{ display: 'grid', gap: '.5rem', padding: '.75rem', border: '1px solid var(--border)', borderRadius: 8 }}>
                       <label>Tanggal transaksi<input type="date" value={transactionDateDraft} max={todayStr()} onChange={(event) => setTransactionDateDraft(event.target.value)} disabled={saving} /></label>
                       <button type="button" className="small" onClick={saveTransactionDate} disabled={saving || !transactionDateDraft || transactionDateDraft === selected.transaction_date}>{saving ? 'Menyimpan…' : 'Simpan tanggal'}</button>
