@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Printer } from 'lucide-react';
 import { cashMovementLabels, labelFor, paymentLabels } from '../../../lib/ui-labels';
+import { openPrintView } from '../../../lib/print-utils';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rupiah = (n) => `Rp${Number(n || 0).toLocaleString('id-ID')}`;
@@ -21,7 +22,7 @@ export default function ClosingPrintPage() {
       .catch((e) => setMessage(e.message));
   }, []);
 
-  function print() { window.print(); }
+  function print() { openPrintView({ selector: '.closing-print', title: 'Laporan Penutupan Kas' }); }
 
   if (message) return <main className="closing-print"><p className="message">{message}</p></main>;
   if (!data) return <main className="closing-print"><p>Memuat penutupan…</p></main>;

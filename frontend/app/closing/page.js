@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useAppSession } from '../components/AppStateProvider';
+import { openPrintView } from '../lib/print-utils';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const currentLocalDate = () => {
@@ -49,12 +50,7 @@ export default function ClosingPage() {
   }, [date, user, activeBranchId, resolved]);
 
   function openPdfPreview() {
-    const query = new URLSearchParams({ date, preview: '1' });
-    if (user?.role === 'owner') {
-      if (selectedBranchQuery === 'all') query.set('branch_id', 'all');
-      else query.set('branch_id', activeBranchId);
-    }
-    window.open(`/closing?${query.toString()}`, '_blank');
+    openPrintView({ selector: '.closing-wrap', title: `Penutupan ${date}`, autoPrint: false });
   }
 
   const methods = data?.methods || {};
@@ -74,7 +70,7 @@ export default function ClosingPage() {
       <div className="no-print" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>Tanggal<input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ minHeight: 40 }} /></label>
         <button type="button" onClick={openPdfPreview} disabled={!data}>Lihat PDF</button>
-        <button type="button" onClick={() => window.print()} disabled={!data}>Cetak Penutupan</button>
+        <button type="button" onClick={() => openPrintView({ selector: '.closing-wrap', title: 'Penutupan Penjualan' })} disabled={!data}>Cetak Penutupan</button>
         <a className="button-link" href="/dashboard">← Kembali ke Dasbor</a>
       </div>
       {message && <p className="message" role="status">{message}</p>}

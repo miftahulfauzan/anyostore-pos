@@ -16,6 +16,7 @@ import {
   Users,
 } from 'lucide-react';
 import { labelFor, paymentLabels, statusLabels } from '../lib/ui-labels';
+import { createPrintWindow, populatePrintWindow } from '../lib/print-utils';
 
 const rp = (value) => `Rp${Number(value || 0).toLocaleString('id-ID')}`;
 const formatBusinessDate = (value) => String(value || '').split('-').reverse().join('/');
@@ -65,6 +66,50 @@ function DetailTable({ title, subtitle, columns, rows, empty = 'Belum ada data u
             )}
           </tbody>
         </table>
+      </div>
+    </section>
+  );
+}
+
+function ProductDetailList({ rows, openAll = false }) {
+  return (
+    <section className="report-detail-table-block report-detail-product-list">
+      <div className="report-detail-table-heading">
+        <div>
+          <h3>Laporan produk terjual</h3>
+          <p>Ketuk produk untuk membuka rincian SKU, stok, pendapatan, modal, dan laba.</p>
+        </div>
+        <span className="report-detail-table-count">{rows?.length || 0} data</span>
+      </div>
+      <div className="report-product-disclosures">
+        {rows?.length ? rows.map((row, index) => {
+          const productKey = row.key || row.id || `${row.product_id || 'product'}-${row.variant_detail || index}`;
+          return (
+            <details className="report-product-disclosure" key={productKey} open={openAll || undefined}>
+              <summary>
+                <span className="report-product-disclosure-title">
+                  <strong>{row.name || 'Produk tanpa nama'}</strong>
+                  <small>{row.sku || 'Tanpa SKU'}</small>
+                </span>
+                <span className="report-product-disclosure-total">
+                  <strong>{row.quantity_sold || 0} pcs</strong>
+                  <small>{rp(row.revenue)}</small>
+                </span>
+                <ChevronDown aria-hidden="true" size={18} />
+              </summary>
+              <div className="report-product-disclosure-body">
+                <div><span>SKU</span><strong>{row.sku || 'Tanpa SKU'}</strong></div>
+                <div><span>Kategori</span><strong>{row.category_name || 'Tanpa kategori'}</strong></div>
+                <div><span>Barcode</span><strong>{row.barcode || '-'}</strong></div>
+                <div><span>Varian</span><strong>{row.variant_detail || '-'}</strong></div>
+                <div><span>Qty terjual</span><strong>{row.quantity_sold || 0}</strong></div>
+                <div><span>Pendapatan</span><strong>{rp(row.revenue)}</strong></div>
+                <div><span>Modal</span><strong>{rp(row.cost_of_goods)}</strong></div>
+                <div><span>Laba kotor</span><strong>{rp(row.profit)}</strong></div>
+              </div>
+            </details>
+          );
+        }) : <p className="report-product-empty">Belum ada produk terjual untuk periode ini.</p>}
       </div>
     </section>
   );
@@ -134,10 +179,19 @@ export default function ReportDetailAccordions({ report, user, activeBranchId })
     return () => window.removeEventListener('afterprint', reset);
   }, []);
 
-  const requestPrint = (groupKey) => {
+  const requestPrint = (groupKey, mode = 'print') => {
+    const printWindow = createPrintWindow();
+    if (!printWindow) return;
     setExpanded(groupKey);
     setPrintTarget(groupKey);
-    window.setTimeout(() => window.print(), 120);
+    window.setTimeout(() => {
+      populatePrintWindow(printWindow, {
+        selector: '.app-content',
+        title: `Laporan ${groupKey}`,
+        autoPrint: mode === 'print',
+      });
+      window.setTimeout(() => setPrintTarget(null), mode === 'print' ? 2000 : 300);
+    }, 120);
   };
 
   const transactions = report?.transactions || [];
@@ -208,8 +262,8 @@ export default function ReportDetailAccordions({ report, user, activeBranchId })
       expanded: expanded === group.key,
       printActive: printTarget === group.key,
       onToggle: () => setExpanded(expanded === group.key ? null : group.key),
-      onPdf: () => requestPrint(group.key),
-      onPrint: () => requestPrint(group.key),
+      onPdf: () => requestPrint(group.key, 'preview'),
+      onPrint: () => requestPrint(group.key, 'print'),
     };
     if (group.key === 'transactions') {
       return (
@@ -262,21 +316,7 @@ export default function ReportDetailAccordions({ report, user, activeBranchId })
     if (group.key === 'products') {
       return (
         <DetailGroup {...groupProps}>
-          <DetailTable
-            title="Laporan produk terjual"
-            subtitle="Rincian produk dan varian berdasarkan pendapatan."
-            rows={products}
-            columns={[
-              { label: 'Produk', render: (row) => <><strong>{row.name}</strong><small>{row.sku || 'Tanpa SKU'}</small></> },
-              { label: 'Kategori', render: (row) => row.category_name || 'Tanpa kategori' },
-              { label: 'Barcode', render: (row) => row.barcode || '-' },
-              { label: 'Varian', render: (row) => row.variant_detail || '-' },
-              { label: 'Qty terjual', key: 'quantity_sold' },
-              { label: 'Pendapatan', render: (row) => rp(row.revenue) },
-              { label: 'Modal', render: (row) => rp(row.cost_of_goods) },
-              { label: 'Laba kotor', render: (row) => rp(row.profit) },
-            ]}
-          />
+          <ProductDetailList rows={products} openAll={groupProps.printActive} />
           <DetailTable
             title="Penjualan berdasarkan kategori"
             subtitle="Kategori mengikuti katalog produk saat ini."

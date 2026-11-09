@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { openPrintView } from '../../lib/print-utils';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rp = (number) => `Rp${Number(number || 0).toLocaleString('id-ID')}`;
@@ -100,6 +101,6 @@ export default function Receipt({ params }) {
         <small>Simpan struk ini sebagai bukti transaksi.</small>
       </footer>
     </article>
-    <div className="receipt-actions"><button type="button" onClick={() => window.print()}>Cetak struk</button><a href="/history">Kembali ke transaksi</a></div>
+    <div className="receipt-actions no-print"><button type="button" onClick={() => openPrintView({ selector: '.receipt', title: `Struk ${data.invoice_no}` })}>Cetak struk</button><a href="/history">Kembali ke transaksi</a></div>
   </main>;
 }

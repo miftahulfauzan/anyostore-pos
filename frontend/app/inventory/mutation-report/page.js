@@ -4,6 +4,7 @@ import AppShell from '../../components/AppShell';
 import { useAppSession } from '../../components/AppStateProvider';
 import { getWarehousePeriodRange, WAREHOUSE_PERIOD_OPTIONS } from '../../dashboard/warehouse-periods.mjs';
 import MutationReportInsights from './MutationReportInsights';
+import { openPrintView } from '../../lib/print-utils';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -145,7 +146,7 @@ export default function MutationReportPage() {
   return (
     <AppShell title={`Laporan Riwayat Barang ${tab === 'out' ? 'Keluar' : 'Masuk'}`} eyebrow="PRODUK & INVENTORI" actions={<>
       <button type="button" className="button-link" onClick={exportCsv} disabled={!rows.length}>Unduh Excel</button>
-      <button type="button" className="button-link" onClick={() => window.print()} disabled={!rows.length}>Unduh PDF</button>
+      <button type="button" className="button-link" onClick={() => openPrintView({ selector: '.app-content', title: `Laporan Riwayat Barang ${tab === 'out' ? 'Keluar' : 'Masuk'}` })} disabled={!rows.length}>Unduh PDF</button>
     </>}>
       <div style={{ display: 'grid', gap: '1rem', maxWidth: 1400, margin: '0 auto' }}>
         {/* Header khusus cetak */}

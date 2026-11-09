@@ -8,6 +8,7 @@ import { useAppSession } from "../components/AppStateProvider";
 import { createRequestSequence } from "../components/app-state.cjs";
 import OlseraDashboardSections from "../dashboard/OlseraDashboardSections";
 import ReportDetailAccordions from "./ReportDetailAccordions";
+import { openPrintView } from "../lib/print-utils";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
@@ -85,7 +86,7 @@ export default function ReportsPage() {
         <>
           <a className="button-link" href="/reports/tax">Laporan Pajak</a>
           <a className="button-link" href="/finance">Keuangan</a>
-          <button type="button" onClick={() => window.print()}>Cetak / Simpan PDF</button>
+          <button type="button" onClick={() => openPrintView({ selector: ".app-content", title: "Laporan Penjualan" })}>Cetak / Simpan PDF</button>
         </>
       }
     >

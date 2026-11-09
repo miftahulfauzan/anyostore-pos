@@ -4691,3 +4691,163 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
     grid-template-columns: 1fr;
   }
 }
+
+/* Final PWA report polish: keep chart labels within the card and make product details collapsible. */
+.report-detail-accordion.is-expanded .report-detail-accordion-trigger {
+  background: #e8f0f8;
+  color: #1e3a5f;
+}
+.report-detail-accordion.is-expanded .report-detail-accordion-trigger:hover {
+  background: #e8f0f8;
+}
+.report-detail-accordion.is-expanded .report-detail-accordion-copy strong {
+  color: #1e3a5f;
+}
+.report-detail-accordion.is-expanded .report-detail-accordion-copy small {
+  color: #36516f;
+}
+.report-detail-accordion.is-expanded .report-detail-accordion-chevron {
+  color: #1e3a5f;
+}
+.report-product-disclosures {
+  display: grid;
+  gap: 6px;
+}
+.report-product-disclosure {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #dbe3ee;
+  border-radius: 9px;
+  background: #fff;
+}
+.report-product-disclosure > summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 20px;
+  align-items: center;
+  min-width: 0;
+  gap: 10px;
+  min-height: 60px;
+  padding: 10px 12px;
+  color: #0f172a;
+  cursor: pointer;
+  list-style: none;
+}
+.report-product-disclosure > summary::-webkit-details-marker { display: none; }
+.report-product-disclosure > summary > svg { color: #64748b; transition: transform 180ms ease; }
+.report-product-disclosure[open] > summary > svg { transform: rotate(180deg); color: #1e3a5f; }
+.report-product-disclosure-title,
+.report-product-disclosure-total {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+.report-product-disclosure-title strong,
+.report-product-disclosure-title small,
+.report-product-disclosure-total strong,
+.report-product-disclosure-total small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.report-product-disclosure-title strong { color: #0f172a; font-size: .86rem; line-height: 1.25; }
+.report-product-disclosure-title small { color: #64748b; font-size: .72rem; }
+.report-product-disclosure-total { justify-items: end; text-align: right; }
+.report-product-disclosure-total strong { color: #1e3a5f; font-size: .78rem; }
+.report-product-disclosure-total small { color: #64748b; font-size: .7rem; }
+.report-product-disclosure-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid #e5e7eb;
+  background: #f8fbff;
+}
+.report-product-disclosure-body > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.report-product-disclosure-body span {
+  color: #64748b;
+  font-size: .68rem;
+  font-weight: 700;
+}
+.report-product-disclosure-body strong {
+  min-width: 0;
+  color: #334155;
+  font-size: .76rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.report-product-empty { margin: 0; color: #64748b; font-size: .8rem; }
+.dark .report-detail-accordion.is-expanded .report-detail-accordion-trigger {
+  background: #22304b;
+  color: #dbeafe;
+}
+.dark .report-detail-accordion.is-expanded .report-detail-accordion-trigger:hover { background: #2a3d5d; }
+.dark .report-detail-accordion.is-expanded .report-detail-accordion-copy strong { color: #dbeafe; }
+.dark .report-detail-accordion.is-expanded .report-detail-accordion-copy small { color: #bfdbfe; }
+.dark .report-detail-accordion.is-expanded .report-detail-accordion-chevron { color: #bfdbfe; }
+.dark .report-product-disclosure { border-color: #334155; background: #111827; }
+.dark .report-product-disclosure > summary { color: #f8fafc; }
+.dark .report-product-disclosure-title strong { color: #f8fafc; }
+.dark .report-product-disclosure-title small,
+.dark .report-product-disclosure-total small { color: #94a3b8; }
+.dark .report-product-disclosure-total strong { color: #bfdbfe; }
+.dark .report-product-disclosure-body { border-top-color: #334155; background: #182135; }
+.dark .report-product-disclosure-body span { color: #94a3b8; }
+.dark .report-product-disclosure-body strong { color: #e2e8f0; }
+
+@media (max-width: 700px) {
+  .dashboard-report-chart-ylabels {
+    right: auto;
+    left: -60px;
+    width: 56px;
+    overflow: visible;
+    font-size: 8px;
+    text-align: right;
+  }
+  .dashboard-report-chart {
+    padding-left: 64px;
+  }
+  .report-detail-table td > *,
+  .report-detail-table td strong,
+  .report-detail-table td small {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    word-break: break-word;
+  }
+  .report-product-disclosure > summary {
+    min-height: 56px;
+    padding: 8px 10px;
+    gap: 7px;
+  }
+  .report-product-disclosure-body {
+    gap: 7px 10px;
+    padding: 9px 10px 10px;
+  }
+}
+
+@media print {
+  .report-product-disclosure {
+    break-inside: avoid;
+    border: 0;
+    border-bottom: 1px solid #d1d5db;
+    border-radius: 0;
+  }
+  .report-product-disclosure > summary {
+    min-height: 0;
+    padding: 4px 0;
+  }
+  .report-product-disclosure > summary > svg { display: none; }
+  .report-product-disclosure-body {
+    display: grid !important;
+    padding: 4px 0 7px;
+    border-top: 0;
+    background: #fff;
+  }
+}

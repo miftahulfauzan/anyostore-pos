@@ -3,6 +3,7 @@ import { localDateString } from '../lib/local-date';
 import SafeImage from '../components/SafeImage';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppSession } from '../components/AppStateProvider';
+import { openPrintView } from '../lib/print-utils';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const money = (v) => Number(v || 0).toLocaleString('id-ID');
@@ -223,7 +224,7 @@ export default function StockReportSection() {
         <div className="no-print" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
           <span style={{ flex: 1 }} />
           <button type="button" className="button-link" onClick={exportCsv} disabled={!grouped.length}>Unduh Excel</button>
-          <button type="button" className="button-link" onClick={() => window.print()} disabled={!grouped.length}>Unduh PDF</button>
+          <button type="button" className="button-link" onClick={() => openPrintView({ selector: '.form-page', title: 'Laporan Stok Produk' })} disabled={!grouped.length}>Unduh PDF</button>
         </div>
 
         {summary && (
