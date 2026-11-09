@@ -24,5 +24,8 @@ test('separate stock dashboard supports all branches or one selected branch', ()
   assert.match(stockDashboard, /owner_stock_dashboard/);
   assert.match(stockDashboard, /warehouse_dashboard/);
   assert.match(stockDashboard, /branch_id/);
-  assert.match(stockDashboard, /Semua toko dan gudang/);
+  // Judul "Mengikuti toko/gudang aktif" + baris periode dihapus (toko aktif
+  // sudah tampil di pemilih toko header), tetapi logika cabang tetap ada.
+  assert.doesNotMatch(stockDashboard, /Mengikuti toko\/gudang aktif/);
+  assert.match(stockDashboard, /query\.set\('branch_id', activeBranchId\)/);
 });

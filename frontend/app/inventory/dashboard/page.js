@@ -8,7 +8,6 @@ import useDashboardRefresh from '../../dashboard/useDashboardRefresh';
 import { getWarehousePeriodRange, WAREHOUSE_PERIOD_OPTIONS } from '../../dashboard/warehouse-periods.mjs';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-const fullDate = (value) => { const [year, month, day] = String(value || '').split('-'); return year ? `${day}/${month}/${year}` : '-'; };
 
 async function requestJson(path, options) {
   let response = await fetch(`${api}${path}`, options);
@@ -83,16 +82,10 @@ export default function StockDashboardPage() {
   }, [role, activeBranchId, range, refreshVersion]);
 
   const dashboardKey = role === 'owner' ? 'owner_stock_dashboard' : 'warehouse_dashboard';
-  const dashboardLabel = role === 'owner' && activeBranchId === 'all'
-    ? 'Semua toko dan gudang'
-    : 'Mengikuti toko/gudang aktif';
-
   return <AppShell title="Dashboard Stok" eyebrow="PRODUK & INVENTORI" actions={<a className="button-link" href="/inventory">Lihat Stok</a>}>
-    <section className="warehouse-dashboard-toolbar stock-dashboard-toolbar">
-      <div>
-        <h2>{role === 'owner' ? dashboardLabel : 'Ringkasan stok cabang aktif'}</h2>
-        <p className="muted">Periode {fullDate(range.start)} – {fullDate(range.end)}</p>
-      </div>
+    {/* Judul toolbar dan baris periode tidak ditampilkan: toko aktif sudah
+        ada di pemilih toko pada header dan periode tampil di bar periode. */}
+    <section className="warehouse-dashboard-toolbar stock-dashboard-toolbar period-toolbar-compact">
       <div className="stock-dashboard-controls">
         <div className="warehouse-dashboard-periods stock-dashboard-periods" role="group" aria-label="Pilih periode dashboard stok">
           {WAREHOUSE_PERIOD_OPTIONS.map(({ key, label }) => (
