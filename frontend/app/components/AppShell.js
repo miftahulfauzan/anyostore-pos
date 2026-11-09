@@ -38,7 +38,7 @@ import BranchSwitcher from './BranchSwitcher';
 // Jika field `roles` tidak ada → tampil untuk semua role login.
 const navigation = [
   {
-    label: 'UTAMA',
+    label: 'OPERASIONAL',
     items: [
       { href: '/dashboard', label: 'Dasbor', icon: LayoutDashboard },
       { href: '/history', label: 'Transaksi', icon: ReceiptText, roles: ['owner', 'manager', 'admin'] },
