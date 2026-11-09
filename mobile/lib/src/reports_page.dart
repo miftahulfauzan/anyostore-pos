@@ -38,6 +38,26 @@ String? _offlineBusinessDate(Map<String, dynamic> payload, dynamic createdAt,
 
 String _fmtPercent(dynamic value) => '${asNum(value).toStringAsFixed(2)}%';
 
+Map<String, dynamic> _previousSummary(Map<String, dynamic>? data) {
+  final direct = data?['previous_summary'];
+  if (direct is Map) return Map<String, dynamic>.from(direct);
+  final comparison = data?['comparison'];
+  if (comparison is Map && comparison['previous_summary'] is Map) {
+    return Map<String, dynamic>.from(comparison['previous_summary'] as Map);
+  }
+  return const {};
+}
+
+String? _changePercent(dynamic current, dynamic previous) {
+  if (previous == null) return null;
+  final before = asNum(previous);
+  final now = asNum(current);
+  if (before == 0) return now == 0 ? '—' : null;
+  final change = (now - before) * 100 / before.abs();
+  final arrow = change >= 0 ? '↑ +' : '↓ ';
+  return '$arrow${change.abs().toStringAsFixed(1)}%';
+}
+
 class ReportsPage extends StatefulWidget {
   const ReportsPage(
       {super.key,
@@ -56,7 +76,7 @@ class ReportsPage extends StatefulWidget {
 }
 
 class _ReportsPageState extends State<ReportsPage> {
-  String _section = 'ringkasan';
+  String _section = 'penjualan';
   String _preset = '7d';
   String _closingDate = todayWib();
   DateTime? _from;
@@ -85,7 +105,9 @@ class _ReportsPageState extends State<ReportsPage> {
   @override
   void initState() {
     super.initState();
-    _section = widget.initialSection;
+    _section = widget.initialSection == 'ringkasan' && widget.role != 'kasir'
+        ? 'penjualan'
+        : widget.initialSection;
     if (_isOwner) {
       _branchId = BranchScope.active.value;
       widget.api.activeBranchId = _branchId;
@@ -533,16 +555,11 @@ class _ReportsPageState extends State<ReportsPage> {
                   padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                   child: PillTabs(
                     tabs: [
-                      if (widget.role != 'kasir')
-                        (
-                          value: 'penjualan',
-                          icon: Icons.point_of_sale,
-                          label: 'Penjualan'
-                        ),
                       (
-                        value: 'ringkasan',
-                        icon: Icons.dashboard_outlined,
-                        label: 'Ringkasan'
+                        value:
+                            widget.role == 'kasir' ? 'ringkasan' : 'penjualan',
+                        icon: Icons.point_of_sale,
+                        label: 'Penjualan'
                       ),
                       (
                         value: 'penutupan',
@@ -966,10 +983,10 @@ class _ReportsPageState extends State<ReportsPage> {
           ...(widget.dashboardMode
               ? _dashboard()
               : switch (_section) {
-                  'penjualan' => _sales(),
+                  'penjualan' || 'ringkasan' => _sales(),
                   'penutupan' => _closing(),
                   'ppn' => _ppn(),
-                  _ => _overview(),
+                  _ => _sales(),
                 }),
         ]),
       ),
@@ -991,6 +1008,7 @@ class _ReportsPageState extends State<ReportsPage> {
         .whereType<Map<String, dynamic>>()
         .toList();
     final productsSold = _totalProductsSold(_data);
+    final previous = _previousSummary(_data);
     final paymentTotal = methods.fold<double>(0,
         (total, method) => total + asNum(method['amount'] ?? method['total']));
     final hasProfit = summary['net_profit'] != null;
@@ -1011,22 +1029,31 @@ class _ReportsPageState extends State<ReportsPage> {
                   'Pendapatan',
                   fmtRp(asNum(summary['gross_sales'] ?? summary['revenue'])),
                   Icons.account_balance_wallet_outlined,
-                  kTaskDark),
+                  kTaskDark,
+                  change: _changePercent(
+                      summary['gross_sales'] ?? summary['revenue'],
+                      previous['gross_sales'] ?? previous['revenue'])),
               _DashboardKpiData('Pesanan', '${summary['transactions'] ?? 0}',
-                  Icons.shopping_bag_outlined, kTaskAccent),
+                  Icons.shopping_bag_outlined, kTaskAccent,
+                  change: _changePercent(
+                      summary['transactions'], previous['transactions'])),
               _DashboardKpiData('Produk terjual', '${productsSold ?? 0} pcs',
-                  Icons.inventory_2_outlined, kTaskTeal),
+                  Icons.inventory_2_outlined, kTaskTeal,
+                  change:
+                      _changePercent(productsSold, previous['products_sold'])),
               _DashboardKpiData(fourthKpiLabel, fourthKpiValue,
-                  Icons.savings_outlined, kTaskPurple),
+                  Icons.savings_outlined, kTaskPurple,
+                  change: _changePercent(
+                      hasProfit ? summary['net_profit'] : summary['expenses'],
+                      hasProfit
+                          ? previous['net_profit']
+                          : previous['expenses'])),
             ],
           ),
-          _Row(
-              'Margin keuntungan',
-              summary['profit_margin_percent'] != null
-                  ? _fmtPercent(summary['profit_margin_percent'])
-                  : '-'),
-          _Row('Pengeluaran', fmtRp(asNum(summary['expenses']))),
-          _Row('Pengembalian', fmtRp(asNum(summary['return_amount']))),
+          if (summary['profit_margin_percent'] != null)
+            _Row('Persentase keuntungan',
+                _fmtPercent(summary['profit_margin_percent'])),
+          _Row('Laba kotor', fmtRp(asNum(summary['gross_profit']))),
         ],
       ),
       _ReportSection(
@@ -1042,35 +1069,18 @@ class _ReportsPageState extends State<ReportsPage> {
           else
             const _ReportEmptySeries(
                 'Belum ada data penjualan pada periode ini.'),
-          _Row(
-              'Pembayaran',
-              paymentTotal > 0
-                  ? fmtRp(paymentTotal)
-                  : fmtRp(asNum(summary['gross_sales'] ?? summary['revenue']))),
-          _Row('Pengeluaran', fmtRp(asNum(summary['expenses']))),
-          _Row('Pengembalian', fmtRp(asNum(summary['return_amount']))),
+          _DashboardFinanceRows(
+            payment: paymentTotal > 0
+                ? paymentTotal
+                : asNum(summary['gross_sales'] ?? summary['revenue']),
+            expense: asNum(summary['expenses']),
+            returns: asNum(summary['return_amount']),
+          ),
         ],
       ),
-      _DashboardListCard(
-        key: const ValueKey('reports-merged-products'),
-        title: 'Produk terlaris',
-        icon: Icons.shopping_bag_outlined,
-        color: kTaskTeal,
-        items: products.take(5).toList(),
-        emptyMessage: 'Belum ada produk terlaris pada periode ini.',
-        value: (product) => '${product['quantity_sold'] ?? 0} pcs',
-        progress: (product) => asNum(product['quantity_sold']),
-      ),
-      _DashboardListCard(
-        key: const ValueKey('reports-merged-low-stock'),
-        title: 'Stok rendah',
-        icon: Icons.warning_amber_rounded,
-        color: kTaskTerracotta,
-        items: lowStock.take(5).toList(),
-        emptyMessage: 'Tidak ada stok yang perlu diperiksa.',
-        value: (product) =>
-            '${product['stock'] ?? 0} / min ${product['min_stock'] ?? 0}',
-        progress: (product) => asNum(product['stock']),
+      _DashboardListPair(
+        products: products.take(5).toList(),
+        lowStock: lowStock.take(5).toList(),
       ),
     ];
   }
@@ -1097,90 +1107,15 @@ class _ReportsPageState extends State<ReportsPage> {
     return total;
   }
 
-  List<Widget> _overview() {
-    final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
-    final methods = ((_data?['payment_methods'] as List?) ?? [])
-        .cast<Map<String, dynamic>>();
-    final products =
-        ((_data?['products'] as List?) ?? []).cast<Map<String, dynamic>>();
-    final lowStock =
-        ((_data?['low_stock'] as List?) ?? []).cast<Map<String, dynamic>>();
-    final productsSold = _totalProductsSold(_data);
-    return [
-      _Card('Ringkasan', [
-        _FocalMetric('Penjualan',
-            fmtRp(asNum(summary['gross_sales'] ?? summary['revenue']))),
-        _Row('Transaksi', '${summary['transactions'] ?? 0}'),
-        if (productsSold != null) _Row('Produk terjual', '$productsSold pcs'),
-        _Row('Pemasukan', fmtRp(asNum(summary['income']))),
-        _Row('HPP', fmtRp(asNum(summary['cost_of_goods']))),
-        _Row('Laba kotor', fmtRp(asNum(summary['gross_profit']))),
-        if (summary['profit_margin_percent'] != null)
-          _Row('Persentase keuntungan',
-              _fmtPercent(summary['profit_margin_percent'])),
-        _Row('Pengeluaran', fmtRp(asNum(summary['expenses']))),
-        _Row('Laba bersih', fmtRp(asNum(summary['net_profit']))),
-      ]),
-      if (methods.isNotEmpty)
-        _Card('Metode pembayaran', [
-          for (final m in methods)
-            _Row((m['payment_method'] ?? '').toString().toUpperCase(),
-                fmtRp(asNum(m['amount']))),
-        ]),
-      _Card('Stok rendah (${lowStock.length})', [
-        for (final s in lowStock.take(10))
-          _Row('${s['name']}', '${s['stock']} / min ${s['min_stock']}'),
-      ]),
-      _Card('Produk terlaris', [
-        for (final p in products.take(10))
-          _Row('${p['name']}',
-              '${p['quantity_sold']} pcs · ${fmtRp(asNum(p['revenue']))}'),
-      ]),
-    ];
-  }
-
   List<Widget> _sales() {
-    final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
-    final payments = ((_data?['payment_methods'] as List?) ?? [])
-        .cast<Map<String, dynamic>>();
-    final products =
-        ((_data?['products'] as List?) ?? []).cast<Map<String, dynamic>>();
-    final daily =
-        ((_data?['daily_sales'] as List?) ?? []).cast<Map<String, dynamic>>();
     final cashiers =
         ((_data?['cashiers'] as List?) ?? []).cast<Map<String, dynamic>>();
     final customers =
         ((_data?['customers'] as List?) ?? []).cast<Map<String, dynamic>>();
     final transactions =
         ((_data?['transactions'] as List?) ?? []).cast<Map<String, dynamic>>();
-    final productsSold = _totalProductsSold(_data);
     return [
-      _Card('Penjualan', [
-        _FocalMetric('Penjualan bersih',
-            fmtRp(asNum(summary['gross_sales'] ?? summary['revenue']))),
-        _Row('Transaksi', '${summary['transactions'] ?? 0}'),
-        if (productsSold != null) _Row('Produk terjual', '$productsSold pcs'),
-        _Row('Diskon', fmtRp(asNum(summary['discounts']))),
-        _Row('Modal barang terjual', fmtRp(asNum(summary['cost_of_goods']))),
-        _Row('Laba kotor', fmtRp(asNum(summary['gross_profit']))),
-        if (summary['profit_margin_percent'] != null)
-          _Row('Persentase keuntungan',
-              _fmtPercent(summary['profit_margin_percent'])),
-        _Row('Laba bersih', fmtRp(asNum(summary['net_profit']))),
-      ]),
-      if (payments.isNotEmpty)
-        _Card('Pembayaran per metode', [
-          for (final p in payments)
-            _Row(
-                '${(p['payment_method'] ?? '').toString().toUpperCase()} · ${p['transactions'] ?? 0} transaksi',
-                fmtRp(asNum(p['amount']))),
-        ]),
-      if (daily.isNotEmpty)
-        _Card('Penjualan per tanggal', [
-          for (final d in daily)
-            _Row('${_displayDate(d['date'])} · ${d['transactions']} transaksi',
-                fmtRp(asNum(d['revenue']))),
-        ]),
+      ..._dashboard(),
       if (cashiers.isNotEmpty)
         _Card('Penjualan per kasir', [
           for (final c in cashiers.take(20))
@@ -1192,13 +1127,6 @@ class _ReportsPageState extends State<ReportsPage> {
           for (final c in customers.take(20))
             _Row('${c['name']} · ${c['phone'] ?? '-'}',
                 '${c['transactions']} trx · ${fmtRp(asNum(c['revenue']))}'),
-        ]),
-      if (products.isNotEmpty)
-        _Card('Produk terjual', [
-          for (final p in products.take(30))
-            _Row(
-                '${p['name']} · SKU ${p['sku'] ?? '-'} · ${p['quantity_sold']} pcs',
-                'Omzet ${fmtRp(asNum(p['revenue']))}\nModal ${fmtRp(asNum(p['cost_of_goods']))} · Laba ${fmtRp(asNum(p['profit']))}'),
         ]),
       if (transactions.isNotEmpty)
         _Card('Transaksi terbaru', [
@@ -1379,12 +1307,14 @@ class _ReportSection extends StatelessWidget {
 }
 
 class _DashboardKpiData {
-  const _DashboardKpiData(this.label, this.value, this.icon, this.color);
+  const _DashboardKpiData(this.label, this.value, this.icon, this.color,
+      {this.change});
 
   final String label;
   final String value;
   final IconData icon;
   final Color color;
+  final String? change;
 }
 
 class _DashboardKpiGrid extends StatelessWidget {
@@ -1401,7 +1331,7 @@ class _DashboardKpiGrid extends StatelessWidget {
           crossAxisCount: 2,
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
-          mainAxisExtent: 86,
+          mainAxisExtent: 104,
         ),
         itemBuilder: (context, index) {
           final item = items[index];
@@ -1415,17 +1345,45 @@ class _DashboardKpiGrid extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: item.color.withValues(alpha: .12),
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(6),
-                    child: Icon(item.icon, size: 15, color: item.color),
-                  ),
+                Row(
+                  children: [
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: item.color.withValues(alpha: .12),
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: Icon(item.icon, size: 15, color: item.color),
+                      ),
+                    ),
+                    const Spacer(),
+                    if (item.change != null)
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: item.change!.startsWith('↓')
+                                ? kTaskTerracotta.withValues(alpha: .12)
+                                : kTaskTeal.withValues(alpha: .12),
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                          child: Text(item.change!,
+                              key: ValueKey('reports-kpi-change-${item.label}'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  color: item.change!.startsWith('↓')
+                                      ? kTaskTerracotta
+                                      : kTaskTeal)),
+                        ),
+                      ),
+                  ],
                 ),
-                const Spacer(),
+                const SizedBox(height: 8),
                 Text(item.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -1443,6 +1401,115 @@ class _DashboardKpiGrid extends StatelessWidget {
                         color: ink(context))),
               ],
             ),
+          );
+        },
+      );
+}
+
+class _DashboardFinanceRows extends StatelessWidget {
+  const _DashboardFinanceRows({
+    required this.payment,
+    required this.expense,
+    required this.returns,
+  });
+
+  final double payment;
+  final double expense;
+  final double returns;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        children: [
+          _DashboardFinanceRow(
+              'Pembayaran', payment, Icons.credit_card, kTaskTeal),
+          _DashboardFinanceRow(
+              'Pengeluaran', expense, Icons.receipt_long, kTaskTerracotta),
+          _DashboardFinanceRow(
+              'Pengembalian', returns, Icons.refresh, kTaskPurple),
+        ],
+      );
+}
+
+class _DashboardFinanceRow extends StatelessWidget {
+  const _DashboardFinanceRow(this.label, this.amount, this.icon, this.color);
+
+  final String label;
+  final double amount;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        child: Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: .12),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(icon, size: 16, color: color),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text(label,
+                  style: TextStyle(fontSize: 12, color: taskMuted(context))),
+            ),
+            Text(fmtRp(amount),
+                style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w900, color: color)),
+            const SizedBox(width: 5),
+            Icon(Icons.chevron_right, size: 18, color: color),
+          ],
+        ),
+      );
+}
+
+class _DashboardListPair extends StatelessWidget {
+  const _DashboardListPair({required this.products, required this.lowStock});
+
+  final List<Map<String, dynamic>> products;
+  final List<Map<String, dynamic>> lowStock;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final cards = [
+            _DashboardListCard(
+              key: const ValueKey('reports-merged-products'),
+              title: 'Produk terlaris',
+              icon: Icons.shopping_bag_outlined,
+              color: kTaskTeal,
+              items: products,
+              emptyMessage: 'Belum ada produk terlaris pada periode ini.',
+              value: (product) => '${product['quantity_sold'] ?? 0} pcs',
+              progress: (product) => asNum(product['quantity_sold']),
+            ),
+            _DashboardListCard(
+              key: const ValueKey('reports-merged-low-stock'),
+              title: 'Stok rendah',
+              icon: Icons.inventory_2_outlined,
+              color: kTaskTerracotta,
+              items: lowStock,
+              emptyMessage: 'Tidak ada stok yang perlu diperiksa.',
+              value: (product) =>
+                  '${product['stock'] ?? 0} / min ${product['min_stock'] ?? 0}',
+              progress: (product) => asNum(product['stock']),
+            ),
+          ];
+          if (constraints.maxWidth < 350) {
+            return Column(
+                children: [cards[0], const SizedBox(height: 12), cards[1]]);
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: cards[0]),
+              const SizedBox(width: 10),
+              Expanded(child: cards[1]),
+            ],
           );
         },
       );
@@ -1546,8 +1613,13 @@ class _DashboardListItem extends StatelessWidget {
                         color: ink(context))),
               ),
               const SizedBox(width: 8),
-              Text(value,
-                  style: TextStyle(fontSize: 11, color: taskMuted(context))),
+              Flexible(
+                child: Text(value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                    style: TextStyle(fontSize: 11, color: taskMuted(context))),
+              ),
             ],
           ),
           const SizedBox(height: 7),
@@ -1735,66 +1807,45 @@ class _SalesTrendCardState extends State<_SalesTrendCard> {
                   color: ink(context))),
           const SizedBox(height: 14),
           SizedBox(
-            height: 104,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            height: 148,
+            child: Stack(
               children: [
-                for (var i = 0; i < visible.length; i++)
-                  Expanded(
-                    child: GestureDetector(
-                      key: ValueKey('reports-sales-trend-bar-$i'),
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => setState(() => _selectedIndex = i),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            SizedBox(
-                              height: 76,
-                              child: Align(
-                                alignment: Alignment.bottomCenter,
-                                child: Container(
-                                  width: 12,
-                                  height: maxValue == 0
-                                      ? 4
-                                      : (values[i] / maxValue * 72)
-                                          .clamp(4, 72)
-                                          .toDouble(),
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [kTaskAccent, kTaskTeal],
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: accent.withValues(alpha: .18),
-                                        blurRadius: 6,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ],
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              (visible[i]['date']?.toString() ?? '').length >=
-                                      10
-                                  ? visible[i]['date']
-                                      .toString()
-                                      .substring(8, 10)
-                                  : visible[i]['date']?.toString() ?? '',
-                              style: TextStyle(
-                                  fontSize: 9, color: taskMuted(context)),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _SalesTrendPainter(
+                        values: values, color: accent, maxValue: maxValue),
                   ),
+                ),
+                Positioned.fill(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (var i = 0; i < visible.length; i++)
+                        Expanded(
+                          child: GestureDetector(
+                            key: ValueKey('reports-sales-trend-bar-$i'),
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => setState(() => _selectedIndex = i),
+                            child: const SizedBox.expand(),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  left: 10,
+                  right: 10,
+                  bottom: 0,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      for (final row in visible)
+                        Text(_dateLabel(row['date']),
+                            style: TextStyle(
+                                fontSize: 9, color: taskMuted(context))),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -1840,6 +1891,82 @@ class _SalesTrendCardState extends State<_SalesTrendCard> {
         ? '${raw.substring(8, 10)}/${raw.substring(5, 7)}'
         : raw;
   }
+}
+
+class _SalesTrendPainter extends CustomPainter {
+  const _SalesTrendPainter(
+      {required this.values, required this.color, required this.maxValue});
+
+  final List<double> values;
+  final Color color;
+  final double maxValue;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final chart = Rect.fromLTRB(12, 8, size.width - 12, size.height - 28);
+    final gridPaint = Paint()
+      ..color = color.withValues(alpha: .12)
+      ..strokeWidth = 1;
+    for (var i = 0; i < 4; i++) {
+      final y = chart.top + chart.height * i / 3;
+      canvas.drawLine(Offset(chart.left, y), Offset(chart.right, y), gridPaint);
+    }
+    if (values.isEmpty) return;
+    final points = <Offset>[];
+    for (var i = 0; i < values.length; i++) {
+      final x = values.length == 1
+          ? chart.center.dx
+          : chart.left + chart.width * i / (values.length - 1);
+      final ratio = maxValue <= 0 ? 0.0 : (values[i] / maxValue).clamp(0, 1);
+      points.add(Offset(x, chart.bottom - chart.height * ratio));
+    }
+    final line = Path()..moveTo(points.first.dx, points.first.dy);
+    for (var i = 1; i < points.length; i++) {
+      final previous = points[i - 1];
+      final current = points[i];
+      final midpoint = (previous.dx + current.dx) / 2;
+      line.cubicTo(
+          midpoint, previous.dy, midpoint, current.dy, current.dx, current.dy);
+    }
+    final area = Path.from(line)
+      ..lineTo(points.last.dx, chart.bottom)
+      ..lineTo(points.first.dx, chart.bottom)
+      ..close();
+    canvas.drawPath(
+        area,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              color.withValues(alpha: .24),
+              color.withValues(alpha: .03)
+            ],
+          ).createShader(chart));
+    canvas.drawPath(
+        line,
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.2
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round);
+    final dotPaint = Paint()..color = color;
+    final ringPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    for (final point in points) {
+      canvas.drawCircle(point, 4.2, dotPaint);
+      canvas.drawCircle(point, 4.2, ringPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SalesTrendPainter oldDelegate) =>
+      oldDelegate.values != values ||
+      oldDelegate.color != color ||
+      oldDelegate.maxValue != maxValue;
 }
 
 class _Card extends StatelessWidget {

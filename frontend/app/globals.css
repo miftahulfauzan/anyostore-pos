@@ -2498,6 +2498,11 @@ html[data-theme="green"] .link-button.danger:hover, html[data-theme="blue"] .lin
 .dashboard-report-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 42px; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
 .dashboard-report-row:last-child { border-bottom: 0; }
 .dashboard-report-row span { color: #475569; font-size: 12px; }
+.dashboard-report-row-label { display: inline-flex; align-items: center; gap: 8px; }
+.dashboard-report-row-icon { display: inline-grid; width: 28px; height: 28px; place-items: center; border-radius: 9px; font-style: normal; }
+.report-row-payment { background: #e2f6ed; color: #16856a; }
+.report-row-expense { background: #fff0e4; color: #c2410c; }
+.report-row-return { background: #eee8ff; color: #7c3aed; }
 .dashboard-report-row strong { color: #111827; font-size: 13px; text-align: right; }
 .dashboard-report-glance { max-width: 100%; }
 .dashboard-report-sales { max-width: 100%; }
@@ -2505,8 +2510,9 @@ html[data-theme="green"] .link-button.danger:hover, html[data-theme="blue"] .lin
 .dashboard-report-focal span { color: #64748b; font-size: 12px; }
 .dashboard-report-focal strong { color: #2563eb; font-size: clamp(28px, 4vw, 42px); line-height: 1.05; letter-spacing: -.04em; }
 .dashboard-report-focal small { color: #64748b; font-size: 11px; }
-.dashboard-report-chart { min-height: 215px; padding: 12px 10px 10px; border-radius: 10px; background: #f8fafc; }
+.dashboard-report-chart { position: relative; min-height: 215px; padding: 12px 10px 10px 44px; border-radius: 10px; background: #f8fafc; }
 .dashboard-report-chart svg { display: block; width: 100%; height: 180px; overflow: visible; }
+.dashboard-report-chart-ylabels { position: absolute; top: 13px; bottom: 44px; left: 6px; display: flex; flex-direction: column; justify-content: space-between; color: #64748b; font-size: 9px; line-height: 1; }
 .dashboard-report-chart .chart-grid { stroke: #dbe3ee; stroke-width: .6; vector-effect: non-scaling-stroke; }
 .dashboard-report-chart .chart-axis { stroke: #94a3b8; stroke-width: .8; vector-effect: non-scaling-stroke; }
 .dashboard-report-axis-labels { display: flex; justify-content: space-between; gap: 8px; overflow: hidden; color: #64748b; font-size: 10px; }
@@ -2635,22 +2641,38 @@ html[data-theme="green"] .link-button.danger:hover, html[data-theme="blue"] .lin
 .dashboard-overview-card { background: linear-gradient(145deg, #fff 0%, #f8fbff 100%); }
 .dashboard-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .dashboard-kpi-tile { min-width: 0; min-height: 108px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; box-shadow: 0 7px 18px rgba(30,58,95,.06); }
-.dashboard-kpi-icon { display: grid; width: 30px; height: 30px; place-items: center; margin-bottom: 10px; border-radius: 9px; background: color-mix(in srgb, var(--kpi-tone) 12%, white); color: var(--kpi-tone); }
+.dashboard-kpi-topline { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
+.dashboard-kpi-icon { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 9px; background: color-mix(in srgb, var(--kpi-tone) 12%, white); color: var(--kpi-tone); }
+.dashboard-kpi-change { display: inline-flex; align-items: center; min-height: 22px; padding: 3px 6px; border-radius: 99px; background: #e4f7ea; color: #137a43; font-size: 9px; font-weight: 800; white-space: nowrap; }
+.dashboard-kpi-change.is-down { background: #fff0e7; color: #c2410c; }
 .dashboard-kpi-label { display: block; overflow: hidden; color: #64748b; font-size: 10px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .dashboard-kpi-tile strong { display: block; margin-top: 6px; overflow-wrap: anywhere; color: #12233d; font-size: clamp(13px, 1.55vw, 18px); line-height: 1.15; }
 .dashboard-kpi-denim { --kpi-tone: #1e3a5f; }
 .dashboard-kpi-blue { --kpi-tone: #2563eb; }
 .dashboard-kpi-teal { --kpi-tone: #16856a; }
 .dashboard-kpi-purple { --kpi-tone: #7c3aed; }
+.dashboard-overview-footline { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 10px; border-top: 1px solid #e5e7eb; color: #64748b; font-size: 11px; }
+.dashboard-overview-footline strong { color: #1e3a5f; font-size: 13px; }
 .dashboard-summary-meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 14px; padding-top: 2px; }
 .dashboard-summary-meta .dashboard-report-row { display: grid; min-height: 38px; gap: 3px; padding: 6px 0 0; border-bottom: 0; }
 .dashboard-summary-meta .dashboard-report-row strong { text-align: left; }
 .dashboard-sales-summary { background: #fff; }
 .dashboard-report-focal { padding: 2px 0 2px; }
 .dashboard-report-focal strong { color: #2563eb; }
-.dashboard-sales-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
-.dashboard-sales-metrics .dashboard-report-row { display: grid; min-height: 42px; gap: 3px; padding: 8px 0 0; border-bottom: 0; }
-.dashboard-sales-metrics .dashboard-report-row strong { text-align: left; }
+.dashboard-sales-metrics { display: grid; gap: 0; margin-top: 14px; }
+.dashboard-sales-metrics .dashboard-finance-row { min-height: 48px; }
+.dashboard-finance-row { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto 18px; align-items: center; gap: 9px; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+.dashboard-finance-row:last-child { border-bottom: 0; }
+.dashboard-finance-icon { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 9px; }
+.dashboard-finance-row > span:nth-child(2) { color: #334155; font-size: 12px; }
+.dashboard-finance-row strong { font-size: 13px; }
+.dashboard-finance-chevron { color: currentColor; font-size: 25px; line-height: 1; }
+.dashboard-finance-payment { color: #16856a; }
+.dashboard-finance-payment .dashboard-finance-icon { background: #e2f6ed; }
+.dashboard-finance-expense { color: #c2410c; }
+.dashboard-finance-expense .dashboard-finance-icon { background: #fff0e4; }
+.dashboard-finance-return { color: #7c3aed; }
+.dashboard-finance-return .dashboard-finance-icon { background: #eee8ff; }
 .dashboard-secondary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .dashboard-list-card { min-width: 0; }
 .dashboard-list-item { display: grid; gap: 8px; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
@@ -2672,6 +2694,8 @@ html[data-theme="green"] .link-button.danger:hover, html[data-theme="blue"] .lin
 .dark .dashboard-summary-footnote { color: #94a3b8; }
 .dark .dashboard-kpi-tile strong,
 .dark .dashboard-list-item strong { color: #f1f5f9; }
+.dark .dashboard-overview-footline { border-top-color: rgba(148,163,184,.16); color: #94a3b8; }
+.dark .dashboard-overview-footline strong { color: #bfdbfe; }
 .dark .dashboard-list-item { border-bottom-color: rgba(148,163,184,.16); }
 .dark .dashboard-list-track { background: #334155; }
 
@@ -2692,7 +2716,13 @@ html[data-theme="green"] .link-button.danger:hover, html[data-theme="blue"] .lin
   .dashboard-sales-metrics .dashboard-report-row { grid-template-columns: 1fr auto; min-height: 38px; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
   .dashboard-summary-meta .dashboard-report-row strong,
   .dashboard-sales-metrics .dashboard-report-row strong { text-align: right; }
-  .dashboard-secondary-grid { grid-template-columns: 1fr; gap: 12px; }
+  .dashboard-secondary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .dashboard-secondary-grid .dashboard-report-section { padding: 11px; }
+  .dashboard-secondary-grid .dashboard-report-heading h2 { gap: 5px; font-size: 14px; }
+  .dashboard-secondary-grid .dashboard-report-heading h2 svg { width: 16px; height: 16px; }
+  .dashboard-secondary-grid .dashboard-list-item { padding: 8px 0; }
+  .dashboard-secondary-grid .dashboard-list-item > div:first-child { display: grid; gap: 3px; }
+  .dashboard-secondary-grid .dashboard-list-item > div:first-child span { text-align: left; }
   .dashboard-summary-footnote { padding: 2px 8px; text-align: center; }
   .dark .dashboard-summary-meta .dashboard-report-row,
   .dark .dashboard-sales-metrics .dashboard-report-row { border-bottom-color: rgba(148,163,184,.16); }

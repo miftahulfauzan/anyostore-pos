@@ -14,6 +14,14 @@ import { useState } from 'react';
 const rupiah = (value) => 'Rp' + Number(value || 0).toLocaleString('id-ID');
 const number = (value) => Number(value || 0);
 const percent = (value) => `${number(value).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+const changePercent = (current, previous) => {
+  if (previous == null) return null;
+  const before = number(previous);
+  const now = number(current);
+  if (before === 0) return now === 0 ? '—' : null;
+  const change = ((now - before) / Math.abs(before)) * 100;
+  return `${change >= 0 ? '↑ +' : '↓ '}${Math.abs(change).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+};
 const dateLabel = (value) => {
   const raw = String(value || '');
   return raw.length >= 10 ? raw.slice(8, 10) : raw;
@@ -38,15 +46,33 @@ function Section({ title, description, icon: Icon, tone = 'denim', children, cla
   </section>;
 }
 
-function MetricRow({ label, value }) {
-  return <div className="dashboard-report-row"><span>{label}</span><strong>{value}</strong></div>;
+function MetricRow({ label, value, icon: Icon, tone = 'denim' }) {
+  return <div className="dashboard-report-row">
+    <span className="dashboard-report-row-label">
+      {Icon && <i className={`dashboard-report-row-icon report-row-${tone}`}><Icon aria-hidden="true" size={15} /></i>}
+      {label}
+    </span>
+    <strong>{value}</strong>
+  </div>;
 }
 
-function MetricTile({ label, value, icon: Icon, tone = 'denim' }) {
+function MetricTile({ label, value, icon: Icon, tone = 'denim', change }) {
   return <div className={`dashboard-kpi-tile dashboard-kpi-${tone}`}>
-    <span className="dashboard-kpi-icon"><Icon aria-hidden="true" size={16} /></span>
+    <div className="dashboard-kpi-topline">
+      <span className="dashboard-kpi-icon"><Icon aria-hidden="true" size={16} /></span>
+      {change && <span className={`dashboard-kpi-change ${change.startsWith('↓') ? 'is-down' : ''}`}>{change}</span>}
+    </div>
     <span className="dashboard-kpi-label">{label}</span>
     <strong>{value}</strong>
+  </div>;
+}
+
+function FinanceRow({ label, value, icon: Icon, tone }) {
+  return <div className={`dashboard-finance-row dashboard-finance-${tone}`}>
+    <span className="dashboard-finance-icon"><Icon aria-hidden="true" size={16} /></span>
+    <span>{label}</span>
+    <strong>{value}</strong>
+    <span className="dashboard-finance-chevron" aria-hidden="true">›</span>
   </div>;
 }
 
@@ -64,10 +90,16 @@ function TrendChart({ rows, valueKey = 'revenue', color, emptyMessage, totalLabe
   const area = `0,94 ${points} 100,94`;
   return <div className="dashboard-report-chart" aria-label="Grafik tren laporan">
     <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Grafik tren penjualan">
+      <defs>
+        <linearGradient id="sales-area-gradient" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity=".28" />
+          <stop offset="100%" stopColor={color} stopOpacity=".03" />
+        </linearGradient>
+      </defs>
       <line x1="0" y1="94" x2="100" y2="94" className="chart-axis" />
       <line x1="0" y1="53" x2="100" y2="53" className="chart-grid" />
       <line x1="0" y1="12" x2="100" y2="12" className="chart-grid" />
-      <polygon points={area} fill={`${color}22`} />
+      <polygon points={area} fill="url(#sales-area-gradient)" />
       <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
       {values.map((value, index) => {
         const x = visible.length === 1 ? 50 : (index / (visible.length - 1)) * 100;
@@ -75,6 +107,9 @@ function TrendChart({ rows, valueKey = 'revenue', color, emptyMessage, totalLabe
         return <circle key={`${visible[index].date}-${index}`} cx={x} cy={y} r="1.7" fill="#fff" stroke={color} strokeWidth="1" vectorEffect="non-scaling-stroke" />;
       })}
     </svg>
+    <div className="dashboard-report-chart-ylabels" aria-hidden="true">
+      <span>{rupiah(max)}</span><span>{rupiah(Math.round(max / 2))}</span><span>Rp0</span>
+    </div>
     <div className="dashboard-report-axis-labels">
       {visible.map((row) => <span key={row.date}>{dateLabel(row.date)}</span>)}
     </div>
@@ -113,6 +148,7 @@ export default function OlseraDashboardSections({ reportData, fallbackData }) {
   if (!source) return <section className="panel dashboard-report-loading"><p>Memuat laporan toko…</p></section>;
 
   const sourceSummary = reportData?.summary || fallbackData?.selected_summary || fallbackData?.summary || {};
+  const previousSummary = reportData?.previous_summary || reportData?.comparison?.previous_summary || {};
   const summary = {
     ...sourceSummary,
     gross_sales: sourceSummary.gross_sales ?? sourceSummary.revenue ?? sourceSummary.sales ?? 0,
@@ -142,15 +178,14 @@ export default function OlseraDashboardSections({ reportData, fallbackData }) {
       data-dashboard-section="summary"
     >
       <div className="dashboard-kpi-grid">
-        <MetricTile label="Pendapatan" value={rupiah(summary.gross_sales)} icon={CircleDollarSign} tone="denim" />
-        <MetricTile label="Pesanan" value={number(summary.transactions)} icon={ShoppingBag} tone="blue" />
-        <MetricTile label="Produk terjual" value={`${productsSold} pcs`} icon={PackageSearch} tone="teal" />
-        <MetricTile label={fourthKpiLabel} value={fourthKpiValue} icon={CircleDollarSign} tone="purple" />
+        <MetricTile label="Pendapatan" value={rupiah(summary.gross_sales)} icon={CircleDollarSign} tone="denim" change={changePercent(summary.gross_sales, previousSummary.gross_sales)} />
+        <MetricTile label="Pesanan" value={number(summary.transactions)} icon={ShoppingBag} tone="blue" change={changePercent(summary.transactions, previousSummary.transactions)} />
+        <MetricTile label="Produk terjual" value={`${productsSold} pcs`} icon={PackageSearch} tone="teal" change={changePercent(productsSold, previousSummary.products_sold)} />
+        <MetricTile label={fourthKpiLabel} value={fourthKpiValue} icon={CircleDollarSign} tone="purple" change={changePercent(hasProfit ? summary.net_profit : summary.expenses, hasProfit ? previousSummary.net_profit : previousSummary.expenses)} />
       </div>
-      <div className="dashboard-summary-meta">
-        <MetricRow label="Margin keuntungan" value={summary.profit_margin_percent != null ? percent(summary.profit_margin_percent) : '-'} />
-        <MetricRow label="Pengeluaran" value={rupiah(summary.expenses)} />
-        <MetricRow label="Pengembalian" value={rupiah(summary.return_amount)} />
+      <div className="dashboard-overview-footline">
+        <span>Margin keuntungan</span>
+        <strong>{summary.profit_margin_percent != null ? percent(summary.profit_margin_percent) : '-'}</strong>
       </div>
     </Section>
 
@@ -166,9 +201,9 @@ export default function OlseraDashboardSections({ reportData, fallbackData }) {
       <TrendChart rows={dailySales} color={colors.blue} totalLabel="Total penjualan" emptyMessage="Belum ada data penjualan pada periode ini." />
       <span className="dashboard-report-legend"><i style={{ backgroundColor: colors.blue }} />Penjualan</span>
       <div className="dashboard-sales-metrics">
-        <MetricRow label="Pembayaran" value={paymentTotal ? rupiah(paymentTotal) : rupiah(summary.gross_sales)} />
-        <MetricRow label="Pengeluaran" value={rupiah(summary.expenses)} />
-        <MetricRow label="Pengembalian" value={rupiah(summary.return_amount)} />
+        <FinanceRow label="Pembayaran" value={paymentTotal ? rupiah(paymentTotal) : rupiah(summary.gross_sales)} icon={CreditCard} tone="payment" />
+        <FinanceRow label="Pengeluaran" value={rupiah(summary.expenses)} icon={BriefcaseBusiness} tone="expense" />
+        <FinanceRow label="Pengembalian" value={rupiah(summary.return_amount)} icon={AlertTriangle} tone="return" />
       </div>
     </Section>
 

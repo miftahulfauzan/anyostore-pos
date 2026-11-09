@@ -19,6 +19,23 @@ function dateRange(query) {
   return { start, end };
 }
 
+function shiftBusinessDate(value, days) {
+  const date = new Date(`${value}T00:00:00+07:00`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return localDateString(date);
+}
+
+function previousDateRange(start, end) {
+  const startDate = new Date(`${start}T00:00:00+07:00`);
+  const endDate = new Date(`${end}T00:00:00+07:00`);
+  const days = Math.floor((endDate - startDate) / 86400000) + 1;
+  const previousEnd = shiftBusinessDate(start, -1);
+  return {
+    start: shiftBusinessDate(previousEnd, -(days - 1)),
+    end: previousEnd,
+  };
+}
+
 router.get('/sales', async (req, res, next) => {
   try {
     const { start, end } = dateRange(req.query);
@@ -194,6 +211,7 @@ router.get('/overview', async (req, res, next) => {
       : '= ?';
     const branchParams = owner && selectedBranchId === null ? [] : [selectedBranchId];
     const periodParams = [...branchParams, start, end];
+    const comparisonPeriod = previousDateRange(start, end);
     const [[sales], [costs], [expenses], payments, products, categories, cashiers, customers, lowStock, dailySales, hourlySales, priceTiers, transactions, discountDetails, cancellations, cancellationRows, returnSummary, returns, branchComparison] = await Promise.all([
       db.execute(`SELECT COUNT(*) AS transactions, COALESCE(SUM(grand_total - cancelled_amount - refunded_amount), 0) AS revenue, COALESCE(SUM(discount), 0) AS discounts FROM transactions WHERE branch_id ${scope} AND status IN (${SALES_STATUSES_SQL}) AND transaction_date BETWEEN ? AND ?`, periodParams),
       db.execute(`SELECT COALESCE(SUM(ti.cost * (ti.quantity - ti.cancelled_qty - ti.returned_qty)), 0) AS cost_of_goods, COALESCE(SUM(ti.subtotal * (ti.quantity - ti.cancelled_qty - ti.returned_qty) / NULLIF(ti.quantity, 0) - ti.cost * (ti.quantity - ti.cancelled_qty - ti.returned_qty)), 0) AS item_profit FROM transaction_items ti JOIN transactions t ON t.id = ti.transaction_id WHERE t.branch_id ${scope} AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?`, periodParams),
@@ -223,6 +241,13 @@ router.get('/overview', async (req, res, next) => {
       db.execute(`SELECT DATE_FORMAT(CONVERT_TZ(created_at, @@session.time_zone, '+07:00'), '%Y-%m-%d') AS date, COALESCE(SUM(refund_amount), 0) AS amount, COUNT(*) AS count FROM returns WHERE branch_id ${scope} AND status = 'approved' AND DATE(CONVERT_TZ(created_at, @@session.time_zone, '+07:00')) BETWEEN ? AND ? GROUP BY date ORDER BY date`, periodParams),
       db.execute(`SELECT CASE WHEN source_system = 'olsera' THEN 'Olsera' ELSE 'POS' END AS name, COUNT(*) AS transactions, COALESCE(SUM(grand_total - cancelled_amount - refunded_amount), 0) AS revenue FROM transactions WHERE branch_id ${scope} AND status IN (${SALES_STATUSES_SQL}) AND transaction_date BETWEEN ? AND ? GROUP BY CASE WHEN source_system = 'olsera' THEN 'Olsera' ELSE 'POS' END ORDER BY revenue DESC`, periodParams),
     ]);
+    const comparisonParams = [...branchParams, comparisonPeriod.start, comparisonPeriod.end];
+    const [[comparisonSales], [comparisonCosts], [comparisonFinance], [comparisonProducts]] = await Promise.all([
+      db.execute(`SELECT COUNT(*) AS transactions, COALESCE(SUM(grand_total - cancelled_amount - refunded_amount), 0) AS gross_sales FROM transactions WHERE branch_id ${scope} AND status IN (${SALES_STATUSES_SQL}) AND transaction_date BETWEEN ? AND ?`, comparisonParams),
+      db.execute(`SELECT COALESCE(SUM(ti.cost * (ti.quantity - ti.cancelled_qty - ti.returned_qty)), 0) AS cost_of_goods FROM transaction_items ti JOIN transactions t ON t.id = ti.transaction_id WHERE t.branch_id ${scope} AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?`, comparisonParams),
+      db.execute(`SELECT COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS expenses, COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS income FROM expenses WHERE branch_id ${scope} AND status = 'approved' AND expense_date BETWEEN ? AND ?`, comparisonParams),
+      db.execute(`SELECT COALESCE(SUM(ti.quantity - ti.cancelled_qty - ti.returned_qty), 0) AS products_sold FROM transaction_items ti JOIN transactions t ON t.id = ti.transaction_id WHERE t.branch_id ${scope} AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?`, comparisonParams),
+    ]);
     const revenue = money(Number(sales[0].revenue) + Number(expenses[0].income));
     const costOfGoods = Number(costs[0].cost_of_goods);
     const approvedExpenses = Number(expenses[0].amount);
@@ -231,6 +256,13 @@ router.get('/overview', async (req, res, next) => {
     const grossProfit = revenue - costOfGoods;
     const profitMarginPercent = grossSales > 0 ? money(grossProfit * 100 / grossSales) : 0;
     const discounts = money(Number(discountDetails[0][0].transaction_discount) + Number(discountDetails[0][0].item_discount));
+    const comparisonGrossSales = Number(comparisonSales[0]?.gross_sales || 0);
+    const comparisonIncome = Number(comparisonFinance[0]?.income || 0);
+    const comparisonExpenses = Number(comparisonFinance[0]?.expenses || 0);
+    const comparisonRevenue = money(comparisonGrossSales + comparisonIncome);
+    const comparisonCostOfGoods = Number(comparisonCosts[0]?.cost_of_goods || 0);
+    const comparisonGrossProfit = comparisonRevenue - comparisonCostOfGoods;
+    const comparisonNetProfit = money(comparisonRevenue - comparisonCostOfGoods - comparisonExpenses);
     const branchRows = branchComparison[0].map((row) => ({
       ...row,
       net_profit: money(Number(row.revenue) + Number(row.income) - Number(row.cost_of_goods) - Number(row.expenses)),
@@ -249,6 +281,21 @@ router.get('/overview', async (req, res, next) => {
     res.json({ success: true, data: {
       start, end, branch_id: owner && selectedBranchId === null ? 'all' : selectedBranchId, branch_name: branchName,
       summary: { transactions: sales[0].transactions, revenue, gross_sales: grossSales, discounts, transaction_discounts: Number(discountDetails[0][0].transaction_discount), item_discounts: Number(discountDetails[0][0].item_discount), cost_of_goods: costOfGoods, gross_profit: grossProfit, profit_margin_percent: profitMarginPercent, expenses: approvedExpenses, income, net_profit: money(revenue - costOfGoods - approvedExpenses), products_sold: productsSold, cancelled_transactions: Number(cancellations[0][0].transactions), cancelled_amount: Number(cancellations[0][0].amount), returns: returnCount, return_count: returnCount, returned_quantity: returnSummary[0].reduce((total, row) => total + Number(row.quantity_returned || 0), 0), refund_amount: refundAmount, return_amount: refundAmount },
+      comparison_period: comparisonPeriod,
+      previous_summary: {
+        transactions: Number(comparisonSales[0]?.transactions || 0),
+        revenue: comparisonRevenue,
+        gross_sales: comparisonGrossSales,
+        cost_of_goods: comparisonCostOfGoods,
+        gross_profit: comparisonGrossProfit,
+        profit_margin_percent: comparisonGrossSales > 0
+          ? money(comparisonGrossProfit * 100 / comparisonGrossSales)
+          : 0,
+        expenses: comparisonExpenses,
+        income: comparisonIncome,
+        net_profit: comparisonNetProfit,
+        products_sold: Number(comparisonProducts[0]?.products_sold || 0),
+      },
       payment_methods: payments[0], products: products[0], categories: categories[0], cashiers: cashiers[0], customers: customers[0], low_stock: lowStock[0], daily_sales: dailySales[0], daily_expenses: dailyExpenses, daily_income: dailyIncome, daily_returns: dailyReturns, sales_sources: normalizedSalesSources, hourly_sales: hourlySales[0], price_tiers: priceTiers[0], transactions: transactions[0], cancellations: cancellationRows[0], return_summary: returnSummary[0], returns: returns[0], branch_comparison: branchRows
     } });
   } catch (error) { next(error); }

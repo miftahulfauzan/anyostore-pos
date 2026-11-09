@@ -70,6 +70,9 @@ test('reports overview exposes sales, profit, products and return sections', asy
   assert.equal(body.data.summary.transaction_discounts, 5000);
   assert.equal(body.data.summary.refund_amount, 0);
   assert.equal(body.data.summary.products_sold, 0);
+  assert.ok(body.data.previous_summary);
+  assert.equal(body.data.comparison_period.start, '2026-10-29');
+  assert.equal(body.data.comparison_period.end, '2026-10-31');
   assert.ok(Array.isArray(body.data.daily_expenses));
   assert.ok(Array.isArray(body.data.daily_income));
   assert.ok(Array.isArray(body.data.daily_returns));

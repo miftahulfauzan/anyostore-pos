@@ -53,6 +53,13 @@ class AnalyticsApi extends ApiClient {
             'average_transaction': empty ? 0 : 91667,
             'net_profit': empty ? 0 : 75000,
           },
+          'previous_summary': {
+            'gross_sales': empty ? 0 : 200000,
+            'transactions': empty ? 0 : 2,
+            'products_sold': empty ? 0 : 6,
+            'net_profit': empty ? 0 : 50000,
+            'expenses': empty ? 0 : 10000,
+          },
           'daily_sales': empty
               ? []
               : [

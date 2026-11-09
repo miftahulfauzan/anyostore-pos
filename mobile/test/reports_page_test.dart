@@ -28,11 +28,19 @@ class ReportsApi extends ApiClient {
               'transactions': 1,
               'gross_sales': 100000,
               'income': 0,
+              'products_sold': 4,
               'cost_of_goods': 50000,
               'gross_profit': 50000,
               'profit_margin_percent': 50,
               'expenses': 0,
               'net_profit': 50000,
+            },
+            'previous_summary': {
+              'gross_sales': 80000,
+              'transactions': 1,
+              'products_sold': 2,
+              'net_profit': 40000,
+              'expenses': 10000,
             },
             'payment_methods': <Object>[],
             'low_stock': <Object>[],
@@ -175,6 +183,28 @@ void main() {
     expect(find.byKey(const ValueKey('reports-period-selector')), findsNothing);
     expect(find.textContaining('Periode:'), findsNothing);
     expect(find.text('Rp2.415.000'), findsWidgets);
+  });
+
+  testWidgets(
+      'combined report uses Penjualan without a duplicate Ringkasan tab',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final api = ReportsApi();
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: ReportsPage(api: api, role: 'owner')),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Penjualan'), findsWidgets);
+    expect(find.text('Ringkasan'), findsNothing);
+    expect(find.text('Produk terjual'), findsOneWidget);
+    expect(find.text('Laba kotor'), findsOneWidget);
+    expect(find.text('Persentase keuntungan'), findsOneWidget);
+    expect(find.text('Laba bersih'), findsOneWidget);
   });
 
   testWidgets('cashier dashboard uses the selected period contract',
