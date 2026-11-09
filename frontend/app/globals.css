@@ -6787,3 +6787,48 @@ html[data-theme] .sidebar .nav-group-toggle:hover {
   }
   .catalog-panel .catalog-toolbar { grid-template-columns: 1fr; }
 }
+
+/* ========================================================================
+   Stok Produk (mobile): ringkas. Kartu ringkasan 4 sejajar, filter satu
+   baris, dan kartu produk dipadatkan (foto kecil, chip gudang inline).
+   ======================================================================== */
+@media (max-width: 700px) {
+  .stock-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    margin-bottom: 10px !important;
+  }
+  .stock-summary-grid > div { padding: 8px 4px !important; border-radius: 8px !important; }
+  .stock-summary-grid p { font-size: var(--fs-2xs) !important; }
+  .stock-summary-grid strong { font-size: 17px !important; line-height: 1.15 !important; }
+  .stock-summary-grid p:last-child { display: none; }
+
+  .stock-filter-row { gap: 6px !important; margin-bottom: 10px !important; flex-wrap: nowrap !important; }
+  .stock-filter-row input { flex: 1 1 auto !important; min-width: 0 !important; min-height: 38px !important; }
+  .stock-filter-row select { flex: 0 1 132px !important; min-width: 0 !important; min-height: 38px !important; }
+
+  .stock-cards-mobile { gap: 6px !important; }
+  .stock-card { padding: 8px !important; border-radius: 8px !important; }
+  .stock-card-head { gap: 6px !important; }
+  .stock-card-head > div > div:first-child { width: 34px !important; height: 44px !important; }
+  .stock-card-head strong { font-size: var(--fs-sm) !important; }
+  .stock-card-head span { font-size: var(--fs-2xs) !important; }
+  .stock-card-head > strong { font-size: var(--fs-md) !important; }
+  .stock-card-chips { gap: 4px !important; margin-top: 5px !important; }
+  .stock-card-chips > div { padding: 2px 6px !important; border-radius: 6px !important; font-size: var(--fs-2xs) !important; font-weight: 600 !important; }
+  .rack-display-compact { margin-top: 0 !important; font-size: var(--fs-2xs) !important; }
+}
+
+@media (max-width: 700px) {
+  /* Rak ditampilkan sebaris dengan jumlah stok agar chip tidak dua baris. */
+  .stock-card-chips .rack-display,
+  .stock-card-chips .rack-display-compact {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 4px;
+    margin-top: 0 !important;
+    margin-left: 6px !important;
+    font-size: var(--fs-2xs) !important;
+  }
+  .stock-card-chips .rack-edit-button { font-size: 12px !important; padding: 0 1px !important; }
+}

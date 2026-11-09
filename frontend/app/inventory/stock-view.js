@@ -228,7 +228,7 @@ export default function StockReportSection() {
         </div>
 
         {summary && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 12, marginBottom: 20 }}>
+          <div className="stock-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 12, marginBottom: 20 }}>
             <div style={{ padding: 16, borderRadius: 8, background: 'var(--muted)', textAlign: 'center' }}>
               <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>Total Produk</p>
               <strong style={{ fontSize: 24 }}>{money(summary.total_products)}</strong>
@@ -249,7 +249,7 @@ export default function StockReportSection() {
           </div>
         )}
 
-        <div className="no-print" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="stock-filter-row no-print" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
           <input aria-label="Cari stok berdasarkan nama atau SKU" placeholder="Cari nama/SKU…" value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: 1, minWidth: 180, minHeight: 40 }} />
           <select aria-label="Filter kategori" value={cat} onChange={(e) => setCat(e.target.value)} style={{ minWidth: 150, minHeight: 40 }}>
             <option value="">Semua kategori</option>
@@ -303,8 +303,8 @@ export default function StockReportSection() {
         <div className="stock-cards-mobile">
           {loading && <p className="muted">Memuat…</p>}
           {!loading && grouped.map((g) => (
-            <article key={g.key} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 12, background: '#fff' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+            <article key={g.key} className="stock-card" style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 12, background: '#fff' }}>
+              <div className="stock-card-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                 <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ width: 42, height: 54, borderRadius: 8, overflow: 'hidden', flex: '0 0 auto' }}>
                     <SafeImage src={g.photo_path ? mediaUrl(g.photo_path) : ''} alt={g.name} />
@@ -317,7 +317,7 @@ export default function StockReportSection() {
                 </div>
                 <strong style={{ fontSize: 16, color: '#1e3a5f', whiteSpace: 'nowrap' }}>{money(g.total)}</strong>
               </div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+              <div className="stock-card-chips" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                     {whColumns.map((w) => {
                       const qty = g.qtyByWarehouse[String(w.id)] || 0;
                       return (
