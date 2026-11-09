@@ -583,6 +583,9 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   Widget _buildFilterBar(BuildContext context) {
+    // Penutupan memakai satu tanggal bisnis, bukan preset periode. Sembunyikan
+    // pemilih periode supaya kasir tidak melihat dua kontrol tanggal sekaligus.
+    final usesClosingDate = !widget.dashboardMode && _section == 'penutupan';
     if (widget.dashboardMode && widget.role == 'kasir') {
       return Padding(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
@@ -613,9 +616,12 @@ class _ReportsPageState extends State<ReportsPage> {
           children: [
             Row(
               children: [
-                Expanded(
-                  child: _buildPeriodSelector(context),
-                ),
+                if (usesClosingDate)
+                  const Spacer()
+                else
+                  Expanded(
+                    child: _buildPeriodSelector(context),
+                  ),
                 if (!widget.dashboardMode) ...[
                   const SizedBox(width: 8),
                   DecoratedBox(
@@ -653,13 +659,15 @@ class _ReportsPageState extends State<ReportsPage> {
                         color: taskMuted(context))),
               ),
             ],
-            const SizedBox(height: 4),
-            Text(
-                'Periode: ${_presetLabel(_preset)} · ${_range.$1} s.d. ${_range.$2}',
-                style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.outline)),
+            if (!usesClosingDate) ...[
+              const SizedBox(height: 4),
+              Text(
+                  'Periode: ${_presetLabel(_preset)} · ${_range.$1} s.d. ${_range.$2}',
+                  style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.outline)),
+            ],
           ],
         ),
       ),

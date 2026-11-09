@@ -170,6 +170,10 @@ void main() {
         api.requests.lastWhere((item) => item.$1 == '/reports/daily-closing');
     expect(request.$2['date'], expected);
     expect(find.byKey(const ValueKey('reports-closing-date')), findsOneWidget);
+    // Hanya satu kontrol tanggal: preset periode (7 hari/30 hari/bulan ini)
+    // tidak boleh muncul lagi di tab penutupan.
+    expect(find.byKey(const ValueKey('reports-period-selector')), findsNothing);
+    expect(find.textContaining('Periode:'), findsNothing);
     expect(find.text('Rp2.415.000'), findsWidgets);
   });
 
