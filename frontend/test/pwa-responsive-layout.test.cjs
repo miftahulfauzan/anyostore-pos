@@ -24,4 +24,5 @@ test('PWA mobile controls use equal-width action tracks without table overflow',
   assert.match(css, /\.report-detail-table-wrap\s*\{[^}]*overflow:\s*visible/s);
   assert.match(css, /\.report-detail-table\s+td::before,\s*\.settings-branch-table\s+td::before\s*\{[^}]*content:\s*attr\(data-label\)/s);
   assert.match(css, /\.settings-branch-table\s+td::before\s*\{[^}]*content:\s*attr\(data-label\)/s);
+  assert.match(css, /\.dashboard-report-range-controls,\s*\.dashboard-report-date-filter,\s*\.dashboard-report-periods\s*\{[^}]*width:\s*100%/s);
 });

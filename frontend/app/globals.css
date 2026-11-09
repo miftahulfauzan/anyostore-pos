@@ -4516,6 +4516,13 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
     min-width: 0;
   }
 
+  .dashboard-report-range-controls,
+  .dashboard-report-date-filter,
+  .dashboard-report-periods {
+    width: 100%;
+    min-width: 0;
+  }
+
   .report-detail-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
