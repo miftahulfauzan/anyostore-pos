@@ -720,6 +720,47 @@ a, .photo-upload { color:var(--expressive-secondary); }
   font-weight: 750;
   box-shadow: 3px 3px 0 rgba(15,23,42,.14);
 }
+/* Aksi header: satu baris tombol yang seragam (tinggi, padding, font, radius)
+   dan selalu berjarak. Dulu .header-action-links tanpa display sehingga link
+   dan <button> tampil inline: menempel & tingginya beda per halaman. */
+.header-action-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+.header-action-links > .button-link,
+.header-action-links > button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: .01em;
+  white-space: nowrap;
+  box-shadow: 3px 3px 0 rgba(15,23,42,.14);
+}
+/* Pemilih toko & tombol tema ikut tinggi tombol aksi supaya sebaris rapi. */
+.header-actions > .branch-switcher .branch-switcher-trigger {
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.header-actions > .theme-toggle {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+}
 .panel, .metric-card {
   border-color: #dbe3ee;
   border-radius: 8px;
@@ -4584,7 +4625,7 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
     display: flex;
     width: 100%;
     min-width: 0;
-    min-height: 52px;
+    min-height: 44px;
     align-items: center;
     justify-content: center;
     padding: 8px;
@@ -4597,6 +4638,7 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
   .header-action-links > button {
     width: 100%;
     min-width: 0;
+    white-space: normal;
   }
 
   .dashboard-report-range-controls,
