@@ -5,6 +5,7 @@ import AppShell from '../components/AppShell';
 import { useAppSession } from '../components/AppStateProvider';
 import DateRangePresets from '../components/DateRangePresets';
 import { labelFor, paymentLabels, statusLabels } from '../lib/ui-labels';
+import { ChevronDown } from 'lucide-react';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rp = (n) => 'Rp' + Number(n || 0).toLocaleString('id-ID');
@@ -31,6 +32,11 @@ export default function HistoryPage() {
   const [saving, setSaving] = useState(false);
   const [filters, setFilters] = useState({ search: '', date_from: '', date_to: '', status: '' });
   const [preset, setPreset] = useState('today');
+  const [periodOpen, setPeriodOpen] = useState(true);
+  const [dateDraft, setDateDraft] = useState({ from: '', to: '' });
+  const periodLabel = preset === 'custom'
+    ? 'Rentang kustom'
+    : ({ today: 'Hari ini', yesterday: 'Kemarin', last7: '7 hari', last30: '30 hari', thisMonth: 'Bulan ini', previousMonth: 'Bulan lalu' }[preset] || 'Hari ini');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('retur'); // retur | cancel | info
   const [isMobile, setIsMobile] = useState(false);
@@ -72,6 +78,34 @@ export default function HistoryPage() {
   }
 
   useEffect(() => { if (!filters.date_from || !filters.date_to) setFilters((f) => ({ ...f, date_from: f.date_from || todayStr(), date_to: f.date_to || todayStr() })); }, []);
+
+  // Filter periode: pola sama dengan dashboard (show/hide + terapkan otomatis).
+  useEffect(() => {
+    if (window.localStorage.getItem('pos_period_filter_open') === '0') setPeriodOpen(false);
+  }, []);
+
+  useEffect(() => {
+    setDateDraft({ from: filters.date_from, to: filters.date_to });
+  }, [filters.date_from, filters.date_to]);
+
+  useEffect(() => {
+    if (!dateDraft.from || !dateDraft.to || dateDraft.from > dateDraft.to) return undefined;
+    if (dateDraft.from === filters.date_from && dateDraft.to === filters.date_to) return undefined;
+    const timer = setTimeout(() => {
+      const next = { ...filters, date_from: dateDraft.from, date_to: dateDraft.to };
+      setFilters(next);
+      setPage(1);
+      load(1, next);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [dateDraft, filters.date_from, filters.date_to]);
+
+  function togglePeriod() {
+    setPeriodOpen((open) => {
+      window.localStorage.setItem('pos_period_filter_open', open ? '0' : '1');
+      return !open;
+    });
+  }
 
   useEffect(() => {
     if (!user?.role || !activeBranchId) return;
@@ -178,27 +212,11 @@ export default function HistoryPage() {
               <div><h2>Cari Transaksi</h2><p>Invoice, kasir, pelanggan, atau rentang tanggal</p></div>
               <span className="tag">{total} trx</span>
             </div>
-            <div style={{ display: 'grid', gap: '.6rem', marginTop: '.75rem' }}>
-              <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
-                <label className="history-search-label">Cari transaksi<input style={{ flex: '1 1 200px' }} placeholder="Invoice, kasir, atau pelanggan" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && applyFilter()} /></label>
-                <button type="button" onClick={applyFilter} disabled={loading} style={{ minHeight: 40 }}>{loading ? '...' : 'Cari'}</button>
-              </div>
-              <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
-                <label style={{ minWidth: 140 }}>Dari<input type="date" value={filters.date_from} onChange={(e) => { setPreset('custom'); setFilters({ ...filters, date_from: e.target.value }); }} /></label>
-                <label style={{ minWidth: 140 }}>Sampai<input type="date" value={filters.date_to} onChange={(e) => { setPreset('custom'); setFilters({ ...filters, date_to: e.target.value }); }} /></label>
-                <div style={{ width: '100%' }}>
-                  <DateRangePresets active={preset} onPick={(key, range) => {
-                    setPreset(key);
-                    if (range) {
-                      const next = { ...filters, date_from: range.start, date_to: range.end };
-                      setFilters(next);
-                      setPage(1);
-                      load(1, next);
-                    }
-                  }} />
-                </div>
-                <label>Status
-                  <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
+            <div className="history-filter">
+              <div className="history-filter-row">
+                <label className="history-search-label">Cari transaksi<input placeholder="Invoice, kasir, atau pelanggan" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && applyFilter()} /></label>
+                <label className="history-status-label">Status
+                  <select value={filters.status} onChange={(e) => { const next = { ...filters, status: e.target.value }; setFilters(next); setPage(1); load(1, next); }}>
                     <option value="">Semua</option>
                     <option value="completed">Selesai</option>
                     <option value="partially_cancelled">Sebagian batal</option>
@@ -207,7 +225,36 @@ export default function HistoryPage() {
                     <option value="refunded">Retur penuh</option>
                   </select>
                 </label>
-                <button type="button" className="small secondary" onClick={applyFilter} style={{ alignSelf: 'end', minHeight: 40 }}>Filter</button>
+                <button type="button" onClick={applyFilter} disabled={loading}>{loading ? 'Memuat…' : 'Cari'}</button>
+              </div>
+              <div className={`period-filter${periodOpen ? '' : ' period-filter-collapsed'}`}>
+                <button type="button" className="period-filter-toggle period-filter-toggle-compact" onClick={togglePeriod} aria-expanded={periodOpen}>
+                  <span className="period-filter-label">Periode</span>
+                  <strong className="period-filter-value">{periodLabel}</strong>
+                  <span className="period-filter-range">
+                    {String(filters.date_from || '').split('-').reverse().join('/') || '-'} – {String(filters.date_to || '').split('-').reverse().join('/') || '-'}
+                  </span>
+                  <ChevronDown aria-hidden="true" size={16} className={periodOpen ? 'chevron-open' : ''} />
+                </button>
+                {periodOpen ? (
+                  <div className="period-filter-body">
+                    <DateRangePresets active={preset} onPick={(key, range) => {
+                      setPreset(key);
+                      if (range) {
+                        const next = { ...filters, date_from: range.start, date_to: range.end };
+                        setFilters(next);
+                        setDateDraft({ from: range.start, to: range.end });
+                        setPage(1);
+                        load(1, next);
+                      }
+                    }} label="Pilih periode transaksi" />
+                    <div className="dashboard-report-date-filter">
+                      <label>Dari<input type="date" value={dateDraft.from} onChange={(e) => { setPreset('custom'); setDateDraft((current) => ({ ...current, from: e.target.value })); }} /></label>
+                      <span aria-hidden="true">s/d</span>
+                      <label>Sampai<input type="date" value={dateDraft.to} onChange={(e) => { setPreset('custom'); setDateDraft((current) => ({ ...current, to: e.target.value })); }} /></label>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
             {message && <p className={`message ${message.toLowerCase().includes('berhasil') || message.toLowerCase().includes('retur') ? 'success' : ''}`}>{message}</p>}

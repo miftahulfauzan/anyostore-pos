@@ -138,3 +138,19 @@ test('sidebar HP: tombol tutup kecil dan tidak menimpa nama toko', () => {
   assert.match(css, /@media \(max-width: 820px\)\s*\{[\s\S]{0,900}?\.sidebar-close\s*\{[^}]*width:\s*36px;[^}]*height:\s*36px;/s);
   assert.match(css, /\.sidebar \.brand small\s*\{[^}]*text-overflow:\s*ellipsis/s, 'teks brand harus dipotong rapi');
 });
+
+test('Riwayat memakai pola filter periode yang sama dengan Dasbor', () => {
+  const history = read('history/page.js');
+  assert.match(history, /period-filter-toggle/);
+  assert.match(history, /period-filter-body/);
+  assert.match(history, /dashboard-report-date-filter/);
+  assert.match(history, /pos_period_filter_open/);
+  assert.match(history, /setTimeout\(/, 'tanggal harus diterapkan otomatis');
+  assert.doesNotMatch(history, />Filter</, 'tombol Filter terpisah tidak dipakai lagi');
+});
+
+test('sidebar: menu pelanggan tidak lagi berlabel "Transaksi"', () => {
+  const shell = read('components/AppShell.js');
+  assert.match(shell, /href: '\/customers', label: 'Pelanggan'/);
+  assert.doesNotMatch(shell, /href: '\/customers', label: 'Transaksi'/);
+});

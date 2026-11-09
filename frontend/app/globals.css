@@ -6466,3 +6466,21 @@ html[data-theme] .sidebar .nav-group-toggle:hover {
 @media (max-width: 820px) {
   .sidebar-close { min-height: 36px !important; min-width: 36px; }
 }
+
+/* Halaman Riwayat: form filter mengikuti pola periode di Dasbor. */
+.history-filter { display: grid; gap: 10px; margin-top: 12px; }
+.history-filter-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: end;
+}
+.history-filter-row .history-search-label { flex: 1 1 220px; min-width: 0; }
+.history-filter-row .history-search-label input { width: 100%; }
+.history-filter-row .history-status-label { flex: 0 0 170px; }
+.history-filter-row > button { flex: 0 0 auto; min-height: 44px; padding: 0 18px; }
+@media (max-width: 520px) {
+  .history-filter-row .history-status-label { flex: 1 1 100%; }
+  .history-filter-row > button { flex: 1 1 100%; }
+  .history-filter .period-filter-value { font-size: 12px; }
+}
