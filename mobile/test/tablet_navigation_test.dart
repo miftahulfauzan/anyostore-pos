@@ -5,7 +5,7 @@ import 'package:pos_pakaian_mobile/src/task_ui.dart';
 
 void main() {
   for (final size in [const Size(800, 1280), const Size(1280, 800)]) {
-    testWidgets('navigation fits tablet $size', (tester) async {
+    testWidgets('current owner navigation fits tablet $size', (tester) async {
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
@@ -21,8 +21,17 @@ void main() {
         ),
       ));
       expect(tester.takeException(), isNull);
-      await tester.tap(find.text('Laporan'));
-      expect(selected, 3);
+      for (final label in [
+        'POS',
+        'Dashboard',
+        'Riwayat',
+        'Keuangan',
+        'Lainnya'
+      ]) {
+        expect(find.text(label), findsOneWidget);
+      }
+      await tester.tap(find.text('Dashboard'));
+      expect(selected, 1);
     });
   }
 }

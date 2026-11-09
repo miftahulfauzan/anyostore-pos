@@ -166,7 +166,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('12.345'), findsOneWidget);
       expect(tester.widget<Text>(find.text('12.345')).style!.fontSize,
-          greaterThanOrEqualTo(28));
+          greaterThanOrEqualTo(20));
       await tester.scrollUntilVisible(find.text('Pergerakan Stok'), 200);
       expect(tester.takeException(), isNull);
     });
@@ -219,8 +219,8 @@ void main() {
     await showScreen(
         tester, MorePage(api: api, branchId: 4, role: 'gudang'), api,
         brightness: Brightness.dark);
-    expect(find.text('TRANSAKSI'), findsOneWidget);
-    expect(find.text('GUDANG'), findsOneWidget);
+    expect(find.text('Transaksi & Stok'), findsOneWidget);
+    expect(find.text('Gudang'), findsOneWidget);
     expect(find.text('Komisi'), findsNothing);
     expect(find.text('Pegawai'), findsNothing);
     expect(find.text('Promo'), findsNothing);

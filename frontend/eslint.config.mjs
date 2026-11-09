@@ -23,5 +23,20 @@ export default defineConfig([
       '@next/next/no-html-link-for-pages': 'off',
     },
   },
+  {
+    files: ['**/*.cjs'],
+    languageOptions: {
+      globals: { ...globals.browser, ...globals.node },
+      sourceType: 'commonjs',
+    },
+    rules: {
+      // These tests inspect source strings and intentionally contain literal
+      // spacing/escaping patterns.
+      'no-regex-spaces': 'off',
+      'no-useless-escape': 'off',
+      // Legacy fixtures declare __dirname inline; keep those declarations valid.
+      'no-redeclare': 'off',
+    },
+  },
   globalIgnores(['.next/**', 'node_modules/**']),
 ]);

@@ -27,3 +27,6 @@ skills-lock.json
 # Local squire tooling
 squire.md
 squire/
+
+# Playwright artifacts
+frontend/test-results/

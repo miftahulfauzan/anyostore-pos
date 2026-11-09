@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node --watch src/index.js",
+    "lint": "eslint .",
     "start": "node src/index.js",
     "test": "node --test"
   },
@@ -34,5 +35,8 @@
     "multer": "2.5.0",
     "mysql2": "^3.11.0",
     "qs": "^6.16.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.5"
   }
 }

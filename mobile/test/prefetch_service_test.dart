@@ -10,7 +10,7 @@ class _PrefetchApi extends ApiClient {
   @override
   Future<List<dynamic>> products(
           {required int branchId, String search = ''}) async =>
-      List.generate(20, (i) => {'id': i + 1});
+      List.generate(20, (i) => {'id': i + 1, 'variant_count': 1});
 
   @override
   Future<Map<String, dynamic>> product(int id, {required int branchId}) async {
@@ -29,6 +29,6 @@ void main() {
     final api = _PrefetchApi();
     await PrefetchService.prefetchProductVariants(api, branchId: 12);
     expect(api.requested, hasLength(20));
-    expect(api.peak, 6);
+    expect(api.peak, 3);
   });
 }

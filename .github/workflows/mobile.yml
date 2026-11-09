@@ -14,7 +14,6 @@ permissions:
 jobs:
   mobile:
     runs-on: ubuntu-latest
-    continue-on-error: true
     defaults:
       run:
         working-directory: mobile
@@ -26,6 +25,8 @@ jobs:
       - run: flutter pub get
       - run: dart format --set-exit-if-changed lib
       - run: flutter analyze lib
+        continue-on-error: true
+      - run: flutter test
 
   android-apk:
     if: github.event_name != 'pull_request'

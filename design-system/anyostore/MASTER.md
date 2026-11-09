@@ -7,8 +7,8 @@
 ---
 
 **Project:** Anyostore
-**Generated:** 2026-07-28 13:57:11
-**Category:** Luxury/Premium Brand
+**Updated:** 2026-11-09
+**Category:** Denim Operations / Point of Sale
 
 ---
 
@@ -18,20 +18,25 @@
 
 | Role | Hex | CSS Variable |
 |------|-----|--------------|
-| Primary | `#1C1917` | `--color-primary` |
-| Secondary | `#44403C` | `--color-secondary` |
-| CTA/Accent | `#CA8A04` | `--color-cta` |
-| Background | `#FAFAF9` | `--color-background` |
-| Text | `#0C0A09` | `--color-text` |
+| Primary | `#1E3A5F` | `--color-primary` |
+| Denim 700 | `#2E5D8F` | `--color-denim-700` |
+| Denim 500 | `#5A8BBF` | `--color-denim-500` |
+| Denim 300 | `#7FA8CF` | `--color-denim-300` |
+| Mobile Background | `#F5F1EA` | `--color-mobile-background` |
+| Web Background | `#F8FAFC` | `--color-web-background` |
+| Surface | `#FFFFFF` | `--color-surface` |
+| Text | `#1E3A5F` | `--color-text` |
+| Muted Text | `#475569` | `--color-muted-text` |
+| Border | `#E7E0D6` | `--color-border` |
 
-**Color Notes:** Premium black + gold accent
+**Color Notes:** Denim blue identity with neutral surfaces and semantic state colors.
 
 ### Typography
 
-- **Heading Font:** Satoshi
-- **Body Font:** General Sans
-- **Mood:** premium, modern, clean, sophisticated, versatile, balanced
-- **Google Fonts:** [Satoshi + General Sans](https://fonts.google.com/share?selection.family=DM+Sans:wght@400;500;700)
+- **Web Font:** DM Sans
+- **Mobile Font:** Native platform sans-serif
+- **Mood:** practical, calm, legible, modern, operational
+- **Google Fonts:** [DM Sans](https://fonts.google.com/share?selection.family=DM+Sans:wght@400;500;700)
 
 **CSS Import:**
 ```css
@@ -68,7 +73,7 @@
 ```css
 /* Primary Button */
 .btn-primary {
-  background: #CA8A04;
+  background: #1E3A5F;
   color: white;
   padding: 12px 24px;
   border-radius: 8px;
@@ -85,8 +90,8 @@
 /* Secondary Button */
 .btn-secondary {
   background: transparent;
-  color: #1C1917;
-  border: 2px solid #1C1917;
+  color: #1E3A5F;
+  border: 2px solid #1E3A5F;
   padding: 12px 24px;
   border-radius: 8px;
   font-weight: 600;
@@ -99,8 +104,9 @@
 
 ```css
 .card {
-  background: #FAFAF9;
-  border-radius: 12px;
+  background: #FFFFFF;
+  border: 1px solid #E7E0D6;
+  border-radius: 14px;
   padding: 24px;
   box-shadow: var(--shadow-md);
   transition: all 200ms ease;
@@ -125,9 +131,9 @@
 }
 
 .input:focus {
-  border-color: #1C1917;
+  border-color: #1E3A5F;
   outline: none;
-  box-shadow: 0 0 0 3px #1C191720;
+  box-shadow: 0 0 0 3px #1E3A5F20;
 }
 ```
 
@@ -153,13 +159,13 @@
 
 ## Style Guidelines
 
-**Style:** Liquid Glass
+**Style:** Denim Operations / Liquid Glass accents
 
-**Keywords:** Flowing glass, morphing, smooth transitions, fluid effects, translucent, animated blur, iridescent, chromatic aberration
+**Keywords:** Denim blue, calm surfaces, clear hierarchy, compact operations, restrained glass, smooth transitions
 
-**Best For:** Premium SaaS, high-end e-commerce, creative platforms, branding experiences, luxury portfolios
+**Best For:** POS, inventory, warehouse operations, sales dashboards, and apparel commerce
 
-**Key Effects:** Morphing elements (SVG/CSS), fluid animations (400-600ms curves), dynamic blur (backdrop-filter), color transitions
+**Key Effects:** Restrained glass accents, tonal denim surfaces, clear hierarchy, and 150-300ms state transitions. Avoid per-card blur on mobile.
 
 ### Page Pattern
 
