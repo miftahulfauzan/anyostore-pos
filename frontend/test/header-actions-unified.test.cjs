@@ -21,7 +21,7 @@ test('header actions selalu flex dengan jarak antar tombol', () => {
 test('link dan button di header memakai ukuran yang sama', () => {
   assert.match(
     css,
-    /\.header-action-links\s*>\s*\.button-link,\s*\n\.header-action-links\s*>\s*button\s*\{[^}]*min-height:\s*44px;[^}]*padding:\s*8px 14px;[^}]*border-radius:\s*6px;[^}]*font-size:\s*12px;/s,
+    /\.header-action-links\s*>\s*\.button-link,\s*\n\.header-action-links\s*>\s*button\s*\{[^}]*min-height:\s*44px;[^}]*padding:\s*8px 14px;[^}]*border-radius:\s*6px;[^}]*font-size:\s*var\(--fs-sm\);/s,
     'link dan button header harus berbagi tinggi, padding, radius, dan ukuran font yang sama',
   );
 });
