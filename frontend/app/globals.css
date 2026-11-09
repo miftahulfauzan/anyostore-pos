@@ -5959,3 +5959,117 @@ html[data-theme] .sidebar .nav-group-toggle:hover {
 .dark .report-closing-methods article { background: #182135; border-color: #334155; }
 .dark .report-closing-grid strong { color: #e2e8f0; }
 .dark .report-closing-grid .is-total { background: #1e3a5f; }
+
+/* ========================================================================
+   Baris chip periode DIKUNCI: satu baris, bisa digeser, chip selebar isinya.
+   Memakai !important karena ada aturan lama (grid 3 kolom / width 100%) yang
+   masih hidup di media query dan membuat chip melebar penuh sehingga tidak
+   bisa digeser.
+   ======================================================================== */
+.date-range-presets,
+.dashboard-report-periods,
+.warehouse-dashboard-periods,
+.stock-dashboard-periods,
+.mutation-report-periods,
+.tax-report-presets {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 6px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  grid-template-columns: none !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+}
+.date-range-presets::-webkit-scrollbar,
+.dashboard-report-periods::-webkit-scrollbar,
+.warehouse-dashboard-periods::-webkit-scrollbar,
+.stock-dashboard-periods::-webkit-scrollbar,
+.mutation-report-periods::-webkit-scrollbar,
+.tax-report-presets::-webkit-scrollbar { display: none; }
+
+.date-range-presets > button,
+.dashboard-report-periods > button,
+.warehouse-dashboard-periods > button,
+.stock-dashboard-periods > button,
+.mutation-report-periods > button,
+.tax-report-presets > button,
+.period-chip {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 0 13px !important;
+  border: 1px solid #c7d3e2 !important;
+  border-radius: 999px !important;
+  background: #fff !important;
+  color: #1e3a5f !important;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  box-shadow: none !important;
+  scroll-snap-align: start;
+}
+.date-range-presets > button[aria-pressed="true"],
+.dashboard-report-periods > button[aria-pressed="true"],
+.warehouse-dashboard-periods > button[aria-pressed="true"],
+.stock-dashboard-periods > button[aria-pressed="true"],
+.mutation-report-periods > button[aria-pressed="true"],
+.tax-report-presets > button[aria-pressed="true"],
+.period-chip[aria-pressed="true"] {
+  background: var(--action-bg, #1e3a5f) !important;
+  border-color: var(--action-bg, #1e3a5f) !important;
+  color: #fff !important;
+}
+.dark .date-range-presets > button,
+.dark .dashboard-report-periods > button,
+.dark .warehouse-dashboard-periods > button,
+.dark .stock-dashboard-periods > button,
+.dark .mutation-report-periods > button,
+.dark .tax-report-presets > button,
+.dark .period-chip {
+  background: #182135 !important;
+  border-color: #475569 !important;
+  color: #cbd5e1 !important;
+}
+.dark .date-range-presets > button[aria-pressed="true"],
+.dark .dashboard-report-periods > button[aria-pressed="true"],
+.dark .warehouse-dashboard-periods > button[aria-pressed="true"],
+.dark .stock-dashboard-periods > button[aria-pressed="true"],
+.dark .mutation-report-periods > button[aria-pressed="true"],
+.dark .tax-report-presets > button[aria-pressed="true"],
+.dark .period-chip[aria-pressed="true"] {
+  background: var(--action-bg, #2e5d8f) !important;
+  border-color: var(--action-bg, #2e5d8f) !important;
+  color: #fff !important;
+}
+
+/* Jaring pengaman keterbacaan sidebar: link navigasi tidak boleh menghilang
+   (pernah muncul kasus link tampak kosong sementara judul grup tetap terlihat). */
+.sidebar:not(.collapsed) .side-nav a,
+.sidebar:not(.collapsed) .nav-subgroup-items a {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+.sidebar:not(.collapsed) .side-nav a > span,
+.sidebar:not(.collapsed) .nav-subgroup-items a > span {
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: inherit !important;
+}
+.sidebar:not(.collapsed) .side-nav a > svg,
+.sidebar:not(.collapsed) .nav-subgroup-items a > svg {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
