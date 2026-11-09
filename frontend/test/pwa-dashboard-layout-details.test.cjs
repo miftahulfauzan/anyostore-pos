@@ -10,7 +10,8 @@ test('report period dates use a bounded single-row control', () => {
   const page = read('app/reports/page.js');
   const css = read('app/globals.css');
   assert.match(page, /className="report-period-date-fields"/);
-  assert.match(css, /\.report-period-date-fields\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto\s+minmax\(0,\s*1fr\)/s);
+  assert.match(css, /\.report-period-date-fields\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+38px\s+minmax\(0,\s*1fr\)/s);
+  assert.match(css, /\.report-period-date-fields\s*>\s*span\s*\{[^}]*place-items:\s*center[^}]*min-height:\s*44px/s);
   assert.match(css, /\.report-period-date-fields input\s*\{[^}]*min-width:\s*0/);
 });
 
