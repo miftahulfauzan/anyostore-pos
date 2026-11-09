@@ -15,6 +15,7 @@ export default function BranchSwitcher() {
   const { user, activeBranchId, requestActiveBranchChange } = useAppSession();
   const [branches, setBranches] = useState([]);
   const [open, setOpen] = useState(false);
+  const [panelStyle, setPanelStyle] = useState(null);
   const [message, setMessage] = useState('');
   const trigger = useRef(null);
   const panel = useRef(null);
@@ -57,6 +58,33 @@ export default function BranchSwitcher() {
     };
   }, [open]);
 
+  // Panel di-portal ke <body>, jadi posisinya harus dihitung dari tombol
+  // pemicu. Tanpa ini, `position: absolute` menempel ke body dan panel
+  // muncul jauh di bawah halaman (di desktop terlihat seperti tidak berfungsi).
+  useEffect(() => {
+    if (!open) return undefined;
+    const update = () => {
+      const rect = trigger.current?.getBoundingClientRect();
+      if (!rect || !window.matchMedia('(min-width: 821px)').matches) { setPanelStyle(null); return; }
+      const width = Math.min(360, window.innerWidth - 32);
+      setPanelStyle({
+        position: 'fixed',
+        top: Math.round(rect.bottom + 8),
+        left: Math.round(Math.max(16, Math.min(rect.right - width, window.innerWidth - width - 16))),
+        right: 'auto',
+        width,
+        maxHeight: `min(70vh, ${Math.max(240, window.innerHeight - rect.bottom - 24)}px)`,
+      });
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [open]);
+
   if (user?.role !== 'owner') return null;
   const selected = branches.find((branch) => String(branch.id) === String(activeBranchId));
   const currentLabel = activeBranchId === 'all' ? 'Semua Toko/Gudang' : selected ? branchLabel(selected) : 'Memuat toko…';
@@ -90,7 +118,7 @@ export default function BranchSwitcher() {
       </button>
       {open && typeof document !== 'undefined' && createPortal(<>
         <button type="button" className="branch-switcher-backdrop" aria-label="Tutup pilihan toko" onClick={() => setOpen(false)} />
-        <section ref={panel} className="branch-switcher-panel" role="dialog" aria-modal="true" aria-label="Pilih toko atau gudang">
+        <section ref={panel} className="branch-switcher-panel" style={panelStyle || undefined} role="dialog" aria-modal="true" aria-label="Pilih toko atau gudang">
           <header className="branch-switcher-heading">
             <div><strong>Pilih toko / gudang</strong><small>Filter berlaku di halaman yang mendukung konteks ini.</small></div>
             <button type="button" className="branch-switcher-close" aria-label="Tutup pilihan toko" onClick={() => setOpen(false)}><X aria-hidden="true" size={18} /></button>

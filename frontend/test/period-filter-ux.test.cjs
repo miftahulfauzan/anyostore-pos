@@ -196,3 +196,11 @@ test('sidebar: grup yang dilipat benar-benar menyembunyikan isinya', () => {
   assert.match(css, /\.nav-group:not\(\.nav-group-open\) > \.side-nav a,/);
   assert.match(css, /\.nav-group:not\(\.nav-group-open\) > \.nav-subgroup\s*\{[^}]*display:\s*none\s*!important/s);
 });
+
+test('panel ganti toko mengikuti posisi tombol di desktop', () => {
+  const switcher = read('components/BranchSwitcher.js');
+  assert.match(switcher, /panelStyle/);
+  assert.match(switcher, /position: 'fixed'/);
+  assert.match(switcher, /rect\.bottom \+ 8/);
+  assert.match(switcher, /matchMedia\('\(min-width: 821px\)'\)/);
+});
