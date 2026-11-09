@@ -184,3 +184,10 @@ test('owner mendarat di dashboard setelah login', () => {
   assert.match(login, /role === 'owner' \|\| role === 'gudang'\) return '\/dashboard'/);
   assert.doesNotMatch(login, /return role === 'gudang' \? '\/dashboard' : '\/pos'/);
 });
+
+test('sidebar: submenu Mutasi Stok/Riwayat menutup saat pindah ke menu lain', () => {
+  const shell = read('components/AppShell.js');
+  assert.match(shell, /submenuItems/);
+  assert.match(shell, /const shouldOpen = activeSubmenu === item;/);
+  assert.match(shell, /if \(!shouldOpen && next\[key\]\) \{ next\[key\] = false; changed = true; \}/);
+});

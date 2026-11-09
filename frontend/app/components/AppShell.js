@@ -203,16 +203,26 @@ export default function AppShell({ title, eyebrow, actions, children }) {
   useEffect(() => { setActionsOpen(false); }, [pathname]);
 
   useEffect(() => {
-    const activeSubmenu = navigation.flatMap((group) => group.items).find((item) => item.children?.some((child) => {
+    // Submenu (Mutasi Stok / Riwayat) hanya terbuka otomatis saat salah satu
+    // isinya sedang dibuka. Begitu pindah ke menu lain (mis. Daftar Produk,
+    // Stok Produk, Dasbor), submenu itu ditutup lagi agar sidebar ringkas.
+    const submenuItems = navigation.flatMap((group) => group.items).filter((item) => item.children?.length);
+    const activeSubmenu = submenuItems.find((item) => item.children.some((child) => {
       const itemPath = child.href.split('?')[0];
       const itemQuery = child.href.includes('?') ? child.href.slice(child.href.indexOf('?')) : '';
       return pathname === itemPath && (itemQuery ? search === itemQuery : !search);
     }));
-    if (!activeSubmenu) return;
-    const submenuKey = 'submenu:' + activeSubmenu.label;
     setOpenGroups((current) => {
-      if (current['PRODUK & INVENTORI'] && current[submenuKey]) return current;
-      return { ...current, 'PRODUK & INVENTORI': true, [submenuKey]: true };
+      let changed = false;
+      const next = { ...current };
+      for (const item of submenuItems) {
+        const key = 'submenu:' + item.label;
+        const shouldOpen = activeSubmenu === item;
+        if (shouldOpen && !next[key]) { next[key] = true; changed = true; }
+        if (!shouldOpen && next[key]) { next[key] = false; changed = true; }
+      }
+      if (activeSubmenu && !next['PRODUK & INVENTORI']) { next['PRODUK & INVENTORI'] = true; changed = true; }
+      return changed ? next : current;
     });
   }, [pathname, search, setOpenGroups]);
 
