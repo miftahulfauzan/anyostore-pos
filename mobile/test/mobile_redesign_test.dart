@@ -9,7 +9,7 @@ void main() {
     expect(navigation.map((item) => item.label),
         ['Dashboard', 'Stok', 'Mutasi', 'Lainnya']);
     expect(AppNavigation.forRole('owner').map((item) => item.label),
-        ['POS', 'Riwayat', 'Stok', 'Laporan', 'Lainnya']);
+        ['POS', 'Dashboard', 'Riwayat', 'Keuangan', 'Lainnya']);
   });
 
   test('management actions match existing API permissions', () {
@@ -44,7 +44,8 @@ void main() {
         expect(tester.takeException(), isNull);
         await tester.tap(find.text('Lainnya'));
         expect(selected, items.length - 1);
-        expect(find.text('Stok'), findsOneWidget);
+        expect(
+            find.text(role == 'gudang' ? 'Stok' : 'Dashboard'), findsOneWidget);
       });
     }
 
