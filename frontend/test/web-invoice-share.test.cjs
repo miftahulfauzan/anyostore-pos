@@ -48,8 +48,12 @@ test('tombol bagikan ada di POS dan halaman struk', () => {
 });
 
 test('invoice menampilkan harga per pcs pada tiap barang', () => {
-  assert.match(invoice, /const unitPrice = Number\(item\.price\) > 0 \? `\$\{rupiah\(item\.price\)\}\/pcs`/);
-  assert.match(invoice, /const detailText = \[item\.variant, unitPrice\]/);
+  // Harga per pcs tampil sebaris dengan nama (rata kanan sebelum kolom QTY).
+  assert.match(invoice, /\$\{rupiah\(item\.price\)\}\/pcs/);
+  assert.match(invoice, /const detailRight = colQty - 46;/);
+  assert.match(invoice, /fitText\(ctx, item\.name/);
+  // Tanggal invoice tanpa jam.
+  assert.doesNotMatch(invoice, /\\u00b7 \$\{hh\}\.\$\{mm\}/);
   // Jarak ke blok rekening dibatasi agar tidak menyisakan lubang besar.
   assert.match(invoice, /Math\.min\(140, Math\.max\(36,/);
 });
