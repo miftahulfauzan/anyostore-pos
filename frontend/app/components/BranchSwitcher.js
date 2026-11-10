@@ -125,13 +125,13 @@ export default function BranchSwitcher() {
           </header>
           {message && <p className="branch-switcher-error" role="alert">{message}</p>}
           <div className="branch-switcher-options">
-            <button type="button" className={activeBranchId === 'all' ? 'selected' : ''} onClick={() => choose('all')}>
+            <button type="button" className={`branch-option${activeBranchId === 'all' ? ' selected' : ''}`} onClick={() => choose('all')}>
               <span className="branch-switcher-option-icon"><Building2 aria-hidden="true" size={17} /></span>
               <span><strong>Semua Toko/Gudang</strong><small>Agregat untuk halaman yang mendukung</small></span>
               {activeBranchId === 'all' && <Check aria-hidden="true" size={17} />}
             </button>
             {branches.map((branch) => (
-              <button type="button" key={branch.id} className={String(activeBranchId) === String(branch.id) ? 'selected' : ''} onClick={() => choose(String(branch.id))}>
+              <button type="button" key={branch.id} className={`branch-option${String(activeBranchId) === String(branch.id) ? ' selected' : ''}`} onClick={() => choose(String(branch.id))}>
                 <span className="branch-switcher-option-icon">{branch.type === 'gudang' ? <Building2 aria-hidden="true" size={17} /> : <Store aria-hidden="true" size={17} />}</span>
                 <span><strong>{branchLabel(branch)}</strong>{branch.address && <small>{branch.address}</small>}</span>
                 {String(activeBranchId) === String(branch.id) && <Check aria-hidden="true" size={17} />}

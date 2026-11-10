@@ -227,7 +227,9 @@ th { color: #526057; font-size: .78rem; text-transform: uppercase; letter-spacin
 body, .workspace, .pos-workspace { background:#f8fafc; color:#111827; }
 button, .payment-option.selected, .view-button.selected { background:var(--expressive-primary); color:#fff; border-radius:4px; }
 .button-link { background:var(--expressive-secondary); color:#fff; border-radius:4px; }
-button:hover:not(:disabled) { background:#1e40af; color:#fff; }
+/* Hover global hanya untuk tombol tanpa kelas; komponen berkelas punya
+   aturan hover sendiri (kalau ditimpa, teks gelap di latar gelap). */
+button:not([class]):hover:not(:disabled) { background:#1e40af; color:#fff; }
 .button-link:hover { background:#1d4ed8; color:#fff; }
 a, .photo-upload { color:var(--expressive-secondary); }
 .eyebrow { color:var(--expressive-primary); }
@@ -5575,7 +5577,10 @@ button,
   border-color: var(--action-bg);
   color: #fff;
 }
-button:hover:not(:disabled),
+/* Hover warna aksi HANYA untuk tombol tanpa kelas khusus. Kalau mengenai
+   komponen berkelas (mis. baris pemilih toko atau judul akordeon laporan),
+   latar jadi gelap sementara teksnya tetap gelap sehingga tak terbaca. */
+button:not([class]):hover:not(:disabled),
 .button-link:hover {
   background-color: var(--action-bg-hover);
   color: #fff;
@@ -6906,3 +6911,20 @@ html[data-theme] .sidebar .nav-group-toggle:hover {
   }
   .transfer-history-footer .transfer-history-details summary { font-size: var(--fs-2xs) !important; }
 }
+
+/* Hover baris pemilih toko/gudang (kelas branch-option mencegah aturan hover
+   tombol global menimpanya sehingga teks tetap gelap di latar terang). */
+.branch-switcher-options > button.branch-option:hover {
+  background: color-mix(in srgb, var(--primary) 8%, var(--card));
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--border));
+  color: var(--foreground);
+}
+
+/* Tab non-aktif: hover tetap terang agar teksnya terbaca. */
+.tabs button:not(.active):hover,
+html[data-theme] .app-main .tabs button:not(.active):hover {
+  background: #f1f5f9;
+  color: var(--foreground);
+  border-color: var(--border);
+}
+.dark .tabs button:not(.active):hover { background: #22304b; color: #e2e8f0; }
