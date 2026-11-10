@@ -87,6 +87,7 @@ function TrendChart({ rows, valueKey = 'revenue', color, emptyMessage }) {
   const linePath = buildSmoothPath(chartPoints);
   const areaPath = `${linePath} L ${chartPoints.at(-1)[0]},94 L ${chartPoints[0][0]},94 Z`;
   return <div className="dashboard-report-chart" aria-label="Grafik tren laporan">
+    <span className="dashboard-report-chart-max">tertinggi {rupiah(max)}</span>
     <div className="dashboard-report-chart-plot">
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Grafik tren penjualan">
       <defs>

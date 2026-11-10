@@ -95,3 +95,12 @@ test('komponen dasbor tidak memakai ikon/props yang tidak diimpor', () => {
   const unknown = [...new Set(referenced)].filter((name) => !declared.has(name));
   assert.deepEqual(unknown, [], `komponen/prop tidak terdefinisi: ${unknown.join(', ')}`);
 });
+
+test('grafik dasbor tidak menembus keluar kartu (label sumbu Y)', () => {
+  const styles = fs.readFileSync(new URL('../app/globals.css', `file://${__dirname}/`), 'utf8');
+  // Dulu label sumbu Y diposisikan `right: calc(100% + 38px)` sehingga keluar
+  // kartu (di tablet keluar layar dan halaman bisa digeser ke samping).
+  assert.match(styles, /\.dashboard-merged \.dashboard-report-chart \{ position: relative;[^}]*overflow: hidden;/);
+  assert.match(styles, /\.dashboard-merged \.dashboard-report-chart-ylabels \{ display: none; \}/);
+  assert.match(sections, /dashboard-report-chart-max/);
+});

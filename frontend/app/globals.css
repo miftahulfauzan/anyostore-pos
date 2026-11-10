@@ -7139,3 +7139,23 @@ html[data-theme] .app-main .tabs button:not(.active):hover {
   button.period-filter-toggle > svg { order: 2; margin-left: auto; }
   .period-filter-range { order: 3; width: 100%; margin-left: 0; }
 }
+
+/* Grafik dasbor: label sumbu Y dulu diposisikan `right: calc(100% + 38px)`
+   sehingga menembus keluar kartu (di tablet malah keluar layar dan membuat
+   halaman bisa digeser ke samping). Label dipindah menjadi satu keterangan
+   "tertinggi …" di dalam kotak grafik. */
+.dashboard-merged .dashboard-report-chart { position: relative; padding: 8px 10px 8px; overflow: hidden; min-width: 0; }
+.dashboard-merged .dashboard-report-chart-ylabels { display: none; }
+.dashboard-report-chart-max {
+  display: block;
+  margin: 0 0 4px;
+  color: #64748b;
+  font-size: 9.5px;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+.dark .dashboard-report-chart-max { color: #94a3b8; }
+/* Semua kartu dasbor tidak boleh melebar melebihi kontainer. */
+.dashboard-merged .dashboard-report-section { min-width: 0; }
+.dashboard-merged .dashboard-secondary-grid > * { min-width: 0; }
