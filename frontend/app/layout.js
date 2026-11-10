@@ -3,6 +3,7 @@ import './audit-fixes.css';
 import NotificationCenter from './components/NotificationCenter';
 import AppStateProvider from './components/AppStateProvider';
 import PwaRegister from './components/PwaRegister';
+import OfflineBanner from './components/OfflineBanner';
 import { preferencesScript } from './components/app-state.cjs';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://anyostore.my.id';
@@ -60,6 +61,7 @@ export default function RootLayout({ children }) {
         <a className="skip-link" href="#main-content">Lewati ke konten utama</a>
         <AppStateProvider>{children}</AppStateProvider>
         <PwaRegister />
+        <OfflineBanner />
         <NotificationCenter />
       </body>
     </html>

@@ -303,7 +303,7 @@ export default function LinkBioPage({ config, onLinkClick }) {
   }
 
   return (
-    <div style={{ minHeight: '100vh', color: theme.page.color, fontFamily: "'DM Sans', 'Plus Jakarta Sans', system-ui, sans-serif", ...pageBackground }}>
+    <div style={{ minHeight: '100vh', color: theme.page.color, fontFamily: "'Plus Jakarta Sans', 'Plus Jakarta Sans', system-ui, sans-serif", ...pageBackground }}>
       <style>{pageStyles}</style>
       <div style={{ maxWidth: 480, margin: '0 auto', padding: '52px 20px 44px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         {config?.avatar ? (

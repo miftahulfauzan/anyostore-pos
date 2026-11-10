@@ -3220,7 +3220,7 @@ button.pcard-btn { font-family: inherit; }
 
 html,
 body {
-  font-family: "DM Sans", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: var(--ui-bg);
   color: var(--ui-ink);
 }
@@ -7212,4 +7212,128 @@ html[data-theme] .app-main .tabs button:not(.active):hover {
   width: auto;
   margin-top: 4px;
   padding: 3px 10px;
+}
+
+/* ========================================================================
+   Laci Kas (web): buka/tutup kas + kas masuk/keluar, gaya kartu ringkas
+   yang sama dengan dasbor. Tabs memisahkan operasional dan cetak penutupan.
+   ======================================================================== */
+.closing-page { display: grid; gap: 12px; max-width: 1180px; }
+.closing-tabs { display: flex; gap: 6px; }
+.closing-tabs button {
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid #c7d3e2;
+  border-radius: 99px;
+  background: #fff;
+  color: #1e3a5f;
+  font-size: 12px;
+  font-weight: 800;
+}
+.closing-tabs button.active { background: #1e3a5f; border-color: #1e3a5f; color: #fff; }
+.closing-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+.closing-toolbar label { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; }
+.cash-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.cash-status, .cash-close, .cash-open, .cash-result { display: grid; gap: 12px; padding: 14px; }
+.cash-figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.cash-figures > div {
+  padding: 9px 11px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  display: grid;
+  gap: 2px;
+}
+.cash-figures span { color: #64748b; font-size: 10px; font-weight: 700; }
+.cash-figures strong { color: #0f172a; font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.cash-actions { display: flex; gap: 6px; }
+.cash-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid #c7d3e2;
+  border-radius: 9px;
+  background: #fff;
+  color: #1e3a5f;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+.cash-actions button.selected { background: #1e3a5f; border-color: #1e3a5f; color: #fff; }
+.cash-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; align-items: end; }
+.cash-form label, .cash-close label { display: grid; gap: 4px; font-size: 11px; font-weight: 700; color: #334155; }
+.cash-form input, .cash-close input, .cash-close textarea { min-height: 38px; }
+.cash-form button, .cash-close-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 6px 14px;
+  border-radius: 9px;
+  background: var(--action-bg, #1e3a5f);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+.cash-close-button { background: #b42318; }
+.cash-diff { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 11px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; font-size: 11.5px; font-weight: 700; }
+.cash-diff strong { font-size: 14px; font-variant-numeric: tabular-nums; }
+.cash-movements { display: grid; gap: 4px; }
+.cash-movements-title { color: #64748b; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.cash-movement { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; gap: 8px; padding: 5px 0; border-bottom: 1px solid #eef2f7; font-size: 11.5px; }
+.cash-movement:last-child { border-bottom: 0; }
+.cash-movement span:first-child { color: #64748b; font-variant-numeric: tabular-nums; }
+.cash-movement strong { font-variant-numeric: tabular-nums; }
+.cash-result h2 { margin: 0; font-size: 13px; }
+.dashboard-accent-orange { background: #c2410c; }
+.positive { color: #16856a !important; }
+.negative { color: #b42318 !important; }
+.closing-page .section-heading { margin-bottom: 0; }
+
+@media (max-width: 900px) {
+  .cash-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+.dark .closing-tabs button { background: #182135; border-color: #475569; color: #bfdbfe; }
+.dark .closing-tabs button.active { background: #2e5d8f; border-color: #2e5d8f; color: #fff; }
+.dark .cash-figures > div,
+.dark .cash-diff { border-color: rgba(148, 163, 184, .2); background: #182135; }
+.dark .cash-figures span { color: #94a3b8; }
+.dark .cash-figures strong { color: #f1f5f9; }
+.dark .cash-actions button { background: #182135; border-color: #475569; color: #bfdbfe; }
+.dark .cash-actions button.selected { background: #2e5d8f; border-color: #2e5d8f; color: #fff; }
+.dark .cash-movement { border-bottom-color: rgba(148, 163, 184, .16); }
+.dark .positive { color: #6ee7b7 !important; }
+.dark .negative { color: #fca5a5 !important; }
+
+@media (max-width: 520px) {
+  .cash-form { grid-template-columns: minmax(0, 1fr); }
+  .cash-form button, .cash-close-button { width: 100%; }
+  .cash-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Indikator offline PWA: satu baris di bawah, tidak menutupi konten penting. */
+.offline-banner {
+  position: fixed;
+  left: 50%;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  z-index: 90;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(92vw, 460px);
+  padding: 9px 14px;
+  border-radius: 99px;
+  background: #1e3a5f;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 700;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, .28);
+  transform: translateX(-50%);
+}
+.offline-banner svg { flex: 0 0 auto; }
+@media (max-width: 520px) {
+  .offline-banner { font-size: 11px; padding: 8px 12px; }
 }

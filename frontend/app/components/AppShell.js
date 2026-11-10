@@ -14,6 +14,7 @@ import {
   ClipboardCheck,
   History,
   LayoutDashboard,
+  ShoppingCart,
   Link2,
   LogOut,
   Menu,
@@ -40,8 +41,10 @@ const navigation = [
   {
     label: 'OPERASIONAL',
     items: [
+      { href: '/pos', label: 'POS', icon: ShoppingCart },
       { href: '/dashboard', label: 'Dasbor', icon: LayoutDashboard },
       { href: '/history', label: 'Transaksi', icon: ReceiptText, roles: ['owner', 'manager', 'admin'] },
+      { href: '/closing', label: 'Laci Kas', icon: WalletCards, roles: ['owner', 'manager', 'admin', 'kasir'] },
     ],
   },
   {

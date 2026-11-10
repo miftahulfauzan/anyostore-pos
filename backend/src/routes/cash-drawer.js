@@ -63,6 +63,21 @@ router.post('/:type(cash-in|cash-out)', authorize('owner', 'manager', 'admin', '
   } catch (error) { await connection.rollback(); next(error); } finally { connection.release(); }
 });
 
+// Status laci kas tanpa error: dipakai halaman web supaya "belum buka kas"
+// bukan dianggap kegagalan (dulu /summary membalas 404 sehingga muncul toast).
+router.get('/current', async (req, res, next) => {
+  const connection = await db.getConnection();
+  try {
+    const drawer = await openDrawer(connection, req.user);
+    if (!drawer) return res.json({ success: true, data: { drawer: null, expected_cash: 0, movements: [] } });
+    const [movements] = await connection.execute(
+      'SELECT type, amount, reason, created_at FROM cash_drawer_movements WHERE cash_drawer_id = ? ORDER BY created_at DESC LIMIT 20',
+      [drawer.id]
+    );
+    return res.json({ success: true, data: { drawer, expected_cash: await expectedCash(connection, drawer), movements } });
+  } catch (error) { return next(error); } finally { connection.release(); }
+});
+
 router.get('/summary', async (req, res, next) => {
   const connection = await db.getConnection();
   try { const drawer = await openDrawer(connection, req.user); if (!drawer) throw fail(404, 'Tidak ada laci kas terbuka'); res.json({ success: true, data: { ...drawer, expected_cash: await expectedCash(connection, drawer) } }); }

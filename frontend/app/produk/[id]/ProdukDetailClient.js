@@ -125,8 +125,8 @@ export default function ProdukDetail() {
   }, [id]);
 
   if (!mounted) return null;
-  if (loading) return <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto', fontFamily: "'DM Sans', sans-serif" }}>Memuat produk…</div>;
-  if (!product) return <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto', fontFamily: "'DM Sans', sans-serif" }}>Produk tidak ditemukan. <a href="/" style={{ color: C.accent, fontWeight: 700 }}>Kembali ke katalog</a></div>;
+  if (loading) return <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Memuat produk…</div>;
+  if (!product) return <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Produk tidak ditemukan. <a href="/" style={{ color: C.accent, fontWeight: 700 }}>Kembali ke katalog</a></div>;
 
   const media = product.media || [];
   const variants = product.variants || [];
@@ -140,7 +140,7 @@ export default function ProdukDetail() {
   if (!waPhones.length && waPhone) waPhones.push(waPhone);
 
   return (
-    <div style={{ background: C.bg, color: C.ink, minHeight: '100vh', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+    <div style={{ background: C.bg, color: C.ink, minHeight: '100vh', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
       <header style={{ background: C.white, borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, zIndex: 40 }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <a href="/" style={{ fontSize: 14, fontWeight: 600, color: C.ink, textDecoration: 'none' }}>← Katalog</a>
@@ -169,7 +169,7 @@ export default function ProdukDetail() {
         <div style={{ display: 'grid', gap: 16 }} className="m-fade-up">
           <div>
             <p style={{ margin: 0, color: C.muted, fontSize: 'var(--fs-xs)', fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' }}>{product.category_name || 'Denim'}</p>
-            <h1 style={{ margin: '6px 0 0', fontFamily: "'DM Sans', sans-serif", fontSize: 26, fontWeight: 700, lineHeight: 1.2, color: C.ink }}>{product.name}</h1>
+            <h1 style={{ margin: '6px 0 0', fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 26, fontWeight: 700, lineHeight: 1.2, color: C.ink }}>{product.name}</h1>
             <p style={{ margin: '6px 0 0', color: C.muted, fontSize: 'var(--fs-md)' }}>{product.sku || ''}</p>
           </div>
 
