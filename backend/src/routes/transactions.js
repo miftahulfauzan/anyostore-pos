@@ -142,7 +142,8 @@ router.post('/preview', authorize('owner', 'manager', 'admin', 'kasir'), async (
     let discount = discountType === 'percentage' ? money(subtotal * requestedDiscount / 100) : discountType === 'nominal' ? requestedDiscount : 0;
     let promo = null;
     if (promoCode?.trim()) {
-      const promotion = await findPromotion(db, branchId, promoCode, subtotal);
+      const previewPcs = (Array.isArray(items) ? items : []).reduce((total, item) => total + (Number(item.quantity) || 0), 0);
+      const promotion = await findPromotion(db, branchId, promoCode, subtotal, previewPcs);
       promo = promotion.promo;
       discount = promotion.discount;
       requestedDiscount = Number(promo.discount_value);
@@ -396,7 +397,7 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
       requestedDiscount = money(discountValue);
       if (requestedDiscount < 0) throw httpError(400, 'Diskon transaksi tidak valid');
       discount = discountType === 'percentage' ? money(subtotal * requestedDiscount / 100) : discountType === 'nominal' ? requestedDiscount : 0;
-      if (promoCode?.trim()) { const promotion = await findPromotion(connection, branchId, promoCode, subtotal); promo = promotion.promo; discount = promotion.discount; requestedDiscount = Number(promo.discount_value); effectiveDiscountType = promo.discount_type; }
+      if (promoCode?.trim()) { const promotion = await findPromotion(connection, branchId, promoCode, subtotal, lines.reduce((total, line) => total + Number(line.quantity || 0), 0)); promo = promotion.promo; discount = promotion.discount; requestedDiscount = Number(promo.discount_value); effectiveDiscountType = promo.discount_type; }
       if (discount > subtotal) throw httpError(400, 'Diskon transaksi melebihi subtotal');
     }
     const grandTotal = money(subtotal - discount);

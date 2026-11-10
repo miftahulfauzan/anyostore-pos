@@ -85,7 +85,7 @@ export default function PromotionsPage() {
         )}
         <label>Kode voucher<input required value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="HEMAT10" /></label>
         <label>Nama voucher<input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Diskon 10%" /></label>
-        <label>Jenis diskon<select value={form.discount_type} onChange={(e) => setForm({ ...form, discount_type: e.target.value })}><option value="percentage">Persentase (%)</option><option value="nominal">Nominal (Rp)</option></select></label>
+        <label>Jenis diskon<select value={form.discount_type} onChange={(e) => setForm({ ...form, discount_type: e.target.value })}><option value="percentage">Persentase (%)</option><option value="nominal">Nominal (Rp)</option><option value="per_pcs">Per pcs (Rp per pcs)</option></select></label>
         <label>Nilai diskon<input required type="number" min="1" value={form.discount_value} onChange={(e) => setForm({ ...form, discount_value: e.target.value })} /></label>
         <label>Minimum belanja<input type="number" min="0" value={form.min_purchase} onChange={(e) => setForm({ ...form, min_purchase: e.target.value })} /></label>
         <label>Maksimum diskon (opsional)<input type="number" min="0" value={form.max_discount} onChange={(e) => setForm({ ...form, max_discount: e.target.value })} /></label>
@@ -101,7 +101,7 @@ export default function PromotionsPage() {
             <article key={p.id}>
               <div>
                 <strong>{p.code} : {p.name}</strong>
-                <span>{p.discount_type === 'percentage' ? p.discount_value + '%' : 'Rp' + Number(p.discount_value).toLocaleString('id-ID')} · dipakai {p.usage_count}{p.usage_limit ? '/' + p.usage_limit : ''} · {p.is_active ? 'aktif' : 'nonaktif'}</span>
+                <span>{p.discount_type === 'percentage' ? p.discount_value + '%' : p.discount_type === 'per_pcs' ? 'Rp' + Number(p.discount_value).toLocaleString('id-ID') + '/pcs' : 'Rp' + Number(p.discount_value).toLocaleString('id-ID')} · dipakai {p.usage_count}{p.usage_limit ? '/' + p.usage_limit : ''} · {p.is_active ? 'aktif' : 'nonaktif'}</span>
               </div>
               <div className="actions" style={{ display: 'flex', gap: 6 }}>
                 <button type="button" className="secondary" onClick={() => toggle(p.id)}>{p.is_active ? 'Nonaktifkan' : 'Aktifkan'}</button>

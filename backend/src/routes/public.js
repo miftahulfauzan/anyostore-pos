@@ -230,6 +230,7 @@ router.post('/voucher', async (req, res, next) => {
     const branchId = Number(req.body?.branch_id) || null;
     const code = String(req.body?.code || '').trim();
     const subtotal = Number(req.body?.subtotal) || 0;
+    const pcs = Number(req.body?.pcs) || 0;
     if (!branchId || !code) return res.status(400).json({ success: false, message: 'Kode voucher dan cabang wajib diisi' });
     const [rows] = await db.execute(
       `SELECT id, code, name, discount_type, discount_value, min_purchase, max_discount
@@ -244,9 +245,14 @@ router.post('/voucher', async (req, res, next) => {
     if (subtotal < Number(promo.min_purchase)) {
       return res.status(400).json({ success: false, message: `Belanja minimum Rp${Number(promo.min_purchase).toLocaleString('id-ID')} belum terpenuhi` });
     }
-    let discount = promo.discount_type === 'percentage'
-      ? subtotal * Number(promo.discount_value) / 100
-      : Number(promo.discount_value);
+    let discount;
+    if (promo.discount_type === 'per_pcs') {
+      discount = Number(promo.discount_value) * Math.max(0, pcs);
+    } else if (promo.discount_type === 'percentage') {
+      discount = subtotal * Number(promo.discount_value) / 100;
+    } else {
+      discount = Number(promo.discount_value);
+    }
     if (promo.max_discount !== null) discount = Math.min(discount, Number(promo.max_discount));
     discount = Math.min(Math.round(discount), subtotal);
     res.json({ success: true, data: { code: promo.code, name: promo.name, discount } });

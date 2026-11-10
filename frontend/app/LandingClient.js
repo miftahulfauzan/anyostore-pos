@@ -328,6 +328,29 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
   function removeItem(key) { setCart((prev) => prev.filter((i) => i.key !== key)); }
   function clearCart() { setCart([]); }
 
+  // Voucher per pcs bergantung pada jumlah barang: hitung ulang saat keranjang berubah.
+  useEffect(() => {
+    if (!voucher || !branchId) return undefined;
+    const timer = setTimeout(() => {
+      fetch(`${api}/public/voucher`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ branch_id: branchId, code: voucher.code, subtotal: cartTotal, pcs: cartPcs }),
+      })
+        .then(async (response) => {
+          const body = await response.json();
+          if (!response.ok) throw new Error(body.message || 'Voucher tidak berlaku');
+          setVoucher(body.data);
+          setVoucherMessage(`Voucher ${body.data.code} dipakai (-${fmtRp(body.data.discount)}).`);
+        })
+        .catch((error) => {
+          setVoucher(null);
+          setVoucherMessage(error.message);
+        });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [cartTotal, cartPcs]);
+
   async function applyVoucher() {
     const code = voucherCode.trim();
     if (!code || !branchId) return;
@@ -337,7 +360,7 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
       const response = await fetch(`${api}/public/voucher`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ branch_id: branchId, code, subtotal: cartTotal }),
+        body: JSON.stringify({ branch_id: branchId, code, subtotal: cartTotal, pcs: cartPcs }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message || 'Voucher tidak berlaku');

@@ -57,3 +57,17 @@ test('ongkir otomatis RajaOngkir diproksi dari server dan minimal order diatur p
   assert.match(settingsRoute, /'min_order_qty'/);
   assert.match(settingsRoute, /'ongkir_provider'/);
 });
+
+test('voucher bisa berupa diskon per pcs', () => {
+  const migrationPerPcs = read('migrations/20261113_promotion_per_pcs.sql');
+  assert.match(migrationPerPcs, /ENUM\('percentage', 'nominal', 'per_pcs'\)/);
+  assert.match(promotionsRoute, /promo\.discount_type === 'per_pcs'/);
+  assert.match(promotionsRoute, /Number\(promo\.discount_value\) \* Number\(pcs\)/);
+  assert.match(promotionsRoute, /Number\(req\.body\.pcs\s*\|\|\s*0\)/);
+  // Checkout & preview mengirim jumlah pcs ke findPromotion.
+  const transactionsRoute = read('src/routes/transactions.js');
+  assert.match(transactionsRoute, /findPromotion\(connection, branchId, promoCode, subtotal, lines\.reduce/);
+  assert.match(transactionsRoute, /findPromotion\(db, branchId, promoCode, subtotal, previewPcs\)/);
+  assert.match(publicRoute, /promo\.discount_type === 'per_pcs'/);
+  assert.match(publicRoute, /const pcs = Number\(req\.body\?\.pcs\) \|\| 0;/);
+});

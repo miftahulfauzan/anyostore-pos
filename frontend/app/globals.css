@@ -7445,3 +7445,11 @@ html[data-theme] .app-main .tabs button:not(.active):hover {
 .landing-settings-tabs button.active { background: #1e3a5f; border-color: #1e3a5f; color: #fff; }
 .dark .landing-settings-tabs button { background: #182135; border-color: #475569; color: #bfdbfe; }
 .dark .landing-settings-tabs button.active { background: #2e5d8f; border-color: #2e5d8f; color: #fff; }
+
+/* Daftar (voucher/tarif/promo): baris rata tengah dan tombol tidak melar
+   setinggi baris. */
+.product-list article { align-items: center; }
+.product-list article .actions { align-items: center; }
+.product-list article .actions button,
+.product-list article > button { min-height: 36px; align-self: center; }
+.landing-settings-tabs { margin-bottom: 6px; }

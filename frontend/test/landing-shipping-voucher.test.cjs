@@ -28,6 +28,9 @@ test('keranjang landing punya alamat, cek ongkir, dan voucher', () => {
   // Ongkir otomatis RajaOngkir: cari kecamatan + daftar layanan kurir.
   assert.match(landing, /public\/shipping\/destinations/);
   assert.match(landing, /public\/shipping\/cost/);
+  // Voucher per pcs: jumlah pcs ikut divalidasi dan dihitung ulang saat keranjang berubah.
+  assert.match(landing, /pcs: cartPcs/);
+  assert.match(landing, /\}, \[cartTotal, cartPcs\]\);/);
 });
 
 test('setelan landing (ongkir & voucher) ada di satu halaman', () => {

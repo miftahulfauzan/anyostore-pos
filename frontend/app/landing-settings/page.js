@@ -370,6 +370,7 @@ export default function LandingSettingsPage() {
               <select value={voucherForm.discount_type} onChange={(event) => setVoucherForm({ ...voucherForm, discount_type: event.target.value })}>
                 <option value="percentage">Persentase (%)</option>
                 <option value="nominal">Nominal (Rp)</option>
+                <option value="per_pcs">Per pcs (Rp per pcs)</option>
               </select>
             </label>
             <label>Nilai diskon<input required type="number" min="1" value={voucherForm.discount_value} onChange={(event) => setVoucherForm({ ...voucherForm, discount_value: event.target.value })} /></label>
@@ -385,7 +386,7 @@ export default function LandingSettingsPage() {
                 <article key={voucher.id}>
                   <div>
                     <strong>{voucher.code} : {voucher.name}</strong>
-                    <span>{voucher.discount_type === 'percentage' ? `${voucher.discount_value}%` : `Rp${Number(voucher.discount_value).toLocaleString('id-ID')}`} · min Rp{Number(voucher.min_purchase || 0).toLocaleString('id-ID')} · dipakai {voucher.usage_count}{voucher.usage_limit ? `/${voucher.usage_limit}` : ''} · {voucher.is_active ? 'aktif' : 'nonaktif'}</span>
+                    <span>{voucher.discount_type === 'percentage' ? `${voucher.discount_value}%` : voucher.discount_type === 'per_pcs' ? `Rp${Number(voucher.discount_value).toLocaleString('id-ID')}/pcs` : `Rp${Number(voucher.discount_value).toLocaleString('id-ID')}`} · min Rp{Number(voucher.min_purchase || 0).toLocaleString('id-ID')} · dipakai {voucher.usage_count}{voucher.usage_limit ? `/${voucher.usage_limit}` : ''} · {voucher.is_active ? 'aktif' : 'nonaktif'}</span>
                   </div>
                   <div className="actions" style={{ display: 'flex', gap: 6 }}>
                     <button type="button" className="secondary" onClick={() => toggleVoucher(voucher.id)}>{voucher.is_active ? 'Nonaktifkan' : 'Aktifkan'}</button>
