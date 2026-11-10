@@ -2948,9 +2948,9 @@ html[data-theme="green"] .link-button.danger:hover, html[data-theme="blue"] .lin
   .dashboard-secondary-grid .dashboard-report-section { padding: 11px; }
   .dashboard-secondary-grid .dashboard-report-heading h2 { gap: 5px; font-size: 14px; }
   .dashboard-secondary-grid .dashboard-report-heading h2 svg { width: 16px; height: 16px; }
-  .dashboard-secondary-grid .dashboard-list-item { padding: 8px 0; }
-  .dashboard-secondary-grid .dashboard-list-item > div:first-child { display: grid; gap: 3px; }
-  .dashboard-secondary-grid .dashboard-list-item > div:first-child span { text-align: left; }
+  .dashboard-secondary-grid .dashboard-list-item { padding: 5px 0; }
+  .dashboard-secondary-grid .dashboard-list-item > div.dashboard-list-row { display: flex; align-items: center; gap: 8px; }
+  .dashboard-secondary-grid .dashboard-list-item > div.dashboard-list-row .dashboard-list-track { text-align: left; }
   .dashboard-summary-footnote { padding: 2px 8px; text-align: center; }
   .dark .dashboard-summary-meta .dashboard-report-row,
   .dark .dashboard-sales-metrics .dashboard-report-row { border-bottom-color: rgba(148,163,184,.16); }
@@ -6953,3 +6953,158 @@ html[data-theme] .app-main .tabs button:not(.active):hover {
   }
   body:has(.transfer-print-root.is-active) .transfer-print-root { display: block !important; }
 }
+
+/* ========================================================================
+   Dasbor penjualan: kartu ringkas tanpa ikon dekoratif (gaya "rapi").
+   Judul seksi satu baris (aksen + judul + meta), KPI 2 kolom di HP,
+   grafik lebih pendek, baris pembayaran polos tanpa ikon/chevron,
+   daftar terlaris & stok rendah satu kolom dengan bar di bawah nama.
+   ======================================================================== */
+.dashboard-report-layout.dashboard-merged { gap: 10px; }
+.dashboard-merged .dashboard-report-section { padding: 12px 13px; }
+.dashboard-merged .dashboard-report-heading {
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.dashboard-merged .dashboard-report-heading h2 { font-size: 13px; letter-spacing: -.005em; }
+.dashboard-report-heading .section-head-meta { font-size: 11.5px; }
+.dashboard-report-heading .section-head-meta small { font-size: 10.5px; }
+
+/* KPI: label kecil huruf kapital + angka, tanpa kotak ikon dan badge panah */
+.dashboard-kpi-grid { gap: 8px; }
+.dashboard-kpi-tile {
+  display: block;
+  min-height: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  box-shadow: none;
+}
+.dashboard-kpi-label {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+.dashboard-kpi-tile strong { margin-top: 3px; font-size: 14px; }
+.dashboard-overview-footline { margin-top: 9px; padding-top: 8px; font-size: 10.5px; }
+.dashboard-overview-footline strong { font-size: 12.5px; color: var(--report-tone, #1e3a5f); }
+
+/* Penjualan: satu angka utama + grafik pendek (tombol "Lihat angka" dihapus) */
+.dashboard-report-focal { gap: 1px; margin-bottom: 8px; }
+.dashboard-report-focal span { font-size: 10.5px; }
+.dashboard-report-focal strong { font-size: 26px; }
+.dashboard-report-focal small { font-size: 10px; }
+.dashboard-report-chart { min-height: 0; padding: 9px 9px 7px 40px; }
+.dashboard-report-chart-plot { height: 96px; }
+.dashboard-report-axis-labels { font-size: 9px; }
+.dashboard-report-legend { margin: 5px 0 2px; font-size: 10px; }
+.dashboard-report-values-toggle,
+.dashboard-report-chart-total { display: none; }
+
+/* Baris rincian pembayaran: label kiri, angka kanan, tanpa ikon & chevron */
+.dashboard-sales-metrics { margin-top: 8px; }
+.dashboard-sales-metrics .dashboard-finance-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  min-height: 32px;
+  padding: 6px 0;
+}
+.dashboard-finance-row > span { font-size: 11.5px; color: #334155; }
+.dashboard-finance-row strong { font-size: 11.5px; color: #111827; }
+.dashboard-finance-icon,
+.dashboard-finance-chevron { display: none; }
+
+/* Daftar terlaris & stok rendah */
+.dashboard-list-item { gap: 5px; padding: 6px 0; }
+.dashboard-list-item strong { font-size: 11.5px; }
+.dashboard-list-item > div:first-child { font-size: 10.5px; }
+.dashboard-list-track { height: 5px; }
+.dashboard-summary-footnote { font-size: 10px; }
+
+/* Panel transaksi terbaru & ringkasan semua toko: judul sebaris, isi padat */
+.dashboard-panel-head {
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.dashboard-panel-head h2 { margin: 0; font-size: 13px; }
+.dashboard-panel-head a { margin-left: auto; font-size: 11px; font-weight: 700; }
+.dashboard-panel-head .section-head-meta { font-size: 11.5px; }
+.dashboard-accent-purple { background: #7c3aed; }
+.dashboard-recent { padding: 12px 13px; }
+.dashboard-recent-list .dashboard-recent-item { padding: 7px 0; }
+.dashboard-recent-item__main strong { font-size: 11.5px; }
+.dashboard-recent-item__meta { font-size: 10px; }
+.dashboard-recent-item__amount > strong { font-size: 11.5px; }
+
+/* Ringkasan semua toko: tetap 3 kolom di HP supaya tidak memanjang ke bawah */
+.store-summary { padding: 12px 13px; }
+.store-summary-grid { gap: 10px; }
+.store-summary-grid header { padding: 9px 10px; }
+.store-summary-grid dl { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.store-summary-grid dl > div { padding: 8px 10px; border-right: 1px solid #e2e8f0; border-bottom: 0; }
+.store-summary-grid dl > div:last-child { border-right: 0; }
+
+@media (max-width: 900px) {
+  .dashboard-secondary-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (min-width: 901px) {
+  .dashboard-report-chart-plot { height: 118px; }
+  .dashboard-kpi-tile strong { font-size: 16px; }
+  .dashboard-merged .dashboard-report-heading h2 { font-size: 15px; }
+}
+
+.dark .dashboard-kpi-label { color: #94a3b8; }
+.dark .dashboard-finance-row > span { color: #cbd5e1; }
+.dark .dashboard-finance-row strong { color: #f1f5f9; }
+.dark .dashboard-panel-head h2 { color: #f1f5f9; }
+.dark .dashboard-panel-head a { color: #93c5fd; }
+
+/* Daftar terlaris & stok rendah: SATU baris (nama + bar + angka) supaya
+   tidak perlu dua tingkat dan tetap terbaca di HP. */
+.dashboard-list-item { display: block; padding: 5px 0; border-bottom: 1px solid #eef2f7; }
+.dashboard-list-item:last-child { border-bottom: 0; }
+.dashboard-list-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.dashboard-list-row strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #1f2937;
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dashboard-list-row .dashboard-list-track { flex: 1 1 auto; min-width: 36px; height: 6px; }
+.dashboard-list-row b {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: #111827;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.dashboard-list-row .dashboard-list-stock { color: #475569; }
+.dark .dashboard-list-row strong,
+.dark .dashboard-list-row b { color: #e2e8f0; }
+.dark .dashboard-list-row .dashboard-list-stock { color: #94a3b8; }
+.dark .dashboard-list-item { border-bottom-color: rgba(148, 163, 184, .16); }
+
+/* Bar daftar terlaris memakai denim (bukan warna tone seksi) seperti
+   rancangan ringkas yang disetujui. */
+.dashboard-list-row .dashboard-list-track i { background: #1e3a5f; }
+.dark .dashboard-list-row .dashboard-list-track i { background: #5a8bbf; }
+
+/* Mode gelap: baris rincian dasbor adalah <a>, dan aturan global
+   `.dark .app-main :where(a span, a strong, ...) { color: inherit !important }`
+   mewarnai seluruh isinya dengan warna tautan (biru) sehingga label ikut biru.
+   Warna tautan di baris ini disetel netral supaya teks terbaca. */
+.dark .app-main a.dashboard-finance-row.dashboard-finance-row-link { color: #e2e8f0; }
+/* Chip metode bayar: aturan global !important membuat teksnya putih di atas
+   latar terang (tak terbaca). Pakai latar gelap + teks terang. */
+.dark .app-main .tag { background: rgba(37, 99, 235, .24); color: #bfdbfe !important; }

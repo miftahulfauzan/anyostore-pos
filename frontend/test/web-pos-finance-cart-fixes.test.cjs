@@ -29,7 +29,7 @@ test('web sales report reuses the Android-style visual report sections', () => {
   assert.match(page, /ReportDetailAccordions/);
   assert.match(page, /Laporan Penjualan/);
   assert.doesNotMatch(page, /Laporan Ringkasan Toko/);
-  assert.match(sections, /dashboard-kpi-change/);
+  assert.match(sections, /dashboard-kpi-label/);
   assert.match(sections, /Produk terlaris/);
   assert.match(sections, /Stok rendah/);
   assert.match(sections, /Pengeluaran/);
