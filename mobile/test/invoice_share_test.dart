@@ -16,9 +16,6 @@ InvoicePayload _payload({String storeName = 'BASIK PGMTA'}) => InvoicePayload(
       subtotal: 370000,
       discount: 10000,
       total: 360000,
-      paymentLabel: 'Tunai',
-      paidAmount: 400000,
-      changeAmount: 40000,
     );
 
 void main() {
@@ -48,6 +45,12 @@ void main() {
     expect(find.text('LUNAS'), findsNothing);
     expect(find.text('Celana Baggy A104'), findsOneWidget);
     expect(find.text('Rp360.000'), findsOneWidget);
+    // Invoice penagihan: metode bayar & kembalian tidak ditampilkan.
+    expect(find.text('Tunai'), findsNothing);
+    expect(find.text('Kembalian'), findsNothing);
+    expect(find.textContaining('Simpan invoice'), findsNothing);
+    // Catatan bawah sesuai permintaan.
+    expect(find.text('cek produk kami lainnya anyostore.my.id'), findsOneWidget);
   });
 
   testWidgets('invoice toko Blok B menampilkan ANYOSTORE', (tester) async {

@@ -42,9 +42,6 @@ class InvoicePayload {
     required this.subtotal,
     required this.discount,
     required this.total,
-    required this.paymentLabel,
-    this.paidAmount,
-    this.changeAmount,
     this.note,
   });
 
@@ -59,9 +56,6 @@ class InvoicePayload {
   final double subtotal;
   final double discount;
   final double total;
-  final String paymentLabel;
-  final double? paidAmount;
-  final double? changeAmount;
   final String? note;
 }
 
@@ -322,18 +316,14 @@ class InvoiceImage extends StatelessWidget {
                     children: [
                       const Text('Total',
                           style: TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w800, color: denim)),
+                              fontSize: 13.5, fontWeight: FontWeight.w800, color: denim)),
                       const Spacer(),
                       Text(fmtRp(payload.total),
                           style: const TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.w900, color: denim)),
+                              fontSize: 18, fontWeight: FontWeight.w900, color: denim)),
                     ],
                   ),
                 ),
-                if (payload.paidAmount != null)
-                  summaryRow(payload.paymentLabel, fmtRp(payload.paidAmount!)),
-                if (payload.changeAmount != null)
-                  summaryRow('Kembalian', fmtRp(payload.changeAmount!)),
               ],
             ),
           ),
@@ -417,10 +407,10 @@ class InvoiceImage extends StatelessWidget {
                   style: const TextStyle(fontSize: 8.5, height: 1.5, color: muted),
                 ),
                 const SizedBox(height: 7),
-                const Text('anyostore.my.id',
+                const Text('cek produk kami lainnya anyostore.my.id',
                     style: TextStyle(
-                        fontSize: 8.5,
-                        letterSpacing: .7,
+                        fontSize: 9,
+                        letterSpacing: .3,
                         fontWeight: FontWeight.w800,
                         color: denim)),
               ],

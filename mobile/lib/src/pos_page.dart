@@ -1349,7 +1349,6 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
       subtotal: subtotal,
       discount: discount,
       total: grand,
-      paymentLabel: 'Total tagihan',
     );
     try {
       await shareInvoiceImage(context, payload);
@@ -1362,12 +1361,6 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
 
   /// Bagikan invoice final dari transaksi tersimpan.
   Future<void> _shareReceiptInvoice(int id) async {
-    const paymentLabels = {
-      'cash': 'Tunai',
-      'qris': 'QRIS',
-      'transfer': 'Transfer',
-      'debit': 'Debit',
-    };
     try {
       final data = await _client.receipt(id);
       if (!mounted) return;
@@ -1397,9 +1390,6 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
         subtotal: asNum(data['subtotal']),
         discount: asNum(data['discount']),
         total: asNum(data['grand_total']),
-        paymentLabel: paymentLabels['${data['payment_method']}'] ?? 'Pembayaran',
-        paidAmount: asNum(data['amount_paid']),
-        changeAmount: asNum(data['change']),
       );
       await shareInvoiceImage(context, payload);
     } catch (error) {
