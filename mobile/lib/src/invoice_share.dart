@@ -87,10 +87,15 @@ const double invoiceLogicalWidth = 540;
 const double invoiceOutputWidth = 1080;
 const double invoiceOutputHeight = 1440;
 
+/// Bagian invoice yang dirender. Dipisah supaya blok rekening + kaki bisa
+/// diletakkan di tengah sisa ruang kanvas 3:4.
+enum InvoicePart { all, body, footer }
+
 class InvoiceImage extends StatelessWidget {
-  const InvoiceImage({super.key, required this.payload});
+  const InvoiceImage({super.key, required this.payload, this.part = InvoicePart.all});
 
   final InvoicePayload payload;
+  final InvoicePart part;
 
   @override
   Widget build(BuildContext context) {
@@ -143,37 +148,24 @@ class InvoiceImage extends StatelessWidget {
           ),
         );
 
-    Widget contactLine(IconData icon, String text, {bool strong = false}) => Padding(
-          padding: const EdgeInsets.only(bottom: 3),
+    Widget contactLine(InvoiceBrandIcon brand, String text) => Padding(
+          padding: const EdgeInsets.only(bottom: 5),
           child: Row(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 1),
-                child: Icon(icon, size: 11, color: const Color(0xF2FFFFFF)),
-              ),
-              const SizedBox(width: 5),
-              Flexible(
-                child: Text(text,
-                    textAlign: TextAlign.right,
-                    style: TextStyle(
-                        fontSize: 10.5,
-                        height: 1.35,
-                        fontWeight: strong ? FontWeight.w700 : FontWeight.w600,
-                        color: const Color(0xF2FFFFFF))),
-              ),
+              InvoiceBrandIconWidget(brand: brand, size: 13, color: const Color(0xF2FFFFFF)),
+              const SizedBox(width: 6),
+              Text(text,
+                  style: const TextStyle(
+                      fontSize: 10.5,
+                      height: 1.35,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xF2FFFFFF))),
             ],
           ),
         );
 
-    return Container(
-      width: invoiceLogicalWidth,
-      color: paper,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
+    final bodyChildren = <Widget>[
           // ===== Kepala: kiri logo + nama toko + alamat, kanan kontak =====
           Container(
             color: denim,
@@ -245,9 +237,9 @@ class InvoiceImage extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     for (final phone in payload.storePhones)
-                      contactLine(Icons.chat_bubble_outline, phone, strong: true),
+                      contactLine(InvoiceBrandIcon.whatsapp, phone),
                     if (payload.instagram != null)
-                      contactLine(Icons.camera_alt_outlined, payload.instagram!, strong: true),
+                      contactLine(InvoiceBrandIcon.instagram, payload.instagram!),
                   ],
                 ),
               ],
@@ -396,6 +388,9 @@ class InvoiceImage extends StatelessWidget {
             ),
           ),
 
+        ];
+
+    final footerChildren = <Widget>[
           // ===== Rekening =====
           Container(
             margin: const EdgeInsets.fromLTRB(20, 10, 20, 0),
@@ -478,26 +473,46 @@ class InvoiceImage extends StatelessWidget {
               ],
             ),
           ),
-        ],
+    ];
+
+    final children = switch (part) {
+      InvoicePart.body => bodyChildren,
+      InvoicePart.footer => footerChildren,
+      InvoicePart.all => [...bodyChildren, ...footerChildren],
+    };
+    return Container(
+      width: invoiceLogicalWidth,
+      color: paper,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: children,
       ),
     );
   }
 }
 
 /// Render invoice menjadi PNG (3:4) lalu bagikan lewat share sheet sistem.
+/// Isi (header sampai total) dicetak di atas; blok rekening + kaki diletakkan
+/// di tengah sisa ruang kosong supaya hasilnya tidak menggantung di atas.
 Future<void> shareInvoiceImage(BuildContext context, InvoicePayload payload) async {
-  final boundaryKey = GlobalKey();
+  final bodyKey = GlobalKey();
+  final footerKey = GlobalKey();
   final overlay = Overlay.of(context, rootOverlay: true);
   late OverlayEntry entry;
   entry = OverlayEntry(
     builder: (_) => Positioned(
       left: -1400,
       top: 0,
-      child: RepaintBoundary(
-        key: boundaryKey,
-        child: Material(
-          color: Colors.white,
-          child: InvoiceImage(payload: payload),
+      child: Material(
+        color: Colors.white,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            RepaintBoundary(key: bodyKey, child: InvoiceImage(payload: payload, part: InvoicePart.body)),
+            RepaintBoundary(key: footerKey, child: InvoiceImage(payload: payload, part: InvoicePart.footer)),
+          ],
         ),
       ),
     ),
@@ -507,19 +522,24 @@ Future<void> shareInvoiceImage(BuildContext context, InvoicePayload payload) asy
   try {
     await WidgetsBinding.instance.endOfFrame;
     await Future<void>.delayed(const Duration(milliseconds: 30));
-    final boundary = boundaryKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-    if (boundary == null) return;
-    final content = await boundary.toImage(pixelRatio: 2);
+    final bodyBoundary = bodyKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+    final footerBoundary = footerKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+    if (bodyBoundary == null || footerBoundary == null) return;
+    final body = await bodyBoundary.toImage(pixelRatio: 2);
+    final footer = await footerBoundary.toImage(pixelRatio: 2);
 
-    // Tempel isi invoice ke kanvas putih 1080 x 1440 (3:4) agar hasilnya ramping.
-    final height = math.max(invoiceOutputHeight, content.height.toDouble());
+    final height = math.max<double>(invoiceOutputHeight, (body.height + footer.height + 96).toDouble());
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     canvas.drawRect(
       Rect.fromLTWH(0, 0, invoiceOutputWidth, height),
       Paint()..color = Colors.white,
     );
-    canvas.drawImage(content, Offset.zero, Paint());
+    canvas.drawImage(body, Offset.zero, Paint());
+    final free = height - body.height - footer.height;
+    final footerTop = body.height + math.max<double>(48, free / 2);
+    canvas.drawImage(footer, Offset(0, footerTop), Paint());
+
     final composed = await recorder.endRecording().toImage(invoiceOutputWidth.toInt(), height.toInt());
     final data = await composed.toByteData(format: ui.ImageByteFormat.png);
     if (data == null) return;
@@ -555,4 +575,78 @@ String invoiceDateText(Object? raw) {
   final hh = local.hour.toString().padLeft(2, '0');
   final mm = local.minute.toString().padLeft(2, '0');
   return '${local.day} ${months[local.month - 1]} ${local.year} · $hh.$mm';
+}
+
+
+/// Ikon merek pada header invoice (digambar sendiri agar bentuknya mirip logo
+/// asli, bukan ikon generik).
+enum InvoiceBrandIcon { whatsapp, instagram }
+
+class InvoiceBrandIconWidget extends StatelessWidget {
+  const InvoiceBrandIconWidget({
+    super.key,
+    required this.brand,
+    this.size = 12,
+    this.color = Colors.white,
+  });
+
+  final InvoiceBrandIcon brand;
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(painter: _BrandIconPainter(brand: brand, color: color)),
+    );
+  }
+}
+
+class _BrandIconPainter extends CustomPainter {
+  _BrandIconPainter({required this.brand, required this.color});
+
+  final InvoiceBrandIcon brand;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = size.width * 0.09
+      ..strokeJoin = StrokeJoin.round
+      ..strokeCap = StrokeCap.round;
+    final fill = Paint()..color = color;
+
+    if (brand == InvoiceBrandIcon.whatsapp) {
+      // gelembung + ekor
+      final rect = Rect.fromLTWH(size.width * 0.04, size.height * 0.05, size.width * 0.9, size.height * 0.84);
+      final bubble = Path()..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(size.width * 0.42)));
+      canvas.drawPath(bubble, paint);
+      final tail = Path()
+        ..moveTo(size.width * 0.2, size.height * 0.86)
+        ..lineTo(size.width * 0.12, size.height * 0.99)
+        ..lineTo(size.width * 0.38, size.height * 0.9);
+      canvas.drawPath(tail, paint);
+      // gagang telepon
+      final handset = Path()
+        ..moveTo(size.width * 0.32, size.height * 0.28)
+        ..quadraticBezierTo(size.width * 0.3, size.height * 0.52, size.width * 0.52, size.height * 0.66)
+        ..quadraticBezierTo(size.width * 0.66, size.height * 0.74, size.width * 0.74, size.height * 0.58);
+      canvas.drawPath(handset, paint);
+      return;
+    }
+
+    // instagram: kotak membulat + lensa + titik
+    final rect = Rect.fromLTWH(size.width * 0.06, size.height * 0.06, size.width * 0.88, size.height * 0.88);
+    canvas.drawRRect(RRect.fromRectAndRadius(rect, Radius.circular(size.width * 0.28)), paint);
+    canvas.drawCircle(Offset(size.width / 2, size.height / 2), size.width * 0.22, paint);
+    canvas.drawCircle(Offset(size.width * 0.74, size.height * 0.26), size.width * 0.05, fill);
+  }
+
+  @override
+  bool shouldRepaint(_BrandIconPainter oldDelegate) =>
+      oldDelegate.brand != brand || oldDelegate.color != color;
 }

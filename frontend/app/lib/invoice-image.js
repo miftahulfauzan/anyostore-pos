@@ -83,22 +83,23 @@ function drawStoreIcon(ctx, x, y, size, color) {
 function drawWhatsAppIcon(ctx, x, y, size, color) {
   ctx.save();
   ctx.strokeStyle = color;
-  ctx.lineWidth = Math.max(1.6, size / 11);
+  ctx.fillStyle = color;
+  ctx.lineWidth = Math.max(1.5, size / 12);
+  ctx.lineJoin = 'round';
+  // gelembung bicara dengan ekor
   ctx.beginPath();
-  ctx.arc(x + size / 2, y + size / 2, size * 0.46, Math.PI * 0.25, Math.PI * 2.1);
+  ctx.arc(x + size / 2, y + size / 2 - size * 0.03, size * 0.45, Math.PI * 0.62, Math.PI * 2.42);
+  ctx.lineTo(x + size * 0.18, y + size * 0.86);
+  ctx.lineTo(x + size * 0.3, y + size * 0.99);
+  ctx.lineTo(x + size * 0.42, y + size * 0.82);
   ctx.stroke();
-  // ekor gelembung
+  // gagang telepon di tengah
   ctx.beginPath();
-  ctx.moveTo(x + size * 0.18, y + size * 0.82);
-  ctx.lineTo(x + size * 0.1, y + size * 0.98);
-  ctx.lineTo(x + size * 0.34, y + size * 0.88);
-  ctx.stroke();
-  // gagang telepon
-  ctx.beginPath();
-  ctx.moveTo(x + size * 0.36, y + size * 0.32);
-  ctx.quadraticCurveTo(x + size * 0.62, y + size * 0.34, x + size * 0.66, y + size * 0.6);
-  ctx.moveTo(x + size * 0.34, y + size * 0.34);
-  ctx.lineTo(x + size * 0.46, y + size * 0.46);
+  ctx.moveTo(x + size * 0.35, y + size * 0.32);
+  ctx.quadraticCurveTo(x + size * 0.34, y + size * 0.5, x + size * 0.5, y + size * 0.63);
+  ctx.quadraticCurveTo(x + size * 0.63, y + size * 0.73, x + size * 0.72, y + size * 0.6);
+  ctx.moveTo(x + size * 0.36, y + size * 0.33);
+  ctx.lineTo(x + size * 0.45, y + size * 0.45);
   ctx.stroke();
   ctx.restore();
 }
@@ -106,16 +107,16 @@ function drawWhatsAppIcon(ctx, x, y, size, color) {
 function drawInstagramIcon(ctx, x, y, size, color) {
   ctx.save();
   ctx.strokeStyle = color;
-  ctx.lineWidth = Math.max(1.6, size / 11);
-  const radius = size * 0.28;
+  ctx.lineWidth = Math.max(1.5, size / 12);
+  const radius = size * 0.3;
   ctx.beginPath();
-  ctx.roundRect(x, y, size, size, radius);
+  ctx.roundRect(x + size * 0.04, y + size * 0.04, size * 0.92, size * 0.92, radius);
   ctx.stroke();
   ctx.beginPath();
   ctx.arc(x + size / 2, y + size / 2, size * 0.24, 0, Math.PI * 2);
   ctx.stroke();
   ctx.beginPath();
-  ctx.arc(x + size * 0.76, y + size * 0.24, size * 0.06, 0, Math.PI * 2);
+  ctx.arc(x + size * 0.74, y + size * 0.26, size * 0.05, 0, Math.PI * 2);
   ctx.fillStyle = color;
   ctx.fill();
   ctx.restore();
@@ -200,20 +201,26 @@ export function renderInvoiceCanvas(payload) {
     });
   }
 
-  // kontak kanan
-  let contactY = logoY + 10;
-  const iconSize = 20;
-  ctx.textAlign = 'right';
-  contactLines.forEach((line) => {
-    const maxWidth = 380;
+  // kontak kanan: ikon + teks sejajar, blok rata kanan
+  if (contactLines.length) {
+    const iconSize = 20;
+    const gap = 10;
     ctx.font = font(21, 700);
-    ctx.fillStyle = '#ffffff';
-    const iconX = OUTPUT_WIDTH - pad - maxWidth - 30;
-    if (line.icon === 'wa') drawWhatsAppIcon(ctx, iconX, contactY - iconSize + 4, iconSize, 'rgba(255,255,255,.92)');
-    if (line.icon === 'ig') drawInstagramIcon(ctx, iconX, contactY - iconSize + 4, iconSize, 'rgba(255,255,255,.92)');
-    ctx.fillText(line.text, OUTPUT_WIDTH - pad, contactY);
-    contactY += 34;
-  });
+    const textWidth = Math.max(...contactLines.map((line) => ctx.measureText(line.text).width));
+    const blockWidth = iconSize + gap + textWidth;
+    const blockLeft = OUTPUT_WIDTH - pad - blockWidth;
+    let contactY = logoY + 18;
+    contactLines.forEach((line) => {
+      if (line.icon === 'wa') drawWhatsAppIcon(ctx, blockLeft, contactY - iconSize + 5, iconSize, 'rgba(255,255,255,.95)');
+      if (line.icon === 'ig') drawInstagramIcon(ctx, blockLeft, contactY - iconSize + 5, iconSize, 'rgba(255,255,255,.95)');
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = font(21, 700);
+      ctx.fillText(line.text, blockLeft + iconSize + gap, contactY);
+      contactY += 34;
+    });
+    ctx.textAlign = 'right';
+  }
 
   // ===== Baris dokumen =====
   let y = headerHeight;
@@ -356,8 +363,15 @@ export function renderInvoiceCanvas(payload) {
   ctx.fillText(rupiah(payload.total), OUTPUT_WIDTH - pad - 4, y + 16);
   y += totalBoxHeight + 10;
 
-  // ===== Rekening =====
+  // ===== Rekening + kaki: diletakkan di tengah sisa ruang kosong =====
   const bankBoxHeight = 214;
+  const footerHeight = 112;
+  const contentEnd = y;
+  const freeSpace = OUTPUT_HEIGHT - contentEnd - pad;
+  const stackHeight = bankBoxHeight + footerHeight;
+  const gapTop = Math.max(36, (freeSpace - stackHeight) / 2);
+  y = contentEnd + gapTop;
+
   roundedRect(ctx, pad, y, contentWidth, bankBoxHeight, 18);
   ctx.fillStyle = '#f8fafc';
   ctx.fill();
@@ -392,15 +406,14 @@ export function renderInvoiceCanvas(payload) {
   ctx.font = font(20, 600);
   ctx.fillText(bankNote, pad + 22, bankY);
 
-  // ===== Kaki =====
-  y += bankBoxHeight + 46;
+  let footerY = y + bankBoxHeight + 46;
   ctx.textAlign = 'center';
   ctx.fillStyle = DENIM;
   ctx.font = font(22, 800);
-  ctx.fillText('Terima kasih sudah berbelanja', OUTPUT_WIDTH / 2, y);
-  y += 34;
+  ctx.fillText('Terima kasih sudah berbelanja', OUTPUT_WIDTH / 2, footerY);
+  footerY += 34;
   ctx.font = font(20, 800);
-  ctx.fillText('cek produk kami lainnya anyostore.my.id', OUTPUT_WIDTH / 2, y);
+  ctx.fillText('cek produk kami lainnya anyostore.my.id', OUTPUT_WIDTH / 2, footerY);
 
   return canvas;
 }
