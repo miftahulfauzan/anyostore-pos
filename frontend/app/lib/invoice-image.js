@@ -86,26 +86,34 @@ function drawStoreIcon(ctx, x, y, size, color) {
   ctx.restore();
 }
 
-function drawWhatsAppIcon(ctx, x, y, size, color) {
+function drawWhatsAppIcon(ctx, x, y, size, color, background) {
   ctx.save();
-  ctx.strokeStyle = color;
+  // gelembung putih + ekor
   ctx.fillStyle = color;
-  ctx.lineWidth = Math.max(1.5, size / 12);
-  ctx.lineJoin = 'round';
-  // gelembung bicara dengan ekor
   ctx.beginPath();
-  ctx.arc(x + size / 2, y + size / 2 - size * 0.03, size * 0.45, Math.PI * 0.62, Math.PI * 2.42);
-  ctx.lineTo(x + size * 0.18, y + size * 0.86);
-  ctx.lineTo(x + size * 0.3, y + size * 0.99);
-  ctx.lineTo(x + size * 0.42, y + size * 0.82);
+  ctx.arc(x + size * 0.5, y + size * 0.47, size * 0.42, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(x + size * 0.12, y + size * 0.84);
+  ctx.lineTo(x + size * 0.03, y + size * 0.99);
+  ctx.lineTo(x + size * 0.36, y + size * 0.9);
+  ctx.closePath();
+  ctx.fill();
+  // gagang telepon (warna latar agar terlihat seperti logo WhatsApp)
+  ctx.strokeStyle = background;
+  ctx.lineWidth = size * 0.15;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x + size * 0.34, y + size * 0.34);
+  ctx.quadraticCurveTo(x + size * 0.36, y + size * 0.52, x + size * 0.62, y + size * 0.64);
   ctx.stroke();
-  // gagang telepon di tengah
   ctx.beginPath();
-  ctx.moveTo(x + size * 0.35, y + size * 0.32);
-  ctx.quadraticCurveTo(x + size * 0.34, y + size * 0.5, x + size * 0.5, y + size * 0.63);
-  ctx.quadraticCurveTo(x + size * 0.63, y + size * 0.73, x + size * 0.72, y + size * 0.6);
-  ctx.moveTo(x + size * 0.36, y + size * 0.33);
-  ctx.lineTo(x + size * 0.45, y + size * 0.45);
+  ctx.moveTo(x + size * 0.3, y + size * 0.3);
+  ctx.lineTo(x + size * 0.4, y + size * 0.4);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x + size * 0.66, y + size * 0.68);
+  ctx.lineTo(x + size * 0.58, y + size * 0.58);
   ctx.stroke();
   ctx.restore();
 }
@@ -113,16 +121,16 @@ function drawWhatsAppIcon(ctx, x, y, size, color) {
 function drawInstagramIcon(ctx, x, y, size, color) {
   ctx.save();
   ctx.strokeStyle = color;
-  ctx.lineWidth = Math.max(1.5, size / 12);
-  const radius = size * 0.3;
+  ctx.lineWidth = Math.max(2, size * 0.1);
+  const inset = size * 0.08;
   ctx.beginPath();
-  ctx.roundRect(x + size * 0.04, y + size * 0.04, size * 0.92, size * 0.92, radius);
+  ctx.roundRect(x + inset, y + inset, size - inset * 2, size - inset * 2, size * 0.26);
   ctx.stroke();
   ctx.beginPath();
   ctx.arc(x + size / 2, y + size / 2, size * 0.24, 0, Math.PI * 2);
   ctx.stroke();
   ctx.beginPath();
-  ctx.arc(x + size * 0.74, y + size * 0.26, size * 0.05, 0, Math.PI * 2);
+  ctx.arc(x + size * 0.72, y + size * 0.28, size * 0.055, 0, Math.PI * 2);
   ctx.fillStyle = color;
   ctx.fill();
   ctx.restore();
@@ -219,18 +227,18 @@ export function renderInvoiceCanvas(payload) {
 
   // kontak kanan: satu kolom ikon + teks, rata tengah vertikal tiap baris
   if (contactLines.length) {
-    const iconBox = 22;
+    const iconBox = 26;
     const gap = 10;
     ctx.font = font(21, 700);
     const textWidth = Math.max(...contactLines.map((line) => ctx.measureText(line.text).width));
     const blockWidth = iconBox + gap + textWidth;
     const iconX = OUTPUT_WIDTH - pad - blockWidth;
-    const lineHeight = 34;
+    const lineHeight = 36;
     let rowTop = leftBlockTop + 4;
     contactLines.forEach((line) => {
       const centerY = rowTop + lineHeight / 2;
       if (line.icon === 'wa') {
-        drawWhatsAppIcon(ctx, iconX, centerY - iconBox / 2, iconBox, 'rgba(255,255,255,.95)');
+        drawWhatsAppIcon(ctx, iconX, centerY - iconBox / 2, iconBox, '#ffffff', DENIM);
       } else if (line.icon === 'ig') {
         drawInstagramIcon(ctx, iconX, centerY - iconBox / 2, iconBox, 'rgba(255,255,255,.95)');
       }

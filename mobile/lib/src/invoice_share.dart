@@ -161,11 +161,11 @@ class InvoiceImage extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               SizedBox(
-                width: 14,
-                height: 14,
+                width: 16,
+                height: 16,
                 child: Center(
                   child: InvoiceBrandIconWidget(
-                      brand: brand, size: 12, color: const Color(0xF2FFFFFF)),
+                      brand: brand, size: 14, color: const Color(0xF2FFFFFF)),
                 ),
               ),
               const SizedBox(width: 7),
@@ -629,27 +629,32 @@ class _BrandIconPainter extends CustomPainter {
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.09
+      ..strokeWidth = size.width * 0.1
       ..strokeJoin = StrokeJoin.round
       ..strokeCap = StrokeCap.round;
     final fill = Paint()..color = color;
 
     if (brand == InvoiceBrandIcon.whatsapp) {
-      // gelembung + ekor
-      final rect = Rect.fromLTWH(size.width * 0.04, size.height * 0.05, size.width * 0.9, size.height * 0.84);
-      final bubble = Path()..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(size.width * 0.42)));
-      canvas.drawPath(bubble, paint);
+      final bubble = Paint()..color = color;
+      canvas.drawCircle(Offset(size.width * 0.5, size.height * 0.47), size.width * 0.42, bubble);
       final tail = Path()
-        ..moveTo(size.width * 0.2, size.height * 0.86)
-        ..lineTo(size.width * 0.12, size.height * 0.99)
-        ..lineTo(size.width * 0.38, size.height * 0.9);
-      canvas.drawPath(tail, paint);
-      // gagang telepon
-      final handset = Path()
-        ..moveTo(size.width * 0.32, size.height * 0.28)
-        ..quadraticBezierTo(size.width * 0.3, size.height * 0.52, size.width * 0.52, size.height * 0.66)
-        ..quadraticBezierTo(size.width * 0.66, size.height * 0.74, size.width * 0.74, size.height * 0.58);
-      canvas.drawPath(handset, paint);
+        ..moveTo(size.width * 0.12, size.height * 0.84)
+        ..lineTo(size.width * 0.03, size.height * 0.99)
+        ..lineTo(size.width * 0.36, size.height * 0.9)
+        ..close();
+      canvas.drawPath(tail, bubble);
+      // gagang telepon: warna latar header (denim) menyerupai logo WhatsApp
+      final handset = Paint()
+        ..color = const Color(0xFF1E3A5F)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = size.width * 0.15
+        ..strokeCap = StrokeCap.round;
+      final path = Path()
+        ..moveTo(size.width * 0.34, size.height * 0.34)
+        ..quadraticBezierTo(size.width * 0.36, size.height * 0.52, size.width * 0.62, size.height * 0.64);
+      canvas.drawPath(path, handset);
+      canvas.drawLine(Offset(size.width * 0.3, size.height * 0.3), Offset(size.width * 0.4, size.height * 0.4), handset);
+      canvas.drawLine(Offset(size.width * 0.66, size.height * 0.68), Offset(size.width * 0.58, size.height * 0.58), handset);
       return;
     }
 
