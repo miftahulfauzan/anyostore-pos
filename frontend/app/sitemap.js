@@ -5,6 +5,7 @@ export const revalidate = 86400;
 export default async function sitemap() {
   const entries = [
     { url: `${siteUrl}/`, lastModified: new Date(), changeFrequency: 'daily', priority: 1 },
+    { url: `${siteUrl}/reseller`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.9 },
     { url: `${siteUrl}/link`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.5 },
   ];
 

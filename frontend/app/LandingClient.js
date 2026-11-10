@@ -101,7 +101,24 @@ function ProductCard({ product, onWa, onAdd, inCart }) {
   );
 }
 
-export default function LandingPage() {
+export default function LandingPage({ branchMatch = '' } = {}) {
+  // Landing cabang: cari id cabang berdasarkan potongan nama (mis. "Blok B").
+  const [branchId, setBranchId] = useState(null);
+  const [branchReady, setBranchReady] = useState(!branchMatch);
+  const branchQuery = branchId ? `branch_id=${branchId}` : '';
+  useEffect(() => {
+    if (!branchMatch) return;
+    fetch(`${api}/public/branches`)
+      .then((response) => response.json())
+      .then((body) => {
+        const list = Array.isArray(body.data) ? body.data : [];
+        const match = list.find((item) => `${item.name || ''} ${item.address || ''}`.toUpperCase().includes(branchMatch.toUpperCase()));
+        setBranchId(match ? match.id : null);
+      })
+      .catch(() => setBranchId(null))
+      .finally(() => setBranchReady(true));
+  }, [branchMatch]);
+
   const [products, setProducts] = useState([]);
   const [settings, setSettings] = useState(null);
   const [categories, setCategories] = useState([]);
@@ -169,7 +186,7 @@ export default function LandingPage() {
     setPickVariantId(null);
     setPickerLoading(true);
     setPicker({ product, variants: [] });
-    fetch(`${api}/public/products/${product.id}`)
+    fetch(`${api}/public/products/${product.id}${branchQuery ? `?${branchQuery}` : ''}`)
       .then(async (response) => {
         const body = await response.json();
         if (requestId !== pickerRequest.current) return;
@@ -281,7 +298,7 @@ export default function LandingPage() {
     try {
       const productIds = [...new Set(cart.map((item) => Number(item.productId)))];
       const checkedProducts = await Promise.all(productIds.map(async (productId) => {
-        const response = await fetch(`${api}/public/products/${productId}`);
+        const response = await fetch(`${api}/public/products/${productId}${branchQuery ? `?${branchQuery}` : ''}`);
         const body = await response.json();
         if (!response.ok || !body.data) throw new Error('Stok produk gagal diperiksa');
         return [productId, body.data];
@@ -336,8 +353,15 @@ export default function LandingPage() {
 
   const [today, setToday] = useState('');
   useEffect(() => { setToday(`${new Date().getFullYear()}-${new Date().getMonth() + 1}-${new Date().getDate()}`); }, []);
-  useEffect(() => { Promise.all([fetch(`${api}/public/settings`).then((r) => r.json()).then((b) => b.data).catch(() => null), fetch(`${api}/public/categories`).then((r) => r.json()).then((b) => b.data || []).catch(() => [])]).then(([s, c]) => { setSettings(s); setCategories(c); }); }, []);
-  useEffect(() => { setLoading(true); const pageSize = [12, 24, 48].includes(Number(settings?.landing_page_size)) ? Number(settings.landing_page_size) : 24; const qs = new URLSearchParams({ limit: String(pageSize), page: String(page), ...(cat ? { category_id: cat } : {}), ...(q ? { search: q } : {}), ...(sort ? { sort } : {}) }).toString(); fetch(`${api}/public/products?${qs}`).then((r) => r.json()).then((b) => { setProducts(b.data || []); setTotalPages(b.totalPages || 1); setTotal(b.total || 0); }).catch(() => setProducts([])).finally(() => setLoading(false)); }, [cat, q, sort, page, settings?.landing_page_size]);
+  useEffect(() => {
+    if (!branchReady) return;
+    const settingsUrl = `${api}/public/settings${branchQuery ? `?${branchQuery}` : ''}`;
+    Promise.all([
+      fetch(settingsUrl).then((r) => r.json()).then((b) => b.data).catch(() => null),
+      fetch(`${api}/public/categories`).then((r) => r.json()).then((b) => b.data || []).catch(() => []),
+    ]).then(([s, c]) => { setSettings(s); setCategories(c); });
+  }, [branchReady, branchQuery]);
+  useEffect(() => { if (!branchReady) return; setLoading(true); const pageSize = [12, 24, 48].includes(Number(settings?.landing_page_size)) ? Number(settings.landing_page_size) : 24; const qs = new URLSearchParams({ limit: String(pageSize), page: String(page), ...(cat ? { category_id: cat } : {}), ...(q ? { search: q } : {}), ...(sort ? { sort } : {}), ...(branchId ? { branch_id: String(branchId) } : {}) }).toString(); fetch(`${api}/public/products?${qs}`).then((r) => r.json()).then((b) => { setProducts(b.data || []); setTotalPages(b.totalPages || 1); setTotal(b.total || 0); }).catch(() => setProducts([])).finally(() => setLoading(false)); }, [cat, q, sort, page, settings?.landing_page_size, branchReady, branchId]);
   const pages = useMemo(() => { const tp = totalPages; let s = Math.max(1, page - 2); let e = Math.min(tp, s + 4); s = Math.max(1, e - 4); const o = []; for (let i = s; i <= e; i++) o.push(i); return o; }, [page, totalPages]);
   return (
     <div id="main-content" style={{ background: T.bg, color: T.black, minHeight: '100vh', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
