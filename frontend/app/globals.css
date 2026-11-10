@@ -5481,7 +5481,6 @@ html[data-theme] .sidebar .side-nav a.active { background: var(--expressive-prim
 }
 
 .period-filter-body { display: grid; gap: 10px; }
-.period-filter-hint { margin: 0; font-size: 11px; }
 .period-filter-toggle {
   display: flex;
   align-items: center;
@@ -5671,24 +5670,6 @@ html[data-theme] .app-main .tabs button:not(.active) {
 .period-filter-toggle:hover { background: #f8fafc; border-color: #cbd5e1; color: #0f172a; }
 .dark .period-filter-toggle { background: #182135; border-color: #475569; color: #e2e8f0; }
 .dark .period-filter-toggle:hover { background: #22304b; color: #fff; }
-
-/* Keterangan "diterapkan otomatis" ala chip putus-putus. */
-.period-filter-hint {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  margin: 0;
-  min-height: 38px;
-  padding: 8px 12px;
-  border: 1px dashed #b9c7d8;
-  border-radius: 9px;
-  color: #475569;
-  font-size: 11.5px;
-  font-weight: 600;
-}
-.period-filter-hint svg { flex: 0 0 auto; color: #64748b; }
-.dark .period-filter-hint { border-color: #475569; color: #94a3b8; }
 
 /* Di layar sentuh, :hover menempel setelah tombol disentuh (Chrome mobile).
    Aturan global `button:hover:not(:disabled)` (#1e40af) bisa mengalahkan
@@ -6798,15 +6779,9 @@ html[data-theme] .sidebar .nav-group-toggle:hover {
    baris, dan kartu produk dipadatkan (foto kecil, chip gudang inline).
    ======================================================================== */
 @media (max-width: 700px) {
-  .stock-summary-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    gap: 6px !important;
-    margin-bottom: 10px !important;
-  }
-  .stock-summary-grid > div { padding: 8px 4px !important; border-radius: 8px !important; }
-  .stock-summary-grid p { font-size: var(--fs-2xs) !important; }
-  .stock-summary-grid strong { font-size: 17px !important; line-height: 1.15 !important; }
-  .stock-summary-grid p:last-child { display: none; }
+  .stock-summary-grid { gap: 6px !important; margin-bottom: 10px !important; }
+  .stock-summary-item { padding: 8px 8px !important; border-radius: 9px !important; }
+  .stock-summary-value { font-size: 15px !important; }
 
   .stock-filter-row { gap: 6px !important; margin-bottom: 10px !important; flex-wrap: nowrap !important; }
   .stock-filter-row input { flex: 1 1 auto !important; min-width: 0 !important; min-height: 38px !important; }
@@ -7159,3 +7134,82 @@ html[data-theme] .app-main .tabs button:not(.active):hover {
 /* Semua kartu dasbor tidak boleh melebar melebihi kontainer. */
 .dashboard-merged .dashboard-report-section { min-width: 0; }
 .dashboard-merged .dashboard-secondary-grid > * { min-width: 0; }
+
+/* ========================================================================
+   Stok Produk: kartu ringkasan 4 sejajar yang rata. Sebelumnya label bisa
+   pecah dua baris ("Total / Produk") dan angka tidak sejajar karena style
+   inline berbeda-beda per kartu.
+   ======================================================================== */
+.stock-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.stock-summary-item {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+}
+.stock-summary-label {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stock-summary-value {
+  color: #0f172a;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+.stock-summary-item.is-stock .stock-summary-value { color: var(--primary); }
+.stock-summary-item.is-alert { border-color: #fecaca; background: #fef2f2; }
+.stock-summary-item.is-alert .stock-summary-value { color: #b42318; }
+.stock-summary-note { color: #64748b; font-size: 9.5px; font-weight: 600; }
+
+.dark .stock-summary-item { border-color: rgba(148, 163, 184, .2); background: #182135; }
+.dark .stock-summary-label,
+.dark .stock-summary-note { color: #94a3b8; }
+.dark .stock-summary-value { color: #f1f5f9; }
+.dark .stock-summary-item.is-stock .stock-summary-value { color: #93c5fd; }
+.dark .stock-summary-item.is-alert { border-color: rgba(248, 113, 113, .38); background: rgba(185, 28, 28, .18); }
+.dark .stock-summary-item.is-alert .stock-summary-value { color: #fca5a5; }
+
+/* Alamat pelanggan di daftar: baris kecil, dibatasi dua baris. */
+.customer-address {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #64748b;
+  font-size: var(--fs-2xs);
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.dark .customer-address { color: #94a3b8; }
+
+/* Panel daftar pelanggan ikut tinggi panel form (kiri), sehingga input cari
+   ikut melar sampai ~200px. Input dikunci setinggi normal dan daftar mulai
+   dari atas. */
+.customer-search { align-self: start; min-height: 40px; }
+.customer-list { align-content: start; }
+.customer-list .actions button { min-width: 64px; white-space: nowrap; }
+
+/* Badge tipe harga di daftar pelanggan tampil sebagai pil sebaris, bukan
+   memanjang selebar kolom (`.product-list span` membuatnya block). */
+.customer-list .tier-badge {
+  display: inline-flex;
+  width: auto;
+  margin-top: 4px;
+  padding: 3px 10px;
+}

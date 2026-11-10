@@ -9,7 +9,7 @@ router.get('/', async (req, res, next) => {
   try {
     const term = req.query.search?.trim() || '';
     const [rows] = await db.execute(
-      `SELECT id, name, phone, email, loyalty_points, membership_tier, price_tier, total_spent
+      `SELECT id, name, phone, email, address, loyalty_points, membership_tier, price_tier, total_spent
        FROM customers WHERE branch_id = ? AND is_active = TRUE
        AND (name LIKE ? OR phone LIKE ?) ORDER BY name LIMIT 100`,
       [req.user.branch_id, `%${term}%`, `%${term}%`]

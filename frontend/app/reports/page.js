@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, RefreshCw } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import AppShell from "../components/AppShell";
 import DateRangePresets from "../components/DateRangePresets";
 import { getWarehousePeriodRange, WAREHOUSE_PERIOD_OPTIONS } from "../dashboard/warehouse-periods.mjs";
@@ -18,6 +19,15 @@ const formatBusinessDate = (value) => String(value || '').split('-').reverse().j
 
 export default function ReportsPage() {
   const { user, activeBranchId } = useAppSession();
+  const router = useRouter();
+  // Laporan penjualan hanya untuk owner/manager/admin. Akun gudang/kasir yang
+  // membuka /reports (mis. dari tautan lama) dialihkan supaya tidak memanggil
+  // /reports/overview dan memunculkan "Akses ditolak".
+  const reportRoleAllowed = !user || ["owner", "manager", "admin"].includes(user.role);
+  useEffect(() => {
+    if (!user || reportRoleAllowed) return;
+    router.replace(user.role === "gudang" ? "/dashboard" : "/pos");
+  }, [user, reportRoleAllowed, router]);
   const [period, setPeriod] = useState({ start: '', end: '' });
   const [draftPeriod, setDraftPeriod] = useState({ start: '', end: '' });
   const [preset, setPreset] = useState("today");
@@ -29,6 +39,7 @@ export default function ReportsPage() {
   const reportLoadSequence = useRef(createRequestSequence());
 
   async function load(nextPeriod = period) {
+    if (!reportRoleAllowed) return;
     const requestId = reportLoadSequence.current.next();
     setLoading(true);
     setMessage("");
@@ -49,6 +60,7 @@ export default function ReportsPage() {
   }
 
   useEffect(() => {
+    if (!reportRoleAllowed) return undefined;
     if (!activeBranchId) return undefined;
     let current = true;
     if (user?.role === 'owner' && activeBranchId === 'all') {
@@ -112,6 +124,14 @@ export default function ReportsPage() {
   const storeName = store?.store_name || reportStore?.branch_name || (activeBranchId === 'all' ? 'Semua Toko/Gudang' : activeBranchId ? 'Memuat toko…' : 'Laporan toko');
   const logo = store?.store_logo ? apiUrl.replace("/api", "") + store.store_logo : "";
 
+  if (!reportRoleAllowed) {
+    return (
+      <AppShell title="Laporan" eyebrow="ANALISIS TOKO">
+        <section className="panel"><p>Halaman laporan hanya tersedia untuk owner, manajer, dan admin. Mengalihkan…</p></section>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell
       title="Laporan"
@@ -160,10 +180,6 @@ export default function ReportsPage() {
                 <input type="date" value={draftPeriod.end} onChange={(event) => setDraftPeriod((current) => ({ ...current, end: event.target.value }))} />
               </label>
             </div>
-            <p className="period-filter-hint">
-              <RefreshCw aria-hidden="true" size={14} />
-              Periode diterapkan otomatis
-            </p>
           </div>
         ) : null}
       </section>

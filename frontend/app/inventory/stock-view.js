@@ -228,23 +228,25 @@ export default function StockReportSection() {
         </div>
 
         {summary && (
-          <div className="stock-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 12, marginBottom: 20 }}>
-            <div style={{ padding: 16, borderRadius: 8, background: 'var(--muted)', textAlign: 'center' }}>
-              <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>Total Produk</p>
-              <strong style={{ fontSize: 24 }}>{money(summary.total_products)}</strong>
-              {(isOwner && activeBranchId === 'all' || isGudang && !branchId) && <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>{summary.total_branches} toko/gudang</p>}
+          <div className="stock-summary-grid">
+            <div className="stock-summary-item">
+              <span className="stock-summary-label">Total Produk</span>
+              <strong className="stock-summary-value">{money(summary.total_products)}</strong>
+              {((isOwner && activeBranchId === 'all') || (isGudang && !branchId)) && (
+                <small className="stock-summary-note">{summary.total_branches} toko/gudang</small>
+              )}
             </div>
-            <div style={{ padding: 16, borderRadius: 8, background: 'var(--muted)', textAlign: 'center' }}>
-              <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>Total Stok</p>
-              <strong style={{ fontSize: 24, color: 'var(--primary)' }}>{money(summary.total_stock)}</strong>
+            <div className="stock-summary-item is-stock">
+              <span className="stock-summary-label">Total Stok</span>
+              <strong className="stock-summary-value">{money(summary.total_stock)}</strong>
             </div>
-            <div style={{ padding: 16, borderRadius: 8, background: summary.low_stock > 0 ? '#fef2f2' : 'var(--muted)', textAlign: 'center' }}>
-              <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>Stok Rendah</p>
-              <strong style={{ fontSize: 24, color: summary.low_stock > 0 ? '#dc2626' : 'inherit' }}>{money(summary.low_stock)}</strong>
+            <div className={`stock-summary-item${Number(summary.low_stock) > 0 ? ' is-alert' : ''}`}>
+              <span className="stock-summary-label">Stok Rendah</span>
+              <strong className="stock-summary-value">{money(summary.low_stock)}</strong>
             </div>
-            <div style={{ padding: 16, borderRadius: 8, background: summary.out_of_stock > 0 ? '#fef2f2' : 'var(--muted)', textAlign: 'center' }}>
-              <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>Habis</p>
-              <strong style={{ fontSize: 24, color: summary.out_of_stock > 0 ? '#dc2626' : 'inherit' }}>{money(summary.out_of_stock)}</strong>
+            <div className={`stock-summary-item${Number(summary.out_of_stock) > 0 ? ' is-alert' : ''}`}>
+              <span className="stock-summary-label">Habis</span>
+              <strong className="stock-summary-value">{money(summary.out_of_stock)}</strong>
             </div>
           </div>
         )}
