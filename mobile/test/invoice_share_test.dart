@@ -29,7 +29,9 @@ void main() {
 
   test('instagram hanya untuk toko BASIK', () {
     expect(invoiceInstagram('BASIK PGMTA'), '@basik.pgmta');
-    expect(invoiceInstagram('BLOK B'), '@anyostore');
+    expect(invoiceInstagram('TOKO B'), '@anyostore');
+    expect(invoiceInstagram('Toko B', 'Blok B lantai LG los F no 107'), '@anyostore');
+    expect(invoiceInstagram('Gudang Anyostore Metro'), isNull);
   });
 
   test('label tipe harga pelanggan', () {

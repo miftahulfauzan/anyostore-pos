@@ -31,8 +31,13 @@ export function invoiceDate(value) {
 }
 
 export const showsAnyostoreBrand = (storeName) => !String(storeName || '').toUpperCase().includes('BASIK');
-export const instagramFor = (storeName) =>
-  String(storeName || '').toUpperCase().includes('BASIK') ? '@basik.pgmta' : '@anyostore';
+export const instagramFor = (storeName, storeAddress = '') => {
+  const name = String(storeName || '').toUpperCase();
+  const address = String(storeAddress || '').toUpperCase();
+  if (name.includes('BASIK')) return '@basik.pgmta';
+  if (name.includes('BLOK B') || name.includes('TOKO B') || address.includes('BLOK B')) return '@anyostore';
+  return null;
+};
 
 /** Nomor HP/WhatsApp dari pengaturan (satu kolom, tiga kolom, atau daftar JSON). */
 export function storePhones(settings = {}) {
@@ -212,23 +217,28 @@ export function renderInvoiceCanvas(payload) {
     textY += isName ? 8 : 5;
   });
 
-  // kontak kanan: ikon + teks sejajar, blok rata kanan
+  // kontak kanan: satu kolom ikon + teks, rata tengah vertikal tiap baris
   if (contactLines.length) {
-    const iconSize = 20;
+    const iconBox = 22;
     const gap = 10;
     ctx.font = font(21, 700);
     const textWidth = Math.max(...contactLines.map((line) => ctx.measureText(line.text).width));
-    const blockWidth = iconSize + gap + textWidth;
-    const blockLeft = OUTPUT_WIDTH - pad - blockWidth;
-    let contactY = leftBlockTop + 20;
+    const blockWidth = iconBox + gap + textWidth;
+    const iconX = OUTPUT_WIDTH - pad - blockWidth;
+    const lineHeight = 34;
+    let rowTop = leftBlockTop + 4;
     contactLines.forEach((line) => {
-      if (line.icon === 'wa') drawWhatsAppIcon(ctx, blockLeft, contactY - iconSize + 5, iconSize, 'rgba(255,255,255,.95)');
-      if (line.icon === 'ig') drawInstagramIcon(ctx, blockLeft, contactY - iconSize + 5, iconSize, 'rgba(255,255,255,.95)');
+      const centerY = rowTop + lineHeight / 2;
+      if (line.icon === 'wa') {
+        drawWhatsAppIcon(ctx, iconX, centerY - iconBox / 2, iconBox, 'rgba(255,255,255,.95)');
+      } else if (line.icon === 'ig') {
+        drawInstagramIcon(ctx, iconX, centerY - iconBox / 2, iconBox, 'rgba(255,255,255,.95)');
+      }
       ctx.textAlign = 'left';
       ctx.fillStyle = '#ffffff';
       ctx.font = font(21, 700);
-      ctx.fillText(line.text, blockLeft + iconSize + gap, contactY);
-      contactY += 34;
+      ctx.fillText(line.text, iconX + iconBox + gap, centerY + 7);
+      rowTop += lineHeight;
     });
     ctx.textAlign = 'right';
   }

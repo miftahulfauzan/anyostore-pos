@@ -68,8 +68,15 @@ bool invoiceShowsBrand(String storeName) =>
     !storeName.toUpperCase().contains('BASIK');
 
 /// Instagram hanya untuk toko BASIK.
-String? invoiceInstagram(String storeName) =>
-    storeName.toUpperCase().contains('BASIK') ? '@basik.pgmta' : '@anyostore';
+String? invoiceInstagram(String storeName, [String storeAddress = '']) {
+  final name = storeName.toUpperCase();
+  final address = storeAddress.toUpperCase();
+  if (name.contains('BASIK')) return '@basik.pgmta';
+  if (name.contains('BLOK B') || name.contains('TOKO B') || address.contains('BLOK B')) {
+    return '@anyostore';
+  }
+  return null;
+}
 
 /// Rekening transfer yang tampil di bawah total.
 const invoiceBankAccounts = <({String bank, String number})>[
@@ -153,12 +160,19 @@ class InvoiceImage extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              InvoiceBrandIconWidget(brand: brand, size: 13, color: const Color(0xF2FFFFFF)),
-              const SizedBox(width: 6),
+              SizedBox(
+                width: 14,
+                height: 14,
+                child: Center(
+                  child: InvoiceBrandIconWidget(
+                      brand: brand, size: 12, color: const Color(0xF2FFFFFF)),
+                ),
+              ),
+              const SizedBox(width: 7),
               Text(text,
                   style: const TextStyle(
                       fontSize: 10.5,
-                      height: 1.35,
+                      height: 1.2,
                       fontWeight: FontWeight.w700,
                       color: Color(0xF2FFFFFF))),
             ],

@@ -26,6 +26,8 @@ test('aturan isi invoice sama dengan Android', () => {
   assert.match(invoice, /instagramFor/);
   assert.match(invoice, /'@basik.pgmta'/);
   assert.match(invoice, /'@anyostore'/);
+  // Hanya Blok B / Toko B yang memakai @anyostore (selain BASIK).
+  assert.match(invoice, /name\.includes\('BLOK B'\)/);
   assert.match(invoice, /0042813603/);
   assert.match(invoice, /1640000929465/);
   assert.match(invoice, /Miftahul Fauzan/);
