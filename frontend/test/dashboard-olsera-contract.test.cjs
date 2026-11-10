@@ -81,3 +81,17 @@ test('dashboard cards stay tidy: no decorative icons, badges, or chevrons', () =
   // Judul seksi tetap satu baris (aksen + judul + meta) di semua lebar.
   assert.match(styles, /\.dashboard-merged \.dashboard-report-heading \{\s*flex-direction: row !important;/);
 });
+
+test('komponen dasbor tidak memakai ikon/props yang tidak diimpor', () => {
+  // Regression: `icon={CreditCard}` tertinggal setelah import lucide dihapus →
+  // ReferenceError "CreditCard is not defined" dan halaman dasbor gagal render.
+  assert.doesNotMatch(sections, /icon=\{[A-Z]/);
+  const declared = new Set([...sections.matchAll(/(?:function|const|let)\s+([A-Za-z_$][\w$]*)/g)].map((m) => m[1]));
+  declared.add('Link');
+  const referenced = [
+    ...[...sections.matchAll(/<([A-Z][\w]*)/g)].map((m) => m[1]),
+    ...[...sections.matchAll(/(\w+)=\{([A-Z][\w]*)\}/g)].map((m) => m[2]),
+  ];
+  const unknown = [...new Set(referenced)].filter((name) => !declared.has(name));
+  assert.deepEqual(unknown, [], `komponen/prop tidak terdefinisi: ${unknown.join(', ')}`);
+});

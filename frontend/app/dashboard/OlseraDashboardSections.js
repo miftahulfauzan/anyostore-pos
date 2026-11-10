@@ -203,9 +203,9 @@ export default function OlseraDashboardSections({ reportData, fallbackData, acti
       <TrendChart rows={dailySales} color={colors.blue} emptyMessage="Belum ada data penjualan pada periode ini." />
       <span className="dashboard-report-legend"><i style={{ backgroundColor: colors.blue }} />Penjualan</span>
       <div className="dashboard-sales-metrics">
-        <FinanceRow label="Pembayaran" value={paymentTotal ? rupiah(paymentTotal) : rupiah(summary.gross_sales)} icon={CreditCard} tone="payment" href={canViewFinanceDetails ? detailHref('payments') : undefined} />
-        <FinanceRow label="Pengeluaran" value={rupiah(summary.expenses)} icon={BriefcaseBusiness} tone="expense" href={canViewFinanceDetails ? detailHref('expenses') : undefined} />
-        <FinanceRow label="Pengembalian" value={rupiah(summary.return_amount)} icon={AlertTriangle} tone="return" href={canViewFinanceDetails ? detailHref('returns') : undefined} />
+        <FinanceRow label="Pembayaran" value={paymentTotal ? rupiah(paymentTotal) : rupiah(summary.gross_sales)} tone="payment" href={canViewFinanceDetails ? detailHref('payments') : undefined} />
+        <FinanceRow label="Pengeluaran" value={rupiah(summary.expenses)} tone="expense" href={canViewFinanceDetails ? detailHref('expenses') : undefined} />
+        <FinanceRow label="Pengembalian" value={rupiah(summary.return_amount)} tone="return" href={canViewFinanceDetails ? detailHref('returns') : undefined} />
       </div>
     </Section>
 
