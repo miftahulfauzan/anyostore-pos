@@ -69,7 +69,7 @@ bool invoiceShowsBrand(String storeName) =>
 
 /// Instagram hanya untuk toko BASIK.
 String? invoiceInstagram(String storeName) =>
-    storeName.toUpperCase().contains('BASIK') ? '@basik.pgmta' : null;
+    storeName.toUpperCase().contains('BASIK') ? '@basik.pgmta' : '@anyostore';
 
 /// Rekening transfer yang tampil di bawah total.
 const invoiceBankAccounts = <({String bank, String number})>[
@@ -178,15 +178,15 @@ class InvoiceImage extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        width: 46,
-                        height: 46,
+                        width: 44,
+                        height: 44,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(12)),
                         child: Text(initial,
                             style: const TextStyle(
-                                fontSize: 24,
+                                fontSize: 23,
                                 fontWeight: FontWeight.w900,
                                 color: denim)),
                       ),
@@ -199,7 +199,7 @@ class InvoiceImage extends StatelessWidget {
                             if (showBrand)
                               const Text('ANYOSTORE',
                                   style: TextStyle(
-                                      fontSize: 18,
+                                      fontSize: 16,
                                       height: 1.15,
                                       fontWeight: FontWeight.w900,
                                       letterSpacing: .3,
@@ -209,7 +209,7 @@ class InvoiceImage extends StatelessWidget {
                                     ? payload.storeName.toUpperCase()
                                     : payload.storeName,
                                 style: TextStyle(
-                                    fontSize: showBrand ? 10 : 20,
+                                    fontSize: showBrand ? 9 : 18,
                                     height: 1.2,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: showBrand ? 1.6 : .1,
@@ -297,7 +297,7 @@ class InvoiceImage extends StatelessWidget {
                             fontWeight: FontWeight.w800,
                             color: muted))),
                 SizedBox(
-                    width: 34,
+                    width: 40,
                     child: Text('QTY',
                         textAlign: TextAlign.center,
                         style: TextStyle(
@@ -306,7 +306,7 @@ class InvoiceImage extends StatelessWidget {
                             fontWeight: FontWeight.w800,
                             color: muted))),
                 SizedBox(
-                    width: 88,
+                    width: 96,
                     child: Text('JUMLAH',
                         textAlign: TextAlign.right,
                         style: TextStyle(
@@ -341,13 +341,13 @@ class InvoiceImage extends StatelessWidget {
                       ),
                     ),
                     SizedBox(
-                        width: 34,
+                        width: 40,
                         child: Text('${item.qty}',
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                                 fontSize: 12.5, color: Color(0xFF475569)))),
                     SizedBox(
-                        width: 88,
+                        width: 96,
                         child: Text(fmtRp(item.subtotal),
                             textAlign: TextAlign.right,
                             style: const TextStyle(

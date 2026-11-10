@@ -6,7 +6,7 @@ InvoicePayload _payload({String storeName = 'BASIK PGMTA'}) => InvoicePayload(
       storeName: storeName,
       storeAddress: 'LANTAI 6 blok B no 116',
       storePhones: const ['0812-3456-7890', '0857-0000-1111'],
-      instagram: '@basik.pgmta',
+      instagram: invoiceInstagram(storeName),
       invoiceNo: 'INV-20261110-B1-0012',
       dateText: '10 Nov 2026 · 14.25',
       cashier: 'Resti',
@@ -29,7 +29,7 @@ void main() {
 
   test('instagram hanya untuk toko BASIK', () {
     expect(invoiceInstagram('BASIK PGMTA'), '@basik.pgmta');
-    expect(invoiceInstagram('BLOK B'), isNull);
+    expect(invoiceInstagram('BLOK B'), '@anyostore');
   });
 
   test('label tipe harga pelanggan', () {
@@ -72,5 +72,6 @@ void main() {
     ));
     expect(find.text('ANYOSTORE'), findsOneWidget);
     expect(find.text('BLOK B'), findsOneWidget);
+    expect(find.text('@anyostore'), findsOneWidget);
   });
 }

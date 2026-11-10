@@ -31,7 +31,8 @@ export function invoiceDate(value) {
 }
 
 export const showsAnyostoreBrand = (storeName) => !String(storeName || '').toUpperCase().includes('BASIK');
-export const instagramFor = (storeName) => (String(storeName || '').toUpperCase().includes('BASIK') ? '@basik.pgmta' : null);
+export const instagramFor = (storeName) =>
+  String(storeName || '').toUpperCase().includes('BASIK') ? '@basik.pgmta' : '@anyostore';
 
 /** Nomor HP/WhatsApp dari pengaturan (satu kolom, tiga kolom, atau daftar JSON). */
 export function storePhones(settings = {}) {
@@ -162,44 +163,54 @@ export function renderInvoiceCanvas(payload) {
   ctx.fillStyle = DENIM;
   ctx.fillRect(0, headerTop, OUTPUT_WIDTH, headerHeight);
 
+  // blok kiri: logo + nama toko + alamat, rata kiri & sejajar
+  const logoSize = 84;
+  const nameX = pad + logoSize + 22;
+  const textBlock = [];
+  let textY = 0;
+  const nameFont = brand ? font(30, 900) : font(36, 900);
+
+  // kontak kanan (dihitung dulu supaya tinggi header pas)
+  const iconSize = 20;
+  ctx.font = font(21, 700);
+  const textWidth = contactLines.length ? Math.max(...contactLines.map((line) => ctx.measureText(line.text).width)) : 0;
+  const blockWidth = contactLines.length ? iconSize + 10 + textWidth : 0;
+
+  const headerContentTop = 34;
+  if (brand) {
+    textBlock.push({ text: 'ANYOSTORE', font: nameFont, color: '#ffffff' });
+    textBlock.push({ text: storeName.toUpperCase(), font: font(16, 800), color: 'rgba(255,255,255,.82)', spacing: 1.4 });
+  } else {
+    textBlock.push({ text: storeName, font: nameFont, color: '#ffffff' });
+  }
+  if (addressLines.length) {
+    addressLines.forEach((line) => textBlock.push({ text: line, font: font(19, 600), color: 'rgba(255,255,255,.9)' }));
+  }
+  const textBlockHeight = textBlock.reduce((total, line) => total + (line.font.includes('30px') || line.font.includes('36px') ? 40 : 27), 0);
+  const leftBlockTop = headerContentTop;
+  const logoY = leftBlockTop + Math.max(0, (textBlockHeight - logoSize) / 2);
+
   // logo
-  const logoSize = 92;
-  const logoX = pad;
-  const logoY = headerTop + 38;
-  roundedRect(ctx, logoX, logoY, logoSize, logoSize, 24);
+  roundedRect(ctx, pad, logoY, logoSize, logoSize, 22);
   ctx.fillStyle = '#ffffff';
   ctx.fill();
   ctx.fillStyle = DENIM;
-  ctx.font = font(48, 900);
+  ctx.font = font(44, 900);
   ctx.textAlign = 'center';
-  ctx.fillText(initial, logoX + logoSize / 2, logoY + logoSize / 2 + 17);
+  ctx.fillText(initial, pad + logoSize / 2, logoY + logoSize / 2 + 16);
 
-  // nama toko + alamat (kolom kiri)
+  // teks kiri
   ctx.textAlign = 'left';
-  const nameX = logoX + logoSize + 22;
-  let leftY = logoY + (brand ? 34 : 44);
-  if (brand) {
-    ctx.fillStyle = '#ffffff';
-    ctx.font = font(34, 900);
-    ctx.fillText('ANYOSTORE', nameX, leftY);
-    leftY += 28;
-    ctx.font = font(19, 800);
-    ctx.fillStyle = 'rgba(255,255,255,.82)';
-    ctx.fillText(storeName.toUpperCase(), nameX, leftY);
-    leftY += 14;
-  } else {
-    ctx.fillStyle = '#ffffff';
-    ctx.font = font(38, 900);
-    ctx.fillText(storeName, nameX, leftY);
-    leftY += 12;
-  }
-  if (addressLines.length) {
-    ctx.fillStyle = 'rgba(255,255,255,.88)';
-    ctx.font = font(19, 600);
-    addressLines.forEach((text, index) => {
-      ctx.fillText(text, nameX, leftY + 24 + index * 26);
-    });
-  }
+  textY = leftBlockTop;
+  textBlock.forEach((line) => {
+    ctx.font = line.font;
+    ctx.fillStyle = line.color;
+    const isName = line.font.includes('30px') || line.font.includes('36px');
+    textY += isName ? 32 : 22;
+    if (line.spacing) drawSpacedText(ctx, line.text, nameX, textY, line.spacing);
+    else ctx.fillText(line.text, nameX, textY);
+    textY += isName ? 8 : 5;
+  });
 
   // kontak kanan: ikon + teks sejajar, blok rata kanan
   if (contactLines.length) {
@@ -209,7 +220,7 @@ export function renderInvoiceCanvas(payload) {
     const textWidth = Math.max(...contactLines.map((line) => ctx.measureText(line.text).width));
     const blockWidth = iconSize + gap + textWidth;
     const blockLeft = OUTPUT_WIDTH - pad - blockWidth;
-    let contactY = logoY + 18;
+    let contactY = leftBlockTop + 20;
     contactLines.forEach((line) => {
       if (line.icon === 'wa') drawWhatsAppIcon(ctx, blockLeft, contactY - iconSize + 5, iconSize, 'rgba(255,255,255,.95)');
       if (line.icon === 'ig') drawInstagramIcon(ctx, blockLeft, contactY - iconSize + 5, iconSize, 'rgba(255,255,255,.95)');
@@ -251,8 +262,8 @@ export function renderInvoiceCanvas(payload) {
   const metaTop = y + 26;
   const metaColumns = [
     ['TANGGAL', payload.dateText || '-', 1.25],
-    ['KASIR', payload.cashier || '-', 0.75],
-    ['PELANGGAN', payload.customerLabel || 'Umum', 1.5],
+    ['KASIR', payload.cashier || '-', 0.95],
+    ['PELANGGAN', payload.customerLabel || 'Umum', 1.35],
     ['STATUS', 'Tagihan', 0.8],
   ];
   const metaUnit = contentWidth / metaColumns.reduce((total, column) => total + column[2], 0);
@@ -278,7 +289,7 @@ export function renderInvoiceCanvas(payload) {
   ctx.stroke();
 
   // ===== Item =====
-  const colQty = OUTPUT_WIDTH - pad - 150;
+  const colQty = OUTPUT_WIDTH - pad - 196;
   const colAmount = OUTPUT_WIDTH - pad;
   y += 40;
   ctx.textAlign = 'left';
@@ -286,9 +297,9 @@ export function renderInvoiceCanvas(payload) {
   ctx.font = font(17, 800);
   drawSpacedText(ctx, 'BARANG', pad, y, 1.6);
   ctx.textAlign = 'center';
-  drawSpacedText(ctx, 'QTY', colQty, y, 1.6);
+  ctx.fillText('QTY', colQty, y);
   ctx.textAlign = 'right';
-  drawSpacedText(ctx, 'JUMLAH', colAmount, y, 1.6);
+  ctx.fillText('JUMLAH', colAmount, y);
   y += 18;
   ctx.strokeStyle = LINE;
   ctx.beginPath();
