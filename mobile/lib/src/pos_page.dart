@@ -19,6 +19,7 @@ import 'offline_status.dart';
 import 'offline_store.dart';
 import 'prefetch_service.dart';
 import 'reports_page.dart';
+import 'sales_dashboard_page.dart';
 import 'format.dart';
 import 'history_tab.dart';
 import 'payment_sheet.dart';
@@ -1510,7 +1511,7 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
         : <Widget>[
             _buildKasir(),
             if (_visitedTabs.contains(1))
-              ReportsPage(api: _client, role: auth.role, dashboardMode: true)
+              SalesDashboardPage(api: _client, role: auth.role)
             else
               const SizedBox.shrink(),
             if (_visitedTabs.contains(2))
@@ -1927,7 +1928,8 @@ class _ProductCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w700)),
+                          fontSize: TaskTypography.label,
+                          fontWeight: FontWeight.w700)),
                   const SizedBox(height: 2),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -1937,7 +1939,7 @@ class _ProductCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                                fontSize: 15,
+                                fontSize: TaskTypography.cardTitle,
                                 fontWeight: FontWeight.w800,
                                 color: ink(context))),
                       ),
@@ -1945,7 +1947,7 @@ class _ProductCard extends StatelessWidget {
                       Text('$stock',
                           key: ValueKey('pos-product-stock-${product['id']}'),
                           style: TextStyle(
-                              fontSize: 10.8,
+                              fontSize: TaskTypography.secondary,
                               fontWeight: FontWeight.w700,
                               color: stockColor)),
                     ],
@@ -2198,7 +2200,9 @@ class _QtyInputState extends State<_QtyInput> {
         textAlign: TextAlign.center,
         cursorHeight: 16,
         style: TextStyle(
-            fontSize: 13, fontWeight: FontWeight.w800, color: ink(context)),
+            fontSize: TaskTypography.quantity,
+            fontWeight: FontWeight.w800,
+            color: ink(context)),
         decoration: const InputDecoration(
           isDense: true,
           filled: false,
@@ -2367,7 +2371,8 @@ class _CartSheetState extends State<_CartSheet> {
             FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(label,
-                  maxLines: 1, style: const TextStyle(fontSize: 11)),
+                  maxLines: 1,
+                  style: const TextStyle(fontSize: TaskTypography.secondary)),
             ),
           ],
         ),
@@ -2689,13 +2694,15 @@ class _CartLine extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w700, height: 1.2)),
+                  fontSize: TaskTypography.label,
+                  fontWeight: FontWeight.w700,
+                  height: 1.2)),
           Text(
               '${fmtRp(item.priceOverride ?? item.price)}${item.variantLabel != null && item.variantLabel!.isNotEmpty ? ' · ${item.variantLabel}' : ''}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  fontSize: 12,
+                  fontSize: TaskTypography.secondary,
                   fontWeight: FontWeight.w700,
                   color: taskMuted(context))),
         ],
