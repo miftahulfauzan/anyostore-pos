@@ -143,6 +143,7 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
   const [waMsg, setWaMsg] = useState('');
   const [cart, setCart] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
+  const [cartStep, setCartStep] = useState('cart');
   const [orderChecking, setOrderChecking] = useState(false);
   // Ongkir (tarif per kota) + voucher + data pembeli untuk pesanan.
   const [shippingRates, setShippingRates] = useState([]);
@@ -300,6 +301,7 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
       return [...prev, { key, productId: picker.product.id, variantId: selected?.id || null, name: picker.product.name, sku: picker.product.sku, variantLabel, price, qty, photo, weightGram: Number(picker.product.weight_gram || 0), availableStock: variantAvailableStock, modelAvailableStock }];
     });
     closePicker();
+    setCartStep('cart');
     setCartOpen(true);
   }
 
@@ -666,113 +668,150 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
       )}
 
       {cartPcs > 0 && (
-        <button type="button" onClick={() => setCartOpen(true)} className="cart-fab" aria-label="Buka keranjang">
+        <button type="button" onClick={() => { setCartStep('cart'); setCartOpen(true); }} className="cart-fab" aria-label="Buka keranjang">
           <I.cart style={{ width: 20, height: 20 }} />
           <span className="cart-fab-badge">{cartPcs}</span>
         </button>
       )}
 
-      {/* Keranjang */}
+      {/* Keranjang: 3 langkah (produk -> alamat -> review) */}
       {cartOpen && (
-        <div onClick={() => setCartOpen(false)} role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'grid', placeItems: 'center', zIndex: 120, padding: 16, backdropFilter: 'blur(4px)' }}>
+        <div onClick={() => setCartOpen(false)} role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'grid', placeItems: 'center', zIndex: 120, padding: 12, backdropFilter: 'blur(4px)' }}>
           <div onClick={(e) => e.stopPropagation()} className="wa-modal-in" style={{ background: T.card, borderRadius: 14, maxWidth: 480, width: '100%', maxHeight: 'min(860px, 94vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 48px rgba(0,0,0,.18)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 20px 12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 18px 8px' }}>
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.black }}>Keranjang <span style={{ color: T.muted, fontWeight: 500, fontSize: 'var(--fs-md)' }}>{cartPcs} pcs</span></h3>
               <button type="button" onClick={() => setCartOpen(false)} aria-label="Tutup" style={{ width: 34, height: 34, padding: 0, borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, cursor: 'pointer', color: T.muted, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}><I.close style={{ width: 16, height: 16, display: 'block' }} /></button>
             </div>
-            <div style={{ flex: '1 1 auto', minHeight: 240, overflowY: 'auto', padding: '4px 20px', display: 'grid', gap: 4, alignContent: 'start' }}>
-              {cart.map((it) => (
-                <div key={it.key} style={{ display: 'grid', gridTemplateColumns: '44px minmax(0,1fr) auto', gap: 10, alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${T.border}` }}>
-                  {it.photo
-                    ? <img src={`${api.replace('/api', '')}${it.photo}`} alt={it.name} style={{ width: 44, height: 54, objectFit: 'cover', borderRadius: 7 }} />
-                    : <div style={{ width: 44, height: 54, borderRadius: 7, background: '#f3f4f6' }} />}
-                  <div style={{ minWidth: 0 }}>
-                    <strong style={{ fontSize: 'var(--fs-md)', display: 'block', color: T.black }}>{it.name}</strong>
-                    {it.variantLabel && <span style={{ fontSize: 'var(--fs-xs)', color: T.muted }}>{it.variantLabel}</span>}
-                    <div style={{ fontSize: 'var(--fs-sm)', color: T.blue, fontWeight: 700, marginTop: 2 }}>{fmtRp(it.price)}/pcs</div>
-                  </div>
-                  <div style={{ display: 'grid', gap: 6, justifyItems: 'end' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <button type="button" className="qty-btn small" onClick={() => setItemQty(it.key, it.qty - 1)} aria-label="Kurangi jumlah"><I.minus style={{ width: 14, height: 14, color: '#fff' }} /></button>
-                      <input type="number" min="1" value={it.qty} onChange={(e) => setItemQty(it.key, Math.max(1, Number(e.target.value) || 1))} aria-label={`Jumlah ${it.name}`} className="qty-input" />
-                      <button type="button" className="qty-btn small" onClick={() => setItemQty(it.key, it.qty + 1)} aria-label="Tambah jumlah"><I.plus style={{ width: 14, height: 14, color: '#fff' }} /></button>
-                    </div>
-                    <button type="button" onClick={() => removeItem(it.key)} style={{ border: 0, background: 'none', color: '#dc2626', fontSize: 'var(--fs-xs)', cursor: 'pointer', padding: 0 }}>Hapus</button>
-                  </div>
-                </div>
+
+            <div style={{ display: 'flex', gap: 6, padding: '0 18px 10px' }}>
+              {[['cart', '1. Keranjang'], ['address', '2. Alamat'], ['review', '3. Review']].map(([key, label]) => (
+                <button key={key} type="button" onClick={() => setCartStep(key)} disabled={key !== 'cart' && !cart.length} style={{ flex: 1, minHeight: 30, padding: '4px 6px', borderRadius: 99, border: `1px solid ${cartStep === key ? T.blue : T.border}`, background: cartStep === key ? T.blue : T.card, color: cartStep === key ? '#fff' : T.muted, fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>{label}</button>
               ))}
-              {!cart.length && <p style={{ textAlign: 'center', color: T.muted, padding: '24px 0', fontSize: 14 }}>Keranjang masih kosong.</p>}
             </div>
-            <div style={{ flex: '0 0 auto', borderTop: `1px solid ${T.border}`, padding: '14px 20px 18px', display: 'grid', gap: 10 }}>
-              <div style={{ maxHeight: '30vh', overflowY: 'auto', display: 'grid', gap: 8, paddingRight: 2 }}>
-              <div style={{ display: 'grid', gap: 6 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: T.muted }}><span>Subtotal</span><span>{fmtRp(cartTotal)}</span></div>
-                {voucher && <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, color: '#15803d', fontWeight: 700 }}><span>Voucher {voucher.code}{voucher.discount_type === 'per_pcs' ? ` (${fmtRp(voucher.discount_value)} × ${cartPcs} pcs)` : ''}</span><span style={{ whiteSpace: 'nowrap' }}>-{fmtRp(voucherDiscount)}</span></div>}
-                {shippingArea && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: T.muted }}><span>Ongkir ({shippingArea})</span><span>{fmtRp(shippingCost)}</span></div>}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 700, fontSize: 15, color: T.black }}>
-                  <span>Total</span><span>{fmtRp(grandTotal)}</span>
-                </div>
-              </div>
 
-              <div style={{ display: 'grid', gap: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: T.black }}>Alamat pengiriman</span>
-                <input value={buyer.name} onChange={(e) => setBuyer({ ...buyer, name: e.target.value })} placeholder="Nama penerima" aria-label="Nama penerima" style={{ minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13 }} />
-                <input value={buyer.phone} onChange={(e) => setBuyer({ ...buyer, phone: e.target.value })} placeholder="No HP / WhatsApp" inputMode="tel" aria-label="No HP" style={{ minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13 }} />
-                <textarea value={buyer.address} onChange={(e) => setBuyer({ ...buyer, address: e.target.value })} placeholder="Alamat lengkap (jalan, RT/RW, kelurahan, kode pos)" rows={2} aria-label="Alamat" style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13, minHeight: 44, resize: 'vertical' }} />
-                {usesCourierApi ? (
-                  <div style={{ display: 'grid', gap: 6 }}>
-                    <input value={destinationQuery} onChange={(e) => { setDestinationQuery(e.target.value); setDestination(null); }} placeholder="Cari kecamatan tujuan (mis. Metro Pusat)" aria-label="Kecamatan tujuan" style={{ minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13 }} />
-                    {destination && <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: '#15803d', fontWeight: 700 }}>Tujuan: {destination.label}</p>}
-                    {!destination && destinations.length > 0 && (
-                      <div style={{ display: 'grid', gap: 4, maxHeight: 132, overflowY: 'auto', border: `1px solid ${T.border}`, borderRadius: 8, padding: 6 }}>
-                        {destinations.map((item) => (
-                          <button key={item.id} type="button" onClick={() => { setDestination(item); setDestinationQuery(item.label); setDestinations([]); }} style={{ textAlign: 'left', border: 0, background: 'transparent', padding: '6px 4px', fontSize: 12, color: T.black, cursor: 'pointer' }}>{item.label}</button>
-                        ))}
+            <div style={{ flex: '1 1 auto', minHeight: 200, overflowY: 'auto', padding: '0 18px 6px', display: 'grid', gap: 8, alignContent: 'start' }}>
+              {cartStep === 'cart' && (
+                <>
+                  {cart.map((it) => (
+                    <div key={it.key} style={{ display: 'grid', gridTemplateColumns: '36px minmax(0,1fr) auto', gap: 8, alignItems: 'center', padding: '5px 0', borderBottom: `1px solid ${T.border}` }}>
+                      {it.photo
+                        ? <img src={`${api.replace('/api', '')}${it.photo}`} alt={it.name} style={{ width: 36, height: 46, objectFit: 'cover', borderRadius: 6 }} />
+                        : <div style={{ width: 36, height: 46, borderRadius: 6, background: '#f3f4f6' }} />}
+                      <div style={{ minWidth: 0 }}>
+                        <strong style={{ fontSize: 12.5, display: 'block', color: T.black, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.name}</strong>
+                        {it.variantLabel && <span style={{ fontSize: 10.5, color: T.muted }}>{it.variantLabel}</span>}
+                        <div style={{ fontSize: 11.5, color: T.blue, fontWeight: 700 }}>{fmtRp(it.price)}/pcs</div>
                       </div>
-                    )}
-                    {shippingLoading && <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: T.muted }}>Menghitung ongkir…</p>}
-                    {shippingNotice && <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: '#b45309' }}>{shippingNotice}</p>}
-                    {shippingOptions.length > 0 && (
-                      <div style={{ display: 'grid', gap: 4 }}>
-                        {shippingOptions.map((option) => (
-                          <label key={`${option.courier}-${option.service}`} style={{ display: 'grid', gridTemplateColumns: '16px minmax(0, 1fr) auto', alignItems: 'center', gap: 8, padding: '7px 9px', border: `1px solid ${selectedShipping?.courier === option.courier && selectedShipping?.service === option.service ? T.blue : T.border}`, borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>
-                            <input type="radio" name="shipping-option" style={{ width: 16, height: 16, margin: 0 }} checked={selectedShipping?.courier === option.courier && selectedShipping?.service === option.service} onChange={() => setSelectedShipping(option)} />
-                            <span style={{ minWidth: 0, lineHeight: 1.3 }}>
-                              <span style={{ display: 'block', fontWeight: 700, color: T.black, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{option.courier_name}</span>
-                              <span style={{ display: 'block', color: T.muted, fontSize: 11 }}>{option.service}{option.etd ? ` · ${option.etd}` : ''}</span>
-                            </span>
-                            <strong style={{ whiteSpace: 'nowrap', fontSize: 12.5 }}>{fmtRp(option.cost)}</strong>
-                          </label>
-                        ))}
+                      <div style={{ display: 'grid', gap: 3, justifyItems: 'end' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <button type="button" className="qty-btn small" onClick={() => setItemQty(it.key, it.qty - 1)} aria-label="Kurangi jumlah"><I.minus style={{ width: 12, height: 12, color: '#fff' }} /></button>
+                          <input type="number" min="1" value={it.qty} onChange={(e) => setItemQty(it.key, Math.max(1, Number(e.target.value) || 1))} aria-label={`Jumlah ${it.name}`} className="qty-input" />
+                          <button type="button" className="qty-btn small" onClick={() => setItemQty(it.key, it.qty + 1)} aria-label="Tambah jumlah"><I.plus style={{ width: 12, height: 12, color: '#fff' }} /></button>
+                        </div>
+                        <button type="button" onClick={() => removeItem(it.key)} style={{ border: 0, background: 'none', color: '#dc2626', fontSize: 10.5, cursor: 'pointer', padding: 0 }}>Hapus</button>
                       </div>
-                    )}
-                  </div>
-                ) : shippingRates.length > 0 && (
-                  <select value={shippingArea} onChange={(e) => setShippingArea(e.target.value)} aria-label="Kota / kecamatan" style={{ minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13, background: '#fff' }}>
-                    <option value="">Pilih kota/kecamatan (cek ongkir)</option>
-                    {shippingRates.map((rate) => <option key={rate.area} value={rate.area}>{rate.area}{Number(rate.cost) > 0 ? ` · ${fmtRp(rate.cost)}` : Number(rate.cost_per_kg) > 0 ? ` · ${fmtRp(rate.cost_per_kg)}/kg` : ''}</option>)}
-                  </select>
-                )}
-                <input value={buyer.note} onChange={(e) => setBuyer({ ...buyer, note: e.target.value })} placeholder="Catatan untuk admin (opsional)" aria-label="Catatan" style={{ minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13 }} />
-              </div>
+                    </div>
+                  ))}
+                  {!cart.length && <p style={{ textAlign: 'center', color: T.muted, padding: '24px 0', fontSize: 14 }}>Keranjang masih kosong.</p>}
+                  {cartWarnings.length > 0 && (
+                    <div style={{ display: 'grid', gap: 3 }}>
+                      {cartWarnings.map((w) => <p key={w.name} style={{ margin: 0, fontSize: 'var(--fs-xs)', color: '#b45309' }}>{w.qty < minOrderQty ? `${w.name} ${w.qty} pcs. Minimum ${minOrderQty} pcs per model.` : `${w.name}: jumlah melebihi stok tersedia (${Number(w.available || 0)} pcs).`}</p>)}
+                    </div>
+                  )}
+                  <p style={{ margin: 0, fontSize: 11.5, color: T.muted }}>{hasMinimumOrder ? `Minimal pembelian ${minOrderQty} pcs per model.` : 'Tanpa minimum pembelian.'} Varian boleh dicampur.</p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: T.muted }}><span>Subtotal</span><strong style={{ color: T.black }}>{fmtRp(cartTotal)}</strong></div>
+                </>
+              )}
 
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input value={voucherCode} onChange={(e) => { setVoucherCode(e.target.value.toUpperCase()); setVoucherMessage(''); }} placeholder="Kode voucher" aria-label="Kode voucher" style={{ flex: 1, minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13, textTransform: 'uppercase' }} />
-                <button type="button" onClick={applyVoucher} disabled={!voucherCode.trim() || voucherChecking || !cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', padding: '0 16px' }}>{voucherChecking ? 'Cek…' : 'Pakai'}</button>
-              </div>
-              {voucherMessage && <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: voucher ? '#15803d' : '#b45309' }}>{voucherMessage}</p>}
-
-              {cartWarnings.length > 0 && (
-                <div style={{ display: 'grid', gap: 3 }}>
-                  {cartWarnings.map((w) => <p key={w.name} style={{ margin: 0, fontSize: 'var(--fs-xs)', color: '#b45309' }}>{w.qty < minOrderQty ? `${w.name} ${w.qty} pcs. Minimum ${minOrderQty} pcs per model.` : `${w.name}: jumlah pesanan melebihi stok tersedia (${Number(w.available || 0)} pcs).`}</p>)}
+              {cartStep === 'address' && (
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: T.black }}>Alamat pengiriman</span>
+                  <input value={buyer.name} onChange={(e) => setBuyer({ ...buyer, name: e.target.value })} placeholder="Nama penerima" aria-label="Nama penerima" style={{ minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13 }} />
+                  <input value={buyer.phone} onChange={(e) => setBuyer({ ...buyer, phone: e.target.value })} placeholder="No HP / WhatsApp" inputMode="tel" aria-label="No HP" style={{ minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13 }} />
+                  <textarea value={buyer.address} onChange={(e) => setBuyer({ ...buyer, address: e.target.value })} placeholder="Alamat lengkap (jalan, RT/RW, kelurahan, kode pos)" rows={2} aria-label="Alamat" style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13, minHeight: 44, resize: 'vertical' }} />
+                  {usesCourierApi ? (
+                    <div style={{ display: 'grid', gap: 6 }}>
+                      <input value={destinationQuery} onChange={(e) => { setDestinationQuery(e.target.value); setDestination(null); }} placeholder="Cari kecamatan tujuan (mis. Metro Pusat)" aria-label="Kecamatan tujuan" style={{ minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13 }} />
+                      {destination && <p style={{ margin: 0, fontSize: 11.5, color: '#15803d', fontWeight: 700 }}>Tujuan: {destination.label}</p>}
+                      {!destination && destinations.length > 0 && (
+                        <div style={{ display: 'grid', gap: 4, maxHeight: 132, overflowY: 'auto', border: `1px solid ${T.border}`, borderRadius: 8, padding: 6 }}>
+                          {destinations.map((item) => (
+                            <button key={item.id} type="button" onClick={() => { setDestination(item); setDestinationQuery(item.label); setDestinations([]); }} style={{ textAlign: 'left', border: 0, background: 'transparent', padding: '6px 4px', fontSize: 12, color: T.black, cursor: 'pointer' }}>{item.label}</button>
+                          ))}
+                        </div>
+                      )}
+                      {shippingLoading && <p style={{ margin: 0, fontSize: 11.5, color: T.muted }}>Menghitung ongkir…</p>}
+                      {shippingNotice && <p style={{ margin: 0, fontSize: 11.5, color: '#b45309' }}>{shippingNotice}</p>}
+                      {shippingOptions.length > 0 && (
+                        <div style={{ display: 'grid', gap: 4 }}>
+                          {shippingOptions.map((option) => (
+                            <label key={`${option.courier}-${option.service}`} style={{ display: 'grid', gridTemplateColumns: '16px minmax(0, 1fr) auto', alignItems: 'center', gap: 8, padding: '7px 9px', border: `1px solid ${selectedShipping?.courier === option.courier && selectedShipping?.service === option.service ? T.blue : T.border}`, borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>
+                              <input type="radio" name="shipping-option" style={{ width: 16, height: 16, margin: 0 }} checked={selectedShipping?.courier === option.courier && selectedShipping?.service === option.service} onChange={() => setSelectedShipping(option)} />
+                              <span style={{ minWidth: 0, lineHeight: 1.3 }}>
+                                <span style={{ display: 'block', fontWeight: 700, color: T.black, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{option.courier_name}</span>
+                                <span style={{ display: 'block', color: T.muted, fontSize: 11 }}>{option.service}{option.etd ? ` · ${option.etd}` : ''}</span>
+                              </span>
+                              <strong style={{ whiteSpace: 'nowrap', fontSize: 12.5 }}>{fmtRp(option.cost)}</strong>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : shippingRates.length > 0 && (
+                    <select value={shippingArea} onChange={(e) => setShippingArea(e.target.value)} aria-label="Kota / kecamatan" style={{ minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13, background: '#fff' }}>
+                      <option value="">Pilih kota/kecamatan (cek ongkir)</option>
+                      {shippingRates.map((rate) => <option key={rate.area} value={rate.area}>{rate.area}{Number(rate.cost) > 0 ? ` · ${fmtRp(rate.cost)}` : Number(rate.cost_per_kg) > 0 ? ` · ${fmtRp(rate.cost_per_kg)}/kg` : ''}</option>)}
+                    </select>
+                  )}
+                  <input value={buyer.note} onChange={(e) => setBuyer({ ...buyer, note: e.target.value })} placeholder="Catatan untuk admin (opsional)" aria-label="Catatan" style={{ minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13 }} />
                 </div>
               )}
-              <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: T.muted }}>{hasMinimumOrder ? `Minimal pembelian ${minOrderQty} pcs per model.` : 'Tanpa minimum pembelian.'} Varian boleh dicampur.</p>
-              </div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button type="button" onClick={clearCart} disabled={!cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', minWidth: 110 }}>Kosongkan</button>
-                <button type="button" onClick={sendOrder} disabled={!cart.length || hasMinimumWarning || orderChecking || !buyerReady} title={buyerReady ? '' : 'Isi nama, No HP, dan alamat dulu'} className="pcard-btn primary" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44 }}><I.chat style={{ width: 15, height: 15 }} /> {orderChecking ? 'Memeriksa stok…' : 'Chat Pesanan via WhatsApp'}</button>
-              </div>
+
+              {cartStep === 'review' && (
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input value={voucherCode} onChange={(e) => { setVoucherCode(e.target.value.toUpperCase()); setVoucherMessage(''); }} placeholder="Kode voucher" aria-label="Kode voucher" style={{ flex: 1, minHeight: 38, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13, textTransform: 'uppercase' }} />
+                    <button type="button" onClick={applyVoucher} disabled={!voucherCode.trim() || voucherChecking || !cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', padding: '0 14px' }}>{voucherChecking ? 'Cek…' : 'Pakai'}</button>
+                  </div>
+                  {voucherMessage && <p style={{ margin: 0, fontSize: 11.5, color: voucher ? '#15803d' : '#b45309' }}>{voucherMessage}</p>}
+
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: T.muted }}><span>Subtotal</span><span>{fmtRp(cartTotal)}</span></div>
+                    {voucher && <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, color: '#15803d', fontWeight: 700 }}><span>Voucher {voucher.code}{voucher.discount_type === 'per_pcs' ? ` (${fmtRp(voucher.discount_value)} × ${cartPcs} pcs)` : ''}</span><span style={{ whiteSpace: 'nowrap' }}>-{fmtRp(voucherDiscount)}</span></div>}
+                    {(shippingArea || selectedShipping) && <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, color: T.muted }}><span>Ongkir{shippingLabel ? ` (${shippingLabel})` : ''}</span><span style={{ whiteSpace: 'nowrap' }}>{fmtRp(shippingCost)}</span></div>}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 700, fontSize: 15, color: T.black, paddingTop: 4, borderTop: `1px solid ${T.border}` }}><span>Total</span><span>{fmtRp(grandTotal)}</span></div>
+                  </div>
+
+                  <div style={{ display: 'grid', gap: 2, fontSize: 12, color: T.muted, padding: '8px 10px', border: `1px solid ${T.border}`, borderRadius: 8 }}>
+                    <strong style={{ color: T.black, fontSize: 12 }}>{buyer.name || '-'} · {buyer.phone || '-'}</strong>
+                    <span>{buyer.address || 'Alamat belum diisi'}</span>
+                    {(usesCourierApi ? destination?.label : shippingArea) && <span>Tujuan: {usesCourierApi ? destination?.label : shippingArea}</span>}
+                    {shippingLabel && <span>Kurir: {shippingLabel}</span>}
+                    {buyer.note && <span>Catatan: {buyer.note}</span>}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ flex: '0 0 auto', borderTop: `1px solid ${T.border}`, padding: '12px 18px 16px', display: 'flex', gap: 10 }}>
+              {cartStep === 'cart' && (
+                <>
+                  <button type="button" onClick={clearCart} disabled={!cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', minWidth: 108 }}>Kosongkan</button>
+                  <button type="button" onClick={() => setCartStep('address')} disabled={!cart.length || hasMinimumWarning} className="pcard-btn primary" style={{ flex: 1, minHeight: 44 }}>Lanjut ke alamat</button>
+                </>
+              )}
+              {cartStep === 'address' && (
+                <>
+                  <button type="button" onClick={() => setCartStep('cart')} className="pcard-btn secondary" style={{ flex: '0 0 auto', minWidth: 96 }}>Kembali</button>
+                  <button type="button" onClick={() => setCartStep('review')} disabled={!buyerReady || (usesCourierApi && shippingOptions.length > 0 && !selectedShipping)} className="pcard-btn primary" style={{ flex: 1, minHeight: 44 }}>Lanjut ke review</button>
+                </>
+              )}
+              {cartStep === 'review' && (
+                <>
+                  <button type="button" onClick={() => setCartStep('address')} className="pcard-btn secondary" style={{ flex: '0 0 auto', minWidth: 96 }}>Kembali</button>
+                  <button type="button" onClick={sendOrder} disabled={!cart.length || hasMinimumWarning || orderChecking} className="pcard-btn primary" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44 }}><I.chat style={{ width: 15, height: 15 }} /> {orderChecking ? 'Memeriksa stok…' : 'Chat Pesanan via WhatsApp'}</button>
+                </>
+              )}
             </div>
           </div>
         </div>
