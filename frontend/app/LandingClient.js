@@ -675,12 +675,12 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
       {/* Keranjang */}
       {cartOpen && (
         <div onClick={() => setCartOpen(false)} role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'grid', placeItems: 'center', zIndex: 120, padding: 16, backdropFilter: 'blur(4px)' }}>
-          <div onClick={(e) => e.stopPropagation()} className="wa-modal-in" style={{ background: T.card, borderRadius: 14, maxWidth: 480, width: '100%', maxHeight: 'min(640px, 88vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 48px rgba(0,0,0,.18)' }}>
+          <div onClick={(e) => e.stopPropagation()} className="wa-modal-in" style={{ background: T.card, borderRadius: 14, maxWidth: 480, width: '100%', maxHeight: 'min(780px, 92vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 48px rgba(0,0,0,.18)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 20px 12px' }}>
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.black }}>Keranjang <span style={{ color: T.muted, fontWeight: 500, fontSize: 'var(--fs-md)' }}>{cartPcs} pcs</span></h3>
               <button type="button" onClick={() => setCartOpen(false)} aria-label="Tutup" style={{ width: 34, height: 34, padding: 0, borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, cursor: 'pointer', color: T.muted, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}><I.close style={{ width: 16, height: 16, display: 'block' }} /></button>
             </div>
-            <div style={{ overflowY: 'auto', padding: '4px 20px', display: 'grid', gap: 4 }}>
+            <div style={{ flex: '1 1 auto', minHeight: 120, overflowY: 'auto', padding: '4px 20px', display: 'grid', gap: 4, alignContent: 'start' }}>
               {cart.map((it) => (
                 <div key={it.key} style={{ display: 'grid', gridTemplateColumns: '52px minmax(0,1fr) auto', gap: 12, alignItems: 'center', padding: '10px 0', borderBottom: `1px solid ${T.border}` }}>
                   {it.photo
@@ -703,7 +703,8 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
               ))}
               {!cart.length && <p style={{ textAlign: 'center', color: T.muted, padding: '24px 0', fontSize: 14 }}>Keranjang masih kosong.</p>}
             </div>
-            <div style={{ borderTop: `1px solid ${T.border}`, padding: '14px 20px 18px', display: 'grid', gap: 10 }}>
+            <div style={{ flex: '0 0 auto', borderTop: `1px solid ${T.border}`, padding: '14px 20px 18px', display: 'grid', gap: 10 }}>
+              <div style={{ maxHeight: '38vh', overflowY: 'auto', display: 'grid', gap: 10, paddingRight: 2 }}>
               <div style={{ display: 'grid', gap: 6 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: T.muted }}><span>Subtotal</span><span>{fmtRp(cartTotal)}</span></div>
                 {voucher && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#15803d', fontWeight: 700 }}><span>Voucher {voucher.code}</span><span>-{fmtRp(voucherDiscount)}</span></div>}
@@ -717,13 +718,13 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
                 <span style={{ fontSize: 12, fontWeight: 700, color: T.black }}>Alamat pengiriman</span>
                 <input value={buyer.name} onChange={(e) => setBuyer({ ...buyer, name: e.target.value })} placeholder="Nama penerima" aria-label="Nama penerima" style={{ minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13 }} />
                 <input value={buyer.phone} onChange={(e) => setBuyer({ ...buyer, phone: e.target.value })} placeholder="No HP / WhatsApp" inputMode="tel" aria-label="No HP" style={{ minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13 }} />
-                <textarea value={buyer.address} onChange={(e) => setBuyer({ ...buyer, address: e.target.value })} placeholder="Alamat lengkap (jalan, RT/RW, kelurahan, kode pos)" rows={2} aria-label="Alamat" style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13, resize: 'vertical' }} />
+                <textarea value={buyer.address} onChange={(e) => setBuyer({ ...buyer, address: e.target.value })} placeholder="Alamat lengkap (jalan, RT/RW, kelurahan, kode pos)" rows={2} aria-label="Alamat" style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13, minHeight: 44, resize: 'vertical' }} />
                 {usesCourierApi ? (
                   <div style={{ display: 'grid', gap: 6 }}>
                     <input value={destinationQuery} onChange={(e) => { setDestinationQuery(e.target.value); setDestination(null); }} placeholder="Cari kecamatan tujuan (mis. Metro Pusat)" aria-label="Kecamatan tujuan" style={{ minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13 }} />
                     {destination && <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: '#15803d', fontWeight: 700 }}>Tujuan: {destination.label}</p>}
                     {!destination && destinations.length > 0 && (
-                      <div style={{ display: 'grid', gap: 4, maxHeight: 150, overflowY: 'auto', border: `1px solid ${T.border}`, borderRadius: 8, padding: 6 }}>
+                      <div style={{ display: 'grid', gap: 4, maxHeight: 132, overflowY: 'auto', border: `1px solid ${T.border}`, borderRadius: 8, padding: 6 }}>
                         {destinations.map((item) => (
                           <button key={item.id} type="button" onClick={() => { setDestination(item); setDestinationQuery(item.label); setDestinations([]); }} style={{ textAlign: 'left', border: 0, background: 'transparent', padding: '6px 4px', fontSize: 12, color: T.black, cursor: 'pointer' }}>{item.label}</button>
                         ))}
@@ -734,10 +735,13 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
                     {shippingOptions.length > 0 && (
                       <div style={{ display: 'grid', gap: 4 }}>
                         {shippingOptions.map((option) => (
-                          <label key={`${option.courier}-${option.service}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', border: `1px solid ${selectedShipping?.courier === option.courier && selectedShipping?.service === option.service ? T.blue : T.border}`, borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>
-                            <input type="radio" name="shipping-option" checked={selectedShipping?.courier === option.courier && selectedShipping?.service === option.service} onChange={() => setSelectedShipping(option)} />
-                            <span style={{ flex: 1 }}>{option.courier_name} · {option.service}{option.etd ? ` (${option.etd})` : ''}</span>
-                            <strong>{fmtRp(option.cost)}</strong>
+                          <label key={`${option.courier}-${option.service}`} style={{ display: 'grid', gridTemplateColumns: '16px minmax(0, 1fr) auto', alignItems: 'center', gap: 8, padding: '7px 9px', border: `1px solid ${selectedShipping?.courier === option.courier && selectedShipping?.service === option.service ? T.blue : T.border}`, borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>
+                            <input type="radio" name="shipping-option" style={{ width: 16, height: 16, margin: 0 }} checked={selectedShipping?.courier === option.courier && selectedShipping?.service === option.service} onChange={() => setSelectedShipping(option)} />
+                            <span style={{ minWidth: 0, lineHeight: 1.3 }}>
+                              <span style={{ display: 'block', fontWeight: 700, color: T.black, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{option.courier_name}</span>
+                              <span style={{ display: 'block', color: T.muted, fontSize: 11 }}>{option.service}{option.etd ? ` · ${option.etd}` : ''}</span>
+                            </span>
+                            <strong style={{ whiteSpace: 'nowrap', fontSize: 12.5 }}>{fmtRp(option.cost)}</strong>
                           </label>
                         ))}
                       </div>
@@ -764,6 +768,7 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
                 </div>
               )}
               <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: T.muted }}>{hasMinimumOrder ? `Minimal pembelian ${minOrderQty} pcs per model.` : 'Tanpa minimum pembelian.'} Varian boleh dicampur.</p>
+              </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button type="button" onClick={clearCart} disabled={!cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', minWidth: 110 }}>Kosongkan</button>
                 <button type="button" onClick={sendOrder} disabled={!cart.length || hasMinimumWarning || orderChecking || !buyerReady} title={buyerReady ? '' : 'Isi nama, No HP, dan alamat dulu'} className="pcard-btn primary" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44 }}><I.chat style={{ width: 15, height: 15 }} /> {orderChecking ? 'Memeriksa stok…' : 'Chat Pesanan via WhatsApp'}</button>
