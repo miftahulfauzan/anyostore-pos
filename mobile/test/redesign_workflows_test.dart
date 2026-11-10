@@ -59,10 +59,12 @@ void main() {
       (tester) async {
     Map<String, dynamic>? result;
     await openPayment(tester, (value) => result = value);
-    // Re-select cash so the existing sheet creates its split controller.
-    await tester.tap(find.text('Tunai'));
-    await tester.tap(find.text('Tunai'));
-    await tester.tap(find.text('QRIS'));
+    // Bayar terpisah harus dinyalakan dulu sebelum memilih dua metode.
+    await tester.ensureVisible(find.byKey(const ValueKey('payment-dual-toggle')));
+    await tester.tap(find.byKey(const ValueKey('payment-dual-toggle')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const ValueKey('payment-method-qris')));
+    await tester.tap(find.byKey(const ValueKey('payment-method-qris')));
     await tester.pumpAndSettle();
     await tester.enterText(
         find.widgetWithText(TextField, 'Tunai (Rp)'), '180000');
@@ -72,9 +74,11 @@ void main() {
     expect(result, isNull);
     expect(find.text('Isi nominal untuk setiap metode pembayaran.'),
         findsOneWidget);
+    await tester.ensureVisible(find.widgetWithText(TextField, 'QRIS (Rp)'));
     await tester.enterText(
         find.widgetWithText(TextField, 'QRIS (Rp)'), '90000');
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Selesaikan pembayaran'));
     await tester.tap(find.text('Selesaikan pembayaran'));
     await tester.pump();
     expect(result, isNull);

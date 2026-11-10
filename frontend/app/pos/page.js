@@ -7,6 +7,7 @@ import { useAppSession, useUnsavedWork } from '../components/AppStateProvider';
 import BranchSwitcher from '../components/BranchSwitcher';
 import { createRequestSequence } from '../components/app-state.cjs';
 import { localDateString } from '../lib/local-date';
+import { defaultPaymentMethod } from '../lib/payment-defaults';
 import { defaultCartQuantity } from './cart-defaults.cjs';
 import { shareInvoiceImage, storePhones, instagramFor, customerTierLabel, invoiceDate } from '../lib/invoice-image';
 
@@ -23,6 +24,7 @@ export default function PosPage() {
   const [warehouseId, setWarehouseId] = useState('');
   const [cart, setCart] = useState([]);
   const [selectedPaymentMethods, setSelectedPaymentMethods] = useState(['cash']);
+  const [dualPayment, setDualPayment] = useState(false);
   const [cash, setCash] = useState('');
   const [paymentAmounts, setPaymentAmounts] = useState({});
   const [paymentSheetOpen, setPaymentSheetOpen] = useState(false);
@@ -73,6 +75,17 @@ export default function PosPage() {
       }).catch((error) => { setMessage(error.message); setLoadingStore(false); });
   }, []);
 
+  // Metode pembayaran default mengikuti toko: BASIK -> Transfer, Blok B -> QRIS.
+  useEffect(() => {
+    if (!storeId) return;
+    const store = stores.find((item) => String(item.id) === String(storeId));
+    if (!store) return;
+    setSelectedPaymentMethods([defaultPaymentMethod(store.name, store.address)]);
+    setDualPayment(false);
+    setCash('');
+    setPaymentAmounts({});
+  }, [storeId, stores]);
+
   useEffect(() => {
     if (!storesLoaded) return;
     storeLoadSequence.current.next();
@@ -88,6 +101,7 @@ export default function PosPage() {
       setCustomers([]);
       setCart([]);
       setSelectedPaymentMethods(['cash']);
+      setDualPayment(false);
       setPaymentAmounts({});
       setPaymentSheetOpen(false);
       setCash('');
@@ -106,7 +120,8 @@ export default function PosPage() {
     setNotes('');
     setShowCartActions(false);
     setShowCartOptions(false);
-    setSelectedPaymentMethods(['cash']);
+    setSelectedPaymentMethods([defaultPaymentMethod(activeStore?.name, activeStore?.address)]);
+    setDualPayment(false);
     setCash('');
     setPaymentAmounts({});
     setPaymentSheetOpen(false);
@@ -411,7 +426,9 @@ export default function PosPage() {
   const discountExceedsSubtotal = cart.length > 0 && requestedDiscount > subtotal;
   const discount = discountExceedsSubtotal ? 0 : requestedDiscount;
   const total = Math.max(0, subtotal - discount);
-  const isSplitPayment = selectedPaymentMethods.length > 1;
+  const activeStore = stores.find((store) => String(store.id) === String(storeId));
+  const storeDefaultMethod = defaultPaymentMethod(activeStore?.name, activeStore?.address);
+  const isSplitPayment = dualPayment && selectedPaymentMethods.length > 1;
   const paymentMethod = isSplitPayment ? 'split' : selectedPaymentMethods[0] || 'cash';
   const splitTotal = selectedPaymentMethods.reduce((sum, method) => sum + (Number(paymentAmounts[method]) || 0), 0);
   const splitAmountsValid = isSplitPayment
@@ -424,6 +441,13 @@ export default function PosPage() {
   const amountPaid = paymentMethod === 'cash' ? Number(cash || 0) : isSplitPayment ? splitTotal : total;
   const change = paymentMethod === 'cash' ? Math.max(0, amountPaid - total) : 0;
   function togglePaymentMethod(method) {
+    if (!dualPayment) {
+      // Tanpa mode bayar terpisah, menekan metode lain berarti PINDAH metode.
+      setSelectedPaymentMethods([method]);
+      setCash('');
+      setPaymentAmounts({});
+      return;
+    }
     const nextMethods = selectedPaymentMethods.includes(method)
       ? selectedPaymentMethods.filter((selected) => selected !== method)
       : [...selectedPaymentMethods, method];
@@ -555,8 +579,9 @@ export default function PosPage() {
     return <div className={className}>
       <fieldset className="payment-methods">
         <legend>Metode pembayaran</legend>
-        <small className="payment-method-hint">Pilih beberapa metode untuk membagi pembayaran.</small>
+        <small className="payment-method-hint">{dualPayment ? 'Pilih 2 metode atau lebih, lalu isi nominalnya.' : 'Tekan Bayar terpisah bila ingin membagi ke dua metode.'}</small>
         { [['cash', 'Tunai'], ['qris', 'QRIS'], ['debit', 'Debit'], ['transfer', 'Transfer']].map(([value, label]) => <button type="button" className={selectedPaymentMethods.includes(value) ? 'payment-option selected' : 'payment-option'} key={value} onClick={() => togglePaymentMethod(value)} aria-pressed={selectedPaymentMethods.includes(value)}>{label}</button>)}
+        <button type="button" className={`payment-option payment-dual${dualPayment ? ' selected' : ''}`} onClick={() => setDualPayment((current) => { const next = !current; if (!next) setSelectedPaymentMethods([selectedPaymentMethods[0] || storeDefaultMethod]); return next; })} aria-pressed={dualPayment}>Bayar terpisah</button>
       </fieldset>
       {isSplitPayment ? <div className="payment-breakdown" aria-label="Nominal per metode pembayaran"><div className="payment-breakdown-fields">{selectedPaymentMethods.map((method) => <label key={method} htmlFor={`payment-amount-${method}`}>{method === 'cash' ? 'Tunai' : method.toUpperCase()} (Rp)<input id={`payment-amount-${method}`} type="number" inputMode="numeric" min="1" step="1" value={paymentAmounts[method] || ''} onChange={(event) => setPaymentAmounts((current) => ({ ...current, [method]: event.target.value }))} placeholder="0" disabled={submitting} /></label>)}</div><p className={`payment-breakdown-status${splitPaymentsValid ? ' is-valid' : ''}`} role="status" aria-live="polite">{splitPaymentStatus}</p></div> : paymentMethod === 'cash' ? <label>Tunai diterima<input type="number" min="0" value={cash} onChange={(event) => setCash(event.target.value)} placeholder="0" /></label> : <p>Pembayaran {paymentMethod.toUpperCase()}: <strong>{rupiah(total)}</strong></p>}
       {paymentMethod === 'cash' && <p>Kembalian: <strong>{rupiah(change)}</strong></p>}

@@ -5,8 +5,10 @@ import 'task_ui.dart';
 import 'ui_kit.dart';
 
 class PaymentSheet extends StatefulWidget {
-  const PaymentSheet({super.key, required this.grandTotal});
+  const PaymentSheet({super.key, required this.grandTotal, this.defaultMethod = 'cash'});
   final double grandTotal;
+  /// Metode pembayaran awal sesuai toko (BASIK: transfer, Blok B: QRIS).
+  final String defaultMethod;
 
   @override
   State<PaymentSheet> createState() => _PaymentSheetState();
@@ -27,7 +29,10 @@ class _PaymentSheetState extends State<PaymentSheet> {
     'debit': Icons.credit_card,
   };
 
-  final List<String> _selectedMethods = ['cash'];
+  late final List<String> _selectedMethods = [widget.defaultMethod];
+  /// Mode bayar terpisah harus dinyalakan dulu; tanpa itu menekan metode lain
+  /// hanya memindahkan metode pembayaran.
+  bool _dualPayment = false;
   final _amountCtrl = TextEditingController();
   final _referenceCtrl = TextEditingController();
   final Map<String, TextEditingController> _splitAmounts = {};
@@ -68,8 +73,29 @@ class _PaymentSheetState extends State<PaymentSheet> {
   bool get _splitAmountsValid => _selectedMethods
       .every((method) => _parse(_splitAmounts[method]?.text ?? '') > 0);
 
+  /// Pastikan setiap metode terpilih punya controller nominal sendiri, supaya
+  /// nilai yang diketik tidak hilang saat daftar di-rebuild.
+  void _ensureSplitControllers() {
+    for (final method in _selectedMethods) {
+      _splitAmounts.putIfAbsent(method, () => TextEditingController());
+      _splitReferences.putIfAbsent(method, () => TextEditingController());
+    }
+  }
+
   void _toggleMethod(String method) {
     setState(() {
+      if (!_dualPayment) {
+        if (_selectedMethods.length == 1 && _selectedMethods.first == method) return;
+        for (final existing in _selectedMethods) {
+          _splitAmounts.remove(existing)?.dispose();
+          _splitReferences.remove(existing)?.dispose();
+        }
+        _selectedMethods
+          ..clear()
+          ..add(method);
+        _error = null;
+        return;
+      }
       if (_selectedMethods.contains(method)) {
         _selectedMethods.remove(method);
         _splitAmounts.remove(method)?.dispose();
@@ -84,7 +110,7 @@ class _PaymentSheetState extends State<PaymentSheet> {
   }
 
   Map<String, dynamic>? _buildPayload() {
-    if (_selectedMethods.length > 1) {
+    if (_dualPayment && _selectedMethods.length > 1) {
       if (!_splitAmountsValid) {
         setState(() => _error = 'Isi nominal untuk setiap metode pembayaran.');
         return null;
@@ -129,7 +155,7 @@ class _PaymentSheetState extends State<PaymentSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final isSplit = _selectedMethods.length > 1;
+    final isSplit = _dualPayment && _selectedMethods.length > 1;
     final selectedMethod =
         _selectedMethods.isEmpty ? null : _selectedMethods.first;
     final change =
@@ -200,8 +226,41 @@ class _PaymentSheetState extends State<PaymentSheet> {
                 ),
               ),
               const SizedBox(height: 16),
-              Text('Pilih satu atau beberapa metode',
-                  style: TextStyle(color: taskMuted(context))),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                        _dualPayment
+                            ? 'Pilih 2 metode atau lebih'
+                            : 'Pilih metode pembayaran',
+                        style: TextStyle(color: taskMuted(context))),
+                  ),
+                  TextButton(
+                    key: const ValueKey('payment-dual-toggle'),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      minimumSize: const Size(0, 30),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: () => setState(() {
+                      _dualPayment = !_dualPayment;
+                      if (_dualPayment) _ensureSplitControllers();
+                      if (!_dualPayment && _selectedMethods.length > 1) {
+                        for (final extra in _selectedMethods.skip(1)) {
+                          _splitAmounts.remove(extra)?.dispose();
+                          _splitReferences.remove(extra)?.dispose();
+                        }
+                        _selectedMethods.removeRange(1, _selectedMethods.length);
+                      }
+                      _error = null;
+                    }),
+                    child: Text(
+                        _dualPayment ? 'Terpisah: aktif' : 'Bayar terpisah',
+                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
+                  ),
+                ],
+              ),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -213,6 +272,7 @@ class _PaymentSheetState extends State<PaymentSheet> {
                           selected: _selectedMethods.contains(method),
                           button: true,
                           child: InkWell(
+                            key: ValueKey('payment-method-$method'),
                             onTap: () => _toggleMethod(method),
                             borderRadius: BorderRadius.circular(12),
                             child: Container(

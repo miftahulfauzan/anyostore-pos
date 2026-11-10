@@ -7396,3 +7396,19 @@ html[data-theme] .app-main .tabs button:not(.active):hover {
 .receipt-share-bar .message { flex: 1 1 100%; font-size: 11px; }
 .dark .receipt-share-bar button { background: #2e5d8f; border-color: #2e5d8f; }
 .dark .receipt-share-bar button.secondary { background: #182135; border-color: #475569; color: #bfdbfe; }
+
+/* Tombol mode "Bayar terpisah" pada pemilihan metode pembayaran POS. */
+.payment-option.payment-dual {
+  border-style: dashed;
+  border-color: #9fb3ca;
+  color: #1e3a5f;
+  background: #f8fbff;
+}
+.payment-option.payment-dual.selected {
+  border-style: solid;
+  background: var(--action-bg, #1e3a5f);
+  border-color: var(--action-bg, #1e3a5f);
+  color: #fff;
+}
+.dark .payment-option.payment-dual { background: #182135; border-color: #475569; color: #bfdbfe; }
+.dark .payment-option.payment-dual.selected { background: #2e5d8f; border-color: #2e5d8f; color: #fff; }

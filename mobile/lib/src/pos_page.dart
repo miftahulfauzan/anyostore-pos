@@ -23,6 +23,7 @@ import 'sales_dashboard_page.dart';
 import 'format.dart';
 import 'history_tab.dart';
 import 'invoice_share.dart';
+import 'payment_defaults.dart';
 import 'payment_sheet.dart';
 import 'printer_service.dart';
 import 'printer_setup.dart';
@@ -1509,7 +1510,13 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     final payment = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => PaymentSheet(grandTotal: grandTotal),
+      builder: (_) {
+        final store = _invoiceStore();
+        return PaymentSheet(
+          grandTotal: grandTotal,
+          defaultMethod: defaultPaymentMethod(store.name, store.address),
+        );
+      },
     );
     if (payment == null || !mounted) return;
     final lowStock = _cart
