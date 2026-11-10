@@ -61,3 +61,12 @@ test('print sheet A6 tidak memotong isi: tinggi mengikuti konten dengan margin',
   assert.match(styles, /body:has\(\.transfer-print-root\.is-active\) \.transfer-print-sheet\s*\{[^}]*overflow:\s*visible/s);
   assert.match(styles, /body:has\(\.transfer-print-root\.is-active\) \.transfer-print-sheet\s*\{[^}]*padding:\s*9mm 8mm/s);
 });
+
+test('cetak rincian transfer menyembunyikan konten aplikasi dari layout', () => {
+  // Dulu hanya visibility:hidden sehingga konten aplikasi tetap memakan
+  // halaman dan hasil cetak berupa lembar kosong.
+  assert.match(styles, /body:has\(\.transfer-print-root\.is-active\) \.app-content > \*:not\(\.transfer-print-root\)\s*\{[^}]*display:\s*none/s);
+  assert.match(styles, /\.app-content > \*:not\(\.transfer-print-root\)\s*\{[^}]*display:\s*none/s);
+  assert.match(styles, /body:has\(\.transfer-print-root\.is-active\) \.app-header,/);
+  assert.match(styles, /body:has\(\.transfer-print-root\.is-active\) \.transfer-print-root \{ display:\s*block !important; \}/);
+});

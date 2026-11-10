@@ -6928,3 +6928,28 @@ html[data-theme] .app-main .tabs button:not(.active):hover {
   border-color: var(--border);
 }
 .dark .tabs button:not(.active):hover { background: #22304b; color: #e2e8f0; }
+
+/* Cetak rincian transfer: konten aplikasi disembunyikan dari ALUR layout
+   (dulu hanya visibility:hidden sehingga tetap memakan halaman dan hasilnya
+   lembar kosong). */
+@media print {
+  body:has(.transfer-print-root.is-active) .sidebar,
+  body:has(.transfer-print-root.is-active) .app-header,
+  body:has(.transfer-print-root.is-active) .app-shell > *:not(.app-main),
+  body:has(.transfer-print-root.is-active) .app-content > *:not(.transfer-print-root) {
+    display: none !important;
+  }
+  body:has(.transfer-print-root.is-active) .app-main {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+  }
+  body:has(.transfer-print-root.is-active) .app-content {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 0 !important;
+  }
+  body:has(.transfer-print-root.is-active) .transfer-print-root { display: block !important; }
+}
