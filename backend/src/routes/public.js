@@ -255,7 +255,17 @@ router.post('/voucher', async (req, res, next) => {
     }
     if (promo.max_discount !== null) discount = Math.min(discount, Number(promo.max_discount));
     discount = Math.min(Math.round(discount), subtotal);
-    res.json({ success: true, data: { code: promo.code, name: promo.name, discount } });
+    res.json({
+      success: true,
+      data: {
+        code: promo.code,
+        name: promo.name,
+        discount,
+        discount_type: promo.discount_type,
+        discount_value: Number(promo.discount_value),
+        pcs,
+      },
+    });
   } catch (e) { next(e); }
 });
 

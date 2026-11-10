@@ -675,17 +675,17 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
       {/* Keranjang */}
       {cartOpen && (
         <div onClick={() => setCartOpen(false)} role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'grid', placeItems: 'center', zIndex: 120, padding: 16, backdropFilter: 'blur(4px)' }}>
-          <div onClick={(e) => e.stopPropagation()} className="wa-modal-in" style={{ background: T.card, borderRadius: 14, maxWidth: 480, width: '100%', maxHeight: 'min(780px, 92vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 48px rgba(0,0,0,.18)' }}>
+          <div onClick={(e) => e.stopPropagation()} className="wa-modal-in" style={{ background: T.card, borderRadius: 14, maxWidth: 480, width: '100%', maxHeight: 'min(860px, 94vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 48px rgba(0,0,0,.18)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 20px 12px' }}>
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.black }}>Keranjang <span style={{ color: T.muted, fontWeight: 500, fontSize: 'var(--fs-md)' }}>{cartPcs} pcs</span></h3>
               <button type="button" onClick={() => setCartOpen(false)} aria-label="Tutup" style={{ width: 34, height: 34, padding: 0, borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, cursor: 'pointer', color: T.muted, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}><I.close style={{ width: 16, height: 16, display: 'block' }} /></button>
             </div>
-            <div style={{ flex: '1 1 auto', minHeight: 120, overflowY: 'auto', padding: '4px 20px', display: 'grid', gap: 4, alignContent: 'start' }}>
+            <div style={{ flex: '1 1 auto', minHeight: 240, overflowY: 'auto', padding: '4px 20px', display: 'grid', gap: 4, alignContent: 'start' }}>
               {cart.map((it) => (
-                <div key={it.key} style={{ display: 'grid', gridTemplateColumns: '52px minmax(0,1fr) auto', gap: 12, alignItems: 'center', padding: '10px 0', borderBottom: `1px solid ${T.border}` }}>
+                <div key={it.key} style={{ display: 'grid', gridTemplateColumns: '44px minmax(0,1fr) auto', gap: 10, alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${T.border}` }}>
                   {it.photo
-                    ? <img src={`${api.replace('/api', '')}${it.photo}`} alt={it.name} style={{ width: 52, height: 64, objectFit: 'cover', borderRadius: 8 }} />
-                    : <div style={{ width: 52, height: 64, borderRadius: 8, background: '#f3f4f6' }} />}
+                    ? <img src={`${api.replace('/api', '')}${it.photo}`} alt={it.name} style={{ width: 44, height: 54, objectFit: 'cover', borderRadius: 7 }} />
+                    : <div style={{ width: 44, height: 54, borderRadius: 7, background: '#f3f4f6' }} />}
                   <div style={{ minWidth: 0 }}>
                     <strong style={{ fontSize: 'var(--fs-md)', display: 'block', color: T.black }}>{it.name}</strong>
                     {it.variantLabel && <span style={{ fontSize: 'var(--fs-xs)', color: T.muted }}>{it.variantLabel}</span>}
@@ -704,10 +704,10 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
               {!cart.length && <p style={{ textAlign: 'center', color: T.muted, padding: '24px 0', fontSize: 14 }}>Keranjang masih kosong.</p>}
             </div>
             <div style={{ flex: '0 0 auto', borderTop: `1px solid ${T.border}`, padding: '14px 20px 18px', display: 'grid', gap: 10 }}>
-              <div style={{ maxHeight: '38vh', overflowY: 'auto', display: 'grid', gap: 10, paddingRight: 2 }}>
+              <div style={{ maxHeight: '30vh', overflowY: 'auto', display: 'grid', gap: 8, paddingRight: 2 }}>
               <div style={{ display: 'grid', gap: 6 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: T.muted }}><span>Subtotal</span><span>{fmtRp(cartTotal)}</span></div>
-                {voucher && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#15803d', fontWeight: 700 }}><span>Voucher {voucher.code}</span><span>-{fmtRp(voucherDiscount)}</span></div>}
+                {voucher && <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, color: '#15803d', fontWeight: 700 }}><span>Voucher {voucher.code}{voucher.discount_type === 'per_pcs' ? ` (${fmtRp(voucher.discount_value)} × ${cartPcs} pcs)` : ''}</span><span style={{ whiteSpace: 'nowrap' }}>-{fmtRp(voucherDiscount)}</span></div>}
                 {shippingArea && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: T.muted }}><span>Ongkir ({shippingArea})</span><span>{fmtRp(shippingCost)}</span></div>}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 700, fontSize: 15, color: T.black }}>
                   <span>Total</span><span>{fmtRp(grandTotal)}</span>

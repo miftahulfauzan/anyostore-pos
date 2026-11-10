@@ -24,6 +24,19 @@ async function findPromotion(connection, branchId, code, subtotal, pcs = 0) {
 router.get('/', authorize('owner','manager','admin'), async (req,res,next) => { try { const requested=Number(req.query.branch_id); const branchId=req.user.role==='owner'&&Number.isInteger(requested)?requested:req.user.branch_id; const [rows] = await db.execute('SELECT * FROM promotions WHERE branch_id=? ORDER BY created_at DESC',[branchId]); res.json({success:true,data:rows}); } catch(e){next(e);} });
 router.post('/', authorize('owner','manager','admin'), async (req,res,next) => { try { const p=req.body; const requestedBranch=Number(p.branch_id); const branchId=p && req.user.role==='owner'&&Number.isInteger(requestedBranch)?requestedBranch:req.user.branch_id; if(!p.code?.trim()||!p.name?.trim()||!['percentage','nominal','per_pcs'].includes(p.discount_type)||Number(p.discount_value)<=0) throw fail(400,'Data promo tidak valid'); const [r]=await db.execute('INSERT INTO promotions (branch_id,code,name,discount_type,discount_value,min_purchase,max_discount,starts_at,ends_at,usage_limit) VALUES (?,?,?,?,?,?,?,?,?,?)',[branchId,p.code.trim().toUpperCase(),p.name.trim(),p.discount_type,money(p.discount_value),money(p.min_purchase||0),p.max_discount?money(p.max_discount):null,p.starts_at||null,p.ends_at||null,p.usage_limit?Number(p.usage_limit):null]);res.status(201).json({success:true,data:{id:r.insertId}}); }catch(e){next(e);} });
 router.post('/validate', async (req,res,next) => { try { const requestedBranch=Number(req.body.branch_id); const branchId=req.user.role==='owner'&&Number.isInteger(requestedBranch)?requestedBranch:req.user.branch_id; const c=await db.getConnection(); try { await c.beginTransaction(); const data=await findPromotion(c,branchId,req.body.code,Number(req.body.subtotal||0),Number(req.body.pcs||0)); await c.rollback(); res.json({success:true,data:{id:data.promo.id,code:data.promo.code,name:data.promo.name,discount:data.discount}}); } finally { c.release(); } } catch(e){next(e);} });
+router.put('/:id', authorize('owner','manager','admin'), async (req,res,next)=>{try{
+  const p=req.body||{};
+  const requested=Number(p.branch_id);
+  const branchId=req.user.role==='owner'&&Number.isInteger(requested)?requested:req.user.branch_id;
+  if(!p.code?.trim()||!p.name?.trim()||!['percentage','nominal','per_pcs'].includes(p.discount_type)||Number(p.discount_value)<=0) throw fail(400,'Data voucher tidak valid');
+  const [r]=await db.execute(
+    `UPDATE promotions SET code=?, name=?, discount_type=?, discount_value=?, min_purchase=?, max_discount=?, starts_at=?, ends_at=?, usage_limit=? WHERE id=? AND branch_id=?`,
+    [p.code.trim().toUpperCase(), p.name.trim(), p.discount_type, money(p.discount_value), money(p.min_purchase||0), p.max_discount?money(p.max_discount):null, p.starts_at||null, p.ends_at||null, p.usage_limit?Number(p.usage_limit):null, req.params.id, branchId]
+  );
+  if(!r.affectedRows) throw fail(404,'Voucher tidak ditemukan');
+  res.json({success:true});
+}catch(e){next(e);}});
+
 router.put('/:id/toggle-active', authorize('owner','manager','admin'), async (req,res,next)=>{try{
   const requested=Number(req.body?.branch_id);
   const branchId=req.user.role==='owner'&&Number.isInteger(requested)?requested:req.user.branch_id;

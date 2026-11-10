@@ -37,6 +37,7 @@ export default function LandingSettingsPage() {
   // Voucher
   const [vouchers, setVouchers] = useState([]);
   const [voucherForm, setVoucherForm] = useState(emptyVoucher);
+  const [editingVoucher, setEditingVoucher] = useState(null);
 
   const headers = () => ({ 'Content-Type': 'application/json' });
 
@@ -200,19 +201,35 @@ export default function LandingSettingsPage() {
     event.preventDefault();
     setMessage('');
     try {
-      const response = await fetch(api + '/promotions', {
-        method: 'POST',
+      const url = editingVoucher ? `${api}/promotions/${editingVoucher}` : api + '/promotions';
+      const response = await fetch(url, {
+        method: editingVoucher ? 'PUT' : 'POST',
         headers: headers(),
-        body: JSON.stringify({ ...voucherForm, branch_id: Number(branch) }),
+        body: JSON.stringify({ ...voucherForm, pcs: undefined, branch_id: Number(branch) }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message || 'Gagal menyimpan voucher');
       setVoucherForm(emptyVoucher);
-      setMessage('Voucher disimpan.');
+      setEditingVoucher(null);
+      setMessage(editingVoucher ? 'Voucher diperbarui.' : 'Voucher disimpan.');
       await loadVouchers(branch);
     } catch (error) {
       setMessage(error.message);
     }
+  }
+
+  function startEditVoucher(voucher) {
+    setEditingVoucher(voucher.id);
+    setVoucherForm({
+      code: voucher.code || '',
+      name: voucher.name || '',
+      discount_type: voucher.discount_type || 'percentage',
+      discount_value: String(voucher.discount_value ?? ''),
+      min_purchase: String(voucher.min_purchase ?? ''),
+      max_discount: voucher.max_discount == null ? '' : String(voucher.max_discount),
+      usage_limit: voucher.usage_limit == null ? '' : String(voucher.usage_limit),
+    });
+    setTab('voucher');
   }
 
   async function toggleVoucher(id) {
@@ -316,14 +333,21 @@ export default function LandingSettingsPage() {
                   ))}
                 </div>
               )}
-              <fieldset className="two-fields">
-                <legend>Ekspedisi yang dicek</legend>
-                {['jne', 'jnt', 'sicepat', 'anteraja', 'ninja', 'pos', 'tiki'].map((code) => (
-                  <label key={code} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input type="checkbox" checked={ongkir.ongkir_couriers.includes(code)} onChange={(event) => setOngkir({ ...ongkir, ongkir_couriers: event.target.checked ? [...ongkir.ongkir_couriers, code] : ongkir.ongkir_couriers.filter((item) => item !== code) })} />
-                    {code.toUpperCase()}
-                  </label>
-                ))}
+              <fieldset style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', display: 'grid', gap: 8 }}>
+                <legend style={{ padding: '0 6px', fontSize: 12, fontWeight: 800, color: '#334155' }}>Ekspedisi yang dicek</legend>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
+                  {['jne', 'jnt', 'sicepat', 'anteraja', 'ninja', 'pos', 'tiki'].map((code) => (
+                    <label key={code} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 32, fontSize: 12, fontWeight: 700 }}>
+                      <input
+                        type="checkbox"
+                        style={{ width: 16, height: 16, minHeight: 0, margin: 0, flex: '0 0 auto' }}
+                        checked={ongkir.ongkir_couriers.includes(code)}
+                        onChange={(event) => setOngkir({ ...ongkir, ongkir_couriers: event.target.checked ? [...ongkir.ongkir_couriers, code] : ongkir.ongkir_couriers.filter((item) => item !== code) })}
+                      />
+                      {code.toUpperCase()}
+                    </label>
+                  ))}
+                </div>
               </fieldset>
             </>
           )}
@@ -362,7 +386,7 @@ export default function LandingSettingsPage() {
       {tab === 'voucher' && (
         <div className="product-grid">
           <form className="panel" onSubmit={saveVoucher}>
-            <h2>Buat voucher</h2>
+            <h2>{editingVoucher ? 'Edit voucher' : 'Buat voucher'}</h2>
             <p className="muted" style={{ marginTop: 0 }}>Kode dipakai pembeli di keranjang landing toko yang dipilih.</p>
             <label>Kode voucher<input required value={voucherForm.code} onChange={(event) => setVoucherForm({ ...voucherForm, code: event.target.value.toUpperCase() })} placeholder="HEMAT10" /></label>
             <label>Nama voucher<input required value={voucherForm.name} onChange={(event) => setVoucherForm({ ...voucherForm, name: event.target.value })} placeholder="Diskon 10%" /></label>
@@ -377,7 +401,8 @@ export default function LandingSettingsPage() {
             <label>Minimum belanja<input type="number" min="0" value={voucherForm.min_purchase} onChange={(event) => setVoucherForm({ ...voucherForm, min_purchase: event.target.value })} /></label>
             <label>Maksimum diskon (opsional)<input type="number" min="0" value={voucherForm.max_discount} onChange={(event) => setVoucherForm({ ...voucherForm, max_discount: event.target.value })} /></label>
             <label>Batas pemakaian (opsional)<input type="number" min="1" value={voucherForm.usage_limit} onChange={(event) => setVoucherForm({ ...voucherForm, usage_limit: event.target.value })} /></label>
-            <button type="submit">Simpan voucher</button>
+            <button type="submit">{editingVoucher ? 'Simpan perubahan' : 'Simpan voucher'}</button>
+            {editingVoucher && <button type="button" className="secondary" onClick={() => { setEditingVoucher(null); setVoucherForm(emptyVoucher); }}>Batal edit</button>}
           </form>
           <section className="panel">
             <h2>Daftar voucher</h2>
@@ -389,6 +414,7 @@ export default function LandingSettingsPage() {
                     <span>{voucher.discount_type === 'percentage' ? `${voucher.discount_value}%` : voucher.discount_type === 'per_pcs' ? `Rp${Number(voucher.discount_value).toLocaleString('id-ID')}/pcs` : `Rp${Number(voucher.discount_value).toLocaleString('id-ID')}`} · min Rp{Number(voucher.min_purchase || 0).toLocaleString('id-ID')} · dipakai {voucher.usage_count}{voucher.usage_limit ? `/${voucher.usage_limit}` : ''} · {voucher.is_active ? 'aktif' : 'nonaktif'}</span>
                   </div>
                   <div className="actions" style={{ display: 'flex', gap: 6 }}>
+                    <button type="button" className="secondary" onClick={() => startEditVoucher(voucher)}>Edit</button>
                     <button type="button" className="secondary" onClick={() => toggleVoucher(voucher.id)}>{voucher.is_active ? 'Nonaktifkan' : 'Aktifkan'}</button>
                     <button type="button" className="danger" onClick={() => removeVoucher(voucher.id)}>Hapus</button>
                   </div>
