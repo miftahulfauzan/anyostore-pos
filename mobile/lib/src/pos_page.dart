@@ -2787,7 +2787,6 @@ class _CartSheetState extends State<_CartSheet> {
                   ],
                   const SizedBox(height: 8),
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Expanded(
                         child: FilledButton(
