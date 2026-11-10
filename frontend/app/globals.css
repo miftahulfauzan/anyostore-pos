@@ -6832,3 +6832,77 @@ html[data-theme] .sidebar .nav-group-toggle:hover {
   }
   .stock-card-chips .rack-edit-button { font-size: 12px !important; padding: 0 1px !important; }
 }
+
+/* ========================================================================
+   Riwayat Transfer: kartu dipadatkan & disamakan dengan kartu lain.
+   Mobile sebelumnya menumpuk judul, membuat kotak rute satu kolom, dan
+   menaruh aksi rata kanan sehingga menyisakan ruang kosong.
+   ======================================================================== */
+.transfer-history-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+}
+.transfer-history-footer .transfer-history-details { border-top: 0; padding-top: 0; }
+.transfer-history-footer .transfer-history-details[open] { grid-column: 1 / -1; }
+.transfer-history-footer .transfer-history-actions { padding-top: 0; }
+
+@media (max-width: 700px) {
+  .transfer-history-card { gap: 6px !important; padding: 10px 12px !important; border-radius: 10px !important; }
+  .transfer-history-card-heading { flex-direction: row !important; align-items: center !important; }
+  .transfer-history-card-meta { gap: 2px !important; }
+  .transfer-history-number-row { gap: 6px !important; }
+  .transfer-history-number-row > strong { font-size: var(--fs-md) !important; }
+  .transfer-history-card-meta .muted { font-size: var(--fs-2xs) !important; }
+  .transfer-history-total {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: baseline;
+    gap: 4px;
+    justify-items: end !important;
+    text-align: right !important;
+  }
+  .transfer-history-total strong { font-size: var(--fs-md) !important; }
+  .transfer-history-total span { font-size: var(--fs-2xs) !important; }
+  .transfer-history-route {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important;
+    gap: 6px !important;
+    padding: 6px 10px !important;
+    border-radius: 8px !important;
+  }
+  .transfer-history-route-side { font-size: var(--fs-sm); gap: 0 6px !important; }
+  .transfer-history-route-label { font-size: var(--fs-2xs) !important; }
+  .transfer-history-route-arrow { transform: none !important; justify-self: center !important; }
+  .transfer-history-route-side.destination { text-align: right !important; }
+  .transfer-history-footer { gap: 8px; align-items: center; }
+  .transfer-history-details summary { font-size: var(--fs-sm) !important; }
+  .transfer-history-actions { justify-content: flex-end !important; gap: 6px; }
+  .transfer-history-actions .transfer-history-print,
+  .transfer-history-actions .danger {
+    min-height: 38px !important;
+    padding: 0 12px !important;
+    font-size: var(--fs-sm) !important;
+  }
+}
+
+@media (max-width: 700px) {
+  .transfer-history-footer .transfer-history-details summary {
+    white-space: nowrap;
+    font-size: var(--fs-xs) !important;
+  }
+  .transfer-history-footer { grid-template-columns: auto minmax(0, 1fr); }
+  .transfer-history-actions { justify-content: flex-end !important; }
+}
+
+@media (max-width: 700px) {
+  /* Aksi tetap satu baris: teks tombol tidak membungkus, padding dirapatkan. */
+  .transfer-history-footer .transfer-history-actions button { white-space: nowrap; }
+  .transfer-history-footer .transfer-history-actions .transfer-history-print,
+  .transfer-history-footer .transfer-history-actions .danger {
+    padding: 0 9px !important;
+    gap: 4px;
+    font-size: var(--fs-2xs) !important;
+  }
+  .transfer-history-footer .transfer-history-details summary { font-size: var(--fs-2xs) !important; }
+}

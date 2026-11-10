@@ -148,14 +148,15 @@ function TransferHistory({
                 {row.status === 'cancelled' && row.cancellation_reason && (
                   <p className="transfer-history-note"><strong>Alasan pembatalan:</strong> {row.cancellation_reason}</p>
                 )}
-                <details className="transfer-history-details">
-                  <summary>Lihat rincian barang</summary>
-                  <div className="transfer-history-detail-grid">
-                    <TransferDetailColumn title={`Keluar dari ${source.warehouse_name || 'lokasi asal'}`} lines={fromLines} />
-                    <TransferDetailColumn title={`Masuk ke ${destination.warehouse_name || 'lokasi tujuan'}`} lines={toLines} />
-                  </div>
-                </details>
-                <div className="transfer-history-actions">
+                <div className="transfer-history-footer">
+                  <details className="transfer-history-details">
+                    <summary>Lihat rincian barang</summary>
+                    <div className="transfer-history-detail-grid">
+                      <TransferDetailColumn title={`Keluar dari ${source.warehouse_name || 'lokasi asal'}`} lines={fromLines} />
+                      <TransferDetailColumn title={`Masuk ke ${destination.warehouse_name || 'lokasi tujuan'}`} lines={toLines} />
+                    </div>
+                  </details>
+                  <div className="transfer-history-actions">
                   <button type="button" className="secondary transfer-history-print" onClick={() => onPrint(row)}>
                     <Printer aria-hidden="true" size={15} />
                     Print rincian
@@ -170,6 +171,7 @@ function TransferHistory({
                       {cancellingTransferId === row.id ? 'Membatalkan…' : 'Batalkan transfer'}
                     </button>
                   )}
+                  </div>
                 </div>
               </article>
             );
