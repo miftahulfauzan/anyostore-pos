@@ -25,9 +25,7 @@ const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep
 export function invoiceDate(value) {
   const date = new Date(value || Date.now());
   if (Number.isNaN(date.getTime())) return '-';
-  const hh = String(date.getHours()).padStart(2, '0');
-  const mm = String(date.getMinutes()).padStart(2, '0');
-  return `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()} · ${hh}.${mm}`;
+  return `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
 }
 
 export const showsAnyostoreBrand = (storeName) => !String(storeName || '').toUpperCase().includes('BASIK');
@@ -144,10 +142,13 @@ function drawInstagramIcon(ctx, x, y, size, color) {
 export function renderInvoiceCanvas(payload) {
   const canvas = document.createElement('canvas');
   canvas.width = OUTPUT_WIDTH;
-  canvas.height = OUTPUT_HEIGHT;
+  // Item banyak butuh kanvas lebih tinggi; 1440 tetap tinggi minimum (3:4).
+  const itemEstimate = Array.isArray(payload.items) ? payload.items.length : 0;
+  let canvasHeight = Math.max(OUTPUT_HEIGHT, 1180 + itemEstimate * 52);
+  canvas.height = canvasHeight;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, OUTPUT_WIDTH, OUTPUT_HEIGHT);
+  ctx.fillRect(0, 0, OUTPUT_WIDTH, canvasHeight);
   ctx.textBaseline = 'alphabetic';
 
   const pad = 72;
@@ -317,37 +318,35 @@ export function renderInvoiceCanvas(payload) {
   ctx.stroke();
 
   const rows = Array.isArray(payload.items) ? payload.items : [];
+  // Satu baris per barang: nama (kiri) · harga/pcs + varian (kanan) · qty · jumlah.
+  const detailRight = colQty - 46;
   rows.forEach((item) => {
-    y += 40;
+    y += 38;
     ctx.textAlign = 'left';
-    ctx.fillStyle = INK;
     ctx.font = font(24, 700);
-    const nameLines = wrapText(ctx, item.name || '-', font(24, 700), contentWidth - 300);
-    ctx.fillText(nameLines[0], pad, y);
-    if (nameLines.length > 1) {
-      ctx.font = font(20, 600);
-      ctx.fillStyle = MUTED;
-      ctx.fillText(nameLines[1], pad, y + 26);
-      y += 26;
-    }
-    // Baris kedua: varian (bila ada) + harga per pcs.
-    const unitPrice = Number(item.price) > 0 ? `${rupiah(item.price)}/pcs` : '';
-    const detailText = [item.variant, unitPrice].filter(Boolean).join(' · ');
+    const detailParts = [item.variant, Number(item.price) > 0 ? `${rupiah(item.price)}/pcs` : ''].filter(Boolean);
+    const detailText = detailParts.join(' · ');
+    ctx.font = font(19, 600);
+    const detailWidth = detailText ? ctx.measureText(detailText).width + 16 : 0;
+    ctx.font = font(24, 700);
+    const nameText = fitText(ctx, item.name || '-', font(24, 700), detailRight - pad - detailWidth);
+    ctx.fillStyle = INK;
+    ctx.fillText(nameText, pad, y);
     if (detailText) {
-      y += 24;
-      ctx.font = font(19, 600);
+      ctx.textAlign = 'right';
       ctx.fillStyle = MUTED;
-      ctx.fillText(detailText, pad, y);
+      ctx.font = font(19, 600);
+      ctx.fillText(detailText, detailRight, y);
     }
     ctx.textAlign = 'center';
     ctx.fillStyle = '#475569';
     ctx.font = font(24, 600);
-    ctx.fillText(String(item.qty ?? 0), colQty, y - (detailText ? 24 : 0));
+    ctx.fillText(String(item.qty ?? 0), colQty, y);
     ctx.textAlign = 'right';
     ctx.fillStyle = INK;
     ctx.font = font(24, 700);
-    ctx.fillText(rupiah(item.subtotal), colAmount, y - (detailText ? 24 : 0));
-    y += 16;
+    ctx.fillText(rupiah(item.subtotal), colAmount, y);
+    y += 14;
     ctx.strokeStyle = '#f1f5f9';
     ctx.beginPath();
     ctx.moveTo(pad, y);
@@ -382,15 +381,26 @@ export function renderInvoiceCanvas(payload) {
   ctx.font = font(28, 800);
   ctx.fillText('Total', summaryLeft, y + 12);
   ctx.textAlign = 'right';
-  ctx.font = font(38, 900);
-  ctx.fillText(rupiah(payload.total), OUTPUT_WIDTH - pad - 4, y + 16);
+  // Nilai besar (di atas Rp1 juta) bisa menabrak label; perkecil fontnya
+  // sampai muat dengan jarak aman.
+  const labelWidth = ctx.measureText('Total').width;
+  const valueRightEdge = OUTPUT_WIDTH - pad - 4;
+  const valueMaxWidth = valueRightEdge - (summaryLeft + labelWidth + 24);
+  const valueText = rupiah(payload.total);
+  let valueFont = 38;
+  ctx.font = font(valueFont, 900);
+  while (valueFont > 22 && ctx.measureText(valueText).width > valueMaxWidth) {
+    valueFont -= 2;
+    ctx.font = font(valueFont, 900);
+  }
+  ctx.fillText(valueText, valueRightEdge, y + 16);
   y += totalBoxHeight + 10;
 
   // ===== Rekening + kaki: diletakkan di tengah sisa ruang kosong =====
   const bankBoxHeight = 214;
   const footerHeight = 112;
   const contentEnd = y;
-  const freeSpace = OUTPUT_HEIGHT - contentEnd - pad;
+  const freeSpace = canvasHeight - contentEnd - pad;
   const stackHeight = bankBoxHeight + footerHeight;
   const gapTop = Math.min(140, Math.max(36, (freeSpace - stackHeight) / 2));
   y = contentEnd + gapTop;
@@ -438,6 +448,18 @@ export function renderInvoiceCanvas(payload) {
   ctx.font = font(20, 800);
   ctx.fillText('cek produk kami lainnya anyostore.my.id', OUTPUT_WIDTH / 2, footerY);
 
+  // Pangkas ruang kosong berlebih, tetapi jangan kurang dari 1440 (3:4).
+  const finalHeight = Math.max(OUTPUT_HEIGHT, Math.round(footerY + 56));
+  if (finalHeight < canvasHeight) {
+    const trimmed = document.createElement('canvas');
+    trimmed.width = OUTPUT_WIDTH;
+    trimmed.height = finalHeight;
+    const trimmedCtx = trimmed.getContext('2d');
+    trimmedCtx.fillStyle = '#ffffff';
+    trimmedCtx.fillRect(0, 0, OUTPUT_WIDTH, finalHeight);
+    trimmedCtx.drawImage(canvas, 0, 0);
+    return trimmed;
+  }
   return canvas;
 }
 
@@ -458,6 +480,20 @@ function drawSpacedText(ctx, text, x, y, spacing) {
     cursor += ctx.measureText(char).width + spacing;
   });
   ctx.textAlign = align;
+}
+
+function fitText(ctx, text, textFont, maxWidth) {
+  const previous = ctx.font;
+  ctx.font = textFont;
+  const value = String(text ?? '');
+  if (ctx.measureText(value).width <= maxWidth) {
+    ctx.font = previous;
+    return value;
+  }
+  let cut = value;
+  while (cut.length > 1 && ctx.measureText(`${cut}…`).width > maxWidth) cut = cut.slice(0, -1);
+  ctx.font = previous;
+  return `${cut}…`;
 }
 
 function wrapText(ctx, text, textFont, maxWidth) {

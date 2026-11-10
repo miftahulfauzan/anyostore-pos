@@ -342,17 +342,29 @@ class InvoiceImage extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(item.name,
-                              style: const TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: inkColor)),
-                          if (item.variant.trim().isNotEmpty || item.price > 0)
-                            Text(
-                                [
-                                  item.variant.trim(),
-                                  if (item.price > 0) '${fmtRp(item.price)}/pcs',
-                                ].where((part) => part.isNotEmpty).join(' · '),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Expanded(
+                                child: Text(item.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: inkColor)),
+                              ),
+                              if (item.price > 0) ...[
+                                const SizedBox(width: 6),
+                                Text('${fmtRp(item.price)}/pcs',
+                                    style: const TextStyle(
+                                        fontSize: 9.5, color: muted)),
+                              ],
+                            ],
+                          ),
+                          if (item.variant.trim().isNotEmpty)
+                            Text(item.variant,
                                 style: const TextStyle(
                                     fontSize: 10, color: muted, height: 1.35)),
                         ],
@@ -395,10 +407,18 @@ class InvoiceImage extends StatelessWidget {
                       const Text('Total',
                           style: TextStyle(
                               fontSize: 14.5, fontWeight: FontWeight.w800, color: denim)),
-                      const Spacer(),
-                      Text(fmtRp(payload.total),
-                          style: const TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.w900, color: denim)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(fmtRp(payload.total),
+                              style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900,
+                                  color: denim)),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -584,15 +604,13 @@ String invoiceCustomerTierLabel(Object? tier) {
   }
 }
 
-/// Tanggal invoice: 10 Nov 2026 · 14.25
+/// Tanggal invoice: 10 Nov 2026 (tanpa jam).
 String invoiceDateText(Object? raw) {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
   final parsed = DateTime.tryParse('${raw ?? ''}');
   if (parsed == null) return '-';
   final local = parsed.toLocal();
-  final hh = local.hour.toString().padLeft(2, '0');
-  final mm = local.minute.toString().padLeft(2, '0');
-  return '${local.day} ${months[local.month - 1]} ${local.year} · $hh.$mm';
+  return '${local.day} ${months[local.month - 1]} ${local.year}';
 }
 
 
