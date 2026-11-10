@@ -7128,3 +7128,14 @@ html[data-theme] .app-main .tabs button:not(.active):hover {
 .dashboard-kpi-change.is-down { background: #fff0e7; color: #c2410c; }
 .dark .dashboard-kpi-change { background: rgba(16, 185, 129, .18); }
 .dark .dashboard-kpi-change.is-down { background: rgba(251, 146, 60, .2); }
+
+/* Panah pemilih periode selalu di sisi KANAN kotak. Sebelumnya margin-left:auto
+   dipegang label tanggal; di HP label tanggal disembunyikan sehingga panah
+   menempel langsung di samping "Hari ini". */
+@media (max-width: 820px) {
+  .period-filter-toggle { flex-wrap: wrap; }
+  .period-filter-label,
+  .period-filter-value { order: 1; }
+  button.period-filter-toggle > svg { order: 2; margin-left: auto; }
+  .period-filter-range { order: 3; width: 100%; margin-left: 0; }
+}

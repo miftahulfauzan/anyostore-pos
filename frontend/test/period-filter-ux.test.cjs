@@ -204,3 +204,11 @@ test('panel ganti toko mengikuti posisi tombol di desktop', () => {
   assert.match(switcher, /rect\.bottom \+ 8/);
   assert.match(switcher, /matchMedia\('\(min-width: 821px\)'\)/);
 });
+
+test('panah pemilih periode menempel di sisi kanan kotak', () => {
+  // Dulu margin-left:auto dipegang label tanggal; di HP label itu disembunyikan
+  // sehingga panah menempel di samping "Hari ini".
+  assert.match(css, /button\.period-filter-toggle > svg \{ order: 2; margin-left: auto; \}/);
+  assert.match(css, /\.period-filter-toggle \{ flex-wrap: wrap; \}/);
+  assert.match(css, /\.period-filter-range \{ order: 3; width: 100%; margin-left: 0; \}/);
+});
