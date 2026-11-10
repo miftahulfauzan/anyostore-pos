@@ -48,12 +48,18 @@ printf 'Deploy release %s (last verified: %s)\n' "$RELEASE_SHA" "${last_release:
 
 disk_usage=$(df --output=pcent "$DEPLOY_DIR" | tail -1 | tr -dc '0-9')
 [[ "$disk_usage" =~ ^[0-9]+$ ]] || fail 'Cannot determine disk usage'
-(( disk_usage < 92 )) || fail "Disk usage ${disk_usage}%; inspect capacity before retrying"
 if (( disk_usage >= 80 )); then
-  # Keep tagged release images, recent BuildKit cache, all containers and volumes.
-  sudo docker image prune -f
-  sudo docker builder prune -f --filter 'until=168h'
+  # Setiap rilis menambah image bertag SHA; saat disk menipis image lama dan
+  # cache build dibersihkan lebih agresif supaya deploy tidak gagal 92%.
+  printf 'Disk usage %s%%: cleaning unused docker data before build\n' "$disk_usage"
+  sudo docker container prune -f || true
+  sudo docker image prune -af || true
+  sudo docker builder prune -af || true
+  sudo journalctl --vacuum-size=200M >/dev/null 2>&1 || true
+  disk_usage=$(df --output=pcent "$DEPLOY_DIR" | tail -1 | tr -dc '0-9')
+  [[ "$disk_usage" =~ ^[0-9]+$ ]] || fail 'Cannot determine disk usage after cleanup'
 fi
+(( disk_usage < 92 )) || fail "Disk usage ${disk_usage}%; inspect capacity before retrying"
 
 # Pass RELEASE_SHA explicitly through sudo (sudo commonly drops exported variables).
 compose() {

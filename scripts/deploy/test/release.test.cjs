@@ -258,15 +258,21 @@ test('explicit manual rollback permits an older SHA and preserves previous relea
   assert.equal(readFileSync(join(f.dir, '.git/previous-successful-release'), 'utf8').trim(), oldSha);
 });
 
-test('high disk usage fails; cleanup only removes dangling images and old build cache', t => {
+test('disk penuh dibersihkan otomatis; volume & container live tidak disentuh', t => {
   const full = sandbox(t, { disk: 94 });
+  // 94% di data uji tidak berubah setelah cleanup, jadi deploy tetap ditolak.
   assert.notEqual(full.run().status, 0);
+  const fullCommands = full.commands().filter(command => command[0] === 'docker');
+  assert.ok(fullCommands.some(command => command.join(' ') === 'docker image prune -af'));
+  assert.ok(fullCommands.some(command => command.join(' ') === 'docker builder prune -af'));
+
   const f = sandbox(t, { disk: 85 });
   assert.equal(f.run().status, 0);
   const commands = f.commands().filter(command => command[0] === 'docker');
-  assert.ok(commands.some(command => command.join(' ') === 'docker image prune -f'));
-  assert.ok(commands.some(command => command.join(' ') === 'docker builder prune -f --filter until=168h'));
-  assert.ok(!commands.some(command => command.includes('--volumes') || command.includes('-af') || command.includes('down')));
+  assert.ok(commands.some(command => command.join(' ') === 'docker container prune -f'));
+  assert.ok(commands.some(command => command.join(' ') === 'docker image prune -af'));
+  assert.ok(commands.some(command => command.join(' ') === 'docker builder prune -af'));
+  assert.ok(!commands.some(command => command.includes('--volumes') || command.includes('down')));
 });
 
 test('production startup never starts API after migration fails; retry can succeed', t => {
