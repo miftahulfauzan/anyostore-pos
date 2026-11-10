@@ -169,39 +169,31 @@ export function renderInvoiceCanvas(payload) {
   const addressLines = payload.storeAddress
     ? wrapText(ctx, payload.storeAddress, font(19, 600), leftWidth - 120)
     : [];
-  const leftBlockHeight = 96 + (brand ? 30 : 0) + addressLines.length * 26;
-  const rightBlockHeight = contactLines.length * 30;
-  const headerHeight = Math.max(196, 60 + Math.max(leftBlockHeight, rightBlockHeight));
+  const leftBlockEstimate = 96 + (brand ? 30 : 0) + addressLines.length * 26;
+  const rightBlockHeight = contactLines.length * 34;
+  const headerHeight = Math.max(200, 56 + Math.max(leftBlockEstimate, rightBlockHeight));
 
   ctx.fillStyle = DENIM;
   ctx.fillRect(0, headerTop, OUTPUT_WIDTH, headerHeight);
 
-  // blok kiri: logo + nama toko + alamat, rata kiri & sejajar
+  // blok kiri: logo + nama toko + alamat, rata kiri dan saling center vertikal
   const logoSize = 84;
-  const nameX = pad + logoSize + 22;
-  const textBlock = [];
-  let textY = 0;
-  const nameFont = brand ? font(30, 900) : font(36, 900);
-
-  // kontak kanan (dihitung dulu supaya tinggi header pas)
-  const iconSize = 20;
-  ctx.font = font(21, 700);
-  const textWidth = contactLines.length ? Math.max(...contactLines.map((line) => ctx.measureText(line.text).width)) : 0;
-  const blockWidth = contactLines.length ? iconSize + 10 + textWidth : 0;
-
   const headerContentTop = 34;
-  if (brand) {
-    textBlock.push({ text: 'ANYOSTORE', font: nameFont, color: '#ffffff' });
-    textBlock.push({ text: storeName.toUpperCase(), font: font(16, 800), color: 'rgba(255,255,255,.82)', spacing: 1.4 });
-  } else {
-    textBlock.push({ text: storeName, font: nameFont, color: '#ffffff' });
-  }
-  if (addressLines.length) {
-    addressLines.forEach((line) => textBlock.push({ text: line, font: font(19, 600), color: 'rgba(255,255,255,.9)' }));
-  }
-  const textBlockHeight = textBlock.reduce((total, line) => total + (line.font.includes('30px') || line.font.includes('36px') ? 40 : 27), 0);
   const leftBlockTop = headerContentTop;
-  const logoY = leftBlockTop + Math.max(0, (textBlockHeight - logoSize) / 2);
+  const nameX = pad + logoSize + 22;
+
+  const leftLines = [];
+  if (brand) {
+    leftLines.push({ text: 'ANYOSTORE', font: font(30, 900), height: 34, color: '#ffffff' });
+    leftLines.push({ text: storeName.toUpperCase(), font: font(16, 800), height: 24, color: 'rgba(255,255,255,.82)', spacing: 1.4 });
+  } else {
+    leftLines.push({ text: storeName, font: font(36, 900), height: 42, color: '#ffffff' });
+  }
+  addressLines.forEach((line) => leftLines.push({ text: line, font: font(19, 600), height: 26, color: 'rgba(255,255,255,.9)' }));
+
+  const textHeight = leftLines.reduce((total, line) => total + line.height, 0);
+  const leftBlockHeight = Math.max(logoSize, textHeight);
+  const logoY = leftBlockTop + (leftBlockHeight - logoSize) / 2;
 
   // logo
   roundedRect(ctx, pad, logoY, logoSize, logoSize, 22);
@@ -212,17 +204,16 @@ export function renderInvoiceCanvas(payload) {
   ctx.textAlign = 'center';
   ctx.fillText(initial, pad + logoSize / 2, logoY + logoSize / 2 + 16);
 
-  // teks kiri
+  // teks kiri (blok teks ikut center terhadap logo)
   ctx.textAlign = 'left';
-  textY = leftBlockTop;
-  textBlock.forEach((line) => {
+  let leftTextY = leftBlockTop + (leftBlockHeight - textHeight) / 2;
+  leftLines.forEach((line) => {
     ctx.font = line.font;
     ctx.fillStyle = line.color;
-    const isName = line.font.includes('30px') || line.font.includes('36px');
-    textY += isName ? 32 : 22;
-    if (line.spacing) drawSpacedText(ctx, line.text, nameX, textY, line.spacing);
-    else ctx.fillText(line.text, nameX, textY);
-    textY += isName ? 8 : 5;
+    const baseline = leftTextY + line.height * 0.72;
+    if (line.spacing) drawSpacedText(ctx, line.text, nameX, baseline, line.spacing);
+    else ctx.fillText(line.text, nameX, baseline);
+    leftTextY += line.height;
   });
 
   // kontak kanan: satu kolom ikon + teks, rata tengah vertikal tiap baris
