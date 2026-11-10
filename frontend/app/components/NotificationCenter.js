@@ -18,6 +18,20 @@ function responseMessage(body, fallback) {
   return body.message || body.error || body.errors?.[0]?.message || fallback;
 }
 
+// Saat sebuah request ditolak (403/404), sebutkan endpoint-nya supaya pesan
+// "Akses ditolak" tidak ambigu: pengguna bisa melaporkan halaman/endpoint yang
+// memicu tanpa harus membuka DevTools.
+function requestDetail(url, method, status) {
+  if (status !== 403 && status !== 404) return '';
+  try {
+    const parsed = new URL(String(url), window.location.origin);
+    const path = parsed.pathname.replace(/^\/api/, '');
+    return ` · ${method} ${path} (${status})`;
+  } catch {
+    return '';
+  }
+}
+
 function isCompactPosRoute() {
   return typeof window !== 'undefined'
     && window.location.pathname === '/pos'
@@ -115,7 +129,7 @@ export default function NotificationCenter() {
         if (!response.ok) {
           let body = null;
           try { body = await response.clone().json(); } catch { /* Respons tidak selalu berupa JSON. */ }
-          show('error', responseMessage(body, `Proses gagal (${response.status}). Silakan coba lagi.`));
+          show('error', responseMessage(body, `Proses gagal (${response.status}). Silakan coba lagi.`) + requestDetail(url, method, response.status));
         }
         return response;
       } catch (error) {

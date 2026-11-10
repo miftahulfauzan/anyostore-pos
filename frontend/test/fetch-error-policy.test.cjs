@@ -31,3 +31,15 @@ test('aborting the final mutation also dismisses its loading notice', () => {
   const source = fs.readFileSync(path.join(__dirname, '../app/components/NotificationCenter.js'), 'utf8');
   assert.match(source, /if \(isMutation && pendingRequests\.current\.size === 1\)\s*\{\s*setNotice\(\(current\) => current\?\.type === 'loading' \? null : current\)/);
 });
+
+test('pesan penolakan akses menyebut endpoint yang ditolak', () => {
+  const notification = fs.readFileSync(
+    new URL('../app/components/NotificationCenter.js', `file://${__dirname}/`),
+    'utf8',
+  );
+  // "Akses ditolak" tanpa konteks sulit dilacak; sertakan METHOD + path.
+  assert.match(notification, /function requestDetail\(url, method, status\)/);
+  assert.match(notification, /if \(status !== 403 && status !== 404\) return '';/);
+  assert.match(notification, /return ` · \$\{method\} \$\{path\} \(\$\{status\}\)`;/);
+  assert.match(notification, /requestDetail\(url, method, response\.status\)/);
+});
