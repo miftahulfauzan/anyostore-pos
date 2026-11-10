@@ -361,6 +361,13 @@ void main() {
         Brightness.dark,
         390);
     await tester.pumpAndSettle();
+    // Default periode adalah "Hari ini" (mengikuti Android). Data uji memakai
+    // tanggal 2026-11-03, jadi pilih "Bulan ini" agar transaksi offline masuk
+    // rentang dan penggabungan offline tetap teruji.
+    await tester.tap(find.byKey(const ValueKey('reports-period-selector')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bulan ini').last);
+    await tester.pumpAndSettle();
     expect(findLargeText(tester, 'Rp300.000'), isNotNull);
     expect(find.text('Rp310.000'), findsNothing);
     expect(find.text('Rp40.000'), findsNothing);
