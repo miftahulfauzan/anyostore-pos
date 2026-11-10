@@ -4,7 +4,7 @@ import 'package:pos_pakaian_mobile/src/invoice_share.dart';
 
 InvoicePayload _payload({String storeName = 'BASIK PGMTA'}) => InvoicePayload(
       storeName: storeName,
-      storeAddress: 'Jl. Merdeka No. 12, Metro Timur',
+      storeAddress: 'LANTAI 6 blok B no 116',
       storePhones: const ['0812-3456-7890', '0857-0000-1111'],
       instagram: '@basik.pgmta',
       invoiceNo: 'INV-20261110-B1-0012',
@@ -58,6 +58,7 @@ void main() {
     // Catatan bawah sesuai permintaan.
     expect(find.text('cek produk kami lainnya anyostore.my.id'), findsOneWidget);
     // Header: dua nomor HP + Instagram khusus BASIK.
+    expect(find.text('LANTAI 6 blok B no 116'), findsOneWidget);
     expect(find.text('0812-3456-7890'), findsOneWidget);
     expect(find.text('0857-0000-1111'), findsOneWidget);
     expect(find.text('@basik.pgmta'), findsOneWidget);

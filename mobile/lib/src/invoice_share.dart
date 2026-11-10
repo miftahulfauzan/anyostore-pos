@@ -174,72 +174,81 @@ class InvoiceImage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ===== Kepala: kiri logo + nama toko, kanan alamat & kontak =====
+          // ===== Kepala: kiri logo + nama toko + alamat, kanan kontak =====
           Container(
             color: denim,
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 46,
-                      height: 46,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12)),
-                      child: Text(initial,
-                          style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w900,
-                              color: denim)),
-                    ),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (showBrand)
-                          const Text('ANYOSTORE',
-                              style: TextStyle(
-                                  fontSize: 18,
-                                  height: 1.15,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: .3,
-                                  color: Colors.white)),
-                        Text(
-                            showBrand
-                                ? payload.storeName.toUpperCase()
-                                : payload.storeName,
-                            style: TextStyle(
-                                fontSize: showBrand ? 10 : 20,
-                                height: 1.2,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: showBrand ? 1.6 : .1,
-                                color: showBrand
-                                    ? const Color(0xCCFFFFFF)
-                                    : Colors.white)),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 10),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisSize: MainAxisSize.min,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (payload.storeAddress.trim().isNotEmpty)
-                        contactLine(Icons.storefront_outlined, payload.storeAddress.trim()),
-                      for (final phone in payload.storePhones)
-                        contactLine(Icons.chat_bubble_outline, phone, strong: true),
-                      if (payload.instagram != null)
-                        contactLine(Icons.camera_alt_outlined, payload.instagram!, strong: true),
+                      Container(
+                        width: 46,
+                        height: 46,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12)),
+                        child: Text(initial,
+                            style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w900,
+                                color: denim)),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (showBrand)
+                              const Text('ANYOSTORE',
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      height: 1.15,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: .3,
+                                      color: Colors.white)),
+                            Text(
+                                showBrand
+                                    ? payload.storeName.toUpperCase()
+                                    : payload.storeName,
+                                style: TextStyle(
+                                    fontSize: showBrand ? 10 : 20,
+                                    height: 1.2,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: showBrand ? 1.6 : .1,
+                                    color: showBrand
+                                        ? const Color(0xCCFFFFFF)
+                                        : Colors.white)),
+                            if (payload.storeAddress.trim().isNotEmpty) ...[
+                              const SizedBox(height: 3),
+                              Text(payload.storeAddress.trim(),
+                                  style: const TextStyle(
+                                      fontSize: 10.5,
+                                      height: 1.35,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xE0FFFFFF))),
+                            ],
+                          ],
+                        ),
+                      ),
                     ],
                   ),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final phone in payload.storePhones)
+                      contactLine(Icons.chat_bubble_outline, phone, strong: true),
+                    if (payload.instagram != null)
+                      contactLine(Icons.camera_alt_outlined, payload.instagram!, strong: true),
+                  ],
                 ),
               ],
             ),

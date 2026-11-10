@@ -144,14 +144,19 @@ export function renderInvoiceCanvas(payload) {
   const instagram = payload.instagram || null;
 
   // ===== Kepala (dua kolom) =====
+  // Kiri: logo + nama toko + alamat. Kanan: nomor WhatsApp + Instagram.
   const headerTop = 0;
   const contactLines = [
-    ...(payload.storeAddress ? [{ icon: 'store', text: payload.storeAddress }] : []),
     ...phones.map((phone) => ({ icon: 'wa', text: phone })),
     ...(instagram ? [{ icon: 'ig', text: instagram }] : []),
   ];
-  const addressLines = payload.storeAddress ? wrapText(ctx, payload.storeAddress, font(21, 600), 430).length : 0;
-  const headerHeight = Math.max(232, 132 + (contactLines.length - 1) * 30 + Math.max(0, addressLines - 1) * 26);
+  const leftWidth = 500;
+  const addressLines = payload.storeAddress
+    ? wrapText(ctx, payload.storeAddress, font(19, 600), leftWidth - 120)
+    : [];
+  const leftBlockHeight = 96 + (brand ? 30 : 0) + addressLines.length * 26;
+  const rightBlockHeight = contactLines.length * 30;
+  const headerHeight = Math.max(196, 60 + Math.max(leftBlockHeight, rightBlockHeight));
 
   ctx.fillStyle = DENIM;
   ctx.fillRect(0, headerTop, OUTPUT_WIDTH, headerHeight);
@@ -159,7 +164,7 @@ export function renderInvoiceCanvas(payload) {
   // logo
   const logoSize = 92;
   const logoX = pad;
-  const logoY = headerTop + 42;
+  const logoY = headerTop + 38;
   roundedRect(ctx, logoX, logoY, logoSize, logoSize, 24);
   ctx.fillStyle = '#ffffff';
   ctx.fill();
@@ -168,41 +173,46 @@ export function renderInvoiceCanvas(payload) {
   ctx.textAlign = 'center';
   ctx.fillText(initial, logoX + logoSize / 2, logoY + logoSize / 2 + 17);
 
-  // nama toko
+  // nama toko + alamat (kolom kiri)
   ctx.textAlign = 'left';
   const nameX = logoX + logoSize + 22;
-  let nameY = logoY + (brand ? 36 : 58);
+  let leftY = logoY + (brand ? 34 : 44);
   if (brand) {
     ctx.fillStyle = '#ffffff';
-    ctx.font = font(36, 900);
-    ctx.fillText('ANYOSTORE', nameX, nameY);
-    nameY += 30;
-    ctx.font = font(20, 800);
+    ctx.font = font(34, 900);
+    ctx.fillText('ANYOSTORE', nameX, leftY);
+    leftY += 28;
+    ctx.font = font(19, 800);
     ctx.fillStyle = 'rgba(255,255,255,.82)';
-    ctx.fillText(storeName.toUpperCase(), nameX, nameY);
+    ctx.fillText(storeName.toUpperCase(), nameX, leftY);
+    leftY += 14;
   } else {
     ctx.fillStyle = '#ffffff';
-    ctx.font = font(40, 900);
-    ctx.fillText(storeName, nameX, nameY);
+    ctx.font = font(38, 900);
+    ctx.fillText(storeName, nameX, leftY);
+    leftY += 12;
+  }
+  if (addressLines.length) {
+    ctx.fillStyle = 'rgba(255,255,255,.88)';
+    ctx.font = font(19, 600);
+    addressLines.forEach((text, index) => {
+      ctx.fillText(text, nameX, leftY + 24 + index * 26);
+    });
   }
 
   // kontak kanan
-  let contactY = logoY + 8;
+  let contactY = logoY + 10;
   const iconSize = 20;
   ctx.textAlign = 'right';
   contactLines.forEach((line) => {
-    const maxWidth = 400;
-    const lines = wrapText(ctx, line.text, font(21, line.icon === 'store' ? 600 : 700), maxWidth);
-    ctx.font = font(21, line.icon === 'store' ? 600 : 700);
-    ctx.fillStyle = line.icon === 'store' ? 'rgba(255,255,255,.9)' : '#ffffff';
+    const maxWidth = 380;
+    ctx.font = font(21, 700);
+    ctx.fillStyle = '#ffffff';
     const iconX = OUTPUT_WIDTH - pad - maxWidth - 30;
-    if (line.icon === 'store') drawStoreIcon(ctx, iconX, contactY - iconSize + 4, iconSize, 'rgba(255,255,255,.92)');
     if (line.icon === 'wa') drawWhatsAppIcon(ctx, iconX, contactY - iconSize + 4, iconSize, 'rgba(255,255,255,.92)');
     if (line.icon === 'ig') drawInstagramIcon(ctx, iconX, contactY - iconSize + 4, iconSize, 'rgba(255,255,255,.92)');
-    lines.forEach((text, index) => {
-      ctx.fillText(text, OUTPUT_WIDTH - pad, contactY + index * 26);
-    });
-    contactY += lines.length * 26 + 6;
+    ctx.fillText(line.text, OUTPUT_WIDTH - pad, contactY);
+    contactY += 34;
   });
 
   // ===== Baris dokumen =====
