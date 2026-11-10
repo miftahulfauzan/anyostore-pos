@@ -12,13 +12,15 @@ const sitemap = read('app/sitemap.js');
 
 test('halaman /reseller memakai landing yang sama dengan cabang Blok B', () => {
   assert.match(reseller, /import LandingClient from '\.\.\/LandingClient';/);
-  assert.match(reseller, /<LandingClient branchSlug="reseller" \/>/);
+  assert.match(reseller, /<LandingClient branchSlug="reseller" wholesaleCopy=\{false\} \/>/);
+  // Teks "grosir" tidak dipakai di landing reseller.
+  assert.match(landing, /wholesaleCopy \? 'Siap order grosir\?' : 'Siap order\?'/);
   assert.match(reseller, /canonical: '\/reseller'/);
   assert.match(sitemap, /\/reseller/);
 });
 
 test('landing cabang mengirim branch_id ke API publik', () => {
-  assert.match(landing, /export default function LandingPage\(\{ branchMatch = '', branchSlug = '' \} = \{\}\)/);
+  assert.match(landing, /export default function LandingPage\(\{ branchMatch = '', branchSlug = '', wholesaleCopy = true \} = \{\}\)/);
   assert.match(landing, /public\/branches/);
   assert.match(landing, /public\/branches\?slug=\$\{encodeURIComponent\(branchSlug\)\}/);
   assert.match(landing, /: `\$\{api\}\/public\/branches`/);

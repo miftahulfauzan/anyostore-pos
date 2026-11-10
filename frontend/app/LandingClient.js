@@ -101,7 +101,10 @@ function ProductCard({ product, onWa, onAdd, inCart }) {
   );
 }
 
-export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) {
+export default function LandingPage({ branchMatch = '', branchSlug = '', wholesaleCopy = true } = {}) {
+  // Beberapa teks memakai kata "grosir" untuk landing utama; landing reseller
+  // mematikannya lewat prop wholesaleCopy={false}.
+  const supplierLine = wholesaleCopy ? 'Grosir langsung dari supplier' : 'Langsung dari supplier';
   // Landing cabang: cari id cabang berdasarkan potongan nama (mis. "Blok B").
   const [branchId, setBranchId] = useState(null);
   const [branchReady, setBranchReady] = useState(!branchMatch && !branchSlug);
@@ -450,7 +453,7 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
       (shippingArea || selectedShipping) ? `Ongkir${shippingLabel ? ` (${shippingLabel})` : ''}: ${fmtRp(shippingCost)}` : null,
       `Total: ${fmtRp(grandTotal)}`,
     ].filter(Boolean).join('\n');
-    return `Halo Anyostore, saya mau order grosir:\n\n${lines.join('\n')}\n\n${buyerBlock ? `${buyerBlock}\n\n` : ''}${costBlock}\n${cartPcs} pcs${hasMinimumOrder ? ` · min. pembelian ${minOrderQty} pcs per model` : ''}\n\nSilahkan Transfer ke Rekening Berikut:\n\n[ ] BCA          : 0042813603\n[ ] MANDIRI  : 1640000929465\n\na.n. Miftahul Fauzan\n\nJika sudah transfer Mohon Konfirmasinya ya ka`;
+    return `Halo Anyostore, saya mau order${wholesaleCopy ? ' grosir' : ''}:\n\n${lines.join('\n')}\n\n${buyerBlock ? `${buyerBlock}\n\n` : ''}${costBlock}\n${cartPcs} pcs${hasMinimumOrder ? ` · min. pembelian ${minOrderQty} pcs per model` : ''}\n\nSilahkan Transfer ke Rekening Berikut:\n\n[ ] BCA          : 0042813603\n[ ] MANDIRI  : 1640000929465\n\na.n. Miftahul Fauzan\n\nJika sudah transfer Mohon Konfirmasinya ya ka`;
   }
   async function sendOrder() {
     if (!cart.length || hasMinimumWarning || orderChecking) return;
@@ -534,10 +537,10 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
   return (
     <div id="main-content" style={{ background: T.bg, color: T.black, minHeight: '100vh', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
       {stockNotice && <div role="status" aria-live="polite" style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 160, width: 'min(520px, calc(100% - 32px))', padding: '12px 16px', borderRadius: 10, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontSize: 14, fontWeight: 700, boxShadow: '0 8px 24px rgba(15,23,42,.16)' }}>{stockNotice}</div>}
-      <h1 style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }}>Anyostore - Grosir Pakaian Denim Wanita</h1>
+      <h1 style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }}>{wholesaleCopy ? 'Anyostore - Grosir Pakaian Denim Wanita' : 'Anyostore - Pakaian Denim Wanita'}</h1>
       {/* 1. Top bar */}
       <div style={{ background: T.black, color: '#fff', textAlign: 'center', padding: '6px 16px', fontSize: 'var(--fs-xs)', fontWeight: 500, letterSpacing: '.04em' }}>
-        {hasMinimumOrder ? `Minimal ${minOrderQty} pcs per model · Grosir langsung dari supplier` : 'Tanpa minimum order · Grosir langsung dari supplier'}
+        {hasMinimumOrder ? `Minimal ${minOrderQty} pcs per model · ${supplierLine}` : `Tanpa minimum order · ${supplierLine}`}
       </div>
 
       {/* 2. Header */}
@@ -555,7 +558,7 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
       <div className="feature-strip">
         <div className="feature-item">
           <span className="feature-icon"><I.box style={{ width: 20, height: 20 }} /></span>
-          <span><strong>{hasMinimumOrder ? `Min ${minOrderQty} pcs/model` : 'Tanpa minimum'}</strong><span className="feature-desc">Grosir langsung dari supplier</span></span>
+          <span><strong>{hasMinimumOrder ? `Min ${minOrderQty} pcs/model` : 'Tanpa minimum'}</strong><span className="feature-desc">{supplierLine}</span></span>
         </div>
         <div className="feature-item">
           <span className="feature-icon"><I.truck style={{ width: 20, height: 20 }} /></span>
@@ -613,7 +616,7 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
       {/* 7. CTA */}
       <section style={{ maxWidth: 1200, margin: '0 auto', padding: '0 16px 48px' }}>
         <div style={{ borderRadius: 14, padding: '48px 32px', textAlign: 'center', background: T.blue, color: T.white }}>
-          <h2 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 700, color: T.white }}>Siap order grosir?</h2>
+          <h2 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 700, color: T.white }}>{wholesaleCopy ? 'Siap order grosir?' : 'Siap order?'}</h2>
           <p style={{ margin: '0 auto 20px', maxWidth: 440, color: 'rgba(255,255,255,.82)', fontSize: 15, lineHeight: 1.6 }}>Konsultasi harga, stok, dan warna langsung dengan admin via WhatsApp.</p>
           <button type="button" onClick={() => pickWa('')} className="hero-btn" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 46, padding: '0 30px', borderRadius: 10, background: T.white, color: T.blue, fontWeight: 700, fontSize: 15, textDecoration: 'none', boxShadow: '0 4px 14px rgba(0,0,0,.18)' }}>Hubungi Admin</button>
         </div>
@@ -624,7 +627,7 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
         <div className="landing-footer-grid">
           <div className="landing-footer-brand">
             <strong>ANYOSTORE</strong>
-            <p>Supplier baju denim grosir wanita. {hasMinimumOrder ? `Minimal ${minOrderQty} pcs per model.` : 'Tanpa minimum order, bisa campur model.'}</p>
+            <p>{wholesaleCopy ? 'Supplier baju denim grosir wanita.' : 'Pakaian denim wanita.'} {hasMinimumOrder ? `Minimal ${minOrderQty} pcs per model.` : 'Tanpa minimum order, bisa campur model.'}</p>
           </div>
           <div className="landing-footer-column">
             <strong className="landing-footer-heading">Navigasi</strong>
@@ -645,7 +648,7 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
         </div>
         <div className="landing-footer-bottom">
           <span>© {today.slice(0, 4) || new Date().getFullYear()} Anyostore</span>
-          <span>Grosir denim wanita</span>
+          <span>{wholesaleCopy ? 'Grosir denim wanita' : 'Denim wanita'}</span>
         </div>
       </footer>
 
@@ -662,7 +665,7 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
                 <a key={idx} href={waLink(ph, waMsg)} target="_blank" rel="noopener noreferrer" onClick={() => setWaPicker(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 46, borderRadius: 8, background: T.blue, color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none', boxShadow: '0 2px 8px rgba(30,58,95,.2)', transition: 'all .2s' }}><I.chat style={{ width: 16, height: 16 }} /> Admin {idx + 1}: {ph}</a>
               ))}
             </div>
-            <p style={{ margin: '16px 0 0', fontSize: 'var(--fs-sm)', color: T.muted, textAlign: 'center' }}>Pilih admin untuk chat harga grosir & stok.</p>
+            <p style={{ margin: '16px 0 0', fontSize: 'var(--fs-sm)', color: T.muted, textAlign: 'center' }}>{wholesaleCopy ? 'Pilih admin untuk chat harga grosir & stok.' : 'Pilih admin untuk chat harga & stok.'}</p>
           </div>
         </div>
       )}
@@ -861,7 +864,7 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
         </div>
       )}
 
-      <FloatingWA phones={waPhones} message="Halo Anyostore, saya ingin order grosir." />
+      <FloatingWA phones={waPhones} message={wholesaleCopy ? "Halo Anyostore, saya ingin order grosir." : "Halo Anyostore, saya ingin order."} />
 
       <style>{`
         .site-header { background: rgba(255,255,255,.92); border-bottom: 1px solid rgba(229,231,235,.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
