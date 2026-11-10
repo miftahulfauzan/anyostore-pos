@@ -101,23 +101,33 @@ function ProductCard({ product, onWa, onAdd, inCart }) {
   );
 }
 
-export default function LandingPage({ branchMatch = '' } = {}) {
+export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) {
   // Landing cabang: cari id cabang berdasarkan potongan nama (mis. "Blok B").
   const [branchId, setBranchId] = useState(null);
-  const [branchReady, setBranchReady] = useState(!branchMatch);
+  const [branchReady, setBranchReady] = useState(!branchMatch && !branchSlug);
   const branchQuery = branchId ? `branch_id=${branchId}` : '';
   useEffect(() => {
-    if (!branchMatch) return;
-    fetch(`${api}/public/branches`)
+    if (!branchMatch && !branchSlug) return;
+    const url = branchSlug
+      ? `${api}/public/branches?slug=${encodeURIComponent(branchSlug)}`
+      : `${api}/public/branches`;
+    fetch(url)
       .then((response) => response.json())
       .then((body) => {
         const list = Array.isArray(body.data) ? body.data : [];
-        const match = list.find((item) => `${item.name || ''} ${item.address || ''}`.toUpperCase().includes(branchMatch.toUpperCase()));
+        if (branchSlug) {
+          setBranchId(list[0]?.id ?? null);
+          return;
+        }
+        const needle = branchMatch.toUpperCase();
+        // Prioritas nama cabang, baru alamat (alamat BASIK juga memuat "Blok B").
+        const byName = (item) => String(item.name || '').toUpperCase().includes(needle);
+        const match = list.find(byName) || list.find((item) => String(item.address || '').toUpperCase().includes(needle));
         setBranchId(match ? match.id : null);
       })
       .catch(() => setBranchId(null))
       .finally(() => setBranchReady(true));
-  }, [branchMatch]);
+  }, [branchMatch, branchSlug]);
 
   const [products, setProducts] = useState([]);
   const [settings, setSettings] = useState(null);

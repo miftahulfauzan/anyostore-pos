@@ -4,9 +4,18 @@ const db = require('../db');
 const router = express.Router();
 
 // GET /api/public/branches – list active branches for landing selector
-router.get('/branches', async (_req, res, next) => {
+router.get('/branches', async (req, res, next) => {
   try {
-    const [rows] = await db.execute('SELECT id, name, address, phone FROM branches WHERE is_active=TRUE ORDER BY id');
+    const slug = String(req.query.slug || '').trim();
+    if (slug) {
+      // Landing cabang memakai slug eksplisit (mis. ?slug=reseller).
+      const [matched] = await db.execute(
+        'SELECT id, name, address, phone, landing_slug FROM branches WHERE is_active=TRUE AND landing_slug=? LIMIT 1',
+        [slug]
+      );
+      return res.json({ success: true, data: matched });
+    }
+    const [rows] = await db.execute('SELECT id, name, address, phone, landing_slug FROM branches WHERE is_active=TRUE ORDER BY id');
     res.json({ success: true, data: rows });
   } catch (e) { next(e); }
 });

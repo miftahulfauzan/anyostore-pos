@@ -12,15 +12,19 @@ const sitemap = read('app/sitemap.js');
 
 test('halaman /reseller memakai landing yang sama dengan cabang Blok B', () => {
   assert.match(reseller, /import LandingClient from '\.\.\/LandingClient';/);
-  assert.match(reseller, /<LandingClient branchMatch="Blok B" \/>/);
+  assert.match(reseller, /<LandingClient branchSlug="reseller" \/>/);
   assert.match(reseller, /canonical: '\/reseller'/);
   assert.match(sitemap, /\/reseller/);
 });
 
 test('landing cabang mengirim branch_id ke API publik', () => {
-  assert.match(landing, /export default function LandingPage\(\{ branchMatch = '' \} = \{\}\)/);
+  assert.match(landing, /export default function LandingPage\(\{ branchMatch = '', branchSlug = '' \} = \{\}\)/);
   assert.match(landing, /public\/branches/);
-  assert.match(landing, /`\$\{item\.name \|\| ''\} \$\{item\.address \|\| ''\}`\.toUpperCase\(\)\.includes\(branchMatch\.toUpperCase\(\)\)/);
+  assert.match(landing, /public\/branches\?slug=\$\{encodeURIComponent\(branchSlug\)\}/);
+  assert.match(landing, /: `\$\{api\}\/public\/branches`/);
+  // Nama cabang diprioritaskan sebelum alamat (alamat BASIK juga memuat "Blok B").
+  assert.match(landing, /const match = list\.find\(byName\) \|\| list\.find/);
+  assert.match(landing, /if \(branchSlug\) \{\s*setBranchId\(list\[0\]\?\.id \?\? null\);/s);
   // settings, produk, dan detail produk membawa branch_id.
   assert.match(landing, /public\/settings\$\{branchQuery \? `\?\$\{branchQuery\}` : ''\}/);
   assert.match(landing, /branchId \? \{ branch_id: String\(branchId\) \} : \{\}/);

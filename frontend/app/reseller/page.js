@@ -17,5 +17,5 @@ export const metadata = {
 };
 
 export default function ResellerLandingPage() {
-  return <LandingClient branchMatch="Blok B" />;
+  return <LandingClient branchSlug="reseller" />;
 }
