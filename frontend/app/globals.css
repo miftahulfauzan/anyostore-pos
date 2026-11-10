@@ -7412,3 +7412,36 @@ html[data-theme] .app-main .tabs button:not(.active):hover {
 }
 .dark .payment-option.payment-dual { background: #182135; border-color: #475569; color: #bfdbfe; }
 .dark .payment-option.payment-dual.selected { background: #2e5d8f; border-color: #2e5d8f; color: #fff; }
+
+/* Halaman setelan Landing Page: kepala ringkas + tab bagian. */
+.landing-settings-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.landing-settings-head h2 { margin: 0; font-size: 15px; }
+.landing-settings-head p { margin: 4px 0 0; font-size: 12px; }
+.landing-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+.landing-settings-actions label { display: grid; gap: 4px; font-size: 11px; font-weight: 700; color: #334155; }
+.landing-settings-actions select { min-height: 38px; min-width: 170px; }
+.landing-settings-tabs { display: flex; gap: 6px; margin: 4px 0 2px; }
+.landing-settings-tabs button {
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid #c7d3e2;
+  border-radius: 99px;
+  background: #fff;
+  color: #1e3a5f;
+  font-size: 12px;
+  font-weight: 800;
+}
+.landing-settings-tabs button.active { background: #1e3a5f; border-color: #1e3a5f; color: #fff; }
+.dark .landing-settings-tabs button { background: #182135; border-color: #475569; color: #bfdbfe; }
+.dark .landing-settings-tabs button.active { background: #2e5d8f; border-color: #2e5d8f; color: #fff; }

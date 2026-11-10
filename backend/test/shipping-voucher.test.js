@@ -38,3 +38,10 @@ test('voucher dibuat lewat menu promo dan bisa lintas cabang untuk owner', () =>
   // Berat produk dapat diisi dari form produk.
   assert.match(productsRoute, /weight_gram/);
 });
+
+test('skrip isi berat massal tersedia dan aman dijalankan ulang', () => {
+  const script = read('scripts/set-product-weight.js');
+  assert.match(script, /UPDATE products SET weight_gram = \?/);
+  assert.match(script, /--dry-run/);
+  assert.match(script, /--branch/);
+});

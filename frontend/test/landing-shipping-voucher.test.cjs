@@ -25,10 +25,18 @@ test('keranjang landing punya alamat, cek ongkir, dan voucher', () => {
   assert.match(landing, /Ongkir \(\$\{shippingArea\}\): \$\{fmtRp\(shippingCost\)\}/);
 });
 
-test('pengaturan punya bagian tarif ongkir per cabang', () => {
-  assert.match(settings, /Ongkir landing \(per kota\)/);
-  assert.match(settings, /settings\/shipping-rates/);
-  assert.match(settings, /Tarif per kg \(Rp\)/);
+test('setelan landing (ongkir & voucher) ada di satu halaman', () => {
+  const landingSettings = read('app/landing-settings/page.js');
+  const shell = read('app/components/AppShell.js');
+  assert.match(shell, /href: '\/landing-settings', label: 'Landing Page'/);
+  assert.match(landingSettings, /Ongkir/);
+  assert.match(landingSettings, /Voucher/);
+  assert.match(landingSettings, /settings\/shipping-rates/);
+  assert.match(landingSettings, /promotions/);
+  assert.match(landingSettings, /Produk per halaman/);
+  // Tidak lagi dobel di halaman Pengaturan.
+  assert.doesNotMatch(settings, /Ongkir landing \(per kota\)/);
+  assert.doesNotMatch(settings, /Landing page \(grosir\)/);
 });
 
 test('menu Promo & Voucher bisa membuat voucher untuk cabang tertentu', () => {

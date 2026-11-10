@@ -36,48 +36,12 @@ export default function SettingsPage() {
   const [backupLoading, setBackupLoading] = useState(false);
   const [backupMessage, setBackupMessage] = useState('');
   const [backupError, setBackupError] = useState(false);
-  // Tarif ongkir landing (per cabang)
-  const [rates, setRates] = useState([]);
-  const [rateForm, setRateForm] = useState({ area: '', cost: '', cost_per_kg: '' });
-  const [rateMessage, setRateMessage] = useState('');
 
   // new branch state
   const [newBranch, setNewBranch] = useState({ name: '', address: '', phone: '', email: '', source_branch_id: '', price_multiplier: '1', clone_photos: true, pricing_tier_enabled: true });
   const [creating, setCreating] = useState(false);
   const [createMessage, setCreateMessage] = useState('');
   const [pricingBranchSaving, setPricingBranchSaving] = useState('');
-
-  async function loadRates(id = branch) {
-    if (!id) return;
-    try {
-      const response = await fetch(`${api}/settings/shipping-rates?branch_id=${id}`, { headers: jsonHeaders() });
-      const body = await response.json();
-      if (response.ok) setRates(body.data || []);
-    } catch { /* daftar tarif opsional */ }
-  }
-
-  async function saveRate(event) {
-    event.preventDefault();
-    setRateMessage('');
-    try {
-      const response = await fetch(api + '/settings/shipping-rates', {
-        method: 'POST',
-        headers: jsonHeaders(),
-        body: JSON.stringify({ ...rateForm, branch_id: Number(branch) }),
-      });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.message || 'Gagal menyimpan tarif');
-      setRateForm({ area: '', cost: '', cost_per_kg: '' });
-      setRateMessage('Tarif ongkir disimpan.');
-      await loadRates(branch);
-    } catch (error) { setRateMessage(error.message); }
-  }
-
-  async function removeRate(id) {
-    if (!confirm('Hapus tarif ongkir ini?')) return;
-    const response = await fetch(`${api}/settings/shipping-rates/${id}?branch_id=${branch}`, { method: 'DELETE', headers: jsonHeaders() });
-    if (response.ok) await loadRates(branch);
-  }
 
   const jsonHeaders = () => ({ 'Content-Type': 'application/json'});
   const mediaUrl = (value) => value ? api.replace('/api', '') + value : '';
@@ -136,7 +100,6 @@ export default function SettingsPage() {
         const id = String(data?.[0]?.id || '');
         setBranch(id);
         await load(id);
-        await loadRates(id);
       } catch (error) {
         if (active) setMessage(error.message);
       } finally {
@@ -455,7 +418,7 @@ export default function SettingsPage() {
 
       <section className="panel">
         <h2>Toko aktif & identitas</h2>
-        {stores.length > 1 && <label>Pilih toko<select value={branch} onChange={(event) => { setBranch(event.target.value); load(event.target.value); loadRates(event.target.value); }}>{stores.map((store) => <option key={store.id} value={store.id} style={{ opacity: store.is_active ? 1 : .5 }}>{store.name}{store.is_active ? '' : ' (nonaktif)'}</option>)}</select></label>}
+        {stores.length > 1 && <label>Pilih toko<select value={branch} onChange={(event) => { setBranch(event.target.value); load(event.target.value); }}>{stores.map((store) => <option key={store.id} value={store.id} style={{ opacity: store.is_active ? 1 : .5 }}>{store.name}{store.is_active ? '' : ' (nonaktif)'}</option>)}</select></label>}
         {input('store_name', 'Nama toko')}
         {input('store_address', 'Alamat')}
         <div className="two-fields">
@@ -547,35 +510,6 @@ export default function SettingsPage() {
           <p className="muted" style={{ margin: 0, fontSize: 'var(--fs-sm)' }}>Provider yang didukung: Resend. Penerima dan jadwal mengikuti pengaturan pada toko yang dipilih; isi laporan menggabungkan semua toko dan gudang aktif.</p>
         </section>
       )}
-
-      <section className="panel">
-        <h2>Landing page (grosir)</h2>
-        {select('landing_page_size', 'Produk per halaman', [['12', '12 produk'], ['24', '24 produk'], ['48', '48 produk']])}
-      </section>
-
-      <section className="panel">
-        <h2>Ongkir landing (per kota)</h2>
-        <p className="muted" style={{ margin: 0, fontSize: 'var(--fs-sm)' }}>Tarif ini dipakai pembeli di halaman katalog untuk menghitung ongkir setelah memilih kota/kecamatan. Isi <strong>Tarif</strong> untuk biaya tetap, atau <strong>Tarif per kg</strong> bila dihitung dari berat produk.</p>
-        <form className="two-fields" onSubmit={saveRate}>
-          <label>Kota / kecamatan<input required value={rateForm.area} onChange={(event) => setRateForm({ ...rateForm, area: event.target.value })} placeholder="Metro" /></label>
-          <label>Tarif tetap (Rp)<input type="number" min="0" value={rateForm.cost} onChange={(event) => setRateForm({ ...rateForm, cost: event.target.value })} placeholder="0" /></label>
-          <label>Tarif per kg (Rp)<input type="number" min="0" value={rateForm.cost_per_kg} onChange={(event) => setRateForm({ ...rateForm, cost_per_kg: event.target.value })} placeholder="0" /></label>
-          <div className="form-actions" style={{ alignSelf: 'end' }}><button type="submit">Tambah / ubah tarif</button></div>
-        </form>
-        {rateMessage && <p className="message" role="status">{rateMessage}</p>}
-        <div className="product-list">
-          {rates.map((rate) => (
-            <article key={rate.id}>
-              <div>
-                <strong>{rate.area}</strong>
-                <span>{Number(rate.cost) > 0 ? `Rp${Number(rate.cost).toLocaleString('id-ID')}` : '-'}{Number(rate.cost_per_kg) > 0 ? ` · Rp${Number(rate.cost_per_kg).toLocaleString('id-ID')}/kg` : ''}</span>
-              </div>
-              <button type="button" className="danger" onClick={() => removeRate(rate.id)}>Hapus</button>
-            </article>
-          ))}
-          {!rates.length && <p className="muted">Belum ada tarif ongkir untuk toko ini.</p>}
-        </div>
-      </section>
 
       </div>
       <section className="settings-save-bar" aria-label="Simpan pengaturan">
