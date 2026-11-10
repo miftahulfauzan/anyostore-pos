@@ -339,20 +339,23 @@ export function renderInvoiceCanvas(payload) {
       ctx.fillText(nameLines[1], pad, y + 26);
       y += 26;
     }
-    if (item.variant) {
+    // Baris kedua: varian (bila ada) + harga per pcs.
+    const unitPrice = Number(item.price) > 0 ? `${rupiah(item.price)}/pcs` : '';
+    const detailText = [item.variant, unitPrice].filter(Boolean).join(' · ');
+    if (detailText) {
       y += 24;
       ctx.font = font(19, 600);
       ctx.fillStyle = MUTED;
-      ctx.fillText(item.variant, pad, y);
+      ctx.fillText(detailText, pad, y);
     }
     ctx.textAlign = 'center';
     ctx.fillStyle = '#475569';
     ctx.font = font(24, 600);
-    ctx.fillText(String(item.qty ?? 0), colQty, y - (item.variant ? 24 : 0));
+    ctx.fillText(String(item.qty ?? 0), colQty, y - (detailText ? 24 : 0));
     ctx.textAlign = 'right';
     ctx.fillStyle = INK;
     ctx.font = font(24, 700);
-    ctx.fillText(rupiah(item.subtotal), colAmount, y - (item.variant ? 24 : 0));
+    ctx.fillText(rupiah(item.subtotal), colAmount, y - (detailText ? 24 : 0));
     y += 16;
     ctx.strokeStyle = '#f1f5f9';
     ctx.beginPath();
@@ -398,7 +401,7 @@ export function renderInvoiceCanvas(payload) {
   const contentEnd = y;
   const freeSpace = OUTPUT_HEIGHT - contentEnd - pad;
   const stackHeight = bankBoxHeight + footerHeight;
-  const gapTop = Math.max(36, (freeSpace - stackHeight) / 2);
+  const gapTop = Math.min(140, Math.max(36, (freeSpace - stackHeight) / 2));
   y = contentEnd + gapTop;
 
   roundedRect(ctx, pad, y, contentWidth, bankBoxHeight, 18);

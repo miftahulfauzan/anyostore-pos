@@ -47,6 +47,13 @@ test('tombol bagikan ada di POS dan halaman struk', () => {
   assert.match(printer, /whatsapp_numbers/);
 });
 
+test('invoice menampilkan harga per pcs pada tiap barang', () => {
+  assert.match(invoice, /const unitPrice = Number\(item\.price\) > 0 \? `\$\{rupiah\(item\.price\)\}\/pcs`/);
+  assert.match(invoice, /const detailText = \[item\.variant, unitPrice\]/);
+  // Jarak ke blok rekening dibatasi agar tidak menyisakan lubang besar.
+  assert.match(invoice, /Math\.min\(140, Math\.max\(36,/);
+});
+
 test('setiap pemakai modul invoice benar-benar mengimpornya', () => {
   // Regression: pos/page.js sempat memakai shareInvoiceImage tanpa import
   // sehingga muncul "shareInvoiceImage is not defined" saat tombol diklik.

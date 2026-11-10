@@ -347,8 +347,12 @@ class InvoiceImage extends StatelessWidget {
                                   fontSize: 12.5,
                                   fontWeight: FontWeight.w700,
                                   color: inkColor)),
-                          if (item.variant.trim().isNotEmpty)
-                            Text(item.variant,
+                          if (item.variant.trim().isNotEmpty || item.price > 0)
+                            Text(
+                                [
+                                  item.variant.trim(),
+                                  if (item.price > 0) '${fmtRp(item.price)}/pcs',
+                                ].where((part) => part.isNotEmpty).join(' · '),
                                 style: const TextStyle(
                                     fontSize: 10, color: muted, height: 1.35)),
                         ],

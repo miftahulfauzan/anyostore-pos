@@ -53,6 +53,8 @@ void main() {
     expect(find.text('LUNAS'), findsNothing);
     expect(find.text('Celana Baggy A104'), findsOneWidget);
     expect(find.text('Rp360.000'), findsOneWidget);
+    // Harga per pcs ikut tampil di baris barang.
+    expect(find.textContaining('/pcs'), findsWidgets);
     // Invoice penagihan: metode bayar & kembalian tidak ditampilkan.
     expect(find.text('Tunai'), findsNothing);
     expect(find.text('Kembalian'), findsNothing);
