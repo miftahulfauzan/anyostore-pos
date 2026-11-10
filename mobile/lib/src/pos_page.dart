@@ -137,6 +137,11 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
   String? _storeName;
   String _storeAddress = '';
   String _storePhone = '';
+  List<String> _storePhones = const [];
+  /// Nomor invoice yang sudah direservasi + id transaksi klien yang dipakai
+  /// ulang saat pembayaran supaya nomor pada invoice tidak berubah.
+  String? _shareClientTxId;
+  String? _reservedInvoiceNo;
   int? _posBranchId;
   String _warehouseId = '';
   int? _customerId;
@@ -505,6 +510,7 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     _storeName = storeName == null || storeName.isEmpty ? null : storeName;
     _storeAddress = settings['store_address']?.toString().trim() ?? '';
     _storePhone = settings['store_phone']?.toString().trim() ?? '';
+    _storePhones = _collectStorePhones(settings);
     final autoPrint = settings['auto_print'];
     _autoPrint = autoPrint == null ||
         autoPrint == '1' ||
@@ -1286,6 +1292,40 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     _sheetRefresh = null;
   }
 
+  /// Nomor HP/WhatsApp dari pengaturan web: bisa satu kolom, tiga kolom, atau
+  /// daftar JSON `whatsapp_numbers`. Semua nomor yang ada ditampilkan.
+  List<String> _collectStorePhones(Map<String, dynamic> settings) {
+    final phones = <String>[];
+    void add(Object? value) {
+      final text = value?.toString().trim() ?? '';
+      if (text.isEmpty) return;
+      if (!phones.contains(text)) phones.add(text);
+    }
+
+    final rawList = settings['whatsapp_numbers'];
+    if (rawList is String && rawList.trim().startsWith('[')) {
+      try {
+        final decoded = jsonDecode(rawList);
+        if (decoded is List) {
+          for (final item in decoded) {
+            add(item);
+          }
+        }
+      } catch (_) {
+        // Daftar tidak valid: jatuh ke kolom tunggal di bawah.
+      }
+    } else if (rawList is List) {
+      for (final item in rawList) {
+        add(item);
+      }
+    }
+    add(settings['whatsapp_number']);
+    add(settings['whatsapp_number_2']);
+    add(settings['whatsapp_number_3']);
+    add(settings['store_phone']);
+    return phones;
+  }
+
   /// Nama toko + alamat/kontak untuk kepala invoice.
   ({String name, String address, String phone}) _invoiceStore() {
     final branch = _posBranchId ?? _branchId;
@@ -1304,6 +1344,14 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
         ? _storePhone
         : (row['phone']?.toString().trim() ?? '');
     return (name: name, address: address, phone: phone);
+  }
+
+  /// Nomor telepon pada header invoice: daftar dari pengaturan web, atau
+  /// nomor cabang bila pengaturan belum diisi.
+  List<String> _invoicePhones(String fallback) {
+    if (_storePhones.isNotEmpty) return _storePhones;
+    final text = fallback.trim();
+    return text.isEmpty ? const [] : [text];
   }
 
   String _invoiceCustomerLabel() {
@@ -1328,11 +1376,34 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
         ? asNum(_preview?['grand_total'])
         : (subtotal - discount);
     final store = _invoiceStore();
+    // Nomor invoice direservasi di server supaya gambar yang dikirim ke pembeli
+    // memakai nomor resmi dan tetap sama saat transaksi diselesaikan.
+    _shareClientTxId ??= uuidV4();
+    var invoiceNo = _reservedInvoiceNo;
+    if (invoiceNo == null) {
+      try {
+        final reservation = await _client.invoicePreview(
+          clientTransactionId: _shareClientTxId!,
+          branchId: _posBranchId ?? _branchId,
+          transactionDate: _isOwner ? _transactionDate : null,
+        );
+        invoiceNo = reservation['invoice_no']?.toString();
+        _reservedInvoiceNo = invoiceNo;
+      } catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Nomor invoice gagal dibuat: $error')));
+        return;
+      }
+    }
+    if (invoiceNo == null || invoiceNo.isEmpty) return;
+    if (!mounted) return;
     final payload = InvoicePayload(
       storeName: store.name,
       storeAddress: store.address,
-      storePhone: store.phone,
-      invoiceNo: 'PENAWARAN',
+      storePhones: _invoicePhones(store.phone),
+      instagram: invoiceInstagram(store.name),
+      invoiceNo: invoiceNo,
       dateText: invoiceDateText(DateTime.now().toIso8601String()),
       cashier: context.read<AuthStore>().userName ?? '-',
       customerLabel: _invoiceCustomerLabel(),
@@ -1367,10 +1438,12 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
       final store = (data['store'] as Map<String, dynamic>?) ?? const {};
       final rawItems = ((data['items'] as List?) ?? const []).cast<Map<String, dynamic>>();
       final storeName = (store['store_name'] ?? _storeName ?? 'Anyostore').toString();
+      final receiptPhone = (store['store_phone'] ?? _storePhone).toString();
       final payload = InvoicePayload(
         storeName: storeName,
         storeAddress: (store['store_address'] ?? _storeAddress).toString(),
-        storePhone: (store['store_phone'] ?? _storePhone).toString(),
+        storePhones: _invoicePhones(receiptPhone),
+        instagram: invoiceInstagram(storeName),
         invoiceNo: (data['invoice_no'] ?? '-').toString(),
         dateText: invoiceDateText(data['created_at'] ?? data['transaction_date']),
         cashier: (data['cashier'] ?? context.read<AuthStore>().userName ?? '-').toString(),
@@ -1475,7 +1548,7 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
       return;
     }
     setState(() => _saving = true);
-    final clientTransactionId = uuidV4();
+    final clientTransactionId = _shareClientTxId ?? uuidV4();
     final items = _cart
         .map((c) => {
               'product_id': c.productId,
@@ -1504,6 +1577,8 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
       if (!mounted) return;
       final id = int.tryParse('${result['id']}');
       _cart.clear();
+      _shareClientTxId = null;
+      _reservedInvoiceNo = null;
       _preview = null;
       _discountCtrl.clear();
       _notesCtrl.clear();

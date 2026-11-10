@@ -340,6 +340,20 @@ class ApiClient {
     return (res['data'] as Map<String, dynamic>?) ?? {};
   }
 
+  /// Reservasi nomor invoice untuk invoice yang dibagikan sebelum pembayaran.
+  Future<Map<String, dynamic>> invoicePreview({
+    required String clientTransactionId,
+    int? branchId,
+    String? transactionDate,
+  }) async {
+    final res = await post('/transactions/invoice-preview', {
+      'client_transaction_id': clientTransactionId,
+      if (branchId != null) 'branch_id': branchId,
+      if (transactionDate != null) 'transaction_date': transactionDate,
+    });
+    return (res['data'] as Map<String, dynamic>?) ?? {};
+  }
+
   Future<Map<String, dynamic>> holdTransaction(Map<String, dynamic> body) =>
       post('/transactions/hold', body);
 

@@ -40,6 +40,39 @@ async function nextInvoice(connection, branchId, businessDate = localDateString(
   return `${prefix}-${businessDate.replaceAll('-', '')}-B${branchId}-${number}`;
 }
 
+// Reservasi nomor invoice untuk tombol "Bagikan" di POS. Nomor diambil dari
+// urutan invoice yang sama dengan checkout, disimpan per client_transaction_id,
+// lalu dipakai ulang saat transaksi diselesaikan sehingga nomor pada gambar
+// invoice sama dengan nomor transaksi sebenarnya.
+router.post('/invoice-preview', authorize('owner', 'manager', 'admin', 'kasir'), async (req, res, next) => {
+  const connection = await db.getConnection();
+  try {
+    const clientTransactionId = String(req.body?.client_transaction_id || '').trim();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(clientTransactionId)) {
+      throw httpError(400, 'client_transaction_id harus UUID');
+    }
+    const requestedBranch = Number(req.body?.branch_id);
+    const branchId = req.user.role === 'owner' && Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
+    const transactionDate = req.user.role === 'owner' && req.body?.transaction_date != null ? req.body.transaction_date : localDateString();
+    if (!isDateOnly(transactionDate) || transactionDate > localDateString()) throw httpError(400, 'Tanggal transaksi harus valid dan tidak boleh setelah hari ini');
+    await connection.beginTransaction();
+    const [branches] = await connection.execute('SELECT id FROM branches WHERE id = ? AND is_active = TRUE FOR UPDATE', [branchId]);
+    if (!branches[0]) throw httpError(404, 'Toko tidak ditemukan atau sudah tidak aktif');
+    const [existing] = await connection.execute('SELECT invoice_no FROM invoice_reservations WHERE client_transaction_id = ? LIMIT 1', [clientTransactionId]);
+    if (existing[0]) {
+      await connection.commit();
+      return res.json({ success: true, data: { invoice_no: existing[0].invoice_no, client_transaction_id: clientTransactionId, reused: true } });
+    }
+    const invoiceNo = await nextInvoice(connection, branchId, transactionDate);
+    await connection.execute(
+      'INSERT INTO invoice_reservations (client_transaction_id, branch_id, invoice_no, user_id) VALUES (?, ?, ?, ?)',
+      [clientTransactionId, branchId, invoiceNo, req.user.id]
+    );
+    await connection.commit();
+    res.status(201).json({ success: true, data: { invoice_no: invoiceNo, client_transaction_id: clientTransactionId, reused: false } });
+  } catch (error) { await connection.rollback(); next(error); } finally { connection.release(); }
+});
+
 // Logika harga berjenjang ada di ../pricing.js (satu sumber kebenaran).
 
 // Preview harga: dipakai POS supaya harga yang tampil = harga yang akan
@@ -368,7 +401,20 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
     }
     const grandTotal = money(subtotal - discount);
     const payment = normalizePayments(req.body, grandTotal);
-    const invoiceNo = await nextInvoice(connection, branchId, transactionDate);
+    // Nomor invoice yang sudah direservasi lewat tombol Bagikan dipakai ulang
+    // supaya gambar invoice yang dikirim ke pembeli tetap valid.
+    let invoiceNo = null;
+    if (clientTransactionId) {
+      const [reserved] = await connection.execute(
+        'SELECT invoice_no, used_at FROM invoice_reservations WHERE client_transaction_id = ? LIMIT 1 FOR UPDATE',
+        [clientTransactionId]
+      );
+      if (reserved[0] && !reserved[0].used_at) {
+        invoiceNo = reserved[0].invoice_no;
+        await connection.execute('UPDATE invoice_reservations SET used_at = NOW() WHERE client_transaction_id = ?', [clientTransactionId]);
+      }
+    }
+    if (!invoiceNo) invoiceNo = await nextInvoice(connection, branchId, transactionDate);
     const [transactionResult] = await connection.execute(
       `INSERT INTO transactions (branch_id, transaction_date, invoice_no, offline_invoice_no, client_transaction_id, user_id, customer_id, subtotal, discount_type, discount_value, discount, grand_total, payment_method, amount_paid, \`change\`, notes, price_tier)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
