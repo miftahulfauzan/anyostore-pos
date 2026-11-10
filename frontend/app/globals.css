@@ -7337,3 +7337,62 @@ html[data-theme] .app-main .tabs button:not(.active):hover {
 @media (max-width: 520px) {
   .offline-banner { font-size: 11px; padding: 8px 12px; }
 }
+
+/* Tombol Bagikan invoice di samping tombol Bayar (POS web). */
+.pos-cart-footer-actions { display: flex; align-items: stretch; gap: 8px; }
+.pos-cart-footer-actions > button:first-child { flex: 1 1 auto; min-width: 0; }
+.pos-cart-footer .pos-share-invoice {
+  flex: 0 0 auto;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 74px;
+  min-height: 44px;
+  padding: 6px 4px;
+  border: 1px solid #c7d3e2;
+  border-radius: 10px;
+  background: #fff;
+  color: #1e3a5f;
+  font-size: 10px;
+  font-weight: 800;
+}
+.pos-cart-footer .pos-share-invoice:hover:not(:disabled) { background: #f2f6fb; border-color: #9fb3ca; }
+.pos-cart-footer .pos-share-invoice:disabled { opacity: .55; }
+.dark .pos-cart-footer .pos-share-invoice { background: #182135; border-color: #475569; color: #bfdbfe; }
+.dark .pos-cart-footer .pos-share-invoice:hover:not(:disabled) { background: #22304b; }
+
+/* Bar aksi di halaman struk: bagikan invoice gambar + cetak. */
+.receipt-share-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  max-width: 420px;
+  margin: 0 auto 14px;
+}
+.receipt-share-bar button,
+.receipt-share-bar .button-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 800;
+}
+.receipt-share-bar button {
+  border: 1px solid var(--action-bg, #1e3a5f);
+  background: var(--action-bg, #1e3a5f);
+  color: #fff;
+}
+.receipt-share-bar button.secondary {
+  background: #fff;
+  border-color: #c7d3e2;
+  color: #1e3a5f;
+}
+.receipt-share-bar .message { flex: 1 1 100%; font-size: 11px; }
+.dark .receipt-share-bar button { background: #2e5d8f; border-color: #2e5d8f; }
+.dark .receipt-share-bar button.secondary { background: #182135; border-color: #475569; color: #bfdbfe; }

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ArrowUpRight, ChevronDown, Edit3, FileText, LayoutDashboard, LogOut, MoreVertical, PauseCircle, ShoppingCart, StickyNote, Tag, Trash2, UserRound, X } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, ChevronDown, Edit3, FileText, LayoutDashboard, LogOut, MoreVertical, PauseCircle, Share2, ShoppingCart, StickyNote, Tag, Trash2, UserRound, X } from 'lucide-react';
 import { useAppSession, useUnsavedWork } from '../components/AppStateProvider';
 import BranchSwitcher from '../components/BranchSwitcher';
 import { createRequestSequence } from '../components/app-state.cjs';
@@ -47,6 +47,7 @@ export default function PosPage() {
   const [openItemMenuId, setOpenItemMenuId] = useState(null);
   const [customers, setCustomers] = useState([]);
   const [customerId, setCustomerId] = useState('');
+  const [sharingInvoice, setSharingInvoice] = useState(false);
   const [priceTier, setPriceTier] = useState('retail');
   const [transactionDate, setTransactionDate] = useState('');
   const [search, setSearch] = useState('');
@@ -435,6 +436,60 @@ export default function PosPage() {
       return nextAmounts;
     });
   }
+  // Bagikan invoice gambar (tagihan) sebelum pembayaran. Nomor invoice
+  // direservasi di server agar sama dengan nomor transaksi nanti.
+  async function shareInvoiceDraft() {
+    if (!cart.length || sharingInvoice) return;
+    setSharingInvoice(true);
+    setMessage('');
+    try {
+      if (!pendingTransactionId.current) pendingTransactionId.current = newClientTransactionId();
+      const reservationResponse = await fetch(`${apiUrl}/transactions/invoice-preview`, {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({
+          client_transaction_id: pendingTransactionId.current,
+          branch_id: Number(storeId),
+          ...(user?.role === 'owner' ? { transaction_date: transactionDate } : {}),
+        }),
+      });
+      const reservationBody = await reservationResponse.json();
+      if (!reservationResponse.ok) throw new Error(reservationBody.message || 'Nomor invoice gagal dibuat');
+      const invoiceNo = reservationBody.data?.invoice_no;
+      const settingsResponse = await fetch(`${apiUrl}/settings?branch_id=${Number(storeId)}`, { headers: headers() });
+      const settingsBody = await settingsResponse.json();
+      const settings = settingsResponse.ok ? (settingsBody.data || {}) : {};
+      const store = stores.find((item) => String(item.id) === String(storeId)) || {};
+      const storeName = String(settings.store_name || store.name || 'Anyostore').trim();
+      const customer = customers.find((item) => String(item.id) === String(customerId));
+      const result = await shareInvoiceImage({
+        storeName,
+        storeAddress: settings.store_address || store.address || '',
+        phones: storePhones(settings).length ? storePhones(settings) : [store.phone].filter(Boolean),
+        instagram: instagramFor(storeName),
+        invoiceNo,
+        dateText: invoiceDate(new Date()),
+        cashier: user?.name || '-',
+        customerLabel: customer ? `${customer.name} · ${customerTierLabel(customer.price_tier)}` : 'Umum',
+        items: cart.map((item) => ({
+          name: item.name,
+          variant: item.variant_label || '',
+          qty: item.quantity,
+          price: item.price_override ?? item.price,
+          subtotal: (item.price_override ?? item.price) * item.quantity,
+        })),
+        subtotal,
+        discount,
+        total,
+      });
+      if (result === 'downloaded') setMessage('Browser tidak mendukung berbagi file. Gambar invoice sudah diunduh.');
+    } catch (error) {
+      setMessage(error.message || 'Gagal membagikan invoice');
+    } finally {
+      setSharingInvoice(false);
+    }
+  }
+
   function openPaymentFlow() {
     if (!compactViewport) return checkout();
     if (!cart.length) return setMessage('Tambahkan produk ke keranjang terlebih dahulu.');
@@ -616,7 +671,13 @@ export default function PosPage() {
           </div>
           <div className="pos-cart-footer">
             <div className="pos-cart-footer-meta"><strong>{cart.reduce((sum, item) => sum + item.quantity, 0)} pcs</strong>{discount > 0 && <span>Diskon: -{rupiah(discount)}</span>}{discountExceedsSubtotal && <span className="pos-discount-error">Diskon melebihi subtotal.</span>}{message && <span className="message" role="status">{message}</span>}</div>
-                <button type="button" disabled={loadingStore || submitting || !cart.length || discountExceedsSubtotal} onClick={openPaymentFlow}>{submitting ? 'Memproses…' : `Bayar · ${rupiah(total)}`}</button>
+                <div className="pos-cart-footer-actions">
+                  <button type="button" disabled={loadingStore || submitting || !cart.length || discountExceedsSubtotal} onClick={openPaymentFlow}>{submitting ? 'Memproses…' : `Bayar · ${rupiah(total)}`}</button>
+                  <button type="button" className="pos-share-invoice" disabled={loadingStore || submitting || sharingInvoice || !cart.length || discountExceedsSubtotal} onClick={shareInvoiceDraft} title="Bagikan invoice" aria-label="Bagikan invoice">
+                    <Share2 aria-hidden="true" size={18} />
+                    <span>{sharingInvoice ? '…' : 'Bagikan'}</span>
+                  </button>
+                </div>
           </div>
         </aside>
         </section>
