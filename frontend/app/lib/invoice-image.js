@@ -170,17 +170,18 @@ export function renderInvoiceCanvas(payload) {
   const addressLines = payload.storeAddress
     ? wrapText(ctx, payload.storeAddress, font(19, 600), leftWidth - 120)
     : [];
-  const leftBlockEstimate = 96 + (brand ? 30 : 0) + addressLines.length * 26;
+  const leftBlockEstimate = (brand ? 34 + 24 : 42) + addressLines.length * 26;
   const rightBlockHeight = contactLines.length * 34;
-  const headerHeight = Math.max(200, 56 + Math.max(leftBlockEstimate, rightBlockHeight));
+  // Tinggi bar mengikuti isi + margin atas/bawah yang sama, supaya blok kiri
+  // (logo+teks) dan kontak kanan benar-benar center di dalam header.
+  const headerPadding = 34;
+  const headerHeight = Math.max(200, Math.max(leftBlockEstimate, rightBlockHeight) + headerPadding * 2);
 
   ctx.fillStyle = DENIM;
   ctx.fillRect(0, headerTop, OUTPUT_WIDTH, headerHeight);
 
   // blok kiri: logo + nama toko + alamat, rata kiri dan saling center vertikal
   const logoSize = 84;
-  const headerContentTop = 34;
-  const leftBlockTop = headerContentTop;
   const nameX = pad + logoSize + 22;
 
   const leftLines = [];
@@ -193,8 +194,8 @@ export function renderInvoiceCanvas(payload) {
   addressLines.forEach((line) => leftLines.push({ text: line, font: font(19, 600), height: 26, color: 'rgba(255,255,255,.9)' }));
 
   const textHeight = leftLines.reduce((total, line) => total + line.height, 0);
-  const leftBlockHeight = Math.max(logoSize, textHeight);
-  const logoY = leftBlockTop + (leftBlockHeight - logoSize) / 2;
+  const logoY = (headerHeight - logoSize) / 2;
+  const logoCenterY = logoY + logoSize / 2;
 
   // logo
   roundedRect(ctx, pad, logoY, logoSize, logoSize, 22);
@@ -207,7 +208,7 @@ export function renderInvoiceCanvas(payload) {
 
   // teks kiri (blok teks ikut center terhadap logo)
   ctx.textAlign = 'left';
-  let leftTextY = leftBlockTop + (leftBlockHeight - textHeight) / 2;
+  let leftTextY = logoCenterY - textHeight / 2;
   leftLines.forEach((line) => {
     ctx.font = line.font;
     ctx.fillStyle = line.color;
@@ -226,7 +227,8 @@ export function renderInvoiceCanvas(payload) {
     const blockWidth = iconBox + gap + textWidth;
     const iconX = OUTPUT_WIDTH - pad - blockWidth;
     const lineHeight = 36;
-    let rowTop = leftBlockTop + 4;
+    const contactBlockHeight = contactLines.length * lineHeight;
+    let rowTop = (headerHeight - contactBlockHeight) / 2;
     contactLines.forEach((line) => {
       const centerY = rowTop + lineHeight / 2;
       if (line.icon === 'wa') {
@@ -299,8 +301,12 @@ export function renderInvoiceCanvas(payload) {
   ctx.stroke();
 
   // ===== Item =====
-  const colQty = OUTPUT_WIDTH - pad - 196;
   const colAmount = OUTPUT_WIDTH - pad;
+  const amountWidth = 190;
+  const amountLeft = colAmount - amountWidth;
+  const columnGap = 72;
+  const colQty = amountLeft - columnGap;
+  const colPrice = colQty - columnGap;
   y += 40;
   ctx.textAlign = 'left';
   ctx.fillStyle = MUTED;
@@ -319,7 +325,7 @@ export function renderInvoiceCanvas(payload) {
 
   const rows = Array.isArray(payload.items) ? payload.items : [];
   // Satu baris per barang: nama (kiri) · harga/pcs + varian (kanan) · qty · jumlah.
-  const detailRight = colQty - 46;
+  const detailRight = colPrice;
   rows.forEach((item) => {
     y += 38;
     ctx.textAlign = 'left';
@@ -355,7 +361,7 @@ export function renderInvoiceCanvas(payload) {
   });
 
   // ===== Ringkasan =====
-  y += 26;
+  y += 34;
   const summaryLeft = OUTPUT_WIDTH - pad - 320;
   const summaryRow = (label, value) => {
     ctx.textAlign = 'left';
@@ -366,12 +372,12 @@ export function renderInvoiceCanvas(payload) {
     ctx.fillStyle = INK;
     ctx.font = font(22, 700);
     ctx.fillText(value, OUTPUT_WIDTH - pad, y);
-    y += 34;
+    y += 38;
   };
   summaryRow('Subtotal', rupiah(payload.subtotal));
   if (Number(payload.discount) > 0) summaryRow('Diskon', '-' + rupiah(payload.discount));
 
-  y += 14;
+  y += 18;
   const totalBoxHeight = 74;
   roundedRect(ctx, summaryLeft - 18, y - 36, OUTPUT_WIDTH - pad - summaryLeft + 18, totalBoxHeight, 16);
   ctx.fillStyle = '#eef3fb';

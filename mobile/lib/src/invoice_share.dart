@@ -183,9 +183,9 @@ class InvoiceImage extends StatelessWidget {
           // ===== Kepala: kiri logo + nama toko + alamat, kanan kontak =====
           Container(
             color: denim,
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
                   child: Row(
@@ -310,8 +310,9 @@ class InvoiceImage extends StatelessWidget {
                             letterSpacing: .8,
                             fontWeight: FontWeight.w800,
                             color: muted))),
+                SizedBox(width: 16),
                 SizedBox(
-                    width: 40,
+                    width: 36,
                     child: Text('QTY',
                         textAlign: TextAlign.center,
                         style: TextStyle(
@@ -319,6 +320,7 @@ class InvoiceImage extends StatelessWidget {
                             letterSpacing: .8,
                             fontWeight: FontWeight.w800,
                             color: muted))),
+                SizedBox(width: 16),
                 SizedBox(
                     width: 96,
                     child: Text('JUMLAH',
@@ -370,12 +372,14 @@ class InvoiceImage extends StatelessWidget {
                         ],
                       ),
                     ),
+                    const SizedBox(width: 16),
                     SizedBox(
-                        width: 40,
+                        width: 36,
                         child: Text('${item.qty}',
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                                 fontSize: 12.5, color: Color(0xFF475569)))),
+                    const SizedBox(width: 16),
                     SizedBox(
                         width: 96,
                         child: Text(fmtRp(item.subtotal),
@@ -648,15 +652,8 @@ class _BrandIconPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.1
-      ..strokeJoin = StrokeJoin.round
-      ..strokeCap = StrokeCap.round;
-    final fill = Paint()..color = color;
-
     if (brand == InvoiceBrandIcon.whatsapp) {
+      // Gelembung putih dengan gagang telepon berlubang (warna header).
       final bubble = Paint()..color = color;
       canvas.drawCircle(Offset(size.width * 0.5, size.height * 0.47), size.width * 0.42, bubble);
       final tail = Path()
@@ -665,26 +662,39 @@ class _BrandIconPainter extends CustomPainter {
         ..lineTo(size.width * 0.36, size.height * 0.9)
         ..close();
       canvas.drawPath(tail, bubble);
-      // gagang telepon: warna latar header (denim) menyerupai logo WhatsApp
+
       final handset = Paint()
         ..color = const Color(0xFF1E3A5F)
         ..style = PaintingStyle.stroke
         ..strokeWidth = size.width * 0.15
         ..strokeCap = StrokeCap.round;
-      final path = Path()
-        ..moveTo(size.width * 0.34, size.height * 0.34)
-        ..quadraticBezierTo(size.width * 0.36, size.height * 0.52, size.width * 0.62, size.height * 0.64);
-      canvas.drawPath(path, handset);
+      canvas.drawPath(
+        Path()
+          ..moveTo(size.width * 0.34, size.height * 0.34)
+          ..quadraticBezierTo(size.width * 0.36, size.height * 0.52, size.width * 0.62, size.height * 0.64),
+        handset,
+      );
       canvas.drawLine(Offset(size.width * 0.3, size.height * 0.3), Offset(size.width * 0.4, size.height * 0.4), handset);
       canvas.drawLine(Offset(size.width * 0.66, size.height * 0.68), Offset(size.width * 0.58, size.height * 0.58), handset);
       return;
     }
 
-    // instagram: kotak membulat + lensa + titik
-    final rect = Rect.fromLTWH(size.width * 0.06, size.height * 0.06, size.width * 0.88, size.height * 0.88);
-    canvas.drawRRect(RRect.fromRectAndRadius(rect, Radius.circular(size.width * 0.28)), paint);
-    canvas.drawCircle(Offset(size.width / 2, size.height / 2), size.width * 0.22, paint);
-    canvas.drawCircle(Offset(size.width * 0.74, size.height * 0.26), size.width * 0.05, fill);
+    // instagram: kotak membulat + lensa + titik, ketebalan sama dengan WhatsApp
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = size.width * 0.1;
+    final fill = Paint()..color = color;
+    final inset = size.width * 0.08;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(inset, inset, size.width - inset * 2, size.height - inset * 2),
+        Radius.circular(size.width * 0.26),
+      ),
+      stroke,
+    );
+    canvas.drawCircle(Offset(size.width / 2, size.height / 2), size.width * 0.24, stroke);
+    canvas.drawCircle(Offset(size.width * 0.72, size.height * 0.28), size.width * 0.055, fill);
   }
 
   @override

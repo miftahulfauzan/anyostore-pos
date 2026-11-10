@@ -50,7 +50,9 @@ test('tombol bagikan ada di POS dan halaman struk', () => {
 test('invoice menampilkan harga per pcs pada tiap barang', () => {
   // Harga per pcs tampil sebaris dengan nama (rata kanan sebelum kolom QTY).
   assert.match(invoice, /\$\{rupiah\(item\.price\)\}\/pcs/);
-  assert.match(invoice, /const detailRight = colQty - 46;/);
+  assert.match(invoice, /const detailRight = colPrice;/);
+  // Jarak kolom harga/pcs -> qty sama dengan qty -> jumlah.
+  assert.match(invoice, /const columnGap = 72;/);
   assert.match(invoice, /fitText\(ctx, item\.name/);
   // Tanggal invoice tanpa jam.
   assert.doesNotMatch(invoice, /\\u00b7 \$\{hh\}\.\$\{mm\}/);
