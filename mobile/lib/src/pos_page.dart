@@ -22,6 +22,7 @@ import 'reports_page.dart';
 import 'sales_dashboard_page.dart';
 import 'format.dart';
 import 'history_tab.dart';
+import 'invoice_share.dart';
 import 'payment_sheet.dart';
 import 'printer_service.dart';
 import 'printer_setup.dart';
@@ -134,6 +135,8 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
   List<Map<String, dynamic>> _customers = [];
   List<Map<String, dynamic>> _branches = [];
   String? _storeName;
+  String _storeAddress = '';
+  String _storePhone = '';
   int? _posBranchId;
   String _warehouseId = '';
   int? _customerId;
@@ -500,6 +503,8 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     final settings = (payload['settings'] as Map<String, dynamic>?) ?? {};
     final storeName = settings['store_name']?.toString().trim();
     _storeName = storeName == null || storeName.isEmpty ? null : storeName;
+    _storeAddress = settings['store_address']?.toString().trim() ?? '';
+    _storePhone = settings['store_phone']?.toString().trim() ?? '';
     final autoPrint = settings['auto_print'];
     _autoPrint = autoPrint == null ||
         autoPrint == '1' ||
@@ -1269,6 +1274,7 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
                       }
                     },
                     onPay: () => _checkout(),
+                    onShare: () => _shareCartInvoice(),
                   ),
                 ),
               );
@@ -1278,6 +1284,129 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
       },
     );
     _sheetRefresh = null;
+  }
+
+  /// Nama toko + alamat/kontak untuk kepala invoice.
+  ({String name, String address, String phone}) _invoiceStore() {
+    final branch = _posBranchId ?? _branchId;
+    Map<String, dynamic> row = const {};
+    for (final b in _branches) {
+      if ('${b['id']}' == '$branch') {
+        row = b;
+        break;
+      }
+    }
+    final name = (_storeName ?? row['name']?.toString() ?? 'Anyostore').trim();
+    final address = _storeAddress.isNotEmpty
+        ? _storeAddress
+        : (row['address']?.toString().trim() ?? '');
+    final phone = _storePhone.isNotEmpty
+        ? _storePhone
+        : (row['phone']?.toString().trim() ?? '');
+    return (name: name, address: address, phone: phone);
+  }
+
+  String _invoiceCustomerLabel() {
+    if (_customerId == null) return 'Umum';
+    for (final customer in _customers) {
+      if ('${customer['id']}' == '$_customerId') {
+        final name = customer['name']?.toString().trim() ?? '';
+        if (name.isEmpty) return 'Umum';
+        return '$name · ${invoiceCustomerTierLabel(customer['price_tier'])}';
+      }
+    }
+    return 'Umum';
+  }
+
+  /// Bagikan invoice gambar dari keranjang (sebelum dibayar) supaya pembeli
+  /// bisa langsung transfer.
+  Future<void> _shareCartInvoice() async {
+    if (_cart.isEmpty) return;
+    final subtotal = _previewFresh ? asNum(_preview?['subtotal']) : _cartTotal;
+    final discount = _previewFresh ? asNum(_preview?['discount']) : _manualDiscount;
+    final grand = _previewFresh && _preview?['grand_total'] != null
+        ? asNum(_preview?['grand_total'])
+        : (subtotal - discount);
+    final store = _invoiceStore();
+    final payload = InvoicePayload(
+      storeName: store.name,
+      storeAddress: store.address,
+      storePhone: store.phone,
+      invoiceNo: 'PENAWARAN',
+      dateText: invoiceDateText(DateTime.now().toIso8601String()),
+      cashier: context.read<AuthStore>().userName ?? '-',
+      customerLabel: _invoiceCustomerLabel(),
+      items: [
+        for (final line in _cart)
+          InvoiceLine(
+            name: line.name,
+            variant: line.variantLabel ?? '',
+            qty: line.qty,
+            price: line.priceOverride ?? line.price,
+            subtotal: (line.priceOverride ?? line.price) * line.qty,
+          ),
+      ],
+      subtotal: subtotal,
+      discount: discount,
+      total: grand,
+      paymentLabel: 'Total tagihan',
+    );
+    try {
+      await shareInvoiceImage(context, payload);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Gagal membagikan invoice: $error')));
+    }
+  }
+
+  /// Bagikan invoice final dari transaksi tersimpan.
+  Future<void> _shareReceiptInvoice(int id) async {
+    const paymentLabels = {
+      'cash': 'Tunai',
+      'qris': 'QRIS',
+      'transfer': 'Transfer',
+      'debit': 'Debit',
+    };
+    try {
+      final data = await _client.receipt(id);
+      if (!mounted) return;
+      final store = (data['store'] as Map<String, dynamic>?) ?? const {};
+      final rawItems = ((data['items'] as List?) ?? const []).cast<Map<String, dynamic>>();
+      final storeName = (store['store_name'] ?? _storeName ?? 'Anyostore').toString();
+      final payload = InvoicePayload(
+        storeName: storeName,
+        storeAddress: (store['store_address'] ?? _storeAddress).toString(),
+        storePhone: (store['store_phone'] ?? _storePhone).toString(),
+        invoiceNo: (data['invoice_no'] ?? '-').toString(),
+        dateText: invoiceDateText(data['created_at'] ?? data['transaction_date']),
+        cashier: (data['cashier'] ?? context.read<AuthStore>().userName ?? '-').toString(),
+        customerLabel: (data['customer_name']?.toString().trim().isNotEmpty ?? false)
+            ? data['customer_name'].toString()
+            : 'Umum',
+        items: [
+          for (final item in rawItems)
+            InvoiceLine(
+              name: (item['name'] ?? '-').toString(),
+              variant: (item['variant_detail'] ?? '').toString(),
+              qty: asNum(item['quantity']).toInt(),
+              price: asNum(item['price']),
+              subtotal: asNum(item['subtotal']),
+            ),
+        ],
+        subtotal: asNum(data['subtotal']),
+        discount: asNum(data['discount']),
+        total: asNum(data['grand_total']),
+        paymentLabel: paymentLabels['${data['payment_method']}'] ?? 'Pembayaran',
+        paidAmount: asNum(data['amount_paid']),
+        changeAmount: asNum(data['change']),
+      );
+      await shareInvoiceImage(context, payload);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Gagal membagikan invoice: $error')));
+    }
   }
 
   Future<void> _checkout() async {
@@ -1402,6 +1531,16 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
             TextButton(
                 onPressed: () => Navigator.pop(ctx),
                 child: const Text('Selesai')),
+            TextButton.icon(
+              onPressed: () {
+                Navigator.pop(ctx);
+                if (id != null) {
+                  unawaited(_shareReceiptInvoice(id));
+                }
+              },
+              icon: const Icon(Icons.ios_share, size: 18),
+              label: const Text('Bagikan'),
+            ),
             if (!_autoPrint)
               FilledButton.icon(
                 onPressed: () {
@@ -2243,6 +2382,7 @@ class _CartSheet extends StatefulWidget {
     required this.onRemove,
     required this.onEditPrice,
     required this.onPay,
+    required this.onShare,
     required this.onHold,
   });
 
@@ -2267,6 +2407,7 @@ class _CartSheet extends StatefulWidget {
   final ValueChanged<CartItem> onRemove;
   final ValueChanged<CartItem> onEditPrice;
   final VoidCallback onPay;
+  final VoidCallback onShare;
   final VoidCallback onHold;
 
   @override
@@ -2645,23 +2786,58 @@ class _CartSheetState extends State<_CartSheet> {
                             color: Theme.of(context).colorScheme.error)),
                   ],
                   const SizedBox(height: 8),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(52)),
-                    onPressed: widget.saving ||
-                            cart.isEmpty ||
-                            invalidDiscount ||
-                            widget.error != null
-                        ? null
-                        : widget.onPay,
-                    child: widget.saving
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : Text('Bayar · ${fmtRp(grandTotal)}',
-                            style: const TextStyle(
-                                fontSize: 17, fontWeight: FontWeight.w800)),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                              minimumSize: const Size.fromHeight(52)),
+                          onPressed: widget.saving ||
+                                  cart.isEmpty ||
+                                  invalidDiscount ||
+                                  widget.error != null
+                              ? null
+                              : widget.onPay,
+                          child: widget.saving
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2))
+                              : Text('Bayar · ${fmtRp(grandTotal)}',
+                                  style: const TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w800)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 62,
+                        height: 52,
+                        child: OutlinedButton(
+                          onPressed: cart.isEmpty || widget.saving
+                              ? null
+                              : widget.onShare,
+                          style: OutlinedButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.ios_share, size: 18),
+                              SizedBox(height: 2),
+                              Text('Bagikan',
+                                  style: TextStyle(
+                                      fontSize: 8.5,
+                                      fontWeight: FontWeight.w800)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
