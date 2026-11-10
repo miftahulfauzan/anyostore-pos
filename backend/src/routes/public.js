@@ -127,7 +127,7 @@ router.get('/products', async (req, res, next) => {
     const total = Number(countRows[0].total);
 
     const [rows] = await db.execute(
-      `SELECT p.id, p.name, p.sku, p.price, p.category_id, c.name AS category_name, c.color AS category_color, c.sort_order AS category_sort_order,
+      `SELECT p.id, p.name, p.sku, p.price, p.weight_gram, p.category_id, c.name AS category_name, c.color AS category_color, c.sort_order AS category_sort_order,
               (SELECT pp.path FROM product_photos pp WHERE pp.product_id=p.id AND pp.variant_id IS NULL ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
               (SELECT GROUP_CONCAT(pp.path ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC SEPARATOR '||') FROM product_photos pp WHERE pp.product_id=p.id AND pp.variant_id IS NULL AND pp.media_type='image') AS photo_paths,
               (SELECT pp.transform FROM product_photos pp WHERE pp.product_id=p.id AND pp.variant_id IS NULL ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_transform,
@@ -159,7 +159,7 @@ router.get('/products/:id', async (req, res, next) => {
     if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID tidak valid' });
     const branchId = Number(req.query.branch_id) || null;
 
-    let sql = `SELECT p.id, p.branch_id, p.name, p.description, p.sku, p.price, p.category_id, c.name AS category_name, c.color AS category_color, c.sort_order AS category_sort_order, b.name AS branch_name,
+    let sql = `SELECT p.id, p.branch_id, p.name, p.description, p.sku, p.price, p.weight_gram, p.category_id, c.name AS category_name, c.color AS category_color, c.sort_order AS category_sort_order, b.name AS branch_name,
                       (SELECT COALESCE(SUM(GREATEST(ws.quantity-COALESCE(ws.reserved_quantity,0),0)),0)
                          FROM warehouse_stocks ws JOIN warehouses w ON w.id=ws.warehouse_id
                         WHERE ws.product_id=p.id AND w.branch_id=p.branch_id AND w.is_active=TRUE AND COALESCE(w.type,'utama')<>'reject'
@@ -186,6 +186,51 @@ router.get('/products/:id', async (req, res, next) => {
     const colors = [...new Set(variants.map(v => v.color).filter(Boolean))];
 
     res.json({ success: true, data: { ...rows[0], media, variants, colors } });
+  } catch (e) { next(e); }
+});
+
+
+// GET /api/public/shipping-rates – tarif ongkir manual per cabang (landing).
+router.get('/shipping-rates', async (req, res, next) => {
+  try {
+    const branchId = Number(req.query.branch_id) || null;
+    if (!branchId) return res.json({ success: true, data: [] });
+    const [rows] = await db.execute(
+      'SELECT area, cost, cost_per_kg FROM shipping_rates WHERE branch_id=? AND is_active=1 ORDER BY area',
+      [branchId]
+    );
+    res.json({ success: true, data: rows });
+  } catch (e) { next(e); }
+});
+
+// POST /api/public/voucher – validasi kode promo/voucher untuk landing.
+// Tidak memakai lock (bukan transaksi) dan tidak menaikkan usage_count karena
+// pemakaian tercatat saat admin memproses pesanan.
+router.post('/voucher', async (req, res, next) => {
+  try {
+    const branchId = Number(req.body?.branch_id) || null;
+    const code = String(req.body?.code || '').trim();
+    const subtotal = Number(req.body?.subtotal) || 0;
+    if (!branchId || !code) return res.status(400).json({ success: false, message: 'Kode voucher dan cabang wajib diisi' });
+    const [rows] = await db.execute(
+      `SELECT id, code, name, discount_type, discount_value, min_purchase, max_discount
+         FROM promotions
+        WHERE branch_id=? AND UPPER(code)=UPPER(?) AND is_active=TRUE
+          AND (starts_at IS NULL OR starts_at<=NOW()) AND (ends_at IS NULL OR ends_at>=NOW())
+        LIMIT 1`,
+      [branchId, code]
+    );
+    const promo = rows[0];
+    if (!promo) return res.status(404).json({ success: false, message: 'Kode voucher tidak berlaku' });
+    if (subtotal < Number(promo.min_purchase)) {
+      return res.status(400).json({ success: false, message: `Belanja minimum Rp${Number(promo.min_purchase).toLocaleString('id-ID')} belum terpenuhi` });
+    }
+    let discount = promo.discount_type === 'percentage'
+      ? subtotal * Number(promo.discount_value) / 100
+      : Number(promo.discount_value);
+    if (promo.max_discount !== null) discount = Math.min(discount, Number(promo.max_discount));
+    discount = Math.min(Math.round(discount), subtotal);
+    res.json({ success: true, data: { code: promo.code, name: promo.name, discount } });
   } catch (e) { next(e); }
 });
 

@@ -381,7 +381,7 @@ export default function EditProductPage() {
         setTiers((itemBody.data.wholesale_prices || []).map((tier) => ({ min_qty: String(tier.min_qty), max_qty: tier.max_qty == null ? '' : String(tier.max_qty), price: String(tier.price) })));
         setVariants((itemBody.data.variants || []).map((variant) => ({ id: variant.id, color: variant.color || '', size: variant.size || '', sku: variant.sku || '', barcode: variant.barcode || '', price: variant.price == null ? '' : String(variant.price), stock: variant.stock, photo_path: variant.photo_path || '' })));
         setMedia(itemBody.data.media || []);
-        setForm({ branch_id: itemBody.data.branch_id, name: itemBody.data.name || '', category_id: String(itemBody.data.category_id), sku: itemBody.data.sku || '', barcode: itemBody.data.barcode || '', price: String(itemBody.data.price || ''), cost: String(itemBody.data.cost || ''), min_stock: String(itemBody.data.min_stock || 0), gender: itemBody.data.gender || 'unisex', description: itemBody.data.description || '' });
+        setForm({ branch_id: itemBody.data.branch_id, name: itemBody.data.name || '', category_id: String(itemBody.data.category_id), sku: itemBody.data.sku || '', barcode: itemBody.data.barcode || '', price: String(itemBody.data.price || ''), cost: String(itemBody.data.cost || ''), min_stock: String(itemBody.data.min_stock || 0), weight_gram: String(itemBody.data.weight_gram || 0), gender: itemBody.data.gender || 'unisex', description: itemBody.data.description || '' });
       })
       .catch((error) => setMessage(error.message || 'Produk tidak dapat dimuat'));
   }, [productId, branchQuery]);
@@ -534,7 +534,7 @@ export default function EditProductPage() {
     setSaving(true);
     setMessage('');
     try {
-      const response = await fetch(`${apiUrl}/products/${productId}`, { method: 'PUT', headers: headers(), body: JSON.stringify({ ...form, branch_id: Number(form.branch_id || branchId || 0), category_id: Number(form.category_id), price: Number(form.price), cost: Number(form.cost || 0), min_stock: Number(form.min_stock), wholesale_prices: tiers, variants }) });
+      const response = await fetch(`${apiUrl}/products/${productId}`, { method: 'PUT', headers: headers(), body: JSON.stringify({ ...form, branch_id: Number(form.branch_id || branchId || 0), category_id: Number(form.category_id), price: Number(form.price), cost: Number(form.cost || 0), min_stock: Number(form.min_stock), weight_gram: Number(form.weight_gram || 0), wholesale_prices: tiers, variants }) });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message || 'Produk gagal diperbarui');
       if (photo) {
@@ -566,7 +566,8 @@ export default function EditProductPage() {
             <label>Kategori<select value={form.category_id} onChange={(event) => setForm({ ...form, category_id: event.target.value })} required><option value="">Pilih kategori</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
             <div className="two-fields"><label>SKU<input value={form.sku} onChange={(event) => setForm({ ...form, sku: event.target.value })} /></label><label>Barcode<input value={form.barcode} onChange={(event) => setForm({ ...form, barcode: event.target.value })} /></label></div>
             <div className="two-fields"><label>Harga jual<input type="number" min="0" value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} required /></label><label>Harga beli<input type="number" min="0" value={form.cost} onChange={(event) => setForm({ ...form, cost: event.target.value })} /></label></div>
-            <div className="two-fields"><label>Stok minimum<input type="number" min="0" value={form.min_stock} onChange={(event) => setForm({ ...form, min_stock: event.target.value })} required /></label><label>Target pengguna<select value={form.gender} onChange={(event) => setForm({ ...form, gender: event.target.value })}><option value="unisex">Unisex</option><option value="male">Pria</option><option value="female">Wanita</option><option value="kids">Anak</option></select></label></div>
+            <div className="two-fields"><label>Stok minimum<input type="number" min="0" value={form.min_stock} onChange={(event) => setForm({ ...form, min_stock: event.target.value })} required /></label><label>Berat (gram)<input type="number" min="0" value={form.weight_gram} onChange={(event) => setForm({ ...form, weight_gram: event.target.value })} placeholder="0" /></label></div>
+          <div className="two-fields"><label>Target pengguna<select value={form.gender} onChange={(event) => setForm({ ...form, gender: event.target.value })}><option value="unisex">Unisex</option><option value="male">Pria</option><option value="female">Wanita</option><option value="kids">Anak</option></select></label></div>
             <label>Deskripsi<textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} rows={5} style={{ resize: 'vertical', minHeight: 100 }} /></label>
             <section className="variant-section">
               <div className="section-heading"><div><h3>Varian warna</h3><p>Warna dan harga khusus. Stok setiap warna dikelola melalui inventori.</p></div><button type="button" className="secondary small" onClick={() => setVariants((current) => [...current, emptyVariant()])}><Plus aria-hidden="true" size={14} /> Tambah warna</button></div>

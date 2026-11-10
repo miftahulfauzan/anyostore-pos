@@ -6,7 +6,7 @@ import AppShell from '../../components/AppShell';
 import { uploadMediaData, validateDataUpload } from '../../lib/media-upload';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-const emptyForm = { name: '', category_id: '', sku: '', barcode: '', price: '', cost: '', min_stock: '5', gender: 'unisex', description: '' };
+const emptyForm = { name: '', category_id: '', sku: '', barcode: '', price: '', cost: '', min_stock: '5', weight_gram: '0', gender: 'unisex', description: '' };
 const emptyVariant = () => ({ color: '', size: '', sku: '', barcode: '', price: '' });
 
 export default function NewProductPage() {
@@ -148,7 +148,7 @@ export default function NewProductPage() {
       const response = await fetch(`${apiUrl}/products`, {
         method: 'POST',
         headers: headers(),
-        body: JSON.stringify({ ...form, category_id: Number(form.category_id), price: Number(form.price), cost: Number(form.cost || 0), min_stock: Number(form.min_stock), wholesale_prices: tiers, variants }),
+        body: JSON.stringify({ ...form, category_id: Number(form.category_id), price: Number(form.price), cost: Number(form.cost || 0), min_stock: Number(form.min_stock), weight_gram: Number(form.weight_gram || 0), wholesale_prices: tiers, variants }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message || 'Gagal menyimpan produk');
@@ -178,7 +178,8 @@ export default function NewProductPage() {
           <label>Kategori<select value={form.category_id} onChange={(event) => setForm({ ...form, category_id: event.target.value })} required><option value="">Pilih kategori</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
           <div className="two-fields"><label>SKU<input value={form.sku} onChange={(event) => setForm({ ...form, sku: event.target.value })} /></label><label>Barcode<input value={form.barcode} onChange={(event) => setForm({ ...form, barcode: event.target.value })} /></label></div>
           <div className="two-fields"><label>Harga jual<input type="number" min="0" value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} required /></label><label>Harga beli<input type="number" min="0" value={form.cost} onChange={(event) => setForm({ ...form, cost: event.target.value })} /></label></div>
-          <div className="two-fields"><label>Stok minimum<input type="number" min="0" value={form.min_stock} onChange={(event) => setForm({ ...form, min_stock: event.target.value })} required /></label><label>Target pengguna<select value={form.gender} onChange={(event) => setForm({ ...form, gender: event.target.value })}><option value="unisex">Unisex</option><option value="male">Pria</option><option value="female">Wanita</option><option value="kids">Anak</option></select></label></div>
+          <div className="two-fields"><label>Stok minimum<input type="number" min="0" value={form.min_stock} onChange={(event) => setForm({ ...form, min_stock: event.target.value })} required /></label><label>Berat (gram)<input type="number" min="0" value={form.weight_gram} onChange={(event) => setForm({ ...form, weight_gram: event.target.value })} placeholder="0" /></label></div>
+          <div className="two-fields"><label>Target pengguna<select value={form.gender} onChange={(event) => setForm({ ...form, gender: event.target.value })}><option value="unisex">Unisex</option><option value="male">Pria</option><option value="female">Wanita</option><option value="kids">Anak</option></select></label></div>
           <label>Deskripsi<textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} rows={5} style={{ resize: 'vertical', minHeight: 100 }} /></label>
           <section className="variant-section">
             <div className="section-heading"><div><h3>Varian warna</h3><p>Tambahkan warna dan harga khusus bila diperlukan. Stok setiap warna diatur dari menu inventori.</p></div><button type="button" className="secondary small" onClick={() => setVariants((current) => [...current, emptyVariant()])}><Plus aria-hidden="true" size={14} /> Tambah warna</button></div>

@@ -394,6 +394,45 @@ router.put('/theme', authorize('gudang'), async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+
+// ===== Tarif ongkir landing (per cabang) =====
+router.get('/shipping-rates', async (req, res, next) => {
+  try {
+    const id = branchId(req);
+    const [rows] = await db.execute(
+      'SELECT id, area, cost, cost_per_kg, is_active FROM shipping_rates WHERE branch_id=? ORDER BY area',
+      [id]
+    );
+    res.json({ success: true, data: rows });
+  } catch (error) { next(error); }
+});
+
+router.post('/shipping-rates', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+  try {
+    const id = branchId(req);
+    const area = String(req.body?.area || '').trim();
+    const cost = Math.max(0, Number(req.body?.cost) || 0);
+    const costPerKg = Math.max(0, Number(req.body?.cost_per_kg) || 0);
+    if (!area) return res.status(400).json({ success: false, message: 'Nama kota/kecamatan wajib diisi' });
+    if (cost <= 0 && costPerKg <= 0) return res.status(400).json({ success: false, message: 'Tarif ongkir wajib diisi' });
+    await db.execute(
+      `INSERT INTO shipping_rates (branch_id, area, cost, cost_per_kg) VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE cost=VALUES(cost), cost_per_kg=VALUES(cost_per_kg), is_active=1`,
+      [id, area, cost, costPerKg]
+    );
+    res.status(201).json({ success: true });
+  } catch (error) { next(error); }
+});
+
+router.delete('/shipping-rates/:id', authorize('owner', 'manager', 'admin'), async (req, res, next) => {
+  try {
+    const id = branchId(req);
+    const [result] = await db.execute('DELETE FROM shipping_rates WHERE id=? AND branch_id=?', [req.params.id, id]);
+    if (!result.affectedRows) return res.status(404).json({ success: false, message: 'Tarif tidak ditemukan' });
+    res.json({ success: true });
+  } catch (error) { next(error); }
+});
+
 router.get('/', async (req, res, next) => {
   try {
     const id = branchId(req);

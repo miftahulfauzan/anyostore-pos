@@ -134,6 +134,14 @@ export default function LandingPage({ branchMatch = '' } = {}) {
   const [cart, setCart] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [orderChecking, setOrderChecking] = useState(false);
+  // Ongkir (tarif per kota) + voucher + data pembeli untuk pesanan.
+  const [shippingRates, setShippingRates] = useState([]);
+  const [shippingArea, setShippingArea] = useState('');
+  const [buyer, setBuyer] = useState({ name: '', phone: '', address: '', note: '' });
+  const [voucherCode, setVoucherCode] = useState('');
+  const [voucher, setVoucher] = useState(null);
+  const [voucherMessage, setVoucherMessage] = useState('');
+  const [voucherChecking, setVoucherChecking] = useState(false);
   const [picker, setPicker] = useState(null);
   const pickerRequest = useRef(0);
   const [pickVariantId, setPickVariantId] = useState(null);
@@ -150,6 +158,16 @@ export default function LandingPage({ branchMatch = '' } = {}) {
   function countInCart(productId) { return cart.filter((i) => Number(i.productId) === Number(productId)).reduce((s, i) => s + Number(i.qty || 0), 0); }
   const cartPcs = cart.reduce((s, i) => s + Number(i.qty || 0), 0);
   const cartTotal = cart.reduce((s, i) => s + Number(i.qty || 0) * Number(i.price || 0), 0);
+  const cartWeightGram = cart.reduce((total, item) => total + Number(item.weightGram || 0) * Number(item.qty || 0), 0);
+  const selectedRate = shippingRates.find((rate) => rate.area === shippingArea) || null;
+  const shippingCost = selectedRate
+    ? (Number(selectedRate.cost_per_kg) > 0
+        ? Math.ceil(Math.max(cartWeightGram, 1) / 1000) * Number(selectedRate.cost_per_kg)
+        : Number(selectedRate.cost || 0))
+    : 0;
+  const voucherDiscount = voucher ? Math.min(Number(voucher.discount || 0), cartTotal) : 0;
+  const grandTotal = Math.max(0, cartTotal - voucherDiscount) + shippingCost;
+  const buyerReady = buyer.name.trim() && buyer.phone.trim() && buyer.address.trim();
   const pickerSelected = picker ? picker.variants.find((v) => v.id === pickVariantId) || null : null;
   const pickerPhoto = pickerSelected?.photo_path || picker?.product?.photo_path || null;
   const modelStockRemaining = picker ? Math.max(0, Number(picker.product.available_stock || 0) - countInCart(picker.product.id)) : 0;
@@ -249,7 +267,7 @@ export default function LandingPage({ branchMatch = '' } = {}) {
     setCart((prev) => {
       const existing = prev.find((i) => i.key === key);
       if (existing) return prev.map((i) => (i.key === key ? { ...i, qty: i.qty + qty, variantId: selected?.id || null, availableStock: variantAvailableStock, modelAvailableStock } : i));
-      return [...prev, { key, productId: picker.product.id, variantId: selected?.id || null, name: picker.product.name, sku: picker.product.sku, variantLabel, price, qty, photo, availableStock: variantAvailableStock, modelAvailableStock }];
+      return [...prev, { key, productId: picker.product.id, variantId: selected?.id || null, name: picker.product.name, sku: picker.product.sku, variantLabel, price, qty, photo, weightGram: Number(picker.product.weight_gram || 0), availableStock: variantAvailableStock, modelAvailableStock }];
     });
     closePicker();
     setCartOpen(true);
@@ -280,6 +298,29 @@ export default function LandingPage({ branchMatch = '' } = {}) {
   function removeItem(key) { setCart((prev) => prev.filter((i) => i.key !== key)); }
   function clearCart() { setCart([]); }
 
+  async function applyVoucher() {
+    const code = voucherCode.trim();
+    if (!code || !branchId) return;
+    setVoucherChecking(true);
+    setVoucherMessage('');
+    try {
+      const response = await fetch(`${api}/public/voucher`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ branch_id: branchId, code, subtotal: cartTotal }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message || 'Voucher tidak berlaku');
+      setVoucher(body.data);
+      setVoucherMessage(`Voucher ${body.data.code} dipakai (-${fmtRp(body.data.discount)}).`);
+    } catch (error) {
+      setVoucher(null);
+      setVoucherMessage(error.message);
+    } finally {
+      setVoucherChecking(false);
+    }
+  }
+
   function buildOrderMsg() {
     const groups = {};
     for (const it of cart) {
@@ -290,7 +331,20 @@ export default function LandingPage({ branchMatch = '' } = {}) {
       const detail = g.items.map((it) => `    ${it.variantLabel ? `${it.variantLabel}: ` : ''}${it.qty} pcs × ${fmtRp(it.price)} = ${fmtRp(it.qty * it.price)}`).join('\n');
       return `${gi + 1}. ${g.name}\n${detail}`;
     });
-    return `Halo Anyostore, saya mau order grosir:\n\n${lines.join('\n')}\n\nTotal: ${cartPcs} pcs · ${fmtRp(cartTotal)}\nMin. pembelian 4 pcs per model\n\nSilahkan Transfer ke Rekening Berikut:\n\n[ ] BCA          : 0042813603\n[ ] MANDIRI  : 1640000929465\n\na.n. Miftahul Fauzan\n\nJika sudah transfer Mohon Konfirmasinya ya ka`;
+    const buyerBlock = [
+      buyer.name.trim() ? `Nama: ${buyer.name.trim()}` : null,
+      buyer.phone.trim() ? `No HP: ${buyer.phone.trim()}` : null,
+      shippingArea ? `Kota/Kecamatan: ${shippingArea}` : null,
+      buyer.address.trim() ? `Alamat: ${buyer.address.trim()}` : null,
+      buyer.note.trim() ? `Catatan: ${buyer.note.trim()}` : null,
+    ].filter(Boolean).join('\n');
+    const costBlock = [
+      `Subtotal: ${fmtRp(cartTotal)}`,
+      voucher ? `Voucher ${voucher.code}: -${fmtRp(voucherDiscount)}` : null,
+      shippingArea ? `Ongkir (${shippingArea}): ${fmtRp(shippingCost)}` : null,
+      `Total: ${fmtRp(grandTotal)}`,
+    ].filter(Boolean).join('\n');
+    return `Halo Anyostore, saya mau order grosir:\n\n${lines.join('\n')}\n\n${buyerBlock ? `${buyerBlock}\n\n` : ''}${costBlock}\n${cartPcs} pcs · min. pembelian 4 pcs per model\n\nSilahkan Transfer ke Rekening Berikut:\n\n[ ] BCA          : 0042813603\n[ ] MANDIRI  : 1640000929465\n\na.n. Miftahul Fauzan\n\nJika sudah transfer Mohon Konfirmasinya ya ka`;
   }
   async function sendOrder() {
     if (!cart.length || hasMinimumWarning || orderChecking) return;
@@ -338,7 +392,7 @@ export default function LandingPage({ branchMatch = '' } = {}) {
           showStockNotice(`Stok ${item.name}${item.variantLabel ? ` (${item.variantLabel})` : ''} tersisa ${availableStock} pcs.`);
           return;
         }
-        refreshedCart.push({ ...item, variantId, availableStock, modelAvailableStock: Number(product.available_stock || 0) });
+        refreshedCart.push({ ...item, variantId, availableStock, weightGram: Number(product.weight_gram ?? item.weightGram ?? 0), modelAvailableStock: Number(product.available_stock || 0) });
       }
 
       setCart(refreshedCart);
@@ -361,6 +415,14 @@ export default function LandingPage({ branchMatch = '' } = {}) {
       fetch(`${api}/public/categories`).then((r) => r.json()).then((b) => b.data || []).catch(() => []),
     ]).then(([s, c]) => { setSettings(s); setCategories(c); });
   }, [branchReady, branchQuery]);
+  useEffect(() => {
+    if (!branchReady || !branchId) return;
+    fetch(`${api}/public/shipping-rates?branch_id=${branchId}`)
+      .then((response) => response.json())
+      .then((body) => setShippingRates(Array.isArray(body.data) ? body.data : []))
+      .catch(() => setShippingRates([]));
+  }, [branchReady, branchId]);
+
   useEffect(() => { if (!branchReady) return; setLoading(true); const pageSize = [12, 24, 48].includes(Number(settings?.landing_page_size)) ? Number(settings.landing_page_size) : 24; const qs = new URLSearchParams({ limit: String(pageSize), page: String(page), ...(cat ? { category_id: cat } : {}), ...(q ? { search: q } : {}), ...(sort ? { sort } : {}), ...(branchId ? { branch_id: String(branchId) } : {}) }).toString(); fetch(`${api}/public/products?${qs}`).then((r) => r.json()).then((b) => { setProducts(b.data || []); setTotalPages(b.totalPages || 1); setTotal(b.total || 0); }).catch(() => setProducts([])).finally(() => setLoading(false)); }, [cat, q, sort, page, settings?.landing_page_size, branchReady, branchId]);
   const pages = useMemo(() => { const tp = totalPages; let s = Math.max(1, page - 2); let e = Math.min(tp, s + 4); s = Math.max(1, e - 4); const o = []; for (let i = s; i <= e; i++) o.push(i); return o; }, [page, totalPages]);
   return (
@@ -538,9 +600,35 @@ export default function LandingPage({ branchMatch = '' } = {}) {
               {!cart.length && <p style={{ textAlign: 'center', color: T.muted, padding: '24px 0', fontSize: 14 }}>Keranjang masih kosong.</p>}
             </div>
             <div style={{ borderTop: `1px solid ${T.border}`, padding: '14px 20px 18px', display: 'grid', gap: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 700, fontSize: 15, color: T.black }}>
-                <span>Total</span><span>{fmtRp(cartTotal)}</span>
+              <div style={{ display: 'grid', gap: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: T.muted }}><span>Subtotal</span><span>{fmtRp(cartTotal)}</span></div>
+                {voucher && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#15803d', fontWeight: 700 }}><span>Voucher {voucher.code}</span><span>-{fmtRp(voucherDiscount)}</span></div>}
+                {shippingArea && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: T.muted }}><span>Ongkir ({shippingArea})</span><span>{fmtRp(shippingCost)}</span></div>}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 700, fontSize: 15, color: T.black }}>
+                  <span>Total</span><span>{fmtRp(grandTotal)}</span>
+                </div>
               </div>
+
+              <div style={{ display: 'grid', gap: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: T.black }}>Alamat pengiriman</span>
+                <input value={buyer.name} onChange={(e) => setBuyer({ ...buyer, name: e.target.value })} placeholder="Nama penerima" aria-label="Nama penerima" style={{ minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13 }} />
+                <input value={buyer.phone} onChange={(e) => setBuyer({ ...buyer, phone: e.target.value })} placeholder="No HP / WhatsApp" inputMode="tel" aria-label="No HP" style={{ minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13 }} />
+                <textarea value={buyer.address} onChange={(e) => setBuyer({ ...buyer, address: e.target.value })} placeholder="Alamat lengkap (jalan, RT/RW, kelurahan, kode pos)" rows={2} aria-label="Alamat" style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13, resize: 'vertical' }} />
+                {shippingRates.length > 0 && (
+                  <select value={shippingArea} onChange={(e) => setShippingArea(e.target.value)} aria-label="Kota / kecamatan" style={{ minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13, background: '#fff' }}>
+                    <option value="">Pilih kota/kecamatan (cek ongkir)</option>
+                    {shippingRates.map((rate) => <option key={rate.area} value={rate.area}>{rate.area}{Number(rate.cost) > 0 ? ` · ${fmtRp(rate.cost)}` : Number(rate.cost_per_kg) > 0 ? ` · ${fmtRp(rate.cost_per_kg)}/kg` : ''}</option>)}
+                  </select>
+                )}
+                <input value={buyer.note} onChange={(e) => setBuyer({ ...buyer, note: e.target.value })} placeholder="Catatan untuk admin (opsional)" aria-label="Catatan" style={{ minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13 }} />
+              </div>
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input value={voucherCode} onChange={(e) => { setVoucherCode(e.target.value.toUpperCase()); setVoucherMessage(''); }} placeholder="Kode voucher" aria-label="Kode voucher" style={{ flex: 1, minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13, textTransform: 'uppercase' }} />
+                <button type="button" onClick={applyVoucher} disabled={!voucherCode.trim() || voucherChecking || !cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', padding: '0 16px' }}>{voucherChecking ? 'Cek…' : 'Pakai'}</button>
+              </div>
+              {voucherMessage && <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: voucher ? '#15803d' : '#b45309' }}>{voucherMessage}</p>}
+
               {cartWarnings.length > 0 && (
                 <div style={{ display: 'grid', gap: 3 }}>
                   {cartWarnings.map((w) => <p key={w.name} style={{ margin: 0, fontSize: 'var(--fs-xs)', color: '#b45309' }}>{w.qty < MIN_ORDER_QTY ? `${w.name} ${w.qty} pcs. Minimum ${MIN_ORDER_QTY} pcs per model.` : `${w.name}: jumlah pesanan melebihi stok tersedia (${Number(w.available || 0)} pcs).`}</p>)}
@@ -549,7 +637,7 @@ export default function LandingPage({ branchMatch = '' } = {}) {
               <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: T.muted }}>Minimal pembelian 4 pcs per model. Varian boleh dicampur.</p>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button type="button" onClick={clearCart} disabled={!cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', minWidth: 110 }}>Kosongkan</button>
-                <button type="button" onClick={sendOrder} disabled={!cart.length || hasMinimumWarning || orderChecking} className="pcard-btn primary" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44 }}><I.chat style={{ width: 15, height: 15 }} /> {orderChecking ? 'Memeriksa stok…' : 'Chat Pesanan via WhatsApp'}</button>
+                <button type="button" onClick={sendOrder} disabled={!cart.length || hasMinimumWarning || orderChecking || !buyerReady} title={buyerReady ? '' : 'Isi nama, No HP, dan alamat dulu'} className="pcard-btn primary" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44 }}><I.chat style={{ width: 15, height: 15 }} /> {orderChecking ? 'Memeriksa stok…' : 'Chat Pesanan via WhatsApp'}</button>
               </div>
             </div>
           </div>

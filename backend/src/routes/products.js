@@ -453,7 +453,7 @@ router.get('/:id', async (req, res, next) => {
   try {
     const branchId = await readableBranchId(req);
     const [rows] = await db.execute(
-      `SELECT p.id, p.branch_id, p.name, p.description, p.category_id, p.sku, p.barcode, p.price, p.cost, p.stock, p.min_stock, p.gender,
+      `SELECT p.id, p.branch_id, p.name, p.description, p.category_id, p.sku, p.barcode, p.price, p.cost, p.stock, p.min_stock, p.gender, p.weight_gram,
               c.name AS category_name, c.color AS category_color, c.sort_order AS category_sort_order,
                (SELECT pp.path FROM product_photos pp WHERE pp.product_id = p.id AND pp.variant_id IS NULL AND pp.media_type = 'image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
                (SELECT pp.\`transform\` FROM product_photos pp WHERE pp.product_id = p.id AND pp.variant_id IS NULL AND pp.media_type = 'image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_transform
@@ -672,7 +672,7 @@ router.post('/:id/variants/:variantId/photo-data', authorize('owner', 'manager',
 
 router.post('/', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
-    const { name, category_id: categoryId, sku, barcode, price, cost = 0, min_stock: minStock = 5, gender = 'unisex', description, wholesale_prices: wholesalePrices, variants: inputVariants } = req.body;
+    const { name, category_id: categoryId, sku, barcode, price, cost = 0, min_stock: minStock = 5, gender = 'unisex', description, weight_gram: weightGram = 0, wholesale_prices: wholesalePrices, variants: inputVariants } = req.body;
     if (!name?.trim() || !Number.isInteger(Number(categoryId)) || !positiveNumber(price) || !positiveNumber(cost) || !positiveNumber(minStock)) {
       return res.status(400).json({ success: false, message: 'Nama, kategori, harga, biaya, dan stok minimum tidak valid' });
     }
@@ -683,9 +683,9 @@ router.post('/', authorize('owner', 'manager', 'admin', 'gudang'), async (req, r
     const tiers = normalizeWholesalePrices(wholesalePrices);
     const variants = normalizeVariants(inputVariants);
     const [result] = await db.execute(
-      `INSERT INTO products (branch_id, category_id, name, description, sku, barcode, price, cost, min_stock, gender)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [branchId, categoryId, name.trim(), description?.trim() || null, sku?.trim() || null, barcode?.trim() || null, Number(price), Number(cost), Number(minStock), gender]
+      `INSERT INTO products (branch_id, category_id, name, description, sku, barcode, price, cost, min_stock, gender, weight_gram)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [branchId, categoryId, name.trim(), description?.trim() || null, sku?.trim() || null, barcode?.trim() || null, Number(price), Number(cost), Number(minStock), gender, Math.max(0, Number(weightGram) || 0)]
     );
     for (const tier of tiers) await db.execute('INSERT INTO wholesale_prices (product_id, min_qty, max_qty, price) VALUES (?, ?, ?, ?)', [result.insertId, tier.min_qty, tier.max_qty, tier.price]);
     for (const variant of variants) await db.execute('INSERT INTO product_variants (product_id, size, color, sku, barcode, stock, price) VALUES (?, ?, ?, ?, ?, 0, ?)', [result.insertId, variant.size || null, variant.color || null, variant.sku, variant.barcode, variant.price]);
@@ -766,7 +766,7 @@ router.post('/:id/copy', authorize('owner', 'manager', 'admin', 'gudang'), async
 
 router.put('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {
-    const { name, category_id: categoryId, sku, barcode, price, cost = 0, min_stock: minStock = 5, gender = 'unisex', description, wholesale_prices: wholesalePrices, variants: inputVariants } = req.body;
+    const { name, category_id: categoryId, sku, barcode, price, cost = 0, min_stock: minStock = 5, gender = 'unisex', description, weight_gram: weightGram = 0, wholesale_prices: wholesalePrices, variants: inputVariants } = req.body;
     if (!name?.trim() || !Number.isInteger(Number(categoryId)) || !positiveNumber(price) || !positiveNumber(cost) || !positiveNumber(minStock)) return res.status(400).json({ success: false, message: 'Nama, kategori, harga, biaya, dan stok minimum tidak valid' });
     if (!['male', 'female', 'unisex', 'kids'].includes(gender)) return res.status(400).json({ success: false, message: 'Target pengguna tidak valid' });
     const branchId = writableBranchId(req);
@@ -780,9 +780,9 @@ router.put('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (req,
       [req.params.id, branchId]
     );
     const [result] = await db.execute(
-      `UPDATE products SET category_id = ?, name = ?, description = ?, sku = ?, barcode = ?, price = ?, cost = ?, min_stock = ?, gender = ?
+      `UPDATE products SET category_id = ?, name = ?, description = ?, sku = ?, barcode = ?, price = ?, cost = ?, min_stock = ?, gender = ?, weight_gram = ?
        WHERE id = ? AND branch_id = ?`,
-      [Number(categoryId), name.trim(), description?.trim() || null, sku?.trim() || null, barcode?.trim() || null, Number(price), Number(cost), Number(minStock), gender, req.params.id, branchId]
+      [Number(categoryId), name.trim(), description?.trim() || null, sku?.trim() || null, barcode?.trim() || null, Number(price), Number(cost), Number(minStock), gender, Math.max(0, Number(weightGram) || 0), req.params.id, branchId]
     );
     if (!result.affectedRows) return res.status(404).json({ success: false, message: 'Produk tidak ditemukan' });
     await db.execute('UPDATE wholesale_prices SET is_active = FALSE WHERE product_id = ?', [req.params.id]);
