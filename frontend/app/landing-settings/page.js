@@ -23,7 +23,11 @@ export default function LandingSettingsPage() {
   const [saving, setSaving] = useState(false);
 
   // Profil & katalog
-  const [profile, setProfile] = useState({ store_name: '', store_address: '', store_phone: '', landing_page_size: '24' });
+  const [profile, setProfile] = useState({ store_name: '', store_address: '', store_phone: '', landing_page_size: '24', min_order_qty: '4' });
+  const [ongkir, setOngkir] = useState({ ongkir_provider: 'manual', rajaongkir_api_key: '', rajaongkir_origin_id: '', rajaongkir_origin_label: '', ongkir_couriers: ['jne', 'jnt', 'sicepat'] });
+  const [originQuery, setOriginQuery] = useState('');
+  const [originResults, setOriginResults] = useState([]);
+  const [originLoading, setOriginLoading] = useState(false);
   const [waList, setWaList] = useState(['', '', '']);
 
   // Ongkir
@@ -46,6 +50,19 @@ export default function LandingSettingsPage() {
       store_address: data.store_address || '',
       store_phone: data.store_phone || '',
       landing_page_size: String(data.landing_page_size || '24'),
+      min_order_qty: String(data.min_order_qty ?? '4'),
+    });
+    let couriers = ['jne', 'jnt', 'sicepat'];
+    try {
+      const parsed = JSON.parse(data.ongkir_couriers || '[]');
+      if (Array.isArray(parsed) && parsed.length) couriers = parsed.map(String);
+    } catch { /* default */ }
+    setOngkir({
+      ongkir_provider: data.ongkir_provider === 'rajaongkir' ? 'rajaongkir' : 'manual',
+      rajaongkir_api_key: data.rajaongkir_api_key || '',
+      rajaongkir_origin_id: data.rajaongkir_origin_id || '',
+      rajaongkir_origin_label: data.rajaongkir_origin_label || '',
+      ongkir_couriers: couriers,
     });
     let numbers = [];
     if (Array.isArray(data.whatsapp_numbers)) numbers = data.whatsapp_numbers.map(String).filter(Boolean);
@@ -98,7 +115,6 @@ export default function LandingSettingsPage() {
         setMessage(error.message);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOwner]);
 
   function changeBranch(value) {
@@ -122,6 +138,12 @@ export default function LandingSettingsPage() {
           whatsapp_number_2: cleanWa[1] || '',
           whatsapp_number_3: cleanWa[2] || '',
           whatsapp_numbers: JSON.stringify(cleanWa),
+          min_order_qty: Number(profile.min_order_qty || 0),
+          ongkir_provider: ongkir.ongkir_provider,
+          rajaongkir_api_key: ongkir.rajaongkir_api_key,
+          rajaongkir_origin_id: ongkir.rajaongkir_origin_id,
+          rajaongkir_origin_label: ongkir.rajaongkir_origin_label,
+          ongkir_couriers: JSON.stringify(ongkir.ongkir_couriers),
         }),
       });
       const body = await response.json();
@@ -131,6 +153,21 @@ export default function LandingSettingsPage() {
       setMessage(error.message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function searchOrigin() {
+    const query = originQuery.trim();
+    if (query.length < 3) return;
+    setOriginLoading(true);
+    try {
+      const response = await fetch(`${api}/public/shipping/destinations?branch_id=${branch}&q=${encodeURIComponent(query)}`);
+      const body = await response.json();
+      setOriginResults(Array.isArray(body.data) ? body.data : []);
+    } catch {
+      setOriginResults([]);
+    } finally {
+      setOriginLoading(false);
     }
   }
 
@@ -239,12 +276,62 @@ export default function LandingSettingsPage() {
                 <option value="48">48 produk</option>
               </select>
             </label>
+            <label>Minimal order per model
+              <input type="number" min="0" value={profile.min_order_qty} onChange={(event) => setProfile({ ...profile, min_order_qty: event.target.value })} placeholder="4" />
+            </label>
+            <small className="muted" style={{ gridColumn: '1 / -1' }}>Isi 0 bila toko ini tanpa minimum order.</small>
           </div>
           <div className="form-actions"><button type="submit" disabled={saving}>{saving ? 'Menyimpan…' : `Simpan untuk ${storeLabel}`}</button></div>
         </form>
       )}
 
       {tab === 'ongkir' && (
+        <form className="panel" onSubmit={saveProfile}>
+          <h2>Metode perhitungan ongkir</h2>
+          <label>Penyedia
+            <select value={ongkir.ongkir_provider} onChange={(event) => setOngkir({ ...ongkir, ongkir_provider: event.target.value })}>
+              <option value="manual">Tarif manual per kota</option>
+              <option value="rajaongkir">RajaOngkir (otomatis, cek tarif ekspedisi)</option>
+            </select>
+          </label>
+          {ongkir.ongkir_provider === 'rajaongkir' && (
+            <>
+              <label>API key RajaOngkir<input type="password" autoComplete="new-password" value={ongkir.rajaongkir_api_key} onChange={(event) => setOngkir({ ...ongkir, rajaongkir_api_key: event.target.value })} placeholder="Tempel API key" /></label>
+              <div className="two-fields">
+                <label>Kota asal (cari kecamatan)
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input value={originQuery} onChange={(event) => setOriginQuery(event.target.value)} placeholder="Mis. Metro Pusat" />
+                    <button type="button" className="secondary" onClick={searchOrigin} disabled={originLoading}>{originLoading ? '…' : 'Cari'}</button>
+                  </div>
+                </label>
+                <label>Kota asal terpilih<input value={ongkir.rajaongkir_origin_label} readOnly placeholder="Belum dipilih" /></label>
+              </div>
+              {originResults.length > 0 && (
+                <div className="product-list">
+                  {originResults.map((item) => (
+                    <article key={item.id}>
+                      <div><strong>{item.label}</strong></div>
+                      <button type="button" onClick={() => { setOngkir({ ...ongkir, rajaongkir_origin_id: String(item.id), rajaongkir_origin_label: item.label }); setOriginResults([]); setOriginQuery(item.label); }}>Pilih</button>
+                    </article>
+                  ))}
+                </div>
+              )}
+              <fieldset className="two-fields">
+                <legend>Ekspedisi yang dicek</legend>
+                {['jne', 'jnt', 'sicepat', 'anteraja', 'ninja', 'pos', 'tiki'].map((code) => (
+                  <label key={code} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input type="checkbox" checked={ongkir.ongkir_couriers.includes(code)} onChange={(event) => setOngkir({ ...ongkir, ongkir_couriers: event.target.checked ? [...ongkir.ongkir_couriers, code] : ongkir.ongkir_couriers.filter((item) => item !== code) })} />
+                    {code.toUpperCase()}
+                  </label>
+                ))}
+              </fieldset>
+            </>
+          )}
+          <div className="form-actions"><button type="submit" disabled={saving}>{saving ? 'Menyimpan…' : 'Simpan metode ongkir'}</button></div>
+        </form>
+      )}
+
+      {tab === 'ongkir' && ongkir.ongkir_provider === 'manual' && (
         <div className="product-grid">
           <form className="panel" onSubmit={saveRate}>
             <h2>Tambah tarif ongkir</h2>

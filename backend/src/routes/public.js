@@ -74,6 +74,16 @@ router.get('/settings', async (req, res, next) => {
         whatsapp_numbers: waList,
         receipt_header: settings.receipt_header || '',
         landing_page_size: [12, 24, 48].includes(Number(settings.landing_page_size)) ? Number(settings.landing_page_size) : 24,
+        min_order_qty: Number(settings.min_order_qty ?? 4) >= 0 ? Number(settings.min_order_qty ?? 4) : 4,
+        ongkir_provider: settings.ongkir_provider === 'rajaongkir' ? 'rajaongkir' : 'manual',
+        ongkir_couriers: (() => {
+          try {
+            const parsed = JSON.parse(settings.ongkir_couriers || '[]');
+            return Array.isArray(parsed) && parsed.length ? parsed.map(String) : ['jne', 'jnt', 'sicepat'];
+          } catch { return ['jne', 'jnt', 'sicepat']; }
+        })(),
+        rajaongkir_origin_label: settings.rajaongkir_origin_label || '',
+        rajaongkir_ready: Boolean(settings.rajaongkir_api_key && settings.rajaongkir_origin_id),
       },
     });
   } catch (e) { next(e); }
@@ -240,6 +250,91 @@ router.post('/voucher', async (req, res, next) => {
     if (promo.max_discount !== null) discount = Math.min(discount, Number(promo.max_discount));
     discount = Math.min(Math.round(discount), subtotal);
     res.json({ success: true, data: { code: promo.code, name: promo.name, discount } });
+  } catch (e) { next(e); }
+});
+
+
+const RAJAONGKIR_BASE = 'https://rajaongkir.komerce.id/api/v1';
+
+async function branchOngkirConfig(branchId) {
+  if (!branchId) return null;
+  const [rows] = await db.execute(
+    "SELECT `key`, `value` FROM store_settings WHERE branch_id=? AND `key` IN ('rajaongkir_api_key','rajaongkir_origin_id','rajaongkir_origin_label','ongkir_couriers','ongkir_provider')",
+    [branchId]
+  );
+  const map = Object.fromEntries(rows.map((row) => [row.key, row.value]));
+  if (!map.rajaongkir_api_key) return null;
+  let couriers = ['jne', 'jnt', 'sicepat'];
+  try {
+    const parsed = JSON.parse(map.ongkir_couriers || '[]');
+    if (Array.isArray(parsed) && parsed.length) couriers = parsed.map(String);
+  } catch { /* pakai default */ }
+  return {
+    apiKey: map.rajaongkir_api_key,
+    originId: map.rajaongkir_origin_id || '',
+    originLabel: map.rajaongkir_origin_label || '',
+    provider: map.ongkir_provider === 'rajaongkir' ? 'rajaongkir' : 'manual',
+    couriers,
+  };
+}
+
+// GET /api/public/shipping/destinations?branch_id=&q=  (proxy pencarian kecamatan)
+router.get('/shipping/destinations', async (req, res, next) => {
+  try {
+    const branchId = Number(req.query.branch_id) || null;
+    const query = String(req.query.q || '').trim();
+    if (!query || query.length < 3) return res.json({ success: true, data: [] });
+    const config = await branchOngkirConfig(branchId);
+    if (!config) return res.status(400).json({ success: false, message: 'Ongkir otomatis belum diatur untuk toko ini' });
+    const url = `${RAJAONGKIR_BASE}/destination/domestic-destination?search=${encodeURIComponent(query)}&limit=8&offset=0`;
+    const response = await fetch(url, { headers: { key: config.apiKey } });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || body?.meta?.status !== 'success') {
+      return res.status(502).json({ success: false, message: body?.meta?.message || 'Gagal mencari kecamatan' });
+    }
+    res.json({ success: true, data: Array.isArray(body.data) ? body.data : [] });
+  } catch (e) { next(e); }
+});
+
+// POST /api/public/shipping/cost – hitung tarif ekspedisi untuk berat keranjang.
+router.post('/shipping/cost', async (req, res, next) => {
+  try {
+    const branchId = Number(req.body?.branch_id) || null;
+    const destination = String(req.body?.destination || '').trim();
+    const weight = Math.max(1, Math.round(Number(req.body?.weight) || 0));
+    if (!destination) return res.status(400).json({ success: false, message: 'Tujuan pengiriman wajib dipilih' });
+    const config = await branchOngkirConfig(branchId);
+    if (!config) return res.status(400).json({ success: false, message: 'Ongkir otomatis belum diatur untuk toko ini' });
+    if (!config.originId) return res.status(400).json({ success: false, message: 'Kota asal pengiriman belum diatur' });
+    const params = new URLSearchParams({
+      origin: String(config.originId),
+      destination,
+      weight: String(weight),
+      courier: config.couriers.join(':'),
+      price: 'lowest',
+    });
+    const response = await fetch(`${RAJAONGKIR_BASE}/calculate/domestic-cost`, {
+      method: 'POST',
+      headers: { key: config.apiKey, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || body?.meta?.status !== 'success') {
+      return res.status(502).json({ success: false, message: body?.meta?.message || 'Gagal menghitung ongkir' });
+    }
+    const options = (Array.isArray(body.data) ? body.data : [])
+      .map((row) => ({
+        courier: String(row.code || ''),
+        courier_name: String(row.name || ''),
+        service: String(row.service || ''),
+        description: String(row.description || ''),
+        cost: Number(row.cost || 0),
+        etd: String(row.etd || ''),
+      }))
+      .filter((row) => row.cost > 0)
+      .sort((a, b) => a.cost - b.cost)
+      .slice(0, 12);
+    res.json({ success: true, data: { weight, options } });
   } catch (e) { next(e); }
 });
 

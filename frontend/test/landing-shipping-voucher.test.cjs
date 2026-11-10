@@ -22,7 +22,12 @@ test('keranjang landing punya alamat, cek ongkir, dan voucher', () => {
   assert.match(landing, /Math\.ceil\(Math\.max\(cartWeightGram, 1\) \/ 1000\) \* Number\(selectedRate\.cost_per_kg\)/);
   // Pesanan WhatsApp memuat alamat & rincian biaya.
   assert.match(landing, /Alamat: \$\{buyer\.address\.trim\(\)\}/);
-  assert.match(landing, /Ongkir \(\$\{shippingArea\}\): \$\{fmtRp\(shippingCost\)\}/);
+  assert.match(landing, /Ongkir\$\{shippingLabel \? ` \(\$\{shippingLabel\}\)` : ''\}: \$\{fmtRp\(shippingCost\)\}/);
+  // Minimal order bisa diatur per cabang (0 = tanpa minimum).
+  assert.match(landing, /min_order_qty/);
+  // Ongkir otomatis RajaOngkir: cari kecamatan + daftar layanan kurir.
+  assert.match(landing, /public\/shipping\/destinations/);
+  assert.match(landing, /public\/shipping\/cost/);
 });
 
 test('setelan landing (ongkir & voucher) ada di satu halaman', () => {

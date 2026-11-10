@@ -45,3 +45,15 @@ test('skrip isi berat massal tersedia dan aman dijalankan ulang', () => {
   assert.match(script, /--dry-run/);
   assert.match(script, /--branch/);
 });
+
+test('ongkir otomatis RajaOngkir diproksi dari server dan minimal order diatur per cabang', () => {
+  assert.match(publicRoute, /router\.get\('\/shipping\/destinations'/);
+  assert.match(publicRoute, /router\.post\('\/shipping\/cost'/);
+  assert.match(publicRoute, /rajaongkir\.komerce\.id/);
+  // API key tidak pernah dikirim ke browser.
+  assert.match(publicRoute, /rajaongkir_ready: Boolean/);
+  assert.doesNotMatch(publicRoute, /rajaongkir_api_key: settings\.rajaongkir_api_key/);
+  assert.match(publicRoute, /min_order_qty/);
+  assert.match(settingsRoute, /'min_order_qty'/);
+  assert.match(settingsRoute, /'ongkir_provider'/);
+});

@@ -7,7 +7,7 @@ import SafeImage from './components/SafeImage';
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 const T = { black: '#1a1a1a', blue: '#1e3a5f', white: '#ffffff', bg: '#fafafa', card: '#ffffff', muted: '#71717a', border: '#e5e7eb' };
-const MIN_ORDER_QTY = 4;
+const DEFAULT_MIN_ORDER_QTY = 4;
 
 const I = {
   box: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></svg>),
@@ -146,6 +146,14 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
   const [orderChecking, setOrderChecking] = useState(false);
   // Ongkir (tarif per kota) + voucher + data pembeli untuk pesanan.
   const [shippingRates, setShippingRates] = useState([]);
+  // Ongkir otomatis (RajaOngkir/Komerce) untuk cabang dengan integrasi aktif.
+  const [destinationQuery, setDestinationQuery] = useState('');
+  const [destinations, setDestinations] = useState([]);
+  const [destination, setDestination] = useState(null);
+  const [shippingOptions, setShippingOptions] = useState([]);
+  const [selectedShipping, setSelectedShipping] = useState(null);
+  const [shippingLoading, setShippingLoading] = useState(false);
+  const [shippingNotice, setShippingNotice] = useState('');
   const [shippingArea, setShippingArea] = useState('');
   const [buyer, setBuyer] = useState({ name: '', phone: '', address: '', note: '' });
   const [voucherCode, setVoucherCode] = useState('');
@@ -167,14 +175,26 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
   useEffect(() => { try { localStorage.setItem('landing_cart', JSON.stringify(cart)); } catch { /* storage may be unavailable in private browsing */ } }, [cart]);
   function countInCart(productId) { return cart.filter((i) => Number(i.productId) === Number(productId)).reduce((s, i) => s + Number(i.qty || 0), 0); }
   const cartPcs = cart.reduce((s, i) => s + Number(i.qty || 0), 0);
+  // Minimal pembelian per model mengikuti pengaturan cabang (0/1 = tanpa minimum).
+  const minOrderQty = (() => {
+    const configured = Number(settings?.min_order_qty);
+    if (!Number.isFinite(configured) || configured < 0) return DEFAULT_MIN_ORDER_QTY;
+    return configured === 0 ? 1 : configured;
+  })();
+  const hasMinimumOrder = minOrderQty > 1;
   const cartTotal = cart.reduce((s, i) => s + Number(i.qty || 0) * Number(i.price || 0), 0);
   const cartWeightGram = cart.reduce((total, item) => total + Number(item.weightGram || 0) * Number(item.qty || 0), 0);
+  const usesCourierApi = settings?.ongkir_provider === 'rajaongkir';
   const selectedRate = shippingRates.find((rate) => rate.area === shippingArea) || null;
-  const shippingCost = selectedRate
+  const manualShippingCost = selectedRate
     ? (Number(selectedRate.cost_per_kg) > 0
         ? Math.ceil(Math.max(cartWeightGram, 1) / 1000) * Number(selectedRate.cost_per_kg)
         : Number(selectedRate.cost || 0))
     : 0;
+  const shippingCost = usesCourierApi ? Number(selectedShipping?.cost || 0) : manualShippingCost;
+  const shippingLabel = usesCourierApi
+    ? (selectedShipping ? `${selectedShipping.courier_name} ${selectedShipping.service}${selectedShipping.etd ? ` · ${selectedShipping.etd}` : ''}` : '')
+    : shippingArea;
   const voucherDiscount = voucher ? Math.min(Number(voucher.discount || 0), cartTotal) : 0;
   const grandTotal = Math.max(0, cartTotal - voucherDiscount) + shippingCost;
   const buyerReady = buyer.name.trim() && buyer.phone.trim() && buyer.address.trim();
@@ -192,8 +212,8 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
       const item = cart.find((i) => Number(i.productId) === Number(pid));
       return { name: item?.name || 'Produk', qty, available: item?.modelAvailableStock };
     })
-    .filter((w) => w.qty < MIN_ORDER_QTY || (w.available != null && w.qty > Number(w.available)));
-  const hasMinimumWarning = cartWarnings.some((warning) => warning.qty < MIN_ORDER_QTY);
+    .filter((w) => w.qty < minOrderQty || (w.available != null && w.qty > Number(w.available)));
+  const hasMinimumWarning = cartWarnings.some((warning) => warning.qty < minOrderQty);
 
   function showStockNotice(message) {
     setStockNotice(message);
@@ -222,9 +242,9 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
         const currentProduct = { ...product, ...body.data };
         const available = Number(currentProduct.available_stock || 0);
         const alreadyInCart = countInCart(product.id);
-        if (available < MIN_ORDER_QTY) {
+        if (available < minOrderQty) {
           setPicker(null);
-          showStockNotice(`Stok ${product.name} hanya ${available} pcs. Minimum pembelian ${MIN_ORDER_QTY} pcs per model.`);
+          showStockNotice(`Stok ${product.name} hanya ${available} pcs. Minimum pembelian ${minOrderQty} pcs per model.`);
           return;
         }
         if (alreadyInCart >= available) {
@@ -247,7 +267,7 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
         const inVariant = firstAvailable
           ? cart.filter((item) => item.key === `${product.id}-${firstAvailable.id}`).reduce((sum, item) => sum + item.qty, 0)
           : 0;
-        const remaining = Math.min(MIN_ORDER_QTY - alreadyInCart, available - alreadyInCart, Number(firstAvailable?.available_stock ?? available) - inVariant);
+        const remaining = Math.min(minOrderQty - alreadyInCart, available - alreadyInCart, Number(firstAvailable?.available_stock ?? available) - inVariant);
         setPickQty(Math.max(1, remaining));
       })
       .catch(() => {
@@ -288,13 +308,13 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
     if (!item) return;
     const modelTotal = cart.filter((current) => Number(current.productId) === Number(item.productId)).reduce((sum, current) => sum + Number(current.qty || 0), 0);
     const others = modelTotal - item.qty;
-    const minQty = Math.max(1, MIN_ORDER_QTY - others);
+    const minQty = Math.max(1, minOrderQty - others);
     const maxQty = Math.min(
       item.availableStock == null ? Number.POSITIVE_INFINITY : Number(item.availableStock) - cart.filter((current) => current.key === key).reduce((sum, current) => sum + current.qty, 0) + item.qty,
       item.modelAvailableStock == null ? Number.POSITIVE_INFINITY : Number(item.modelAvailableStock) - others,
     );
     if (maxQty < minQty) {
-      showStockNotice(`Stok ${item.name} tidak cukup untuk minimum ${MIN_ORDER_QTY} pcs per model.`);
+      showStockNotice(`Stok ${item.name} tidak cukup untuk minimum ${minOrderQty} pcs per model.`);
       return;
     }
     const requested = Math.max(minQty, Number(qty) || minQty);
@@ -331,6 +351,57 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
     }
   }
 
+  // Cari kecamatan tujuan (RajaOngkir) dengan jeda ketik.
+  useEffect(() => {
+    if (!usesCourierApi || !branchId) return undefined;
+    const query = destinationQuery.trim();
+    if (query.length < 3) {
+      setDestinations([]);
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      fetch(`${api}/public/shipping/destinations?branch_id=${branchId}&q=${encodeURIComponent(query)}`)
+        .then((response) => response.json())
+        .then((body) => setDestinations(Array.isArray(body.data) ? body.data : []))
+        .catch(() => setDestinations([]));
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [destinationQuery, usesCourierApi, branchId]);
+
+  // Hitung tarif ekspedisi saat tujuan/berat keranjang berubah.
+  useEffect(() => {
+    if (!usesCourierApi || !branchId || !destination?.id) {
+      setShippingOptions([]);
+      setSelectedShipping(null);
+      return;
+    }
+    let cancelled = false;
+    setShippingLoading(true);
+    setShippingNotice('');
+    fetch(`${api}/public/shipping/cost`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ branch_id: branchId, destination: String(destination.id), weight: Math.max(cartWeightGram, 300) }),
+    })
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.message || 'Gagal menghitung ongkir');
+        if (cancelled) return;
+        const options = Array.isArray(body.data?.options) ? body.data.options : [];
+        setShippingOptions(options);
+        setSelectedShipping(options[0] || null);
+        if (!options.length) setShippingNotice('Tidak ada layanan pengiriman untuk tujuan ini.');
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setShippingOptions([]);
+        setSelectedShipping(null);
+        setShippingNotice(error.message);
+      })
+      .finally(() => { if (!cancelled) setShippingLoading(false); });
+    return () => { cancelled = true; };
+  }, [destination, cartWeightGram, usesCourierApi, branchId]);
+
   function buildOrderMsg() {
     const groups = {};
     for (const it of cart) {
@@ -344,17 +415,17 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
     const buyerBlock = [
       buyer.name.trim() ? `Nama: ${buyer.name.trim()}` : null,
       buyer.phone.trim() ? `No HP: ${buyer.phone.trim()}` : null,
-      shippingArea ? `Kota/Kecamatan: ${shippingArea}` : null,
+      (usesCourierApi ? destination?.label : shippingArea) ? `Tujuan: ${usesCourierApi ? destination?.label : shippingArea}` : null,
       buyer.address.trim() ? `Alamat: ${buyer.address.trim()}` : null,
       buyer.note.trim() ? `Catatan: ${buyer.note.trim()}` : null,
     ].filter(Boolean).join('\n');
     const costBlock = [
       `Subtotal: ${fmtRp(cartTotal)}`,
       voucher ? `Voucher ${voucher.code}: -${fmtRp(voucherDiscount)}` : null,
-      shippingArea ? `Ongkir (${shippingArea}): ${fmtRp(shippingCost)}` : null,
+      (shippingArea || selectedShipping) ? `Ongkir${shippingLabel ? ` (${shippingLabel})` : ''}: ${fmtRp(shippingCost)}` : null,
       `Total: ${fmtRp(grandTotal)}`,
     ].filter(Boolean).join('\n');
-    return `Halo Anyostore, saya mau order grosir:\n\n${lines.join('\n')}\n\n${buyerBlock ? `${buyerBlock}\n\n` : ''}${costBlock}\n${cartPcs} pcs · min. pembelian 4 pcs per model\n\nSilahkan Transfer ke Rekening Berikut:\n\n[ ] BCA          : 0042813603\n[ ] MANDIRI  : 1640000929465\n\na.n. Miftahul Fauzan\n\nJika sudah transfer Mohon Konfirmasinya ya ka`;
+    return `Halo Anyostore, saya mau order grosir:\n\n${lines.join('\n')}\n\n${buyerBlock ? `${buyerBlock}\n\n` : ''}${costBlock}\n${cartPcs} pcs${hasMinimumOrder ? ` · min. pembelian ${minOrderQty} pcs per model` : ''}\n\nSilahkan Transfer ke Rekening Berikut:\n\n[ ] BCA          : 0042813603\n[ ] MANDIRI  : 1640000929465\n\na.n. Miftahul Fauzan\n\nJika sudah transfer Mohon Konfirmasinya ya ka`;
   }
   async function sendOrder() {
     if (!cart.length || hasMinimumWarning || orderChecking) return;
@@ -377,8 +448,8 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
       for (const [productId, qty] of Object.entries(quantitiesByModel)) {
         const product = productsById.get(Number(productId));
         const available = Number(product.available_stock || 0);
-        if (qty < MIN_ORDER_QTY) {
-          showStockNotice(`${product.name}: minimum pembelian ${MIN_ORDER_QTY} pcs per model.`);
+        if (qty < minOrderQty) {
+          showStockNotice(`${product.name}: minimum pembelian ${minOrderQty} pcs per model.`);
           return;
         }
         if (qty > available) {
@@ -441,7 +512,7 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
       <h1 style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }}>Anyostore - Grosir Pakaian Denim Wanita</h1>
       {/* 1. Top bar */}
       <div style={{ background: T.black, color: '#fff', textAlign: 'center', padding: '6px 16px', fontSize: 'var(--fs-xs)', fontWeight: 500, letterSpacing: '.04em' }}>
-        Minimal 4 pcs per model · Grosir langsung dari supplier
+        {hasMinimumOrder ? `Minimal ${minOrderQty} pcs per model · Grosir langsung dari supplier` : 'Tanpa minimum order · Grosir langsung dari supplier'}
       </div>
 
       {/* 2. Header */}
@@ -459,7 +530,7 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
       <div className="feature-strip">
         <div className="feature-item">
           <span className="feature-icon"><I.box style={{ width: 20, height: 20 }} /></span>
-          <span><strong>Min 4 pcs/model</strong><span className="feature-desc">Grosir langsung dari supplier</span></span>
+          <span><strong>{hasMinimumOrder ? `Min ${minOrderQty} pcs/model` : 'Tanpa minimum'}</strong><span className="feature-desc">Grosir langsung dari supplier</span></span>
         </div>
         <div className="feature-item">
           <span className="feature-icon"><I.truck style={{ width: 20, height: 20 }} /></span>
@@ -528,7 +599,7 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
         <div className="landing-footer-grid">
           <div className="landing-footer-brand">
             <strong>ANYOSTORE</strong>
-            <p>Supplier baju denim grosir wanita. Minimal 4 pcs per model.</p>
+            <p>Supplier baju denim grosir wanita. {hasMinimumOrder ? `Minimal ${minOrderQty} pcs per model.` : 'Tanpa minimum order, bisa campur model.'}</p>
           </div>
           <div className="landing-footer-column">
             <strong className="landing-footer-heading">Navigasi</strong>
@@ -624,7 +695,32 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
                 <input value={buyer.name} onChange={(e) => setBuyer({ ...buyer, name: e.target.value })} placeholder="Nama penerima" aria-label="Nama penerima" style={{ minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13 }} />
                 <input value={buyer.phone} onChange={(e) => setBuyer({ ...buyer, phone: e.target.value })} placeholder="No HP / WhatsApp" inputMode="tel" aria-label="No HP" style={{ minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13 }} />
                 <textarea value={buyer.address} onChange={(e) => setBuyer({ ...buyer, address: e.target.value })} placeholder="Alamat lengkap (jalan, RT/RW, kelurahan, kode pos)" rows={2} aria-label="Alamat" style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13, resize: 'vertical' }} />
-                {shippingRates.length > 0 && (
+                {usesCourierApi ? (
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    <input value={destinationQuery} onChange={(e) => { setDestinationQuery(e.target.value); setDestination(null); }} placeholder="Cari kecamatan tujuan (mis. Metro Pusat)" aria-label="Kecamatan tujuan" style={{ minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13 }} />
+                    {destination && <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: '#15803d', fontWeight: 700 }}>Tujuan: {destination.label}</p>}
+                    {!destination && destinations.length > 0 && (
+                      <div style={{ display: 'grid', gap: 4, maxHeight: 150, overflowY: 'auto', border: `1px solid ${T.border}`, borderRadius: 8, padding: 6 }}>
+                        {destinations.map((item) => (
+                          <button key={item.id} type="button" onClick={() => { setDestination(item); setDestinationQuery(item.label); setDestinations([]); }} style={{ textAlign: 'left', border: 0, background: 'transparent', padding: '6px 4px', fontSize: 12, color: T.black, cursor: 'pointer' }}>{item.label}</button>
+                        ))}
+                      </div>
+                    )}
+                    {shippingLoading && <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: T.muted }}>Menghitung ongkir…</p>}
+                    {shippingNotice && <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: '#b45309' }}>{shippingNotice}</p>}
+                    {shippingOptions.length > 0 && (
+                      <div style={{ display: 'grid', gap: 4 }}>
+                        {shippingOptions.map((option) => (
+                          <label key={`${option.courier}-${option.service}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', border: `1px solid ${selectedShipping?.courier === option.courier && selectedShipping?.service === option.service ? T.blue : T.border}`, borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>
+                            <input type="radio" name="shipping-option" checked={selectedShipping?.courier === option.courier && selectedShipping?.service === option.service} onChange={() => setSelectedShipping(option)} />
+                            <span style={{ flex: 1 }}>{option.courier_name} · {option.service}{option.etd ? ` (${option.etd})` : ''}</span>
+                            <strong>{fmtRp(option.cost)}</strong>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : shippingRates.length > 0 && (
                   <select value={shippingArea} onChange={(e) => setShippingArea(e.target.value)} aria-label="Kota / kecamatan" style={{ minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13, background: '#fff' }}>
                     <option value="">Pilih kota/kecamatan (cek ongkir)</option>
                     {shippingRates.map((rate) => <option key={rate.area} value={rate.area}>{rate.area}{Number(rate.cost) > 0 ? ` · ${fmtRp(rate.cost)}` : Number(rate.cost_per_kg) > 0 ? ` · ${fmtRp(rate.cost_per_kg)}/kg` : ''}</option>)}
@@ -641,10 +737,10 @@ export default function LandingPage({ branchMatch = '', branchSlug = '' } = {}) 
 
               {cartWarnings.length > 0 && (
                 <div style={{ display: 'grid', gap: 3 }}>
-                  {cartWarnings.map((w) => <p key={w.name} style={{ margin: 0, fontSize: 'var(--fs-xs)', color: '#b45309' }}>{w.qty < MIN_ORDER_QTY ? `${w.name} ${w.qty} pcs. Minimum ${MIN_ORDER_QTY} pcs per model.` : `${w.name}: jumlah pesanan melebihi stok tersedia (${Number(w.available || 0)} pcs).`}</p>)}
+                  {cartWarnings.map((w) => <p key={w.name} style={{ margin: 0, fontSize: 'var(--fs-xs)', color: '#b45309' }}>{w.qty < minOrderQty ? `${w.name} ${w.qty} pcs. Minimum ${minOrderQty} pcs per model.` : `${w.name}: jumlah pesanan melebihi stok tersedia (${Number(w.available || 0)} pcs).`}</p>)}
                 </div>
               )}
-              <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: T.muted }}>Minimal pembelian 4 pcs per model. Varian boleh dicampur.</p>
+              <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: T.muted }}>{hasMinimumOrder ? `Minimal pembelian ${minOrderQty} pcs per model.` : 'Tanpa minimum pembelian.'} Varian boleh dicampur.</p>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button type="button" onClick={clearCart} disabled={!cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', minWidth: 110 }}>Kosongkan</button>
                 <button type="button" onClick={sendOrder} disabled={!cart.length || hasMinimumWarning || orderChecking || !buyerReady} title={buyerReady ? '' : 'Isi nama, No HP, dan alamat dulu'} className="pcard-btn primary" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44 }}><I.chat style={{ width: 15, height: 15 }} /> {orderChecking ? 'Memeriksa stok…' : 'Chat Pesanan via WhatsApp'}</button>

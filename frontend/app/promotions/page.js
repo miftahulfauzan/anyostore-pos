@@ -40,7 +40,6 @@ export default function PromotionsPage() {
         }
       } catch (error) { setMessage(error.message); }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOwner]);
 
   async function save(e) {
