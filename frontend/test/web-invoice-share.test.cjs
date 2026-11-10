@@ -43,3 +43,15 @@ test('tombol bagikan ada di POS dan halaman struk', () => {
   // Nomor WhatsApp ikut dikirim ke struk agar header invoice lengkap.
   assert.match(printer, /whatsapp_numbers/);
 });
+
+test('setiap pemakai modul invoice benar-benar mengimpornya', () => {
+  // Regression: pos/page.js sempat memakai shareInvoiceImage tanpa import
+  // sehingga muncul "shareInvoiceImage is not defined" saat tombol diklik.
+  for (const file of ['app/pos/page.js', 'app/receipt/[id]/page.js']) {
+    const source = read(file);
+    assert.match(source, /from '(\.\.\/)+lib\/invoice-image'/, `${file} belum mengimpor modul invoice`);
+    for (const name of ['shareInvoiceImage', 'storePhones', 'instagramFor', 'customerTierLabel', 'invoiceDate']) {
+      assert.match(source, new RegExp(`\\b${name}\\b`), `${file} tidak memakai ${name}`);
+    }
+  }
+});
