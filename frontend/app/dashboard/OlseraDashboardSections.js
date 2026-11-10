@@ -6,6 +6,14 @@ import { useId } from 'react';
 const rupiah = (value) => 'Rp' + Number(value || 0).toLocaleString('id-ID');
 const number = (value) => Number(value || 0);
 const percent = (value) => `${number(value).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+const changePercent = (current, previous) => {
+  if (previous == null) return null;
+  const before = number(previous);
+  const now = number(current);
+  if (before === 0) return now === 0 ? '0%' : null;
+  const change = ((now - before) / Math.abs(before)) * 100;
+  return `${change >= 0 ? '↑ +' : '↓ '}${Math.abs(change).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+};
 const dateLabel = (value) => {
   const raw = String(value || '');
   return raw.length >= 10 ? raw.slice(8, 10) : raw;
@@ -48,10 +56,11 @@ function Section({ title, tone = 'denim', meta, children, className = '', ...pro
   </section>;
 }
 
-function MetricTile({ label, value }) {
+function MetricTile({ label, value, change }) {
   return <div className="dashboard-kpi-tile">
     <span className="dashboard-kpi-label">{label}</span>
     <strong>{value}</strong>
+    {change ? <span className={`dashboard-kpi-change${change.startsWith('↓') ? ' is-down' : ''}`}>{change}</span> : null}
   </div>;
 }
 
@@ -129,6 +138,7 @@ export default function OlseraDashboardSections({ reportData, fallbackData, acti
   const source = reportData || fallbackData;
   if (!source) return <section className="panel dashboard-report-loading"><p>Memuat laporan toko…</p></section>;
 
+  const previousSummary = reportData?.previous_summary || reportData?.comparison?.previous_summary || {};
   const sourceSummary = reportData?.summary || fallbackData?.selected_summary || fallbackData?.summary || {};
   const summary = {
     ...sourceSummary,
@@ -171,10 +181,10 @@ export default function OlseraDashboardSections({ reportData, fallbackData, acti
       meta={{ value: rupiah(summary.gross_sales), sub: `${number(summary.transactions)} pesanan` }}
     >
       <div className="dashboard-kpi-grid">
-        <MetricTile label="Pendapatan" value={rupiah(summary.gross_sales)} />
-        <MetricTile label="Pesanan" value={number(summary.transactions)} />
-        <MetricTile label="Produk terjual" value={`${productsSold} pcs`} />
-        <MetricTile label={fourthKpiLabel} value={fourthKpiValue} />
+        <MetricTile label="Pendapatan" value={rupiah(summary.gross_sales)} change={changePercent(summary.gross_sales, previousSummary.gross_sales)} />
+        <MetricTile label="Pesanan" value={number(summary.transactions)} change={changePercent(summary.transactions, previousSummary.transactions)} />
+        <MetricTile label="Produk terjual" value={`${productsSold} pcs`} change={changePercent(productsSold, previousSummary.products_sold)} />
+        <MetricTile label={fourthKpiLabel} value={fourthKpiValue} change={changePercent(hasProfit ? summary.net_profit : summary.expenses, hasProfit ? previousSummary.net_profit : previousSummary.expenses)} />
       </div>
       <div className="dashboard-overview-footline">
         <span>Margin keuntungan</span>

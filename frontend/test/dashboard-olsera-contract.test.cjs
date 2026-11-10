@@ -70,7 +70,8 @@ test('dashboard cards stay tidy: no decorative icons, badges, or chevrons', () =
   const styles = fs.readFileSync(new URL('../app/globals.css', `file://${__dirname}/`), 'utf8');
   // Kartu ringkas: KPI tanpa kotak ikon/badge panah, rincian tanpa ikon & chevron.
   assert.doesNotMatch(sections, /dashboard-kpi-icon/);
-  assert.doesNotMatch(sections, /dashboard-kpi-change/);
+  // Badge perbandingan (↑ +12,4%) tetap ada, hanya tanpa kotak ikon.
+  assert.match(sections, /dashboard-kpi-change/);
   assert.doesNotMatch(sections, /dashboard-finance-icon|dashboard-finance-chevron/);
   assert.match(sections, /dashboard-kpi-label/);
   // Daftar terlaris & stok rendah satu baris (nama + bar + angka).

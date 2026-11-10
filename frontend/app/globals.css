@@ -7108,3 +7108,23 @@ html[data-theme] .app-main .tabs button:not(.active):hover {
 /* Chip metode bayar: aturan global !important membuat teksnya putih di atas
    latar terang (tak terbaca). Pakai latar gelap + teks terang. */
 .dark .app-main .tag { background: rgba(37, 99, 235, .24); color: #bfdbfe !important; }
+
+/* Badge perbandingan periode sebelumnya pada KPI: kecil, menempel di bawah
+   angka (bukan kotak ikon), tetap terbaca di mode gelap. */
+.dashboard-kpi-change {
+  display: inline-flex;
+  align-items: center;
+  min-height: 0;
+  margin-top: 3px;
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: #e4f7ea;
+  color: #137a43;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+.dashboard-kpi-change.is-down { background: #fff0e7; color: #c2410c; }
+.dark .dashboard-kpi-change { background: rgba(16, 185, 129, .18); }
+.dark .dashboard-kpi-change.is-down { background: rgba(251, 146, 60, .2); }
