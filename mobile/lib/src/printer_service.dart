@@ -198,8 +198,12 @@ class PrinterService {
     }
   }
 
-  int _receiptLogoMaxWidth(Map<String, dynamic> receipt) =>
-      ReceiptLayout.fromReceipt(receipt).width <= 42 ? 144 : 208;
+  /// Lebar maksimal logo struk. Nilai dasar 144 px (58 mm) dan 208 px (80 mm)
+  /// diturunkan 14% supaya logo tidak mendominasi kepala struk.
+  int _receiptLogoMaxWidth(Map<String, dynamic> receipt) {
+    final narrow = ReceiptLayout.fromReceipt(receipt).width <= 42;
+    return narrow ? 124 : 179;
+  }
 
   Future<void> printBarcode({required String code, String? label}) async {
     final esc = EscCommand();

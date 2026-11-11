@@ -187,7 +187,7 @@ void main() {
     final methods = calls.map((call) => call.method).toList();
     expect(methods, contains('image'));
     final image = calls.firstWhere((call) => call.method == 'image');
-    expect((image.arguments as Map)['maxWidth'], 144);
+    expect((image.arguments as Map)['maxWidth'], 124);
     final feedIndex = methods.indexOf('print');
     final cutIndex = methods.indexOf('cutPaper');
     expect(feedIndex, greaterThan(-1));
@@ -225,7 +225,7 @@ void main() {
     });
 
     final image = calls.firstWhere((call) => call.method == 'image');
-    expect((image.arguments as Map)['maxWidth'], 208);
+    expect((image.arguments as Map)['maxWidth'], 179);
   });
 
   test('continues printing when the invoice logo cannot be loaded', () async {
