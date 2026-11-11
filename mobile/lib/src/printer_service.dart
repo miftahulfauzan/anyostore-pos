@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
+import 'package:flutter/painting.dart' hide Alignment;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -147,20 +150,56 @@ class PrinterService {
       if (path.isEmpty) return null;
       final url = _mediaUrl(path);
       final logoLoader = _logoLoader;
-      if (logoLoader != null) return await logoLoader(url);
-      final response = await _httpClient
-          .get(Uri.parse(url))
-          .timeout(const Duration(seconds: 3));
-      if (response.statusCode != 200 || response.bodyBytes.isEmpty) return null;
-      return Uint8List.fromList(response.bodyBytes);
+      final raw = logoLoader != null
+          ? await logoLoader(url)
+          : await _downloadLogo(url);
+      if (raw == null || raw.isEmpty) return null;
+      return await _roundCorners(raw);
     } catch (_) {
       // A broken logo must not prevent the receipt text from printing.
       return null;
     }
   }
 
+  Future<Uint8List?> _downloadLogo(String url) async {
+    final response = await _httpClient
+        .get(Uri.parse(url))
+        .timeout(const Duration(seconds: 3));
+    if (response.statusCode != 200 || response.bodyBytes.isEmpty) return null;
+    return Uint8List.fromList(response.bodyBytes);
+  }
+
+  /// Logo struk dipotong sudut membulat (radius 16% sisi terpendek) supaya
+  /// tampil rounded, bukan kotak tajam. Bila gambar tidak bisa dibaca,
+  /// byte asli dikembalikan agar logo tetap tercetak.
+  Future<Uint8List> _roundCorners(Uint8List bytes) async {
+    try {
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      final image = frame.image;
+      final width = image.width.toDouble();
+      final height = image.height.toDouble();
+      final radius = math.min(width, height) * 0.16;
+      final rrect = RRect.fromRectAndRadius(
+          Rect.fromLTWH(0, 0, width, height), Radius.circular(radius));
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      canvas.clipRRect(rrect);
+      canvas.drawImage(image, Offset.zero, Paint()..isAntiAlias = true);
+      final picture = recorder.endRecording();
+      final rounded = await picture.toImage(image.width, image.height);
+      final data = await rounded.toByteData(format: ui.ImageByteFormat.png);
+      image.dispose();
+      rounded.dispose();
+      if (data == null) return bytes;
+      return data.buffer.asUint8List();
+    } catch (_) {
+      return bytes;
+    }
+  }
+
   int _receiptLogoMaxWidth(Map<String, dynamic> receipt) =>
-      ReceiptLayout.fromReceipt(receipt).width <= 32 ? 144 : 208;
+      ReceiptLayout.fromReceipt(receipt).width <= 42 ? 144 : 208;
 
   Future<void> printBarcode({required String code, String? label}) async {
     final esc = EscCommand();
@@ -246,7 +285,9 @@ class PrinterService {
             ? Alignment.center
             : Alignment.left,
         style: row.bold ? EscTextStyle.bold : EscTextStyle.default_,
-        fontSize: row.large ? EscFontSize.size2 : EscFontSize.default_,
+        // Struk memakai Font B (9×17 dot) supaya lebih ringkas dan margin
+        // kiri-kanan tetap lega.
+        font: EscFont.b,
       );
       await esc.newline();
     }

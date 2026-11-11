@@ -7,98 +7,146 @@ class ReceiptLine {
     this.text, {
     this.alignment = ReceiptLineAlignment.left,
     this.bold = false,
-    this.large = false,
   });
 
   final String text;
   final ReceiptLineAlignment alignment;
   final bool bold;
-  final bool large;
 }
 
-/// Text layout for ESC/POS receipts. The printer width is measured in the
-/// normal font's character columns: 32 for 58 mm and 48 for 80 mm.
+/// Tata letak struk thermal ESC/POS.
+///
+/// Badan struk dicetak memakai **Font B** printer (9×17 dot, satu ukuran lebih
+/// kecil dari Font A 12×24) sehingga satu baris muat 42 karakter pada kertas
+/// 58 mm dan 64 karakter pada 80 mm. Karena itu lebar kolom di sini dihitung
+/// dari grid Font B, bukan lagi 32/48 kolom Font A.
+///
+/// Setiap baris dipaksa selebar kertas: margin kiri = margin kanan sehingga
+/// teks tidak menempel tepi kertas dan angka kanan tetap rata.
 class ReceiptLayout {
-  ReceiptLayout._(this.width);
+  ReceiptLayout._(this.width, this.margin);
 
   factory ReceiptLayout.fromReceipt(Map<String, dynamic> receipt) {
     final store = (receipt['store'] as Map<String, dynamic>?) ?? {};
     final size = (store['printer_size']?.toString() ?? '80')
         .replaceAll(RegExp(r'\s+'), '')
         .toLowerCase();
-    return ReceiptLayout._(size.startsWith('58') ? 32 : 48);
+    if (size.startsWith('58')) return ReceiptLayout._(42, 3);
+    return ReceiptLayout._(64, 4);
   }
 
+  /// Jumlah kolom Font B dalam satu baris (termasuk margin kiri kanan).
   final int width;
+
+  /// Jumlah kolom kosong di kiri dan di kanan setiap baris.
+  final int margin;
+
+  int get _inner => width - margin * 2;
+
+  /// Label kolom kiri pada bagian informasi transaksi.
+  static const _metaLabel = 12;
 
   List<ReceiptLine> build([Map<String, dynamic>? receipt]) {
     final data = receipt ?? <String, dynamic>{};
     final store = (data['store'] as Map<String, dynamic>?) ?? {};
     final result = <ReceiptLine>[];
 
-    void left(String value, {bool bold = false, bool large = false}) {
-      for (final part in _wrap(value, large ? width ~/ 2 : width)) {
-        result.add(ReceiptLine(part, bold: bold, large: large));
-      }
-    }
-
-    void centered(String value, {bool bold = false, bool large = false}) {
-      for (final part in _wrap(value, large ? width ~/ 2 : width)) {
-        result.add(ReceiptLine(part,
-            alignment: ReceiptLineAlignment.center, bold: bold, large: large));
-      }
-    }
-
-    void pair(String label, String value,
-        {bool bold = false, bool large = false}) {
-      // Leave one column for the label even when the amount is long. The
-      // previous width-sized right column could produce width + 1 characters
-      // and make thermal printers wrap the row unexpectedly.
-      final right = _fit(value, width - 1);
-      final maxLabel = width - right.length - 1;
-      final safeLabel = _fit(label, maxLabel < 1 ? 1 : maxLabel);
-      result.add(ReceiptLine(
-          '${safeLabel.padRight(width - right.length)}$right',
+    void emit(String content, {bool bold = false, bool center = false}) {
+      final body = center
+          ? _center(content, _inner)
+          : _fit(content.replaceAll(RegExp(r'\s+$'), ''), _inner)
+              .padRight(_inner);
+      final text = ' ' * margin + body + ' ' * margin;
+      result.add(ReceiptLine(text,
           bold: bold,
-          large: large));
+          alignment:
+              center ? ReceiptLineAlignment.center : ReceiptLineAlignment.left));
     }
 
-    centered(_value(store, 'store_name', fallback: 'Anyostore'),
-        bold: true, large: true);
-    _optionalMultiline(store['receipt_header'], centered);
-    _optionalCentered(store['store_address'], centered);
-    _optionalCentered(_value(store, 'store_phone', prefix: 'Telp: '), centered);
-    _optionalMultiline(store['receipt_contacts'], centered);
-    _optionalCentered(
-        _value(store, 'store_tax_id', prefix: 'NPWP: '), centered);
-    left(_separator());
+    void centered(String value, {bool bold = false}) {
+      for (final part in _wrap(value, _inner)) {
+        emit(part, bold: bold, center: true);
+      }
+    }
 
-    left('INFORMASI TRANSAKSI', bold: true);
-    pair('Invoice', '${data['invoice_no'] ?? ''}');
-    final transactionDate = _transactionDateLabel(data);
-    if (transactionDate.isNotEmpty) pair('Tanggal', transactionDate);
-    _optionalLeft(_value(data, 'cashier', prefix: 'Kasir: '), left);
-    _optionalLeft(_value(data, 'customer_name', prefix: 'Pelanggan: '), left);
-    left(_separator());
+    void meta(String label, String value) {
+      final room = _inner - _metaLabel;
+      final safe = value.length > room ? '${value.substring(0, room - 3)}...' : value;
+      emit('${label.padRight(_metaLabel)}$safe');
+    }
 
-    left('PRODUK', bold: true);
+    void pair(String label, String value) {
+      final right = _fit(value, _inner);
+      final left = _fit(label, _inner - right.length - 1);
+      emit('${left.padRight(_inner - right.length)}$right');
+    }
+
+    void item(String name, int qty, String price, String amount) {
+      var mid = '$qty x $price';
+      var nameWidth = _inner - mid.length - amount.length - 3;
+      if (nameWidth < 6) {
+        mid = '${qty}x$price';
+        nameWidth = _inner - mid.length - amount.length - 3;
+      }
+      final nameCol = nameWidth.clamp(4, 16);
+      final safeName = name.length <= nameCol
+          ? name
+          : '${name.substring(0, nameCol - 1)}.';
+      final gap = _inner - nameCol - 1 - mid.length - amount.length - 1;
+      emit('${safeName.padRight(nameCol)} $mid'
+          '${' ' * (gap < 1 ? 1 : gap)}$amount');
+    }
+
+    void rule() => emit('-' * _inner);
+
+    // ===== Kepala: nama toko, sapaan, alamat, nomor WhatsApp =====
+    centered(_ascii(_value(store, 'store_name', fallback: 'Anyostore')),
+        bold: true);
+    _optional(store['receipt_header'], centered);
+    emit('');
+    _optional(store['store_address'], centered, maxLines: 3);
+    emit('');
+    for (final contact in _contactLines(store)) {
+      centered(contact);
+    }
+    final tax = _value(store, 'store_tax_id', prefix: 'NPWP: ');
+    if (tax.isNotEmpty) centered(tax);
+    rule();
+
+    // ===== Informasi transaksi (judul polos, bukan kotak) =====
+    emit('INFORMASI TRANSAKSI', bold: true);
+    meta('Invoice', _ascii('${data['invoice_no'] ?? ''}'));
+    final date = _transactionDateLabel(data);
+    if (date.isNotEmpty) meta('Tanggal', date);
+    final cashier = _value(data, 'cashier');
+    if (cashier.isNotEmpty) meta('Kasir', _ascii(cashier));
+    final customer = _value(data, 'customer_name');
+    if (customer.isNotEmpty) meta('Pelanggan', _ascii(customer));
+    rule();
+
+    // ===== Produk: nama, qty x harga, jumlah dalam satu baris =====
+    emit('PRODUK', bold: true);
+    emit('');
     final rawItems = (data['items'] as List?) ?? [];
     for (final raw in rawItems) {
-      final item = (raw as Map).cast<String, dynamic>();
+      final itemRow = (raw as Map).cast<String, dynamic>();
       final name =
-          item['product_name']?.toString() ?? item['name']?.toString() ?? '';
-      final qty = asNum(item['quantity']).toInt();
-      final price = asNum(item['price']);
-      final subtotal = asNum(item['subtotal']);
-      pair(name, fmtRp(subtotal), bold: true);
-      left('$qty x ${fmtRp(price)}');
+          itemRow['product_name']?.toString() ?? itemRow['name']?.toString() ?? '';
+      item(
+        _ascii(name),
+        asNum(itemRow['quantity']).toInt(),
+        _moneyNumber(asNum(itemRow['price'])),
+        fmtRp(asNum(itemRow['subtotal'])),
+      );
     }
-    left(_separator());
+    emit('');
+    rule();
+
     pair('Subtotal', fmtRp(asNum(data['subtotal'])));
     final discount = asNum(data['discount']);
     if (discount > 0) pair('Diskon', '-${fmtRp(discount)}');
-    pair('Total', fmtRp(asNum(data['grand_total'])), bold: true);
-    left(_separator());
+    pair('Total', fmtRp(asNum(data['grand_total'])));
+    rule();
 
     var payments = (data['payments'] as List?) ?? [];
     if (payments.isEmpty && data['payment_method'] != null) {
@@ -122,24 +170,86 @@ class ReceiptLayout {
             ? paymentTotal
             : asNum(data['grand_total']);
     pair('Dibayar', fmtRp(paid));
-    final change = asNum(data['change']);
-    pair('Kembalian', fmtRp(change));
+    pair('Kembalian', fmtRp(asNum(data['change'])));
 
-    left(_separator());
+    rule();
     centered('Terima kasih, sampai jumpa lagi!');
-    _optionalMultiline(store['receipt_footer'], centered);
-    _optionalMultiline(store['receipt_note'], centered);
-    result.add(const ReceiptLine(''));
+    _optional(store['receipt_footer'], centered);
+    _optional(store['receipt_note'], centered);
+    emit('');
     return result;
   }
 
-  String _separator() => '-' * width;
+  /// Nomor WhatsApp admin dari pengaturan toko. Sebelumnya struk hanya memakai
+  /// `store_phone` sehingga nomor admin lain tidak pernah tercetak.
+  static List<String> _contactLines(Map<String, dynamic> store) {
+    final numbers = <String>[];
+    void add(dynamic value) {
+      final text = _ascii(value?.toString().trim() ?? '');
+      if (text.isEmpty) return;
+      if (!numbers.contains(text)) numbers.add(text);
+    }
+
+    final raw = store['whatsapp_numbers'];
+    if (raw is String && raw.trim().startsWith('[')) {
+      try {
+        final decoded = raw.trim();
+        for (final part in decoded
+            .substring(1, decoded.length - 1)
+            .split(',')) {
+          add(part.replaceAll('"', '').replaceAll(RegExp(r'[\[\]]'), ''));
+        }
+      } catch (_) {}
+    } else if (raw is List) {
+      for (final value in raw) {
+        add(value);
+      }
+    }
+    add(store['whatsapp_number']);
+    add(store['whatsapp_number_2']);
+    add(store['whatsapp_number_3']);
+    if (numbers.isEmpty) add(store['store_phone']);
+
+    return [for (final number in numbers) 'WA $number'];
+  }
+
+  static String _moneyNumber(num value) {
+    final rounded = value.round();
+    final digits = rounded.toString();
+    final buffer = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) buffer.write('.');
+      buffer.write(digits[i]);
+    }
+    return buffer.toString();
+  }
+
+  static String _center(String value, int width) {
+    final text = _fit(value, width);
+    final gap = width - text.length;
+    if (gap <= 0) return text;
+    final left = gap ~/ 2;
+    return '${' ' * left}$text${' ' * (gap - left)}';
+  }
 
   static String _value(dynamic source, String key,
       {String fallback = '', String prefix = ''}) {
     final value = source is Map ? source[key]?.toString() ?? '' : '';
     return value.isEmpty ? fallback : '$prefix$value';
   }
+
+  /// Printer thermal memakai codepage lama: ganti karakter non-ASCII supaya
+  /// tidak tercetak sebagai simbol acak.
+  static String _ascii(String value) => value
+      .replaceAll('·', '-')
+      .replaceAll('…', '...')
+      .replaceAll('–', '-')
+      .replaceAll('—', '-')
+      .replaceAll('’', "'")
+      .replaceAll('‘', "'")
+      .replaceAll('“', '"')
+      .replaceAll('”', '"')
+      .replaceAll('×', 'x');
 
   static String _transactionDateLabel(Map<String, dynamic> data) {
     final rawBusinessDate = data['transaction_date']?.toString() ?? '';
@@ -150,7 +260,7 @@ class ReceiptLayout {
       date = date.isEmpty
           ? '${_twoDigit(wib.day)}/${_twoDigit(wib.month)}/${wib.year}'
           : date;
-      return '$date · ${_twoDigit(wib.hour)}:${_twoDigit(wib.minute)}';
+      return '$date ${_twoDigit(wib.hour)}:${_twoDigit(wib.minute)}';
     }
     return date;
   }
@@ -184,29 +294,30 @@ class ReceiptLayout {
     }
   }
 
-  static void _optionalCentered(
-      dynamic value, void Function(String, {bool bold, bool large}) add) {
-    final text = value?.toString().trim() ?? '';
-    if (text.isNotEmpty) add(text, bold: false, large: false);
-  }
-
-  static void _optionalMultiline(
-      dynamic value, void Function(String, {bool bold, bool large}) add) {
-    final text = value?.toString().trim() ?? '';
-    if (text.isNotEmpty) add(text, bold: false, large: false);
-  }
-
-  static void _optionalLeft(
-      String value, void Function(String, {bool bold, bool large}) add) {
-    if (value.isNotEmpty) add(value, bold: false, large: false);
+  static void _optional(dynamic value, void Function(String) add,
+      {int? maxLines}) {
+    final text = _ascii(value?.toString().trim() ?? '');
+    if (text.isEmpty) return;
+    if (maxLines == null) {
+      add(text);
+      return;
+    }
+    final rows = text
+        .replaceAll('\r\n', '\n')
+        .split('\n')
+        .map((row) => row.trim())
+        .where((row) => row.isNotEmpty)
+        .take(maxLines)
+        .join('\n');
+    add(rows);
   }
 
   static String _fit(String value, int max) {
     final normalized = value.trim();
     if (max <= 0) return '';
     if (normalized.length <= max) return normalized;
-    if (max == 1) return normalized.substring(0, 1);
-    return '${normalized.substring(0, max - 1).trimRight()}…';
+    if (max <= 3) return normalized.substring(0, max);
+    return '${normalized.substring(0, max - 3)}...';
   }
 
   static List<String> _wrap(String value, int max) {
@@ -214,10 +325,7 @@ class ReceiptLayout {
     final result = <String>[];
     for (final paragraph in value.replaceAll('\r\n', '\n').split('\n')) {
       final words = paragraph.trim().split(RegExp(r'\s+'));
-      if (paragraph.trim().isEmpty) {
-        result.add('');
-        continue;
-      }
+      if (paragraph.trim().isEmpty) continue;
       var line = '';
       for (final word in words) {
         if (word.isEmpty) continue;

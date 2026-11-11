@@ -43,6 +43,39 @@ void main() {
     expect(newlineCount, textCount);
   });
 
+  test('struk dicetak dengan Font B (satu ukuran lebih kecil)', () async {
+    final fonts = <Object?>[];
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    const escChannel = MethodChannel('bluetooth_print_plus_esc');
+    const bluetoothChannel = MethodChannel('bluetooth_print_plus/methods');
+    messenger.setMockMethodCallHandler(escChannel, (call) async {
+      if (call.method == 'text') {
+        fonts.add((call.arguments as Map)['font']);
+      }
+      if (call.method == 'getCommand') return Uint8List.fromList([1]);
+      return null;
+    });
+    messenger.setMockMethodCallHandler(bluetoothChannel, (call) async => null);
+    addTearDown(() {
+      messenger.setMockMethodCallHandler(escChannel, null);
+      messenger.setMockMethodCallHandler(bluetoothChannel, null);
+    });
+
+    await PrinterService().printReceipt({
+      'store': {'printer_size': '80', 'store_name': 'BASIK PGMTA'},
+      'invoice_no': 'INV-0001',
+      'grand_total': 10000,
+      'items': [
+        {'product_name': 'B-05', 'quantity': 6, 'price': 90000, 'subtotal': 540000},
+      ],
+    });
+
+    expect(fonts, isNotEmpty);
+    // 1 = Font B pada plugin ESC/POS.
+    expect(fonts.every((font) => font == 1), isTrue);
+  });
+
   test('sends the complete receipt payload in ordered Bluetooth chunks',
       () async {
     final writes = <Uint8List>[];

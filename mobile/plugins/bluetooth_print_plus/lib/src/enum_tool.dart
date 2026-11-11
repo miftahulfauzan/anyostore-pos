@@ -23,6 +23,9 @@ enum BarCodeType {
 /// EscTextStyle
 enum EscTextStyle { default_, bold, underline, boldAndUnderline }
 
+/// EscFont — Font A (12x24 dot, standar) atau Font B (9x17 dot, lebih kecil).
+enum EscFont { a, b }
+
 /// EscFontSize
 enum EscFontSize {
   default_,
@@ -92,6 +95,16 @@ class EnumTool {
         return 0x80;
       case EscTextStyle.boldAndUnderline:
         return 0x88;
+    }
+  }
+
+  /// getEscFont
+  static int getEscFont(EscFont font) {
+    switch (font) {
+      case EscFont.a:
+        return 0;
+      case EscFont.b:
+        return 1;
     }
   }
 

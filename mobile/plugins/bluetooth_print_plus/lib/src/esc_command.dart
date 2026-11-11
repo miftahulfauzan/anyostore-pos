@@ -41,7 +41,8 @@ class EscCommand {
       {required String content,
       Alignment alignment = Alignment.left,
       EscTextStyle style = EscTextStyle.default_,
-      EscFontSize fontSize = EscFontSize.default_}) async {
+      EscFontSize fontSize = EscFontSize.default_,
+      EscFont font = EscFont.a}) async {
     int printMode = EnumTool.getEscTextStyle(style);
     int size = EnumTool.getEscFontSize(fontSize);
     int align = EnumTool.getAlignment(alignment);
@@ -49,7 +50,8 @@ class EscCommand {
       "content": content,
       "alignment": align,
       "printMode": printMode,
-      "size": size
+      "size": size,
+      "font": EnumTool.getEscFont(font)
     };
     await methodChannel.invokeMethod<void>('text', params);
   }

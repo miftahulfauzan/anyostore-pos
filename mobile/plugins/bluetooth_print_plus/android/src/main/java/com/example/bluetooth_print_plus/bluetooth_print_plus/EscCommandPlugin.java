@@ -96,21 +96,28 @@ public class EscCommandPlugin implements FlutterPlugin, MethodCallHandler, Reque
             case "text":
                 Integer printMode = call.argument("printMode");
                 Integer size = call.argument("size");
+                Integer fontArg = call.argument("font");
                 assert printMode != null;
                 assert size != null;
+                // Font B (9x17 dot) dipakai untuk struk yang lebih ringkas;
+                // tanpa argumen tetap Font A seperti perilaku lama.
+                EscCommand.FONT fontMode = (fontArg != null && fontArg == 1)
+                        ? EscCommand.FONT.FONTB
+                        : EscCommand.FONT.FONTA;
                 this.getEscCommand().addSelectJustification(align);
                 this.getEscCommand().addSetCharcterSize(EscCommand.WIDTH_ZOOM.valueOf("MUL_" + (size + 1)), EscCommand.HEIGHT_ZOOM.valueOf("MUL_" + (size + 1)));
                 switch (printMode) {
                     case 0x08:
-                        this.getEscCommand().addSelectPrintModes(EscCommand.FONT.FONTA, EscCommand.ENABLE.ON, EscCommand.ENABLE.OFF, EscCommand.ENABLE.OFF, EscCommand.ENABLE.OFF);
+                        this.getEscCommand().addSelectPrintModes(fontMode, EscCommand.ENABLE.ON, EscCommand.ENABLE.OFF, EscCommand.ENABLE.OFF, EscCommand.ENABLE.OFF);
                         break;
                     case 0x80:
-                        this.getEscCommand().addSelectPrintModes(EscCommand.FONT.FONTA, EscCommand.ENABLE.OFF, EscCommand.ENABLE.OFF, EscCommand.ENABLE.OFF, EscCommand.ENABLE.ON);
+                        this.getEscCommand().addSelectPrintModes(fontMode, EscCommand.ENABLE.OFF, EscCommand.ENABLE.OFF, EscCommand.ENABLE.OFF, EscCommand.ENABLE.ON);
                         break;
                     case 0x88:
-                        this.getEscCommand().addSelectPrintModes(EscCommand.FONT.FONTA, EscCommand.ENABLE.ON, EscCommand.ENABLE.OFF, EscCommand.ENABLE.OFF, EscCommand.ENABLE.ON);
+                        this.getEscCommand().addSelectPrintModes(fontMode, EscCommand.ENABLE.ON, EscCommand.ENABLE.OFF, EscCommand.ENABLE.OFF, EscCommand.ENABLE.ON);
                         break;
                     default:
+                        this.getEscCommand().addSelectPrintModes(fontMode, EscCommand.ENABLE.OFF, EscCommand.ENABLE.OFF, EscCommand.ENABLE.OFF, EscCommand.ENABLE.OFF);
                         break;
                 }
                 this.getEscCommand().addText(content);
