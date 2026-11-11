@@ -43,8 +43,10 @@ test('tombol bagikan ada di POS dan halaman struk', () => {
   assert.match(receipt, /Bagikan Invoice/);
   assert.match(receipt, /shareInvoiceImage\(/);
   assert.match(styles, /\.pos-cart-footer \.pos-share-invoice/);
-  // Nomor WhatsApp ikut dikirim ke struk agar header invoice lengkap.
-  assert.match(printer, /whatsapp_numbers/);
+  // Struk mengirim seluruh setelan cabang (kecuali rahasia) sehingga nomor
+  // WhatsApp admin dan template struk ikut terbaca.
+  assert.match(printer, /FROM store_settings WHERE branch_id = \?/);
+  assert.match(printer, /daily_email_api_key/);
 });
 
 test('invoice menampilkan harga per pcs pada tiap barang', () => {

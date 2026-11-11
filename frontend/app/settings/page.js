@@ -462,9 +462,10 @@ export default function SettingsPage() {
 
       <section className="panel">
         <h2>Struk & operasional</h2>
-        {input('receipt_header', 'Header struk')}
-        {input('receipt_footer', 'Footer struk')}
-        {input('receipt_note', 'Catatan')}
+        <p className="muted" style={{ marginTop: 0 }}>
+          Header, footer, catatan, dan seluruh teks struk kini diatur di halaman
+          <a href="/settings/receipt-template"> Template Struk</a>.
+        </p>
         <div className="two-fields">
           {select('printer_size', 'Printer', [['58', '58 mm'], ['80', '80 mm']])}
           {input('invoice_prefix', 'Prefix invoice')}

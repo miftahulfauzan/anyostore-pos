@@ -24,27 +24,47 @@ class ReceiptLine {
 /// Setiap baris dipaksa selebar kertas: margin kiri = margin kanan sehingga
 /// teks tidak menempel tepi kertas dan angka kanan tetap rata.
 class ReceiptLayout {
-  ReceiptLayout._(this.width, this.margin);
+  ReceiptLayout._(this.width, this.margin, {required this.fontB});
 
   factory ReceiptLayout.fromReceipt(Map<String, dynamic> receipt) {
     final store = (receipt['store'] as Map<String, dynamic>?) ?? {};
     final size = (store['printer_size']?.toString() ?? '80')
         .replaceAll(RegExp(r'\s+'), '')
         .toLowerCase();
-    if (size.startsWith('58')) return ReceiptLayout._(42, 3);
-    return ReceiptLayout._(64, 4);
+    final narrow = size.startsWith('58');
+    // Template dari web: ukuran font & margin bisa diubah per cabang.
+    final fontB = (store['receipt_font']?.toString() ?? 'b').toLowerCase() != 'a';
+    final width = narrow ? (fontB ? 42 : 32) : (fontB ? 64 : 48);
+    final fallbackMargin = narrow ? 3 : 4;
+    final custom = int.tryParse(store['receipt_margin']?.toString() ?? '') ?? 0;
+    final margin = custom >= 0 && custom <= 6 && custom != 0 ? custom : fallbackMargin;
+    return ReceiptLayout._(width, margin, fontB: fontB);
   }
 
-  /// Jumlah kolom Font B dalam satu baris (termasuk margin kiri kanan).
+  /// Jumlah kolom dalam satu baris (termasuk margin kiri kanan).
   final int width;
 
   /// Jumlah kolom kosong di kiri dan di kanan setiap baris.
   final int margin;
 
+  /// true = Font B (kecil), false = Font A (normal).
+  final bool fontB;
+
   int get _inner => width - margin * 2;
 
   /// Label kolom kiri pada bagian informasi transaksi.
   static const _metaLabel = 12;
+
+  static bool _on(Map<String, dynamic> store, String key) {
+    final raw = store[key]?.toString().trim().toLowerCase() ?? '';
+    if (raw.isEmpty) return true;
+    return raw == 'true' || raw == '1';
+  }
+
+  static String _text(Map<String, dynamic> store, String key, String fallback) {
+    final raw = _ascii(store[key]?.toString().trim() ?? '');
+    return raw.isEmpty ? fallback : raw;
+  }
 
   List<ReceiptLine> build([Map<String, dynamic>? receipt]) {
     final data = receipt ?? <String, dynamic>{};
@@ -97,35 +117,57 @@ class ReceiptLayout {
           '${' ' * (gap < 1 ? 1 : gap)}$amount');
     }
 
-    void rule() => emit('-' * _inner);
+    void rule() {
+      final style = (store['receipt_separator']?.toString().trim() ?? 'dash')
+          .toLowerCase();
+      if (style == 'none') return;
+      if (style == 'blank') {
+        emit('');
+        return;
+      }
+      emit('-' * _inner);
+    }
 
     // ===== Kepala: nama toko, sapaan, alamat, nomor WhatsApp =====
     centered(_ascii(_value(store, 'store_name', fallback: 'Anyostore')),
         bold: true);
     _optional(store['receipt_header'], centered);
     emit('');
-    _optional(store['store_address'], centered, maxLines: 3);
-    emit('');
-    for (final contact in _contactLines(store)) {
-      centered(contact);
+    if (_on(store, 'receipt_show_address')) {
+      _optional(store['store_address'], centered, maxLines: 3);
     }
-    final tax = _value(store, 'store_tax_id', prefix: 'NPWP: ');
-    if (tax.isNotEmpty) centered(tax);
+    emit('');
+    if (_on(store, 'receipt_show_wa')) {
+      for (final contact in _contactLines(store)) {
+        centered(contact);
+      }
+    }
+    if (_on(store, 'receipt_show_npwp')) {
+      final tax = _value(store, 'store_tax_id', prefix: 'NPWP: ');
+      if (tax.isNotEmpty) centered(tax);
+    }
     rule();
 
     // ===== Informasi transaksi (judul polos, bukan kotak) =====
-    emit('INFORMASI TRANSAKSI', bold: true);
-    meta('Invoice', _ascii('${data['invoice_no'] ?? ''}'));
+    emit(_text(store, 'receipt_title_info', 'INFORMASI TRANSAKSI'), bold: true);
+    meta(_text(store, 'receipt_label_invoice', 'Invoice'),
+        _ascii('${data['invoice_no'] ?? ''}'));
     final date = _transactionDateLabel(data);
-    if (date.isNotEmpty) meta('Tanggal', date);
+    if (date.isNotEmpty) {
+      meta(_text(store, 'receipt_label_date', 'Tanggal'), date);
+    }
     final cashier = _value(data, 'cashier');
-    if (cashier.isNotEmpty) meta('Kasir', _ascii(cashier));
+    if (cashier.isNotEmpty && _on(store, 'receipt_show_cashier')) {
+      meta(_text(store, 'receipt_label_cashier', 'Kasir'), _ascii(cashier));
+    }
     final customer = _value(data, 'customer_name');
-    if (customer.isNotEmpty) meta('Pelanggan', _ascii(customer));
+    if (customer.isNotEmpty && _on(store, 'receipt_show_customer')) {
+      meta(_text(store, 'receipt_label_customer', 'Pelanggan'), _ascii(customer));
+    }
     rule();
 
     // ===== Produk: nama, qty x harga, jumlah dalam satu baris =====
-    emit('PRODUK', bold: true);
+    emit(_text(store, 'receipt_title_products', 'PRODUK'), bold: true);
     emit('');
     final rawItems = (data['items'] as List?) ?? [];
     for (final raw in rawItems) {
@@ -142,10 +184,15 @@ class ReceiptLayout {
     emit('');
     rule();
 
-    pair('Subtotal', fmtRp(asNum(data['subtotal'])));
+    pair(_text(store, 'receipt_label_subtotal', 'Subtotal'),
+        fmtRp(asNum(data['subtotal'])));
     final discount = asNum(data['discount']);
-    if (discount > 0) pair('Diskon', '-${fmtRp(discount)}');
-    pair('Total', fmtRp(asNum(data['grand_total'])));
+    if (discount > 0) {
+      pair(_text(store, 'receipt_label_discount', 'Diskon'),
+          '-${fmtRp(discount)}');
+    }
+    pair(_text(store, 'receipt_label_total', 'Total'),
+        fmtRp(asNum(data['grand_total'])));
     rule();
 
     var payments = (data['payments'] as List?) ?? [];
@@ -157,10 +204,12 @@ class ReceiptLayout {
         }
       ];
     }
-    for (final raw in payments) {
-      final payment = (raw as Map).cast<String, dynamic>();
-      pair(_paymentLabel(payment['payment_method']),
-          fmtRp(asNum(payment['amount'])));
+    if (_on(store, 'receipt_show_payment')) {
+      for (final raw in payments) {
+        final payment = (raw as Map).cast<String, dynamic>();
+        pair(_paymentLabel(payment['payment_method']),
+            fmtRp(asNum(payment['amount'])));
+      }
     }
     final paymentTotal = payments.fold<num>(
         0, (total, raw) => total + asNum((raw as Map)['amount']));
@@ -169,11 +218,16 @@ class ReceiptLayout {
         : paymentTotal > 0
             ? paymentTotal
             : asNum(data['grand_total']);
-    pair('Dibayar', fmtRp(paid));
-    pair('Kembalian', fmtRp(asNum(data['change'])));
+    if (_on(store, 'receipt_show_paid')) {
+      pair(_text(store, 'receipt_label_paid', 'Dibayar'), fmtRp(paid));
+    }
+    if (_on(store, 'receipt_show_change')) {
+      pair(_text(store, 'receipt_label_change', 'Kembalian'),
+          fmtRp(asNum(data['change'])));
+    }
 
     rule();
-    centered('Terima kasih, sampai jumpa lagi!');
+    centered(_text(store, 'receipt_closing', 'Terima kasih, sampai jumpa lagi!'));
     _optional(store['receipt_footer'], centered);
     _optional(store['receipt_note'], centered);
     emit('');
@@ -241,15 +295,15 @@ class ReceiptLayout {
   /// Printer thermal memakai codepage lama: ganti karakter non-ASCII supaya
   /// tidak tercetak sebagai simbol acak.
   static String _ascii(String value) => value
-      .replaceAll('·', '-')
-      .replaceAll('…', '...')
-      .replaceAll('–', '-')
-      .replaceAll('—', '-')
-      .replaceAll('’', "'")
-      .replaceAll('‘', "'")
-      .replaceAll('“', '"')
-      .replaceAll('”', '"')
-      .replaceAll('×', 'x');
+      .replaceAll('\u00b7', '-')
+      .replaceAll('\u2026', '...')
+      .replaceAll('\u2013', '-')
+      .replaceAll('\u2014', '-')
+      .replaceAll('\u2019', "'")
+      .replaceAll('\u2018', "'")
+      .replaceAll('\u201c', '"')
+      .replaceAll('\u201d', '"')
+      .replaceAll('\u00d7', 'x');
 
   static String _transactionDateLabel(Map<String, dynamic> data) {
     final rawBusinessDate = data['transaction_date']?.toString() ?? '';

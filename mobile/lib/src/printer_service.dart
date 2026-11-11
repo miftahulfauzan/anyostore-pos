@@ -285,9 +285,8 @@ class PrinterService {
             ? Alignment.center
             : Alignment.left,
         style: row.bold ? EscTextStyle.bold : EscTextStyle.default_,
-        // Struk memakai Font B (9×17 dot) supaya lebih ringkas dan margin
-        // kiri-kanan tetap lega.
-        font: EscFont.b,
+        // Font struk mengikuti template dari web (default Font B / kecil).
+        font: layout.fontB ? EscFont.b : EscFont.a,
       );
       await esc.newline();
     }

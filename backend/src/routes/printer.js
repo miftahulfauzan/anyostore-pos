@@ -31,8 +31,10 @@ router.get('/invoice/:id', async (req, res, next) => {
     if (!transactions[0]) return res.status(404).json({ success: false, message: 'Transaksi tidak ditemukan' });
     const [items] = await db.execute('SELECT product_name AS name, product_sku AS sku, variant_detail, quantity, price, discount, subtotal FROM transaction_items WHERE transaction_id = ? ORDER BY id', [req.params.id]);
     const [payments] = await db.execute('SELECT payment_method, amount, reference FROM transaction_payments WHERE transaction_id = ? ORDER BY id', [req.params.id]);
+    // Semua setelan cabang dikirim (kecuali rahasia) supaya template struk dari
+    // web (judul/label/toggle/gaya) ikut terbaca saat mencetak.
     const [settings] = await db.execute(
-      'SELECT `key`, `value` FROM store_settings WHERE branch_id = ? AND `key` IN (\'receipt_header\', \'receipt_contacts\', \'receipt_footer\', \'receipt_note\', \'store_logo\', \'invoice_logo\', \'show_logo\', \'printer_size\', \'store_name\', \'store_address\', \'store_phone\', \'whatsapp_number\', \'whatsapp_number_2\', \'whatsapp_number_3\', \'whatsapp_numbers\')',
+      "SELECT `key`, `value` FROM store_settings WHERE branch_id = ? AND `key` NOT IN ('daily_email_api_key','rajaongkir_api_key','daily_email_last_sent_date')",
       [transactions[0].branch_id]
     );
     const store = buildReceiptStore(transactions[0], settings);

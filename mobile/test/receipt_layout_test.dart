@@ -171,10 +171,81 @@ void main() {
 
   test('karakter non-ASCII diganti supaya tidak tercetak acak', () {
     final rows = _trimmed(_receipt(store: {
-      'store_name': 'BASIK · PGMTA',
-      'receipt_header': 'Terima kasih — sampai jumpa…',
+      'store_name': 'BASIK \u00b7 PGMTA',
+      'receipt_header': 'Terima kasih \u2014 sampai jumpa\u2026',
     }));
     expect(rows.first, 'BASIK - PGMTA');
     expect(rows, contains('Terima kasih - sampai jumpa...'));
+  });
+
+  test('judul, label, dan penutup mengikuti template dari web', () {
+    final receipt = _receipt(store: {
+      'receipt_title_info': 'STRUK PENJUALAN',
+      'receipt_title_products': 'DAFTAR BARANG',
+      'receipt_label_invoice': 'No',
+      'receipt_label_total': 'Jumlah',
+      'receipt_label_change': 'Sisa',
+      'receipt_closing': 'Terima kasih sudah belanja',
+    });
+    final rows = _trimmed(receipt);
+    expect(rows, contains('STRUK PENJUALAN'));
+    expect(rows, contains('DAFTAR BARANG'));
+    expect(rows.any((row) => row.startsWith('No ')), isTrue);
+    expect(rows.any((row) => row.startsWith('Jumlah')), isTrue);
+    expect(rows.any((row) => row.startsWith('Sisa')), isTrue);
+    expect(rows, contains('Terima kasih sudah belanja'));
+    expect(rows, isNot(contains('INFORMASI TRANSAKSI')));
+  });
+
+  test('baris bisa disembunyikan lewat toggle template', () {
+    final receipt = _receipt(store: {
+      'store_address': 'Blok B no 118',
+      'store_tax_id': '01.234.567.8',
+      'whatsapp_numbers': '["081313133162"]',
+      'receipt_show_address': 'false',
+      'receipt_show_wa': 'false',
+      'receipt_show_npwp': 'false',
+      'receipt_show_cashier': 'false',
+      'receipt_show_payment': 'false',
+      'receipt_show_paid': 'false',
+      'receipt_show_change': 'false',
+    });
+    final rows = _trimmed(receipt);
+    expect(rows.any((row) => row.contains('Blok B no 118')), isFalse);
+    expect(rows.any((row) => row.startsWith('WA ')), isFalse);
+    expect(rows.any((row) => row.startsWith('NPWP')), isFalse);
+    expect(rows.any((row) => row.startsWith('Kasir')), isFalse);
+    expect(rows.any((row) => row.startsWith('Transfer')), isFalse);
+    expect(rows.any((row) => row.startsWith('Dibayar')), isFalse);
+    expect(rows.any((row) => row.startsWith('Kembalian')), isFalse);
+    // Ringkasan nilai tetap ada.
+    expect(rows.any((row) => row.startsWith('Total')), isTrue);
+  });
+
+  test('gaya pemisah: garis, baris kosong, atau tanpa pemisah', () {
+    final dash = _rows(_receipt());
+    expect(dash.any((row) => row.trim() == '-' * 56), isTrue);
+
+    final blank = _rows(_receipt(store: {'receipt_separator': 'blank'}));
+    expect(blank.any((row) => row.trim() == '-' * 56), isFalse);
+
+    final none = _rows(_receipt(store: {'receipt_separator': 'none'}));
+    expect(none.any((row) => row.trim().startsWith('-----')), isFalse);
+  });
+
+  test('font normal (Font A) memakai 48 kolom dan margin bisa diatur', () {
+    final fontA = ReceiptLayout.fromReceipt(_receipt(store: {'receipt_font': 'a'}));
+    expect(fontA.width, 48);
+    expect(fontA.fontB, isFalse);
+
+    final marginFive = ReceiptLayout.fromReceipt(_receipt(store: {'receipt_margin': '5'}));
+    expect(marginFive.margin, 5);
+    expect(marginFive.width, 64);
+
+    final fontA58 = ReceiptLayout.fromReceipt(_receipt(
+      size: '58',
+      store: {'receipt_font': 'a'},
+    ));
+    expect(fontA58.width, 32);
   });
 }

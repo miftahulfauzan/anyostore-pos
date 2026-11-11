@@ -7453,3 +7453,56 @@ html[data-theme] .app-main .tabs button:not(.active):hover {
 .product-list article .actions button,
 .product-list article > button { min-height: 36px; align-self: center; }
 .landing-settings-tabs { margin-bottom: 6px; }
+
+/* ===== Template Struk (Pengaturan → Template Struk) ===== */
+.receipt-template-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  gap: 1rem;
+  align-items: start;
+}
+.receipt-template-form { min-width: 0; }
+.receipt-toggle-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: .45rem .9rem;
+}
+.receipt-toggle {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  font-size: var(--fs-sm);
+  color: var(--foreground);
+}
+.receipt-toggle input { width: 16px; height: 16px; margin: 0; }
+.receipt-text-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: .6rem .9rem;
+}
+.receipt-template-preview {
+  position: sticky;
+  top: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: .9rem 1rem 1rem;
+}
+.receipt-preview-paper {
+  margin: 0;
+  padding: .75rem .6rem;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 9.2px;
+  line-height: 1.55;
+  white-space: pre;
+  overflow-x: auto;
+  color: #111;
+}
+.dark .receipt-preview-paper { background: #f8fafc; }
+@media (max-width: 1000px) {
+  .receipt-template-layout { grid-template-columns: 1fr; }
+  .receipt-template-preview { position: static; }
+}
