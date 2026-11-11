@@ -652,49 +652,52 @@ class _BrandIconPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Digambar pada grid 24x24 lalu diskalakan, supaya kedua ikon punya
+    // ukuran optik dan titik tengah yang sama (tidak terlihat miring).
+    final unit = size.width / 24;
+    canvas.save();
+    canvas.scale(unit.clamp(0.01, double.infinity), unit.clamp(0.01, double.infinity));
+
     if (brand == InvoiceBrandIcon.whatsapp) {
-      // Gelembung putih dengan gagang telepon berlubang (warna header).
       final bubble = Paint()..color = color;
-      canvas.drawCircle(Offset(size.width * 0.5, size.height * 0.47), size.width * 0.42, bubble);
+      canvas.drawCircle(const Offset(12, 11.6), 8.8, bubble);
       final tail = Path()
-        ..moveTo(size.width * 0.12, size.height * 0.84)
-        ..lineTo(size.width * 0.03, size.height * 0.99)
-        ..lineTo(size.width * 0.36, size.height * 0.9)
+        ..moveTo(3.4, 18.4)
+        ..lineTo(1.6, 23)
+        ..lineTo(7.2, 20.6)
         ..close();
       canvas.drawPath(tail, bubble);
 
       final handset = Paint()
         ..color = const Color(0xFF1E3A5F)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = size.width * 0.15
+        ..strokeWidth = 3.2
         ..strokeCap = StrokeCap.round;
       canvas.drawPath(
         Path()
-          ..moveTo(size.width * 0.34, size.height * 0.34)
-          ..quadraticBezierTo(size.width * 0.36, size.height * 0.52, size.width * 0.62, size.height * 0.64),
+          ..moveTo(8.2, 7.6)
+          ..quadraticBezierTo(8.6, 12.2, 13.4, 15.2),
         handset,
       );
-      canvas.drawLine(Offset(size.width * 0.3, size.height * 0.3), Offset(size.width * 0.4, size.height * 0.4), handset);
-      canvas.drawLine(Offset(size.width * 0.66, size.height * 0.68), Offset(size.width * 0.58, size.height * 0.58), handset);
+      canvas.drawLine(const Offset(7.4, 6.8), const Offset(9.4, 8.8), handset);
+      canvas.drawLine(const Offset(15.2, 16.2), const Offset(13.4, 14.4), handset);
+      canvas.restore();
       return;
     }
 
-    // instagram: kotak membulat + lensa + titik, ketebalan sama dengan WhatsApp
     final stroke = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.1;
+      ..strokeWidth = 2.4
+      ..strokeJoin = StrokeJoin.round;
     final fill = Paint()..color = color;
-    final inset = size.width * 0.08;
     canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(inset, inset, size.width - inset * 2, size.height - inset * 2),
-        Radius.circular(size.width * 0.26),
-      ),
+      RRect.fromRectAndRadius(const Rect.fromLTWH(2.4, 2.4, 19.2, 19.2), const Radius.circular(6)),
       stroke,
     );
-    canvas.drawCircle(Offset(size.width / 2, size.height / 2), size.width * 0.24, stroke);
-    canvas.drawCircle(Offset(size.width * 0.72, size.height * 0.28), size.width * 0.055, fill);
+    canvas.drawCircle(const Offset(12, 12), 5.2, stroke);
+    canvas.drawCircle(const Offset(17.4, 6.6), 1.3, fill);
+    canvas.restore();
   }
 
   @override
