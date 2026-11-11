@@ -48,12 +48,16 @@ test('tombol bagikan ada di POS dan halaman struk', () => {
 });
 
 test('invoice menampilkan harga per pcs pada tiap barang', () => {
-  // Harga per pcs tampil sebaris dengan nama (rata kanan sebelum kolom QTY).
-  assert.match(invoice, /\$\{rupiah\(item\.price\)\}\/pcs/);
-  assert.match(invoice, /const detailRight = colPrice;/);
-  // Jarak kolom harga/pcs -> qty sama dengan qty -> jumlah.
-  assert.match(invoice, /const columnGap = 72;/);
+  // Satu baris 4 kolom: BARANG | HARGA/PCS | QTY | JUMLAH.
+  assert.match(invoice, /HARGA\/PCS/);
+  assert.match(invoice, /const colPrice = colQty - 250;/);
+  assert.match(invoice, /const colQty = amountLeft - 56;/);
+  // Uang invoice memakai spasi setelah Rp, mis. "Rp 85.000/pcs".
+  assert.match(invoice, /const money = \(value\) => 'Rp ' \+/);
+  assert.match(invoice, /\$\{money\(item\.price\)\}\/pcs/);
   assert.match(invoice, /fitText\(ctx, item\.name/);
+  // Alamat toko bisa sampai 3 baris dan diambil dari info toko.
+  assert.match(invoice, /\.slice\(0, 3\)/);
   // Tanggal invoice tanpa jam.
   assert.doesNotMatch(invoice, /\\u00b7 \$\{hh\}\.\$\{mm\}/);
   // Jarak ke blok rekening dibatasi agar tidak menyisakan lubang besar.

@@ -236,6 +236,8 @@ class InvoiceImage extends StatelessWidget {
                             if (payload.storeAddress.trim().isNotEmpty) ...[
                               const SizedBox(height: 3),
                               Text(payload.storeAddress.trim(),
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
                                       fontSize: 10.5,
                                       height: 1.35,
@@ -492,7 +494,7 @@ class InvoiceImage extends StatelessWidget {
                     style: TextStyle(
                         fontSize: 11.5, fontWeight: FontWeight.w800, color: denim)),
                 SizedBox(height: 6),
-                Text('cek produk kami lainnya anyostore.my.id · v7',
+                Text('cek produk kami lainnya anyostore.my.id · v8',
                     style: TextStyle(
                         fontSize: 10,
                         letterSpacing: .3,

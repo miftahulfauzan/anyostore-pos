@@ -169,9 +169,13 @@ export function renderInvoiceCanvas(payload) {
     ...(instagram ? [{ icon: 'ig', text: instagram }] : []),
   ];
   const leftWidth = 500;
-  const addressLines = payload.storeAddress
-    ? wrapText(ctx, payload.storeAddress, font(19, 600), leftWidth - 120)
-    : [];
+  // Alamat boleh terdiri dari maksimal 3 baris (Enter di pengaturan toko).
+  const addressLines = String(payload.storeAddress || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .flatMap((line) => wrapText(ctx, line, font(19, 600), leftWidth - 120))
+    .slice(0, 3);
   const leftBlockEstimate = (brand ? 34 + 24 : 42) + addressLines.length * 26;
   const rightBlockHeight = contactLines.length * 34;
   // Tinggi bar mengikuti isi + margin atas/bawah yang sama, supaya blok kiri

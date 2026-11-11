@@ -3,6 +3,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'dart:convert';
 
@@ -20,6 +21,13 @@ import 'printer_service.dart';
 import 'printer_setup.dart';
 import 'task_ui.dart';
 import 'theme_controller.dart';
+
+/// Batasi input teks ke sejumlah baris (Enter berlebih diabaikan).
+TextInputFormatter maxLinesFormatter(int maxLines) =>
+    TextInputFormatter.withFunction((oldValue, newValue) {
+      if (newValue.text.split('\n').length <= maxLines) return newValue;
+      return oldValue;
+    });
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({
@@ -552,8 +560,14 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 8),
           TextField(
               controller: _address,
+              minLines: 1,
+              maxLines: 3,
+              keyboardType: TextInputType.multiline,
+              inputFormatters: [maxLinesFormatter(3)],
               decoration: const InputDecoration(
-                  labelText: 'Alamat', border: OutlineInputBorder())),
+                  labelText: 'Alamat',
+                  helperText: 'Maksimal 3 baris, tampil apa adanya di invoice',
+                  border: OutlineInputBorder())),
           const SizedBox(height: 8),
           TextField(
               controller: _phone,
@@ -642,7 +656,8 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 16),
           const Text('Ukuran teks',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+              style: TextStyle(
+                  fontWeight: FontWeight.w700, fontSize: TaskTypography.label)),
           const SizedBox(height: 8),
           ValueListenableBuilder<double>(
             valueListenable: FontScaleController.scale,
@@ -662,7 +677,9 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 6),
           Text('Berlaku ke seluruh halaman aplikasi',
-              style: TextStyle(fontSize: 12, color: taskMuted(context))),
+              style: TextStyle(
+                  fontSize: TaskTypography.secondary,
+                  color: taskMuted(context))),
         ],
       ),
     );
@@ -676,14 +693,14 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           const Text(
               'Simpan snapshot seluruh database ke perangkat sebelum perubahan besar.',
-              style: TextStyle(fontSize: 12)),
+              style: TextStyle(fontSize: TaskTypography.secondary)),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Backup otomatis harian',
-                style: TextStyle(fontSize: 13)),
+                style: TextStyle(fontSize: TaskTypography.label)),
             subtitle: const Text(
                 'Berjalan saat app dibuka bila backup terakhir lebih dari 24 jam.',
-                style: TextStyle(fontSize: 12)),
+                style: TextStyle(fontSize: TaskTypography.secondary)),
             value: _autoBackup,
             onChanged: _toggleAutoBackup,
           ),
@@ -712,14 +729,16 @@ class _SettingsPageState extends State<SettingsPage> {
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Notifikasi stok menipis',
-                style: TextStyle(fontSize: 13)),
+                style: TextStyle(fontSize: TaskTypography.label)),
             subtitle: const Text('Beri tahu saat produk di bawah stok minimum.',
-                style: TextStyle(fontSize: 12)),
+                style: TextStyle(fontSize: TaskTypography.secondary)),
             value: _notifyLowStock,
             onChanged: _toggleNotifyLowStock,
           ),
           Text('Pengingat harian dijadwalkan jam 09.00 WIB.',
-              style: TextStyle(fontSize: 12, color: taskMuted(context))),
+              style: TextStyle(
+                  fontSize: TaskTypography.secondary,
+                  color: taskMuted(context))),
         ],
       ),
     );
@@ -738,7 +757,7 @@ class _SettingsPageState extends State<SettingsPage> {
               const Expanded(
                 child: Text(
                     'Tampil di splash, login, dan header menu. JPG/PNG/WebP maksimal 3 MB.',
-                    style: TextStyle(fontSize: 12)),
+                    style: TextStyle(fontSize: TaskTypography.secondary)),
               ),
             ],
           ),
@@ -771,7 +790,7 @@ class _SettingsPageState extends State<SettingsPage> {
               const Expanded(
                 child: Text(
                     'Logo ini dipakai di kepala struk/invoice toko atau gudang. JPG/PNG/WebP maksimal 3 MB.',
-                    style: TextStyle(fontSize: 12)),
+                    style: TextStyle(fontSize: TaskTypography.secondary)),
               ),
             ],
           ),
@@ -822,7 +841,7 @@ class _SettingsPageState extends State<SettingsPage> {
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Auto-print struk setelah bayar',
-                  style: TextStyle(fontSize: 13)),
+                  style: TextStyle(fontSize: TaskTypography.label)),
               value: _autoPrint,
               onChanged: (v) => setState(() => _autoPrint = v),
             ),
@@ -874,7 +893,7 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 2),
           const Text(
               'Printer yang dipilih tersimpan otomatis dan dipakai untuk struk, barcode, dan penutupan.',
-              style: TextStyle(fontSize: 12)),
+              style: TextStyle(fontSize: TaskTypography.secondary)),
         ],
       ),
     );
@@ -993,8 +1012,14 @@ class _SettingsPageState extends State<SettingsPage> {
                   const SizedBox(height: 8),
                   TextField(
                       controller: _address,
+                      minLines: 1,
+                      maxLines: 3,
+                      keyboardType: TextInputType.multiline,
+                      inputFormatters: [maxLinesFormatter(3)],
                       decoration: const InputDecoration(
-                          labelText: 'Alamat', border: OutlineInputBorder())),
+                          labelText: 'Alamat',
+                          helperText: 'Maksimal 3 baris',
+                          border: OutlineInputBorder())),
                   const SizedBox(height: 8),
                   TextField(
                       controller: _phone,
@@ -1089,8 +1114,9 @@ class _SettingsPageState extends State<SettingsPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text('Tampilan',
-                    style:
-                        TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                    style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: TaskTypography.cardTitle)),
                 const SizedBox(height: 8),
                 ValueListenableBuilder<ThemeMode>(
                   valueListenable: ThemeController.mode,
@@ -1115,8 +1141,9 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 const SizedBox(height: 14),
                 const Text('Ukuran teks',
-                    style:
-                        TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: TaskTypography.label)),
                 const SizedBox(height: 8),
                 ValueListenableBuilder<double>(
                   valueListenable: FontScaleController.scale,
@@ -1136,7 +1163,9 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 const SizedBox(height: 6),
                 Text('Berlaku ke seluruh halaman aplikasi',
-                    style: TextStyle(fontSize: 12, color: taskMuted(context))),
+                    style: TextStyle(
+                        fontSize: TaskTypography.secondary,
+                        color: taskMuted(context))),
               ],
             ),
           ),
@@ -1150,19 +1179,20 @@ class _SettingsPageState extends State<SettingsPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Text('Backup Data',
-                      style:
-                          TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                      style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: TaskTypography.cardTitle)),
                   const SizedBox(height: 6),
                   const Text(
                       'Simpan snapshot seluruh database ke perangkat. Disarankan rutin sebelum update besar.',
-                      style: TextStyle(fontSize: 12)),
+                      style: TextStyle(fontSize: TaskTypography.secondary)),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Backup otomatis harian',
-                        style: TextStyle(fontSize: 13)),
+                        style: TextStyle(fontSize: TaskTypography.label)),
                     subtitle: const Text(
                         'Saat app dibuka, otomatis backup bila > 24 jam sejak terakhir.',
-                        style: TextStyle(fontSize: 12)),
+                        style: TextStyle(fontSize: TaskTypography.secondary)),
                     value: _autoBackup,
                     onChanged: _toggleAutoBackup,
                   ),
@@ -1190,22 +1220,23 @@ class _SettingsPageState extends State<SettingsPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text('Notifikasi',
-                    style:
-                        TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                    style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: TaskTypography.cardTitle)),
                 const SizedBox(height: 6),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Notifikasi stok menipis',
-                      style: TextStyle(fontSize: 13)),
+                      style: TextStyle(fontSize: TaskTypography.label)),
                   subtitle: const Text(
                       'Muncul saat ada produk di bawah stok minimum.',
-                      style: TextStyle(fontSize: 12)),
+                      style: TextStyle(fontSize: TaskTypography.secondary)),
                   value: _notifyLowStock,
                   onChanged: _toggleNotifyLowStock,
                 ),
                 const Text(
                     'Pengingat harian jam 09.00 WIB otomatis dijadwalkan untuk cek stok & backup.',
-                    style: TextStyle(fontSize: 12)),
+                    style: TextStyle(fontSize: TaskTypography.secondary)),
               ],
             ),
           ),

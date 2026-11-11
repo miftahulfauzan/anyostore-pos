@@ -111,6 +111,18 @@ export default function SettingsPage() {
   }, []);
 
   const input = (key, label, type = 'text') => <label>{label}<input type={type} value={form[key] ?? ''} onChange={(event) => setForm({ ...form, [key]: event.target.value })} /></label>;
+  // Alamat toko maksimal 3 baris; setiap baris tampil terpisah di invoice.
+  const addressInput = (key, label) => (
+    <label>{label}
+      <textarea
+        rows={3}
+        value={form[key] ?? ''}
+        placeholder={'Baris 1 (gedung / lantai / blok)\nBaris 2 (jalan / kawasan)\nBaris 3 (kota)'}
+        onChange={(event) => setForm({ ...form, [key]: event.target.value.split('\n').slice(0, 3).join('\n') })}
+      />
+      <span className="muted" style={{ fontSize: 'var(--fs-sm)' }}>Maksimal 3 baris, tampil apa adanya di invoice.</span>
+    </label>
+  );
   const select = (key, label, items) => <label>{label}<select value={form[key] ?? ''} onChange={(event) => setForm({ ...form, [key]: event.target.value })}>{items.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>;
 
   function buildWaList(f) {
@@ -420,7 +432,7 @@ export default function SettingsPage() {
         <h2>Toko aktif & identitas</h2>
         {stores.length > 1 && <label>Pilih toko<select value={branch} onChange={(event) => { setBranch(event.target.value); load(event.target.value); }}>{stores.map((store) => <option key={store.id} value={store.id} style={{ opacity: store.is_active ? 1 : .5 }}>{store.name}{store.is_active ? '' : ' (nonaktif)'}</option>)}</select></label>}
         {input('store_name', 'Nama toko')}
-        {input('store_address', 'Alamat')}
+        {addressInput('store_address', 'Alamat')}
         <div className="two-fields">
           {input('store_phone', 'Telepon', 'tel')}
           {input('store_email', 'Email toko', 'email')}
