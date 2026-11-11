@@ -348,7 +348,7 @@ class InvoiceImage extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.baseline,
                             textBaseline: TextBaseline.alphabetic,
                             children: [
-                              Expanded(
+                              Flexible(
                                 child: Text(item.name,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -358,10 +358,10 @@ class InvoiceImage extends StatelessWidget {
                                         color: inkColor)),
                               ),
                               if (item.price > 0) ...[
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 8),
                                 Text('${fmtRp(item.price)}/pcs',
                                     style: const TextStyle(
-                                        fontSize: 9.5, color: muted)),
+                                        fontSize: 10, color: muted)),
                               ],
                             ],
                           ),
@@ -506,7 +506,7 @@ class InvoiceImage extends StatelessWidget {
                     style: TextStyle(
                         fontSize: 11.5, fontWeight: FontWeight.w800, color: denim)),
                 SizedBox(height: 6),
-                Text('cek produk kami lainnya anyostore.my.id · v3',
+                Text('cek produk kami lainnya anyostore.my.id · v4',
                     style: TextStyle(
                         fontSize: 10,
                         letterSpacing: .3,
@@ -658,29 +658,31 @@ class _BrandIconPainter extends CustomPainter {
     canvas.save();
     canvas.scale(unit.clamp(0.01, double.infinity), unit.clamp(0.01, double.infinity));
 
+    // Kedua ikon memakai kotak optik sama: 20 dari 24 grid (2..22),
+    // sehingga ukuran & titik tengahnya identik -> sejajar antar baris.
     if (brand == InvoiceBrandIcon.whatsapp) {
       final bubble = Paint()..color = color;
-      canvas.drawCircle(const Offset(12, 11.6), 8.8, bubble);
+      canvas.drawCircle(const Offset(12, 11.6), 10, bubble);
       final tail = Path()
-        ..moveTo(3.4, 18.4)
-        ..lineTo(1.6, 23)
-        ..lineTo(7.2, 20.6)
+        ..moveTo(4.2, 19.4)
+        ..lineTo(2.2, 23)
+        ..lineTo(8.2, 21.2)
         ..close();
       canvas.drawPath(tail, bubble);
 
       final handset = Paint()
         ..color = const Color(0xFF1E3A5F)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.2
+        ..strokeWidth = 3.4
         ..strokeCap = StrokeCap.round;
       canvas.drawPath(
         Path()
-          ..moveTo(8.2, 7.6)
-          ..quadraticBezierTo(8.6, 12.2, 13.4, 15.2),
+          ..moveTo(8, 7.4)
+          ..quadraticBezierTo(8.4, 12.4, 13.6, 15.6),
         handset,
       );
-      canvas.drawLine(const Offset(7.4, 6.8), const Offset(9.4, 8.8), handset);
-      canvas.drawLine(const Offset(15.2, 16.2), const Offset(13.4, 14.4), handset);
+      canvas.drawLine(const Offset(7.2, 6.6), const Offset(9.2, 8.6), handset);
+      canvas.drawLine(const Offset(15.4, 16.6), const Offset(13.6, 14.8), handset);
       canvas.restore();
       return;
     }
@@ -688,11 +690,11 @@ class _BrandIconPainter extends CustomPainter {
     final stroke = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.4
+      ..strokeWidth = 2.6
       ..strokeJoin = StrokeJoin.round;
     final fill = Paint()..color = color;
     canvas.drawRRect(
-      RRect.fromRectAndRadius(const Rect.fromLTWH(2.4, 2.4, 19.2, 19.2), const Radius.circular(6)),
+      RRect.fromRectAndRadius(const Rect.fromLTWH(2, 2, 20, 20), const Radius.circular(6)),
       stroke,
     );
     canvas.drawCircle(const Offset(12, 12), 5.2, stroke);

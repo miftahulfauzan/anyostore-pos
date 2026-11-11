@@ -339,10 +339,12 @@ export function renderInvoiceCanvas(payload) {
     ctx.fillStyle = INK;
     ctx.fillText(nameText, pad, y);
     if (detailText) {
-      ctx.textAlign = 'right';
+      // Harga/pcs menempel setelah nama (bukan rata kanan) supaya tidak
+      // terlihat menempel ke kolom QTY.
+      const nameWidth = ctx.measureText(nameText).width;
       ctx.fillStyle = MUTED;
       ctx.font = font(19, 600);
-      ctx.fillText(detailText, detailRight, y);
+      ctx.fillText(detailText, pad + nameWidth + 14, y);
     }
     ctx.textAlign = 'center';
     ctx.fillStyle = '#475569';
