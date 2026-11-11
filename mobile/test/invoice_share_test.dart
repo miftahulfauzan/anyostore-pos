@@ -52,9 +52,16 @@ void main() {
     expect(find.text('a.n $invoiceBankHolder'), findsOneWidget);
     expect(find.text('LUNAS'), findsNothing);
     expect(find.text('Celana Baggy A104'), findsOneWidget);
-    expect(find.text('Rp360.000'), findsOneWidget);
-    // Harga per pcs ikut tampil di baris barang.
-    expect(find.textContaining('/pcs'), findsWidgets);
+    expect(find.text('Rp 360.000'), findsOneWidget);
+    // Tabel barang satu baris 4 kolom: BARANG | HARGA/PCS | QTY | JUMLAH.
+    expect(find.text('BARANG'), findsOneWidget);
+    expect(find.text('HARGA/PCS'), findsOneWidget);
+    expect(find.text('QTY'), findsOneWidget);
+    expect(find.text('JUMLAH'), findsOneWidget);
+    // Harga per pcs ikut tampil di baris barang dengan format "Rp 185.000/pcs".
+    expect(find.text('Rp 185.000/pcs'), findsOneWidget);
+    // Muncul di baris barang dan di ringkasan subtotal.
+    expect(find.text('Rp 370.000'), findsNWidgets(2));
     // Invoice penagihan: metode bayar & kembalian tidak ditampilkan.
     expect(find.text('Tunai'), findsNothing);
     expect(find.text('Kembalian'), findsNothing);

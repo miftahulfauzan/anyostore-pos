@@ -19,6 +19,8 @@ const bankHolder = 'Miftahul Fauzan';
 const bankNote = 'Jika sudah transfer mohon konfirmasinya ya ka';
 
 export const rupiah = (value) => 'Rp' + Number(value || 0).toLocaleString('id-ID');
+// Invoice memakai spasi setelah Rp agar angka sejajar rapi.
+const money = (value) => 'Rp ' + Number(value || 0).toLocaleString('id-ID');
 
 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
@@ -302,16 +304,17 @@ export function renderInvoiceCanvas(payload) {
 
   // ===== Item =====
   const colAmount = OUTPUT_WIDTH - pad;
-  const amountWidth = 190;
+  const amountWidth = 200;
   const amountLeft = colAmount - amountWidth;
-  const columnGap = 72;
-  const colQty = amountLeft - columnGap;
-  const colPrice = colQty - columnGap;
+  const colQty = amountLeft - 56;
+  const colPrice = colQty - 250;
   y += 40;
   ctx.textAlign = 'left';
   ctx.fillStyle = MUTED;
   ctx.font = font(17, 800);
   drawSpacedText(ctx, 'BARANG', pad, y, 1.6);
+  ctx.textAlign = 'left';
+  ctx.fillText('HARGA/PCS', colPrice, y);
   ctx.textAlign = 'center';
   ctx.fillText('QTY', colQty, y);
   ctx.textAlign = 'right';
@@ -330,30 +333,25 @@ export function renderInvoiceCanvas(payload) {
     y += 38;
     ctx.textAlign = 'left';
     ctx.font = font(24, 700);
-    const nameText = fitText(ctx, item.name || '-', font(24, 700), detailRight - pad - 120);
+    const nameText = fitText(ctx, item.name || '-', font(24, 700), colPrice - pad - 16);
     ctx.fillStyle = INK;
     ctx.fillText(nameText, pad, y);
-    if (item.variant) {
-      const nameWidth = ctx.measureText(nameText).width;
-      ctx.fillStyle = MUTED;
-      ctx.font = font(19, 600);
-      ctx.fillText(item.variant, pad + nameWidth + 12, y);
-    }
+
+    // HARGA/PCS (kolom tetap, rata kiri)
+    ctx.fillStyle = MUTED;
+    ctx.font = font(20, 600);
+    ctx.fillText(Number(item.price) > 0 ? `${money(item.price)}/pcs` : '-', colPrice, y);
+
     ctx.textAlign = 'center';
     ctx.fillStyle = '#475569';
     ctx.font = font(24, 600);
     ctx.fillText(String(item.qty ?? 0), colQty, y);
+
     ctx.textAlign = 'right';
     ctx.fillStyle = INK;
     ctx.font = font(24, 700);
-    ctx.fillText(rupiah(item.subtotal), colAmount, y);
-    if (Number(item.price) > 0) {
-      ctx.textAlign = 'right';
-      ctx.fillStyle = MUTED;
-      ctx.font = font(19, 600);
-      ctx.fillText(`${rupiah(item.price)}/pcs`, colAmount, y + 26);
-      y += 24;
-    }
+    ctx.fillText(money(item.subtotal), colAmount, y);
+
     y += 14;
     ctx.strokeStyle = '#f1f5f9';
     ctx.beginPath();
@@ -376,8 +374,8 @@ export function renderInvoiceCanvas(payload) {
     ctx.fillText(value, OUTPUT_WIDTH - pad, y);
     y += 38;
   };
-  summaryRow('Subtotal', rupiah(payload.subtotal));
-  if (Number(payload.discount) > 0) summaryRow('Diskon', '-' + rupiah(payload.discount));
+  summaryRow('Subtotal', money(payload.subtotal));
+  if (Number(payload.discount) > 0) summaryRow('Diskon', '-' + money(payload.discount));
 
   y += 18;
   const totalBoxHeight = 74;
@@ -394,7 +392,7 @@ export function renderInvoiceCanvas(payload) {
   const labelWidth = ctx.measureText('Total').width;
   const valueRightEdge = OUTPUT_WIDTH - pad - 4;
   const valueMaxWidth = valueRightEdge - (summaryLeft + labelWidth + 24);
-  const valueText = rupiah(payload.total);
+  const valueText = money(payload.total);
   let valueFont = 38;
   ctx.font = font(valueFont, 900);
   while (valueFont > 22 && ctx.measureText(valueText).width > valueMaxWidth) {

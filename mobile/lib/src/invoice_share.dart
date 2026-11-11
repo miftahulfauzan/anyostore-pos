@@ -86,6 +86,9 @@ const invoiceBankAccounts = <({String bank, String number})>[
 const invoiceBankHolder = 'Miftahul Fauzan';
 const invoiceBankNote = 'Jika sudah transfer mohon konfirmasinya ya ka';
 
+/// Uang pada invoice memakai spasi setelah Rp agar angka sejajar rapi.
+String invoiceMoney(num value) => 'Rp ${fmtRp(value).replaceFirst('Rp', '')}';
+
 /// Lebar logis invoice; ditangkap pada pixel ratio 2 sehingga keluar 1080 px.
 const double invoiceLogicalWidth = 540;
 
@@ -303,16 +306,16 @@ class InvoiceImage extends StatelessWidget {
             child: Row(
               children: const [
                 Expanded(
-                    flex: 5,
                     child: Text('BARANG',
                         style: TextStyle(
                             fontSize: 9,
                             letterSpacing: .8,
                             fontWeight: FontWeight.w800,
                             color: muted))),
-                SizedBox(width: 20),
+                SizedBox(width: 120, child: Text('HARGA/PCS', style: TextStyle(fontSize: 9, letterSpacing: .8, fontWeight: FontWeight.w800, color: muted))),
+                SizedBox(width: 10),
                 SizedBox(
-                    width: 36,
+                    width: 34,
                     child: Text('QTY',
                         textAlign: TextAlign.center,
                         style: TextStyle(
@@ -320,9 +323,9 @@ class InvoiceImage extends StatelessWidget {
                             letterSpacing: .8,
                             fontWeight: FontWeight.w800,
                             color: muted))),
-                SizedBox(width: 20),
+                SizedBox(width: 10),
                 SizedBox(
-                    width: 120,
+                    width: 104,
                     child: Text('JUMLAH',
                         textAlign: TextAlign.right,
                         style: TextStyle(
@@ -335,58 +338,40 @@ class InvoiceImage extends StatelessWidget {
           ),
           Container(margin: const EdgeInsets.symmetric(horizontal: 20), height: 1, color: line),
           ...payload.items.map((item) => Padding(
-                padding: const EdgeInsets.fromLTRB(20, 6, 20, 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: Text(item.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: inkColor)),
-                        ),
-                        if (item.variant.trim().isNotEmpty) ...[
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Text(item.variant,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 9.5, color: muted)),
-                          ),
-                        ],
-                        const SizedBox(width: 20),
-                        SizedBox(
-                            width: 36,
-                            child: Text('${item.qty}',
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                    fontSize: 12.5, color: Color(0xFF475569)))),
-                        const SizedBox(width: 20),
-                        SizedBox(
-                            width: 120,
-                            child: Text(fmtRp(item.subtotal),
-                                textAlign: TextAlign.right,
-                                style: const TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: inkColor))),
-                      ],
+                    Expanded(
+                      child: Text(item.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: inkColor)),
                     ),
-                    if (item.price > 0)
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 2, right: 0),
-                          child: Text('${fmtRp(item.price)}/pcs',
-                              style: const TextStyle(fontSize: 9.5, color: muted)),
-                        ),
-                      ),
+                    SizedBox(
+                        width: 120,
+                        child: Text(
+                            item.price > 0 ? '${invoiceMoney(item.price)}/pcs' : '-',
+                            style: const TextStyle(fontSize: 10, color: muted))),
+                    const SizedBox(width: 10),
+                    SizedBox(
+                        width: 34,
+                        child: Text('${item.qty}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                fontSize: 12.5, color: Color(0xFF475569)))),
+                    const SizedBox(width: 10),
+                    SizedBox(
+                        width: 104,
+                        child: Text(invoiceMoney(item.subtotal),
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: inkColor))),
                   ],
                 ),
               )),
@@ -398,9 +383,9 @@ class InvoiceImage extends StatelessWidget {
             decoration: const BoxDecoration(border: Border(top: BorderSide(color: line))),
             child: Column(
               children: [
-                summaryRow('Subtotal', fmtRp(payload.subtotal)),
+                summaryRow('Subtotal', invoiceMoney(payload.subtotal)),
                 if (payload.discount > 0)
-                  summaryRow('Diskon', '-${fmtRp(payload.discount)}'),
+                  summaryRow('Diskon', '-${invoiceMoney(payload.discount)}'),
                 Container(
                   margin: const EdgeInsets.symmetric(vertical: 6),
                   padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
@@ -417,7 +402,7 @@ class InvoiceImage extends StatelessWidget {
                         child: FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerRight,
-                          child: Text(fmtRp(payload.total),
+                          child: Text(invoiceMoney(payload.total),
                               style: const TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.w900,
@@ -507,7 +492,7 @@ class InvoiceImage extends StatelessWidget {
                     style: TextStyle(
                         fontSize: 11.5, fontWeight: FontWeight.w800, color: denim)),
                 SizedBox(height: 6),
-                Text('cek produk kami lainnya anyostore.my.id · v5',
+                Text('cek produk kami lainnya anyostore.my.id · v6',
                     style: TextStyle(
                         fontSize: 10,
                         letterSpacing: .3,
