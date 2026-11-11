@@ -1,7 +1,7 @@
 name: pos_pakaian_mobile
 description: POS Pakaian mobile companion app
 publish_to: none
-version: 0.2.0+6086
+version: 0.2.0+6092
 
 environment:
   sdk: '>=3.4.0 <4.0.0'

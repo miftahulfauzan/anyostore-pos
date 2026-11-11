@@ -310,7 +310,7 @@ class InvoiceImage extends StatelessWidget {
                             letterSpacing: .8,
                             fontWeight: FontWeight.w800,
                             color: muted))),
-                SizedBox(width: 16),
+                SizedBox(width: 20),
                 SizedBox(
                     width: 36,
                     child: Text('QTY',
@@ -320,9 +320,9 @@ class InvoiceImage extends StatelessWidget {
                             letterSpacing: .8,
                             fontWeight: FontWeight.w800,
                             color: muted))),
-                SizedBox(width: 16),
+                SizedBox(width: 20),
                 SizedBox(
-                    width: 96,
+                    width: 120,
                     child: Text('JUMLAH',
                         textAlign: TextAlign.right,
                         style: TextStyle(
@@ -372,16 +372,16 @@ class InvoiceImage extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 20),
                     SizedBox(
                         width: 36,
                         child: Text('${item.qty}',
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                                 fontSize: 12.5, color: Color(0xFF475569)))),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 20),
                     SizedBox(
-                        width: 96,
+                        width: 120,
                         child: Text(fmtRp(item.subtotal),
                             textAlign: TextAlign.right,
                             style: const TextStyle(
@@ -506,7 +506,7 @@ class InvoiceImage extends StatelessWidget {
                     style: TextStyle(
                         fontSize: 11.5, fontWeight: FontWeight.w800, color: denim)),
                 SizedBox(height: 6),
-                Text('cek produk kami lainnya anyostore.my.id',
+                Text('cek produk kami lainnya anyostore.my.id · v3',
                     style: TextStyle(
                         fontSize: 10,
                         letterSpacing: .3,

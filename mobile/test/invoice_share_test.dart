@@ -60,7 +60,7 @@ void main() {
     expect(find.text('Kembalian'), findsNothing);
     expect(find.textContaining('Simpan invoice'), findsNothing);
     // Catatan bawah sesuai permintaan.
-    expect(find.text('cek produk kami lainnya anyostore.my.id'), findsOneWidget);
+    expect(find.textContaining('cek produk kami lainnya anyostore.my.id'), findsOneWidget);
     // Header: dua nomor HP + Instagram khusus BASIK.
     expect(find.text('LANTAI 6 blok B no 116'), findsOneWidget);
     expect(find.text('0812-3456-7890'), findsOneWidget);
