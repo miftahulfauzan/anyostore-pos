@@ -330,21 +330,14 @@ export function renderInvoiceCanvas(payload) {
     y += 38;
     ctx.textAlign = 'left';
     ctx.font = font(24, 700);
-    const detailParts = [item.variant, Number(item.price) > 0 ? `${rupiah(item.price)}/pcs` : ''].filter(Boolean);
-    const detailText = detailParts.join(' · ');
-    ctx.font = font(19, 600);
-    const detailWidth = detailText ? ctx.measureText(detailText).width + 16 : 0;
-    ctx.font = font(24, 700);
-    const nameText = fitText(ctx, item.name || '-', font(24, 700), detailRight - pad - detailWidth);
+    const nameText = fitText(ctx, item.name || '-', font(24, 700), detailRight - pad - 120);
     ctx.fillStyle = INK;
     ctx.fillText(nameText, pad, y);
-    if (detailText) {
-      // Harga/pcs menempel setelah nama (bukan rata kanan) supaya tidak
-      // terlihat menempel ke kolom QTY.
+    if (item.variant) {
       const nameWidth = ctx.measureText(nameText).width;
       ctx.fillStyle = MUTED;
       ctx.font = font(19, 600);
-      ctx.fillText(detailText, pad + nameWidth + 14, y);
+      ctx.fillText(item.variant, pad + nameWidth + 12, y);
     }
     ctx.textAlign = 'center';
     ctx.fillStyle = '#475569';
@@ -354,6 +347,13 @@ export function renderInvoiceCanvas(payload) {
     ctx.fillStyle = INK;
     ctx.font = font(24, 700);
     ctx.fillText(rupiah(item.subtotal), colAmount, y);
+    if (Number(item.price) > 0) {
+      ctx.textAlign = 'right';
+      ctx.fillStyle = MUTED;
+      ctx.font = font(19, 600);
+      ctx.fillText(`${rupiah(item.price)}/pcs`, colAmount, y + 26);
+      y += 24;
+    }
     y += 14;
     ctx.strokeStyle = '#f1f5f9';
     ctx.beginPath();

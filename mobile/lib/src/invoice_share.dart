@@ -335,57 +335,58 @@ class InvoiceImage extends StatelessWidget {
           ),
           Container(margin: const EdgeInsets.symmetric(horizontal: 20), height: 1, color: line),
           ...payload.items.map((item) => Padding(
-                padding: const EdgeInsets.fromLTRB(20, 7, 20, 7),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                padding: const EdgeInsets.fromLTRB(20, 6, 20, 6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(
-                      flex: 5,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.baseline,
-                            textBaseline: TextBaseline.alphabetic,
-                            children: [
-                              Flexible(
-                                child: Text(item.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: inkColor)),
-                              ),
-                              if (item.price > 0) ...[
-                                const SizedBox(width: 8),
-                                Text('${fmtRp(item.price)}/pcs',
-                                    style: const TextStyle(
-                                        fontSize: 10, color: muted)),
-                              ],
-                            ],
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Text(item.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: inkColor)),
+                        ),
+                        if (item.variant.trim().isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(item.variant,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 9.5, color: muted)),
                           ),
-                          if (item.variant.trim().isNotEmpty)
-                            Text(item.variant,
-                                style: const TextStyle(
-                                    fontSize: 10, color: muted, height: 1.35)),
                         ],
-                      ),
+                        const SizedBox(width: 20),
+                        SizedBox(
+                            width: 36,
+                            child: Text('${item.qty}',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    fontSize: 12.5, color: Color(0xFF475569)))),
+                        const SizedBox(width: 20),
+                        SizedBox(
+                            width: 120,
+                            child: Text(fmtRp(item.subtotal),
+                                textAlign: TextAlign.right,
+                                style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: inkColor))),
+                      ],
                     ),
-                    const SizedBox(width: 20),
-                    SizedBox(
-                        width: 36,
-                        child: Text('${item.qty}',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                                fontSize: 12.5, color: Color(0xFF475569)))),
-                    const SizedBox(width: 20),
-                    SizedBox(
-                        width: 120,
-                        child: Text(fmtRp(item.subtotal),
-                            textAlign: TextAlign.right,
-                            style: const TextStyle(
-                                fontSize: 12.5, fontWeight: FontWeight.w700, color: inkColor))),
+                    if (item.price > 0)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 2, right: 0),
+                          child: Text('${fmtRp(item.price)}/pcs',
+                              style: const TextStyle(fontSize: 9.5, color: muted)),
+                        ),
+                      ),
                   ],
                 ),
               )),
@@ -506,7 +507,7 @@ class InvoiceImage extends StatelessWidget {
                     style: TextStyle(
                         fontSize: 11.5, fontWeight: FontWeight.w800, color: denim)),
                 SizedBox(height: 6),
-                Text('cek produk kami lainnya anyostore.my.id · v4',
+                Text('cek produk kami lainnya anyostore.my.id · v5',
                     style: TextStyle(
                         fontSize: 10,
                         letterSpacing: .3,
