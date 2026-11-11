@@ -6,13 +6,15 @@ const router = express.Router();
 router.use(authenticate);
 
 function buildReceiptStore(transaction, settings) {
+  // Identitas toko berasal dari tabel branches; nilai lama di store_settings
+  // hanya pelengkap dan tidak boleh menimpa alamat/nama toko yang terbaru.
   return {
+    ...Object.fromEntries(settings.map((setting) => [setting.key, setting.value])),
     store_name: transaction.store_name,
     store_address: transaction.store_address || '',
     store_phone: transaction.store_phone || '',
     store_email: transaction.store_email || '',
     store_tax_id: transaction.store_tax_id || '',
-    ...Object.fromEntries(settings.map((setting) => [setting.key, setting.value])),
   };
 }
 

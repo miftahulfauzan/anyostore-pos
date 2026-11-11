@@ -1347,6 +1347,31 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     return (name: name, address: address, phone: phone);
   }
 
+  /// Info toko terbaru dari server, dipakai saat mencetak invoice supaya
+  /// perubahan nama/alamat/telepon toko langsung terpakai tanpa membuka ulang
+  /// aplikasi (server menyimpan identitas toko di tabel branches).
+  Future<({String name, String address, String phone})> _freshInvoiceStore() async {
+    final fallback = _invoiceStore();
+    try {
+      final fresh = await _client.storeSettings();
+      final name = fresh['store_name']?.toString().trim() ?? '';
+      final address = fresh['store_address']?.toString().trim() ?? '';
+      final phone = fresh['store_phone']?.toString().trim() ?? '';
+      final phones = _collectStorePhones(fresh);
+      if (name.isNotEmpty) _storeName = name;
+      if (address.isNotEmpty) _storeAddress = address;
+      if (phone.isNotEmpty) _storePhone = phone;
+      if (phones.isNotEmpty) _storePhones = phones;
+      return (
+        name: name.isNotEmpty ? name : fallback.name,
+        address: address.isNotEmpty ? address : fallback.address,
+        phone: phone.isNotEmpty ? phone : fallback.phone,
+      );
+    } catch (_) {
+      return fallback;
+    }
+  }
+
   /// Nomor telepon pada header invoice: daftar dari pengaturan web, atau
   /// nomor cabang bila pengaturan belum diisi.
   List<String> _invoicePhones(String fallback) {
@@ -1376,7 +1401,7 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     final grand = _previewFresh && _preview?['grand_total'] != null
         ? asNum(_preview?['grand_total'])
         : (subtotal - discount);
-    final store = _invoiceStore();
+    final store = await _freshInvoiceStore();
     // Nomor invoice direservasi di server supaya gambar yang dikirim ke pembeli
     // memakai nomor resmi dan tetap sama saat transaksi diselesaikan.
     _shareClientTxId ??= uuidV4();

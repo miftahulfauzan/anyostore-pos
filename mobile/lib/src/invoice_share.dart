@@ -250,7 +250,7 @@ class InvoiceImage extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     for (final phone in payload.storePhones)
@@ -492,7 +492,7 @@ class InvoiceImage extends StatelessWidget {
                     style: TextStyle(
                         fontSize: 11.5, fontWeight: FontWeight.w800, color: denim)),
                 SizedBox(height: 6),
-                Text('cek produk kami lainnya anyostore.my.id · v6',
+                Text('cek produk kami lainnya anyostore.my.id · v7',
                     style: TextStyle(
                         fontSize: 10,
                         letterSpacing: .3,
