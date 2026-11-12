@@ -7506,3 +7506,24 @@ html[data-theme] .app-main .tabs button:not(.active):hover {
   .receipt-template-layout { grid-template-columns: 1fr; }
   .receipt-template-preview { position: static; }
 }
+
+/* ===== Bandingkan Setelan Cabang ===== */
+.branch-compare-pickers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem 1rem;
+  align-items: end;
+}
+.branch-compare-pickers label { min-width: 200px; }
+.branch-compare-arrow { font-size: 20px; font-weight: 800; color: var(--muted); padding-bottom: .5rem; }
+.branch-compare-toolbar { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .9rem; }
+.branch-compare-group { margin-bottom: 1.1rem; }
+.branch-compare-group h3 { font-size: var(--fs-md); margin: 0 0 .4rem; color: var(--foreground); }
+.branch-compare-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+.branch-compare-table th,
+.branch-compare-table td { text-align: left; padding: .45rem .5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+.branch-compare-table th { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.branch-compare-table tr.same td { color: var(--muted); }
+.branch-compare-table tr.different td:nth-child(4) { font-weight: 700; }
+.branch-compare-table code { font-size: var(--fs-xs); background: rgba(30,58,95,.06); padding: 1px 5px; border-radius: 4px; }
+.dark .branch-compare-table code { background: rgba(255,255,255,.08); }

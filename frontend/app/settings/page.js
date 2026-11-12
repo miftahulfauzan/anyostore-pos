@@ -465,6 +465,7 @@ export default function SettingsPage() {
         <p className="muted" style={{ marginTop: 0 }}>
           Header, footer, catatan, dan seluruh teks struk kini diatur di halaman
           <a href="/settings/receipt-template"> Template Struk</a>.
+          Untuk menyamakan setelan antar cabang, buka <a href="/settings/branch-compare">Bandingkan Setelan</a>.
         </p>
         <div className="two-fields">
           {select('printer_size', 'Printer', [['58', '58 mm'], ['80', '80 mm']])}

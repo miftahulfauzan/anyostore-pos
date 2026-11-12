@@ -93,6 +93,7 @@ const navigation = [
       { href: '/users', label: 'Pegawai & Akses', icon: Users, roles: ['owner'] },
       { href: '/settings/link-page', label: 'Halaman Link', icon: Link2, roles: ['owner'] },
       { href: '/settings/receipt-template', label: 'Template Struk', icon: Receipt, roles: ['owner'] },
+      { href: '/settings/branch-compare', label: 'Bandingkan Setelan', icon: ArrowRightLeft, roles: ['owner'] },
       { href: '/settings', label: 'Pengaturan', icon: Settings, roles: ['owner'] },
       { href: '/profile', label: 'Akun Saya', icon: User },
     ],

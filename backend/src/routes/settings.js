@@ -433,6 +433,93 @@ router.delete('/shipping-rates/:id', authorize('owner', 'manager', 'admin'), asy
   } catch (error) { next(error); }
 });
 
+// ===== Bandingkan & salin setelan antar cabang (owner) =====
+const SECRET_KEYS = new Set(['daily_email_api_key', 'daily_email_last_sent_date', 'rajaongkir_api_key']);
+
+function compareBranchIds(query) {
+  const sourceId = Number(query.source_id || query.source);
+  const targetId = Number(query.target_id || query.target);
+  if (!Number.isInteger(sourceId) || !Number.isInteger(targetId) || sourceId <= 0 || targetId <= 0) {
+    throw Object.assign(new Error('Cabang sumber dan tujuan wajib dipilih'), { status: 400 });
+  }
+  if (sourceId === targetId) throw Object.assign(new Error('Cabang sumber dan tujuan tidak boleh sama'), { status: 400 });
+  return { sourceId, targetId };
+}
+
+async function loadBranchSettings(branchId) {
+  const [rows] = await db.execute('SELECT `key`, `value` FROM store_settings WHERE branch_id=?', [branchId]);
+  return new Map(rows.map((row) => [row.key, row.value]));
+}
+
+router.get('/compare', authorize('owner'), async (req, res, next) => {
+  try {
+    const { sourceId, targetId } = compareBranchIds(req.query);
+    const [branches] = await db.execute('SELECT id,name,type,is_active FROM branches WHERE id IN (?,?)', [sourceId, targetId]);
+    const source = branches.find((row) => Number(row.id) === sourceId);
+    const target = branches.find((row) => Number(row.id) === targetId);
+    if (!source || !target) return res.status(404).json({ success: false, message: 'Cabang tidak ditemukan' });
+
+    const sourceSettings = await loadBranchSettings(sourceId);
+    const targetSettings = await loadBranchSettings(targetId);
+    const keys = [...new Set([...sourceSettings.keys(), ...targetSettings.keys()])].sort();
+    const rows = keys.filter((key) => !SECRET_KEYS.has(key)).map((key) => {
+      const from = sourceSettings.get(key);
+      const to = targetSettings.get(key);
+      return {
+        key,
+        source: from ?? '',
+        target: to ?? '',
+        missing: !targetSettings.has(key),
+        same: String(from ?? '') === String(to ?? ''),
+        identity: profileKeys.has(key),
+        editable: allowed.has(key),
+      };
+    });
+    res.json({
+      success: true,
+      data: {
+        source: { id: source.id, name: source.name, type: source.type },
+        target: { id: target.id, name: target.name, type: target.type },
+        rows,
+        different: rows.filter((row) => !row.same).length,
+      },
+    });
+  } catch (error) { next(error); }
+});
+
+router.post('/compare/apply', authorize('owner'), async (req, res, next) => {
+  try {
+    const { sourceId, targetId } = compareBranchIds(req.body);
+    const keys = Array.isArray(req.body.keys) ? [...new Set(req.body.keys.map(String))] : [];
+    if (!keys.length) return res.status(400).json({ success: false, message: 'Pilih minimal satu setelan untuk disalin' });
+    const includeIdentity = req.body.include_identity === true;
+    const invalid = keys.filter((key) => !allowed.has(key) || SECRET_KEYS.has(key));
+    if (invalid.length) {
+      return res.status(400).json({ success: false, message: `Setelan tidak boleh disalin: ${invalid.join(', ')}` });
+    }
+    const identity = keys.filter((key) => profileKeys.has(key));
+    if (identity.length && !includeIdentity) {
+      return res.status(400).json({
+        success: false,
+        message: `Identitas toko tidak ikut tersalin otomatis (${identity.join(', ')}). Ubah lewat Info Toko.`,
+      });
+    }
+
+    const sourceSettings = await loadBranchSettings(sourceId);
+    const copied = [];
+    const skipped = [];
+    for (const key of keys) {
+      if (!sourceSettings.has(key)) { skipped.push(key); continue; }
+      await db.execute(
+        'INSERT INTO store_settings (branch_id, `key`, `value`) VALUES (?,?,?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)',
+        [targetId, key, String(sourceSettings.get(key) ?? '')]
+      );
+      copied.push(key);
+    }
+    res.json({ success: true, data: { copied, skipped } });
+  } catch (error) { next(error); }
+});
+
 router.get('/', async (req, res, next) => {
   try {
     const id = branchId(req);
