@@ -44,5 +44,9 @@ test('hapus logo invoice tersedia untuk pengelola toko', () => {
 });
 
 test('payload struk memuat kontak kepala nota', () => {
-  assert.match(printerSource, /receipt_contacts/);
+  // Struk kini mengirim seluruh setelan cabang (kecuali rahasia) sehingga
+  // receipt_contacts ikut tanpa harus didaftar satu per satu.
+  assert.match(printerSource, /FROM store_settings WHERE branch_id = \?/);
+  assert.match(printerSource, /NOT IN \('daily_email_api_key','rajaongkir_api_key'/);
+  assert.doesNotMatch(printerSource, /'whatsapp_numbers'\s*\)/);
 });

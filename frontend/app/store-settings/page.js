@@ -53,6 +53,20 @@ const TEMPLATE_TEXTS = [
 
 const BOOL = [['true', 'Ya'], ['false', 'Tidak']];
 
+// Daftar kurir disimpan sebagai JSON string; terima juga input "jne,jnt".
+function parseCouriers(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.map(String).map((item) => item.trim()).filter(Boolean);
+  } catch { /* bukan JSON, lanjut pecah per koma */ }
+  return raw.replaceAll('[', '').replaceAll(']', '').replaceAll('"', '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export default function StoreSettingsPage() {
   const { user } = useAppSession();
   const isOwner = user?.role === 'owner';
@@ -232,13 +246,7 @@ export default function StoreSettingsPage() {
       rajaongkir_api_key: form.rajaongkir_api_key ?? '',
       rajaongkir_origin_id: form.rajaongkir_origin_id ?? '',
       rajaongkir_origin_label: form.rajaongkir_origin_label ?? '',
-      ongkir_couriers: JSON.stringify(
-        String(form.ongkir_couriers || '')
-          .replace(/[\[\]"]/g, '')
-          .split(',')
-          .map((item) => item.trim())
-          .filter(Boolean),
-      ),
+      ongkir_couriers: JSON.stringify(parseCouriers(form.ongkir_couriers)),
     }, 'Setelan ongkir tersimpan.');
   }
 
@@ -403,10 +411,7 @@ export default function StoreSettingsPage() {
   const store = stores.find((item) => String(item.id) === String(branch)) || {};
   const preview = useMemo(() => buildReceiptPreview(form, RECEIPT_SAMPLE).join('\n'), [form]);
   const grid = useMemo(() => receiptGrid(form), [form]);
-  const couriers = useMemo(() => {
-    const raw = String(form.ongkir_couriers || '').replace(/[\[\]"]/g, '');
-    return raw.split(',').map((item) => item.trim()).filter(Boolean);
-  }, [form.ongkir_couriers]);
+  const couriers = useMemo(() => parseCouriers(form.ongkir_couriers), [form.ongkir_couriers]);
 
   return (
     <AppShell title="Setelan Toko" eyebrow="Pengaturan">
