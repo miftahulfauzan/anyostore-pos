@@ -7527,3 +7527,8 @@ html[data-theme] .app-main .tabs button:not(.active):hover {
 .branch-compare-table tr.different td:nth-child(4) { font-weight: 700; }
 .branch-compare-table code { font-size: var(--fs-xs); background: rgba(30,58,95,.06); padding: 1px 5px; border-radius: 4px; }
 .dark .branch-compare-table code { background: rgba(255,255,255,.08); }
+.branch-compare-table td.branch-compare-value { min-width: 180px; }
+.branch-compare-table td.branch-compare-value input,
+.branch-compare-table td.branch-compare-value select { min-height: 32px; padding: .3rem .5rem; font-size: var(--fs-sm); }
+.branch-compare-table tr.dirty td { background: rgba(30,58,95,.06); }
+.dark .branch-compare-table tr.dirty td { background: rgba(122,168,207,.12); }

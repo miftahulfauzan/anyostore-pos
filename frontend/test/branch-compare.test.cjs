@@ -16,10 +16,20 @@ test('halaman Bandingkan Setelan hanya untuk owner', () => {
   assert.match(settingsPage, /settings\/branch-compare/);
 });
 
-test('halaman memakai endpoint banding & salin setelan', () => {
+test('halaman memakai endpoint banding, salin, dan simpan setelan', () => {
   assert.match(page, /settings\/compare\?source_id=/);
   assert.match(page, /settings\/compare\/apply/);
   assert.match(page, /keys: selected/);
+  // Nilai cabang tujuan bisa diubah langsung lalu disimpan lewat PUT /settings.
+  assert.match(page, /branch_id: Number\(target\)/);
+  assert.match(page, /method: 'PUT'/);
+  assert.match(page, /dirtyKeys/);
+});
+
+test('kunci boolean dirender sebagai pilihan Ya/Tidak', () => {
+  assert.match(page, /BOOLEAN_KEYS/);
+  assert.match(page, /<option value="true">Ya<\/option>/);
+  assert.match(page, /<option value="false">Tidak<\/option>/);
 });
 
 test('identitas toko tidak bisa dicentang untuk disalin', () => {
