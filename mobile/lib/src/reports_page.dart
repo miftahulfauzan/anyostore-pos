@@ -1727,6 +1727,7 @@ class _ReportsPageState extends State<ReportsPage> {
       await printer.printClosing({
         'store': store,
         'date': _data?['date'] ?? '',
+        'subtotal': _data?['subtotal'] ?? _data?['total_sales'] ?? 0,
         'receipt_count': _data?['receipt_count'] ?? 0,
         'total_sales': _data?['total_sales'] ?? 0,
         'return_count': _data?['return_count'] ?? 0,
@@ -1734,6 +1735,8 @@ class _ReportsPageState extends State<ReportsPage> {
         'income': _data?['income'] ?? 0,
         'expected_total': _data?['expected_total'] ?? 0,
         'methods': _data?['methods'] ?? {},
+        'printed_at': _data?['printed_at'] ?? DateTime.now().toIso8601String(),
+        'printed_by': _data?['printed_by'] ?? '',
       });
     }, title: 'Cetak Penutupan');
   }

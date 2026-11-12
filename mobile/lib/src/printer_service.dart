@@ -8,7 +8,7 @@ import 'package:flutter/painting.dart' hide Alignment;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'format.dart';
+import 'closing_lines.dart';
 import 'receipt_layout.dart';
 
 /// Cetak struk thermal ke printer Bluetooth ESC/POS (GPrinter, 80mm).
@@ -341,65 +341,37 @@ class PrinterService {
   }
 
   /// Cetak laporan penutupan harian.
+  ///
+  /// Susunan baris mengikuti halaman web /closing (lihat closing_lines.dart),
+  /// termasuk logo toko membulat seperti struk transaksi.
   Future<void> printClosing(Map<String, dynamic> closing) async {
     final esc = EscCommand();
     await esc.cleanCommand();
-    Future<void> line(String text,
-        {Alignment alignment = Alignment.left,
-        EscTextStyle style = EscTextStyle.default_,
-        EscFontSize fontSize = EscFontSize.default_}) async {
-      await esc.text(
-          content: text,
-          alignment: alignment,
-          style: style,
-          fontSize: fontSize);
+
+    final logo = await _loadReceiptLogo(closing);
+    if (logo != null && logo.isNotEmpty) {
+      await esc.image(
+        image: logo,
+        alignment: Alignment.center,
+        maxWidth: _receiptLogoMaxWidth(closing),
+      );
       await esc.newline();
     }
 
-    final store = (closing['store'] as Map<String, dynamic>?) ?? {};
-    final storeName = store['store_name']?.toString() ?? 'Anyostore';
-    final methods = (closing['methods'] as Map<String, dynamic>?) ?? {};
-
-    await line(storeName,
-        alignment: Alignment.center,
-        style: EscTextStyle.bold,
-        fontSize: EscFontSize.size2);
-    await line('--------------------------------');
-    await line('LAPORAN PENUTUPAN',
-        alignment: Alignment.center, style: EscTextStyle.bold);
-    await line(closing['date']?.toString() ?? '', alignment: Alignment.center);
-    await line('--------------------------------');
-    await line('Total struk'.padRight(20) +
-        '${closing['receipt_count'] ?? 0}'.padLeft(28));
-    await line('Total penjualan'.padRight(20) +
-        fmtRp(asNum(closing['total_sales'])).padLeft(28));
-    await line(
-        'Retur'.padRight(20) + '${closing['return_count'] ?? 0}'.padLeft(28));
-    await line('Pengeluaran'.padRight(20) +
-        fmtRp(asNum(closing['expenses'])).padLeft(28));
-    await line(
-        'Pemasukan'.padRight(20) + fmtRp(asNum(closing['income'])).padLeft(28));
-    await line('TOTAL KASIR'.padRight(20) +
-        fmtRp(asNum(closing['expected_total'])).padLeft(28));
-    await line('--------------------------------');
-    for (final entry in methods.entries) {
-      final m = entry.value as Map<String, dynamic>;
-      await line((entry.key).toString().toUpperCase(),
-          style: EscTextStyle.bold);
-      await line(
-          '  Penjualan'.padRight(20) + fmtRp(asNum(m['sales'])).padLeft(28));
-      await line(
-          '  Retur'.padRight(20) + fmtRp(asNum(m['returns'])).padLeft(28));
-      await line('  Pembatalan'.padRight(20) +
-          fmtRp(asNum(m['cancellations'])).padLeft(28));
-      await line('  Kas masuk/keluar'.padRight(20) +
-          fmtRp(asNum(m['cash_in_out'])).padLeft(28));
-      await line('  Total'.padRight(20) + fmtRp(asNum(m['total'])).padLeft(28));
+    for (final row in buildClosingLines(closing)) {
+      await esc.text(
+        content: row.text,
+        alignment: row.align == ClosingAlign.center
+            ? Alignment.center
+            : Alignment.left,
+        style: row.bold ? EscTextStyle.bold : EscTextStyle.default_,
+        fontSize: row.big ? EscFontSize.size2 : EscFontSize.default_,
+      );
+      await esc.newline();
     }
-    await line('--------------------------------');
-    await line('Terima kasih, sampai jumpa lagi!', alignment: Alignment.center);
     await esc.print(feedLines: 4);
     await esc.cutPaper();
+
     final bytes = await esc.getCommand();
     if (bytes != null) await _writeBytes(bytes);
   }
