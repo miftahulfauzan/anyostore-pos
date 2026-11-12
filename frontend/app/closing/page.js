@@ -35,6 +35,7 @@ export default function ClosingPage() {
   const [tab, setTab] = useState('kas');
   const [date, setDate] = useState(currentLocalDate());
   const [data, setData] = useState(null);
+  const [storeLogo, setStoreLogo] = useState('');
   const [message, setMessage] = useState('');
   const [preview, setPreview] = useState(false);
   const selectedBranchQuery = activeBranchId === 'all' ? 'all' : activeBranchId;
@@ -89,6 +90,33 @@ export default function ClosingPage() {
   }, [resolved, user, branchForCash]);
 
   useEffect(() => { loadCash(); }, [loadCash]);
+  // Logo kepala nota (sama dengan cetak thermal: invoice_logo > store_logo,
+  // dihormati show_logo=false). Mode "Semua Toko" tidak memakai logo.
+  useEffect(() => {
+    if (!resolved || !user) return;
+    if (user.role === 'owner' && selectedBranchQuery === 'all') {
+      setStoreLogo('');
+      return;
+    }
+    const query = user.role === 'owner' && activeBranchId ? `?branch_id=${encodeURIComponent(activeBranchId)}` : '';
+    fetch(`${api}/settings${query}`, { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => {
+        const settings = body?.data || {};
+        if (String(settings.show_logo ?? '').toLowerCase() === 'false') {
+          setStoreLogo('');
+          return;
+        }
+        const path = String(settings.invoice_logo || settings.store_logo || '').trim();
+        if (!path) {
+          setStoreLogo('');
+          return;
+        }
+        setStoreLogo(/^https?:/i.test(path) ? path : api.replace('/api', '') + (path.startsWith('/') ? path : `/${path}`));
+      })
+      .catch(() => setStoreLogo(''));
+  }, [resolved, user, activeBranchId, selectedBranchQuery]);
+
 
   useEffect(() => {
     if (!resolved || !user || !activeBranchId) return undefined;
@@ -315,6 +343,7 @@ export default function ClosingPage() {
               <main className="receipt">
                 <article className="receipt-paper">
                   <header className="receipt-store">
+                    {storeLogo && <img className="receipt-logo" src={storeLogo} alt={`Logo ${data.store}`} />}
                     <h1>{data.store}</h1>
                     <p className="receipt-store-tagline">{data.document}</p>
                     {data.store_address && <address><span>{data.store_address}</span></address>}
