@@ -6629,6 +6629,28 @@ html[data-theme] .sidebar .nav-group-toggle:hover {
     gap: 5px !important;
     border-radius: 8px !important;
   }
+  /* Kontrol pilih produk di kartu kecil: perkecil supaya tidak menutupi foto
+     utama, tetapi area sentuh tetap 36px lewat lapisan transparan ::after. */
+  .product-photo > .product-select-control {
+    top: 5px;
+    left: 5px;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, .9);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, .18);
+  }
+  .product-photo > .product-select-control input[type="checkbox"] {
+    width: 14px !important;
+    height: 14px !important;
+    min-width: 14px !important;
+    min-height: 14px !important;
+  }
+  .product-photo > .product-select-control::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+  }
   .product-list.grid-view .product-photo { aspect-ratio: 1 / 1; }
   .product-list.grid-view .product-card__identity strong {
     font-size: var(--fs-sm) !important;
