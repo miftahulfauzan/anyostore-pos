@@ -69,6 +69,32 @@ const kTaskStockEmptySurface = Color(0xffFBE4E4);
 const kTaskOrange = kTaskTerracotta;
 const kTaskOrangeLight = Color(0xffFFEDD5);
 
+/// Shared mobile type scale.
+///
+/// Keep normal UI text at readable sizes while allowing intentionally smaller
+/// values only for dense metadata, badges, and chart axes. Print/PDF/thermal
+/// layouts use their own independent styles and are not governed by these
+/// tokens.
+class TaskTypography {
+  TaskTypography._();
+
+  static const double display = 32;
+  static const double displayCompact = 28;
+  static const double largeBody = 16;
+  static const double pageTitle = 22;
+  static const double appBarTitle = 19;
+  static const double sectionTitle = 18;
+  static const double cardTitle = 15;
+  static const double button = 15;
+  static const double body = 14;
+  static const double quantity = 14;
+  static const double label = 13;
+  static const double secondary = 12;
+  static const double micro = 11;
+  static const double chartAxis = 11;
+  static const double badge = 11;
+}
+
 /// Warna latar halaman yang ikut mode terang/gelap.
 Color pageBg(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark ? kTaskDarkBg : kTaskBg;
@@ -191,7 +217,7 @@ class PillTabs extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            fontSize: 13,
+                            fontSize: TaskTypography.label,
                             fontWeight: FontWeight.w600,
                             color: active
                                 ? Theme.of(context).colorScheme.onPrimary
@@ -450,7 +476,7 @@ class GlassNavBar extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      fontSize: 11,
+                      fontSize: TaskTypography.micro,
                       height: 1.15,
                       fontWeight: active ? FontWeight.w800 : FontWeight.w700,
                       color: active ? activeColor : idleColor)),

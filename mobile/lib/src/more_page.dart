@@ -735,8 +735,8 @@ class MorePage extends StatelessWidget {
     final navigator = Navigator.of(context);
     Scaffold.maybeOf(context)?.closeDrawer();
     navigator.push(MaterialPageRoute(
-        builder: (_) =>
-            showPageHeader ? _scaffold(context, title, child) : child));
+        builder: (routeContext) =>
+            showPageHeader ? _scaffold(routeContext, title, child) : child));
   }
 }
 
@@ -976,7 +976,7 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
           Expanded(
             child: Text('Toko/Gudang aktif',
                 style: TextStyle(
-                    fontSize: 11,
+                    fontSize: TaskTypography.secondary,
                     fontWeight: FontWeight.w700,
                     color: taskMuted(context))),
           ),

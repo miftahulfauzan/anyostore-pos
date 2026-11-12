@@ -267,7 +267,8 @@ class _ProductsPageState extends State<ProductsPage> {
                                                   overflow:
                                                       TextOverflow.ellipsis,
                                                   style: TextStyle(
-                                                      fontSize: 13,
+                                                      fontSize:
+                                                          TaskTypography.label,
                                                       fontWeight:
                                                           FontWeight.w800,
                                                       color: ink(context))),
@@ -275,7 +276,8 @@ class _ProductsPageState extends State<ProductsPage> {
                                               Text(
                                                   '${r['sku'] ?? ''} · Stok ${r['stock'] ?? 0}',
                                                   style: const TextStyle(
-                                                    fontSize: 10,
+                                                    fontSize:
+                                                        TaskTypography.micro,
                                                   )),
                                             ],
                                           ),
@@ -286,7 +288,8 @@ class _ProductsPageState extends State<ProductsPage> {
                                           children: [
                                             Text(fmtRp(asNum(r['price'])),
                                                 style: TextStyle(
-                                                    fontSize: 13,
+                                                    fontSize:
+                                                        TaskTypography.label,
                                                     fontWeight: FontWeight.w800,
                                                     color: ink(context))),
                                             Row(

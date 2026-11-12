@@ -316,7 +316,8 @@ class _FinancePageState extends State<FinancePage> {
                         padding: EdgeInsets.only(bottom: 8),
                         child: Text(
                             'Kategori: Umum (otomatis). Kategori belum tersedia offline',
-                            style: TextStyle(fontSize: 12)),
+                            style:
+                                TextStyle(fontSize: TaskTypography.secondary)),
                       )
                     : DropdownButtonFormField<int?>(
                         initialValue: categoryId,
@@ -731,7 +732,7 @@ class _FinancePageState extends State<FinancePage> {
                                     const SizedBox(height: 6),
                                     Text('$_total catatan',
                                         style: const TextStyle(
-                                            fontSize: 32,
+                                            fontSize: TaskTypography.display,
                                             fontWeight: FontWeight.w800,
                                             color: kTaskPurple)),
                                   ],
@@ -788,7 +789,8 @@ class _FinancePageState extends State<FinancePage> {
                                   children: [
                                     Text(fmtRp(asNum(row['amount'])),
                                         style: TextStyle(
-                                            fontSize: 22,
+                                            fontSize:
+                                                TaskTypography.sectionTitle,
                                             fontWeight: FontWeight.w800,
                                             color: ink(context))),
                                     Text(row['name']?.toString() ?? '',

@@ -24,12 +24,12 @@ class FontScaleController {
 
   static String label(double value) => '${(value * 100).round()}%';
 
-  /// Large text is capped only on very narrow phones to prevent the fixed
-  /// two-column and compact toolbar layouts from becoming unusable.
+  /// Caps the combined app/system text scale so compact layouts remain usable.
+  /// The requested .4/.6 compact modes remain available; only oversized modes
+  /// are capped, with a stricter limit on very narrow phones.
   static double effectiveScale(double value, double width) {
-    final clamped = value.clamp(options.first, options.last).toDouble();
-    if (width > 0 && width <= 340 && clamped > 1.2) return 1.2;
-    return clamped;
+    final maxScale = width > 0 && width <= 340 ? 1.2 : 1.4;
+    return value.clamp(options.first, maxScale).toDouble();
   }
 
   static double _normalize(double? value) {

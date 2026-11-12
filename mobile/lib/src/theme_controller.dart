@@ -8,6 +8,10 @@ class ThemeController {
 
   static Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
+    // The app can be resumed after Android restores the activity while the
+    // SharedPreferences singleton still holds an older in-memory value.
+    // Always refresh from disk so the selected theme survives a relaunch.
+    await prefs.reload();
     final v = prefs.getString(_key);
     mode.value = switch (v) {
       'dark' => ThemeMode.dark,
@@ -26,5 +30,6 @@ class ThemeController {
           ThemeMode.system => 'system',
           _ => 'light',
         });
+    await prefs.reload();
   }
 }

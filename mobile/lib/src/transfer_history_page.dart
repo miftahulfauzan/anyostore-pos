@@ -315,12 +315,16 @@ class _TransferHistoryPageState extends State<TransferHistoryPage> {
                 side: BorderSide.none,
                 backgroundColor: color.withValues(alpha: .12),
                 labelStyle: TextStyle(
-                    color: color, fontSize: 11, fontWeight: FontWeight.w700),
+                    color: color,
+                    fontSize: TaskTypography.badge,
+                    fontWeight: FontWeight.w700),
               ),
             ],
           ),
           Text(_dateLabel(transfer['created_at']),
-              style: TextStyle(color: taskMuted(context), fontSize: 12)),
+              style: TextStyle(
+                  color: taskMuted(context),
+                  fontSize: TaskTypography.secondary)),
           const SizedBox(height: 8),
           Text(
               '${from['branch_name'] ?? from['warehouse_name'] ?? '-'}  →  '
@@ -330,11 +334,15 @@ class _TransferHistoryPageState extends State<TransferHistoryPage> {
           Text(
               '${transfer['product_count'] ?? 0} produk · '
               '${transfer['total_qty'] ?? 0} pcs · ${transfer['admin'] ?? 'Sistem'}',
-              style: TextStyle(color: taskMuted(context), fontSize: 12)),
+              style: TextStyle(
+                  color: taskMuted(context),
+                  fontSize: TaskTypography.secondary)),
           if ('${transfer['notes'] ?? ''}'.trim().isNotEmpty) ...[
             const SizedBox(height: 6),
             Text('${transfer['notes']}',
-                style: TextStyle(color: taskMuted(context), fontSize: 12)),
+                style: TextStyle(
+                    color: taskMuted(context),
+                    fontSize: TaskTypography.secondary)),
           ],
           if (lines.isNotEmpty) ...[
             const Divider(height: 18),
@@ -349,27 +357,33 @@ class _TransferHistoryPageState extends State<TransferHistoryPage> {
                         '${line['variant_color'] == null ? '' : ' · ${line['variant_color']}'}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: ink(context), fontSize: 12),
+                        style: TextStyle(
+                            color: ink(context),
+                            fontSize: TaskTypography.secondary),
                       ),
                     ),
                     Text('${line['qty'] ?? 0} pcs',
                         style: TextStyle(
                             color: ink(context),
-                            fontSize: 12,
+                            fontSize: TaskTypography.secondary,
                             fontWeight: FontWeight.w700)),
                   ],
                 ),
               ),
             if (lines.length > 5)
               Text('+${lines.length - 5} produk lain',
-                  style: TextStyle(color: taskMuted(context), fontSize: 11)),
+                  style: TextStyle(
+                      color: taskMuted(context),
+                      fontSize: TaskTypography.micro)),
           ],
           if (status == 'cancelled' &&
               '${transfer['cancellation_reason'] ?? ''}'.trim().isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
               'Alasan pembatalan: ${transfer['cancellation_reason']}',
-              style: TextStyle(color: taskMuted(context), fontSize: 12),
+              style: TextStyle(
+                  color: taskMuted(context),
+                  fontSize: TaskTypography.secondary),
             ),
           ],
           if (_canCancel && status == 'completed') ...[

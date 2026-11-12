@@ -99,7 +99,7 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                           child: ChoiceChip(
                             label: Text(f.$2,
                                 style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: TaskTypography.micro,
                                     fontWeight: _action == f.$1
                                         ? FontWeight.w800
                                         : FontWeight.w600)),
@@ -178,7 +178,8 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                                               Text(
                                                   '${r['user_name'] ?? ''} · ${r['branch_name'] ?? ''} · ${r['created_at'] ?? ''}',
                                                   style: const TextStyle(
-                                                    fontSize: 11,
+                                                    fontSize:
+                                                        TaskTypography.micro,
                                                   )),
                                             ],
                                           ),

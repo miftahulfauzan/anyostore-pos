@@ -144,7 +144,7 @@ class SettingsHubPage extends StatelessWidget {
             child: Text(group.title,
                 style: TextStyle(
                     color: taskMuted(context),
-                    fontSize: 11,
+                    fontSize: TaskTypography.micro,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.1)),
           ),
@@ -230,7 +230,8 @@ class _SettingsHubRow extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                              color: taskMuted(context), fontSize: 11.5)),
+                              color: taskMuted(context),
+                              fontSize: TaskTypography.secondary)),
                     ],
                   ),
                 ),

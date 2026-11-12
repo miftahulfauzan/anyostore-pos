@@ -258,7 +258,7 @@ class _VariantBox extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      fontSize: 10,
+                      fontSize: TaskTypography.micro,
                       fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                       color: scheme.onSurface)),
             ),

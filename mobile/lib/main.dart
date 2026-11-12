@@ -139,23 +139,27 @@ ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
     fontFamily: fontFamily,
     textTheme: TextTheme(
       bodyLarge: TextStyle(
-          fontSize: 16, height: 1.35, color: dark ? kTaskDarkInk : kTaskInk),
+          fontSize: TaskTypography.largeBody,
+          height: 1.35,
+          color: dark ? kTaskDarkInk : kTaskInk),
       bodyMedium: TextStyle(
-          fontSize: 14, height: 1.35, color: dark ? kTaskDarkInk : kTaskInk),
+          fontSize: TaskTypography.body,
+          height: 1.35,
+          color: dark ? kTaskDarkInk : kTaskInk),
       bodySmall: TextStyle(
-          fontSize: 12,
+          fontSize: TaskTypography.secondary,
           height: 1.35,
           color: dark ? kTaskDarkSecondary : kTaskSecondary),
       labelLarge: TextStyle(
-          fontSize: 14,
+          fontSize: TaskTypography.body,
           fontWeight: FontWeight.w700,
           color: dark ? kTaskDarkInk : kTaskInk),
       titleMedium: TextStyle(
-          fontSize: 18,
+          fontSize: TaskTypography.sectionTitle,
           fontWeight: FontWeight.w700,
           color: dark ? kTaskDarkInk : kTaskInk),
       titleLarge: TextStyle(
-          fontSize: 22,
+          fontSize: TaskTypography.pageTitle,
           fontWeight: FontWeight.w800,
           color: dark ? kTaskDarkInk : kTaskInk),
     ),
@@ -168,7 +172,9 @@ ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
       scrolledUnderElevation: 0,
       centerTitle: true,
       titleTextStyle: TextStyle(
-          fontSize: 19, fontWeight: FontWeight.w700, color: Colors.white),
+          fontSize: TaskTypography.appBarTitle,
+          fontWeight: FontWeight.w700,
+          color: Colors.white),
       iconTheme: IconThemeData(color: Colors.white),
     ),
     cardTheme: CardThemeData(
@@ -200,8 +206,8 @@ ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
       indicatorColor: dark ? kTaskDarkBorder : kTaskSurfaceMuted,
       elevation: 0,
       height: 68,
-      labelTextStyle: const WidgetStatePropertyAll(
-          TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+      labelTextStyle: const WidgetStatePropertyAll(TextStyle(
+          fontSize: TaskTypography.secondary, fontWeight: FontWeight.w600)),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
@@ -210,7 +216,9 @@ ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         minimumSize: const Size(0, 50),
         textStyle: const TextStyle(
-            fontSize: 15, fontWeight: FontWeight.w700, fontFamily: fontFamily),
+            fontSize: TaskTypography.button,
+            fontWeight: FontWeight.w700,
+            fontFamily: fontFamily),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -277,7 +285,7 @@ ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
       ),
       textStyle: TextStyle(
           color: dark ? kTaskInk : Colors.white,
-          fontSize: 12,
+          fontSize: TaskTypography.secondary,
           fontWeight: FontWeight.w600),
     ),
     dividerTheme: DividerThemeData(

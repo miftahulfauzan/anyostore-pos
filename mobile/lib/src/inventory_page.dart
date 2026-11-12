@@ -309,7 +309,8 @@ class _InventorySectionSelector extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                    fontSize: 11, color: ink(context)))
+                                    fontSize: TaskTypography.secondary,
+                                    color: ink(context)))
                           ]),
                         ),
                       ))),
@@ -419,7 +420,7 @@ class _StockSectionState extends State<_StockSection> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: TaskTypography.secondary,
                           fontWeight: FontWeight.w700,
                           color: ink(context))),
                 ),
@@ -787,7 +788,9 @@ class _StockSectionState extends State<_StockSection> {
                                                   Text(
                                                       'min ${r['min_stock'] ?? 0}',
                                                       style: TextStyle(
-                                                          fontSize: 10,
+                                                          fontSize:
+                                                              TaskTypography
+                                                                  .micro,
                                                           color: stockColor)),
                                               ],
                                             ),
@@ -1029,7 +1032,7 @@ class _StatCell extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    fontSize: 11,
+                    fontSize: TaskTypography.secondary,
                     fontWeight: FontWeight.w600,
                     color: taskMuted(context))),
             const SizedBox(height: 2),
@@ -1471,13 +1474,17 @@ class _InOutFormState extends State<_InOutForm> {
                         : '$_totalQuantity pcs',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11, color: taskMuted(context))),
+                    style: TextStyle(
+                        fontSize: TaskTypography.micro,
+                        color: taskMuted(context))),
               ],
             ),
           ),
           Text('Lihat',
               style: TextStyle(
-                  color: accent, fontSize: 11, fontWeight: FontWeight.w800)),
+                  color: accent,
+                  fontSize: TaskTypography.secondary,
+                  fontWeight: FontWeight.w800)),
           const SizedBox(width: 3),
           Icon(Icons.chevron_right, color: accent),
         ],
@@ -1554,7 +1561,7 @@ class _InOutFormState extends State<_InOutForm> {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
-                                          fontSize: 11,
+                                          fontSize: TaskTypography.micro,
                                           color: taskMuted(sheetContext))),
                                 ],
                               ),
@@ -2017,7 +2024,7 @@ class _InOutFormState extends State<_InOutForm> {
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
-                                              fontSize: 11.5,
+                                              fontSize: TaskTypography.label,
                                               fontWeight: FontWeight.w800)),
                                       const SizedBox(height: 3),
                                       Row(
@@ -2028,7 +2035,8 @@ class _InOutFormState extends State<_InOutForm> {
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: TextStyle(
-                                                    fontSize: 10.5,
+                                                    fontSize: TaskTypography
+                                                        .secondary,
                                                     color: taskMuted(context))),
                                           ),
                                           Container(
@@ -2285,7 +2293,9 @@ class _CatalogPickerState extends State<_CatalogPicker> {
                         : '${_added.length} produk · $_totalQuantity pcs',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11, color: taskMuted(context))),
+                    style: TextStyle(
+                        fontSize: TaskTypography.micro,
+                        color: taskMuted(context))),
               ],
             ),
           ),
@@ -2364,7 +2374,8 @@ class _CatalogPickerState extends State<_CatalogPicker> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                    fontSize: 11, color: taskMuted(context))),
+                                    fontSize: TaskTypography.micro,
+                                    color: taskMuted(context))),
                           ],
                         ),
                       ),
@@ -2482,7 +2493,7 @@ class _CatalogPickerState extends State<_CatalogPicker> {
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
-                                              fontSize: 11,
+                                              fontSize: TaskTypography.micro,
                                               color: taskMuted(context))),
                                     ],
                                   ),
@@ -3439,7 +3450,9 @@ class _InvHeaderSegment extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    fontSize: 12.5, fontWeight: FontWeight.w700, color: fg)),
+                    fontSize: TaskTypography.cardTitle,
+                    fontWeight: FontWeight.w700,
+                    color: fg)),
           ),
           if (showChevron)
             Icon(Icons.expand_more, size: 18, color: taskMuted(context)),

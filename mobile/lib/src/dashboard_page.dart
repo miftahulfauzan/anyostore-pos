@@ -924,7 +924,8 @@ class _MovementCard extends StatelessWidget {
                       interval: limit / 4,
                       getTitlesWidget: (v, meta) => Text('${v.round()}',
                           style: TextStyle(
-                              fontSize: 10, color: taskMuted(context))),
+                              fontSize: TaskTypography.chartAxis,
+                              color: taskMuted(context))),
                     ),
                   ),
                   bottomTitles: AxisTitles(
@@ -941,7 +942,8 @@ class _MovementCard extends StatelessWidget {
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(daily[i].label,
                               style: TextStyle(
-                                  fontSize: 10, color: taskMuted(context))),
+                                  fontSize: TaskTypography.chartAxis,
+                                  color: taskMuted(context))),
                         );
                       },
                     ),
@@ -1217,7 +1219,8 @@ class _CategoryCard extends StatelessWidget {
                             : '${val.round()}';
                         return Text(text,
                             style: TextStyle(
-                                fontSize: 10, color: taskMuted(context)));
+                                fontSize: TaskTypography.chartAxis,
+                                color: taskMuted(context)));
                       },
                     ),
                   ),
@@ -1239,7 +1242,8 @@ class _CategoryCard extends StatelessWidget {
                             child: Text(label,
                                 maxLines: 1,
                                 style: TextStyle(
-                                    fontSize: 10, color: taskMuted(context))),
+                                    fontSize: TaskTypography.chartAxis,
+                                    color: taskMuted(context))),
                           ),
                         );
                       },
@@ -1317,7 +1321,7 @@ class _TopProductsCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                            fontSize: 10.5,
+                            fontSize: TaskTypography.secondary,
                             fontWeight: FontWeight.w700,
                             color: taskMuted(context))),
                   ),
@@ -1348,7 +1352,8 @@ class _TopProductsCard extends StatelessWidget {
                     child: Text('${products[i].$2.round()}',
                         textAlign: TextAlign.right,
                         style: const TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.w800)),
+                            fontSize: TaskTypography.secondary,
+                            fontWeight: FontWeight.w800)),
                   ),
                 ],
               ),
@@ -1387,7 +1392,9 @@ class _SectionHeading extends StatelessWidget {
         Expanded(
           child: Text(title,
               style: TextStyle(
-                  fontSize: 15, fontWeight: FontWeight.w800, color: color)),
+                  fontSize: TaskTypography.cardTitle,
+                  fontWeight: FontWeight.w800,
+                  color: color)),
         ),
       ],
     );
@@ -1413,7 +1420,9 @@ class _LegendDot extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 5),
-        Text(label, style: TextStyle(fontSize: 11, color: taskMuted(context))),
+        Text(label,
+            style: TextStyle(
+                fontSize: TaskTypography.secondary, color: taskMuted(context))),
       ],
     );
   }
@@ -1452,14 +1461,17 @@ class _RingIndicator extends StatelessWidget {
               ),
               Text('$percent%',
                   style: const TextStyle(
-                      fontSize: 9.5, fontWeight: FontWeight.w800)),
+                      fontSize: TaskTypography.micro,
+                      fontWeight: FontWeight.w800)),
             ],
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
           child: Text(label,
-              style: TextStyle(fontSize: 12, color: taskMuted(context))),
+              style: TextStyle(
+                  fontSize: TaskTypography.secondary,
+                  color: taskMuted(context))),
         ),
       ],
     );

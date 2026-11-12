@@ -239,7 +239,7 @@ class _AccountTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                        fontSize: 11,
+                        fontSize: TaskTypography.micro,
                         color: dark ? const Color(0xffCBD5E1) : kTaskSecondary),
                   ),
                 ],

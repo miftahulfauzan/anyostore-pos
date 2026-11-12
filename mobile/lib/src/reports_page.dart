@@ -672,7 +672,7 @@ class _ReportsPageState extends State<ReportsPage> {
                 alignment: Alignment.centerLeft,
                 child: Text('Lokasi: ${_branchLabel(_branchId)}',
                     style: TextStyle(
-                        fontSize: 11.5,
+                        fontSize: TaskTypography.secondary,
                         fontWeight: FontWeight.w600,
                         color: taskMuted(context))),
               ),
@@ -682,7 +682,7 @@ class _ReportsPageState extends State<ReportsPage> {
               Text(
                   'Periode: ${_presetLabel(_preset)} · ${_range.$1} s.d. ${_range.$2}',
                   style: TextStyle(
-                      fontSize: 11.5,
+                      fontSize: TaskTypography.secondary,
                       fontWeight: FontWeight.w600,
                       color: Theme.of(context).colorScheme.outline)),
             ],
@@ -746,7 +746,7 @@ class _ReportsPageState extends State<ReportsPage> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                        fontSize: 13,
+                        fontSize: TaskTypography.label,
                         fontWeight: FontWeight.w700,
                         color: ink(context))),
               ),
@@ -1077,6 +1077,7 @@ class _ReportsPageState extends State<ReportsPage> {
                 : asNum(summary['gross_sales'] ?? summary['revenue']),
             expense: asNum(summary['expenses']),
             returns: asNum(summary['return_amount']),
+            onTap: _showFinanceDetail,
           ),
         ],
       ),
@@ -1085,6 +1086,84 @@ class _ReportsPageState extends State<ReportsPage> {
         lowStock: lowStock.take(5).toList(),
       ),
     ];
+  }
+
+  Future<void> _showFinanceDetail(String kind) async {
+    if (!mounted) return;
+    final (title, icon, color, child) = switch (kind) {
+      'Pembayaran' => (
+          'Pembayaran',
+          Icons.credit_card,
+          kTaskTeal,
+          _paymentsDetail()
+        ),
+      'Pengeluaran' => (
+          'Pengeluaran',
+          Icons.receipt_long,
+          kTaskTerracotta,
+          _expensesDetail()
+        ),
+      _ => ('Pengembalian', Icons.refresh, kTaskPurple, _returnsDetail()),
+    };
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => SafeArea(
+        key: ValueKey('reports-finance-detail-sheet-$title'),
+        child: Container(
+          constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(sheetContext).height * .86),
+          decoration: BoxDecoration(
+            color: pageBg(sheetContext),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(24),
+            ),
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: .12),
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: Icon(icon, size: 20, color: color),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text('Rincian $title',
+                          style: TextStyle(
+                              fontSize: TaskTypography.sectionTitle,
+                              fontWeight: FontWeight.w800,
+                              color: ink(sheetContext))),
+                    ),
+                    IconButton(
+                      tooltip: 'Tutup',
+                      onPressed: () => Navigator.pop(sheetContext),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text('Data mengikuti periode dan toko/gudang yang dipilih.',
+                    style: TextStyle(
+                        fontSize: TaskTypography.secondary,
+                        color: taskMuted(sheetContext))),
+                const SizedBox(height: 12),
+                child,
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   List<Widget> _spaced(List<Widget> items) => [
@@ -1379,6 +1458,40 @@ class _ReportsPageState extends State<ReportsPage> {
     );
   }
 
+  Widget _expensesDetail() {
+    final details = _reportList('expense_details');
+    final daily = _reportList('daily_expenses');
+    final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
+    final rows = details.isNotEmpty
+        ? [
+            for (final row in details)
+              _ReportDetailRow(
+                '${row['name'] ?? row['category'] ?? 'Pengeluaran'}',
+                fmtRp(asNum(row['amount'])),
+                '${_displayDate(row['expense_date'] ?? row['date'])} · ${(row['payment_method'] ?? 'cash').toString().toUpperCase()}${row['notes'] == null ? '' : ' · ${row['notes']}'}',
+              ),
+          ]
+        : [
+            for (final row in daily)
+              _ReportDetailRow(
+                _displayDate(row['date']),
+                fmtRp(asNum(row['amount'])),
+                'Total pengeluaran pada tanggal tersebut',
+              ),
+          ];
+    if (rows.isEmpty && asNum(summary['expenses']) > 0) {
+      rows.add(
+          _ReportDetailRow('Total periode', fmtRp(asNum(summary['expenses']))));
+    }
+    return _ReportDetailTable(
+      title: 'Rincian pengeluaran',
+      subtitle: details.isNotEmpty
+          ? 'Nama, tanggal, metode, dan catatan pengeluaran.'
+          : 'Ringkasan pengeluaran per tanggal pada periode ini.',
+      rows: rows,
+    );
+  }
+
   Widget _analysisDetail() {
     final daily = _reportList('daily_sales');
     final hourly = _reportList('hourly_sales');
@@ -1426,12 +1539,14 @@ class _ReportsPageState extends State<ReportsPage> {
         children: [
           Text('Laporan stok',
               style: TextStyle(
-                  fontSize: 13,
+                  fontSize: TaskTypography.label,
                   fontWeight: FontWeight.w800,
                   color: ink(context))),
           const SizedBox(height: 6),
           Text('Stok saat ini, mutasi, dan tren tersedia di halaman inventori.',
-              style: TextStyle(fontSize: 12, color: taskMuted(context))),
+              style: TextStyle(
+                  fontSize: TaskTypography.secondary,
+                  color: taskMuted(context))),
         ],
       ),
     ));
@@ -1727,8 +1842,9 @@ class _ReportDetailHeading extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                       'Rincian transaksi, produk, pembayaran, retur, dan analisis periode.',
-                      style:
-                          TextStyle(fontSize: 12, color: taskMuted(context))),
+                      style: TextStyle(
+                          fontSize: TaskTypography.secondary,
+                          color: taskMuted(context))),
                 ],
               ),
             ),
@@ -1808,7 +1924,7 @@ class _ReportDetailAccordionState extends State<_ReportDetailAccordion> {
                         children: [
                           Text(widget.title,
                               style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: TaskTypography.cardTitle,
                                   fontWeight: FontWeight.w800,
                                   color: accent)),
                           const SizedBox(height: 2),
@@ -1816,13 +1932,15 @@ class _ReportDetailAccordionState extends State<_ReportDetailAccordion> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                  fontSize: 10, color: taskMuted(context))),
+                                  fontSize: TaskTypography.secondary,
+                                  color: taskMuted(context))),
                         ],
                       ),
                     ),
                     Text(widget.count,
-                        style:
-                            TextStyle(fontSize: 10, color: taskMuted(context))),
+                        style: TextStyle(
+                            fontSize: TaskTypography.secondary,
+                            color: taskMuted(context))),
                     const SizedBox(width: 4),
                     Icon(
                         _expanded
@@ -1912,18 +2030,21 @@ class _ReportDetailTable extends StatelessWidget {
                     children: [
                       Text(title,
                           style: TextStyle(
-                              fontSize: 13,
+                              fontSize: TaskTypography.label,
                               fontWeight: FontWeight.w800,
                               color: ink(context))),
                       const SizedBox(height: 3),
                       Text(subtitle,
                           style: TextStyle(
-                              fontSize: 10, color: taskMuted(context))),
+                              fontSize: TaskTypography.secondary,
+                              color: taskMuted(context))),
                     ],
                   ),
                 ),
                 Text('${rows.length} data',
-                    style: TextStyle(fontSize: 10, color: taskMuted(context))),
+                    style: TextStyle(
+                        fontSize: TaskTypography.secondary,
+                        color: taskMuted(context))),
               ],
             ),
             const SizedBox(height: 8),
@@ -1932,7 +2053,9 @@ class _ReportDetailTable extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Text('Belum ada data untuk periode ini.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 11, color: taskMuted(context))),
+                    style: TextStyle(
+                        fontSize: TaskTypography.secondary,
+                        color: taskMuted(context))),
               )
             else
               for (var i = 0; i < rows.length; i++) ...[
@@ -1950,7 +2073,7 @@ class _ReportDetailTable extends StatelessWidget {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: TaskTypography.secondary,
                                     fontWeight: FontWeight.w700,
                                     color: ink(context))),
                             if (rows[i].meta.isNotEmpty) ...[
@@ -1959,7 +2082,8 @@ class _ReportDetailTable extends StatelessWidget {
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                      fontSize: 10, color: taskMuted(context))),
+                                      fontSize: TaskTypography.secondary,
+                                      color: taskMuted(context))),
                             ],
                           ],
                         ),
@@ -1968,7 +2092,7 @@ class _ReportDetailTable extends StatelessWidget {
                       Text(rows[i].value,
                           textAlign: TextAlign.right,
                           style: TextStyle(
-                              fontSize: 11,
+                              fontSize: TaskTypography.secondary,
                               fontWeight: FontWeight.w800,
                               color: ink(context))),
                     ],
@@ -2100,7 +2224,7 @@ class _DashboardKpiGrid extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                  fontSize: 9,
+                                  fontSize: TaskTypography.badge,
                                   fontWeight: FontWeight.w800,
                                   color: item.change!.startsWith('↓')
                                       ? kTaskTerracotta
@@ -2114,7 +2238,7 @@ class _DashboardKpiGrid extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                        fontSize: 10,
+                        fontSize: TaskTypography.secondary,
                         fontWeight: FontWeight.w700,
                         color: taskMuted(context))),
                 const SizedBox(height: 3),
@@ -2137,58 +2261,97 @@ class _DashboardFinanceRows extends StatelessWidget {
     required this.payment,
     required this.expense,
     required this.returns,
+    required this.onTap,
   });
 
   final double payment;
   final double expense;
   final double returns;
+  final ValueChanged<String> onTap;
 
   @override
   Widget build(BuildContext context) => Column(
         children: [
           _DashboardFinanceRow(
-              'Pembayaran', payment, Icons.credit_card, kTaskTeal),
+              label: 'Pembayaran',
+              amount: payment,
+              icon: Icons.credit_card,
+              color: kTaskTeal,
+              key: const ValueKey('reports-finance-row-pembayaran'),
+              onTap: () => onTap('Pembayaran')),
           _DashboardFinanceRow(
-              'Pengeluaran', expense, Icons.receipt_long, kTaskTerracotta),
+              label: 'Pengeluaran',
+              amount: expense,
+              icon: Icons.receipt_long,
+              color: kTaskTerracotta,
+              key: const ValueKey('reports-finance-row-pengeluaran'),
+              onTap: () => onTap('Pengeluaran')),
           _DashboardFinanceRow(
-              'Pengembalian', returns, Icons.refresh, kTaskPurple),
+              label: 'Pengembalian',
+              amount: returns,
+              icon: Icons.refresh,
+              color: kTaskPurple,
+              key: const ValueKey('reports-finance-row-pengembalian'),
+              onTap: () => onTap('Pengembalian')),
         ],
       );
 }
 
 class _DashboardFinanceRow extends StatelessWidget {
-  const _DashboardFinanceRow(this.label, this.amount, this.icon, this.color);
+  const _DashboardFinanceRow(
+      {super.key,
+      required this.label,
+      required this.amount,
+      required this.icon,
+      required this.color,
+      required this.onTap});
 
   final String label;
   final double amount;
   final IconData icon;
   final Color color;
+  final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 7),
-        child: Row(
-          children: [
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: .12),
-                borderRadius: BorderRadius.circular(9),
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        label: '$label ${fmtRp(amount)}',
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 7),
+              child: Row(
+                children: [
+                  Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: .12),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Icon(icon, size: 16, color: color),
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Text(label,
+                        style: TextStyle(
+                            fontSize: TaskTypography.secondary,
+                            color: taskMuted(context))),
+                  ),
+                  Text(fmtRp(amount),
+                      style: TextStyle(
+                          fontSize: TaskTypography.label,
+                          fontWeight: FontWeight.w900,
+                          color: color)),
+                  const SizedBox(width: 5),
+                  Icon(Icons.chevron_right, size: 18, color: color),
+                ],
               ),
-              child: Icon(icon, size: 16, color: color),
             ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: Text(label,
-                  style: TextStyle(fontSize: 12, color: taskMuted(context))),
-            ),
-            Text(fmtRp(amount),
-                style: TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w900, color: color)),
-            const SizedBox(width: 5),
-            Icon(Icons.chevron_right, size: 18, color: color),
-          ],
+          ),
         ),
       );
 }
@@ -2334,7 +2497,7 @@ class _DashboardListItem extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                        fontSize: 12,
+                        fontSize: TaskTypography.secondary,
                         fontWeight: FontWeight.w700,
                         color: ink(context))),
               ),
@@ -2344,7 +2507,9 @@ class _DashboardListItem extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.right,
-                    style: TextStyle(fontSize: 11, color: taskMuted(context))),
+                    style: TextStyle(
+                        fontSize: TaskTypography.micro,
+                        color: taskMuted(context))),
               ),
             ],
           ),
@@ -2528,7 +2693,7 @@ class _SalesTrendCardState extends State<_SalesTrendCard> {
         children: [
           Text('Tren penjualan harian',
               style: TextStyle(
-                  fontSize: 13,
+                  fontSize: TaskTypography.label,
                   fontWeight: FontWeight.w800,
                   color: ink(context))),
           const SizedBox(height: 14),
@@ -2568,7 +2733,8 @@ class _SalesTrendCardState extends State<_SalesTrendCard> {
                       for (final row in visible)
                         Text(_dateLabel(row['date']),
                             style: TextStyle(
-                                fontSize: 9, color: taskMuted(context))),
+                                fontSize: TaskTypography.chartAxis,
+                                color: taskMuted(context))),
                     ],
                   ),
                 ),
@@ -2579,7 +2745,9 @@ class _SalesTrendCardState extends State<_SalesTrendCard> {
           if (selected == null)
             Text('Ketuk grafik untuk melihat total penjualan',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11, color: taskMuted(context)))
+                style: TextStyle(
+                    fontSize: TaskTypography.secondary,
+                    color: taskMuted(context)))
           else
             Container(
               key: const ValueKey('reports-sales-trend-value'),
@@ -2786,7 +2954,7 @@ class _Row extends StatelessWidget {
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      fontSize: 12,
+                      fontSize: TaskTypography.secondary,
                       fontWeight: FontWeight.w700,
                       color: ink(context))),
             ),
@@ -2801,18 +2969,28 @@ class _FocalMetric extends StatelessWidget {
   final String value;
 
   @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label,
-              style: TextStyle(fontSize: 13, color: taskMuted(context))),
-          const SizedBox(height: 6),
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 32,
+  Widget build(BuildContext context) {
+    final valueSize = MediaQuery.sizeOf(context).width <= 360
+        ? TaskTypography.displayCompact
+        : TaskTypography.display;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: TextStyle(
+                fontSize: TaskTypography.label, color: taskMuted(context))),
+        const SizedBox(height: 6),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(value,
+              style: TextStyle(
+                  fontSize: valueSize,
                   fontWeight: FontWeight.w800,
                   color: kTaskAccent)),
-          const SizedBox(height: 8),
-        ],
-      );
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
 }

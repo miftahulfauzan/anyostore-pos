@@ -1286,8 +1286,10 @@ class _StatusChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(label,
-          style:
-              TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: fg)),
+          style: TextStyle(
+              fontSize: TaskTypography.badge,
+              fontWeight: FontWeight.w700,
+              color: fg)),
     );
   }
 }

@@ -845,7 +845,7 @@ class _MutationReportPageState extends State<MutationReportPage> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      fontSize: 10,
+                      fontSize: TaskTypography.secondary,
                       fontWeight: FontWeight.w800,
                       color: ink(context))),
             ),
@@ -897,7 +897,7 @@ class _MutationReportPageState extends State<MutationReportPage> {
               Text(facts[index].$1,
                   style: TextStyle(
                       color: taskMuted(context),
-                      fontSize: 9,
+                      fontSize: TaskTypography.micro,
                       fontWeight: FontWeight.w700)),
               const SizedBox(height: 3),
               Expanded(
@@ -905,7 +905,7 @@ class _MutationReportPageState extends State<MutationReportPage> {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                        fontSize: 11,
+                        fontSize: TaskTypography.secondary,
                         fontWeight: FontWeight.w700,
                         color: ink(context))),
               ),
