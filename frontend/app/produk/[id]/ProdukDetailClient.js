@@ -26,6 +26,12 @@ function waLink(phone, text) {
 }
 
 export default function ProdukDetail() {
+  // Di reseller.anyostore.my.id, "/" adalah landing reseller (rewrite
+  // middleware). Di domain utama, katalog buyer ada di /reseller.
+  const catalogHref =
+    typeof window !== 'undefined' && window.location.hostname.startsWith('reseller.')
+      ? '/'
+      : '/reseller';
   const params = useParams();
   const id = params?.id;
   const [product, setProduct] = useState(null);
@@ -126,7 +132,7 @@ export default function ProdukDetail() {
 
   if (!mounted) return null;
   if (loading) return <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Memuat produk…</div>;
-  if (!product) return <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Produk tidak ditemukan. <a href="/" style={{ color: C.accent, fontWeight: 700 }}>Kembali ke katalog</a></div>;
+  if (!product) return <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Produk tidak ditemukan. <a href={catalogHref} style={{ color: C.accent, fontWeight: 700 }}>Kembali ke katalog</a></div>;
 
   const media = product.media || [];
   const variants = product.variants || [];
@@ -143,7 +149,7 @@ export default function ProdukDetail() {
     <div style={{ background: C.bg, color: C.ink, minHeight: '100vh', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
       <header style={{ background: C.white, borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, zIndex: 40 }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <a href="/" style={{ fontSize: 14, fontWeight: 600, color: C.ink, textDecoration: 'none' }}>← Katalog</a>
+          <a href={catalogHref} style={{ fontSize: 14, fontWeight: 600, color: C.ink, textDecoration: 'none' }}>← Katalog</a>
           <span style={{ fontSize: 'var(--fs-md)', color: C.muted }}>{product.branch_name || ''}</span>
         </div>
       </header>
@@ -225,7 +231,7 @@ export default function ProdukDetail() {
             </button>
             {added && (
               <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: '#16a34a', textAlign: 'center' }}>
-                Masuk keranjang. <a href="/" style={{ color: C.accent, fontWeight: 700 }}>Lihat Keranjang ({cartCount})</a>
+                Masuk keranjang. <a href={catalogHref} style={{ color: C.accent, fontWeight: 700 }}>Lihat Keranjang ({cartCount})</a>
               </p>
             )}
             <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: C.muted, textAlign: 'center' }}>Minimal 4 pcs per model. Varian boleh dicampur.</p>
@@ -263,7 +269,7 @@ export default function ProdukDetail() {
       )}
 
       {cartCount > 0 && (
-        <a href="/" aria-label="Buka keranjang" style={{ position: 'fixed', right: 16, bottom: 82, zIndex: 95, width: 56, height: 56, borderRadius: '50%', background: C.accent, color: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 12px 28px rgba(15,23,42,.25)', textDecoration: 'none' }}>
+        <a href={catalogHref} aria-label="Buka keranjang" style={{ position: 'fixed', right: 16, bottom: 82, zIndex: 95, width: 56, height: 56, borderRadius: '50%', background: C.accent, color: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 12px 28px rgba(15,23,42,.25)', textDecoration: 'none' }}>
           <I.cart style={{ width: 22, height: 22 }} />
           <span style={{ position: 'absolute', top: -2, right: -2, minWidth: 20, height: 20, borderRadius: 999, background: '#dc2626', color: '#fff', fontSize: 'var(--fs-xs)', fontWeight: 800, display: 'grid', placeItems: 'center', padding: '0 5px', border: '2px solid #fff' }}>{cartCount}</span>
         </a>

@@ -16,6 +16,8 @@ export const metadata = {
   },
 };
 
+// Domain khusus reseller dilayani lewat rewrite di middleware.js
+// (reseller.anyostore.my.id -> /reseller).
 export default function ResellerLandingPage() {
-  return <LandingClient branchSlug="reseller" wholesaleCopy={false} />;
+  return <LandingClient branchSlug="reseller" wholesaleCopy={false} basePath="/reseller" />;
 }

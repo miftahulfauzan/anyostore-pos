@@ -1,4 +1,6 @@
-{$APP_DOMAIN} {
+# anyostore.my.id + www = landing grosir
+# reseller.anyostore.my.id = landing reseller (dilayani Next.js yang sama)
+{$APP_DOMAIN}, www.{$APP_DOMAIN}, reseller.{$APP_DOMAIN} {
 	encode zstd gzip
 
 	handle /api/* {

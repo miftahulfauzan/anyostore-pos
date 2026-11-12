@@ -101,7 +101,7 @@ function ProductCard({ product, onWa, onAdd, inCart }) {
   );
 }
 
-export default function LandingPage({ branchMatch = '', branchSlug = '', wholesaleCopy = true } = {}) {
+export default function LandingPage({ branchMatch = '', branchSlug = '', wholesaleCopy = true, basePath = '/' } = {}) {
   // Beberapa teks memakai kata "grosir" untuk landing utama; landing reseller
   // mematikannya lewat prop wholesaleCopy={false}.
   const supplierLine = wholesaleCopy ? 'Grosir langsung dari supplier' : 'Langsung dari supplier';
@@ -546,7 +546,7 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
       {/* 2. Header */}
       <header className="site-header" style={{ position: 'sticky', top: 0, zIndex: 40 }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <a href="/" style={{ fontSize: 18, fontWeight: 800, color: T.black, textDecoration: 'none', letterSpacing: '-.02em' }}>ANYOSTORE</a>
+          <a href={basePath} aria-label={wholesaleCopy ? 'Landing grosir' : 'Landing reseller'} style={{ fontSize: 18, fontWeight: 800, color: T.black, textDecoration: 'none', letterSpacing: '-.02em' }}>ANYOSTORE</a>
           <nav style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
             <a href="#produk" style={{ fontSize: 'var(--fs-md)', fontWeight: 500, color: T.muted, textDecoration: 'none', padding: '8px 12px', borderRadius: 6, transition: 'color .2s' }} onMouseOver={(e) => e.target.style.color = T.black} onMouseOut={(e) => e.target.style.color = T.muted}>Produk</a>
             <button type="button" onClick={() => pickWa('')} style={{ fontSize: 'var(--fs-md)', fontWeight: 600, color: '#fff', background: T.blue, padding: '9px 18px', borderRadius: 6, textDecoration: 'none', transition: 'all .2s', boxShadow: '0 2px 8px rgba(30,58,95,.25)' }} className="hero-btn">Hubungi Admin</button>
@@ -634,6 +634,7 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
             <nav className="landing-footer-nav" aria-label="Navigasi footer">
               <a href="#produk">Produk</a>
               <button type="button" onClick={() => pickWa('')} className="landing-footer-link">Hubungi Admin</button>
+              {wholesaleCopy && <a href="/reseller">Katalog Reseller</a>}
               <a href="/login">Login Pegawai</a>
             </nav>
           </div>
