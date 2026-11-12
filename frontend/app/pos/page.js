@@ -9,7 +9,7 @@ import { createRequestSequence } from '../components/app-state.cjs';
 import { localDateString } from '../lib/local-date';
 import { defaultPaymentMethod } from '../lib/payment-defaults';
 import { defaultCartQuantity } from './cart-defaults.cjs';
-import { shareInvoiceImage, storePhones, instagramFor, customerTierLabel, invoiceDate } from '../lib/invoice-image';
+import { shareInvoiceImage, storePhones, instagramFor, customerTierLabel, invoiceDate, storeLogoUrl } from '../lib/invoice-image';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rupiah = (amount) => `Rp${Number(amount || 0).toLocaleString('id-ID')}`;
@@ -492,6 +492,7 @@ export default function PosPage() {
         storeAddress: settings.store_address || store.address || '',
         phones: storePhones(settings).length ? storePhones(settings) : [store.phone].filter(Boolean),
         instagram: instagramFor(storeName),
+        logoUrl: storeLogoUrl(settings, apiUrl),
         invoiceNo,
         dateText: invoiceDate(new Date()),
         cashier: user?.name || '-',

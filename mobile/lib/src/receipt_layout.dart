@@ -33,11 +33,13 @@ class ReceiptLayout {
         .toLowerCase();
     final narrow = size.startsWith('58');
     // Template dari web: ukuran font & margin bisa diubah per cabang.
-    final fontB = (store['receipt_font']?.toString() ?? 'b').toLowerCase() != 'a';
+    final fontB =
+        (store['receipt_font']?.toString() ?? 'b').toLowerCase() != 'a';
     final width = narrow ? (fontB ? 42 : 32) : (fontB ? 64 : 48);
     final fallbackMargin = narrow ? 3 : 4;
     final custom = int.tryParse(store['receipt_margin']?.toString() ?? '') ?? 0;
-    final margin = custom >= 0 && custom <= 6 && custom != 0 ? custom : fallbackMargin;
+    final margin =
+        custom >= 0 && custom <= 6 && custom != 0 ? custom : fallbackMargin;
     return ReceiptLayout._(width, margin, fontB: fontB);
   }
 
@@ -79,8 +81,9 @@ class ReceiptLayout {
       final text = ' ' * margin + body + ' ' * margin;
       result.add(ReceiptLine(text,
           bold: bold,
-          alignment:
-              center ? ReceiptLineAlignment.center : ReceiptLineAlignment.left));
+          alignment: center
+              ? ReceiptLineAlignment.center
+              : ReceiptLineAlignment.left));
     }
 
     void centered(String value, {bool bold = false}) {
@@ -91,7 +94,8 @@ class ReceiptLayout {
 
     void meta(String label, String value) {
       final room = _inner - _metaLabel;
-      final safe = value.length > room ? '${value.substring(0, room - 3)}...' : value;
+      final safe =
+          value.length > room ? '${value.substring(0, room - 3)}...' : value;
       emit('${label.padRight(_metaLabel)}$safe');
     }
 
@@ -109,9 +113,8 @@ class ReceiptLayout {
         nameWidth = _inner - mid.length - amount.length - 3;
       }
       final nameCol = nameWidth.clamp(4, 16);
-      final safeName = name.length <= nameCol
-          ? name
-          : '${name.substring(0, nameCol - 1)}.';
+      final safeName =
+          name.length <= nameCol ? name : '${name.substring(0, nameCol - 1)}.';
       final gap = _inner - nameCol - 1 - mid.length - amount.length - 1;
       emit('${safeName.padRight(nameCol)} $mid'
           '${' ' * (gap < 1 ? 1 : gap)}$amount');
@@ -162,7 +165,8 @@ class ReceiptLayout {
     }
     final customer = _value(data, 'customer_name');
     if (customer.isNotEmpty && _on(store, 'receipt_show_customer')) {
-      meta(_text(store, 'receipt_label_customer', 'Pelanggan'), _ascii(customer));
+      meta(_text(store, 'receipt_label_customer', 'Pelanggan'),
+          _ascii(customer));
     }
     rule();
 
@@ -172,8 +176,9 @@ class ReceiptLayout {
     final rawItems = (data['items'] as List?) ?? [];
     for (final raw in rawItems) {
       final itemRow = (raw as Map).cast<String, dynamic>();
-      final name =
-          itemRow['product_name']?.toString() ?? itemRow['name']?.toString() ?? '';
+      final name = itemRow['product_name']?.toString() ??
+          itemRow['name']?.toString() ??
+          '';
       item(
         _ascii(name),
         asNum(itemRow['quantity']).toInt(),
@@ -227,7 +232,8 @@ class ReceiptLayout {
     }
 
     rule();
-    centered(_text(store, 'receipt_closing', 'Terima kasih, sampai jumpa lagi!'));
+    centered(
+        _text(store, 'receipt_closing', 'Terima kasih, sampai jumpa lagi!'));
     _optional(store['receipt_footer'], centered);
     _optional(store['receipt_note'], centered);
     emit('');
@@ -248,9 +254,8 @@ class ReceiptLayout {
     if (raw is String && raw.trim().startsWith('[')) {
       try {
         final decoded = raw.trim();
-        for (final part in decoded
-            .substring(1, decoded.length - 1)
-            .split(',')) {
+        for (final part
+            in decoded.substring(1, decoded.length - 1).split(',')) {
           add(part.replaceAll('"', '').replaceAll(RegExp(r'[\[\]]'), ''));
         }
       } catch (_) {}

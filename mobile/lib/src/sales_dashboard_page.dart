@@ -85,9 +85,10 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
       Map<String, dynamic> data;
       if (_isKasir) {
         final payload = await widget.api.dashboard(start: start, end: end);
-        final summary = (payload['selected_summary'] as Map<String, dynamic>?) ??
-            (payload['summary'] as Map<String, dynamic>?) ??
-            const <String, dynamic>{};
+        final summary =
+            (payload['selected_summary'] as Map<String, dynamic>?) ??
+                (payload['summary'] as Map<String, dynamic>?) ??
+                const <String, dynamic>{};
         final trend = (payload['selected_sales_trend'] as List?) ??
             (payload['sales_trend'] as List?) ??
             const [];
@@ -165,7 +166,8 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     unawaited(_load());
   }
 
-  double _num(Object? value) => value is num ? value.toDouble() : double.tryParse('${value ?? ''}') ?? 0;
+  double _num(Object? value) =>
+      value is num ? value.toDouble() : double.tryParse('${value ?? ''}') ?? 0;
 
   Map<String, dynamic> get _summary =>
       (_data?['summary'] as Map<String, dynamic>?) ?? const {};
@@ -226,12 +228,14 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     }
     final summary = _summary;
     final previous = _previous;
-    final grossSales = _num(summary['gross_sales'] ?? summary['revenue'] ?? summary['sales']);
+    final grossSales =
+        _num(summary['gross_sales'] ?? summary['revenue'] ?? summary['sales']);
     final transactions = _num(summary['transactions']);
     final productsSold = _num(summary['products_sold']);
     final hasProfit = summary['net_profit'] != null;
     final fourthLabel = hasProfit ? 'Laba bersih' : 'Pengeluaran';
-    final fourthValue = hasProfit ? _num(summary['net_profit']) : _num(summary['expenses']);
+    final fourthValue =
+        hasProfit ? _num(summary['net_profit']) : _num(summary['expenses']);
     final margin = summary['profit_margin_percent'];
     final expenses = _num(summary['expenses']);
     final returns = _num(summary['return_amount'] ?? summary['refund_amount']);
@@ -245,7 +249,10 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
           _filterBar(context),
           if (_error != null) ...[
             const SizedBox(height: 8),
-            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: TaskTypography.secondary)),
+            Text(_error!,
+                style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: TaskTypography.secondary)),
           ],
           const SizedBox(height: 10),
           GlassCard(
@@ -257,17 +264,43 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Expanded(child: _kpi(context, 'Penjualan', fmtRp(grossSales), _changePercent(grossSales, previous['gross_sales']), lead: true)),
+                    Expanded(
+                        child: _kpi(context, 'Penjualan', fmtRp(grossSales),
+                            _changePercent(grossSales, previous['gross_sales']),
+                            lead: true)),
                     const SizedBox(width: 6),
-                    Expanded(child: _kpi(context, 'Pesanan', '${transactions.toInt()}', _changePercent(transactions, previous['transactions']))),
+                    Expanded(
+                        child: _kpi(
+                            context,
+                            'Pesanan',
+                            '${transactions.toInt()}',
+                            _changePercent(
+                                transactions, previous['transactions']))),
                   ],
                 ),
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    Expanded(child: _kpi(context, 'Produk', '${productsSold.toInt()} pcs', _changePercent(productsSold, previous['products_sold']))),
+                    Expanded(
+                        child: _kpi(
+                            context,
+                            'Produk',
+                            '${productsSold.toInt()} pcs',
+                            _changePercent(
+                                productsSold, previous['products_sold']))),
                     const SizedBox(width: 6),
-                    Expanded(child: _kpi(context, fourthLabel, fmtRp(fourthValue), _changePercent(hasProfit ? summary['net_profit'] : summary['expenses'], hasProfit ? previous['net_profit'] : previous['expenses']))),
+                    Expanded(
+                        child: _kpi(
+                            context,
+                            fourthLabel,
+                            fmtRp(fourthValue),
+                            _changePercent(
+                                hasProfit
+                                    ? summary['net_profit']
+                                    : summary['expenses'],
+                                hasProfit
+                                    ? previous['net_profit']
+                                    : previous['expenses']))),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -275,10 +308,20 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Text('Margin keuntungan', style: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context), fontWeight: FontWeight.w600)),
+                    Text('Margin keuntungan',
+                        style: TextStyle(
+                            fontSize: TaskTypography.micro,
+                            color: taskMuted(context),
+                            fontWeight: FontWeight.w600)),
                     const Spacer(),
-                    Text(margin == null ? '-' : '${_num(margin).toStringAsFixed(2).replaceAll('.', ',')}%',
-                        style: TextStyle(fontSize: TaskTypography.label, fontWeight: FontWeight.w800, color: ink(context))),
+                    Text(
+                        margin == null
+                            ? '-'
+                            : '${_num(margin).toStringAsFixed(2).replaceAll('.', ',')}%',
+                        style: TextStyle(
+                            fontSize: TaskTypography.label,
+                            fontWeight: FontWeight.w800,
+                            color: ink(context))),
                   ],
                 ),
               ],
@@ -289,26 +332,50 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _sectionHead(context, 'Penjualan', trailing: '${transactions.toInt()} trx'),
+                _sectionHead(context, 'Penjualan',
+                    trailing: '${transactions.toInt()} trx'),
                 const SizedBox(height: 10),
-                Text('Total penjualan', style: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context), fontWeight: FontWeight.w600)),
+                Text('Total penjualan',
+                    style: TextStyle(
+                        fontSize: TaskTypography.micro,
+                        color: taskMuted(context),
+                        fontWeight: FontWeight.w600)),
                 Text(fmtRp(grossSales),
-                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -.4, color: kTaskAccent)),
-                Text('${transactions.toInt()} pesanan', style: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
+                    style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -.4,
+                        color: kTaskAccent)),
+                Text('${transactions.toInt()} pesanan',
+                    style: TextStyle(
+                        fontSize: TaskTypography.micro,
+                        color: taskMuted(context))),
                 const SizedBox(height: 8),
                 _sparkline(context),
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    Container(width: 9, height: 9, decoration: const BoxDecoration(color: kTaskAccent, borderRadius: BorderRadius.all(Radius.circular(2)))),
+                    Container(
+                        width: 9,
+                        height: 9,
+                        decoration: const BoxDecoration(
+                            color: kTaskAccent,
+                            borderRadius:
+                                BorderRadius.all(Radius.circular(2)))),
                     const SizedBox(width: 6),
-                    Text('Penjualan', style: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context), fontWeight: FontWeight.w600)),
+                    Text('Penjualan',
+                        style: TextStyle(
+                            fontSize: TaskTypography.micro,
+                            color: taskMuted(context),
+                            fontWeight: FontWeight.w600)),
                   ],
                 ),
                 const SizedBox(height: 8),
-                _financeRow(context, 'Pembayaran', fmtRp(_paymentTotal > 0 ? _paymentTotal : grossSales)),
+                _financeRow(context, 'Pembayaran',
+                    fmtRp(_paymentTotal > 0 ? _paymentTotal : grossSales)),
                 _financeRow(context, 'Pengeluaran', fmtRp(expenses)),
-                _financeRow(context, 'Pengembalian', fmtRp(returns), last: true),
+                _financeRow(context, 'Pengembalian', fmtRp(returns),
+                    last: true),
               ],
             ),
           ),
@@ -317,7 +384,8 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _sectionHead(context, 'Produk terlaris', trailing: '${productsSold.toInt()} pcs'),
+                _sectionHead(context, 'Produk terlaris',
+                    trailing: '${productsSold.toInt()} pcs'),
                 const SizedBox(height: 6),
                 if (_products.isEmpty)
                   _empty(context, 'Belum ada produk terlaris pada periode ini.')
@@ -326,7 +394,8 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                         context,
                         '${product['name'] ?? '-'}',
                         '${_num(product['quantity_sold']).toInt()} pcs',
-                        maxValue: math.max(1, _num(_products.first['quantity_sold'])),
+                        maxValue:
+                            math.max(1, _num(_products.first['quantity_sold'])),
                         value: _num(product['quantity_sold']),
                         color: kTaskDark,
                       )),
@@ -338,7 +407,8 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _sectionHead(context, 'Stok rendah', trailing: '${_lowStock.length} produk'),
+                _sectionHead(context, 'Stok rendah',
+                    trailing: '${_lowStock.length} produk'),
                 const SizedBox(height: 6),
                 if (_lowStock.isEmpty)
                   _empty(context, 'Tidak ada stok yang perlu diperiksa.')
@@ -354,7 +424,8 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
           const SizedBox(height: 10),
           Text('Data mengikuti periode dan toko/gudang yang sedang dipilih.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
+              style: TextStyle(
+                  fontSize: TaskTypography.micro, color: taskMuted(context))),
         ],
       ),
     );
@@ -367,9 +438,11 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(_error ?? 'Dasbor tidak dapat dimuat', textAlign: TextAlign.center),
+            Text(_error ?? 'Dasbor tidak dapat dimuat',
+                textAlign: TextAlign.center),
             const SizedBox(height: 12),
-            FilledButton(onPressed: () => _load(), child: const Text('Coba lagi')),
+            FilledButton(
+                onPressed: () => _load(), child: const Text('Coba lagi')),
           ],
         ),
       ),
@@ -390,15 +463,21 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 icon: const Icon(Icons.keyboard_arrow_down),
                 items: [
                   for (final option in kMobileDateFilterOptions)
-                    DropdownMenuItem<String>(value: option.value, child: Text(option.label)),
+                    DropdownMenuItem<String>(
+                        value: option.value, child: Text(option.label)),
                 ],
                 onChanged: _pickPreset,
               ),
             ),
           ),
           const SizedBox(width: 8),
-          Text('$start s.d. $end', style: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
-          IconButton(onPressed: () => _load(), icon: const Icon(Icons.refresh), tooltip: 'Muat ulang'),
+          Text('$start s.d. $end',
+              style: TextStyle(
+                  fontSize: TaskTypography.micro, color: taskMuted(context))),
+          IconButton(
+              onPressed: () => _load(),
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Muat ulang'),
         ],
       ),
     );
@@ -407,22 +486,38 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   Widget _sectionHead(BuildContext context, String title, {String? trailing}) {
     return Row(
       children: [
-        Container(width: 4, height: 14, decoration: BoxDecoration(color: kTaskDark, borderRadius: BorderRadius.circular(2))),
+        Container(
+            width: 4,
+            height: 14,
+            decoration: BoxDecoration(
+                color: kTaskDark, borderRadius: BorderRadius.circular(2))),
         const SizedBox(width: 7),
-        Text(title, style: TextStyle(fontSize: TaskTypography.label, fontWeight: FontWeight.w800, color: ink(context))),
+        Text(title,
+            style: TextStyle(
+                fontSize: TaskTypography.label,
+                fontWeight: FontWeight.w800,
+                color: ink(context))),
         const Spacer(),
         if (trailing != null)
-          Text(trailing, style: TextStyle(fontSize: TaskTypography.micro, fontWeight: FontWeight.w700, color: taskMuted(context))),
+          Text(trailing,
+              style: TextStyle(
+                  fontSize: TaskTypography.micro,
+                  fontWeight: FontWeight.w700,
+                  color: taskMuted(context))),
       ],
     );
   }
 
-  Widget _kpi(BuildContext context, String label, String value, String? change, {bool lead = false}) {
+  Widget _kpi(BuildContext context, String label, String value, String? change,
+      {bool lead = false}) {
     final bg = lead ? kTaskDark : taskSurface(context);
     final border = lead ? kTaskDark : taskBorder(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
-      decoration: BoxDecoration(color: bg, border: Border.all(color: border), borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(
+          color: bg,
+          border: Border.all(color: border),
+          borderRadius: BorderRadius.circular(10)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -447,14 +542,22 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
               decoration: BoxDecoration(
-                color: lead ? const Color(0x33FFFFFF) : (change.startsWith('↓') ? const Color(0xFFFFEDD5) : const Color(0xFFDCFCE7)),
+                color: lead
+                    ? const Color(0x33FFFFFF)
+                    : (change.startsWith('↓')
+                        ? const Color(0xFFFFEDD5)
+                        : const Color(0xFFDCFCE7)),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(change,
                   style: TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w800,
-                      color: lead ? const Color(0xFFD8F5E3) : (change.startsWith('↓') ? const Color(0xFFC2410C) : const Color(0xFF137A43)))),
+                      color: lead
+                          ? const Color(0xFFD8F5E3)
+                          : (change.startsWith('↓')
+                              ? const Color(0xFFC2410C)
+                              : const Color(0xFF137A43)))),
             ),
           ],
         ],
@@ -465,17 +568,28 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   Widget _divider(BuildContext context) =>
       Container(height: 1, color: taskBorder(context));
 
-  Widget _financeRow(BuildContext context, String label, String value, {bool last = false}) {
+  Widget _financeRow(BuildContext context, String label, String value,
+      {bool last = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 7),
       decoration: BoxDecoration(
-        border: last ? null : Border(bottom: BorderSide(color: taskBorder(context), width: 1)),
+        border: last
+            ? null
+            : Border(bottom: BorderSide(color: taskBorder(context), width: 1)),
       ),
       child: Row(
         children: [
-          Text(label, style: TextStyle(fontSize: TaskTypography.secondary, color: taskMuted(context), fontWeight: FontWeight.w600)),
+          Text(label,
+              style: TextStyle(
+                  fontSize: TaskTypography.secondary,
+                  color: taskMuted(context),
+                  fontWeight: FontWeight.w600)),
           const Spacer(),
-          Text(value, style: TextStyle(fontSize: TaskTypography.secondary, fontWeight: FontWeight.w800, color: ink(context))),
+          Text(value,
+              style: TextStyle(
+                  fontSize: TaskTypography.secondary,
+                  fontWeight: FontWeight.w800,
+                  color: ink(context))),
         ],
       ),
     );
@@ -501,7 +615,10 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
               name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: TaskTypography.secondary, fontWeight: FontWeight.w700, color: ink(context)),
+              style: TextStyle(
+                  fontSize: TaskTypography.secondary,
+                  fontWeight: FontWeight.w700,
+                  color: ink(context)),
             ),
           ),
           const SizedBox(width: 8),
@@ -520,7 +637,10 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
           const SizedBox(width: 8),
           Text(
             valueText,
-            style: TextStyle(fontSize: TaskTypography.micro, fontWeight: FontWeight.w800, color: ink(context)),
+            style: TextStyle(
+                fontSize: TaskTypography.micro,
+                fontWeight: FontWeight.w800,
+                color: ink(context)),
           ),
         ],
       ),
@@ -532,7 +652,8 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 6),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: taskBorder(context), width: 1)),
+        border:
+            Border(bottom: BorderSide(color: taskBorder(context), width: 1)),
       ),
       child: Row(
         children: [
@@ -541,13 +662,19 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
               name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: TaskTypography.secondary, fontWeight: FontWeight.w700, color: ink(context)),
+              style: TextStyle(
+                  fontSize: TaskTypography.secondary,
+                  fontWeight: FontWeight.w700,
+                  color: ink(context)),
             ),
           ),
           const SizedBox(width: 8),
           Text(
             valueText,
-            style: TextStyle(fontSize: TaskTypography.micro, fontWeight: FontWeight.w700, color: taskMuted(context)),
+            style: TextStyle(
+                fontSize: TaskTypography.micro,
+                fontWeight: FontWeight.w700,
+                color: taskMuted(context)),
           ),
         ],
       ),
@@ -556,19 +683,32 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
 
   Widget _empty(BuildContext context, String message) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Text(message, style: TextStyle(fontSize: TaskTypography.secondary, color: taskMuted(context))),
+        child: Text(message,
+            style: TextStyle(
+                fontSize: TaskTypography.secondary, color: taskMuted(context))),
       );
 
   Widget _sparkline(BuildContext context) {
     final rows = _daily;
-    final values = [for (final row in rows) _num(row['revenue'] ?? row['sales'])];
+    final values = [
+      for (final row in rows) _num(row['revenue'] ?? row['sales'])
+    ];
     return Container(
       height: 96,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(color: taskSurface(context), border: Border.all(color: taskBorder(context)), borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(
+          color: taskSurface(context),
+          border: Border.all(color: taskBorder(context)),
+          borderRadius: BorderRadius.circular(10)),
       child: values.length < 2
-          ? Center(child: Text('Belum ada data penjualan.', style: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))))
-          : CustomPaint(painter: _SparkPainter(values: values, color: kTaskAccent), size: Size.infinite),
+          ? Center(
+              child: Text('Belum ada data penjualan.',
+                  style: TextStyle(
+                      fontSize: TaskTypography.micro,
+                      color: taskMuted(context))))
+          : CustomPaint(
+              painter: _SparkPainter(values: values, color: kTaskAccent),
+              size: Size.infinite),
     );
   }
 }
@@ -589,7 +729,8 @@ class _SparkPainter extends CustomPainter {
     final points = <Offset>[];
     for (var i = 0; i < values.length; i++) {
       final normalized = (values[i] - minValue) / span;
-      points.add(Offset(i * dx, size.height - normalized * (size.height - 6) - 3));
+      points.add(
+          Offset(i * dx, size.height - normalized * (size.height - 6) - 3));
     }
     final line = Path()..moveTo(points.first.dx, points.first.dy);
     for (var i = 1; i < points.length; i++) {

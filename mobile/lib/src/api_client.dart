@@ -44,6 +44,16 @@ class ApiClient {
   void setToken(String? token) => _token = token;
   String? get token => _token;
 
+  /// URL absolut untuk file media (`/uploads/...`). Path dari setelan toko
+  /// selalu relatif terhadap root server, bukan terhadap prefiks `/api`.
+  String mediaUrl(String path) {
+    final value = path.trim();
+    if (value.isEmpty) return '';
+    if (Uri.tryParse(value)?.hasScheme == true) return value;
+    final root = baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+    return value.startsWith('/') ? '$root$value' : '$root/$value';
+  }
+
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
         'Accept': 'application/json',

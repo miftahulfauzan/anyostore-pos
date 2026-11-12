@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Share2 } from 'lucide-react';
 import { openPrintView } from '../../lib/print-utils';
-import { shareInvoiceImage, storePhones, instagramFor, customerTierLabel, invoiceDate } from '../../lib/invoice-image';
+import { shareInvoiceImage, storePhones, instagramFor, customerTierLabel, invoiceDate, storeLogoUrl } from '../../lib/invoice-image';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rp = (number) => `Rp${Number(number || 0).toLocaleString('id-ID')}`;
@@ -46,6 +46,7 @@ export default function Receipt({ params }) {
         storeAddress: data.store?.store_address || '',
         phones: storePhones(data.store || {}).length ? storePhones(data.store || {}) : [data.store?.store_phone].filter(Boolean),
         instagram: instagramFor(data.store?.store_name),
+        logoUrl: storeLogoUrl(data.store || {}, api),
         invoiceNo: data.invoice_no,
         dateText: invoiceDate(data.created_at || data.transaction_date),
         cashier: data.cashier || '-',

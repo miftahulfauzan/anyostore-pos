@@ -5,8 +5,10 @@ import 'task_ui.dart';
 import 'ui_kit.dart';
 
 class PaymentSheet extends StatefulWidget {
-  const PaymentSheet({super.key, required this.grandTotal, this.defaultMethod = 'cash'});
+  const PaymentSheet(
+      {super.key, required this.grandTotal, this.defaultMethod = 'cash'});
   final double grandTotal;
+
   /// Metode pembayaran awal sesuai toko (BASIK: transfer, Blok B: QRIS).
   final String defaultMethod;
 
@@ -30,6 +32,7 @@ class _PaymentSheetState extends State<PaymentSheet> {
   };
 
   late final List<String> _selectedMethods = [widget.defaultMethod];
+
   /// Mode bayar terpisah harus dinyalakan dulu; tanpa itu menekan metode lain
   /// hanya memindahkan metode pembayaran.
   bool _dualPayment = false;
@@ -85,7 +88,9 @@ class _PaymentSheetState extends State<PaymentSheet> {
   void _toggleMethod(String method) {
     setState(() {
       if (!_dualPayment) {
-        if (_selectedMethods.length == 1 && _selectedMethods.first == method) return;
+        if (_selectedMethods.length == 1 && _selectedMethods.first == method) {
+          return;
+        }
         for (final existing in _selectedMethods) {
           _splitAmounts.remove(existing)?.dispose();
           _splitReferences.remove(existing)?.dispose();
@@ -251,13 +256,15 @@ class _PaymentSheetState extends State<PaymentSheet> {
                           _splitAmounts.remove(extra)?.dispose();
                           _splitReferences.remove(extra)?.dispose();
                         }
-                        _selectedMethods.removeRange(1, _selectedMethods.length);
+                        _selectedMethods.removeRange(
+                            1, _selectedMethods.length);
                       }
                       _error = null;
                     }),
                     child: Text(
                         _dualPayment ? 'Terpisah: aktif' : 'Bayar terpisah',
-                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
+                        style: const TextStyle(
+                            fontSize: 11.5, fontWeight: FontWeight.w800)),
                   ),
                 ],
               ),

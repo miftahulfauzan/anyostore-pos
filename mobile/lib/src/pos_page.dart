@@ -138,8 +138,12 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
   String? _storeName;
   String _storeAddress = '';
   String _storePhone = '';
+
+  /// URL absolut logo kepala invoice (`invoice_logo`, fallback `store_logo`).
+  String _invoiceLogoUrl = '';
   bool _allowNegativeStock = true;
   List<String> _storePhones = const [];
+
   /// Nomor invoice yang sudah direservasi + id transaksi klien yang dipakai
   /// ulang saat pembayaran supaya nomor pada invoice tidak berubah.
   String? _shareClientTxId;
@@ -512,8 +516,11 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     _storeName = storeName == null || storeName.isEmpty ? null : storeName;
     _storeAddress = settings['store_address']?.toString().trim() ?? '';
     _storePhone = settings['store_phone']?.toString().trim() ?? '';
+    _invoiceLogoUrl = _invoiceLogoUrlFrom(settings);
     _allowNegativeStock =
-        (settings['allow_negative_stock']?.toString().trim().toLowerCase() ?? '') != 'false';
+        (settings['allow_negative_stock']?.toString().trim().toLowerCase() ??
+                '') !=
+            'false';
     _storePhones = _collectStorePhones(settings);
     final autoPrint = settings['auto_print'];
     _autoPrint = autoPrint == null ||
@@ -1350,10 +1357,24 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     return (name: name, address: address, phone: phone);
   }
 
+  /// URL logo kepala invoice dari setelan cabang. Kosong bila logo dimatikan
+  /// (`show_logo = false`) atau belum di-upload; gambar invoice lalu memakai
+  /// inisial nama toko.
+  String _invoiceLogoUrlFrom(Map<String, dynamic> settings) {
+    if ((settings['show_logo'] ?? '').toString().toLowerCase() == 'false') {
+      return '';
+    }
+    final path = (settings['invoice_logo'] ?? settings['store_logo'] ?? '')
+        .toString()
+        .trim();
+    return path.isEmpty ? '' : _client.mediaUrl(path);
+  }
+
   /// Info toko terbaru dari server, dipakai saat mencetak invoice supaya
   /// perubahan nama/alamat/telepon toko langsung terpakai tanpa membuka ulang
   /// aplikasi (server menyimpan identitas toko di tabel branches).
-  Future<({String name, String address, String phone})> _freshInvoiceStore() async {
+  Future<({String name, String address, String phone})>
+      _freshInvoiceStore() async {
     final fallback = _invoiceStore();
     try {
       final fresh = await _client.storeSettings();
@@ -1365,6 +1386,7 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
       if (address.isNotEmpty) _storeAddress = address;
       if (phone.isNotEmpty) _storePhone = phone;
       if (phones.isNotEmpty) _storePhones = phones;
+      _invoiceLogoUrl = _invoiceLogoUrlFrom(fresh);
       return (
         name: name.isNotEmpty ? name : fallback.name,
         address: address.isNotEmpty ? address : fallback.address,
@@ -1400,7 +1422,8 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
   Future<void> _shareCartInvoice() async {
     if (_cart.isEmpty) return;
     final subtotal = _previewFresh ? asNum(_preview?['subtotal']) : _cartTotal;
-    final discount = _previewFresh ? asNum(_preview?['discount']) : _manualDiscount;
+    final discount =
+        _previewFresh ? asNum(_preview?['discount']) : _manualDiscount;
     final grand = _previewFresh && _preview?['grand_total'] != null
         ? asNum(_preview?['grand_total'])
         : (subtotal - discount);
@@ -1420,8 +1443,8 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
         _reservedInvoiceNo = invoiceNo;
       } catch (error) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Nomor invoice gagal dibuat: $error')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Nomor invoice gagal dibuat: $error')));
         return;
       }
     }
@@ -1431,6 +1454,7 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
       storeName: store.name,
       storeAddress: store.address,
       storePhones: _invoicePhones(store.phone),
+      storeLogoUrl: _invoiceLogoUrl,
       instagram: invoiceInstagram(store.name, store.address),
       invoiceNo: invoiceNo,
       dateText: invoiceDateText(DateTime.now().toIso8601String()),
@@ -1454,8 +1478,8 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
       await shareInvoiceImage(context, payload);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Gagal membagikan invoice: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal membagikan invoice: $error')));
     }
   }
 
@@ -1465,20 +1489,27 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
       final data = await _client.receipt(id);
       if (!mounted) return;
       final store = (data['store'] as Map<String, dynamic>?) ?? const {};
-      final rawItems = ((data['items'] as List?) ?? const []).cast<Map<String, dynamic>>();
-      final storeName = (store['store_name'] ?? _storeName ?? 'Anyostore').toString();
+      final rawItems =
+          ((data['items'] as List?) ?? const []).cast<Map<String, dynamic>>();
+      final storeName =
+          (store['store_name'] ?? _storeName ?? 'Anyostore').toString();
       final receiptPhone = (store['store_phone'] ?? _storePhone).toString();
       final payload = InvoicePayload(
         storeName: storeName,
         storeAddress: (store['store_address'] ?? _storeAddress).toString(),
         storePhones: _invoicePhones(receiptPhone),
-        instagram: invoiceInstagram(storeName, (store['store_address'] ?? _storeAddress).toString()),
+        storeLogoUrl: _invoiceLogoUrlFrom(store),
+        instagram: invoiceInstagram(
+            storeName, (store['store_address'] ?? _storeAddress).toString()),
         invoiceNo: (data['invoice_no'] ?? '-').toString(),
-        dateText: invoiceDateText(data['created_at'] ?? data['transaction_date']),
-        cashier: (data['cashier'] ?? context.read<AuthStore>().userName ?? '-').toString(),
-        customerLabel: (data['customer_name']?.toString().trim().isNotEmpty ?? false)
-            ? data['customer_name'].toString()
-            : 'Umum',
+        dateText:
+            invoiceDateText(data['created_at'] ?? data['transaction_date']),
+        cashier: (data['cashier'] ?? context.read<AuthStore>().userName ?? '-')
+            .toString(),
+        customerLabel:
+            (data['customer_name']?.toString().trim().isNotEmpty ?? false)
+                ? data['customer_name'].toString()
+                : 'Umum',
         items: [
           for (final item in rawItems)
             InvoiceLine(
@@ -1496,8 +1527,8 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
       await shareInvoiceImage(context, payload);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Gagal membagikan invoice: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal membagikan invoice: $error')));
     }
   }
 
@@ -1719,7 +1750,8 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Stok kurang'),
-          content: Text('${message.trim()}\n\nLanjutkan transaksi dengan stok minus?'),
+          content: Text(
+              '${message.trim()}\n\nLanjutkan transaksi dengan stok minus?'),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
@@ -2949,8 +2981,8 @@ class _CartSheetState extends State<_CartSheet> {
                               ? const SizedBox(
                                   width: 22,
                                   height: 22,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2))
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2))
                               : Text('Bayar · ${fmtRp(grandTotal)}',
                                   style: const TextStyle(
                                       fontSize: 17,

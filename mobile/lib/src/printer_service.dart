@@ -150,9 +150,8 @@ class PrinterService {
       if (path.isEmpty) return null;
       final url = _mediaUrl(path);
       final logoLoader = _logoLoader;
-      final raw = logoLoader != null
-          ? await logoLoader(url)
-          : await _downloadLogo(url);
+      final raw =
+          logoLoader != null ? await logoLoader(url) : await _downloadLogo(url);
       if (raw == null || raw.isEmpty) return null;
       return await _roundCorners(raw);
     } catch (_) {
@@ -187,8 +186,8 @@ class PrinterService {
       // Latar putih dulu: printer thermal memperlakukan piksel transparan
       // sebagai hitam, sehingga sudut yang dibulatkan akan tercetak kotak
       // lagi bila tidak diisi putih.
-      canvas.drawRect(
-          Rect.fromLTWH(0, 0, width, height), Paint()..color = const Color(0xFFFFFFFF));
+      canvas.drawRect(Rect.fromLTWH(0, 0, width, height),
+          Paint()..color = const Color(0xFFFFFFFF));
       canvas.clipRRect(rrect);
       canvas.drawImage(image, Offset.zero, Paint()..isAntiAlias = true);
       final picture = recorder.endRecording();

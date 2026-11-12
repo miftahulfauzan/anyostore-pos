@@ -158,6 +158,9 @@ export function renderInvoiceCanvas(payload) {
   const storeName = String(payload.storeName || 'Anyostore').trim();
   const brand = showsAnyostoreBrand(storeName);
   const initial = (storeName || 'A').trim().charAt(0).toUpperCase();
+  // Gambar logo sudah dimuat lebih dulu (loadInvoiceLogo) dan dikirim lewat
+  // payload.logo. Tanpa logo, kepala invoice memakai inisial nama toko.
+  const logo = payload.logo || null;
   const phones = (payload.phones || []).filter(Boolean);
   const instagram = payload.instagram || null;
 
@@ -204,13 +207,25 @@ export function renderInvoiceCanvas(payload) {
   const logoCenterY = logoY + logoSize / 2;
 
   // logo
-  roundedRect(ctx, pad, logoY, logoSize, logoSize, 22);
-  ctx.fillStyle = '#ffffff';
-  ctx.fill();
-  ctx.fillStyle = DENIM;
-  ctx.font = font(44, 900);
-  ctx.textAlign = 'center';
-  ctx.fillText(initial, pad + logoSize / 2, logoY + logoSize / 2 + 16);
+  if (logo) {
+    // Logo toko asli: latar putih + sudut membulat 22 px, isi gambar menutup
+    // penuh (cover) supaya tidak ada sisa putih di dalam bingkai.
+    ctx.save();
+    roundedRect(ctx, pad, logoY, logoSize, logoSize, 22);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.clip();
+    drawCoverImage(ctx, logo, pad, logoY, logoSize, logoSize);
+    ctx.restore();
+  } else {
+    roundedRect(ctx, pad, logoY, logoSize, logoSize, 22);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.fillStyle = DENIM;
+    ctx.font = font(44, 900);
+    ctx.textAlign = 'center';
+    ctx.fillText(initial, pad + logoSize / 2, logoY + logoSize / 2 + 16);
+  }
 
   // teks kiri (blok teks ikut center terhadap logo)
   ctx.textAlign = 'left';
@@ -478,6 +493,49 @@ function roundedRect(ctx, x, y, width, height, radius) {
   ctx.roundRect(x, y, width, height, radius);
 }
 
+/// Gambar `image` memenuhi kotak (cover): sisi terpanjang dipotong di tengah.
+function drawCoverImage(ctx, image, x, y, width, height) {
+  const ratio = Math.max(width / image.width, height / image.height);
+  const drawWidth = image.width * ratio;
+  const drawHeight = image.height * ratio;
+  ctx.drawImage(image, x + (width - drawWidth) / 2, y + (height - drawHeight) / 2, drawWidth, drawHeight);
+}
+
+/// URL logo kepala invoice untuk satu cabang. Kosong bila logo dimatikan
+/// (`show_logo = false`) atau belum di-upload.
+export function storeLogoUrl(store = {}, apiBase = '/api') {
+  if (String(store?.show_logo ?? '').toLowerCase() === 'false') return '';
+  const path = String(store?.invoice_logo || store?.store_logo || '').trim();
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+  const root = String(apiBase || '/api').replace(/\/api\/?$/, '');
+  return `${root}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+/// Muat logo sebagai HTMLImageElement. Gagal/timeout = null (tetap cetak).
+export function loadInvoiceLogo(url, timeoutMs = 2500) {
+  if (!url || typeof Image === 'undefined') return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const image = new Image();
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+    const timer = setTimeout(() => finish(null), timeoutMs);
+    image.onload = () => {
+      clearTimeout(timer);
+      finish(image.width > 0 && image.height > 0 ? image : null);
+    };
+    image.onerror = () => {
+      clearTimeout(timer);
+      finish(null);
+    };
+    image.src = url;
+  });
+}
+
 function drawSpacedText(ctx, text, x, y, spacing) {
   const chars = [...String(text)];
   const width = chars.reduce((total, char) => total + ctx.measureText(char).width + spacing, 0) - spacing;
@@ -539,7 +597,9 @@ export async function shareInvoiceImage(payload) {
   if (document.fonts?.ready) {
     try { await document.fonts.ready; } catch { /* font sistem tetap dipakai */ }
   }
-  const canvas = renderInvoiceCanvas(payload);
+  // Logo dimuat sebelum kanvas digambar; bila gagal, inisial toko yang dipakai.
+  const logo = payload.logo || (payload.logoUrl ? await loadInvoiceLogo(payload.logoUrl) : null);
+  const canvas = renderInvoiceCanvas(logo ? { ...payload, logo } : payload);
   const blob = await canvasToBlob(canvas);
   if (!blob) throw new Error('Gambar invoice gagal dibuat');
   const safeName = String(payload.invoiceNo || 'invoice').replace(/[^A-Za-z0-9-]/g, '');
