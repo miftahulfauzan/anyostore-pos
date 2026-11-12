@@ -48,6 +48,7 @@ export default function ReceiptTemplatePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [previewZoom, setPreviewZoom] = useState(false);
   const [error, setError] = useState('');
 
   const headers = () => ({ 'Content-Type': 'application/json' });
@@ -283,10 +284,15 @@ export default function ReceiptTemplatePage() {
 
         <aside className="receipt-template-preview">
           <h2>Pratinjau</h2>
-          <p className="muted" style={{ marginTop: 0 }}>
-            {grid.width} kolom · margin {grid.margin} · {String(form.printer_size).startsWith('58') ? '58 mm' : '80 mm'} · {String(form.receipt_font) === 'a' ? 'Font A' : 'Font B'}
-          </p>
-          <pre className="receipt-preview-paper">{preview}</pre>
+          <div className="receipt-preview-toolbar">
+            <p className="muted">
+              {grid.width} kolom · margin {grid.margin} · {String(form.printer_size).startsWith('58') ? '58 mm' : '80 mm'} · {String(form.receipt_font) === 'a' ? 'Font A' : 'Font B'}
+            </p>
+            <button type="button" className="small secondary" onClick={() => setPreviewZoom(!previewZoom)} aria-pressed={previewZoom}>
+              {previewZoom ? 'Perkecil' : 'Perbesar'}
+            </button>
+          </div>
+          <pre className={previewZoom ? 'receipt-preview-paper is-zoomed' : 'receipt-preview-paper'}>{preview}</pre>
         </aside>
       </div>
     </AppShell>

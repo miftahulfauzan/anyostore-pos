@@ -120,6 +120,23 @@ test('produk satu baris dengan qty, harga, dan jumlah', () => {
   assert.ok(row.text.trimEnd().endsWith('Rp540.000'));
 });
 
+test('pratinjau muat tanpa scrollbar dan bisa diperbesar', () => {
+  const css = read('app/globals.css');
+  const paper = /\.receipt-preview-paper \{([^}]*)\}/.exec(css);
+  assert.ok(paper, 'aturan .receipt-preview-paper harus ada');
+  // 64 kolom wajib muat: lebar mengikuti isi, tidak ada scrollbar horizontal.
+  assert.match(paper[1], /width: fit-content;/);
+  assert.match(paper[1], /max-width: 100%;/);
+  assert.match(paper[1], /overflow: hidden;/);
+  assert.doesNotMatch(paper[1], /overflow-x: auto;/);
+  // Mode perbesar boleh scroll di dalam kertas saja.
+  assert.match(css, /\.receipt-preview-paper\.is-zoomed \{[^}]*font-size: 12px;[^}]*overflow-x: auto;/);
+  for (const source of [page, storeSettings]) {
+    assert.match(source, /Perbesar/);
+    assert.match(source, /is-zoomed/);
+  }
+});
+
 test('default template sama dengan struk saat ini', () => {
   assert.equal(isOn(RECEIPT_TEMPLATE_DEFAULTS.receipt_show_logo), true);
   assert.equal(RECEIPT_TEMPLATE_DEFAULTS.receipt_separator, 'dash');

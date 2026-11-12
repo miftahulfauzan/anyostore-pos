@@ -122,11 +122,23 @@ export default function ProdukDetail() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    Promise.all([
-      fetch(`${api}/public/products/${id}`).then((r) => r.json()).then((b) => b.data || null).catch(() => null),
-      fetch(`${api}/public/settings`).then((r) => r.json()).then((b) => b.data || null).catch(() => null),
-    ])
-      .then(([p, s]) => { setProduct(p); setSettings(s); })
+    // Setelan toko (termasuk nomor WhatsApp admin) WAJIB memakai cabang produk
+    // ini. Tanpa branch_id, backend jatuh ke cabang default ("Gudang Utama")
+    // sehingga nomor admin toko lain yang tampil di detail produk reseller.
+    fetch(`${api}/public/products/${id}`)
+      .then((r) => r.json())
+      .then((b) => b.data || null)
+      .catch(() => null)
+      .then(async (productData) => {
+        setProduct(productData);
+        if (!productData) return;
+        const scope = productData.branch_id ? `?branch_id=${productData.branch_id}` : '';
+        const settingsData = await fetch(`${api}/public/settings${scope}`)
+          .then((r) => r.json())
+          .then((b) => b.data || null)
+          .catch(() => null);
+        setSettings(settingsData);
+      })
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -141,7 +153,7 @@ export default function ProdukDetail() {
     ...media.map((m) => ({ path: m.path, transform: m.transform, color: null })),
     ...variants.filter((v) => v.photo_path).map((v) => ({ path: v.photo_path, transform: v.photo_transform || null, color: v.color })),
   ];
-  const waPhones = settings?.whatsapp_numbers?.length ? settings.whatsapp_numbers : [];
+  const waPhones = [...(settings?.whatsapp_numbers || [])];
   const waPhone = settings?.whatsapp || settings?.store_phone || '';
   if (!waPhones.length && waPhone) waPhones.push(waPhone);
 
