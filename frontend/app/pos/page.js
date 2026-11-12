@@ -561,8 +561,18 @@ export default function PosPage() {
       if (user?.role === 'owner') bodyPayload.transaction_date = transactionDate;
       if (customerId) bodyPayload.customer_id = Number(customerId);
       if (notes.trim()) bodyPayload.notes = notes.trim();
-      const response = await fetch(`${apiUrl}/transactions`, { method: 'POST', headers: headers(), body: JSON.stringify(bodyPayload) });
-      const body = await response.json();
+      let response = await fetch(`${apiUrl}/transactions`, { method: 'POST', headers: headers(), body: JSON.stringify(bodyPayload) });
+      let body = await response.json();
+      if (!response.ok && /tidak mencukupi/i.test(body.message || '')) {
+        const settingsRes = await fetch(`${apiUrl}/settings?branch_id=${Number(storeId)}`, { headers: headers() });
+        const settingsBody = settingsRes.ok ? await settingsRes.json() : {};
+        const storeAllows = String(settingsBody?.data?.allow_negative_stock ?? 'true').toLowerCase() !== 'false';
+        if (storeAllows && window.confirm(`${body.message}. Lanjutkan transaksi dengan stok minus?`)) {
+          bodyPayload.allow_negative_stock = true;
+          response = await fetch(`${apiUrl}/transactions`, { method: 'POST', headers: headers(), body: JSON.stringify(bodyPayload) });
+          body = await response.json();
+        }
+      }
       if (!response.ok) throw new Error(body.message || 'Transaksi gagal');
       setCart([]); setCash(''); setManualDiscount(''); setSelectedPaymentMethods(['cash']); setPaymentAmounts({}); setPaymentSheetOpen(false); setMobileCartOpen(false); setCustomerId(''); setNotes(''); setShowCartActions(false); setShowCartOptions(false); setPriceTier('retail'); setTransactionDate(localDateString());
       pendingTransactionId.current = null;

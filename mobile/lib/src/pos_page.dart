@@ -1617,7 +1617,21 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
       if (_isOwner) 'transaction_date': _transactionDate,
     };
     try {
-      final result = await _client.createTransaction(payload);
+      Map<String, dynamic> result;
+      try {
+        result = await _client.createTransaction(payload);
+      } on ApiException catch (e) {
+        // Server bisa menemukan stok kurang walau cache HP masih cukup
+        // (stok berubah dari perangkat lain). Bila toko mengizinkan jual
+        // melebihi stok, beri tombol Lanjutkan untuk kirim ulang.
+        if (e.isNetwork || !_isStockError(e.message) || !_allowNegativeStock) {
+          rethrow;
+        }
+        final proceed = await _confirmOversell(e.message);
+        if (proceed != true || !mounted) return;
+        payload['allow_negative_stock'] = true;
+        result = await _client.createTransaction(payload);
+      }
       if (!mounted) return;
       final id = int.tryParse('${result['id']}');
       _cart.clear();
@@ -1692,6 +1706,30 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
       if (mounted) setState(() => _saving = false);
     }
   }
+
+  /// Pesan server saat stok tidak mencukupi.
+  bool _isStockError(String message) {
+    final text = message.toLowerCase();
+    return text.contains('tidak mencukupi') ||
+        text.contains('tidak mengizinkan transaksi melebihi stok');
+  }
+
+  /// Konfirmasi jual melebihi stok (stok jadi minus) setelah server menolak.
+  Future<bool?> _confirmOversell(String message) => showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Stok kurang'),
+          content: Text('${message.trim()}\n\nLanjutkan transaksi dengan stok minus?'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Kembali')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Lanjutkan')),
+          ],
+        ),
+      );
 
   /// Simpan transaksi ke antrean offline (harga/total ikut HP, sync nanti).
   Future<void> _saveOffline(Map<String, dynamic> payload, int branch) async {
