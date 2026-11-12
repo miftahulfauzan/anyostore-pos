@@ -61,9 +61,10 @@ test('pratinjau memuat semua nomor WhatsApp dan 3 baris alamat', () => {
     { store_address: 'Lantai 6 Blok B\nTanah Abang\nJakarta Pusat\nBaris empat' },
     RECEIPT_SAMPLE,
   ).map((row) => row.trim());
-  assert.ok(rows.includes('WA 0813-1313-3162'));
-  assert.ok(rows.includes('WA 0856-9116-6333'));
-  assert.ok(rows.includes('WA 0877-6676-6769'));
+  assert.ok(rows.includes('WhatsApp'));
+  assert.ok(rows.includes('0813-1313-3162'));
+  assert.ok(rows.includes('0856-9116-6333'));
+  assert.ok(rows.includes('0877-6676-6769'));
   assert.ok(rows.includes('Tanah Abang'));
   assert.ok(!rows.some((row) => row.includes('Baris empat')));
 });
@@ -80,7 +81,7 @@ test('toggle mematikan baris pada pratinjau', () => {
     },
     RECEIPT_SAMPLE,
   ).map((row) => row.trim());
-  assert.ok(!rows.some((row) => row.startsWith('WA ')));
+  assert.ok(!rows.includes('WhatsApp'));
   assert.ok(!rows.some((row) => row.startsWith('Kasir')));
   assert.ok(!rows.some((row) => row.startsWith('Transfer')));
   assert.ok(!rows.some((row) => row.startsWith('Kembalian')));

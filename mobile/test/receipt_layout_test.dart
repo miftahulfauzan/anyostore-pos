@@ -123,16 +123,18 @@ void main() {
       'whatsapp_numbers': '["081313133162","085691166333","087766676769"]',
     });
     final rows = _trimmed(receipt);
-    expect(rows, contains('WA 081313133162'));
-    expect(rows, contains('WA 085691166333'));
-    expect(rows, contains('WA 087766676769'));
+    expect(rows, contains('WhatsApp'));
+    expect(rows, contains('081313133162'));
+    expect(rows, contains('085691166333'));
+    expect(rows, contains('087766676769'));
     // Nomor telepon tidak dicetak bila daftar WA admin sudah ada.
     expect(rows.any((row) => row.contains('021123456')), isFalse);
   });
 
   test('jatuh ke telepon toko bila daftar WhatsApp kosong', () {
     final rows = _trimmed(_receipt(store: {'store_phone': '081234567890'}));
-    expect(rows, contains('WA 081234567890'));
+    expect(rows, contains('WhatsApp'));
+    expect(rows, contains('081234567890'));
   });
 
   test('produk panjang dipotong dan tetap satu baris', () {
@@ -212,7 +214,7 @@ void main() {
     });
     final rows = _trimmed(receipt);
     expect(rows.any((row) => row.contains('Blok B no 118')), isFalse);
-    expect(rows.any((row) => row.startsWith('WA ')), isFalse);
+    expect(rows.contains('WhatsApp'), isFalse);
     expect(rows.any((row) => row.startsWith('NPWP')), isFalse);
     expect(rows.any((row) => row.startsWith('Kasir')), isFalse);
     expect(rows.any((row) => row.startsWith('Transfer')), isFalse);

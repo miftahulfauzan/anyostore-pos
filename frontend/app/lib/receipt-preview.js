@@ -126,7 +126,10 @@ export function buildReceiptPreview(settings = {}, sample = {}) {
   emit('');
   if (isOn(value.receipt_show_wa)) {
     const numbers = Array.isArray(sample.phones) ? sample.phones : [];
-    numbers.forEach((number) => center(`WA ${number}`));
+    if (numbers.length) {
+      center('WhatsApp');
+      numbers.forEach((number) => center(number));
+    }
   }
   if (isOn(value.receipt_show_npwp) && value.store_tax_id) center(`NPWP: ${value.store_tax_id}`);
   rule();

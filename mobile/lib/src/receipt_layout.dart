@@ -264,7 +264,9 @@ class ReceiptLayout {
     add(store['whatsapp_number_3']);
     if (numbers.isEmpty) add(store['store_phone']);
 
-    return [for (final number in numbers) 'WA $number'];
+    if (numbers.isEmpty) return const [];
+    // Label sekali di atas, nomor di baris-baris berikutnya.
+    return ['WhatsApp', ...numbers];
   }
 
   static String _moneyNumber(num value) {

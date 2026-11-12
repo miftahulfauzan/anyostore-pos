@@ -184,6 +184,11 @@ class PrinterService {
           Rect.fromLTWH(0, 0, width, height), Radius.circular(radius));
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
+      // Latar putih dulu: printer thermal memperlakukan piksel transparan
+      // sebagai hitam, sehingga sudut yang dibulatkan akan tercetak kotak
+      // lagi bila tidak diisi putih.
+      canvas.drawRect(
+          Rect.fromLTWH(0, 0, width, height), Paint()..color = const Color(0xFFFFFFFF));
       canvas.clipRRect(rrect);
       canvas.drawImage(image, Offset.zero, Paint()..isAntiAlias = true);
       final picture = recorder.endRecording();
