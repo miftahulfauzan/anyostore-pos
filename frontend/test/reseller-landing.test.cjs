@@ -12,7 +12,7 @@ const sitemap = read('app/sitemap.js');
 
 test('halaman /reseller memakai landing yang sama dengan cabang Blok B', () => {
   assert.match(reseller, /import LandingClient from '\.\.\/LandingClient';/);
-  assert.match(reseller, /<LandingClient branchSlug="reseller" wholesaleCopy=\{false\} basePath="\/reseller" \/>/);
+  assert.match(reseller, /<LandingClient branchSlug="reseller" wholesaleCopy=\{false\} basePath="\/" \/>/);
   // Teks "grosir" tidak dipakai di landing reseller.
   assert.match(landing, /wholesaleCopy \? 'Siap order grosir\?' : 'Siap order\?'/);
   // Canonical absolut ke domain utama (subdomain reseller ikut halaman ini).

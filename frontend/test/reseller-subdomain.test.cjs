@@ -34,7 +34,8 @@ test('panel staf di subdomain reseller dialihkan ke domain utama', () => {
 
 test('logo landing mengikuti jalur, bukan selalu ke root', () => {
   assert.match(landing, /href=\{basePath\}/);
-  assert.match(read('app/reseller/page.js'), /basePath="\/reseller"/);
+  // Root subdomain reseller sudah landing reseller, jadi tautan logo "/" .
+  assert.match(read('app/reseller/page.js'), /basePath="\/"/);
 });
 
 test('detail produk kembali ke katalog sesuai domain', () => {
