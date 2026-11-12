@@ -18,7 +18,9 @@ const shell = read('app/components/AppShell.js');
 const settingsPage = read('app/settings/page.js');
 
 test('menu Template Struk hanya ada di web (owner)', () => {
-  assert.match(shell, /href: '\/settings\/receipt-template', label: 'Template Struk'/);
+  // Template struk kini tab di Setelan Toko.
+  assert.match(shell, /href: '\/store-settings', label: 'Setelan Toko'/);
+  assert.match(read('app/store-settings/page.js'), /Template struk/);
   assert.match(page, /Template struk thermal/);
   // Halaman lama mengarahkan ke template baru.
   assert.match(settingsPage, /settings\/receipt-template/);

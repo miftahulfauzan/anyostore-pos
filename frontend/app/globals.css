@@ -7532,3 +7532,40 @@ html[data-theme] .app-main .tabs button:not(.active):hover {
 .branch-compare-table td.branch-compare-value select { min-height: 32px; padding: .3rem .5rem; font-size: var(--fs-sm); }
 .branch-compare-table tr.dirty td { background: rgba(30,58,95,.06); }
 .dark .branch-compare-table tr.dirty td { background: rgba(122,168,207,.12); }
+
+/* ===== Setelan Toko (hub) ===== */
+.store-settings-tabs {
+  display: flex;
+  gap: .4rem;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  padding-bottom: .35rem;
+  margin-bottom: .9rem;
+}
+.store-settings-tabs button { white-space: nowrap; }
+.store-logo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: .9rem;
+}
+.store-logo-box {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: .75rem;
+  display: grid;
+  gap: .5rem;
+}
+.store-logo-box .store-logo-preview {
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  border-radius: 8px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.dark .store-logo-box .store-logo-preview { background: rgba(255,255,255,.05); }
+.store-logo-box .store-logo-preview img { max-height: 88px; max-width: 100%; object-fit: contain; }
+.store-logo-actions { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }

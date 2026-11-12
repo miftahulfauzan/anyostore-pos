@@ -11,7 +11,9 @@ const settingsPage = read('app/settings/page.js');
 const backend = fs.readFileSync(path.join(root, '..', 'backend', 'src', 'routes', 'settings.js'), 'utf8');
 
 test('halaman Bandingkan Setelan hanya untuk owner', () => {
-  assert.match(shell, /href: '\/settings\/branch-compare', label: 'Bandingkan Setelan'/);
+  // Menu tunggal Setelan Toko; halaman banding ditautkan dari tab Administrasi.
+  assert.match(shell, /href: '\/store-settings', label: 'Setelan Toko'/);
+  assert.match(read('app/store-settings/page.js'), /settings\/branch-compare/);
   assert.match(page, /role === 'owner'/);
   assert.match(settingsPage, /settings\/branch-compare/);
 });

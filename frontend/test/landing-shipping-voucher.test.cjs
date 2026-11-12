@@ -36,7 +36,8 @@ test('keranjang landing punya alamat, cek ongkir, dan voucher', () => {
 test('setelan landing (ongkir & voucher) ada di satu halaman', () => {
   const landingSettings = read('app/landing-settings/page.js');
   const shell = read('app/components/AppShell.js');
-  assert.match(shell, /href: '\/landing-settings', label: 'Landing Page'/);
+  // Menu landing digabung ke Setelan Toko (tab Landing & aturan + Ongkir).
+  assert.match(shell, /href: '\/store-settings', label: 'Setelan Toko'/);
   assert.match(landingSettings, /Ongkir/);
   assert.match(landingSettings, /Voucher/);
   assert.match(landingSettings, /settings\/shipping-rates/);
