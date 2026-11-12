@@ -13,6 +13,7 @@ const backendReports = read('backend/src/routes/reports.js');
 const webClosing = read('frontend/app/closing/page.js');
 const mobileApi = read('mobile/lib/src/api_client.dart');
 const mobilePrinter = read('mobile/lib/src/printer_service.dart');
+const mobileClosing = read('mobile/lib/src/closing_lines.dart');
 const webHistory = read('frontend/app/history/page.js');
 const mobileHistory = read('mobile/lib/src/history_tab.dart');
 const webExpenses = read('frontend/app/expenses/page.js');
@@ -41,8 +42,10 @@ test('owner all-closing and Android closing print share the same contract', () =
   assert.match(mobileReports, /allBranches:\s*_isOwner\s*&&\s*_branchId\s*==\s*null/);
   assert.match(mobileReports, /['"]expenses['"]\s*:/);
   assert.match(mobileReports, /['"]income['"]\s*:/);
-  assert.match(mobilePrinter, /Pengeluaran/);
-  assert.match(mobilePrinter, /Pemasukan/);
+  // Rincian penutupan kini disusun modul khusus (sama untuk 58/80 mm).
+  assert.match(mobileClosing, /Pengeluaran/);
+  assert.match(mobileClosing, /Pemasukan/);
+  assert.match(mobilePrinter, /buildClosingLines/);
 });
 
 test('transaction history defaults to today and uses twenty-row pages on both clients', () => {
