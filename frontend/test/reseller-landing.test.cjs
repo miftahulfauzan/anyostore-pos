@@ -15,7 +15,8 @@ test('halaman /reseller memakai landing yang sama dengan cabang Blok B', () => {
   assert.match(reseller, /<LandingClient branchSlug="reseller" wholesaleCopy=\{false\} basePath="\/reseller" \/>/);
   // Teks "grosir" tidak dipakai di landing reseller.
   assert.match(landing, /wholesaleCopy \? 'Siap order grosir\?' : 'Siap order\?'/);
-  assert.match(reseller, /canonical: '\/reseller'/);
+  // Canonical absolut ke domain utama (subdomain reseller ikut halaman ini).
+  assert.match(reseller, /canonical: 'https:\/\/anyostore\.my\.id\/reseller'/);
   assert.match(sitemap, /\/reseller/);
 });
 
