@@ -18,6 +18,10 @@ const printerSource = fs.readFileSync(
   path.join(__dirname, '..', 'src', 'routes', 'printer.js'),
   'utf8',
 );
+const receiptDataSource = fs.readFileSync(
+  path.join(__dirname, '..', 'src', 'receipt-data.js'),
+  'utf8',
+);
 const settingsRouter = require('../src/routes/settings');
 
 function logoDeleteRoute() {
@@ -27,8 +31,11 @@ function logoDeleteRoute() {
   return layer.route;
 }
 
-test('settings menerima catatan kontak kepala nota', () => {
-  assert.match(settingsSource, /receipt_contacts/);
+test('field kontak kepala nota yang tidak pernah tercetak sudah dibuang', () => {
+  // receipt_contacts dulu tersimpan tetapi tidak dipakai receipt-lines;
+  // sekarang tidak diterima lagi supaya tidak ada isian yang sia-sia.
+  assert.doesNotMatch(settingsSource, /receipt_contacts/);
+  assert.doesNotMatch(printerSource, /receipt_contacts/);
 });
 
 test('hapus logo invoice tersedia untuk pengelola toko', () => {
@@ -43,10 +50,11 @@ test('hapus logo invoice tersedia untuk pengelola toko', () => {
   assert.ok(route.stack.length >= 2, 'middleware otorisasi dan handler harus ada');
 });
 
-test('payload struk memuat kontak kepala nota', () => {
-  // Struk kini mengirim seluruh setelan cabang (kecuali rahasia) sehingga
-  // receipt_contacts ikut tanpa harus didaftar satu per satu.
-  assert.match(printerSource, /FROM store_settings WHERE branch_id = \?/);
-  assert.match(printerSource, /NOT IN \('daily_email_api_key','rajaongkir_api_key'/);
-  assert.doesNotMatch(printerSource, /'whatsapp_numbers'\s*\)/);
+test('payload struk memuat seluruh setelan cabang kecuali rahasia', () => {
+  // Setelan struk diambil di receipt-data.js dan dipakai bersama oleh cetak
+  // thermal, halaman resi web, dan pratinjau template.
+  assert.match(receiptDataSource, /FROM store_settings WHERE branch_id = \?/);
+  assert.match(receiptDataSource, /NOT IN \('daily_email_api_key','rajaongkir_api_key'/);
+  assert.match(receiptDataSource, /lines: layout\.lines/);
+  assert.match(printerSource, /loadReceiptPayload/);
 });

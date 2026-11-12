@@ -12,7 +12,12 @@ InvoicePayload _payload({String storeName = 'BASIK PGMTA'}) => InvoicePayload(
       cashier: 'Resti',
       customerLabel: 'Ibu Ani · Grosir Seri',
       items: const [
-        InvoiceLine(name: 'Celana Baggy A104', variant: 'M · Biru', qty: 2, price: 185000, subtotal: 370000),
+        InvoiceLine(
+            name: 'Celana Baggy A104',
+            variant: 'M · Biru',
+            qty: 2,
+            price: 185000,
+            subtotal: 370000),
       ],
       subtotal: 370000,
       discount: 10000,
@@ -30,7 +35,8 @@ void main() {
   test('instagram hanya untuk toko BASIK', () {
     expect(invoiceInstagram('BASIK PGMTA'), '@basik.pgmta');
     expect(invoiceInstagram('TOKO B'), '@anyostore');
-    expect(invoiceInstagram('Toko B', 'Blok B lantai LG los F no 107'), '@anyostore');
+    expect(invoiceInstagram('Toko B', 'Blok B lantai LG los F no 107'),
+        '@anyostore');
     expect(invoiceInstagram('Gudang Anyostore Metro'), isNull);
   });
 
@@ -40,9 +46,12 @@ void main() {
     expect(invoiceCustomerTierLabel(null), 'Reguler');
   });
 
-  testWidgets('invoice BASIK memuat rekening dan tanpa stempel LUNAS', (tester) async {
+  testWidgets('invoice BASIK memuat rekening dan tanpa stempel LUNAS',
+      (tester) async {
     await tester.pumpWidget(MaterialApp(
-      home: Scaffold(body: SingleChildScrollView(child: InvoiceImage(payload: _payload()))),
+      home: Scaffold(
+          body:
+              SingleChildScrollView(child: InvoiceImage(payload: _payload()))),
     ));
     expect(find.text('BASIK PGMTA'), findsOneWidget);
     expect(find.text('ANYOSTORE'), findsNothing);
@@ -67,7 +76,8 @@ void main() {
     expect(find.text('Kembalian'), findsNothing);
     expect(find.textContaining('Simpan invoice'), findsNothing);
     // Catatan bawah sesuai permintaan.
-    expect(find.textContaining('cek produk kami lainnya anyostore.my.id'), findsOneWidget);
+    expect(find.textContaining('cek produk kami lainnya anyostore.my.id'),
+        findsOneWidget);
     // Header: dua nomor HP + Instagram khusus BASIK.
     expect(find.text('LANTAI 6 blok B no 116'), findsOneWidget);
     expect(find.text('0812-3456-7890'), findsOneWidget);
@@ -79,7 +89,9 @@ void main() {
 
   testWidgets('invoice toko Blok B menampilkan ANYOSTORE', (tester) async {
     await tester.pumpWidget(MaterialApp(
-      home: Scaffold(body: SingleChildScrollView(child: InvoiceImage(payload: _payload(storeName: 'BLOK B')))),
+      home: Scaffold(
+          body: SingleChildScrollView(
+              child: InvoiceImage(payload: _payload(storeName: 'BLOK B')))),
     ));
     expect(find.text('ANYOSTORE'), findsOneWidget);
     expect(find.text('BLOK B'), findsOneWidget);

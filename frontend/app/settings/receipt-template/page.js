@@ -6,10 +6,8 @@ import { useAppSession } from '../../components/AppStateProvider';
 import {
   RECEIPT_SAMPLE,
   RECEIPT_TEMPLATE_DEFAULTS,
-  buildReceiptPreview,
   isOn,
-  receiptGrid,
-} from '../../lib/receipt-preview';
+} from '../../lib/receipt-template';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -101,8 +99,33 @@ export default function ReceiptTemplatePage() {
     return () => { active = false; };
   }, [load]);
 
-  const preview = useMemo(() => buildReceiptPreview(form, RECEIPT_SAMPLE).join('\n'), [form]);
-  const grid = useMemo(() => receiptGrid(form), [form]);
+  // Pratinjau selalu disusun server (POST /api/printer/preview) memakai aturan
+  // yang sama dengan cetak thermal Android, jadi tidak ada implementasi kedua.
+  const [layout, setLayout] = useState({ width: 64, margin: 4, inner: 56, font: 'b', lines: [] });
+  const preview = useMemo(
+    () => (layout.lines || []).map((line) => line.text).join('\n'),
+    [layout],
+  );
+  const grid = layout;
+
+  useEffect(() => {
+    let active = true;
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(api + '/printer/preview', {
+          method: 'POST',
+          headers: headers(),
+          body: JSON.stringify({ store: form, sample: RECEIPT_SAMPLE }),
+        });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.message || 'Pratinjau gagal dibuat');
+        if (active) setLayout(body.data);
+      } catch (previewError) {
+        if (active) setError(previewError.message);
+      }
+    }, 250);
+    return () => { active = false; clearTimeout(timer); };
+  }, [form]);
 
   async function save() {
     setSaving(true);

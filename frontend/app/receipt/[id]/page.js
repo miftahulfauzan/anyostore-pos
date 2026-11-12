@@ -7,12 +7,6 @@ import { openPrintView } from '../../lib/print-utils';
 import { shareInvoiceImage, storePhones, instagramFor, customerTierLabel, invoiceDate, storeLogoUrl } from '../../lib/invoice-image';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-const rp = (number) => `Rp${Number(number || 0).toLocaleString('id-ID')}`;
-const paymentLabels = { cash: 'Tunai', qris: 'QRIS', debit: 'Kartu debit', transfer: 'Transfer', split: 'Pembayaran terpisah', other: 'Lainnya / tidak diketahui' };
-
-function ReceiptRow({ label, value, strong = false, negative = false }) {
-  return <div className={`receipt-summary-row${strong ? ' strong' : ''}${negative ? ' negative' : ''}`}><span>{label}</span><b>{value}</b></div>;
-}
 
 export default function Receipt({ params }) {
   const [data, setData] = useState(null);
@@ -77,9 +71,9 @@ export default function Receipt({ params }) {
   const logoPath = data.store.invoice_logo || data.store.store_logo;
   const logo = logoPath ? api.replace('/api', '') + logoPath : '';
   const printerSize = String(data.store.printer_size || '80mm').includes('58') ? '58mm' : '80mm';
-  const date = new Date(data.created_at);
-  const businessDate = String(data.transaction_date || data.created_at).slice(0, 10).split('-').reverse().join('/');
-  const payments = data.payments?.length ? data.payments : [{ payment_method: data.payment_method, amount: data.grand_total }];
+  // Baris struk disusun server (backend/src/receipt-lines.js) memakai template
+  // cabang yang sama dengan aplikasi Android, jadi tampilan web = hasil cetak.
+  const lines = Array.isArray(data.lines) ? data.lines : [];
 
   return <main className="receipt">
     <div className="receipt-share-bar no-print">
@@ -90,64 +84,20 @@ export default function Receipt({ params }) {
       <a className="button-link" href="/history">← Riwayat</a>
       {message && <span className="message" role="status">{message}</span>}
     </div>
-    <article className={`receipt-paper receipt-${printerSize}`}>
-      <header className="receipt-store">
-        {logo && String(data.store.show_logo) !== 'false' && <img className="receipt-logo" src={logo} alt={`Logo ${data.store.store_name}`} />}
-        <h1>{data.store.store_name}</h1>
-        {data.store.receipt_header && <p className="receipt-store-tagline">{data.store.receipt_header}</p>}
-        <address>
-          {data.store.store_address && <span>{data.store.store_address}</span>}
-          {(data.store.store_phone || data.store.store_email) && <span>{[data.store.store_phone, data.store.store_email].filter(Boolean).join(' · ')}</span>}
-          {data.store.store_tax_id && <span>NPWP: {data.store.store_tax_id}</span>}
-        </address>
-      </header>
-
-      <section className="receipt-section receipt-invoice" aria-labelledby="receipt-invoice-title">
-        <h2 id="receipt-invoice-title">Informasi transaksi</h2>
-        <dl>
-          <div><dt>Invoice</dt><dd>{data.invoice_no}</dd></div>
-          <div><dt>Tanggal</dt><dd>{businessDate} · {date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })}</dd></div>
-          <div><dt>Kasir</dt><dd>{data.cashier}</dd></div>
-          {data.customer_name && <div><dt>Pelanggan</dt><dd>{data.customer_name}</dd></div>}
-        </dl>
-      </section>
-
-      <section className="receipt-section receipt-products" aria-labelledby="receipt-products-title">
-        <h2 id="receipt-products-title">Produk</h2>
-        <div className="receipt-product-list">
-          {data.items.map((item, index) => <article className="receipt-product" key={`${item.sku || item.name}-${index}`}>
-            <div className="receipt-product-heading">
-              <strong>{item.name}</strong>
-              <b>{rp(item.subtotal)}</b>
+    <article className={`receipt-paper receipt-${printerSize} receipt-thermal`}>
+      {logo && String(data.store.show_logo) !== 'false' && <img className="receipt-logo" src={logo} alt={`Logo ${data.store.store_name}`} />}
+      {lines.length ? (
+        <div className="receipt-lines" role="group" aria-label={`Struk ${data.invoice_no}`}>
+          {lines.map((line, index) => (
+            <div
+              key={`${index}-${line.text}`}
+              className={line.bold ? 'receipt-line receipt-line--bold' : 'receipt-line'}
+            >
+              {line.text}
             </div>
-            <p>{[item.sku, item.variant_detail].filter(Boolean).join(' · ') || 'Produk reguler'}</p>
-            <div className="receipt-product-calculation"><span>{item.quantity} × {rp(item.price)}</span>{Number(item.discount) > 0 && <span>Diskon -{rp(item.discount)}</span>}</div>
-          </article>)}
+          ))}
         </div>
-      </section>
-
-      <section className="receipt-section receipt-totals" aria-label="Ringkasan pembayaran">
-        <ReceiptRow label="Subtotal" value={rp(data.subtotal)} />
-        {Number(data.discount) > 0 && <ReceiptRow label="Diskon" value={`-${rp(data.discount)}`} negative />}
-        <ReceiptRow label="Total" value={rp(data.grand_total)} strong />
-        <div className="receipt-payment-detail">
-          {payments.map((payment, index) => <ReceiptRow key={`${payment.payment_method}-${index}`} label={paymentLabels[payment.payment_method] || payment.payment_method?.toUpperCase()} value={rp(payment.amount)} />)}
-          <ReceiptRow label="Dibayar" value={rp(data.amount_paid)} />
-          <ReceiptRow label="Kembalian" value={rp(data.change)} />
-        </div>
-      </section>
-
-      {(data.notes || data.store.receipt_note) && <section className="receipt-section receipt-notes" aria-labelledby="receipt-notes-title">
-        <h2 id="receipt-notes-title">Catatan</h2>
-        {data.notes && <p>{data.notes}</p>}
-        {data.store.receipt_note && <p>{data.store.receipt_note}</p>}
-      </section>}
-
-      <footer className="receipt-footer">
-        <strong>Terima kasih</strong>
-        <p>{data.store.receipt_footer || 'Terima kasih telah berbelanja di toko kami.'}</p>
-        <small>Simpan struk ini sebagai bukti transaksi.</small>
-      </footer>
+      ) : <p className="muted">Baris struk tidak tersedia. Muat ulang halaman ini.</p>}
     </article>
     <div className="receipt-actions no-print"><button type="button" onClick={() => openPrintView({ selector: '.receipt', title: `Struk ${data.invoice_no}` })}>Cetak struk</button><a href="/history">Kembali ke transaksi</a></div>
   </main>;

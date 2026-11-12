@@ -1,0 +1,271 @@
+{
+  "description": "Tiga metode bayar (split) dan kembalian nol.",
+  "receipt": {
+    "store": {
+      "printer_size": "80",
+      "receipt_font": "b",
+      "receipt_margin": "4",
+      "store_name": "ANYOSTORE METRO",
+      "store_address": "Jl. Gatot Subroto No. 12\nMetro Lampung",
+      "store_phone": "0812-3456-7890",
+      "whatsapp_numbers": "[\"0812-3456-7890\",\"0857-1111-2222\",\"0821-3333-4444\"]",
+      "receipt_header": "Terima kasih telah berbelanja",
+      "store_tax_id": "01.234.567.8-901.000",
+      "receipt_title_info": "INFORMASI TRANSAKSI",
+      "receipt_title_products": "PRODUK",
+      "receipt_closing": "Terima kasih, sampai jumpa lagi!",
+      "receipt_footer": "Barang yang sudah dibeli tidak dapat ditukar",
+      "receipt_separator": "dash",
+      "receipt_show_address": "true",
+      "receipt_show_wa": "true",
+      "receipt_show_npwp": "true",
+      "receipt_show_cashier": "true",
+      "receipt_show_customer": "true",
+      "receipt_show_payment": "true",
+      "receipt_show_paid": "true",
+      "receipt_show_change": "true"
+    },
+    "invoice_no": "INV-20261113-B1-0007",
+    "created_at": "2026-11-13T03:21:00.000Z",
+    "transaction_date": "2026-11-13",
+    "cashier": "Siti",
+    "customer_name": "Rina",
+    "items": [
+      {
+        "name": "Celana Denim Baggy High Waist",
+        "quantity": 3,
+        "price": 145000,
+        "subtotal": 435000
+      },
+      {
+        "name": "Jaket Denim Oversize",
+        "quantity": 1,
+        "price": 210000,
+        "subtotal": 210000
+      },
+      {
+        "name": "Rok Denim A Line",
+        "quantity": 2,
+        "price": 98000,
+        "subtotal": 196000
+      }
+    ],
+    "subtotal": 841000,
+    "discount": 41000,
+    "grand_total": 800000,
+    "payments": [
+      {
+        "payment_method": "cash",
+        "amount": 200000
+      },
+      {
+        "payment_method": "transfer",
+        "amount": 300000
+      },
+      {
+        "payment_method": "debit",
+        "amount": 300000
+      }
+    ],
+    "amount_paid": 800000,
+    "change": 0
+  },
+  "expected": {
+    "width": 64,
+    "margin": 4,
+    "font": "b",
+    "inner": 56,
+    "lines": [
+      {
+        "text": "                        ANYOSTORE METRO                         ",
+        "bold": true,
+        "alignment": "center"
+      },
+      {
+        "text": "                 Terima kasih telah berbelanja                  ",
+        "bold": false,
+        "alignment": "center"
+      },
+      {
+        "text": "                                                                ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "                    Jl. Gatot Subroto No. 12                    ",
+        "bold": false,
+        "alignment": "center"
+      },
+      {
+        "text": "                         Metro Lampung                          ",
+        "bold": false,
+        "alignment": "center"
+      },
+      {
+        "text": "                                                                ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "                            WhatsApp                            ",
+        "bold": false,
+        "alignment": "center"
+      },
+      {
+        "text": "                         0812-3456-7890                         ",
+        "bold": false,
+        "alignment": "center"
+      },
+      {
+        "text": "                         0857-1111-2222                         ",
+        "bold": false,
+        "alignment": "center"
+      },
+      {
+        "text": "                         0821-3333-4444                         ",
+        "bold": false,
+        "alignment": "center"
+      },
+      {
+        "text": "                   NPWP: 01.234.567.8-901.000                   ",
+        "bold": false,
+        "alignment": "center"
+      },
+      {
+        "text": "    --------------------------------------------------------    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    INFORMASI TRANSAKSI                                         ",
+        "bold": true,
+        "alignment": "left"
+      },
+      {
+        "text": "    Invoice     INV-20261113-B1-0007                            ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Tanggal     13/11/2026 10:21                                ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Kasir       Siti                                            ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Pelanggan   Rina                                            ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    --------------------------------------------------------    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    PRODUK                                                      ",
+        "bold": true,
+        "alignment": "left"
+      },
+      {
+        "text": "                                                                ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Celana Denim Ba. 3 x 145.000                  Rp435.000     ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Jaket Denim Ove. 1 x 210.000                  Rp210.000     ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Rok Denim A Line 2 x 98.000                   Rp196.000     ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "                                                                ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    --------------------------------------------------------    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Subtotal                                       Rp841.000    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Diskon                                         -Rp41.000    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Total                                          Rp800.000    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    --------------------------------------------------------    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Tunai                                          Rp200.000    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Transfer                                       Rp300.000    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Debit                                          Rp300.000    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Dibayar                                        Rp800.000    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Kembalian                                            Rp0    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    --------------------------------------------------------    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "                Terima kasih, sampai jumpa lagi!                ",
+        "bold": false,
+        "alignment": "center"
+      },
+      {
+        "text": "          Barang yang sudah dibeli tidak dapat ditukar          ",
+        "bold": false,
+        "alignment": "center"
+      },
+      {
+        "text": "                                                                ",
+        "bold": false,
+        "alignment": "left"
+      }
+    ]
+  }
+}

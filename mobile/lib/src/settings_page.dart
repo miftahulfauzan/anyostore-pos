@@ -60,7 +60,6 @@ class _SettingsPageState extends State<SettingsPage> {
   final _npwp = TextEditingController();
   final _invoicePrefix = TextEditingController();
   final _receiptHeader = TextEditingController();
-  final _receiptContacts = TextEditingController();
   final _receiptFooter = TextEditingController();
   final _receiptNote = TextEditingController();
   String _printerSize = '80';
@@ -84,7 +83,6 @@ class _SettingsPageState extends State<SettingsPage> {
     _npwp.dispose();
     _invoicePrefix.dispose();
     _receiptHeader.dispose();
-    _receiptContacts.dispose();
     _receiptFooter.dispose();
     _receiptNote.dispose();
     super.dispose();
@@ -114,7 +112,6 @@ class _SettingsPageState extends State<SettingsPage> {
         _npwp.text = settings['store_tax_id']?.toString() ?? '';
         _invoicePrefix.text = settings['invoice_prefix']?.toString() ?? '';
         _receiptHeader.text = settings['receipt_header']?.toString() ?? '';
-        _receiptContacts.text = settings['receipt_contacts']?.toString() ?? '';
         _receiptFooter.text = settings['receipt_footer']?.toString() ?? '';
         _receiptNote.text = settings['receipt_note']?.toString() ?? '';
         _printerSize = settings['printer_size']?.toString() ?? '80';
@@ -155,7 +152,6 @@ class _SettingsPageState extends State<SettingsPage> {
         'store_tax_id': _npwp.text.trim(),
         'invoice_prefix': _invoicePrefix.text.trim(),
         'receipt_header': _receiptHeader.text.trim(),
-        'receipt_contacts': _receiptContacts.text.trim(),
         'receipt_footer': _receiptFooter.text.trim(),
         'receipt_note': _receiptNote.text.trim(),
         'printer_size': _printerSize,
@@ -599,16 +595,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   border: OutlineInputBorder())),
           const SizedBox(height: 8),
           TextField(
-              controller: _receiptContacts,
-              minLines: 2,
-              maxLines: 5,
-              decoration: const InputDecoration(
-                  labelText: 'Kontak kepala nota',
-                  hintText: 'WA 1: 08...\nWA 2: 08...\nInstagram: @...',
-                  helperText: 'Satu baris untuk setiap kontak.',
-                  border: OutlineInputBorder())),
-          const SizedBox(height: 8),
-          TextField(
               controller: _receiptFooter,
               decoration: const InputDecoration(
                   labelText: 'Footer struk', border: OutlineInputBorder())),
@@ -1047,18 +1033,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       minLines: 1,
                       maxLines: 4,
                       decoration: const InputDecoration(
-                          labelText:
-                              'Header struk (maks 4 baris, bisa beberapa no HP)',
-                          border: OutlineInputBorder())),
-                  const SizedBox(height: 8),
-                  TextField(
-                      controller: _receiptContacts,
-                      minLines: 2,
-                      maxLines: 5,
-                      decoration: const InputDecoration(
-                          labelText: 'Kontak kepala nota',
-                          hintText: 'WA 1: 08...\nWA 2: 08...\nInstagram: @...',
-                          helperText: 'Satu baris untuk setiap kontak.',
+                          labelText: 'Header struk (maks 4 baris)',
                           border: OutlineInputBorder())),
                   const SizedBox(height: 8),
                   TextField(

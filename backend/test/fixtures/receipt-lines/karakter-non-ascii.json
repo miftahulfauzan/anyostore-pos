@@ -1,0 +1,226 @@
+{
+  "description": "Karakter non-ASCII disanitasi ke bentuk ASCII aman printer.",
+  "receipt": {
+    "store": {
+      "printer_size": "80",
+      "receipt_font": "b",
+      "receipt_margin": "4",
+      "store_name": "ANYOSTORE METRO",
+      "store_address": "Jl. Gatot Subroto No. 12\nMetro Lampung",
+      "store_phone": "0812-3456-7890",
+      "whatsapp_numbers": "[\"0812-3456-7890\",\"0857-1111-2222\",\"0821-3333-4444\"]",
+      "receipt_header": "Terima kasih telah berbelanja",
+      "store_tax_id": "01.234.567.8-901.000",
+      "receipt_title_info": "INFORMASI TRANSAKSI",
+      "receipt_title_products": "PRODUK",
+      "receipt_closing": "Terima kasih, sampai jumpa lagi!",
+      "receipt_footer": "Barang yang sudah dibeli tidak dapat ditukar",
+      "receipt_separator": "dash",
+      "receipt_show_address": "true",
+      "receipt_show_wa": "true",
+      "receipt_show_npwp": "true",
+      "receipt_show_cashier": "true",
+      "receipt_show_customer": "true",
+      "receipt_show_payment": "true",
+      "receipt_show_paid": "true",
+      "receipt_show_change": "true"
+    },
+    "invoice_no": "INV-20261113-B1-0007",
+    "created_at": "2026-11-13T03:21:00.000Z",
+    "transaction_date": "2026-11-13",
+    "cashier": "Siti",
+    "customer_name": "Ibu Rina ‘grosir’",
+    "items": [
+      {
+        "name": "Celana · Baggy – 3 pcs × 1",
+        "quantity": 1,
+        "price": 145000,
+        "subtotal": 145000
+      }
+    ],
+    "subtotal": 145000,
+    "discount": 0,
+    "grand_total": 145000,
+    "payments": [
+      {
+        "payment_method": "qris",
+        "amount": 145000
+      }
+    ],
+    "amount_paid": 145000,
+    "change": 0
+  },
+  "expected": {
+    "width": 64,
+    "margin": 4,
+    "font": "b",
+    "inner": 56,
+    "lines": [
+      {
+        "text": "                        ANYOSTORE METRO                         ",
+        "bold": true,
+        "alignment": "center"
+      },
+      {
+        "text": "                 Terima kasih telah berbelanja                  ",
+        "bold": false,
+        "alignment": "center"
+      },
+      {
+        "text": "                                                                ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "                    Jl. Gatot Subroto No. 12                    ",
+        "bold": false,
+        "alignment": "center"
+      },
+      {
+        "text": "                         Metro Lampung                          ",
+        "bold": false,
+        "alignment": "center"
+      },
+      {
+        "text": "                                                                ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "                            WhatsApp                            ",
+        "bold": false,
+        "alignment": "center"
+      },
+      {
+        "text": "                         0812-3456-7890                         ",
+        "bold": false,
+        "alignment": "center"
+      },
+      {
+        "text": "                         0857-1111-2222                         ",
+        "bold": false,
+        "alignment": "center"
+      },
+      {
+        "text": "                         0821-3333-4444                         ",
+        "bold": false,
+        "alignment": "center"
+      },
+      {
+        "text": "                   NPWP: 01.234.567.8-901.000                   ",
+        "bold": false,
+        "alignment": "center"
+      },
+      {
+        "text": "    --------------------------------------------------------    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    INFORMASI TRANSAKSI                                         ",
+        "bold": true,
+        "alignment": "left"
+      },
+      {
+        "text": "    Invoice     INV-20261113-B1-0007                            ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Tanggal     13/11/2026 10:21                                ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Kasir       Siti                                            ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Pelanggan   Ibu Rina 'grosir'                               ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    --------------------------------------------------------    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    PRODUK                                                      ",
+        "bold": true,
+        "alignment": "left"
+      },
+      {
+        "text": "                                                                ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Celana - Baggy . 1 x 145.000                  Rp145.000     ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "                                                                ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    --------------------------------------------------------    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Subtotal                                       Rp145.000    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Total                                          Rp145.000    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    --------------------------------------------------------    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    QRIS                                           Rp145.000    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Dibayar                                        Rp145.000    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Kembalian                                            Rp0    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    --------------------------------------------------------    ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "                Terima kasih, sampai jumpa lagi!                ",
+        "bold": false,
+        "alignment": "center"
+      },
+      {
+        "text": "          Barang yang sudah dibeli tidak dapat ditukar          ",
+        "bold": false,
+        "alignment": "center"
+      },
+      {
+        "text": "                                                                ",
+        "bold": false,
+        "alignment": "left"
+      }
+    ]
+  }
+}

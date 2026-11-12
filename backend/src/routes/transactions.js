@@ -8,6 +8,7 @@ const { applyPriceTier } = require('../pricing');
 const { adjustStock } = require('../stock');
 const { normalizePayments, persistPayments } = require('../payments');
 const { transactionBranch } = require('../transaction-branch');
+const { loadReceiptPayload } = require('../receipt-data');
 
 const router = express.Router();
 router.use(authenticate);
@@ -458,7 +459,26 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
     await persistPayments(connection, transactionResult.insertId, payment);
     await connection.execute('INSERT INTO activity_logs (user_id, action, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'transaction_create', `Invoice ${invoiceNo}`, req.ip, req.get('user-agent') || null]);
     await connection.commit();
-    res.status(201).json({ success: true, data: { id: transactionResult.insertId, invoice_no: invoiceNo, grand_total: grandTotal, amount_paid: payment.paid, change: payment.change, price_tier: priceTier } });
+    // Struk ikut dikirim supaya tombol cetak otomatis tidak perlu request
+    // tambahan dan hasilnya pasti berasal dari aturan server yang sama.
+    let receipt = null;
+    try {
+      receipt = await loadReceiptPayload(db, transactionResult.insertId);
+    } catch (error) {
+      console.error('Gagal menyiapkan baris struk:', error);
+    }
+    res.status(201).json({
+      success: true,
+      data: {
+        id: transactionResult.insertId,
+        invoice_no: invoiceNo,
+        grand_total: grandTotal,
+        amount_paid: payment.paid,
+        change: payment.change,
+        price_tier: priceTier,
+        ...(receipt ? { receipt } : {}),
+      },
+    });
   } catch (error) {
     await connection.rollback();
     if (error.code === 'ER_DUP_ENTRY' && req.body.client_transaction_id) return res.status(409).json({ success: false, message: 'Transaksi sedang diproses, ulangi permintaan' });

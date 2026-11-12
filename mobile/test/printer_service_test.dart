@@ -67,7 +67,12 @@ void main() {
       'invoice_no': 'INV-0001',
       'grand_total': 10000,
       'items': [
-        {'product_name': 'B-05', 'quantity': 6, 'price': 90000, 'subtotal': 540000},
+        {
+          'product_name': 'B-05',
+          'quantity': 6,
+          'price': 90000,
+          'subtotal': 540000
+        },
       ],
     });
 

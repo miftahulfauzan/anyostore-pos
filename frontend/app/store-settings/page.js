@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '../components/AppShell';
 import { useAppSession } from '../components/AppStateProvider';
 import SafeImage from '../components/SafeImage';
-import { RECEIPT_SAMPLE, buildReceiptPreview, receiptGrid, isOn } from '../lib/receipt-preview';
+import { RECEIPT_SAMPLE, isOn } from '../lib/receipt-template';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const headers = () => ({ 'Content-Type': 'application/json' });
@@ -221,7 +221,6 @@ export default function StoreSettingsPage() {
       show_cashier: form.show_cashier || 'true',
       show_barcode: form.show_barcode || 'false',
       show_qr: form.show_qr || 'false',
-      receipt_contacts: form.receipt_contacts ?? '',
       theme: form.theme || 'blue',
     }, 'Setelan struk & printer tersimpan.');
   }
@@ -410,9 +409,35 @@ export default function StoreSettingsPage() {
   }
 
   const store = stores.find((item) => String(item.id) === String(branch)) || {};
-  const preview = useMemo(() => buildReceiptPreview(form, RECEIPT_SAMPLE).join('\n'), [form]);
-  const grid = useMemo(() => receiptGrid(form), [form]);
   const couriers = useMemo(() => parseCouriers(form.ongkir_couriers), [form.ongkir_couriers]);
+
+  // Pratinjau struk disusun server (POST /api/printer/preview) supaya sama
+  // persis dengan hasil cetak thermal Android dan halaman resi web.
+  const [receiptLayout, setReceiptLayout] = useState({ width: 64, margin: 4, lines: [] });
+  const preview = useMemo(
+    () => (receiptLayout.lines || []).map((line) => line.text).join('\n'),
+    [receiptLayout],
+  );
+  const grid = receiptLayout;
+
+  useEffect(() => {
+    let active = true;
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(api + '/printer/preview', {
+          method: 'POST',
+          headers: headers(),
+          body: JSON.stringify({ store: form, sample: RECEIPT_SAMPLE }),
+        });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.message || 'Pratinjau gagal dibuat');
+        if (active) setReceiptLayout(body.data);
+      } catch (_) {
+        // Pratinjau gagal tidak boleh menghalangi penyimpanan setelan.
+      }
+    }, 250);
+    return () => { active = false; clearTimeout(timer); };
+  }, [form]);
 
   return (
     <AppShell title="Setelan Toko" eyebrow="Pengaturan">
@@ -624,9 +649,6 @@ export default function StoreSettingsPage() {
               </select>
             </label>
           </div>
-          <label>Kontak tambahan di kepala struk
-            <textarea rows={3} value={form.receipt_contacts ?? ''} onChange={(event) => set('receipt_contacts', event.target.value)} placeholder="Baris tambahan (opsional)" />
-          </label>
           <div className="form-actions"><button type="submit" disabled={saving}>{saving ? 'Menyimpan…' : 'Simpan struk & printer'}</button></div>
         </form>
       )}

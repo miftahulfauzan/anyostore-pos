@@ -286,7 +286,7 @@ class PrinterService {
       await esc.newline();
     }
 
-    for (final row in layout.build(receipt)) {
+    for (final row in layout.resolve(receipt)) {
       await esc.text(
         content: row.text,
         alignment: row.alignment == ReceiptLineAlignment.center

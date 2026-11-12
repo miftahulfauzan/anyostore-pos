@@ -59,6 +59,14 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 | `promotions.js` | `/api/promotions` | Promo/diskon + validate |
 | `tax.js` | `/api/tax` | Laporan pajak: PPN, Faktur Pajak, PPh23 |
 
+### Struk: satu aturan untuk web & Android (2026-11-13)
+
+- `backend/src/receipt-lines.js` adalah **satu-satunya** penyusun baris struk (port 1:1 dari `mobile/lib/src/receipt_layout.dart`). Keluaran: `{ text, bold, alignment }` + `receipt_meta { width, margin, font, inner }`.
+- Dipakai oleh: `GET /api/printer/invoice/:id`, `POST /api/transactions` (field `data.receipt`, jadi cetak otomatis tak perlu request tambahan), `POST /api/printer/preview` (pratinjau template di web), dan halaman resi `/receipt/[id]` (render baris apa adanya, bukan HTML kaya lagi).
+- Android: `printer_service.printReceipt` memakai `receipt.lines` bila ada; kalau tidak (offline) menyusun lokal dari setelan cabang yang di-cache (`_receiptSettings`) — termasuk cetak transaksi offline bernomor sementara `OFF-<branch>-<ts>`.
+- Paritas dijaga fixture golden `backend/test/fixtures/receipt-lines/*.json` (dibaca `backend/test/receipt-lines.test.js` DAN `mobile/test/receipt_lines_golden_test.dart`). Ubah aturan → jalankan `node backend/scripts/generate-receipt-fixtures.js`, tinjau diff, lalu sesuaikan kedua sisi.
+- `receipt_contacts` (field mati) sudah dihapus dari UI Android, Setelan Toko, dan daftar `allowed` settings.
+
 ### Auth & Roles
 
 - JWT access & refresh token 365 HARI (praktis tanpa batas — user minta tidak ada auto-logout; logout hanya lewat tombol Keluar), hash SHA-256 di DB

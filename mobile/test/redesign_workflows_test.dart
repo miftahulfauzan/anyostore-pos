@@ -60,10 +60,12 @@ void main() {
     Map<String, dynamic>? result;
     await openPayment(tester, (value) => result = value);
     // Bayar terpisah harus dinyalakan dulu sebelum memilih dua metode.
-    await tester.ensureVisible(find.byKey(const ValueKey('payment-dual-toggle')));
+    await tester
+        .ensureVisible(find.byKey(const ValueKey('payment-dual-toggle')));
     await tester.tap(find.byKey(const ValueKey('payment-dual-toggle')));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.byKey(const ValueKey('payment-method-qris')));
+    await tester
+        .ensureVisible(find.byKey(const ValueKey('payment-method-qris')));
     await tester.tap(find.byKey(const ValueKey('payment-method-qris')));
     await tester.pumpAndSettle();
     await tester.enterText(

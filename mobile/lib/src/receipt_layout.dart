@@ -68,6 +68,30 @@ class ReceiptLayout {
     return raw.isEmpty ? fallback : raw;
   }
 
+  /// Baris siap cetak: pakai kiriman server (`lines`) supaya aturan struk hanya
+  /// ada satu; bila tidak ada (mis. cetak offline), susun lokal dengan aturan
+  /// yang sama (dijaga fixture golden bersama backend).
+  List<ReceiptLine> resolve([Map<String, dynamic>? receipt]) {
+    final data = receipt ?? <String, dynamic>{};
+    final raw = data['lines'];
+    if (raw is List && raw.isNotEmpty) {
+      final parsed = <ReceiptLine>[];
+      for (final entry in raw) {
+        final row = entry is Map ? entry.cast<String, dynamic>() : null;
+        if (row == null) continue;
+        parsed.add(ReceiptLine(
+          row['text']?.toString() ?? '',
+          bold: row['bold'] == true,
+          alignment: row['alignment'] == 'center'
+              ? ReceiptLineAlignment.center
+              : ReceiptLineAlignment.left,
+        ));
+      }
+      if (parsed.isNotEmpty) return parsed;
+    }
+    return build(data);
+  }
+
   List<ReceiptLine> build([Map<String, dynamic>? receipt]) {
     final data = receipt ?? <String, dynamic>{};
     final store = (data['store'] as Map<String, dynamic>?) ?? {};

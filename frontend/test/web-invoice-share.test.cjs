@@ -11,6 +11,7 @@ const pos = read('app/pos/page.js');
 const receipt = read('app/receipt/[id]/page.js');
 const styles = read('app/globals.css');
 const printer = fs.readFileSync(path.join(root, '..', 'backend', 'src', 'routes', 'printer.js'), 'utf8');
+const receiptData = fs.readFileSync(path.join(root, '..', 'backend', 'src', 'receipt-data.js'), 'utf8');
 
 test('PWA merender invoice 3:4 dan membagikannya', () => {
   assert.match(invoice, /const OUTPUT_WIDTH = 1080;/);
@@ -44,9 +45,11 @@ test('tombol bagikan ada di POS dan halaman struk', () => {
   assert.match(receipt, /shareInvoiceImage\(/);
   assert.match(styles, /\.pos-cart-footer \.pos-share-invoice/);
   // Struk mengirim seluruh setelan cabang (kecuali rahasia) sehingga nomor
-  // WhatsApp admin dan template struk ikut terbaca.
-  assert.match(printer, /FROM store_settings WHERE branch_id = \?/);
-  assert.match(printer, /daily_email_api_key/);
+  // WhatsApp admin dan template struk ikut terbaca. Query-nya kini di
+  // receipt-data.js karena dipakai bersama halaman resi dan POS.
+  assert.match(receiptData, /FROM store_settings WHERE branch_id = \?/);
+  assert.match(receiptData, /daily_email_api_key/);
+  assert.match(printer, /loadReceiptPayload/);
 });
 
 test('invoice menampilkan harga per pcs pada tiap barang', () => {

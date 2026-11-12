@@ -141,6 +141,10 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
 
   /// URL absolut logo kepala invoice (`invoice_logo`, fallback `store_logo`).
   String _invoiceLogoUrl = '';
+
+  /// Setelan struk cabang terakhir (template + nomor WA + logo) dipakai saat
+  /// menyusun struk transaksi offline tanpa server.
+  Map<String, dynamic> _receiptSettings = const {};
   bool _allowNegativeStock = true;
   List<String> _storePhones = const [];
 
@@ -522,6 +526,7 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
                 '') !=
             'false';
     _storePhones = _collectStorePhones(settings);
+    _receiptSettings = Map<String, dynamic>.from(settings);
     final autoPrint = settings['auto_print'];
     _autoPrint = autoPrint == null ||
         autoPrint == '1' ||
@@ -1486,7 +1491,7 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
   /// Bagikan invoice final dari transaksi tersimpan.
   Future<void> _shareReceiptInvoice(int id) async {
     try {
-      final data = await _client.receipt(id);
+      final data = await loadReceiptForPrint(_client, id);
       if (!mounted) return;
       final store = (data['store'] as Map<String, dynamic>?) ?? const {};
       final rawItems =
@@ -1700,7 +1705,8 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
                 onPressed: () {
                   Navigator.pop(ctx);
                   if (id != null) {
-                    printReceiptNow(context, () => _client.receipt(id));
+                    printReceiptNow(
+                        context, () => loadReceiptForPrint(_client, id));
                   }
                 },
                 icon: const Icon(Icons.print),
@@ -1711,7 +1717,7 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
       );
       if (!mounted) return;
       if (_autoPrint && id != null) {
-        printReceiptNow(context, () => _client.receipt(id));
+        printReceiptNow(context, () => loadReceiptForPrint(_client, id));
       }
       _loadData();
     } on ApiException catch (e) {
@@ -1763,6 +1769,60 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
         ),
       );
 
+  /// Struk lokal untuk transaksi offline. Nomor sementara OFF- dipakai apa
+  /// adanya (nanti diganti nomor resmi saat sync), dan barisnya disusun dari
+  /// setelan cabang terakhir yang tersimpan di HP.
+  Map<String, dynamic> _offlineReceiptPayload({
+    required Map<String, dynamic> payload,
+    required String invoiceNo,
+    required double grandTotal,
+    required double discount,
+    required String customerLabel,
+    required String cashier,
+  }) {
+    final paid = asNum(payload['amount_paid']) > 0
+        ? asNum(payload['amount_paid'])
+        : grandTotal;
+    final payments = payload['payments'];
+    return <String, dynamic>{
+      'store': <String, dynamic>{
+        ..._receiptSettings,
+        'store_name': _storeName ?? 'Anyostore',
+        'store_address': _storeAddress,
+        'store_phone': _storePhone,
+        'store_tax_id': _receiptSettings['store_tax_id'] ?? '',
+      },
+      'invoice_no': invoiceNo,
+      'offline_invoice_no': invoiceNo,
+      'transaction_date': payload['transaction_date'] ?? todayWib(),
+      'created_at': DateTime.now().toUtc().toIso8601String(),
+      'cashier': cashier,
+      'customer_name': customerLabel,
+      'items': [
+        for (final line in _cart)
+          {
+            'product_name': line.name,
+            'quantity': line.qty,
+            'price': line.priceOverride ?? line.price,
+            'subtotal': (line.priceOverride ?? line.price) * line.qty,
+          },
+      ],
+      'subtotal': asNum(payload['subtotal']),
+      'discount': discount,
+      'grand_total': grandTotal,
+      'payments': payments is List && payments.isNotEmpty
+          ? payments
+          : [
+              {
+                'payment_method': payload['payment_method'] ?? 'cash',
+                'amount': grandTotal,
+              },
+            ],
+      'amount_paid': paid,
+      'change': paid > grandTotal ? paid - grandTotal : 0,
+    };
+  }
+
   /// Simpan transaksi ke antrean offline (harga/total ikut HP, sync nanti).
   Future<void> _saveOffline(Map<String, dynamic> payload, int branch) async {
     final tempInvoice = 'OFF-$branch-${DateTime.now().millisecondsSinceEpoch}';
@@ -1783,6 +1843,16 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     final offlineTotal = usePreview
         ? asNum(_preview?['grand_total'])
         : math.max(0, _cartTotal - discount).toDouble();
+    // Struk disusun sebelum keranjang dikosongkan; dicetak langsung kalau
+    // auto print aktif, dan tetap bisa dicetak lewat aksi snackbar.
+    final receiptPayload = _offlineReceiptPayload(
+      payload: payload,
+      invoiceNo: tempInvoice,
+      grandTotal: offlineTotal,
+      discount: discount,
+      customerLabel: _invoiceCustomerLabel(),
+      cashier: context.read<AuthStore>().userName ?? '-',
+    );
     await OfflineStore.insert(payload, tempInvoice, grandTotal: offlineTotal);
     if (!mounted) return;
     _cart.clear();
@@ -1795,7 +1865,17 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
-            'Transaksi disimpan offline ($tempInvoice). Akan otomatis sync saat internet kembali.')));
+            'Transaksi disimpan offline ($tempInvoice). Akan otomatis sync saat internet kembali.'),
+        action: SnackBarAction(
+          label: 'Cetak Struk',
+          onPressed: () {
+            if (!mounted) return;
+            printReceiptNow(context, () async => receiptPayload);
+          },
+        )));
+    if (_autoPrint) {
+      printReceiptNow(context, () async => receiptPayload);
+    }
     _loadData();
     // Segarkan Riwayat supaya transaksi offline (kuning) langsung muncul.
     HistoryTab.reloadTick.value++;

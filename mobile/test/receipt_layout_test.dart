@@ -60,14 +60,17 @@ void main() {
       // Semua baris sama panjang -> margin kiri dan kanan identik.
       expect(rows.every((row) => row.text.length == layout.width), isTrue);
       // Teks tidak menempel tepi kertas.
-      expect(rows.every((row) => row.text.startsWith(' ' * layout.margin)), isTrue);
-      expect(rows.every((row) => row.text.endsWith(' ' * layout.margin)), isTrue);
+      expect(rows.every((row) => row.text.startsWith(' ' * layout.margin)),
+          isTrue);
+      expect(
+          rows.every((row) => row.text.endsWith(' ' * layout.margin)), isTrue);
     }
   });
 
   test('judul bagian polos tanpa garis pengurung', () {
     final rows = _rows(_receipt());
-    final infoIndex = rows.indexWhere((row) => row.trim() == 'INFORMASI TRANSAKSI');
+    final infoIndex =
+        rows.indexWhere((row) => row.trim() == 'INFORMASI TRANSAKSI');
     final produkIndex = rows.indexWhere((row) => row.trim() == 'PRODUK');
     expect(infoIndex, greaterThan(-1));
     expect(produkIndex, greaterThan(infoIndex));
@@ -97,18 +100,30 @@ void main() {
 
   test('informasi transaksi memakai kolom label tetap', () {
     final rows = _trimmed(_receipt());
-    expect(rows.any((row) => row.startsWith('Invoice') && row.contains('INV-20261110-B1-0008')), isTrue);
-    expect(rows.any((row) => row.startsWith('Tanggal') && row.contains('10/11/2026 14:08')), isTrue);
-    expect(rows.any((row) => row.startsWith('Kasir') && row.endsWith('Miftahul Fauzan')), isTrue);
+    expect(
+        rows.any((row) =>
+            row.startsWith('Invoice') && row.contains('INV-20261110-B1-0008')),
+        isTrue);
+    expect(
+        rows.any((row) =>
+            row.startsWith('Tanggal') && row.contains('10/11/2026 14:08')),
+        isTrue);
+    expect(
+        rows.any((row) =>
+            row.startsWith('Kasir') && row.endsWith('Miftahul Fauzan')),
+        isTrue);
     // Label sejajar pada kolom ke-12.
-    final invoice = _rows(_receipt()).firstWhere((row) => row.trim().startsWith('Invoice'));
-    final kasir = _rows(_receipt()).firstWhere((row) => row.trim().startsWith('Kasir'));
+    final invoice =
+        _rows(_receipt()).firstWhere((row) => row.trim().startsWith('Invoice'));
+    final kasir =
+        _rows(_receipt()).firstWhere((row) => row.trim().startsWith('Kasir'));
     expect(invoice.indexOf('INV-'), kasir.indexOf('Miftahul'));
   });
 
   test('alamat toko maksimal 3 baris dan mengikuti info toko', () {
     final receipt = _receipt(store: {
-      'store_address': 'Pgmta Lantai 6 Blok B no 118\nTanah Abang\nJakarta Pusat\nBaris keempat',
+      'store_address':
+          'Pgmta Lantai 6 Blok B no 118\nTanah Abang\nJakarta Pusat\nBaris keempat',
     });
     final rows = _trimmed(receipt);
     expect(rows, contains('Pgmta Lantai 6 Blok B no 118'));
@@ -159,16 +174,20 @@ void main() {
 
   test('ringkasan pembayaran dan kaki struk tetap lengkap', () {
     final rows = _trimmed(_receipt(store: {
-      'receipt_note': 'Barang yang sudah dibeli tidak dapat ditukar/dikembalikan',
+      'receipt_note':
+          'Barang yang sudah dibeli tidak dapat ditukar/dikembalikan',
     }));
-    int indexOf(String label) => rows.indexWhere((row) => row.startsWith(label));
+    int indexOf(String label) =>
+        rows.indexWhere((row) => row.startsWith(label));
     expect(indexOf('Subtotal'), lessThan(indexOf('Total')));
     expect(indexOf('Total'), lessThan(indexOf('Transfer')));
     expect(indexOf('Transfer'), lessThan(indexOf('Dibayar')));
     expect(indexOf('Dibayar'), lessThan(indexOf('Kembalian')));
-    expect(indexOf('Kembalian'), lessThan(rows.indexOf('Terima kasih, sampai jumpa lagi!')));
+    expect(indexOf('Kembalian'),
+        lessThan(rows.indexOf('Terima kasih, sampai jumpa lagi!')));
     // Catatan panjang dibungkus, tidak terpotong.
-    expect(rows.any((row) => row.startsWith('Barang yang sudah dibeli')), isTrue);
+    expect(
+        rows.any((row) => row.startsWith('Barang yang sudah dibeli')), isTrue);
   });
 
   test('karakter non-ASCII diganti supaya tidak tercetak acak', () {
@@ -236,11 +255,13 @@ void main() {
   });
 
   test('font normal (Font A) memakai 48 kolom dan margin bisa diatur', () {
-    final fontA = ReceiptLayout.fromReceipt(_receipt(store: {'receipt_font': 'a'}));
+    final fontA =
+        ReceiptLayout.fromReceipt(_receipt(store: {'receipt_font': 'a'}));
     expect(fontA.width, 48);
     expect(fontA.fontB, isFalse);
 
-    final marginFive = ReceiptLayout.fromReceipt(_receipt(store: {'receipt_margin': '5'}));
+    final marginFive =
+        ReceiptLayout.fromReceipt(_receipt(store: {'receipt_margin': '5'}));
     expect(marginFive.margin, 5);
     expect(marginFive.width, 64);
 

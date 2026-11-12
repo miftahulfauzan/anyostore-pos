@@ -32,9 +32,11 @@ test('setelan disimpan per cabang lewat PUT /settings', () => {
 });
 
 test('template struk punya pratinjau yang sama dengan Android', () => {
-  assert.match(page, /buildReceiptPreview/);
+  // Pratinjau disusun server supaya tidak ada implementasi kedua di browser.
+  assert.match(page, /printer\/preview/);
   assert.match(page, /receipt-preview-paper/);
   assert.match(page, /receipt-label|receipt_separator/);
+  assert.doesNotMatch(page, /buildReceiptPreview/);
 });
 
 test('tab administrasi memuat daftar toko, tambah toko, backup, dan tautan alat', () => {

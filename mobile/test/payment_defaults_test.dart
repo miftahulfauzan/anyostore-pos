@@ -8,14 +8,17 @@ void main() {
   test('metode pembayaran default per toko', () {
     expect(defaultPaymentMethod('BASIK PGMTA'), 'transfer');
     expect(defaultPaymentMethod('Toko B'), 'qris');
-    expect(defaultPaymentMethod('Toko B', 'Blok B lantai LG los F no 107'), 'qris');
+    expect(defaultPaymentMethod('Toko B', 'Blok B lantai LG los F no 107'),
+        'qris');
     expect(defaultPaymentMethod('Gudang Anyostore Metro'), 'cash');
   });
 
-  testWidgets('pindah metode tidak otomatis jadi bayar terpisah', (tester) async {
+  testWidgets('pindah metode tidak otomatis jadi bayar terpisah',
+      (tester) async {
     await tester.pumpWidget(MaterialApp(
       theme: buildAnyostoreTheme(brightness: Brightness.light),
-      home: const Scaffold(body: PaymentSheet(grandTotal: 400000, defaultMethod: 'transfer')),
+      home: const Scaffold(
+          body: PaymentSheet(grandTotal: 400000, defaultMethod: 'transfer')),
     ));
     await tester.pumpAndSettle();
 
@@ -24,7 +27,8 @@ void main() {
     expect(find.text('Bayar terpisah'), findsOneWidget);
 
     // Menekan QRIS hanya memindahkan metode, tidak memunculkan isian split.
-    await tester.ensureVisible(find.byKey(const ValueKey('payment-method-qris')));
+    await tester
+        .ensureVisible(find.byKey(const ValueKey('payment-method-qris')));
     await tester.tap(find.byKey(const ValueKey('payment-method-qris')));
     await tester.pumpAndSettle();
     expect(find.textContaining('(Rp)'), findsNothing);
@@ -32,7 +36,8 @@ void main() {
     // Setelah mode bayar terpisah dinyalakan, memilih metode kedua membuka nominal.
     await tester.tap(find.text('Bayar terpisah'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.byKey(const ValueKey('payment-method-cash')));
+    await tester
+        .ensureVisible(find.byKey(const ValueKey('payment-method-cash')));
     await tester.tap(find.byKey(const ValueKey('payment-method-cash')));
     await tester.pumpAndSettle();
     expect(find.textContaining('(Rp)'), findsWidgets);

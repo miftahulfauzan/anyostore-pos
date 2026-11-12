@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
 import 'package:flutter/material.dart';
 
+import 'api_client.dart';
+import 'offline_store.dart';
 import 'printer_service.dart';
 import 'task_ui.dart';
 
@@ -273,4 +277,22 @@ Future<void> printReceiptNow(
     final receipt = await receiptLoader();
     await printer.printReceipt(receipt);
   });
+}
+
+/// Payload struk dengan cache offline: hasil sukses disimpan per transaksi,
+/// dan saat jaringan putus dipakai salinan terakhir supaya cetak ulang tetap
+/// bisa dilakukan tanpa internet.
+Future<Map<String, dynamic>> loadReceiptForPrint(ApiClient api, int id) async {
+  try {
+    final data = await api.receipt(id);
+    if (data.isNotEmpty) {
+      await OfflineStore.cacheSet('receipt-$id', jsonEncode(data));
+    }
+    return data;
+  } on ApiException catch (error) {
+    if (!error.isNetwork) rethrow;
+    final cached = await OfflineStore.cacheGet('receipt-$id');
+    if (cached != null) return cached;
+    rethrow;
+  }
 }

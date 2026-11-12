@@ -1541,6 +1541,13 @@ a, .photo-upload { color:var(--expressive-secondary); }
   text-align: left;
 }
 .receipt-paper.receipt-58mm { width: min(58mm, 100%); padding: 5mm 4mm; }
+/* Struk hasil render server: baris sudah final selebar kertas, jadi tampilkan
+   apa adanya dengan monospace supaya kolom tidak bergeser (bukan disusun ulang
+   oleh CSS). Lebar huruf disesuaikan agar 64/42 karakter muat di kertas. */
+.receipt-thermal { width: min(100%, 380px); padding: 6mm 4mm; }
+.receipt-lines { margin: 0; font-size: 8.5px; line-height: 1.6; font-variant-ligatures: none; }
+.receipt-line { white-space: pre; }
+.receipt-line--bold { font-weight: 800; }
 .receipt-store { text-align: center; }
 .receipt-store h1 { margin: 7px 0 4px; font-size: 17px; line-height: 1.2; letter-spacing: -.04em; }
 .receipt-store-tagline { margin: 0 0 5px; font-weight: 700; }
@@ -1594,6 +1601,8 @@ a, .photo-upload { color:var(--expressive-secondary); }
   .receipt { display: block; min-height: 0; padding: 0; background: #fff; }
   .receipt-paper { width: 80mm; margin: 0; padding: 5mm 4mm; box-shadow: none; }
   .receipt-paper.receipt-58mm { width: 58mm; padding: 4mm 3mm; }
+  /* 64 karakter harus muat pada 72 mm; Font B thermal setara ~7 px di web. */
+  .receipt-lines { font-size: 7px; }
   .receipt-actions, .notification-layer { display: none !important; }
 }
 @media print {
