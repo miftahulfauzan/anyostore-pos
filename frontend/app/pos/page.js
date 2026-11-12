@@ -539,6 +539,17 @@ export default function PosPage() {
       // Warning stok kurang/kosong: kasir memilih Lanjutkan atau Kembali.
       const lowStock = cart.filter((item) => Number(item.stock_available ?? 0) < Number(item.quantity));
       if (lowStock.length) {
+        // Aturan toko: bila transaksi melebihi stok tidak diizinkan, hentikan
+        // sebelum meminta konfirmasi kasir.
+        const settingsResponse = await fetch(`${apiUrl}/settings?branch_id=${Number(storeId)}`, { headers: headers() });
+        const settingsBody = settingsResponse.ok ? await settingsResponse.json() : {};
+        const allowOversell = String(settingsBody?.data?.allow_negative_stock ?? 'true').toLowerCase() !== 'false';
+        if (!allowOversell) {
+          const firstLow = lowStock[0];
+          const lowLabel = `${firstLow.name}${firstLow.variant_color ? ` (${firstLow.variant_color})` : ''}`;
+          setMessage(`Stok ${lowLabel} kurang (tersedia ${Number(firstLow.stock_available ?? 0)}, diminta ${firstLow.quantity}). Toko ini tidak mengizinkan transaksi melebihi stok.`);
+          return;
+        }
         const first = lowStock[0];
         const label = `${first.name}${first.variant_color ? ` (${first.variant_color})` : ''}`;
         const extra = lowStock.length > 1 ? ` (total ${lowStock.length} produk kurang)` : '';

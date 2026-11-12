@@ -50,3 +50,9 @@ test('logo toko dan logo invoice bisa diunggah dari tab identitas', () => {
   assert.match(page, /store_logo/);
   assert.match(page, /invoice_logo/);
 });
+
+test('ada setelan boleh/tidak transaksi saat stok kurang', () => {
+  assert.match(page, /Penjualan & stok/);
+  assert.match(page, /allow_negative_stock/);
+  assert.match(page, /Tidak \(transaksi ditolak bila stok kurang\)/);
+});

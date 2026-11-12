@@ -17,6 +17,7 @@ const mediaUrl = (path) => {
 const TABS = [
   { key: 'identitas', label: 'Identitas & kontak' },
   { key: 'landing', label: 'Landing & aturan' },
+  { key: 'penjualan', label: 'Penjualan & stok' },
   { key: 'struk', label: 'Struk & printer' },
   { key: 'template', label: 'Template struk' },
   { key: 'ongkir', label: 'Ongkir' },
@@ -556,6 +557,24 @@ export default function StoreSettingsPage() {
           </label>
           <p className="muted" style={{ margin: 0, fontSize: 'var(--fs-sm)' }}>
             Voucher &amp; diskon diatur di menu <a href="/promotions">Promo &amp; Diskon</a>; tarif ongkir manual di tab Ongkir.
+          </p>
+          <div className="form-actions"><button type="submit" disabled={saving}>{saving ? 'Menyimpan…' : `Simpan untuk ${store.name || 'toko ini'}`}</button></div>
+        </form>
+      )}
+
+      {!loading && tab === 'penjualan' && (
+        <form className="panel" onSubmit={(event) => { event.preventDefault(); save({ allow_negative_stock: form.allow_negative_stock || 'true' }, 'Aturan stok tersimpan.'); }}>
+          <h2>Penjualan &amp; stok</h2>
+          <p className="muted" style={{ marginTop: 0 }}>Aturan saat jumlah yang dijual melebihi stok gudang pada toko ini.</p>
+          <label>Izinkan transaksi melebihi stok
+            <select value={form.allow_negative_stock || 'true'} onChange={(event) => set('allow_negative_stock', event.target.value)}>
+              <option value="false">Tidak (transaksi ditolak bila stok kurang)</option>
+              <option value="true">Ya (kasir boleh lanjut, stok menjadi minus)</option>
+            </select>
+          </label>
+          <p className="muted" style={{ margin: 0, fontSize: 'var(--fs-sm)' }}>
+            Bila dipilih <strong>Tidak</strong>, POS web &amp; Android menolak menambah barang melebihi stok tersedia dan transaksi ditolak server.
+            Transaksi offline di Android tetap dicatat (stok disesuaikan saat sinkronisasi).
           </p>
           <div className="form-actions"><button type="submit" disabled={saving}>{saving ? 'Menyimpan…' : `Simpan untuk ${store.name || 'toko ini'}`}</button></div>
         </form>

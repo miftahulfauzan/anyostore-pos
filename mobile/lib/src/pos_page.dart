@@ -138,6 +138,7 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
   String? _storeName;
   String _storeAddress = '';
   String _storePhone = '';
+  bool _allowNegativeStock = true;
   List<String> _storePhones = const [];
   /// Nomor invoice yang sudah direservasi + id transaksi klien yang dipakai
   /// ulang saat pembayaran supaya nomor pada invoice tidak berubah.
@@ -511,6 +512,8 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     _storeName = storeName == null || storeName.isEmpty ? null : storeName;
     _storeAddress = settings['store_address']?.toString().trim() ?? '';
     _storePhone = settings['store_phone']?.toString().trim() ?? '';
+    _allowNegativeStock =
+        (settings['allow_negative_stock']?.toString().trim().toLowerCase() ?? '') != 'false';
     _storePhones = _collectStorePhones(settings);
     final autoPrint = settings['auto_print'];
     _autoPrint = autoPrint == null ||
@@ -1547,6 +1550,15 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     final lowStock = _cart
         .where((c) => c.stockAvailable != null && c.stockAvailable! < c.qty)
         .toList();
+    if (lowStock.isNotEmpty && !_allowNegativeStock) {
+      final first = lowStock.first;
+      final label = first.name +
+          (first.variantLabel != null ? ' (${first.variantLabel})' : '');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              'Stok $label kurang (tersedia ${first.stockAvailable}, diminta ${first.qty}). Toko ini tidak mengizinkan transaksi melebihi stok.')));
+      return;
+    }
     if (lowStock.isNotEmpty) {
       final first = lowStock.first;
       final label = first.name +

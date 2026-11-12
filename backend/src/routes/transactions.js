@@ -325,6 +325,13 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
     // Akumulasi qty per (produk, varian) dalam 1 transaksi supaya cek stok
     // tidak kelewat bila item sama dikirim dua baris (cegah oversell).
     const reserved = new Map();
+    // Aturan toko: boleh/tidak menjual melebihi stok. Default boleh (perilaku
+    // lama), owner dapat mematikannya di Setelan Toko.
+    const [negativeSetting] = await connection.execute(
+      "SELECT `value` FROM store_settings WHERE branch_id = ? AND `key` = 'allow_negative_stock' LIMIT 1",
+      [branchId]
+    );
+    const storeAllowsNegative = String(negativeSetting[0]?.value ?? 'true').toLowerCase() !== 'false';
     let subtotal = 0;
     for (const input of items) {
       const productId = Number(input.product_id);
@@ -335,12 +342,20 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
       const product = productById.get(productId);
       // Stok kurang/0 TETAP boleh dijual, tapi hanya jika klien mengirim
       // allow_negative_stock=true (setelah konfirmasi "Lanjutkan" di POS).
-      const allowNegative = req.body.allow_negative_stock === true;
+      // Mode offline tetap boleh (stok disesuaikan saat sinkronisasi) supaya
+      // transaksi yang sudah terjadi di HP tidak tertolak.
+      const allowNegative = isOffline
+          ? true
+          : req.body.allow_negative_stock === true && storeAllowsNegative;
       const stockKey = `${productId}|${variantId}`;
       const alreadyReserved = reserved.get(stockKey) || 0;
       const [balances] = await connection.execute('SELECT id, quantity FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id <=> ? FOR UPDATE', [warehouseId, productId, variantId]);
       const available = Number(balances[0]?.quantity || 0);
-      if (!allowNegative && available - alreadyReserved < quantity) throw httpError(400, `Stok ${product.name} tidak mencukupi (tersedia ${available - alreadyReserved})`);
+      if (!allowNegative && available - alreadyReserved < quantity) {
+        throw httpError(400, storeAllowsNegative
+            ? `Stok ${product.name} tidak mencukupi (tersedia ${available - alreadyReserved})`
+            : `Stok ${product.name} tidak mencukupi (tersedia ${available - alreadyReserved}). Toko ini tidak mengizinkan transaksi melebihi stok.`);
+      }
       let variant = null;
       if (variantId) {
         const [variants] = await connection.execute('SELECT id, color, stock, price FROM product_variants WHERE id = ? AND product_id = ? AND is_active = TRUE FOR UPDATE', [variantId, productId]);

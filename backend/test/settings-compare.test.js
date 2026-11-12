@@ -60,3 +60,23 @@ test('kunci template struk bisa dibandingkan dan disalin', () => {
     assert.ok(allowedLine.includes(key), `${key} harus masuk whitelist setelan`);
   }
 });
+
+test('aturan stok: transaksi ditolak bila toko tidak mengizinkan stok minus', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const transactionsSource = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'routes', 'transactions.js'),
+    'utf8',
+  );
+  assert.match(transactionsSource, /allow_negative_stock/);
+  assert.match(transactionsSource, /storeAllowsNegative/);
+  assert.match(transactionsSource, /Toko ini tidak mengizinkan transaksi melebihi stok/);
+  // Transaksi offline tetap boleh disinkronkan.
+  assert.match(transactionsSource, /isOffline\s*\n?\s*\? true/);
+
+  const settingsSource = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'routes', 'settings.js'),
+    'utf8',
+  );
+  assert.match(settingsSource, /'allow_negative_stock'/);
+});
