@@ -24,6 +24,13 @@ test('logo resi web membulat seperti cetak thermal', () => {
   rules.forEach((rule) => assert.match(rule, /border-radius:\s*16%;/));
 });
 
+test('nama toko di bawah logo lebih besar dan logo selalu center', () => {
+  assert.match(css, /\.receipt-store h1 \{[^}]*font-size: 19px;/);
+  assert.match(css, /\.receipt-logo \{[^}]*margin-inline: auto;/);
+  // Saat dicetak dari browser, kertas ikut di tengah halaman (bukan menempel kiri).
+  assert.match(css, /@media print \{[\s\S]*?\.receipt-paper \{[^}]*margin: 0 auto;/);
+});
+
 test('rasio sudut logo sama di web dan cetak thermal', () => {
   // .receipt-logo memakai 16% sisi terpendek; printer memakai 0.16.
   const printer = fs.readFileSync(
