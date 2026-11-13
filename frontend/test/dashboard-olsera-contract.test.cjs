@@ -109,6 +109,12 @@ test('dashboard and reports clear stale data after an access error', () => {
   assert.match(reports, /Coba lagi/);
 });
 
+test('dashboard does not show the broad dashboard fallback after report access fails', () => {
+  assert.match(source, /message \? \(/);
+  assert.match(source, /fallbackData=\{role === 'kasir' \? data : null\}/);
+  assert.match(sections, /const fallback = role === 'kasir' \? fallbackData : null;/);
+});
+
 test('grafik dasbor tidak menembus keluar kartu (label sumbu Y)', () => {
   const styles = fs.readFileSync(new URL('../app/globals.css', `file://${__dirname}/`), 'utf8');
   // Dulu label sumbu Y diposisikan `right: calc(100% + 38px)` sehingga keluar

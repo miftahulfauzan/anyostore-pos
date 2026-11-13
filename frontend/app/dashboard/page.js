@@ -129,7 +129,7 @@ export default function DashboardPage() {
   const selectedPeriodRange = data?.selected_period || range;
 
   return <AppShell title="Dasbor" eyebrow={isGudang ? 'RINGKASAN GUDANG' : 'RINGKASAN TOKO'} actions={isGudang ? <><Link className="button-link" href="/inventory">Kelola Stok</Link><a className="button-link" href="/" target="_blank" rel="noopener noreferrer">Landing Page</a></> : <><a className="button-link" href="/" target="_blank" rel="noopener noreferrer">Landing Page</a><Link className="button-link" href="/closing">Cetak Penutupan</Link><Link className="button-link" href="/pos">Buka Kasir <ArrowUpRight aria-hidden="true" size={15} /></Link></>}>
-    {!data ? (message ? (
+    {message ? (
       <section className="panel dashboard-load-error" role="alert">
         <p>{message}</p>
         <button type="button" className="button-secondary" onClick={() => {
@@ -137,7 +137,7 @@ export default function DashboardPage() {
           setRetryVersion((version) => version + 1);
         }}>Coba lagi</button>
       </section>
-    ) : <section className="panel"><p>Memuat ringkasan toko…</p></section>) : isGudang ? (
+    ) : !data ? <section className="panel"><p>Memuat ringkasan toko…</p></section> : isGudang ? (
       <>
         <section className="warehouse-dashboard-toolbar period-toolbar-compact">
           <div className="warehouse-dashboard-range-controls">
@@ -202,7 +202,7 @@ export default function DashboardPage() {
           ) : null}
         </div>
       </section>
-          <OlseraDashboardSections reportData={reportData} fallbackData={data} activeBranchId={activeBranchId} period={range} role={role} />
+          <OlseraDashboardSections reportData={reportData} fallbackData={role === 'kasir' ? data : null} activeBranchId={activeBranchId} period={range} role={role} />
           {role === 'owner' && activeBranchId === 'all' && selectedStores.length > 1 && <section className="panel store-summary"><div className="section-heading dashboard-panel-head"><div className="section-head-main"><span className="section-accent dashboard-accent-purple" aria-hidden="true" /><h2>Ringkasan semua toko</h2></div><span className="section-head-meta"><strong>{selectedStores.length}</strong><small> toko</small></span></div><div className="store-summary-grid">{selectedStores.map((store) => <article key={store.id}><header><div><strong>{store.name}</strong><span>{store.address || 'Alamat belum diatur'}</span></div><b>{store.products} produk</b></header><dl><div><dt>Penjualan periode</dt><dd>{rupiah(store.selected_sales)}</dd></div><div><dt>Transaksi periode</dt><dd>{store.selected_transactions || 0}</dd></div><div><dt>Pengeluaran periode</dt><dd>{rupiah(store.selected_expenses)}</dd></div></dl></article>)}</div></section>}
               <section className="panel dashboard-recent"><div className="section-heading dashboard-panel-head"><div className="section-head-main"><span className="section-accent" aria-hidden="true" /><h2>Transaksi terbaru</h2></div><Link href="/history">Lihat semua</Link></div><div className="data-list dashboard-recent-list">{selectedRecent.length ? selectedRecent.map((tx) => <article className="dashboard-recent-item" key={tx.id}><div className="dashboard-recent-item__main"><strong>{tx.invoice_no}</strong><span className="dashboard-recent-item__meta">{tx.cashier}{data.owner_summary ? ' · ' + tx.branch_name : ''} · {transactionDateTime(tx)}</span></div><div className="dashboard-recent-item__amount"><strong>{rupiah(tx.grand_total)}</strong><span className="tag">{labelFor(paymentLabels, tx.payment_method)}</span></div></article>) : <p>Belum ada transaksi.</p>}</div></section>
     </>}

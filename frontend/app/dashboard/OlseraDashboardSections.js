@@ -136,11 +136,12 @@ function normalizeRows(rows, fallbackRows) {
 }
 
 export default function OlseraDashboardSections({ reportData, fallbackData, activeBranchId, period, role }) {
-  const source = reportData || fallbackData;
+  const fallback = role === 'kasir' ? fallbackData : null;
+  const source = reportData || fallback;
   if (!source) return <section className="panel dashboard-report-loading"><p>Memuat laporan toko…</p></section>;
 
   const previousSummary = reportData?.previous_summary || reportData?.comparison?.previous_summary || {};
-  const sourceSummary = reportData?.summary || fallbackData?.selected_summary || fallbackData?.summary || {};
+  const sourceSummary = reportData?.summary || fallback?.selected_summary || fallback?.summary || {};
   const summary = {
     ...sourceSummary,
     gross_sales: sourceSummary.gross_sales ?? sourceSummary.revenue ?? sourceSummary.sales ?? 0,
@@ -148,10 +149,10 @@ export default function OlseraDashboardSections({ reportData, fallbackData, acti
     expenses: sourceSummary.expenses ?? 0,
     return_amount: sourceSummary.return_amount ?? sourceSummary.refund_amount ?? 0,
   };
-  const dailySales = normalizeRows(reportData?.daily_sales, fallbackData?.selected_sales_trend || fallbackData?.sales_trend);
-  const methods = reportData?.payment_methods || fallbackData?.selected_payment_breakdown || fallbackData?.payment_breakdown || [];
-  const products = reportData?.products || fallbackData?.products || [];
-  const lowStock = reportData?.low_stock || fallbackData?.low_stock || [];
+  const dailySales = normalizeRows(reportData?.daily_sales, fallback?.selected_sales_trend || fallback?.sales_trend);
+  const methods = reportData?.payment_methods || fallback?.selected_payment_breakdown || fallback?.payment_breakdown || [];
+  const products = reportData?.products || fallback?.products || [];
+  const lowStock = reportData?.low_stock || fallback?.low_stock || [];
   const productsSold = summary.products_sold != null
     ? number(summary.products_sold)
     : products.reduce((total, product) => total + number(product.quantity_sold), 0);
@@ -161,10 +162,10 @@ export default function OlseraDashboardSections({ reportData, fallbackData, acti
   const fourthKpiLabel = hasProfit ? 'Laba bersih' : 'Pengeluaran';
   const fourthKpiValue = hasProfit ? rupiah(summary.net_profit) : rupiah(summary.expenses);
   const detailPeriod = {
-    start: reportData?.start || period?.start || fallbackData?.selected_period?.start || '',
-    end: reportData?.end || period?.end || fallbackData?.selected_period?.end || '',
+    start: reportData?.start || period?.start || fallback?.selected_period?.start || '',
+    end: reportData?.end || period?.end || fallback?.selected_period?.end || '',
   };
-  const detailBranch = reportData?.branch_id ?? activeBranchId ?? fallbackData?.selected_branch_id;
+  const detailBranch = reportData?.branch_id ?? activeBranchId ?? fallback?.selected_branch_id;
   const canViewFinanceDetails = Boolean(reportData);
   const detailHref = (type) => {
     const query = new URLSearchParams({ type });
