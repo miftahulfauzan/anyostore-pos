@@ -128,6 +128,10 @@ test('dashboard closes when a protected dashboard request fails globally', () =>
   assert.match(source, /status < 400/);
 });
 
+test('dashboard retry hides the previous data before starting a new request', () => {
+  assert.match(source, /setMessage\(''\);\s*setData\(null\);\s*setReportData\(null\);\s*setRetryVersion/);
+});
+
 test('closing report does not keep stale data after a failed reload', () => {
   const closing = fs.readFileSync(
     new URL('../app/reports/ReportClosingPanel.js', `file://${__dirname}/`),

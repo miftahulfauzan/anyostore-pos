@@ -156,6 +156,8 @@ export default function DashboardPage() {
         <p>{message}</p>
         <button type="button" className="button-secondary" onClick={() => {
           setMessage('');
+          setData(null);
+          setReportData(null);
           setRetryVersion((version) => version + 1);
         }}>Coba lagi</button>
       </section>
