@@ -31,6 +31,7 @@ export default function DashboardPage() {
   const refreshVersion = useDashboardRefresh(user?.role === 'gudang');
   const [selectedPeriod, setSelectedPeriod] = useState('today');
   const [periodOpen, setPeriodOpen] = useState(true);
+  const [retryVersion, setRetryVersion] = useState(0);
 
   useEffect(() => {
     const initialRange = getWarehousePeriodRange('today');
@@ -108,6 +109,8 @@ export default function DashboardPage() {
       })
       .catch((error) => {
         if (!dashboardLoadSequence.current.isCurrent(requestId)) return;
+        setData(null);
+        setReportData(null);
         if (/token|401/i.test(error.message || '')) {
           localStorage.removeItem('pos_access_token');
           localStorage.removeItem('pos_refresh_token');
@@ -117,7 +120,7 @@ export default function DashboardPage() {
         setMessage(error.message || 'Dasbor tidak dapat dimuat');
       });
     return () => { dashboardLoadSequence.current.next(); };
-  }, [range, activeBranchId, user?.role, refreshVersion]);
+  }, [range, activeBranchId, user?.role, refreshVersion, retryVersion]);
 
   const role = user?.role || null;
   const isGudang = role === 'gudang';
@@ -126,8 +129,15 @@ export default function DashboardPage() {
   const selectedPeriodRange = data?.selected_period || range;
 
   return <AppShell title="Dasbor" eyebrow={isGudang ? 'RINGKASAN GUDANG' : 'RINGKASAN TOKO'} actions={isGudang ? <><Link className="button-link" href="/inventory">Kelola Stok</Link><a className="button-link" href="/" target="_blank" rel="noopener noreferrer">Landing Page</a></> : <><a className="button-link" href="/" target="_blank" rel="noopener noreferrer">Landing Page</a><Link className="button-link" href="/closing">Cetak Penutupan</Link><Link className="button-link" href="/pos">Buka Kasir <ArrowUpRight aria-hidden="true" size={15} /></Link></>}>
-    {message && <p className="message" role="status">{message}</p>}
-    {!data ? <section className="panel"><p>Memuat ringkasan toko…</p></section> : isGudang ? (
+    {!data ? (message ? (
+      <section className="panel dashboard-load-error" role="alert">
+        <p>{message}</p>
+        <button type="button" className="button-secondary" onClick={() => {
+          setMessage('');
+          setRetryVersion((version) => version + 1);
+        }}>Coba lagi</button>
+      </section>
+    ) : <section className="panel"><p>Memuat ringkasan toko…</p></section>) : isGudang ? (
       <>
         <section className="warehouse-dashboard-toolbar period-toolbar-compact">
           <div className="warehouse-dashboard-range-controls">

@@ -36,6 +36,7 @@ export default function ReportsPage() {
   const [storeContext, setStoreContext] = useState(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [retryVersion, setRetryVersion] = useState(0);
   const reportLoadSequence = useRef(createRequestSequence());
 
   async function load(nextPeriod = period) {
@@ -53,7 +54,10 @@ export default function ReportsPage() {
       if (!response.ok) throw new Error(body.message || "Laporan tidak dapat dimuat");
       setReport(body.data);
     } catch (error) {
-      if (reportLoadSequence.current.isCurrent(requestId)) setMessage(error.message);
+      if (reportLoadSequence.current.isCurrent(requestId)) {
+        setReport(null);
+        setMessage(error.message || "Laporan tidak dapat dimuat");
+      }
     } finally {
       if (reportLoadSequence.current.isCurrent(requestId)) setLoading(false);
     }
@@ -85,7 +89,7 @@ export default function ReportsPage() {
     if (!period.start) return undefined;
     load(period);
     return () => { reportLoadSequence.current.next(); };
-  }, [period.start, period.end, activeBranchId, user?.role]);
+  }, [period.start, period.end, activeBranchId, user?.role, retryVersion]);
 
   useEffect(() => {
     if (!period.start) setPeriod(getWarehousePeriodRange('today'));
@@ -183,10 +187,17 @@ export default function ReportsPage() {
           </div>
         ) : null}
       </section>
-      {message && <p className="message" role="status">{message}</p>}
-      {!report ? (
-        <section className="panel"><p>Memuat laporan…</p></section>
+      {!report ? (message ? (
+        <section className="panel reports-load-error" role="alert">
+          <p>{message}</p>
+          <button type="button" className="button-secondary" onClick={() => {
+            setMessage("");
+            setRetryVersion((version) => version + 1);
+          }}>Coba lagi</button>
+        </section>
       ) : (
+        <section className="panel"><p>Memuat laporan…</p></section>
+      )) : (
         <>
           <div className="reports-android-summary">
             <OlseraDashboardSections reportData={report} fallbackData={null} activeBranchId={activeBranchId} period={period} role={user?.role} />

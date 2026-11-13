@@ -96,6 +96,19 @@ test('komponen dasbor tidak memakai ikon/props yang tidak diimpor', () => {
   assert.deepEqual(unknown, [], `komponen/prop tidak terdefinisi: ${unknown.join(', ')}`);
 });
 
+test('dashboard and reports clear stale data after an access error', () => {
+  const reports = fs.readFileSync(new URL('../app/reports/page.js', `file://${__dirname}/`), 'utf8');
+  assert.match(source, /setData\(null\);\s*setReportData\(null\);/);
+  assert.match(source, /const \[retryVersion, setRetryVersion\] = useState\(0\)/);
+  assert.match(source, /className="panel dashboard-load-error"/);
+  assert.match(source, /role="alert"/);
+  assert.match(source, /Coba lagi/);
+  assert.match(reports, /const \[retryVersion, setRetryVersion\] = useState\(0\)/);
+  assert.match(reports, /className="panel reports-load-error"/);
+  assert.match(reports, /role="alert"/);
+  assert.match(reports, /Coba lagi/);
+});
+
 test('grafik dasbor tidak menembus keluar kartu (label sumbu Y)', () => {
   const styles = fs.readFileSync(new URL('../app/globals.css', `file://${__dirname}/`), 'utf8');
   // Dulu label sumbu Y diposisikan `right: calc(100% + 38px)` sehingga keluar
