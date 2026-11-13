@@ -8037,3 +8037,21 @@ html[data-theme] .app-main .tabs button:not(.active):hover {
   .store-settings-page .landing-settings-actions label { grid-column: auto; }
   .store-settings-page .store-settings-tabs { grid-template-columns: 1fr; }
 }
+
+/* Compact section navigation keeps the selected settings form as the focal point. */
+.store-settings-section-nav {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  align-items: end;
+  gap: 16px;
+}
+.store-settings-section-copy { min-width: 0; }
+.store-settings-section-copy h2,
+.store-settings-section-copy p { margin: 0; }
+.store-settings-section-copy p { margin-top: 4px; line-height: 1.45; }
+.store-settings-section-nav label { min-width: 0; }
+.store-settings-section-nav select { width: 100%; min-width: 0; min-height: 46px; }
+
+@media (max-width: 760px) {
+  .store-settings-section-nav { grid-template-columns: 1fr; gap: 12px; }
+}

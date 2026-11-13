@@ -26,6 +26,12 @@ const TABS = [
   { key: 'administrasi', label: 'Administrasi' },
 ];
 
+const SETTINGS_GROUPS = [
+  { label: 'Toko', keys: ['identitas', 'landing'] },
+  { label: 'Operasional', keys: ['penjualan', 'struk', 'template'] },
+  { label: 'Layanan & administrasi', keys: ['ongkir', 'pajak', 'notifikasi', 'administrasi'] },
+];
+
 const TEMPLATE_TOGGLES = [
   ['receipt_show_logo', 'Logo'],
   ['receipt_show_address', 'Alamat'],
@@ -460,14 +466,24 @@ export default function StoreSettingsPage() {
         </div>
       </section>
 
-      <div className="tabs store-settings-tabs" role="tablist" aria-label="Bagian setelan toko">
-        {TABS.map((item) => (
-          <button key={item.key} type="button" role="tab" aria-selected={tab === item.key}
-            className={tab === item.key ? 'active' : ''} onClick={() => setTab(item.key)}>
-            {item.label}
-          </button>
-        ))}
-      </div>
+      <section className="panel store-settings-section-nav" aria-label="Navigasi setelan toko">
+        <div className="store-settings-section-copy">
+          <h2>Pengaturan toko</h2>
+          <p className="muted">Pilih bagian yang ingin diubah.</p>
+        </div>
+        <label htmlFor="store-settings-section">Bagian pengaturan
+          <select id="store-settings-section" value={tab} onChange={(event) => setTab(event.target.value)}>
+            {SETTINGS_GROUPS.map((group) => (
+              <optgroup key={group.label} label={group.label}>
+                {group.keys.map((key) => {
+                  const item = TABS.find((entry) => entry.key === key);
+                  return <option key={item.key} value={item.key}>{item.label}</option>;
+                })}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+      </section>
 
       {message && <p className="message" role="status">{message}</p>}
       {error && <p className="message error" role="alert">{error}</p>}
