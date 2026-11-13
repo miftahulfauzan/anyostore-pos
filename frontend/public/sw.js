@@ -1,11 +1,9 @@
 // Service worker PWA: HTML selalu dari jaringan (dengan fallback offline),
-// aset statis memakai stale-while-revalidate.
+// aset kode memakai network-first agar deploy baru langsung terpakai.
 //
-// CATATAN: sebelumnya aset memakai cache-first sehingga setelah deploy CSS/JS
-// lama terus dipakai (mis. logo resi tetap kotak karena aturan border-radius
-// baru tidak pernah terunduh). Versi cache dinaikkan setiap kali strategi ini
-// berubah agar cache lama dibersihkan saat activate.
-const CACHE_NAME = 'anyostore-shell-v2';
+// Cache hanya menjadi fallback saat perangkat offline. Versi cache dinaikkan
+// agar cache shell lama dibersihkan saat service worker baru aktif.
+const CACHE_NAME = 'anyostore-shell-v3';
 const STATIC_DESTINATIONS = new Set(['script', 'style', 'font', 'image']);
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -23,6 +21,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/uploads/')) return;
+  if (url.pathname === '/sw.js') return;
 
   if (request.mode === 'navigate') {
     event.respondWith(
@@ -34,17 +33,13 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     caches.open(CACHE_NAME).then(async (cache) => {
-      const cached = await cache.match(request);
-      // Perbarui di latar belakang; permintaan berikutnya memakai versi baru.
-      const network = fetch(request)
-        .then((response) => {
-          if (response.ok) cache.put(request, response.clone());
-          return response;
-        })
-        .catch(() => null);
-      if (cached) return cached;
-      const fresh = await network;
-      return fresh || Response.error();
+      try {
+        const fresh = await fetch(request, { cache: 'no-store' });
+        if (fresh.ok) await cache.put(request, fresh.clone());
+        return fresh;
+      } catch {
+        return (await cache.match(request)) || Response.error();
+      }
     }),
   );
 });
