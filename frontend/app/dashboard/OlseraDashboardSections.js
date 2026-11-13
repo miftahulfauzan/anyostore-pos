@@ -135,7 +135,7 @@ function normalizeRows(rows, fallbackRows) {
   }));
 }
 
-export default function OlseraDashboardSections({ reportData, fallbackData, activeBranchId, period }) {
+export default function OlseraDashboardSections({ reportData, fallbackData, activeBranchId, period, role }) {
   const source = reportData || fallbackData;
   if (!source) return <section className="panel dashboard-report-loading"><p>Memuat laporan toko…</p></section>;
 
@@ -156,7 +156,8 @@ export default function OlseraDashboardSections({ reportData, fallbackData, acti
     ? number(summary.products_sold)
     : products.reduce((total, product) => total + number(product.quantity_sold), 0);
   const paymentTotal = methods.reduce((total, method) => total + number(method.amount ?? method.total), 0);
-  const hasProfit = reportData?.summary?.net_profit != null;
+  const isOwner = role === 'owner';
+  const hasProfit = isOwner && reportData?.summary?.net_profit != null;
   const fourthKpiLabel = hasProfit ? 'Laba bersih' : 'Pengeluaran';
   const fourthKpiValue = hasProfit ? rupiah(summary.net_profit) : rupiah(summary.expenses);
   const detailPeriod = {
@@ -187,10 +188,10 @@ export default function OlseraDashboardSections({ reportData, fallbackData, acti
         <MetricTile label="Produk terjual" value={`${productsSold} pcs`} change={changePercent(productsSold, previousSummary.products_sold)} />
         <MetricTile label={fourthKpiLabel} value={fourthKpiValue} change={changePercent(hasProfit ? summary.net_profit : summary.expenses, hasProfit ? previousSummary.net_profit : previousSummary.expenses)} />
       </div>
-      <div className="dashboard-overview-footline">
+      {isOwner && <div className="dashboard-overview-footline">
         <span>Margin keuntungan</span>
         <strong>{summary.profit_margin_percent != null ? percent(summary.profit_margin_percent) : '-'}</strong>
-      </div>
+      </div>}
     </Section>
 
     <Section

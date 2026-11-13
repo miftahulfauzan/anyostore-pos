@@ -83,3 +83,19 @@ test('reports overview exposes sales, profit, products and return sections', asy
   assert.equal(body.data.branch_id, 'all');
   assert.ok(calls.some(({ sql, params }) => sql.includes('branch_id') && params.includes('2026-11-01')));
 });
+
+test('reports overview hides margin and net profit from non-owners', async () => {
+  const router = require('../src/routes/reports');
+  const handler = router.stack.find((layer) => layer.route?.path === '/overview').route.stack.at(-1).handle;
+  let body;
+  await handler(
+    { user: { role: 'manager', branch_id: 4 }, query: { start: '2026-11-01', end: '2026-11-03' } },
+    { json(value) { body = value; } },
+    (error) => { throw error; },
+  );
+
+  assert.equal(body.data.summary.profit_margin_percent, undefined);
+  assert.equal(body.data.summary.net_profit, undefined);
+  assert.equal(body.data.previous_summary.profit_margin_percent, undefined);
+  assert.equal(body.data.previous_summary.net_profit, undefined);
+});

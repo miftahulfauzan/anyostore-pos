@@ -456,19 +456,27 @@ class _ReportsPageState extends State<ReportsPage> {
       } else {
         final summary = Map<String, dynamic>.from(
             (copy['summary'] as Map<String, dynamic>?) ?? {});
+        if (!_isOwner) {
+          summary.remove('profit_margin_percent');
+          summary.remove('net_profit');
+        }
         summary['transactions'] = asNum(summary['transactions']) + txs.length;
         summary['revenue'] = asNum(summary['revenue']) + txTotal;
         summary['gross_sales'] = asNum(summary['gross_sales']) + txTotal;
         summary['income'] = asNum(summary['income']) + incSum;
         summary['expenses'] = asNum(summary['expenses']) + expSum;
         summary['gross_profit'] = asNum(summary['gross_profit']) + txTotal;
-        summary['net_profit'] =
-            asNum(summary['net_profit']) + txTotal + incSum - expSum;
-        final grossSales = asNum(summary['gross_sales'] ?? summary['revenue']);
-        final grossProfit = asNum(summary['gross_profit']);
-        summary['profit_margin_percent'] = grossSales > 0
-            ? double.parse((grossProfit * 100 / grossSales).toStringAsFixed(2))
-            : 0;
+        if (_isOwner) {
+          summary['net_profit'] =
+              asNum(summary['net_profit']) + txTotal + incSum - expSum;
+          final grossSales =
+              asNum(summary['gross_sales'] ?? summary['revenue']);
+          final grossProfit = asNum(summary['gross_profit']);
+          summary['profit_margin_percent'] = grossSales > 0
+              ? double.parse(
+                  (grossProfit * 100 / grossSales).toStringAsFixed(2))
+              : 0;
+        }
         final productsSold = _totalProductsSold(copy);
         if (productsSold != null) {
           summary['products_sold'] = productsSold + offlinePcs;
@@ -602,8 +610,10 @@ class _ReportsPageState extends State<ReportsPage> {
 
   Widget _buildFilterBar(BuildContext context) {
     // Penutupan memakai satu tanggal bisnis, bukan preset periode. Sembunyikan
-    // pemilih periode supaya kasir tidak melihat dua kontrol tanggal sekaligus.
+    // seluruh bar filter agar tidak menampilkan kontrol yang tidak terpakai.
     final usesClosingDate = !widget.dashboardMode && _section == 'penutupan';
+    if (usesClosingDate) return const SizedBox.shrink();
+
     if (widget.dashboardMode && widget.role == 'kasir') {
       return Padding(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
@@ -627,6 +637,7 @@ class _ReportsPageState extends State<ReportsPage> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
       child: GlassCard(
+        key: const ValueKey('reports-filter-bar'),
         padding: const EdgeInsets.all(12),
         radius: 20,
         child: Column(
@@ -634,12 +645,7 @@ class _ReportsPageState extends State<ReportsPage> {
           children: [
             Row(
               children: [
-                if (usesClosingDate)
-                  const Spacer()
-                else
-                  Expanded(
-                    child: _buildPeriodSelector(context),
-                  ),
+                Expanded(child: _buildPeriodSelector(context)),
                 if (!widget.dashboardMode) ...[
                   const SizedBox(width: 8),
                   DecoratedBox(
@@ -827,12 +833,14 @@ class _ReportsPageState extends State<ReportsPage> {
         row(['Pendapatan', fmtRp(asNum(summary['revenue']))]);
         row(['HPP', fmtRp(asNum(summary['cost_of_goods']))]);
         row(['Laba kotor', fmtRp(asNum(summary['gross_profit']))]);
-        row([
-          'Persentase keuntungan',
-          _fmtPercent(summary['profit_margin_percent'])
-        ]);
         row(['Pengeluaran', fmtRp(asNum(summary['expenses']))]);
-        row(['Laba bersih', fmtRp(asNum(summary['net_profit']))]);
+        if (_isOwner) {
+          row([
+            'Persentase keuntungan',
+            _fmtPercent(summary['profit_margin_percent'])
+          ]);
+          row(['Laba bersih', fmtRp(asNum(summary['net_profit']))]);
+        }
         for (final m in ((_data?['payment_methods'] as List?) ?? [])
             .cast<Map<String, dynamic>>()) {
           row([
@@ -1013,7 +1021,7 @@ class _ReportsPageState extends State<ReportsPage> {
     final previous = _previousSummary(_data);
     final paymentTotal = methods.fold<double>(0,
         (total, method) => total + asNum(method['amount'] ?? method['total']));
-    final hasProfit = summary['net_profit'] != null;
+    final hasProfit = _isOwner && summary['net_profit'] != null;
     final fourthKpiLabel = hasProfit ? 'Laba bersih' : 'Pengeluaran';
     final fourthKpiValue = hasProfit
         ? fmtRp(asNum(summary['net_profit']))
@@ -1052,7 +1060,7 @@ class _ReportsPageState extends State<ReportsPage> {
                           : previous['expenses'])),
             ],
           ),
-          if (summary['profit_margin_percent'] != null)
+          if (_isOwner && summary['profit_margin_percent'] != null)
             _Row('Persentase keuntungan',
                 _fmtPercent(summary['profit_margin_percent'])),
           _Row('Laba kotor', fmtRp(asNum(summary['gross_profit']))),
@@ -1696,9 +1704,11 @@ class _ReportsPageState extends State<ReportsPage> {
         add('Jam ${row['hour'] ?? '-'} WIB', fmtRp(asNum(row['revenue'])),
             '${row['transactions'] ?? 0} transaksi');
       }
-      for (final row in _reportList('branch_comparison')) {
-        add('Toko ${row['branch_name'] ?? '-'}', fmtRp(asNum(row['revenue'])),
-            '${row['transactions'] ?? 0} transaksi · Pengeluaran ${fmtRp(asNum(row['expenses']))} · Pemasukan ${fmtRp(asNum(row['income']))} · Laba ${fmtRp(asNum(row['net_profit']))}');
+      if (_isOwner && _branchId == null) {
+        for (final row in _reportList('branch_comparison')) {
+          add('Toko ${row['branch_name'] ?? '-'}', fmtRp(asNum(row['revenue'])),
+              '${row['transactions'] ?? 0} transaksi · Pengeluaran ${fmtRp(asNum(row['expenses']))} · Pemasukan ${fmtRp(asNum(row['income']))} · Laba ${fmtRp(asNum(row['net_profit']))}');
+        }
       }
       add('Laporan stok', 'Dashboard stok', 'inventori');
     }

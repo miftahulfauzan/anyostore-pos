@@ -278,24 +278,53 @@ router.get('/overview', async (req, res, next) => {
       ...row,
       share: salesSourceTotal > 0 ? money(Number(row.revenue || 0) * 100 / salesSourceTotal) : 0,
     }));
+    const summary = {
+      transactions: sales[0].transactions,
+      revenue,
+      gross_sales: grossSales,
+      discounts,
+      transaction_discounts: Number(discountDetails[0][0].transaction_discount),
+      item_discounts: Number(discountDetails[0][0].item_discount),
+      cost_of_goods: costOfGoods,
+      gross_profit: grossProfit,
+      profit_margin_percent: profitMarginPercent,
+      expenses: approvedExpenses,
+      income,
+      net_profit: money(revenue - costOfGoods - approvedExpenses),
+      products_sold: productsSold,
+      cancelled_transactions: Number(cancellations[0][0].transactions),
+      cancelled_amount: Number(cancellations[0][0].amount),
+      returns: returnCount,
+      return_count: returnCount,
+      returned_quantity: returnSummary[0].reduce((total, row) => total + Number(row.quantity_returned || 0), 0),
+      refund_amount: refundAmount,
+      return_amount: refundAmount,
+    };
+    const previousSummary = {
+      transactions: Number(comparisonSales[0]?.transactions || 0),
+      revenue: comparisonRevenue,
+      gross_sales: comparisonGrossSales,
+      cost_of_goods: comparisonCostOfGoods,
+      gross_profit: comparisonGrossProfit,
+      profit_margin_percent: comparisonGrossSales > 0
+        ? money(comparisonGrossProfit * 100 / comparisonGrossSales)
+        : 0,
+      expenses: comparisonExpenses,
+      income: comparisonIncome,
+      net_profit: comparisonNetProfit,
+      products_sold: Number(comparisonProducts[0]?.products_sold || 0),
+    };
+    if (!owner) {
+      delete summary.profit_margin_percent;
+      delete summary.net_profit;
+      delete previousSummary.profit_margin_percent;
+      delete previousSummary.net_profit;
+    }
     res.json({ success: true, data: {
       start, end, branch_id: owner && selectedBranchId === null ? 'all' : selectedBranchId, branch_name: branchName,
-      summary: { transactions: sales[0].transactions, revenue, gross_sales: grossSales, discounts, transaction_discounts: Number(discountDetails[0][0].transaction_discount), item_discounts: Number(discountDetails[0][0].item_discount), cost_of_goods: costOfGoods, gross_profit: grossProfit, profit_margin_percent: profitMarginPercent, expenses: approvedExpenses, income, net_profit: money(revenue - costOfGoods - approvedExpenses), products_sold: productsSold, cancelled_transactions: Number(cancellations[0][0].transactions), cancelled_amount: Number(cancellations[0][0].amount), returns: returnCount, return_count: returnCount, returned_quantity: returnSummary[0].reduce((total, row) => total + Number(row.quantity_returned || 0), 0), refund_amount: refundAmount, return_amount: refundAmount },
+      summary,
       comparison_period: comparisonPeriod,
-      previous_summary: {
-        transactions: Number(comparisonSales[0]?.transactions || 0),
-        revenue: comparisonRevenue,
-        gross_sales: comparisonGrossSales,
-        cost_of_goods: comparisonCostOfGoods,
-        gross_profit: comparisonGrossProfit,
-        profit_margin_percent: comparisonGrossSales > 0
-          ? money(comparisonGrossProfit * 100 / comparisonGrossSales)
-          : 0,
-        expenses: comparisonExpenses,
-        income: comparisonIncome,
-        net_profit: comparisonNetProfit,
-        products_sold: Number(comparisonProducts[0]?.products_sold || 0),
-      },
+      previous_summary: previousSummary,
       payment_methods: payments[0], products: products[0], categories: categories[0], cashiers: cashiers[0], customers: customers[0], low_stock: lowStock[0], daily_sales: dailySales[0], daily_expenses: dailyExpenses, daily_income: dailyIncome, daily_returns: dailyReturns, sales_sources: normalizedSalesSources, hourly_sales: hourlySales[0], price_tiers: priceTiers[0], transactions: transactions[0], cancellations: cancellationRows[0], return_summary: returnSummary[0], returns: returns[0], branch_comparison: branchRows
     } });
   } catch (error) { next(error); }

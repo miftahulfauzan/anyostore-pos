@@ -236,7 +236,19 @@ router.get('/profit-loss', authorize('owner', 'manager', 'admin'), async (req, r
     const revenue = money(Number(sales[0].amount) + Number(expenses[0].income));
     const costOfGoods = money(Number(costs[0].amount));
     const approvedExpenses = money(Number(expenses[0].amount));
-    res.json({ success: true, data: { start, end, revenue, cost_of_goods: costOfGoods, expenses: approvedExpenses, income: Number(expenses[0].income), gross_profit: money(revenue - costOfGoods), net_profit: money(revenue - costOfGoods - approvedExpenses) } });
+    const data = {
+      start,
+      end,
+      revenue,
+      cost_of_goods: costOfGoods,
+      expenses: approvedExpenses,
+      income: Number(expenses[0].income),
+      gross_profit: money(revenue - costOfGoods),
+    };
+    if (req.user.role === 'owner') {
+      data.net_profit = money(revenue - costOfGoods - approvedExpenses);
+    }
+    res.json({ success: true, data });
   } catch (e) { next(e); }
 });
 

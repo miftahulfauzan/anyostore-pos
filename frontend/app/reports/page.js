@@ -189,7 +189,7 @@ export default function ReportsPage() {
       ) : (
         <>
           <div className="reports-android-summary">
-            <OlseraDashboardSections reportData={report} fallbackData={null} activeBranchId={activeBranchId} period={period} />
+            <OlseraDashboardSections reportData={report} fallbackData={null} activeBranchId={activeBranchId} period={period} role={user?.role} />
           </div>
           <ReportDetailAccordions report={report} user={user} activeBranchId={activeBranchId} />
           <ReportClosingPanel date={period.end} branchId={activeBranchId} role={user?.role} />

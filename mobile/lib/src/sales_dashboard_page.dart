@@ -232,11 +232,12 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
         _num(summary['gross_sales'] ?? summary['revenue'] ?? summary['sales']);
     final transactions = _num(summary['transactions']);
     final productsSold = _num(summary['products_sold']);
-    final hasProfit = summary['net_profit'] != null;
+    final hasProfit = widget.role == 'owner' && summary['net_profit'] != null;
     final fourthLabel = hasProfit ? 'Laba bersih' : 'Pengeluaran';
     final fourthValue =
         hasProfit ? _num(summary['net_profit']) : _num(summary['expenses']);
-    final margin = summary['profit_margin_percent'];
+    final margin =
+        widget.role == 'owner' ? summary['profit_margin_percent'] : null;
     final expenses = _num(summary['expenses']);
     final returns = _num(summary['return_amount'] ?? summary['refund_amount']);
 
@@ -303,27 +304,29 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                                     : previous['expenses']))),
                   ],
                 ),
-                const SizedBox(height: 10),
-                _divider(context),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Text('Margin keuntungan',
-                        style: TextStyle(
-                            fontSize: TaskTypography.micro,
-                            color: taskMuted(context),
-                            fontWeight: FontWeight.w600)),
-                    const Spacer(),
-                    Text(
-                        margin == null
-                            ? '-'
-                            : '${_num(margin).toStringAsFixed(2).replaceAll('.', ',')}%',
-                        style: TextStyle(
-                            fontSize: TaskTypography.label,
-                            fontWeight: FontWeight.w800,
-                            color: ink(context))),
-                  ],
-                ),
+                if (widget.role == 'owner') ...[
+                  const SizedBox(height: 10),
+                  _divider(context),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Text('Margin keuntungan',
+                          style: TextStyle(
+                              fontSize: TaskTypography.micro,
+                              color: taskMuted(context),
+                              fontWeight: FontWeight.w600)),
+                      const Spacer(),
+                      Text(
+                          margin == null
+                              ? '-'
+                              : '${_num(margin).toStringAsFixed(2).replaceAll('.', ',')}%',
+                          style: TextStyle(
+                              fontSize: TaskTypography.label,
+                              fontWeight: FontWeight.w800,
+                              color: ink(context))),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

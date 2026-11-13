@@ -181,6 +181,8 @@ void main() {
     // Hanya satu kontrol tanggal: preset periode (7 hari/30 hari/bulan ini)
     // tidak boleh muncul lagi di tab penutupan.
     expect(find.byKey(const ValueKey('reports-period-selector')), findsNothing);
+    expect(find.byTooltip('Buka filter'), findsNothing);
+    expect(find.byTooltip('Export CSV'), findsNothing);
     expect(find.textContaining('Periode:'), findsNothing);
     expect(find.text('Rp2.415.000'), findsWidgets);
   });
@@ -205,6 +207,24 @@ void main() {
     expect(find.text('Laba kotor'), findsOneWidget);
     expect(find.text('Persentase keuntungan'), findsOneWidget);
     expect(find.text('Laba bersih'), findsOneWidget);
+  });
+
+  testWidgets('non-owner does not see margin or net profit', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final api = ReportsApi();
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+          body: ReportsPage(api: api, role: 'admin', dashboardMode: true)),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Margin keuntungan'), findsNothing);
+    expect(find.text('Laba bersih'), findsNothing);
+    expect(find.text('Pengeluaran'), findsWidgets);
   });
 
   testWidgets('cashier dashboard uses the selected period contract',
