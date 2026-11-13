@@ -260,11 +260,20 @@ function buildReceipt(receipt = {}) {
       mid = `${qty}x${price}`;
       nameWidth = inner - mid.length - amount.length - 3;
     }
-    const nameCol = Math.min(16, Math.max(4, nameWidth));
+    let nameCol = Math.min(16, Math.max(4, nameWidth));
+    // Sisa ruang dibagi rata kiri/kanan kolom qty x harga supaya kolom itu
+    // berada di tengah antara nama produk dan jumlah (tidak menempel nama).
+    let gap = inner - nameCol - mid.length - amount.length;
+    if (gap < 2) {
+      nameCol = Math.max(4, Math.min(nameCol, inner - mid.length - amount.length - 2));
+      gap = inner - nameCol - mid.length - amount.length;
+    }
+    if (gap < 0) gap = 0;
+    const left = Math.floor(gap / 2);
+    const right = gap - left;
     const body = String(name ?? '');
     const safeName = body.length <= nameCol ? body : `${body.slice(0, nameCol - 1)}.`;
-    const gap = inner - nameCol - 1 - mid.length - amount.length - 1;
-    emit(`${safeName.padEnd(nameCol, ' ')} ${mid}${' '.repeat(gap < 1 ? 1 : gap)}${amount}`);
+    emit(`${safeName.padEnd(nameCol, ' ')}${' '.repeat(left)}${mid}${' '.repeat(right)}${amount}`);
   };
 
   const rule = () => {

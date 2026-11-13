@@ -136,12 +136,21 @@ class ReceiptLayout {
         mid = '${qty}x$price';
         nameWidth = _inner - mid.length - amount.length - 3;
       }
-      final nameCol = nameWidth.clamp(4, 16);
+      var nameCol = nameWidth.clamp(4, 16);
+      // Sisa ruang dibagi rata kiri/kanan kolom qty x harga supaya kolom itu
+      // berada di tengah antara nama produk dan jumlah (tidak menempel nama).
+      var gap = _inner - nameCol - mid.length - amount.length;
+      if (gap < 2) {
+        nameCol = nameCol.clamp(4, _inner - mid.length - amount.length - 2);
+        gap = _inner - nameCol - mid.length - amount.length;
+      }
+      if (gap < 0) gap = 0;
+      final left = gap ~/ 2;
+      final right = gap - left;
       final safeName =
           name.length <= nameCol ? name : '${name.substring(0, nameCol - 1)}.';
-      final gap = _inner - nameCol - 1 - mid.length - amount.length - 1;
-      emit('${safeName.padRight(nameCol)} $mid'
-          '${' ' * (gap < 1 ? 1 : gap)}$amount');
+      emit('${safeName.padRight(nameCol)}${' ' * left}$mid'
+          '${' ' * right}$amount');
     }
 
     void rule() {
