@@ -56,7 +56,8 @@ void main() {
 
     for (final size in ['58', '80']) {
       final layout = ReceiptLayout.fromReceipt(_receipt(size: size));
-      final rows = layout.build(_receipt(size: size));
+      // Baris nama toko (`big`) dicetak huruf lebar ganda tanpa padding.
+      final rows = layout.build(_receipt(size: size)).where((row) => !row.big);
       // Semua baris sama panjang -> margin kiri dan kanan identik.
       expect(rows.every((row) => row.text.length == layout.width), isTrue);
       // Teks tidak menempel tepi kertas.

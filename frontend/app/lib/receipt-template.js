@@ -60,3 +60,19 @@ export const RECEIPT_SAMPLE = {
   amount_paid: 2480000,
   change: 0,
 };
+/**
+ * Baris untuk <pre> pratinjau. Baris `big` (nama toko) dicetak 2x lebar oleh
+ * printer, jadi di pratinjau teksnya ditempatkan di tengah selebar kertas.
+ */
+export function receiptPreviewRows(meta = {}, lines = []) {
+  const width = Number(meta.width) || 64;
+  const margin = Number(meta.margin) || 4;
+  const inner = Math.max(1, width - margin * 2);
+  return (lines || []).map((line) => {
+    if (!line.big) return line.text;
+    const text = String(line.text || '').slice(0, Math.floor(inner / 2));
+    const gap = Math.max(0, inner - text.length * 2);
+    const left = Math.floor(gap / 2);
+    return `${' '.repeat(margin)}${' '.repeat(left)}${text}${' '.repeat(Math.max(0, gap - left))}${' '.repeat(margin)}`;
+  });
+}

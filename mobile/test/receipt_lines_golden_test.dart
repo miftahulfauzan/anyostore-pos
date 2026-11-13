@@ -94,7 +94,12 @@ void main() {
     expect(teks, contains('A104'));
     expect(teks, contains('Rp290.000'));
     expect(teks, contains('Tunai'));
-    expect(lines.every((line) => line.text.length == 64), isTrue);
+    // Nama toko (`big`) dicetak huruf lebar ganda, jadi tidak ikut dihitung.
+    expect(
+        lines
+            .where((line) => !line.big)
+            .every((line) => line.text.length == 64),
+        isTrue);
   });
 
   test('baris server yang kosong tetap jatuh ke susunan lokal', () {

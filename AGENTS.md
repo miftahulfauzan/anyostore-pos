@@ -59,6 +59,8 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 | `commissions.js` | `/api/commissions` | Komisi staf (per_pcs_customer_tier dll), rules, report, generate |
 | `promotions.js` | `/api/promotions` | Promo/diskon + validate |
 | `tax.js` | `/api/tax` | Laporan pajak: PPN, Faktur Pajak, PPh23 |
+| `reseller.js` | `/api/reseller` | **Pembeli reseller** (publik, cookie `buyer_session`, bukan `pos_access`): register/login/logout/me, alamat tersimpan (multi), `POST /orders` (guest & member; harga dihitung server dari produk/varian, tanpa minimum order), `GET /orders` (riwayat akun), `GET /orders/:token` (status publik via token 32 hex), `GET /orders/lookup?order_no=&phone=`, `GET /payment-info` (rekening + QRIS statis dari setelan) |
+| `reseller-admin.js` | `/api/reseller-admin` | Staf (owner/manager/admin): daftar & detail pesanan, `confirm`/`reject`/`mark-paid`/`ship`/`done`, `convert` (buat transaksi POS + potong stok lewat `adjustStock`, hanya setelah `payment_status=paid`), akun pembeli (suspend, reset password sementara), `summary` untuk badge sidebar |
 
 ### Struk: satu aturan untuk web & Android (2026-11-13)
 
@@ -89,6 +91,10 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 | Tabel | Kolom penting |
 |-------|--------------|
 | `branches` | id, name, address, phone, email, npwp, pricing_tier_enabled, is_active |
+| `reseller_accounts` | email (UNIQUE), password_hash, customer_id, branch_id, status active/suspended — akun pembeli situs reseller, terpisah dari `users` |
+| `reseller_orders` | order_no `RS-YYYYMMDD-B<branch>-NNNN`, public_token (32 hex, dipakai halaman status tanpa login), status new/confirmed/paid/shipped/done/rejected/cancelled, payment_status, shipping_cost, tracking_no, transaction_id (diisi saat konversi), client_order_id (idempotensi) |
+| `reseller_order_items` | order_id, product_id, variant_id, product_name, sku, price, quantity, subtotal |
+| `customer_addresses` | account_id, recipient, phone, address, city, postal_code, is_default (multi alamat pembeli) |
 | `users` | branch_id, name, role, pin, is_active |
 | `categories` | name, slug, sku_prefix, is_active |
 | `products` | branch_id, category_id, name, description, sku (UNIQUE global), barcode, price, cost, stock, min_stock, gender, is_active |

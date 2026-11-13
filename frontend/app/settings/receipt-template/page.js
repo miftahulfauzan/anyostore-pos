@@ -7,6 +7,7 @@ import {
   RECEIPT_SAMPLE,
   RECEIPT_TEMPLATE_DEFAULTS,
   isOn,
+  receiptPreviewRows,
 } from '../../lib/receipt-template';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -104,7 +105,7 @@ export default function ReceiptTemplatePage() {
   // yang sama dengan cetak thermal Android, jadi tidak ada implementasi kedua.
   const [layout, setLayout] = useState({ width: 64, margin: 4, inner: 56, font: 'b', lines: [] });
   const preview = useMemo(
-    () => (layout.lines || []).map((line) => line.text).join('\n'),
+    () => receiptPreviewRows(layout, layout.lines || []).join('\n'),
     [layout],
   );
   const grid = layout;

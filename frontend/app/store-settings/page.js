@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '../components/AppShell';
 import { useAppSession } from '../components/AppStateProvider';
 import SafeImage from '../components/SafeImage';
-import { RECEIPT_SAMPLE, isOn } from '../lib/receipt-template';
+import { RECEIPT_SAMPLE, isOn, receiptPreviewRows } from '../lib/receipt-template';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const headers = () => ({ 'Content-Type': 'application/json' });
@@ -416,7 +416,7 @@ export default function StoreSettingsPage() {
   // persis dengan hasil cetak thermal Android dan halaman resi web.
   const [receiptLayout, setReceiptLayout] = useState({ width: 64, margin: 4, lines: [] });
   const preview = useMemo(
-    () => (receiptLayout.lines || []).map((line) => line.text).join('\n'),
+    () => receiptPreviewRows(receiptLayout, receiptLayout.lines || []).join('\n'),
     [receiptLayout],
   );
   const grid = receiptLayout;

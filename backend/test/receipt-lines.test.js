@@ -22,7 +22,8 @@ test('semua fixture golden cocok dengan aturan server', () => {
 test('setiap baris struk selebar kertas (tidak ada baris melipat di printer)', () => {
   for (const fixture of fixtures) {
     const { width, lines } = fixture.expected;
-    lines.forEach((line, index) => {
+    lines.filter((line) => !line.big).forEach((line) => {
+      const index = lines.indexOf(line);
       assert.equal(line.text.length, width, `${fixture.file} baris ${index} lebarnya ${line.text.length}, harus ${width}`);
       assert.ok(['left', 'center'].includes(line.alignment));
       assert.equal(typeof line.bold, 'boolean');

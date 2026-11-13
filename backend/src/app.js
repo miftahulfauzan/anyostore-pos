@@ -29,6 +29,8 @@ const linkPageRouter = require('./routes/link-page');
 const activityLogsRouter = require('./routes/activity-logs');
 const backupRouter = require('./routes/backup');
 const olseraImportRouter = require('./routes/olsera-import');
+const resellerRouter = require('./routes/reseller');
+const resellerAdminRouter = require('./routes/reseller-admin');
 const path = require('path');
 const { serveBlob } = require('./media-storage');
 
@@ -105,6 +107,8 @@ app.use('/api/dashboard', dashboardRouter);
 app.use('/api/commissions', commissionsRouter);
 app.use('/api/promotions', promotionsRouter);
 app.use('/api/tax', taxRouter);
+app.use('/api/reseller', resellerRouter);
+app.use('/api/reseller-admin', resellerAdminRouter);
 
 app.use((req, res) => res.status(404).json({ success: false, message: 'Endpoint tidak ditemukan' }));
 app.use((error, _req, res, _next) => {

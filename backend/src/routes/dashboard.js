@@ -70,10 +70,10 @@ router.get('/', async (req, res, next) => {
 
     const salesSql =
       'SELECT ' +
-      'COALESCE(SUM(CASE WHEN t.transaction_date = CURDATE() THEN t.grand_total - t.cancelled_amount - t.refunded_amount ELSE 0 END), 0) AS today_sales, ' +
+      'COALESCE(SUM(CASE WHEN t.transaction_date = CURDATE() THEN GREATEST(t.grand_total - t.cancelled_amount - t.refunded_amount - COALESCE(t.shipping_cost, 0), 0) ELSE 0 END), 0) AS today_sales, ' +
       'SUM(CASE WHEN t.transaction_date = CURDATE() THEN 1 ELSE 0 END) AS today_transactions, ' +
-      'COALESCE(SUM(CASE WHEN t.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) THEN t.grand_total - t.cancelled_amount - t.refunded_amount ELSE 0 END), 0) AS seven_day_sales, ' +
-      'COALESCE(SUM(CASE WHEN YEAR(t.transaction_date) = YEAR(CURDATE()) AND MONTH(t.transaction_date) = MONTH(CURDATE()) THEN t.grand_total - t.cancelled_amount - t.refunded_amount ELSE 0 END), 0) AS month_sales ' +
+      'COALESCE(SUM(CASE WHEN t.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) THEN GREATEST(t.grand_total - t.cancelled_amount - t.refunded_amount - COALESCE(t.shipping_cost, 0), 0) ELSE 0 END), 0) AS seven_day_sales, ' +
+      'COALESCE(SUM(CASE WHEN YEAR(t.transaction_date) = YEAR(CURDATE()) AND MONTH(t.transaction_date) = MONTH(CURDATE()) THEN GREATEST(t.grand_total - t.cancelled_amount - t.refunded_amount - COALESCE(t.shipping_cost, 0), 0) ELSE 0 END), 0) AS month_sales ' +
       `FROM transactions t WHERE t.status IN (${SALES_STATUSES_SQL})` + transactionScope;
     const productsSoldSql =
       'SELECT COALESCE(SUM(ti.quantity - ti.cancelled_qty - ti.returned_qty), 0) AS products_sold ' +
@@ -90,7 +90,7 @@ router.get('/', async (req, res, next) => {
       'FROM transactions t JOIN users u ON u.id = t.user_id JOIN branches b ON b.id = t.branch_id ' +
       'WHERE 1 = 1' + transactionScope + ' ORDER BY t.transaction_date DESC, t.created_at DESC LIMIT 6';
     const trendSql =
-      "SELECT DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS date, COUNT(*) AS transactions, COALESCE(SUM(t.grand_total - t.cancelled_amount - t.refunded_amount), 0) AS sales " +
+      "SELECT DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS date, COUNT(*) AS transactions, COALESCE(SUM(GREATEST(t.grand_total - t.cancelled_amount - t.refunded_amount - COALESCE(t.shipping_cost, 0), 0)), 0) AS sales " +
       `FROM transactions t WHERE t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)` +
       transactionScope + ' GROUP BY t.transaction_date ORDER BY date';
     const paymentSql =
@@ -105,7 +105,7 @@ router.get('/', async (req, res, next) => {
     // tetap dipertahankan untuk caller lama, tetapi web dan Android memakai
     // kontrak selected_* agar angka tidak kembali ke hari/bulan server.
     const selectedSalesSql =
-      'SELECT COUNT(*) AS transactions, COALESCE(SUM(t.grand_total - t.cancelled_amount - t.refunded_amount), 0) AS sales ' +
+      'SELECT COUNT(*) AS transactions, COALESCE(SUM(GREATEST(t.grand_total - t.cancelled_amount - t.refunded_amount - COALESCE(t.shipping_cost, 0), 0)), 0) AS sales ' +
       `FROM transactions t WHERE t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?` + transactionScope;
     const selectedProductsSoldSql =
       'SELECT COALESCE(SUM(ti.quantity - ti.cancelled_qty - ti.returned_qty), 0) AS products_sold ' +
@@ -119,7 +119,7 @@ router.get('/', async (req, res, next) => {
       `WHERE t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?` + transactionScope +
       ' ORDER BY t.transaction_date DESC, t.created_at DESC LIMIT 6';
     const selectedTrendSql =
-      "SELECT DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS date, COUNT(*) AS transactions, COALESCE(SUM(t.grand_total - t.cancelled_amount - t.refunded_amount), 0) AS sales " +
+      "SELECT DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS date, COUNT(*) AS transactions, COALESCE(SUM(GREATEST(t.grand_total - t.cancelled_amount - t.refunded_amount - COALESCE(t.shipping_cost, 0), 0)), 0) AS sales " +
       `FROM transactions t WHERE t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?` +
       transactionScope + ' GROUP BY t.transaction_date ORDER BY date';
     const selectedPaymentSql =
@@ -205,9 +205,9 @@ router.get('/', async (req, res, next) => {
     const storeScope = selectedBranchId === null ? '' : ' AND b.id = ?';
     const stores = owner ? (await db.execute(
       `SELECT b.id, b.name, b.address,
-        COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount - t.refunded_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date = CURDATE()), 0) AS today_sales,
-        COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount - t.refunded_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)), 0) AS seven_day_sales,
-        COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount - t.refunded_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')), 0) AS month_sales,
+        COALESCE((SELECT SUM(GREATEST(t.grand_total - t.cancelled_amount - t.refunded_amount - COALESCE(t.shipping_cost, 0), 0)) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date = CURDATE()), 0) AS today_sales,
+        COALESCE((SELECT SUM(GREATEST(t.grand_total - t.cancelled_amount - t.refunded_amount - COALESCE(t.shipping_cost, 0), 0)) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)), 0) AS seven_day_sales,
+        COALESCE((SELECT SUM(GREATEST(t.grand_total - t.cancelled_amount - t.refunded_amount - COALESCE(t.shipping_cost, 0), 0)) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')), 0) AS month_sales,
         COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id AND e.status = 'approved' AND e.expense_date = CURDATE()), 0) AS today_expenses,
         COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id AND e.status = 'approved' AND e.expense_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)), 0) AS seven_day_expenses,
         COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id AND e.status = 'approved' AND YEAR(e.expense_date) = YEAR(CURDATE()) AND MONTH(e.expense_date) = MONTH(CURDATE())), 0) AS month_expenses,
@@ -220,7 +220,7 @@ router.get('/', async (req, res, next) => {
     ))[0] : [];
     const selectedStores = owner ? (await db.execute(
       `SELECT b.id, b.name, b.address,
-        COALESCE((SELECT SUM(t.grand_total - t.cancelled_amount - t.refunded_amount) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?), 0) AS selected_sales,
+        COALESCE((SELECT SUM(GREATEST(t.grand_total - t.cancelled_amount - t.refunded_amount - COALESCE(t.shipping_cost, 0), 0)) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?), 0) AS selected_sales,
         COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id AND e.status = 'approved' AND e.expense_date BETWEEN ? AND ?), 0) AS selected_expenses,
         COALESCE((SELECT COUNT(*) FROM transactions t WHERE t.branch_id = b.id AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?), 0) AS selected_transactions,
         (SELECT COUNT(*) FROM products p WHERE p.branch_id = b.id AND p.is_active = TRUE) AS products

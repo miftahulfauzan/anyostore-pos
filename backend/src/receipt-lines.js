@@ -260,17 +260,16 @@ function buildReceipt(receipt = {}) {
       mid = `${qty}x${price}`;
       nameWidth = inner - mid.length - amount.length - 3;
     }
-    let nameCol = Math.min(16, Math.max(4, nameWidth));
-    // Sisa ruang dibagi rata kiri/kanan kolom qty x harga supaya kolom itu
-    // berada di tengah antara nama produk dan jumlah (tidak menempel nama).
-    let gap = inner - nameCol - mid.length - amount.length;
-    if (gap < 2) {
-      nameCol = Math.max(4, Math.min(nameCol, inner - mid.length - amount.length - 2));
-      gap = inner - nameCol - mid.length - amount.length;
-    }
-    if (gap < 0) gap = 0;
-    const left = Math.floor(gap / 2);
-    const right = gap - left;
+    const nameCol = Math.min(16, Math.max(4, nameWidth));
+    // Kolom qty x harga diletakkan tepat di tengah kertas, sejajar dengan label
+    // WhatsApp di kepala struk (bukan sekadar di tengah ruang sisa).
+    const minStart = nameCol;
+    const maxStart = inner - amount.length - mid.length;
+    let midStart = Math.round(inner / 2 - mid.length / 2);
+    if (midStart > maxStart) midStart = maxStart;
+    if (midStart < minStart) midStart = minStart;
+    const left = Math.max(0, midStart - nameCol);
+    const right = Math.max(0, inner - midStart - mid.length - amount.length);
     const body = String(name ?? '');
     const safeName = body.length <= nameCol ? body : `${body.slice(0, nameCol - 1)}.`;
     emit(`${safeName.padEnd(nameCol, ' ')}${' '.repeat(left)}${mid}${' '.repeat(right)}${amount}`);
@@ -287,7 +286,14 @@ function buildReceipt(receipt = {}) {
   };
 
   // ===== Kepala: nama toko, sapaan, alamat, nomor WhatsApp =====
-  centered(ascii(value(store, 'store_name', { fallback: 'Anyostore' })), { bold: true });
+  // Nama toko dicetak huruf lebar ganda (setara ukuran logo di atasnya);
+  // kalau terlalu panjang untuk kertas, kembali ke huruf normal.
+  const storeName = ascii(value(store, 'store_name', { fallback: 'Anyostore' }));
+  if (storeName.length * 2 <= inner) {
+    lines.push({ text: storeName, bold: true, big: true, alignment: 'center' });
+  } else {
+    centered(storeName, { bold: true });
+  }
   optional(store.receipt_header, centered);
   emit('');
   if (isOn(store, 'receipt_show_address')) {
@@ -332,6 +338,9 @@ function buildReceipt(receipt = {}) {
   pair(text(store, 'receipt_label_subtotal', 'Subtotal'), money(data.subtotal));
   const discount = asNum(data.discount);
   if (discount > 0) pair(text(store, 'receipt_label_discount', 'Diskon'), `-${money(discount)}`);
+  // Ongkir pesanan reseller: baris terpisah, sudah termasuk di grand_total.
+  const shipping = asNum(data.shipping_cost);
+  if (shipping > 0) pair(text(store, 'receipt_label_shipping', 'Ongkir'), money(shipping));
   pair(text(store, 'receipt_label_total', 'Total'), money(data.grand_total));
   rule();
 

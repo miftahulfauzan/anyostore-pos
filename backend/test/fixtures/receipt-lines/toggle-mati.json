@@ -73,8 +73,9 @@
     "inner": 56,
     "lines": [
       {
-        "text": "                        ANYOSTORE METRO                         ",
+        "text": "ANYOSTORE METRO",
         "bold": true,
+        "big": true,
         "alignment": "center"
       },
       {
@@ -128,17 +129,17 @@
         "alignment": "left"
       },
       {
-        "text": "    Celana Denim Ba.          3 x 145.000          Rp435.000    ",
+        "text": "    Celana Denim Ba.       3 x 145.000             Rp435.000    ",
         "bold": false,
         "alignment": "left"
       },
       {
-        "text": "    Jaket Denim Ove.          1 x 210.000          Rp210.000    ",
+        "text": "    Jaket Denim Ove.       1 x 210.000             Rp210.000    ",
         "bold": false,
         "alignment": "left"
       },
       {
-        "text": "    Rok Denim A Line          2 x 98.000           Rp196.000    ",
+        "text": "    Rok Denim A Line       2 x 98.000              Rp196.000    ",
         "bold": false,
         "alignment": "left"
       },

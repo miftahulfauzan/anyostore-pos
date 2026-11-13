@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'format.dart';
 
 enum ReceiptLineAlignment { left, center }
@@ -7,11 +9,15 @@ class ReceiptLine {
     this.text, {
     this.alignment = ReceiptLineAlignment.left,
     this.bold = false,
+    this.big = false,
   });
 
   final String text;
   final ReceiptLineAlignment alignment;
   final bool bold;
+
+  /// Huruf lebar ganda (printer mencetak ukuran 2x) — dipakai nama toko.
+  final bool big;
 }
 
 /// Tata letak struk thermal ESC/POS.
@@ -82,6 +88,7 @@ class ReceiptLayout {
         parsed.add(ReceiptLine(
           row['text']?.toString() ?? '',
           bold: row['bold'] == true,
+          big: row['big'] == true,
           alignment: row['alignment'] == 'center'
               ? ReceiptLineAlignment.center
               : ReceiptLineAlignment.left,
@@ -136,17 +143,15 @@ class ReceiptLayout {
         mid = '${qty}x$price';
         nameWidth = _inner - mid.length - amount.length - 3;
       }
-      var nameCol = nameWidth.clamp(4, 16);
-      // Sisa ruang dibagi rata kiri/kanan kolom qty x harga supaya kolom itu
-      // berada di tengah antara nama produk dan jumlah (tidak menempel nama).
-      var gap = _inner - nameCol - mid.length - amount.length;
-      if (gap < 2) {
-        nameCol = nameCol.clamp(4, _inner - mid.length - amount.length - 2);
-        gap = _inner - nameCol - mid.length - amount.length;
-      }
-      if (gap < 0) gap = 0;
-      final left = gap ~/ 2;
-      final right = gap - left;
+      final nameCol = nameWidth.clamp(4, 16);
+      // Kolom qty x harga tepat di tengah kertas, sejajar label WhatsApp.
+      final minStart = nameCol;
+      final maxStart = _inner - amount.length - mid.length;
+      var midStart = (_inner / 2 - mid.length / 2).round();
+      if (midStart > maxStart) midStart = maxStart;
+      if (midStart < minStart) midStart = minStart;
+      final left = math.max(0, midStart - nameCol);
+      final right = math.max(0, _inner - midStart - mid.length - amount.length);
       final safeName =
           name.length <= nameCol ? name : '${name.substring(0, nameCol - 1)}.';
       emit('${safeName.padRight(nameCol)}${' ' * left}$mid'
@@ -165,8 +170,16 @@ class ReceiptLayout {
     }
 
     // ===== Kepala: nama toko, sapaan, alamat, nomor WhatsApp =====
-    centered(_ascii(_value(store, 'store_name', fallback: 'Anyostore')),
-        bold: true);
+    // Nama toko dicetak huruf lebar ganda supaya lebarnya setara logo di
+    // atasnya; nama yang terlalu panjang kembali ke huruf normal.
+    final storeName =
+        _ascii(_value(store, 'store_name', fallback: 'Anyostore'));
+    if (storeName.length * 2 <= _inner) {
+      result.add(ReceiptLine(storeName,
+          bold: true, big: true, alignment: ReceiptLineAlignment.center));
+    } else {
+      centered(storeName, bold: true);
+    }
     _optional(store['receipt_header'], centered);
     emit('');
     if (_on(store, 'receipt_show_address')) {

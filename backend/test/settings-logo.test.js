@@ -38,11 +38,11 @@ test('field kontak kepala nota yang tidak pernah tercetak sudah dibuang', () => 
   assert.doesNotMatch(printerSource, /receipt_contacts/);
 });
 
-test('hapus logo invoice tersedia untuk pengelola toko', () => {
+test('hapus logo invoice (dan QRIS) tersedia untuk pengelola toko', () => {
   const route = logoDeleteRoute();
   const routeSource = settingsSource.slice(settingsSource.indexOf("router.delete('/logo'"));
   assert.match(settingsSource, /router\.delete\('\/logo', authorize\('owner','manager','admin'\)/);
-  assert.match(routeSource, /key !== 'invoice_logo'/);
+  assert.match(routeSource, /\['invoice_logo', 'payment_qris_image'\]\.includes\(key\)/);
   assert.match(routeSource, /invoice_logo/);
   assert.match(routeSource, /DELETE FROM store_settings/);
   assert.match(routeSource, /const oldPath = previous\[0\]\?\.value/);

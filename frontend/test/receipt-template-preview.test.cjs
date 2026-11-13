@@ -63,7 +63,8 @@ test('setiap baris pratinjau selebar kertas dengan margin kiri = kanan', () => {
     const { width, margin } = receiptLayout({ store: { printer_size: size } });
     const rows = rowsFor({ printer_size: size });
     assert.ok(rows.length > 10);
-    for (const row of rows) {
+    // Baris `big` (nama toko) dicetak huruf lebar ganda tanpa padding.
+    for (const row of rows.filter((line) => !line.big)) {
       assert.equal(row.text.length, width, `baris tidak selebar ${width}: ${JSON.stringify(row.text)}`);
       assert.equal(row.text.slice(0, margin), ' '.repeat(margin));
       assert.equal(row.text.slice(-margin), ' '.repeat(margin));

@@ -5,7 +5,7 @@ const { assertValidUpload, createMediaUpload, decodeDataUpload, discardUploadedF
 
 const router = express.Router();
 router.use(authenticate);
-const allowed = new Set(['allow_negative_stock','receipt_show_logo','receipt_show_address','receipt_show_wa','receipt_show_npwp','receipt_show_cashier','receipt_show_customer','receipt_show_payment','receipt_show_paid','receipt_show_change','receipt_title_info','receipt_title_products','receipt_label_invoice','receipt_label_date','receipt_label_cashier','receipt_label_customer','receipt_label_subtotal','receipt_label_discount','receipt_label_total','receipt_label_paid','receipt_label_change','receipt_closing','receipt_separator','receipt_font','receipt_margin','store_name','store_address','store_phone','store_email','store_tax_id','receipt_header','receipt_footer','receipt_note','printer_size','auto_print','theme','tax_rate','prices_include_tax','loyalty_enabled','loyalty_points_rate','loyalty_points_value','show_logo','show_qr','show_cashier','show_barcode','low_stock_alert','low_stock_email','order_prefix','invoice_prefix','whatsapp_number','whatsapp_number_2','whatsapp_number_3','whatsapp_numbers','landing_page_size','min_order_qty','ongkir_provider','rajaongkir_api_key','rajaongkir_origin_id','rajaongkir_origin_label','ongkir_couriers','daily_email_enabled','daily_email_to','daily_email_from','daily_email_time','daily_email_api_url','daily_email_api_key']);
+const allowed = new Set(['allow_negative_stock','receipt_show_logo','receipt_show_address','receipt_show_wa','receipt_show_npwp','receipt_show_cashier','receipt_show_customer','receipt_show_payment','receipt_show_paid','receipt_show_change','receipt_title_info','receipt_title_products','receipt_label_invoice','receipt_label_date','receipt_label_cashier','receipt_label_customer','receipt_label_subtotal','receipt_label_discount','receipt_label_total','receipt_label_paid','receipt_label_change','receipt_closing','receipt_separator','receipt_font','receipt_margin','store_name','store_address','store_phone','store_email','store_tax_id','receipt_header','receipt_footer','receipt_note','printer_size','auto_print','theme','tax_rate','prices_include_tax','loyalty_enabled','loyalty_points_rate','loyalty_points_value','show_logo','show_qr','show_cashier','show_barcode','low_stock_alert','low_stock_email','order_prefix','invoice_prefix','whatsapp_number','whatsapp_number_2','whatsapp_number_3','whatsapp_numbers','landing_page_size','min_order_qty','ongkir_provider','rajaongkir_api_key','rajaongkir_origin_id','rajaongkir_origin_label','ongkir_couriers','daily_email_enabled','daily_email_to','daily_email_from','daily_email_time','daily_email_api_url','daily_email_api_key','payment_bank_accounts','payment_qris_image','payment_note']);
 const allowedThemes = new Set(['green', 'blue', 'purple', 'teal', 'rose', 'amber']);
 const dailyEmailKeys = new Set(['daily_email_enabled','daily_email_to','daily_email_from','daily_email_time','daily_email_api_url','daily_email_api_key']);
 const DEFAULT_EMAIL_API_URL = 'https://api.resend.com/emails';
@@ -337,8 +337,12 @@ router.post('/logo', authorize('owner','manager','admin'), logoUpload.single('lo
 router.post('/logo-data', authorize('owner','manager','admin'), async (req, res, next) => {
   try {
     const id = branchId(req);
-    // key: store_logo (logo aplikasi) atau invoice_logo (logo kepala invoice)
-    const key = req.body.key === 'invoice_logo' ? 'invoice_logo' : 'store_logo';
+    // key: store_logo (logo aplikasi), invoice_logo (kepala invoice), atau
+    // payment_qris (gambar QRIS statis untuk halaman pembayaran reseller).
+    const requested = String(req.body?.key || '').trim();
+    const key = ['invoice_logo', 'payment_qris'].includes(requested)
+      ? (requested === 'payment_qris' ? 'payment_qris_image' : requested)
+      : 'store_logo';
     const file = decodeDataUpload(req.body, { fileSize: 3 * 1024 * 1024, mimeTypes: ['image/jpeg', 'image/png', 'image/webp'] });
     const [branches] = await db.execute('SELECT id FROM branches WHERE id = ? AND is_active = TRUE', [id]);
     if (!branches[0]) return res.status(404).json({ success: false, message: 'Toko tidak ditemukan' });
@@ -355,8 +359,8 @@ router.delete('/logo', authorize('owner','manager','admin'), async (req, res, ne
   try {
     const id = branchId(req);
     const key = String(req.query.key || req.body?.key || '').trim();
-    if (key !== 'invoice_logo') {
-      return res.status(400).json({ success: false, message: 'Logo yang dapat dihapus hanya logo invoice' });
+    if (!['invoice_logo', 'payment_qris_image'].includes(key)) {
+      return res.status(400).json({ success: false, message: 'Gambar yang dapat dihapus hanya logo invoice dan QRIS' });
     }
     const [previous] = await db.execute(
       'SELECT `value` FROM store_settings WHERE branch_id=? AND `key`=? LIMIT 1',

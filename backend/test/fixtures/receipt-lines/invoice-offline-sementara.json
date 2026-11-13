@@ -51,8 +51,9 @@
     "inner": 56,
     "lines": [
       {
-        "text": "                        ANYOSTORE METRO                         ",
+        "text": "ANYOSTORE METRO",
         "bold": true,
+        "big": true,
         "alignment": "center"
       },
       {
@@ -151,7 +152,7 @@
         "alignment": "left"
       },
       {
-        "text": "    Celana Baggy A1.          2 x 145.000          Rp290.000    ",
+        "text": "    Celana Baggy A1.       2 x 145.000             Rp290.000    ",
         "bold": false,
         "alignment": "left"
       },

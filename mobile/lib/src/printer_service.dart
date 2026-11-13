@@ -293,6 +293,8 @@ class PrinterService {
             ? Alignment.center
             : Alignment.left,
         style: row.bold ? EscTextStyle.bold : EscTextStyle.default_,
+        // Nama toko memakai huruf lebar ganda (setara logo di atasnya).
+        fontSize: row.big ? EscFontSize.size2 : EscFontSize.default_,
         // Font struk mengikuti template dari web (default Font B / kecil).
         font: layout.fontB ? EscFont.b : EscFont.a,
       );
