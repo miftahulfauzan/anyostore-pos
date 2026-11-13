@@ -114,6 +114,40 @@ void main() {
     expect(fonts.every((font) => font == 0), isTrue);
   });
 
+  test('laporan penutupan memakai font yang sama dengan lebar kolomnya',
+      () async {
+    final fonts = <Object?>[];
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    const escChannel = MethodChannel('bluetooth_print_plus_esc');
+    const bluetoothChannel = MethodChannel('bluetooth_print_plus/methods');
+    messenger.setMockMethodCallHandler(escChannel, (call) async {
+      if (call.method == 'text') {
+        fonts.add((call.arguments as Map)['font']);
+      }
+      if (call.method == 'getCommand') return Uint8List.fromList([1]);
+      return null;
+    });
+    messenger.setMockMethodCallHandler(bluetoothChannel, (call) async => null);
+    addTearDown(() {
+      messenger.setMockMethodCallHandler(escChannel, null);
+      messenger.setMockMethodCallHandler(bluetoothChannel, null);
+    });
+
+    await PrinterService().printClosing({
+      'store': {
+        'printer_size': '58',
+        'receipt_font': 'b',
+        'store_name': 'Anyo Blok B',
+      },
+      'date': '2026-11-13',
+      'methods': <String, dynamic>{},
+    });
+
+    expect(fonts, isNotEmpty);
+    expect(fonts.every((font) => font == 1), isTrue);
+  });
+
   test('sends the complete receipt payload in ordered Bluetooth chunks',
       () async {
     final writes = <Uint8List>[];

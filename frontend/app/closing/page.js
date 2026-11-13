@@ -37,6 +37,7 @@ export default function ClosingPage() {
   const [date, setDate] = useState(currentLocalDate());
   const [data, setData] = useState(null);
   const [storeLogo, setStoreLogo] = useState('');
+  const [printerSize, setPrinterSize] = useState('80');
   const [message, setMessage] = useState('');
   const [preview, setPreview] = useState(false);
   const selectedBranchQuery = activeBranchId === 'all' ? 'all' : activeBranchId;
@@ -97,6 +98,7 @@ export default function ClosingPage() {
     if (!resolved || !user) return;
     if (user.role === 'owner' && selectedBranchQuery === 'all') {
       setStoreLogo('');
+      setPrinterSize('80');
       return;
     }
     const query = user.role === 'owner' && activeBranchId ? `?branch_id=${encodeURIComponent(activeBranchId)}` : '';
@@ -104,6 +106,7 @@ export default function ClosingPage() {
       .then((response) => (response.ok ? response.json() : null))
       .then((body) => {
         const settings = body?.data || {};
+        setPrinterSize(String(settings.printer_size || '80'));
         if (String(settings.show_logo ?? '').toLowerCase() === 'false') {
           setStoreLogo('');
           return;
@@ -342,7 +345,7 @@ export default function ClosingPage() {
             {!data && !message && <p>Memuat laporan…</p>}
             {data && (
               <main className="receipt">
-                <article className="receipt-paper">
+                <article className={`receipt-paper${String(printerSize).startsWith('58') ? ' receipt-58mm' : ''}`}>
                   <header className="receipt-store">
                     {storeLogo && <img className="receipt-logo" src={storeLogo} alt={`Logo ${data.store}`} />}
                     <h1 className="receipt-store-name" style={{ fontSize: `${storeNameFontSize(data.store)}px` }}>{data.store}</h1>

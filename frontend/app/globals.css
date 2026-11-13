@@ -1534,6 +1534,7 @@ a, .photo-upload { color:var(--expressive-secondary); }
 }
 .receipt-paper {
   width: min(80mm, 100%);
+  box-sizing: border-box;
   padding: 8mm 6mm;
   background: #fff;
   box-shadow: 0 12px 35px rgba(15, 23, 42, .14);
@@ -1565,9 +1566,9 @@ a, .photo-upload { color:var(--expressive-secondary); }
   text-transform: uppercase;
 }
 .receipt-invoice dl { display: grid; gap: 4px; margin: 0; }
-.receipt-invoice dl > div { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 8px; }
+.receipt-invoice dl > div { display: grid; grid-template-columns: minmax(0, 1fr) max-content; align-items: baseline; gap: 8px; }
 .receipt-invoice dt { color: #475569; }
-.receipt-invoice dd { margin: 0; overflow-wrap: anywhere; font-weight: 700; text-align: right; }
+.receipt-invoice dd { min-width: 0; margin: 0; overflow-wrap: anywhere; font-weight: 700; text-align: right; }
 .receipt-product-list { display: grid; }
 .receipt-product { padding: 8px 0; border-bottom: 1px dotted #cbd5e1; }
 .receipt-product:first-child { padding-top: 0; }
@@ -1577,8 +1578,9 @@ a, .photo-upload { color:var(--expressive-secondary); }
 .receipt-product-heading b { white-space: nowrap; font-size: 10px; }
 .receipt-product p { margin: 2px 0; color: #64748b; font-size: var(--fs-2xs); overflow-wrap: anywhere; }
 .receipt-product-calculation { display: flex; justify-content: space-between; gap: 8px; color: #334155; font-size: var(--fs-2xs); }
-.receipt-summary-row { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; }
-.receipt-summary-row b { text-align: right; white-space: nowrap; }
+.receipt-summary-row { display: grid; grid-template-columns: minmax(0, 1fr) max-content; align-items: baseline; gap: 10px; padding: 2px 0; }
+.receipt-summary-row span { min-width: 0; overflow-wrap: anywhere; }
+.receipt-summary-row b { min-width: max-content; justify-self: end; text-align: right; white-space: nowrap; }
 .receipt-summary-row.negative b { color: #991b1b; }
 .receipt-summary-row.strong { margin: 6px 0; padding: 7px 0; border-block: 2px solid #111827; font-size: 13px; }
 .receipt-payment-detail { margin-top: 7px; padding-top: 6px; border-top: 1px dotted #94a3b8; }
@@ -1601,7 +1603,7 @@ a, .photo-upload { color:var(--expressive-secondary); }
   @page { margin: 0; }
   body { background: #fff !important; }
   .receipt { display: block; min-height: 0; padding: 0; background: #fff; }
-  .receipt-paper { width: 80mm; margin: 0 auto; padding: 5mm 4mm; box-shadow: none; }
+  .receipt-paper { width: 80mm; box-sizing: border-box; margin: 0 auto; padding: 5mm 4mm; box-shadow: none; }
   .receipt-paper.receipt-58mm { width: 58mm; padding: 4mm 3mm; }
   /* 64 karakter harus muat pada 72 mm; Font B thermal setara ~7 px di web. */
   .receipt-lines { font-size: 7px; }

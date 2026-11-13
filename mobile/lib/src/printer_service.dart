@@ -349,6 +349,7 @@ class PrinterService {
   Future<void> printClosing(Map<String, dynamic> closing) async {
     final esc = EscCommand();
     await esc.cleanCommand();
+    final layout = ReceiptLayout.fromReceipt(closing);
 
     final logo = await _loadReceiptLogo(closing);
     if (logo != null && logo.isNotEmpty) {
@@ -368,6 +369,7 @@ class PrinterService {
             : Alignment.left,
         style: row.bold ? EscTextStyle.bold : EscTextStyle.default_,
         fontSize: row.big ? EscFontSize.size2 : EscFontSize.default_,
+        font: layout.fontB ? EscFont.b : EscFont.a,
       );
       await esc.newline();
     }
