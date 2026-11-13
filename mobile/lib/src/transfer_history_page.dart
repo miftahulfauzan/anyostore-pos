@@ -4,6 +4,17 @@ import 'api_client.dart';
 import 'task_ui.dart';
 import 'ui_kit.dart';
 
+/// Tanggal + jam lokal dari string timestamp server (dipakai kartu & detail).
+String transferDateLabel(Object? raw) {
+  final parsed = DateTime.tryParse('${raw ?? ''}'.replaceFirst(' ', 'T'));
+  if (parsed == null) return '${raw ?? ''}';
+  final date = parsed.toLocal();
+  return '${date.day.toString().padLeft(2, '0')}/'
+      '${date.month.toString().padLeft(2, '0')}/${date.year} '
+      '${date.hour.toString().padLeft(2, '0')}:'
+      '${date.minute.toString().padLeft(2, '0')}';
+}
+
 class TransferHistoryPage extends StatefulWidget {
   const TransferHistoryPage({super.key, required this.api, this.role});
   final ApiClient api;
@@ -79,16 +90,6 @@ class _TransferHistoryPageState extends State<TransferHistoryPage> {
         });
       }
     }
-  }
-
-  String _dateLabel(Object? raw) {
-    final parsed = DateTime.tryParse('${raw ?? ''}'.replaceFirst(' ', 'T'));
-    if (parsed == null) return '${raw ?? ''}';
-    final date = parsed.toLocal();
-    return '${date.day.toString().padLeft(2, '0')}/'
-        '${date.month.toString().padLeft(2, '0')}/${date.year} '
-        '${date.hour.toString().padLeft(2, '0')}:'
-        '${date.minute.toString().padLeft(2, '0')}';
   }
 
   Future<void> _cancelTransfer(Map<String, dynamic> transfer) async {
@@ -299,109 +300,295 @@ class _TransferHistoryPageState extends State<TransferHistoryPage> {
     return GlassCard(
       padding: const EdgeInsets.all(14),
       radius: 18,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text('${transfer['number'] ?? 'Transfer'}',
-                    style: TextStyle(
-                        color: ink(context), fontWeight: FontWeight.w800)),
-              ),
-              Chip(
-                label: Text(label),
-                visualDensity: VisualDensity.compact,
-                side: BorderSide.none,
-                backgroundColor: color.withValues(alpha: .12),
-                labelStyle: TextStyle(
-                    color: color,
-                    fontSize: TaskTypography.badge,
-                    fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
-          Text(_dateLabel(transfer['created_at']),
-              style: TextStyle(
-                  color: taskMuted(context),
-                  fontSize: TaskTypography.secondary)),
-          const SizedBox(height: 8),
-          Text(
-              '${from['branch_name'] ?? from['warehouse_name'] ?? '-'}  →  '
-              '${to['branch_name'] ?? to['warehouse_name'] ?? '-'}',
-              style:
-                  TextStyle(color: ink(context), fontWeight: FontWeight.w600)),
-          Text(
-              '${transfer['product_count'] ?? 0} produk · '
-              '${transfer['total_qty'] ?? 0} pcs · ${transfer['admin'] ?? 'Sistem'}',
-              style: TextStyle(
-                  color: taskMuted(context),
-                  fontSize: TaskTypography.secondary)),
-          if ('${transfer['notes'] ?? ''}'.trim().isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text('${transfer['notes']}',
+      child: InkWell(
+        key: ValueKey('transfer-card-${transfer['id']}'),
+        borderRadius: BorderRadius.circular(18),
+        onTap: () => _showTransferDetail(transfer),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text('${transfer['number'] ?? 'Transfer'}',
+                      style: TextStyle(
+                          color: ink(context), fontWeight: FontWeight.w800)),
+                ),
+                Chip(
+                  label: Text(label),
+                  visualDensity: VisualDensity.compact,
+                  side: BorderSide.none,
+                  backgroundColor: color.withValues(alpha: .12),
+                  labelStyle: TextStyle(
+                      color: color,
+                      fontSize: TaskTypography.badge,
+                      fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+            Text(transferDateLabel(transfer['created_at']),
                 style: TextStyle(
                     color: taskMuted(context),
                     fontSize: TaskTypography.secondary)),
-          ],
-          if (lines.isNotEmpty) ...[
-            const Divider(height: 18),
-            for (final line in lines.take(5))
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '${line['name'] ?? 'Produk'}'
-                        '${line['variant_color'] == null ? '' : ' · ${line['variant_color']}'}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            color: ink(context),
-                            fontSize: TaskTypography.secondary),
-                      ),
-                    ),
-                    Text('${line['qty'] ?? 0} pcs',
-                        style: TextStyle(
-                            color: ink(context),
-                            fontSize: TaskTypography.secondary,
-                            fontWeight: FontWeight.w700)),
-                  ],
-                ),
-              ),
-            if (lines.length > 5)
-              Text('+${lines.length - 5} produk lain',
+            const SizedBox(height: 8),
+            Text(
+                '${from['branch_name'] ?? from['warehouse_name'] ?? '-'}  →  '
+                '${to['branch_name'] ?? to['warehouse_name'] ?? '-'}',
+                style: TextStyle(
+                    color: ink(context), fontWeight: FontWeight.w600)),
+            Text(
+                '${transfer['product_count'] ?? 0} produk · '
+                '${transfer['total_qty'] ?? 0} pcs · ${transfer['admin'] ?? 'Sistem'}',
+                style: TextStyle(
+                    color: taskMuted(context),
+                    fontSize: TaskTypography.secondary)),
+            if ('${transfer['notes'] ?? ''}'.trim().isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text('${transfer['notes']}',
                   style: TextStyle(
                       color: taskMuted(context),
-                      fontSize: TaskTypography.micro)),
+                      fontSize: TaskTypography.secondary)),
+            ],
+            if (lines.isNotEmpty) ...[
+              const Divider(height: 18),
+              for (final line in lines.take(5))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${line['name'] ?? 'Produk'}'
+                          '${line['variant_color'] == null ? '' : ' · ${line['variant_color']}'}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              color: ink(context),
+                              fontSize: TaskTypography.secondary),
+                        ),
+                      ),
+                      Text('${line['qty'] ?? 0} pcs',
+                          style: TextStyle(
+                              color: ink(context),
+                              fontSize: TaskTypography.secondary,
+                              fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                ),
+              if (lines.length > 5)
+                InkWell(
+                  key: ValueKey('transfer-more-${transfer['id']}'),
+                  onTap: () => _showTransferDetail(transfer),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('+${lines.length - 5} produk lain',
+                            style: const TextStyle(
+                                color: kTaskAccent,
+                                fontSize: TaskTypography.micro,
+                                fontWeight: FontWeight.w700)),
+                        const SizedBox(width: 2),
+                        const Icon(Icons.chevron_right,
+                            size: 14, color: kTaskAccent),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+            if (status == 'cancelled' &&
+                '${transfer['cancellation_reason'] ?? ''}'
+                    .trim()
+                    .isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Alasan pembatalan: ${transfer['cancellation_reason']}',
+                style: TextStyle(
+                    color: taskMuted(context),
+                    fontSize: TaskTypography.secondary),
+              ),
+            ],
+            if (_canCancel && status == 'completed') ...[
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton(
+                  key: ValueKey('transfer-cancel-${transfer['id']}'),
+                  onPressed: _cancellingId == int.tryParse('${transfer['id']}')
+                      ? null
+                      : () => _cancelTransfer(transfer),
+                  child: Text(_cancellingId == int.tryParse('${transfer['id']}')
+                      ? 'Membatalkan…'
+                      : 'Batalkan transfer'),
+                ),
+              ),
+            ],
           ],
-          if (status == 'cancelled' &&
-              '${transfer['cancellation_reason'] ?? ''}'.trim().isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              'Alasan pembatalan: ${transfer['cancellation_reason']}',
-              style: TextStyle(
-                  color: taskMuted(context),
-                  fontSize: TaskTypography.secondary),
-            ),
-          ],
-          if (_canCancel && status == 'completed') ...[
+        ),
+      ),
+    );
+  }
+
+  /// Rincian lengkap satu transfer (semua produk, bukan hanya 5 teratas).
+  void _showTransferDetail(Map<String, dynamic> transfer) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => TransferDetailSheet(transfer: transfer),
+    );
+  }
+}
+
+/// Isi sheet "Detail Transfer" — dipisah supaya mudah diuji.
+class TransferDetailSheet extends StatelessWidget {
+  const TransferDetailSheet({super.key, required this.transfer});
+
+  final Map<String, dynamic> transfer;
+
+  @override
+  Widget build(BuildContext context) {
+    final from = transfer['source'] as Map<String, dynamic>? ?? const {};
+    final to = transfer['destination'] as Map<String, dynamic>? ?? const {};
+    final details = transfer['details'] as Map<String, dynamic>? ?? const {};
+    final lines = (details['from'] as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .toList();
+    final status = '${transfer['status'] ?? ''}';
+    final label = switch (status) {
+      'completed' => 'Selesai',
+      'cancelled' => 'Dibatalkan',
+      'pending' => 'Menunggu',
+      'approved' => 'Disetujui',
+      _ => status.isEmpty ? 'Tidak diketahui' : status,
+    };
+    final muted = taskMuted(context);
+    return Container(
+      constraints:
+          BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * .86),
+      decoration: BoxDecoration(
+        color: pageBg(context),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
             const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerRight,
-              child: OutlinedButton(
-                key: ValueKey('transfer-cancel-${transfer['id']}'),
-                onPressed: _cancellingId == int.tryParse('${transfer['id']}')
-                    ? null
-                    : () => _cancelTransfer(transfer),
-                child: Text(_cancellingId == int.tryParse('${transfer['id']}')
-                    ? 'Membatalkan…'
-                    : 'Batalkan transfer'),
+            Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: muted.withValues(alpha: .35),
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Detail Transfer',
+                            style: TextStyle(
+                                color: ink(context),
+                                fontSize: TaskTypography.sectionTitle,
+                                fontWeight: FontWeight.w800)),
+                        Text('${transfer['number'] ?? 'Transfer'} · $label',
+                            style: TextStyle(
+                                color: muted,
+                                fontSize: TaskTypography.secondary)),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Tutup',
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+                children: [
+                  Text(
+                    '${from['branch_name'] ?? from['warehouse_name'] ?? '-'}  →  '
+                    '${to['branch_name'] ?? to['warehouse_name'] ?? '-'}',
+                    style: TextStyle(
+                        color: ink(context), fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${transferDateLabel(transfer['created_at'])} · '
+                    '${transfer['product_count'] ?? lines.length} produk · '
+                    '${transfer['total_qty'] ?? 0} pcs · ${transfer['admin'] ?? 'Sistem'}',
+                    style: TextStyle(
+                        color: muted, fontSize: TaskTypography.secondary),
+                  ),
+                  if ('${transfer['notes'] ?? ''}'.trim().isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text('Catatan: ${transfer['notes']}',
+                        style: TextStyle(
+                            color: muted, fontSize: TaskTypography.secondary)),
+                  ],
+                  if (status == 'cancelled' &&
+                      '${transfer['cancellation_reason'] ?? ''}'
+                          .trim()
+                          .isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                        'Alasan pembatalan: ${transfer['cancellation_reason']}',
+                        style: const TextStyle(
+                            color: kTaskTerracotta,
+                            fontSize: TaskTypography.secondary)),
+                  ],
+                  const Divider(height: 22),
+                  // ignore: prefer_const_constructors
+                  Text('Daftar produk (${lines.length})',
+                      style: TextStyle(
+                          color: ink(context),
+                          fontSize: TaskTypography.secondary,
+                          fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 6),
+                  if (lines.isEmpty)
+                    Text('Tidak ada rincian produk.',
+                        style: TextStyle(
+                            color: muted, fontSize: TaskTypography.secondary)),
+                  for (var index = 0; index < lines.length; index++)
+                    Padding(
+                      key: ValueKey('transfer-detail-item-$index'),
+                      padding: const EdgeInsets.symmetric(vertical: 3),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${lines[index]['name'] ?? 'Produk'}'
+                              '${lines[index]['variant_color'] == null ? '' : ' · ${lines[index]['variant_color']}'}',
+                              style: TextStyle(
+                                  color: ink(context),
+                                  fontSize: TaskTypography.secondary),
+                            ),
+                          ),
+                          Text('${lines[index]['qty'] ?? 0} pcs',
+                              style: TextStyle(
+                                  color: ink(context),
+                                  fontSize: TaskTypography.secondary,
+                                  fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                ],
               ),
             ),
           ],
-        ],
+        ),
       ),
     );
   }
