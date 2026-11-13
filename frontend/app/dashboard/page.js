@@ -17,6 +17,14 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rupiah = (value) => 'Rp' + Number(value || 0).toLocaleString('id-ID');
 const fullDate = (value) => { const [year, month, day] = String(value || '').split('-'); return year ? `${day}/${month}/${year}` : '-'; };
 const transactionDateTime = (transaction) => `${fullDate(transaction.transaction_date)}${transaction.created_at ? `, ${new Date(transaction.created_at).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' })}` : ''}`;
+const DASHBOARD_REQUEST_PATHS = new Set(['/dashboard', '/reports/overview', '/reports/daily-closing']);
+const requestPath = (url) => {
+  try {
+    return new URL(String(url), window.location.origin).pathname.replace(/^\/api/, '');
+  } catch {
+    return '';
+  }
+};
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -42,6 +50,20 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (window.localStorage.getItem('pos_period_filter_open') === '0') setPeriodOpen(false);
+  }, []);
+
+  useEffect(() => {
+    const onRequestError = (event) => {
+      const detail = event.detail || {};
+      const status = Number(detail.status);
+      if (status < 400 || !DASHBOARD_REQUEST_PATHS.has(requestPath(detail.url))) return;
+      dashboardLoadSequence.current.next();
+      setData(null);
+      setReportData(null);
+      setMessage(detail.message || 'Dasbor tidak dapat dimuat karena akses ditolak.');
+    };
+    window.addEventListener('pos:request-error', onRequestError);
+    return () => window.removeEventListener('pos:request-error', onRequestError);
   }, []);
 
   function togglePeriod() {

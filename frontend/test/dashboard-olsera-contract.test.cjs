@@ -115,6 +115,30 @@ test('dashboard does not show the broad dashboard fallback after report access f
   assert.match(sections, /const fallback = role === 'kasir' \? fallbackData : null;/);
 });
 
+test('dashboard closes when a protected dashboard request fails globally', () => {
+  const notification = fs.readFileSync(
+    new URL('../app/components/NotificationCenter.js', `file://${__dirname}/`),
+    'utf8',
+  );
+  assert.match(notification, /pos:request-error/);
+  assert.match(notification, /status: response\.status/);
+  assert.match(source, /DASHBOARD_REQUEST_PATHS/);
+  assert.match(source, /addEventListener\('pos:request-error'/);
+  assert.match(source, /setData\(null\);\s*setReportData\(null\);/);
+  assert.match(source, /status < 400/);
+});
+
+test('closing report does not keep stale data after a failed reload', () => {
+  const closing = fs.readFileSync(
+    new URL('../app/reports/ReportClosingPanel.js', `file://${__dirname}/`),
+    'utf8',
+  );
+  assert.match(closing, /setData\(null\);/);
+  assert.match(closing, /signal: controller\.signal/);
+  assert.match(closing, /controller\.abort\(\)/);
+  assert.match(closing, /open && data && !message/);
+});
+
 test('grafik dasbor tidak menembus keluar kartu (label sumbu Y)', () => {
   const styles = fs.readFileSync(new URL('../app/globals.css', `file://${__dirname}/`), 'utf8');
   // Dulu label sumbu Y diposisikan `right: calc(100% + 38px)` sehingga keluar

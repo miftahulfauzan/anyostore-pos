@@ -131,10 +131,11 @@ export default function ClosingPage() {
       if (selectedBranchQuery === 'all') query.set('branch_id', 'all');
       else query.set('branch_id', activeBranchId);
     }
-    fetch(`${api}/reports/daily-closing?${query.toString()}`, { headers: {} })
+    const controller = new AbortController();
+    fetch(`${api}/reports/daily-closing?${query.toString()}`, { headers: {}, signal: controller.signal })
       .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.message); setData(b.data); })
-      .catch((e) => setMessage(e.message));
-    return undefined;
+      .catch((e) => { if (e?.name !== 'AbortError') setMessage(e.message); });
+    return () => controller.abort();
   }, [date, user, activeBranchId, resolved]);
 
   const drawer = cash?.drawer || null;

@@ -27,16 +27,20 @@ export default function ReportClosingPanel({ date, branchId, role }) {
     if (role === 'owner' && branchId) query.set('branch_id', branchId);
     setLoading(true);
     setMessage('');
-    fetch(`${api}/reports/daily-closing?${query.toString()}`, { cache: 'no-store' })
+    setData(null);
+    const controller = new AbortController();
+    fetch(`${api}/reports/daily-closing?${query.toString()}`, { cache: 'no-store', signal: controller.signal })
       .then(async (response) => {
         const body = await response.json();
         if (!response.ok) throw new Error(body.message || 'Penutupan tidak dapat dimuat.');
         return body.data;
       })
       .then((payload) => { if (active) setData(payload); })
-      .catch((error) => { if (active) setMessage(error.message || 'Penutupan tidak dapat dimuat.'); })
+      .catch((error) => {
+        if (active && error?.name !== 'AbortError') setMessage(error.message || 'Penutupan tidak dapat dimuat.');
+      })
       .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+    return () => { active = false; controller.abort(); };
   }, [date, branchId, role]);
 
   const methods = data?.methods || {};
@@ -68,7 +72,7 @@ export default function ReportClosingPanel({ date, branchId, role }) {
       {message ? <p className="message" role="alert">{message}</p> : null}
       {loading && !data ? <p className="muted">Memuat penutupan…</p> : null}
 
-      {open && data ? (
+      {open && data && !message ? (
         <div className="report-closing-body">
           <div className="report-closing-grid">
             <div><span>Resi</span><strong>{data.receipt_count}</strong></div>

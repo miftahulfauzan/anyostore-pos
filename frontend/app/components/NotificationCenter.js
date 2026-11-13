@@ -129,7 +129,12 @@ export default function NotificationCenter() {
         if (!response.ok) {
           let body = null;
           try { body = await response.clone().json(); } catch { /* Respons tidak selalu berupa JSON. */ }
-          show('error', responseMessage(body, `Proses gagal (${response.status}). Silakan coba lagi.`) + requestDetail(url, method, response.status));
+          const detail = requestDetail(url, method, response.status);
+          const message = responseMessage(body, `Proses gagal (${response.status}). Silakan coba lagi.`) + detail;
+          show('error', message);
+          window.dispatchEvent(new CustomEvent('pos:request-error', {
+            detail: { url, method, status: response.status, message },
+          }));
         }
         return response;
       } catch (error) {
