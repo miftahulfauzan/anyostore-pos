@@ -101,7 +101,11 @@ function ProductCard({ product, onWa, onAdd, inCart }) {
   );
 }
 
-export default function LandingPage({ branchMatch = '', branchSlug = '', wholesaleCopy = true, basePath = '/' } = {}) {
+export default function LandingPage({ branchMatch = '', branchSlug = '', wholesaleCopy = true, basePath = '/', orderMode = 'whatsapp' } = {}) {
+  // Landing utama tetap memakai alur WhatsApp saja. Landing reseller
+  // (orderMode="reseller") menambahkan akun pembeli, info pembayaran QRIS/
+  // rekening, dan tombol "Kirim Pesanan ke Sistem".
+  const isResellerOrder = orderMode === 'reseller';
   // Beberapa teks memakai kata "grosir" untuk landing utama; landing reseller
   // mematikannya lewat prop wholesaleCopy={false}.
   const supplierLine = wholesaleCopy ? 'Grosir langsung dari supplier' : 'Langsung dari supplier';
@@ -164,6 +168,13 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
   const [voucher, setVoucher] = useState(null);
   const [voucherMessage, setVoucherMessage] = useState('');
   const [voucherChecking, setVoucherChecking] = useState(false);
+  // Pesanan langsung ke sistem (khusus landing reseller).
+  const [paymentInfo, setPaymentInfo] = useState(null);
+  const [systemBusy, setSystemBusy] = useState(false);
+  const [systemNotice, setSystemNotice] = useState('');
+  const [orderResult, setOrderResult] = useState(null);
+  const [buyerAccount, setBuyerAccount] = useState(null);
+  const clientOrderId = useRef(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `order-${Date.now()}`);
   const [picker, setPicker] = useState(null);
   const pickerRequest = useRef(0);
   const [pickVariantId, setPickVariantId] = useState(null);
@@ -180,7 +191,9 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
   function countInCart(productId) { return cart.filter((i) => Number(i.productId) === Number(productId)).reduce((s, i) => s + Number(i.qty || 0), 0); }
   const cartPcs = cart.reduce((s, i) => s + Number(i.qty || 0), 0);
   // Minimal pembelian per model mengikuti pengaturan cabang (0/1 = tanpa minimum).
+  // Landing reseller TIDAK memakai aturan minimum (berlaku hanya untuk landing utama).
   const minOrderQty = (() => {
+    if (isResellerOrder) return 1;
     const configured = Number(settings?.min_order_qty);
     if (!Number.isFinite(configured) || configured < 0) return DEFAULT_MIN_ORDER_QTY;
     return configured === 0 ? 1 : configured;
@@ -514,6 +527,47 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
     }
   }
 
+  async function sendOrderToSystem() {
+    if (!isResellerOrder || !cart.length || systemBusy) return;
+    setSystemBusy(true);
+    setSystemNotice('');
+    try {
+      const response = await fetch(`${api}/reseller/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          ...(branchId ? { branch_id: branchId } : {}),
+          buyer: {
+            name: buyer.name,
+            phone: buyer.phone,
+            address: buyer.address,
+            note: buyer.note,
+          },
+          items: cart.map((item) => ({
+            product_id: Number(item.productId),
+            variant_id: item.variantId ? Number(item.variantId) : null,
+            quantity: Number(item.qty),
+          })),
+          ...(usesCourierApi ? { shipping_cost: shippingCost } : { shipping_area: shippingArea }),
+          ...(voucher ? { voucher_code: voucher.code } : {}),
+          client_order_id: clientOrderId.current,
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message || 'Pesanan gagal dikirim');
+      setOrderResult(body.data);
+      setCart([]);
+      setCartStep('cart');
+      setCartOpen(false);
+      clientOrderId.current = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `order-${Date.now()}`;
+    } catch (error) {
+      setSystemNotice(error.message);
+    } finally {
+      setSystemBusy(false);
+    }
+  }
+
   const [today, setToday] = useState('');
   useEffect(() => { setToday(`${new Date().getFullYear()}-${new Date().getMonth() + 1}-${new Date().getDate()}`); }, []);
   useEffect(() => {
@@ -532,6 +586,32 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
       .catch(() => setShippingRates([]));
   }, [branchReady, branchId]);
 
+  // Info pembayaran (QRIS statis + rekening) dan sesi pembeli hanya untuk
+  // landing reseller.
+  useEffect(() => {
+    if (!isResellerOrder) return;
+    const qs = branchId ? `?branch_id=${branchId}` : '';
+    fetch(`${api}/reseller/payment-info${qs}`, { credentials: 'include' })
+      .then((response) => response.json())
+      .then((body) => setPaymentInfo(body.data || null))
+      .catch(() => setPaymentInfo(null));
+    fetch(`${api}/reseller/me`, { credentials: 'include' })
+      .then((response) => response.json())
+      .then((body) => setBuyerAccount(body.data || null))
+      .catch(() => setBuyerAccount(null));
+  }, [branchId, isResellerOrder]);
+
+  useEffect(() => {
+    if (!buyerAccount) return;
+    const primary = (buyerAccount.addresses || []).find((row) => row.is_default) || (buyerAccount.addresses || [])[0];
+    setBuyer((prev) => ({
+      ...prev,
+      name: prev.name || buyerAccount.name || '',
+      phone: prev.phone || buyerAccount.phone || '',
+      address: prev.address || primary?.address || '',
+    }));
+  }, [buyerAccount]);
+
   useEffect(() => { if (!branchReady) return; setLoading(true); const pageSize = [12, 24, 48].includes(Number(settings?.landing_page_size)) ? Number(settings.landing_page_size) : 24; const qs = new URLSearchParams({ limit: String(pageSize), page: String(page), ...(cat ? { category_id: cat } : {}), ...(q ? { search: q } : {}), ...(sort ? { sort } : {}), ...(branchId ? { branch_id: String(branchId) } : {}) }).toString(); fetch(`${api}/public/products?${qs}`).then((r) => r.json()).then((b) => { setProducts(b.data || []); setTotalPages(b.totalPages || 1); setTotal(b.total || 0); }).catch(() => setProducts([])).finally(() => setLoading(false)); }, [cat, q, sort, page, settings?.landing_page_size, branchReady, branchId]);
   const pages = useMemo(() => { const tp = totalPages; let s = Math.max(1, page - 2); let e = Math.min(tp, s + 4); s = Math.max(1, e - 4); const o = []; for (let i = s; i <= e; i++) o.push(i); return o; }, [page, totalPages]);
   return (
@@ -549,6 +629,12 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
           <a href={basePath} aria-label={wholesaleCopy ? 'Landing grosir' : 'Landing reseller'} style={{ fontSize: 18, fontWeight: 800, color: T.black, textDecoration: 'none', letterSpacing: '-.02em' }}>ANYOSTORE</a>
           <nav style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
             <a href="#produk" style={{ fontSize: 'var(--fs-md)', fontWeight: 500, color: T.muted, textDecoration: 'none', padding: '8px 12px', borderRadius: 6, transition: 'color .2s' }} onMouseOver={(e) => e.target.style.color = T.black} onMouseOut={(e) => e.target.style.color = T.muted}>Produk</a>
+            {isResellerOrder && (
+              <a href={buyerAccount ? '/akun' : '/masuk'} style={{ fontSize: 'var(--fs-md)', fontWeight: 500, color: T.muted, textDecoration: 'none', padding: '8px 12px', borderRadius: 6 }}>{buyerAccount ? 'Akun Saya' : 'Masuk'}</a>
+            )}
+            {isResellerOrder && (
+              <a href="/lacak" style={{ fontSize: 'var(--fs-md)', fontWeight: 500, color: T.muted, textDecoration: 'none', padding: '8px 12px', borderRadius: 6 }}>Lacak</a>
+            )}
             <button type="button" onClick={() => pickWa('')} style={{ fontSize: 'var(--fs-md)', fontWeight: 600, color: '#fff', background: T.blue, padding: '9px 18px', borderRadius: 6, textDecoration: 'none', transition: 'all .2s', boxShadow: '0 2px 8px rgba(30,58,95,.25)' }} className="hero-btn">Hubungi Admin</button>
           </nav>
         </div>
@@ -793,6 +879,39 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
                     {shippingLabel && <span>Kurir: {shippingLabel}</span>}
                     {buyer.note && <span>Catatan: {buyer.note}</span>}
                   </div>
+
+                  {isResellerOrder && paymentInfo && (
+                    <div style={{ display: 'grid', gap: 8, padding: '10px 12px', border: `1px solid ${T.border}`, borderRadius: 8 }}>
+                      <strong style={{ fontSize: 12.5, color: T.black }}>Pembayaran</strong>
+                      {paymentInfo.qris_image && (
+                        <img
+                          src={`${api.replace('/api', '')}${paymentInfo.qris_image}`}
+                          alt="QRIS"
+                          style={{ width: '100%', maxWidth: 220, borderRadius: 8, border: `1px solid ${T.border}` }}
+                        />
+                      )}
+                      {(paymentInfo.bank_accounts || []).map((account) => (
+                        <div key={`${account.bank}-${account.number}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', fontSize: 12.5 }}>
+                          <span>
+                            <strong>{account.bank}</strong> {account.number}
+                            {account.holder ? <><br /><small style={{ color: T.muted }}>a.n. {account.holder}</small></> : null}
+                          </span>
+                          <button
+                            type="button"
+                            className="pcard-btn secondary"
+                            style={{ flex: '0 0 auto', minHeight: 32, padding: '4px 10px', fontSize: 11.5 }}
+                            onClick={() => navigator.clipboard?.writeText(account.number)}
+                          >
+                            Salin
+                          </button>
+                        </div>
+                      ))}
+                      {paymentInfo.note && <p style={{ margin: 0, fontSize: 11.5, color: T.muted }}>{paymentInfo.note}</p>}
+                    </div>
+                  )}
+                  {isResellerOrder && systemNotice && (
+                    <p style={{ margin: 0, fontSize: 11.5, color: '#b45309' }}>{systemNotice}</p>
+                  )}
                 </div>
               )}
             </div>
@@ -813,9 +932,35 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
               {cartStep === 'review' && (
                 <>
                   <button type="button" onClick={() => setCartStep('address')} className="pcard-btn secondary" style={{ flex: '0 0 auto', minWidth: 96 }}>Kembali</button>
-                  <button type="button" onClick={sendOrder} disabled={!cart.length || hasMinimumWarning || orderChecking} className="pcard-btn primary" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44 }}><I.chat style={{ width: 15, height: 15 }} /> {orderChecking ? 'Memeriksa stok…' : 'Chat Pesanan via WhatsApp'}</button>
+                  {isResellerOrder ? (
+                    <>
+                      <button type="button" onClick={sendOrder} disabled={!cart.length || orderChecking} className="pcard-btn secondary" style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 44 }}><I.chat style={{ width: 15, height: 15 }} /> WhatsApp</button>
+                      <button type="button" onClick={sendOrderToSystem} disabled={!cart.length || systemBusy} className="pcard-btn primary" style={{ flex: 1, minHeight: 44 }}>
+                        {systemBusy ? 'Mengirim…' : 'Kirim Pesanan ke Sistem'}
+                      </button>
+                    </>
+                  ) : (
+                    <button type="button" onClick={sendOrder} disabled={!cart.length || hasMinimumWarning || orderChecking} className="pcard-btn primary" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44 }}><I.chat style={{ width: 15, height: 15 }} /> {orderChecking ? 'Memeriksa stok…' : 'Chat Pesanan via WhatsApp'}</button>
+                  )}
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hasil pesanan langsung ke sistem (landing reseller) */}
+      {orderResult && (
+        <div onClick={() => setOrderResult(null)} role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'grid', placeItems: 'center', zIndex: 140, padding: 16, backdropFilter: 'blur(4px)' }}>
+          <div onClick={(e) => e.stopPropagation()} className="wa-modal-in" style={{ background: T.card, borderRadius: 14, padding: 24, maxWidth: 420, width: '100%', boxShadow: '0 24px 48px rgba(0,0,0,.18)' }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, color: T.black }}>Pesanan terkirim</h3>
+            <p style={{ margin: '0 0 6px', fontSize: 13, color: T.muted }}>Nomor pesanan</p>
+            <p style={{ margin: '0 0 12px', fontSize: 20, fontWeight: 800, color: T.black, letterSpacing: '.02em' }}>{orderResult.order_no}</p>
+            <p style={{ margin: '0 0 12px', fontSize: 13, color: T.black }}>Total {fmtRp(orderResult.total)} · menunggu konfirmasi admin.</p>
+            <div style={{ display: 'grid', gap: 8 }}>
+              <a href={`/pesanan/${orderResult.public_token}`} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 44, borderRadius: 8, border: `1px solid ${T.blue}`, color: T.blue, fontWeight: 700, textDecoration: 'none', fontSize: 13 }}>Lihat status pesanan</a>
+              <button type="button" onClick={() => { pickWa(`Halo Anyostore, saya sudah kirim pesanan ${orderResult.order_no} lewat website. Mohon dikonfirmasi ya.`); setOrderResult(null); }} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44, borderRadius: 8, background: T.blue, color: '#fff', fontWeight: 700, fontSize: 13, border: 0, cursor: 'pointer' }}><I.chat style={{ width: 15, height: 15 }} /> Konfirmasi via WhatsApp</button>
+              <button type="button" onClick={() => setOrderResult(null)} style={{ minHeight: 40, borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, color: T.muted, fontSize: 13, cursor: 'pointer' }}>Tutup</button>
             </div>
           </div>
         </div>

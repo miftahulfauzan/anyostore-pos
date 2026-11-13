@@ -17,10 +17,25 @@ function isStaffPath(pathname) {
   );
 }
 
+// Halaman pembeli reseller: /masuk, /daftar, /akun, /lacak, /pesanan/<token>.
+// Dipetakan ke berkas di app/reseller/* supaya URL di subdomain reseller bersih.
+const BUYER_PATHS = ['/masuk', '/daftar', '/akun', '/lacak', '/pesanan'];
+function isBuyerPath(pathname) {
+  return BUYER_PATHS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
 export function middleware(request) {
   const url = request.nextUrl;
   const host = (request.headers.get('host') || '').split(':')[0].toLowerCase();
   const isResellerHost = host === RESELLER_HOST;
+
+  // Halaman pembeli reseller dilayani berkas app/reseller/* di kedua domain,
+  // sehingga tautan /masuk dan /akun tetap berfungsi dari mana pun dibuka.
+  if (isBuyerPath(url.pathname)) {
+    url.pathname = `/reseller${url.pathname}`;
+    return NextResponse.rewrite(url);
+  }
+
   if (!isResellerHost) return NextResponse.next();
 
   // Panel staf dialihkan ke domain utama.

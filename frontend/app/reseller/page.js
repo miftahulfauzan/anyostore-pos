@@ -23,5 +23,5 @@ export const metadata = {
 export default function ResellerLandingPage() {
   // basePath "/" karena di subdomain reseller root adalah landing reseller
   // (rewrite middleware). Di domain utama /reseller tetap halaman ini.
-  return <LandingClient branchSlug="reseller" wholesaleCopy={false} basePath="/" />;
+  return <LandingClient branchSlug="reseller" wholesaleCopy={false} basePath="/" orderMode="reseller" />;
 }

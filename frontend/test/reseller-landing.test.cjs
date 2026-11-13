@@ -12,7 +12,7 @@ const sitemap = read('app/sitemap.js');
 
 test('halaman /reseller memakai landing yang sama dengan cabang Blok B', () => {
   assert.match(reseller, /import LandingClient from '\.\.\/LandingClient';/);
-  assert.match(reseller, /<LandingClient branchSlug="reseller" wholesaleCopy=\{false\} basePath="\/" \/>/);
+  assert.match(reseller, /<LandingClient branchSlug="reseller" wholesaleCopy=\{false\} basePath="\/" orderMode="reseller" \/>/);
   // Teks "grosir" tidak dipakai di landing reseller.
   assert.match(landing, /wholesaleCopy \? 'Siap order grosir\?' : 'Siap order\?'/);
   // Canonical absolut ke domain utama (subdomain reseller ikut halaman ini).
@@ -21,7 +21,7 @@ test('halaman /reseller memakai landing yang sama dengan cabang Blok B', () => {
 });
 
 test('landing cabang mengirim branch_id ke API publik', () => {
-  assert.match(landing, /export default function LandingPage\(\{ branchMatch = '', branchSlug = '', wholesaleCopy = true, basePath = '\/' \} = \{\}\)/);
+  assert.match(landing, /export default function LandingPage\(\{ branchMatch = '', branchSlug = '', wholesaleCopy = true, basePath = '\/', orderMode = 'whatsapp' \} = \{\}\)/);
   assert.match(landing, /public\/branches/);
   assert.match(landing, /public\/branches\?slug=\$\{encodeURIComponent\(branchSlug\)\}/);
   assert.match(landing, /: `\$\{api\}\/public\/branches`/);
