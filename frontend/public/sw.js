@@ -1,4 +1,11 @@
-const CACHE_NAME = 'anyostore-shell-v1';
+// Service worker PWA: HTML selalu dari jaringan (dengan fallback offline),
+// aset statis memakai stale-while-revalidate.
+//
+// CATATAN: sebelumnya aset memakai cache-first sehingga setelah deploy CSS/JS
+// lama terus dipakai (mis. logo resi tetap kotak karena aturan border-radius
+// baru tidak pernah terunduh). Versi cache dinaikkan setiap kali strategi ini
+// berubah agar cache lama dibersihkan saat activate.
+const CACHE_NAME = 'anyostore-shell-v2';
 const STATIC_DESTINATIONS = new Set(['script', 'style', 'font', 'image']);
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -26,11 +33,18 @@ self.addEventListener('fetch', (event) => {
   if (!STATIC_DESTINATIONS.has(request.destination)) return;
 
   event.respondWith(
-    caches.match(request).then((cached) => cached || fetch(request).then((response) => {
-      if (!response.ok) return response;
-      const copy = response.clone();
-      caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-      return response;
-    })),
+    caches.open(CACHE_NAME).then(async (cache) => {
+      const cached = await cache.match(request);
+      // Perbarui di latar belakang; permintaan berikutnya memakai versi baru.
+      const network = fetch(request)
+        .then((response) => {
+          if (response.ok) cache.put(request, response.clone());
+          return response;
+        })
+        .catch(() => null);
+      if (cached) return cached;
+      const fresh = await network;
+      return fresh || Response.error();
+    }),
   );
 });

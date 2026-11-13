@@ -59,6 +59,11 @@ test('web app exposes an installable iOS-compatible PWA shell', () => {
   assert.match(register, /navigator\.serviceWorker\.register\(['"]\/sw\.js['"]/);
   assert.match(serviceWorker, /event\.respondWith/);
   assert.match(serviceWorker, /\/api\//);
+  // Aset statis tidak boleh cache-first: setelah deploy, CSS baru harus terpakai
+  // (dulu logo resi tetap kotak karena CSS lama diambil dari cache terus).
+  assert.match(serviceWorker, /anyostore-shell-v2/);
+  assert.match(serviceWorker, /const network = fetch\(request\)/);
+  assert.match(serviceWorker, /cache\.put\(request, response\.clone\(\)\)/);
 });
 
 test('mobile sidebar backdrop stays translucent and closes on outside tap', () => {
