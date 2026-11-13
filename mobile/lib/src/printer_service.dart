@@ -168,9 +168,9 @@ class PrinterService {
     return Uint8List.fromList(response.bodyBytes);
   }
 
-  /// Logo struk dipotong sudut membulat (radius 28% sisi terpendek) supaya
-  /// sudutnya jelas tumpul, bukan kotak tajam. Bila gambar tidak bisa dibaca,
-  /// byte asli dikembalikan agar logo tetap tercetak.
+  /// Logo struk dipotong sudut membulat 16% sisi terpendek — rasio yang sama
+  /// dengan `.receipt-logo` di web supaya hasil kertas dan pratinjau identik.
+  /// Bila gambar tidak bisa dibaca, byte asli dikembalikan agar tetap tercetak.
   Future<Uint8List> _roundCorners(Uint8List bytes) async {
     try {
       final codec = await ui.instantiateImageCodec(bytes);
@@ -178,7 +178,7 @@ class PrinterService {
       final image = frame.image;
       final width = image.width.toDouble();
       final height = image.height.toDouble();
-      final radius = math.min(width, height) * 0.28;
+      final radius = math.min(width, height) * 0.16;
       final rrect = RRect.fromRectAndRadius(
           Rect.fromLTWH(0, 0, width, height), Radius.circular(radius));
       final recorder = ui.PictureRecorder();

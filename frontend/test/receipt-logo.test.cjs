@@ -21,7 +21,17 @@ test('logo resi web membulat seperti cetak thermal', () => {
   // Dua aturan .receipt-logo (layar dan cetak) wajib punya border-radius.
   const rules = [...css.matchAll(/\.receipt-logo \{[^}]*\}/g)].map((match) => match[0]);
   assert.ok(rules.length >= 2, 'aturan .receipt-logo layar & cetak harus ada');
-  rules.forEach((rule) => assert.match(rule, /border-radius:\s*\d+px/));
+  rules.forEach((rule) => assert.match(rule, /border-radius:\s*16%;/));
+});
+
+test('rasio sudut logo sama di web dan cetak thermal', () => {
+  // .receipt-logo memakai 16% sisi terpendek; printer memakai 0.16.
+  const printer = fs.readFileSync(
+    require('node:path').join(__dirname, '..', '..', 'mobile', 'lib', 'src', 'printer_service.dart'),
+    'utf8',
+  );
+  assert.match(printer, /math\.min\(width, height\) \* 0\.16/);
+  [css, read('app/closing/page.js')].forEach(() => {});
 });
 
 test('URL logo diambil dari setelan cabang, bukan ditebak', () => {

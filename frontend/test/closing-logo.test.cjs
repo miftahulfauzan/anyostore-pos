@@ -25,5 +25,5 @@ test('logo penutupan menghormati show_logo=false dan mode semua toko', () => {
 test('logo resi membulat di layar dan saat dicetak', () => {
   const rules = [...css.matchAll(/\.receipt-logo \{[^}]*\}/g)].map((match) => match[0]);
   assert.ok(rules.length >= 2, 'aturan .receipt-logo layar & cetak harus ada');
-  rules.forEach((rule) => assert.match(rule, /border-radius:\s*\d+px/));
+  rules.forEach((rule) => assert.match(rule, /border-radius:\s*16%;/));
 });
