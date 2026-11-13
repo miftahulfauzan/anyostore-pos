@@ -45,6 +45,19 @@ test('middleware memetakan halaman pembeli reseller tanpa mengubah landing utama
   assert.match(middleware, /if \(url\.pathname === '\/'\) \{/);
 });
 
+test('halaman detail produk mengikuti minimum order cabang / reseller', () => {
+  const detail = read('app/produk/[id]/ProdukDetailClient.js');
+  // Minimum diambil dari setelan cabang, bukan angka 4 yang ditulis langsung.
+  assert.match(detail, /const configuredMin = Number\(settings\?\.min_order_qty\)/);
+  assert.match(detail, /isResellerHost/);
+  assert.match(detail, /window\.location\.hostname\.startsWith\('reseller\.'\)/);
+  assert.match(detail, /const minOrderQty = isResellerHost/);
+  // Tidak ada blokir "stok < 4" lagi.
+  assert.doesNotMatch(detail, /modelAvailableStock < 4/);
+  assert.doesNotMatch(detail, /Minimum pembelian 4 pcs per model/);
+  assert.doesNotMatch(detail, /Min 4 pcs\/model/);
+});
+
 test('halaman pembeli reseller lengkap', () => {
   for (const file of [
     'app/reseller/masuk/page.js',

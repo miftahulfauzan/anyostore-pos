@@ -47,6 +47,14 @@ export default function ProdukDetail() {
   const selectedVariant = product?.variants?.find((variant) => variant.id === selectedVariantId) || null;
   const modelAvailableStock = Number(product?.available_stock || 0);
   const selectedAvailableStock = selectedVariant ? Number(selectedVariant.available_stock || 0) : modelAvailableStock;
+  // Minimum order mengikuti setelan cabang; landing reseller tidak memakai
+  // minimum sama sekali (sama dengan aturan di LandingClient).
+  const isResellerHost = mounted && typeof window !== 'undefined' && window.location.hostname.startsWith('reseller.');
+  const configuredMin = Number(settings?.min_order_qty);
+  const minOrderQty = isResellerHost
+    ? 1
+    : (Number.isFinite(configuredMin) && configuredMin > 0 ? configuredMin : 4);
+  const hasMinimumOrder = minOrderQty > 1;
 
   function loadCart() {
     try { const c = JSON.parse(localStorage.getItem('landing_cart') || '[]'); return Array.isArray(c) ? c : []; } catch { return []; }
@@ -71,21 +79,23 @@ export default function ProdukDetail() {
     const modelRemaining = Math.max(0, Number(product.available_stock || 0) - alreadyInModel);
     const variantRemaining = firstAvailable ? Math.max(0, Number(firstAvailable.available_stock || 0) - alreadyInVariant) : modelRemaining;
     setSelectedVariantId(firstAvailable?.id ?? null);
-    setQty(Math.max(1, Math.min(4, modelRemaining, variantRemaining)));
+    const target = hasMinimumOrder ? minOrderQty : 1;
+    setQty(Math.max(1, Math.min(target, modelRemaining || target, variantRemaining || target)));
     setCartCount(existingCart.reduce((s, i) => s + (Number(i.qty) || 0), 0));
-  }, [product]);
+  }, [product, hasMinimumOrder, minOrderQty]);
 
   function addToCart() {
     if (!product) return;
     const sel = selectedVariant;
-    if (modelAvailableStock < 4) {
-      setStockError(`Stok tersedia ${modelAvailableStock} pcs. Minimum pembelian 4 pcs per model.`);
-      return;
-    }
     const key = `${product.id}-${sel?.id || 0}`;
     const next = loadCart();
     const existing = next.find((i) => i.key === key);
     const alreadyInModel = next.filter((i) => i.productId === product.id).reduce((sum, i) => sum + (Number(i.qty) || 0), 0);
+    // Minimum order hanya berlaku di landing utama; reseller boleh 1 pcs.
+    if (hasMinimumOrder && alreadyInModel + qty < minOrderQty) {
+      setStockError(`Minimum pembelian ${minOrderQty} pcs per model (keranjang baru ${alreadyInModel + qty} pcs).`);
+      return;
+    }
     const alreadyInVariant = Number(existing?.qty || 0);
     const lineAvailableStock = sel ? Number(sel.available_stock || 0) : modelAvailableStock;
     if (qty > modelAvailableStock - alreadyInModel || qty > lineAvailableStock - alreadyInVariant) {
@@ -246,7 +256,7 @@ export default function ProdukDetail() {
                 Masuk keranjang. <a href={catalogHref} style={{ color: C.accent, fontWeight: 700 }}>Lihat Keranjang ({cartCount})</a>
               </p>
             )}
-            <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: C.muted, textAlign: 'center' }}>Minimal 4 pcs per model. Varian boleh dicampur.</p>
+            <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: C.muted, textAlign: 'center' }}>{hasMinimumOrder ? `Minimal ${minOrderQty} pcs per model. Varian boleh dicampur.` : 'Tanpa minimum pembelian. Varian boleh dicampur.'}</p>
           </div>
 
           {/* CTA */}
@@ -261,7 +271,7 @@ export default function ProdukDetail() {
 
           {/* trust strip */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
-            {[{ icon: I.box, label: 'Min 4 pcs/model' }, { icon: I.truck, label: 'Kirim Nasional' }, { icon: I.store, label: 'Ready Stock' }].map((it, i) => (
+            {[{ icon: I.box, label: hasMinimumOrder ? `Min ${minOrderQty} pcs/model` : 'Tanpa minimum' }, { icon: I.truck, label: 'Kirim Nasional' }, { icon: I.store, label: 'Ready Stock' }].map((it, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 6, background: C.white, justifyContent: 'center' }}>
                 <it.icon style={{ width: 15, height: 15, color: C.muted }} />
                 <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: C.ink }}>{it.label}</span>
