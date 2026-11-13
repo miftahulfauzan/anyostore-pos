@@ -1263,7 +1263,9 @@ a, .photo-upload { color:var(--expressive-secondary); }
 .settings-form .settings-submit { display: grid; grid-template-columns: 1fr; align-items: start; }
 .settings-form .settings-submit p, .settings-form .settings-submit button { grid-column: auto; }
 /* Sudut logo resi membulat 16% sisi terpendek — rasio sama dengan cetak thermal. */
-.receipt-logo { display: block; width: auto; max-width: 120px; max-height: 72px; margin: 0 auto 10px; margin-inline: auto; object-fit: contain; border-radius: 16%; }
+/* Kotak logo seragam 120px supaya nama toko di bawahnya bisa dibuat selebar logo. */
+.receipt-logo { display: block; width: 120px; height: 120px; margin: 0 auto 8px; object-fit: contain; border-radius: 16%; }
+.receipt-store-name { margin: 0 auto 6px; text-align: center; font-weight: 800; line-height: 1.2; letter-spacing: 0; }
 .report-brand { display: flex; align-items: center; gap: 14px; max-width: 1440px; margin: 0 auto 1rem; padding: 14px 16px; border: 1px solid #dbe3ee; border-radius: 6px; background: #fff; }
 .report-brand img { width: 64px; height: 64px; object-fit: contain; }
 .report-brand strong, .report-brand span, .report-brand small { display: block; }

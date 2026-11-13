@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { Share2 } from 'lucide-react';
 import { openPrintView } from '../../lib/print-utils';
 import { shareInvoiceImage, storePhones, instagramFor, customerTierLabel, invoiceDate, storeLogoUrl } from '../../lib/invoice-image';
+import { storeNameFontSize } from '../../lib/receipt-name';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -73,7 +74,17 @@ export default function Receipt({ params }) {
   const printerSize = String(data.store.printer_size || '80mm').includes('58') ? '58mm' : '80mm';
   // Baris struk disusun server (backend/src/receipt-lines.js) memakai template
   // cabang yang sama dengan aplikasi Android, jadi tampilan web = hasil cetak.
-  const lines = Array.isArray(data.lines) ? data.lines : [];
+  const storeName = String(data.store.store_name || '').trim();
+  // Baris nama toko dari server diganti judul HTML supaya lebarnya bisa
+  // disamakan dengan logo (di kertas ukurannya mengikuti Font B printer).
+  let nameLineRemoved = false;
+  const lines = (Array.isArray(data.lines) ? data.lines : []).filter((line) => {
+    if (!nameLineRemoved && line.text.trim() === storeName) {
+      nameLineRemoved = true;
+      return false;
+    }
+    return true;
+  });
 
   return <main className="receipt">
     <div className="receipt-share-bar no-print">
@@ -86,6 +97,7 @@ export default function Receipt({ params }) {
     </div>
     <article className={`receipt-paper receipt-${printerSize} receipt-thermal`}>
       {logo && String(data.store.show_logo) !== 'false' && <img className="receipt-logo" src={logo} alt={`Logo ${data.store.store_name}`} />}
+      {storeName && <h1 className="receipt-store-name" style={{ fontSize: `${storeNameFontSize(storeName)}px` }}>{storeName}</h1>}
       {lines.length ? (
         <div className="receipt-lines" role="group" aria-label={`Struk ${data.invoice_no}`}>
           {lines.map((line, index) => (

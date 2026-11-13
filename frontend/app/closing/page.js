@@ -4,6 +4,7 @@ import { ArrowDownCircle, ArrowUpCircle, LockKeyhole, Printer, Unlock } from 'lu
 import AppShell from '../components/AppShell';
 import { useAppSession } from '../components/AppStateProvider';
 import { openPrintView } from '../lib/print-utils';
+import { storeNameFontSize } from '../lib/receipt-name';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const currentLocalDate = () => {
@@ -344,7 +345,7 @@ export default function ClosingPage() {
                 <article className="receipt-paper">
                   <header className="receipt-store">
                     {storeLogo && <img className="receipt-logo" src={storeLogo} alt={`Logo ${data.store}`} />}
-                    <h1>{data.store}</h1>
+                    <h1 className="receipt-store-name" style={{ fontSize: `${storeNameFontSize(data.store)}px` }}>{data.store}</h1>
                     <p className="receipt-store-tagline">{data.document}</p>
                     {data.store_address && <address><span>{data.store_address}</span></address>}
                   </header>

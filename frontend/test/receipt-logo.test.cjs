@@ -25,8 +25,9 @@ test('logo resi web membulat seperti cetak thermal', () => {
 });
 
 test('nama toko di bawah logo lebih besar dan logo selalu center', () => {
-  assert.match(css, /\.receipt-store h1 \{[^}]*font-size: 19px;/);
-  assert.match(css, /\.receipt-logo \{[^}]*margin-inline: auto;/);
+  // Logo memakai kotak seragam 120px supaya nama toko bisa dibuat selebar logo.
+  assert.match(css, /\.receipt-logo \{[^}]*width: 120px; height: 120px;/);
+  assert.match(css, /\.receipt-store-name \{[^}]*text-align: center;/);
   // Saat dicetak dari browser, kertas ikut di tengah halaman (bukan menempel kiri).
   assert.match(css, /@media print \{[\s\S]*?\.receipt-paper \{[^}]*margin: 0 auto;/);
 });
