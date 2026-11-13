@@ -22,6 +22,7 @@ import {
   Moon,
   MoreHorizontal,
   Package,
+  PackageSearch,
   ReceiptText,
   Receipt,
   Settings,
@@ -80,6 +81,7 @@ const navigation = [
     items: [
       { href: '/reports', label: 'Laporan', icon: ChartNoAxesCombined, roles: ['owner', 'manager', 'admin'] },
       { href: '/finance', label: 'Keuangan', icon: WalletCards, roles: ['owner', 'manager', 'admin'] },
+      { href: '/reseller-orders', label: 'Pesanan Reseller', icon: PackageSearch, roles: ['owner', 'manager', 'admin'] },
       { href: '/customers', label: 'Pelanggan', icon: Users, roles: ['owner', 'manager', 'admin'] },
       { href: '/promotions', label: 'Promo & Diskon', icon: Tags, roles: ['owner', 'manager', 'admin'] },
       { href: '/reports/tax', label: 'Laporan Pajak', icon: Receipt, roles: ['owner'] },
@@ -91,6 +93,7 @@ const navigation = [
       { href: '/commissions', label: 'Komisi Staf', icon: BadgeDollarSign, roles: ['owner', 'manager', 'admin'] },
       { href: '/users', label: 'Pegawai & Akses', icon: Users, roles: ['owner'] },
       { href: '/settings/link-page', label: 'Halaman Link', icon: Link2, roles: ['owner'] },
+      { href: '/settings/reseller-payment', label: 'Pembayaran Reseller', icon: WalletCards, roles: ['owner', 'manager', 'admin'] },
       { href: '/store-settings', label: 'Setelan Toko', icon: Settings, roles: ['owner'] },
       { href: '/profile', label: 'Akun Saya', icon: User },
     ],
