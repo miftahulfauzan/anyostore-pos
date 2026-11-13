@@ -442,6 +442,7 @@ export default function StoreSettingsPage() {
 
   return (
     <AppShell title="Setelan Toko" eyebrow="Pengaturan">
+      <div className="store-settings-page">
       <section className="panel landing-settings-head">
         <div>
           <h2>Semua aturan toko di satu tempat</h2>
@@ -944,6 +945,7 @@ export default function StoreSettingsPage() {
           </section>
         </>
       )}
+      </div>
     </AppShell>
   );
 }

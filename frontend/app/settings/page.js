@@ -280,7 +280,7 @@ export default function SettingsPage() {
   </AppShell>;
 
   if (isWarehouse) return <AppShell title="Pengaturan" eyebrow="GUDANG">
-    <div style={{ display: 'grid', gap: '1.25rem', maxWidth: 1180, margin: '0 auto' }}>
+    <div className="settings-page-root">
       <section className="panel">
         <div className="section-heading">
           <div>
@@ -297,7 +297,7 @@ export default function SettingsPage() {
   </AppShell>;
 
   return <AppShell title="Pengaturan" eyebrow="KONFIGURASI TOKO">
-    <div style={{ display: 'grid', gap: '1.25rem', maxWidth: 1180, margin: '0 auto' }}>
+    <div className="settings-page-root">
       {isOwner && (
         <section className="panel">
           <div className="section-heading">
