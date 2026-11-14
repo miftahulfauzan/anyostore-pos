@@ -12,6 +12,9 @@ const siteDescription = 'Grosir pakaian denim wanita langsung dari supplier. Kat
 
 export const metadata = {
   metadataBase: new URL(siteUrl),
+  // Verifikasi Google Search Console (meta tag) untuk properti katalog.
+  // Berlaku di semua host karena layout ini dipakai bersama.
+  verification: { google: '-58k2SOD13P7wgvMSBgqC9K9J7Zskjn2jFh8X7kTRl0' },
   title: { default: siteName, template: '%s | Anyostore' },
   description: siteDescription,
   icons: {

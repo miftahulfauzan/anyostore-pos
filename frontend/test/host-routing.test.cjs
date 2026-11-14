@@ -15,6 +15,7 @@ const release = fs.readFileSync(path.join(repo, 'scripts', 'deploy', 'release.sh
 const workflow = fs.readFileSync(path.join(repo, '.github', 'workflows', 'deploy.yml'), 'utf8');
 const sitemap = read('app/sitemap.js');
 const robots = read('app/robots.js');
+const layout = read('app/layout.js');
 
 test('tiga host dengan peran berbeda terdaftar di middleware dan Caddy', () => {
   assert.match(middleware, /export const APP_HOST = 'anyostore\.my\.id'/);
@@ -69,4 +70,8 @@ test('deploy memverifikasi host grosir (VPS + publik)', () => {
   assert.match(release, /grosir\.\$\{domain\}/);
   assert.match(workflow, /EXPECTED_GROSIR_DOMAIN=grosir\.anyostore\.my\.id/);
   assert.match(workflow, /verify_public_endpoint grosir\.anyostore\.my\.id \/version/);
+});
+
+test('meta verifikasi Google Search Console terpasang di semua host', () => {
+  assert.match(layout, /verification: \{ google: '-58k2SOD13P7wgvMSBgqC9K9J7Zskjn2jFh8X7kTRl0' \}/);
 });
