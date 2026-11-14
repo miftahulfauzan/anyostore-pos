@@ -8,7 +8,9 @@ const { adjustStock } = require('../stock');
 const { hashPassword } = require('../reseller-auth');
 
 const router = express.Router();
-router.use(authenticate);
+// Seluruh endpoint (termasuk daftar/detail pesanan & akun pembeli) hanya untuk
+// staf berwenang: kasir/gudang tidak boleh membaca PII pembeli online.
+router.use(authenticate, authorize('owner', 'manager', 'admin'));
 
 const httpError = (status, message) => Object.assign(new Error(message), { status });
 const STATUSES = ['new', 'confirmed', 'paid', 'shipped', 'done', 'rejected', 'cancelled'];

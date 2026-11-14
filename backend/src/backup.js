@@ -11,7 +11,7 @@ const { StringDecoder } = require('node:string_decoder');
 const FORMAT = 'anyostore-backup';
 const CHUNK_SIZE = 64 * 1024;
 const MAX_LINE_BYTES = 128 * 1024 * 1024;
-const sensitiveSettingKeys = new Set(['daily_email_api_key']);
+const sensitiveSettingKeys = new Set(['daily_email_api_key', 'rajaongkir_api_key']);
 const hash = () => crypto.createHash('sha256');
 const sha256 = data => hash().update(data).digest('hex');
 const problem = message => Object.assign(new Error(message), { backupSafe: true });

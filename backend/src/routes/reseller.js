@@ -22,6 +22,16 @@ const {
 const router = express.Router();
 
 // Endpoint publik pembeli: jangan pernah memakai cookie pegawai (pos_access).
+// Lookup status pesanan publik: batasi percobaan agar order_no berurutan tidak
+// bisa disisir untuk menebak pesanan pembeli lain.
+const lookupLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res) => res.status(429).json({ success: false, message: 'Terlalu banyak percobaan pelacakan, coba lagi beberapa menit lagi' }),
+});
+
 const authLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: 20,
@@ -124,11 +134,9 @@ router.post('/register', authLimiter, async (req, res, next) => {
       [branch.id, customerId, email, passwordHash, name, phone],
     );
 
-    // Tautkan pesanan guest sebelumnya yang memakai nomor HP yang sama.
-    await db.execute(
-      'UPDATE reseller_orders SET account_id = ?, customer_id = ? WHERE account_id IS NULL AND buyer_phone = ? AND branch_id = ?',
-      [account.insertId, customerId, phone, branch.id],
-    );
+    // Catatan keamanan: pesanan guest TIDAK ditautkan otomatis berdasarkan
+    // nomor HP (nomor tidak diverifikasi). Pesanan lama hanya bisa ditautkan
+    // lewat verifikasi kepemilikan (token pesanan/OTP) di alur terpisah.
 
     const token = await startSession(res, { id: account.insertId }, { ip: req.ip, userAgent: req.headers['user-agent'] });
     res.status(201).json({
@@ -545,7 +553,7 @@ router.get('/orders', requireBuyer, async (req, res, next) => {
   }
 });
 
-router.get('/orders/lookup', async (req, res, next) => {
+router.get('/orders/lookup', lookupLimiter, async (req, res, next) => {
   try {
     const orderNo = String(req.query.order_no ?? '').trim();
     const phone = normalizePhone(req.query.phone);

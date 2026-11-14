@@ -801,7 +801,7 @@ export default function StoreSettingsPage() {
             {form.ongkir_provider === 'rajaongkir' && (
               <>
                 <label>API key RajaOngkir
-                  <input type="password" autoComplete="new-password" value={form.rajaongkir_api_key ?? ''} onChange={(event) => set('rajaongkir_api_key', event.target.value)} placeholder={form.rajaongkir_api_key ? 'Tersimpan (kosongkan bila tidak diubah)' : 'Tempel API key'} />
+                  <input type="password" autoComplete="new-password" value={form.rajaongkir_api_key ?? ''} onChange={(event) => set('rajaongkir_api_key', event.target.value)} placeholder={form.rajaongkir_api_key_set ? 'Tersimpan (kosongkan bila tidak diubah)' : 'Tempel API key'} />
                 </label>
                 <div className="two-fields">
                   <label>Kota asal (cari kecamatan)

@@ -452,15 +452,19 @@ router.get('/', async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     const branchId = await readableBranchId(req);
+    // Sentinel 'all' (role gudang) hanya mencakup cabang bertipe gudang,
+    // sama seperti route daftar; jangan sampai menjadi OR 1=1.
+    const scopeClause = branchId === 'all'
+      ? " AND p.branch_id IN (SELECT id FROM branches WHERE type = 'gudang' AND is_active = TRUE)"
+      : ' AND p.branch_id = ?';
     const [rows] = await db.execute(
       `SELECT p.id, p.branch_id, p.name, p.description, p.category_id, p.sku, p.barcode, p.price, p.cost, p.stock, p.min_stock, p.gender, p.weight_gram,
               c.name AS category_name, c.color AS category_color, c.sort_order AS category_sort_order,
                (SELECT pp.path FROM product_photos pp WHERE pp.product_id = p.id AND pp.variant_id IS NULL AND pp.media_type = 'image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
                (SELECT pp.\`transform\` FROM product_photos pp WHERE pp.product_id = p.id AND pp.variant_id IS NULL AND pp.media_type = 'image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_transform
         FROM products p JOIN categories c ON c.id = p.category_id
-        WHERE p.id = ? AND p.is_active = TRUE
-          AND (p.branch_id = ? OR ? = 1)`,
-      [req.params.id, branchId === 'all' ? -1 : branchId, branchId === 'all' ? 1 : 0]
+        WHERE p.id = ? AND p.is_active = TRUE${scopeClause}`,
+      branchId === 'all' ? [req.params.id] : [req.params.id, branchId]
     );
     if (!rows[0]) return res.status(404).json({ success: false, message: 'Produk tidak ditemukan' });
     const [wholesalePrices] = await db.execute('SELECT id, min_qty, max_qty, price FROM wholesale_prices WHERE product_id = ? AND is_active = TRUE ORDER BY min_qty', [rows[0].id]);

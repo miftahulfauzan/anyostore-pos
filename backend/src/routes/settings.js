@@ -178,6 +178,16 @@ router.delete('/branches/:id', authorize('owner'), async (req, res, next) => {
   } catch (error) { next(error); } finally { connection.release(); }
 });
 
+// File media setelan hanya boleh dihapus bila tidak ada baris setelan lain
+// (cabang lain) yang masih memakai path yang sama.
+async function mediaStillReferenced(publicPath, { branchId: ownerBranch, key: ownerKey }) {
+  const [rows] = await db.execute(
+    'SELECT COUNT(*) AS cnt FROM store_settings WHERE `value` = ? AND NOT (branch_id = ? AND `key` = ?)',
+    [publicPath, ownerBranch, ownerKey],
+  );
+  return Number(rows[0]?.cnt || 0) > 0;
+}
+
 router.post('/branches', authorize('owner'), async (req, res, next) => {
   const connection = await db.getConnection();
   try {
@@ -325,7 +335,7 @@ router.post('/logo', authorize('owner','manager','admin'), logoUpload.single('lo
     );
     const oldPath = previous[0]?.value;
     if (oldPath?.startsWith('/uploads/logos/') && oldPath !== publicPath) {
-      await removeMedia(oldPath);
+      if (!(await mediaStillReferenced(oldPath, { branchId: id, key: 'store_logo' }))) await removeMedia(oldPath);
     }
     res.status(201).json({ success: true, data: { store_logo: publicPath } });
   } catch (error) {
@@ -350,7 +360,9 @@ router.post('/logo-data', authorize('owner','manager','admin'), async (req, res,
     const publicPath = await persistUploadedFile(file, 'logos');
     await db.execute('INSERT INTO store_settings (branch_id,`key`,`value`) VALUES (?,?,?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)', [id, key, publicPath]);
     const oldPath = previous[0]?.value;
-    if (oldPath?.startsWith('/uploads/logos/') && oldPath !== publicPath) await removeMedia(oldPath);
+    if (oldPath?.startsWith('/uploads/logos/') && oldPath !== publicPath) {
+      if (!(await mediaStillReferenced(oldPath, { branchId: id, key }))) await removeMedia(oldPath);
+    }
     res.status(201).json({ success: true, data: { [key]: publicPath } });
   } catch (error) { next(error); }
 });
@@ -368,7 +380,9 @@ router.delete('/logo', authorize('owner','manager','admin'), async (req, res, ne
     );
     await db.execute('DELETE FROM store_settings WHERE branch_id=? AND `key`=?', [id, key]);
     const oldPath = previous[0]?.value;
-    if (oldPath?.startsWith('/uploads/logos/')) await removeMedia(oldPath);
+    if (oldPath?.startsWith('/uploads/logos/')) {
+      if (!(await mediaStillReferenced(oldPath, { branchId: id, key }))) await removeMedia(oldPath);
+    }
     res.json({ success: true, data: { key } });
   } catch (error) { next(error); }
 });
@@ -512,11 +526,18 @@ router.post('/compare/apply', authorize('owner'), async (req, res, next) => {
     const sourceSettings = await loadBranchSettings(sourceId);
     const copied = [];
     const skipped = [];
+    // Media harus direalisasikan ulang (file baru) supaya cabang sumber dan
+    // target tidak berbagi satu path yang bisa saling menghapus.
+    const mediaKeys = new Set(['store_logo', 'invoice_logo', 'payment_qris_image']);
     for (const key of keys) {
       if (!sourceSettings.has(key)) { skipped.push(key); continue; }
+      let value = String(sourceSettings.get(key) ?? '');
+      if (mediaKeys.has(key) && value.startsWith('/uploads/')) {
+        value = await copyMediaFile(value, 'logos');
+      }
       await db.execute(
         'INSERT INTO store_settings (branch_id, `key`, `value`) VALUES (?,?,?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)',
-        [targetId, key, String(sourceSettings.get(key) ?? '')]
+        [targetId, key, value]
       );
       copied.push(key);
     }
@@ -536,12 +557,16 @@ router.get('/', async (req, res, next) => {
     // Store identity belongs to branches. Ignore legacy copies in store_settings
     // so an old sample value can never overwrite the saved branch profile.
     const emailKey = settingsResult[0].find((row) => row.key === 'daily_email_api_key');
+    const rajaongkirKey = settingsResult[0].find((row) => row.key === 'rajaongkir_api_key');
     const settings = Object.fromEntries(
       settingsResult[0]
-        .filter((row) => !profileKeys.has(row.key) && row.key !== 'daily_email_api_key' && row.key !== 'daily_email_last_sent_date')
+        .filter((row) => !profileKeys.has(row.key)
+          && row.key !== 'daily_email_api_key'
+          && row.key !== 'daily_email_last_sent_date'
+          && row.key !== 'rajaongkir_api_key')
         .map((row) => [row.key, row.value])
     );
-    res.json({ success: true, data: { store_name: branch.name, store_address: branch.address || '', store_phone: branch.phone || '', store_email: branch.email || '', store_tax_id: branch.npwp || '', daily_email_api_key_set: Boolean(emailKey?.value), ...settings } });
+    res.json({ success: true, data: { store_name: branch.name, store_address: branch.address || '', store_phone: branch.phone || '', store_email: branch.email || '', store_tax_id: branch.npwp || '', daily_email_api_key_set: Boolean(emailKey?.value), rajaongkir_api_key_set: Boolean(rajaongkirKey?.value), ...settings } });
   } catch (error) { next(error); }
 });
 
@@ -594,7 +619,7 @@ router.put('/', authorize('owner','manager','admin'), async (req, res, next) => 
       if (key === 'landing_page_size' && ![12, 24, 48].includes(Number(value))) throw Object.assign(new Error('Produk per halaman landing harus 12, 24, atau 48'), { status: 400 });
       // API key lama tetap dipakai ketika owner menyimpan pengaturan lain.
       // GET /settings tidak pernah mengembalikan nilai rahasia ini.
-      if (key === 'daily_email_api_key' && !String(value || '').trim()) continue;
+      if ((key === 'daily_email_api_key' || key === 'rajaongkir_api_key') && !String(value || '').trim()) continue;
       await connection.execute('INSERT INTO store_settings (branch_id,`key`,`value`) VALUES (?,?,?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)', [id, key, String(value)]);
     }
     await connection.commit();

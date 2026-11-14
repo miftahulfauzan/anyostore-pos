@@ -24,7 +24,7 @@ export default function LandingSettingsPage() {
 
   // Profil & katalog
   const [profile, setProfile] = useState({ store_name: '', store_address: '', store_phone: '', landing_page_size: '24', min_order_qty: '4' });
-  const [ongkir, setOngkir] = useState({ ongkir_provider: 'manual', rajaongkir_api_key: '', rajaongkir_origin_id: '', rajaongkir_origin_label: '', ongkir_couriers: ['jne', 'jnt', 'sicepat'] });
+  const [ongkir, setOngkir] = useState({ ongkir_provider: 'manual', rajaongkir_api_key: '', rajaongkir_api_key_set: false, rajaongkir_origin_id: '', rajaongkir_origin_label: '', ongkir_couriers: ['jne', 'jnt', 'sicepat'] });
   const [originQuery, setOriginQuery] = useState('');
   const [originResults, setOriginResults] = useState([]);
   const [originLoading, setOriginLoading] = useState(false);
@@ -60,7 +60,8 @@ export default function LandingSettingsPage() {
     } catch { /* default */ }
     setOngkir({
       ongkir_provider: data.ongkir_provider === 'rajaongkir' ? 'rajaongkir' : 'manual',
-      rajaongkir_api_key: data.rajaongkir_api_key || '',
+      rajaongkir_api_key: '',
+        rajaongkir_api_key_set: Boolean(data.rajaongkir_api_key_set),
       rajaongkir_origin_id: data.rajaongkir_origin_id || '',
       rajaongkir_origin_label: data.rajaongkir_origin_label || '',
       ongkir_couriers: couriers,
@@ -313,7 +314,7 @@ export default function LandingSettingsPage() {
           </label>
           {ongkir.ongkir_provider === 'rajaongkir' && (
             <>
-              <label>API key RajaOngkir<input type="password" autoComplete="new-password" value={ongkir.rajaongkir_api_key} onChange={(event) => setOngkir({ ...ongkir, rajaongkir_api_key: event.target.value })} placeholder="Tempel API key" /></label>
+              <label>API key RajaOngkir<input type="password" autoComplete="new-password" value={ongkir.rajaongkir_api_key} onChange={(event) => setOngkir({ ...ongkir, rajaongkir_api_key: event.target.value })} placeholder={ongkir.rajaongkir_api_key_set ? 'Tersimpan (kosongkan bila tidak diubah)' : 'Tempel API key'} /></label>
               <div className="two-fields">
                 <label>Kota asal (cari kecamatan)
                   <div style={{ display: 'flex', gap: 6 }}>
