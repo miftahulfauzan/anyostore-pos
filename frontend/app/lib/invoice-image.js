@@ -471,7 +471,7 @@ export function renderInvoiceCanvas(payload) {
   ctx.fillText('Terima kasih sudah berbelanja', OUTPUT_WIDTH / 2, footerY);
   footerY += 34;
   ctx.font = font(20, 800);
-  ctx.fillText('cek produk kami lainnya anyostore.my.id', OUTPUT_WIDTH / 2, footerY);
+  ctx.fillText('cek produk kami lainnya grosir.anyostore.my.id', OUTPUT_WIDTH / 2, footerY);
 
   // Pangkas ruang kosong berlebih, tetapi jangan kurang dari 1440 (3:4).
   const finalHeight = Math.max(OUTPUT_HEIGHT, Math.round(footerY + 56));

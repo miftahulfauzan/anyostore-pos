@@ -87,7 +87,7 @@ jobs:
           echo "::notice title=Production target::SSH target $VPS_HOST -> $remote_ip; app DNS IPv4 [$app_ips]"
           set +e
           ssh "${ssh_opts[@]}" \
-              "$VPS_USER@$VPS_HOST" "EXPECTED_APP_DOMAIN=anyostore.my.id DEPLOY_DIR=/home/ubuntu/anyostore-pos bash -s -- $DEPLOY_SHA $DEPLOY_MODE" < scripts/deploy/release.sh 2>&1 | tee "$deploy_log"
+              "$VPS_USER@$VPS_HOST" "EXPECTED_APP_DOMAIN=anyostore.my.id EXPECTED_GROSIR_DOMAIN=grosir.anyostore.my.id DEPLOY_DIR=/home/ubuntu/anyostore-pos bash -s -- $DEPLOY_SHA $DEPLOY_MODE" < scripts/deploy/release.sh 2>&1 | tee "$deploy_log"
           status=${PIPESTATUS[0]}
           set -e
           if [ "$status" -ne 0 ]; then
@@ -116,26 +116,28 @@ jobs:
         run: |
           set -euo pipefail
           verify_public_endpoint() {
-            local endpoint=$1 attempt body last_body='' public_ips
+            local host=$1 endpoint=$2 attempt body last_body='' public_ips
             for attempt in $(seq 1 4); do
               if body=$(curl --fail --silent --show-error --proto '=https' --connect-timeout 3 --max-time 5 \
-                -H 'Cache-Control: no-cache' "https://anyostore.my.id${endpoint}?release=${DEPLOY_SHA}"); then
+                -H 'Cache-Control: no-cache' "https://${host}${endpoint}?release=${DEPLOY_SHA}"); then
                 last_body=$body
                 if printf '%s' "$body" | jq -e --arg sha "$DEPLOY_SHA" --arg endpoint "$endpoint" \
                   '(.release_sha == $sha) and ($endpoint != "/api/health" or .ok == true)' >/dev/null; then
-                  echo "Verified public ${endpoint} at ${DEPLOY_SHA}"
+                  echo "Verified public https://${host}${endpoint} at ${DEPLOY_SHA}"
                   return 0
                 fi
               fi
               if (( attempt < 4 )); then sleep 2; fi
             done
-            public_ips=$(getent ahostsv4 anyostore.my.id | awk '{print $1}' | sort -u | paste -sd, -)
-            echo "::error title=Public release mismatch::${endpoint} expected ${DEPLOY_SHA}, observed ${last_body:-unreachable}; public DNS IPv4 [${public_ips}]"
-            echo "Public ${endpoint} did not serve ${DEPLOY_SHA}" >&2
+            public_ips=$(getent ahostsv4 "$host" | awk '{print $1}' | sort -u | paste -sd, -)
+            echo "::error title=Public release mismatch::https://${host}${endpoint} expected ${DEPLOY_SHA}, observed ${last_body:-unreachable}; public DNS IPv4 [${public_ips}]"
+            echo "Public https://${host}${endpoint} did not serve ${DEPLOY_SHA}" >&2
             exit 1
           }
-          verify_public_endpoint /api/health
-          verify_public_endpoint /version
+          verify_public_endpoint anyostore.my.id /api/health
+          verify_public_endpoint anyostore.my.id /version
+          # Katalog grosir memakai hostname sendiri sejak katalog dipisah.
+          verify_public_endpoint grosir.anyostore.my.id /version
       - name: Record verified release in the run summary
         env:
           DEPLOY_SHA: ${{ steps.ci.outputs.sha }}

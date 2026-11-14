@@ -101,7 +101,7 @@ function ProductCard({ product, onWa, onAdd, inCart }) {
   );
 }
 
-export default function LandingPage({ branchMatch = '', branchSlug = '', wholesaleCopy = true, basePath = '/', orderMode = 'whatsapp' } = {}) {
+export default function LandingPage({ branchMatch = '', branchSlug = '', wholesaleCopy = true, basePath = '/', orderMode = 'whatsapp', resellerHref = 'https://reseller.anyostore.my.id' } = {}) {
   // Landing utama tetap memakai alur WhatsApp saja. Landing reseller
   // (orderMode="reseller") menambahkan akun pembeli, info pembayaran QRIS/
   // rekening, dan tombol "Kirim Pesanan ke Sistem".
@@ -720,7 +720,7 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
             <nav className="landing-footer-nav" aria-label="Navigasi footer">
               <a href="#produk">Produk</a>
               <button type="button" onClick={() => pickWa('')} className="landing-footer-link">Hubungi Admin</button>
-              {wholesaleCopy && <a href="/reseller">Katalog Reseller</a>}
+              {wholesaleCopy && <a href={resellerHref}>Katalog Reseller</a>}
               <a href="/login">Login Pegawai</a>
             </nav>
           </div>

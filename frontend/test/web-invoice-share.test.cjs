@@ -32,7 +32,7 @@ test('aturan isi invoice sama dengan Android', () => {
   assert.match(invoice, /0042813603/);
   assert.match(invoice, /1640000929465/);
   assert.match(invoice, /Miftahul Fauzan/);
-  assert.match(invoice, /cek produk kami lainnya anyostore\.my\.id/);
+  assert.match(invoice, /cek produk kami lainnya grosir\.anyostore\.my\.id/);
   assert.doesNotMatch(invoice, /tidak dapat ditukar/);
   assert.doesNotMatch(invoice, /LUNAS/);
 });

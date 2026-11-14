@@ -15,13 +15,13 @@ test('halaman /reseller memakai landing yang sama dengan cabang Blok B', () => {
   assert.match(reseller, /<LandingClient branchSlug="reseller" wholesaleCopy=\{false\} basePath="\/" orderMode="reseller" \/>/);
   // Teks "grosir" tidak dipakai di landing reseller.
   assert.match(landing, /wholesaleCopy \? 'Siap order grosir\?' : 'Siap order\?'/);
-  // Canonical absolut ke domain utama (subdomain reseller ikut halaman ini).
-  assert.match(reseller, /canonical: 'https:\/\/anyostore\.my\.id\/reseller'/);
-  assert.match(sitemap, /\/reseller/);
+  // Canonical absolut ke subdomain reseller (katalog punya URL sendiri).
+  assert.match(reseller, /canonical: 'https:\/\/reseller\.anyostore\.my\.id'/);
+  assert.match(sitemap, /RESELLER_ORIGIN/);
 });
 
 test('landing cabang mengirim branch_id ke API publik', () => {
-  assert.match(landing, /export default function LandingPage\(\{ branchMatch = '', branchSlug = '', wholesaleCopy = true, basePath = '\/', orderMode = 'whatsapp' \} = \{\}\)/);
+  assert.match(landing, /export default function LandingPage\(\{ branchMatch = '', branchSlug = '', wholesaleCopy = true, basePath = '\/', orderMode = 'whatsapp', resellerHref = 'https:\/\/reseller\.anyostore\.my\.id' \} = \{\}\)/);
   assert.match(landing, /public\/branches/);
   assert.match(landing, /public\/branches\?slug=\$\{encodeURIComponent\(branchSlug\)\}/);
   assert.match(landing, /: `\$\{api\}\/public\/branches`/);

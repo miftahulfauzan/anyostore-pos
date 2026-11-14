@@ -27,7 +27,7 @@ test('host reseller menampilkan landing reseller di root', () => {
 
 test('panel staf di subdomain reseller dialihkan ke domain utama', () => {
   assert.match(middleware, /isStaffPath/);
-  assert.match(middleware, /https:\/\/anyostore\.my\.id/);
+  assert.match(middleware, /https:\/\/\$\{APP_HOST\}/);
   assert.match(middleware, /\/login/);
   assert.match(middleware, /\/pos/);
 });

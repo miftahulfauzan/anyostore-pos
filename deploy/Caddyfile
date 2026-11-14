@@ -1,6 +1,8 @@
-# anyostore.my.id + www = landing grosir
-# reseller.anyostore.my.id = landing reseller (dilayani Next.js yang sama)
-{$APP_DOMAIN}, www.{$APP_DOMAIN}, reseller.{$APP_DOMAIN} {
+# anyostore.my.id         = homepage gateway (pilih grosir / reseller) + aplikasi staf
+# grosir.anyostore.my.id  = landing katalog grosir
+# reseller.anyostore.my.id= landing reseller
+# www                     = dialihkan ke domain utama oleh middleware
+{$APP_DOMAIN}, www.{$APP_DOMAIN}, grosir.{$APP_DOMAIN}, reseller.{$APP_DOMAIN} {
 	encode zstd gzip
 
 	handle /api/* {

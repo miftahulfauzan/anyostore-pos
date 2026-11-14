@@ -290,6 +290,32 @@ except (ValueError, TypeError):
   fail "Reseller endpoint verification failed: $endpoint (expected $RELEASE_SHA)"
 }
 verify_reseller_endpoint /version
+# Katalog grosir juga punya subdomain sendiri (rewrite middleware ke /grosir);
+# pastikan HTTPS-nya melayani rilis ini juga.
+verify_grosir_endpoint() {
+  local endpoint=$1 attempt body
+  for ((attempt=1; attempt<=ENDPOINT_ATTEMPTS; attempt++)); do
+    if body=$(curl --fail --silent --show-error --proto '=https' --connect-timeout 3 --max-time 5 \
+      -H 'Cache-Control: no-cache' "https://grosir.${domain}${endpoint}?release=$RELEASE_SHA") \
+      && printf '%s' "$body" | python3 -c '
+import json, sys
+try:
+    body = json.load(sys.stdin)
+    valid = isinstance(body, dict) and body.get("release_sha") == sys.argv[1]
+    if sys.argv[2] == "/api/health":
+        valid = valid and body.get("ok") is True
+    sys.exit(0 if valid else 1)
+except (ValueError, TypeError):
+    sys.exit(1)
+' "$RELEASE_SHA" "$endpoint"; then
+      printf 'Verified grosir%s at %s\n' "$endpoint" "$RELEASE_SHA"
+      return 0
+    fi
+    if (( attempt < ENDPOINT_ATTEMPTS )); then sleep "$HEALTH_INTERVAL"; fi
+  done
+  fail "Grosir endpoint verification failed: $endpoint (expected $RELEASE_SHA)"
+}
+verify_grosir_endpoint /version
 # Re-check both together after the public probes so a regression cannot be recorded as success.
 wait_healthy backend frontend
 if [[ -n "$last_release" && "$last_release" != "$RELEASE_SHA" ]]; then

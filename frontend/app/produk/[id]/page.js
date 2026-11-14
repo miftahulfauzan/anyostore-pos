@@ -31,18 +31,21 @@ export async function generateMetadata({ params }) {
   const description = String(product.description || `Beli ${product.name} grosir denim wanita. Chat admin untuk harga grosir, stok, dan warna ready.`).slice(0, 160);
   const media = Array.isArray(product.media) ? product.media : [];
   const photo = media.find((m) => m.path)?.path || null;
+  // Canonical absolut dari host permintaan: katalog ada di grosir.anyostore.my.id,
+  // jadi canonical tidak boleh selalu menunjuk domain utama.
+  const origin = (await apiBase()).replace(/\/api$/, '');
   return {
     title: product.name,
     description,
-    alternates: { canonical: `/produk/${id}` },
+    alternates: { canonical: `${origin}/produk/${id}` },
     openGraph: {
       // 'product' tidak didukung skema OpenGraph Next.js -> error 500 (digest).
       type: 'website',
       title: product.name,
       description,
-      url: `/produk/${id}`,
+      url: `${origin}/produk/${id}`,
       siteName: 'Anyostore',
-      images: photo ? [{ url: `${(await apiBase()).replace(/\/api$/, '')}${photo}` }] : undefined,
+      images: photo ? [{ url: `${origin}${photo}` }] : undefined,
     },
   };
 }
