@@ -508,7 +508,7 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
             onChange={(e) => { setQuantityPromptQty(e.target.value); setQuantityPromptError(''); }}
             onFocus={(e) => e.currentTarget.select()}
             onClick={(e) => e.currentTarget.select()}
-            onKeyDown={(e) => { if (e.key === 'Enter') confirmQuantity(); if (e.key === 'Escape') setQuantityPrompt(null); }}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); confirmQuantity(); } if (e.key === 'Escape') setQuantityPrompt(null); }}
           />
         </label>
         {quantityPromptError && <p className="message" role="alert">{quantityPromptError}</p>}

@@ -191,7 +191,7 @@ export default function StockReportSection() {
     if (editingRack === key) {
       return (
         <div className="rack-editor" onClick={(event) => event.stopPropagation()}>
-          <input aria-label={`Posisi Rak ${product.name} di ${warehouse.name}`} title="Posisi Rak" value={rackDraft} maxLength={100} onChange={(event) => setRackDraft(event.target.value)} placeholder="Contoh A-01" onKeyDown={(event) => { if (event.key === 'Enter') saveRackPosition(product, warehouse); if (event.key === 'Escape') cancelRackEdit(); }} />
+          <input aria-label={`Posisi Rak ${product.name} di ${warehouse.name}`} title="Posisi Rak" value={rackDraft} maxLength={100} onChange={(event) => setRackDraft(event.target.value)} placeholder="Contoh A-01" onKeyDown={(event) => { if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); saveRackPosition(product, warehouse); } if (event.key === 'Escape') cancelRackEdit(); }} />
           <button type="button" className="small" disabled={savingRack} onClick={() => saveRackPosition(product, warehouse)}>{savingRack ? '…' : 'Simpan'}</button>
           <button type="button" className="small secondary" disabled={savingRack} onClick={cancelRackEdit}>Batal</button>
         </div>

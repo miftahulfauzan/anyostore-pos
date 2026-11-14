@@ -214,7 +214,7 @@ export default function HistoryPage() {
             </div>
             <div className="history-filter">
               <div className="history-filter-row">
-                <label className="history-search-label">Cari transaksi<input placeholder="Invoice, kasir, atau pelanggan" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && applyFilter()} /></label>
+                <label className="history-search-label">Cari transaksi<input placeholder="Invoice, kasir, atau pelanggan" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); applyFilter(); } }} /></label>
                 <label className="history-status-label">Status
                   <select value={filters.status} onChange={(e) => { const next = { ...filters, status: e.target.value }; setFilters(next); setPage(1); load(1, next); }}>
                     <option value="">Semua</option>
@@ -263,7 +263,7 @@ export default function HistoryPage() {
           <section className="panel">
             <div className="product-list" role="list">
               {transactions.map((t) => (
-                <article key={t.id} role="button" tabIndex={0} onClick={() => inspect(t)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inspect(t); } }} style={{ cursor: 'pointer', border: selected?.id === t.id ? '1px solid #2563eb' : undefined, borderRadius: 6, padding: '.6rem', background: selected?.id === t.id ? '#eff6ff' : undefined }}>
+                <article key={t.id} role="button" tabIndex={0} onClick={() => inspect(t)} onKeyDown={(e) => { if ((e.key === 'Enter' && !e.isComposing) || e.key === ' ') { e.preventDefault(); inspect(t); } }} style={{ cursor: 'pointer', border: selected?.id === t.id ? '1px solid #2563eb' : undefined, borderRadius: 6, padding: '.6rem', background: selected?.id === t.id ? '#eff6ff' : undefined }}>
                   <div>
                     <strong style={{ fontSize: 'var(--fs-md)' }}>{t.invoice_no}{t.source_system === 'olsera' ? <small className="muted"> · Olsera</small> : null}</strong>
                     <span>{t.cashier} {t.customer ? `• ${t.customer} (${t.customer_tier})` : ''} • {transactionDateTime(t)}</span>

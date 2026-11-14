@@ -22,6 +22,8 @@ export const metadata = {
     apple: [{ url: '/icon.svg', type: 'image/svg+xml' }],
   },
   manifest: '/manifest.json',
+  // Scrollbar & kontrol native langsung mengikuti tema terang/gelap.
+  other: { 'color-scheme': 'light dark' },
   appleWebApp: {
     capable: true,
     title: 'Anyostore POS',
