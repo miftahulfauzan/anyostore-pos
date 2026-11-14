@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import FloatingWA from '../../components/FloatingWA';
 import SafeImage from '../../components/SafeImage';
+import { marketplaceLinks } from '../../lib/marketplace';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const C = { white: '#ffffff', bg: '#f8fafc', ink: '#0f172a', muted: '#64748b', border: '#e2e8f0', accent: '#1e3a5f', accentLight: '#eef2ff' };
@@ -163,6 +164,7 @@ export default function ProdukDetail() {
     ...media.map((m) => ({ path: m.path, transform: m.transform, color: null })),
     ...variants.filter((v) => v.photo_path).map((v) => ({ path: v.photo_path, transform: v.photo_transform || null, color: v.color })),
   ];
+  const market = marketplaceLinks(settings || {}, product.name);
   const waPhones = [...(settings?.whatsapp_numbers || [])];
   const waPhone = settings?.whatsapp || settings?.store_phone || '';
   if (!waPhones.length && waPhone) waPhones.push(waPhone);
@@ -251,6 +253,33 @@ export default function ProdukDetail() {
             <button type="button" onClick={addToCart} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 46, borderRadius: 10, border: 'none', background: C.accent, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
               {added ? <I.check style={{ width: 17, height: 17 }} /> : <I.cart style={{ width: 17, height: 17 }} />} {added ? 'Ditambahkan ke Keranjang' : 'Tambah ke Keranjang'}
             </button>
+            {(market.shopee || market.tiktok) && (
+              <div style={{ display: 'grid', gap: 8, marginTop: 4 }}>
+                {market.shopee && (
+                  <a
+                    href={market.shopee}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 44, borderRadius: 10, background: '#ee4d2d', color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}
+                  >
+                    Beli di Shopee
+                  </a>
+                )}
+                {market.tiktok && (
+                  <a
+                    href={market.tiktok}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 44, borderRadius: 10, background: '#111827', color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}
+                  >
+                    Lihat di TikTok
+                  </a>
+                )}
+                <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: C.muted, textAlign: 'center' }}>
+                  Stok &amp; harga final mengikuti marketplace.
+                </p>
+              </div>
+            )}
             {added && (
               <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: '#16a34a', textAlign: 'center' }}>
                 Masuk keranjang. <a href={catalogHref} style={{ color: C.accent, fontWeight: 700 }}>Lihat Keranjang ({cartCount})</a>

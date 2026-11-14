@@ -216,6 +216,11 @@ export default function StoreSettingsPage() {
     save({
       landing_page_size: form.landing_page_size || '24',
       min_order_qty: form.min_order_qty || '0',
+      // Tautan marketplace: pembeli diarahkan ke pencarian di dalam toko Shopee
+      // (kata kunci = nama produk) dan ke profil TikTok toko.
+      marketplace_shopee_shop_id: String(form.marketplace_shopee_shop_id || '').replace(/[^0-9]/g, ''),
+      marketplace_tiktok_shop_url: form.marketplace_tiktok_shop_url || '',
+      marketplace_show_on_cards: form.marketplace_show_on_cards || 'false',
     }, 'Aturan landing tersimpan.');
   }
 
@@ -594,6 +599,38 @@ export default function StoreSettingsPage() {
           <p className="muted" style={{ marginTop: 0, fontSize: 'var(--fs-sm)' }}>
             Contoh: BASIK PGMTA 4 pcs, Anyo Blok B 1 pcs. Isi 0 bila toko ini tanpa minimum order.
           </p>
+          <h2 style={{ marginTop: '1.2rem' }}>Tautan marketplace</h2>
+          <p className="muted" style={{ marginTop: 0, fontSize: 'var(--fs-sm)' }}>
+            Tombol di kartu produk &amp; detail mengarah ke <strong>pencarian di dalam toko Shopee</strong> memakai nama produk, dan ke profil TikTok toko.
+            Kosongkan untuk menyembunyikan tombol.
+          </p>
+          <div className="two-fields">
+            <label>Shopee Shop ID
+              <input
+                value={form.marketplace_shopee_shop_id || ''}
+                onChange={(event) => set('marketplace_shopee_shop_id', event.target.value.replace(/[^0-9]/g, ''))}
+                placeholder="5046365"
+                inputMode="numeric"
+              />
+              <span className="muted" style={{ fontSize: 'var(--fs-sm)' }}>Angka dari URL toko: shopee.co.id/shop/<strong>5046365</strong></span>
+            </label>
+            <label>Profil TikTok
+              <input
+                value={form.marketplace_tiktok_shop_url || ''}
+                onChange={(event) => set('marketplace_tiktok_shop_url', event.target.value)}
+                placeholder="https://www.tiktok.com/@anyostore"
+              />
+            </label>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={String(form.marketplace_show_on_cards || 'false') === 'true'}
+              onChange={(event) => set('marketplace_show_on_cards', event.target.checked ? 'true' : 'false')}
+            />
+            Tampilkan tombol marketplace di kartu produk
+          </label>
+
           <label>Slug landing cabang
             <input value={store.landing_slug || ''} readOnly placeholder="(kosong = landing utama)" />
             <span className="muted" style={{ fontSize: 'var(--fs-sm)' }}>Contoh: <code>reseller</code> membuka /reseller untuk toko ini.</span>
