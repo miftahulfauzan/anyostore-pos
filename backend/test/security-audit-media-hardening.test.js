@@ -29,6 +29,7 @@ test('nama file unggahan memakai ekstensi dari MIME, bukan dari klien', () => {
 
 test('/uploads hanya menyajikan tipe media dan menolak sisanya', () => {
   assert.match(app, /const UPLOAD_CONTENT_TYPES = \{/);
+  assert.match(app, /const contentType = UPLOAD_CONTENT_TYPES\[ext\] \|\| sniffMediaContentType\(filePath\)/);
   assert.match(app, /res\.setHeader\('Content-Type', contentType \|\| 'application\/octet-stream'\)/);
   assert.match(app, /res\.setHeader\('Content-Disposition', 'attachment'\)/);
   assert.match(app, /res\.setHeader\('X-Content-Type-Options', 'nosniff'\)/);
@@ -67,4 +68,12 @@ test('ganti foto varian memakai refcount sebelum menghapus file', () => {
 test('migrasi membersihkan baris product_photos yatim', () => {
   assert.match(migration, /DELETE pp FROM product_photos pp/);
   assert.match(migration, /WHERE p\.id IS NULL/);
+});
+test('berkas lama tanpa ekstensi tetap dikenali sebagai media', () => {
+  // 17 baris product_photos lama tidak punya ekstensi; tanpa deteksi isi,
+  // gambarnya gagal tampil karena octet-stream + nosniff.
+  assert.match(app, /function sniffMediaContentType\(filePath\)/);
+  for (const sig of ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/webm']) {
+    assert.match(app, new RegExp(`return '${sig}'`));
+  }
 });

@@ -31,6 +31,7 @@ const backupRouter = require('./routes/backup');
 const olseraImportRouter = require('./routes/olsera-import');
 const resellerRouter = require('./routes/reseller');
 const resellerAdminRouter = require('./routes/reseller-admin');
+const fs = require('fs');
 const path = require('path');
 const { serveBlob } = require('./media-storage');
 
@@ -55,11 +56,34 @@ const UPLOAD_CONTENT_TYPES = {
   '.mp4': 'video/mp4',
   '.webm': 'video/webm',
 };
+
+// Sebagian berkas lama tersimpan tanpa ekstensi. Tanpa deteksi isi, berkas itu
+// akan dikirim sebagai octet-stream + nosniff sehingga gambarnya tidak muncul.
+// Deteksi hanya membaca 12 byte pertama dan hanya untuk tipe media yang aman.
+function sniffMediaContentType(filePath) {
+  let fd;
+  try {
+    fd = fs.openSync(filePath, 'r');
+    const head = Buffer.alloc(12);
+    const read = fs.readSync(fd, head, 0, 12, 0);
+    if (read >= 3 && head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff) return 'image/jpeg';
+    if (read >= 8 && head.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png';
+    if (read >= 12 && head.toString('ascii', 0, 4) === 'RIFF' && head.toString('ascii', 8, 12) === 'WEBP') return 'image/webp';
+    if (read >= 12 && head.toString('ascii', 4, 8) === 'ftyp') return 'video/mp4';
+    if (read >= 4 && head[0] === 0x1a && head[1] === 0x45 && head[2] === 0xdf && head[3] === 0xa3) return 'video/webm';
+  } catch {
+    // Berkas tidak terbaca: jatuh ke octet-stream (aman).
+  } finally {
+    if (fd !== undefined) { try { fs.closeSync(fd); } catch { /* ignore */ } }
+  }
+  return null;
+}
+
 app.use('/uploads', serveBlob, express.static(path.join(process.cwd(), 'uploads'), {
   maxAge: '7d',
   setHeaders: (res, filePath) => {
     const ext = path.extname(filePath).toLowerCase();
-    const contentType = UPLOAD_CONTENT_TYPES[ext];
+    const contentType = UPLOAD_CONTENT_TYPES[ext] || sniffMediaContentType(filePath);
     res.setHeader('Content-Type', contentType || 'application/octet-stream');
     if (!contentType) res.setHeader('Content-Disposition', 'attachment');
     res.setHeader('X-Content-Type-Options', 'nosniff');
