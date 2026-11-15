@@ -5,30 +5,39 @@
 {$APP_DOMAIN}, www.{$APP_DOMAIN}, grosir.{$APP_DOMAIN}, reseller.{$APP_DOMAIN} {
 	encode zstd gzip
 
-	handle /api/* {
+	# Berkas unggahan tidak pernah boleh dieksekusi sebagai halaman.
+	@uploads path /uploads/*
+	@app not path /uploads/*
+
+	handle @uploads {
 		reverse_proxy 127.0.0.1:3001
 	}
 
-	handle /uploads/* {
+	handle /api/* {
 		reverse_proxy 127.0.0.1:3001
-		# Berkas unggahan tidak boleh dieksekusi sebagai halaman: matikan script,
-		# frame, dan form walau ada file yang lolos dengan tipe salah.
-		header {
-			Content-Security-Policy "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'none'; script-src 'none'; frame-ancestors 'none'; sandbox"
-			X-Content-Type-Options "nosniff"
-		}
 	}
 
 	handle {
 		reverse_proxy 127.0.0.1:3000
 	}
 
+	# Header yang berlaku untuk semua jalur.
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		X-Frame-Options "SAMEORIGIN"
-		Content-Security-Policy "default-src 'self'; base-uri 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self'"
 		-Server
+	}
+
+	# CSP HARUS dipisah per matcher: blok header site bersifat deferred dan
+	# akan menimpa CSP di dalam handle bila ditulis di dua tempat itu, sehingga
+	# berkas unggahan tetap bisa menjalankan script.
+	header @uploads {
+		Content-Security-Policy "default-src 'none'; img-src 'self'; media-src 'self'; script-src 'none'; style-src 'none'; frame-ancestors 'none'; sandbox"
+		Cross-Origin-Resource-Policy "cross-origin"
+	}
+	header @app {
+		Content-Security-Policy "default-src 'self'; base-uri 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self'"
 	}
 }
