@@ -11,8 +11,8 @@ export function ShopeeMark({ size = 18, style }) {
       width={s}
       height={s}
       viewBox="0 0 48 48"
-      role="img"
-      aria-label="Shopee"
+      aria-hidden="true"
+      focusable="false"
       style={{ display: 'block', flex: '0 0 auto', ...style }}
     >
       <circle cx="24" cy="24" r="24" fill="#ee4d2d" />
@@ -43,8 +43,8 @@ export function TikTokMark({ size = 18, style }) {
       width={s}
       height={s}
       viewBox="0 0 48 48"
-      role="img"
-      aria-label="TikTok"
+      aria-hidden="true"
+      focusable="false"
       style={{ display: 'block', flex: '0 0 auto', ...style }}
     >
       <rect width="48" height="48" rx="10" fill="#010101" />

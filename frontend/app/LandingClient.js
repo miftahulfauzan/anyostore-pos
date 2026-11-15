@@ -1093,8 +1093,11 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
         .pcard-market-tiktok svg { border-radius: 5px; }
         .pcard-color { padding: 2px 8px; border-radius: 4px; background: rgba(30,58,95,.08); font-size: 11px; color: #52525b; }
         .pcard-actions { display: flex; gap: 10px; margin-top: auto; padding-top: 12px; }
-        .pcard-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 0 10px; border-radius: 8px; font-size: 13px; font-weight: 700; line-height: 1.1; text-align: center; text-decoration: none; cursor: pointer; box-sizing: border-box; transition: all .3s cubic-bezier(.4,0,.2,1); }
-        .pcard-btn.primary { background: ${T.blue}; color: #fff; border: none; }
+        /* flex-basis 0 supaya dua tombol benar-benar sama lebar, bukan
+           mengikuti panjang teks; border transparan di tombol primer agar
+           ukuran visual kedua tombol identik. */
+        .pcard-btn { flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 0 8px; border-radius: 8px; font-size: 13px; font-weight: 700; line-height: 1.1; text-align: center; text-decoration: none; cursor: pointer; box-sizing: border-box; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: all .3s cubic-bezier(.4,0,.2,1); }
+        .pcard-btn.primary { background: ${T.blue}; color: #fff; border: 1.5px solid ${T.blue}; }
         .pcard-btn.primary:hover { background: #152d4a; transform: translateY(-1px); }
         .pcard-btn.secondary { background: #fff; color: ${T.blue}; border: 1.5px solid rgba(30,58,95,.3); }
         .pcard-btn.secondary:hover { background: ${T.blue}; color: #fff; border-color: ${T.blue}; }
