@@ -1089,8 +1089,9 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
           font-size: 11.5px; font-weight: 700; line-height: 1; text-decoration: none;
           transition: border-color .12s ease, box-shadow .12s ease; }
         .pcard-market-tag:hover { border-color: ${T.blue}; box-shadow: 0 2px 8px rgba(15,23,42,.10); }
-        .pcard-market-tag svg { border-radius: 999px; }
-        .pcard-market-tiktok svg { border-radius: 5px; }
+        /* Mark brand memakai file gambar; radius mengikuti bentuk logonya. */
+        .pcard-market-shopee img { border-radius: 999px; }
+        .pcard-market-tiktok img { border-radius: 5px; }
         .pcard-color { padding: 2px 8px; border-radius: 4px; background: rgba(30,58,95,.08); font-size: 11px; color: #52525b; }
         .pcard-actions { display: flex; gap: 10px; margin-top: auto; padding-top: 12px; }
         /* flex-basis 0 supaya dua tombol benar-benar sama lebar, bukan
