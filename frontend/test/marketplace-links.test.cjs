@@ -19,15 +19,15 @@ const publicRoute = fs.readFileSync(path.join(repo, 'backend', 'src', 'routes', 
 const settingsRoute = fs.readFileSync(path.join(repo, 'backend', 'src', 'routes', 'settings.js'), 'utf8');
 const migration = fs.readFileSync(path.join(repo, 'backend', 'migrations', '20261116_marketplace_links.sql'), 'utf8');
 
-test('Shopee: URL template dari pemilik toko menang, fallback pakai shopId', () => {
+test('Shopee: URL template dari pemilik toko menang, fallback pencarian global', () => {
   assert.equal(
     shopeeSearchUrl('5046365', 'Kemeja AB83 Salur'),
-    'https://shopee.co.id/search?keyword=Kemeja+AB83+Salur&shopId=5046365&page_type=search_store',
+    'https://shopee.co.id/search?keyword=Kemeja%20AB83%20Salur',
   );
   // Nama dengan tanda hubung & garis miring tetap di-encode aman.
   assert.equal(
     shopeeSearchUrl('5046365', 'A101-BLAZE / Biru'),
-    'https://shopee.co.id/search?keyword=A101-BLAZE+%2F+Biru&shopId=5046365&page_type=search_store',
+    'https://shopee.co.id/search?keyword=A101-BLAZE%20%2F%20Biru',
   );
   // Format lama /shop/<id>/search tidak dipakai lagi: sebagian browser hanya
   // membuka halaman toko tanpa mencari produk.
@@ -83,15 +83,15 @@ test('marketplaceLinks menggabungkan keduanya dan hormati toggle kartu', () => {
     { marketplace_shopee_shop_id: '5046365', marketplace_tiktok_shop_url: 'https://www.tiktok.com/@anyostore' },
     'B08',
   );
-  assert.equal(links.shopee, 'https://shopee.co.id/search?keyword=B08&shopId=5046365&page_type=search_store');
+  assert.equal(links.shopee, 'https://shopee.co.id/search?keyword=B08');
   // Nama ber-varian otomatis dipangkas ke kode produk.
   assert.equal(
     marketplaceLinks({ marketplace_shopee_shop_id: '5046365' }, 'AB12 ON MODEL').shopee,
-    'https://shopee.co.id/search?keyword=AB12&shopId=5046365&page_type=search_store',
+    'https://shopee.co.id/search?keyword=AB12',
   );
   assert.equal(
     marketplaceLinks({ marketplace_shopee_shop_id: '5046365' }, 'ROK-03').shopee,
-    'https://shopee.co.id/search?keyword=ROK&shopId=5046365&page_type=search_store',
+    'https://shopee.co.id/search?keyword=ROK',
   );
   assert.equal(links.tiktok, 'https://www.tiktok.com/@anyostore');
   assert.equal(showMarketplaceOnCards({ marketplace_show_on_cards: 'true' }), true);

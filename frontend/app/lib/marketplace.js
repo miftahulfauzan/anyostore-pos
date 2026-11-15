@@ -30,17 +30,18 @@ export function marketplaceKeyword(name) {
 /**
  * Tautan pencarian Shopee untuk satu produk.
  *
- * Prioritas:
- * 1. `template` — URL pasti yang ditempel pemilik toko dari browser (mengandung
- *    {keyword}). Ini sumber kebenaran karena Shopee tidak mendokumentasikan
- *    parameternya dan perilakunya berubah antar versi.
- * 2. Fallback: /search dengan `shopId` (camelCase) + `page_type=search_store`,
- *    parameter yang dipakai Shopee saat mencari dari dalam halaman toko.
- *    `shopid` lowercase terbukti TIDAK memfilter (hasil tetap global).
+ * PENTING: Shopee TIDAK mendokumentasikan URL pencarian-dalam-toko dan
+ * mengabaikan parameter toko apa pun pada URL publik (shopid lowercase,
+ * shopId camelCase, page_type=search_store, maupun /shop/<id>/search sudah
+ * dicoba — semuanya berakhir di hasil global atau halaman toko). Karena itu
+ * satu-satunya cara yang pasti adalah URL template yang ditempel pemilik toko
+ * dari browsernya sendiri (`marketplace_shopee_search_url`, mendukung
+ * {keyword}). Fungsi ini hanya menyediakan fallback terbaik.
  */
 export function shopeeSearchUrl(shopId, keyword, template = '') {
   const q = String(keyword ?? '').trim();
   const raw = String(template ?? '').trim();
+  // Template dari pemilik toko: paling akurat, dipakai apa adanya.
   if (raw.includes('{keyword}')) return raw.replace(/\{keyword\}/g, encodeURIComponent(q));
   if (raw && /^https?:\/\//i.test(raw)) {
     const url = new URL(raw);
@@ -49,11 +50,9 @@ export function shopeeSearchUrl(shopId, keyword, template = '') {
   }
   const id = String(shopId ?? '').replace(/[^0-9]/g, '');
   if (!id) return '';
-  const params = new URLSearchParams();
-  if (q) params.set('keyword', q);
-  params.set('shopId', id);
-  params.set('page_type', 'search_store');
-  return `https://shopee.co.id/search?${params.toString()}`;
+  // Fallback jujur: Shopee mengabaikan semua parameter toko, jadi yang bisa
+  // dijamin hanya halaman pencarian global dengan kata kunci produk.
+  return `https://shopee.co.id/search?keyword=${encodeURIComponent(q)}`;
 }
 
 /** TikTok: profil toko (menerima URL penuh atau username dengan/tanpa @). */
