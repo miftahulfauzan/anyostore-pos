@@ -109,7 +109,7 @@ test('kartu produk dan detail memakai builder yang sama', () => {
   assert.match(detail, /from '\.\.\/\.\.\/lib\/marketplace'/);
   assert.match(detail, /marketplaceLinks\(settings \|\| \{\}, product\.name\)/);
   assert.match(detail, /Beli di Shopee/);
-  assert.match(detail, /Lihat di TikTok/);
+  assert.match(detail, /Beli di TikTok/);
 });
 
 test('setelan marketplace bisa diubah dari Setelan Toko dan dikirim ke publik', () => {

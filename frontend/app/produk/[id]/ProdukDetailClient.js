@@ -276,7 +276,7 @@ export default function ProdukDetail() {
                     style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 48, padding: '0 14px', borderRadius: 12, border: '1px solid #d8dbe2', background: '#f7f8fa', color: '#111827', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}
                   >
                     <TikTokMark size={26} />
-                    <span style={{ flex: 1 }}>Lihat di TikTok</span>
+                    <span style={{ flex: 1 }}>Beli di TikTok</span>
                     <span aria-hidden="true" style={{ fontSize: 16 }}>{'\u203A'}</span>
                   </a>
                 )}
@@ -290,7 +290,6 @@ export default function ProdukDetail() {
                 Masuk keranjang. <a href={catalogHref} style={{ color: C.accent, fontWeight: 700 }}>Lihat Keranjang ({cartCount})</a>
               </p>
             )}
-            <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: C.muted, textAlign: 'center' }}>{hasMinimumOrder ? `Minimal ${minOrderQty} pcs per model. Varian boleh dicampur.` : 'Tanpa minimum pembelian. Varian boleh dicampur.'}</p>
           </div>
 
           {/* CTA */}
@@ -301,8 +300,6 @@ export default function ProdukDetail() {
               </a>
             ))}
           </div>
-          <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: C.muted, textAlign: 'center' }}>Chat admin untuk harga grosir, stok, warna ready.</p>
-
           {/* trust strip */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
             {[{ icon: I.box, label: hasMinimumOrder ? `Min ${minOrderQty} pcs/model` : 'Tanpa minimum' }, { icon: I.truck, label: 'Kirim Nasional' }, { icon: I.store, label: 'Ready Stock' }].map((it, i) => (
