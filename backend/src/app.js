@@ -45,7 +45,26 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json({ limit: '6mb' }));
 app.use(cookieParser());
-app.use('/uploads', serveBlob, express.static(path.join(process.cwd(), 'uploads'), { maxAge: '7d' }));
+// Hanya tipe media yang diizinkan yang disajikan sebagai media. Selain itu
+// dipaksa octet-stream + attachment supaya tidak pernah dieksekusi browser.
+const UPLOAD_CONTENT_TYPES = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+};
+app.use('/uploads', serveBlob, express.static(path.join(process.cwd(), 'uploads'), {
+  maxAge: '7d',
+  setHeaders: (res, filePath) => {
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = UPLOAD_CONTENT_TYPES[ext];
+    res.setHeader('Content-Type', contentType || 'application/octet-stream');
+    if (!contentType) res.setHeader('Content-Disposition', 'attachment');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+  },
+}));
 app.use('/api', rateLimit({ ...limiterOptions, windowMs: 60_000, max: 600, standardHeaders: true, legacyHeaders: false, handler: (req, res) => res.status(429).json({ success: false, message: 'Terlalu banyak permintaan, coba lagi dalam 1 menit' }) }));
 
 const loginLimiter = rateLimit({

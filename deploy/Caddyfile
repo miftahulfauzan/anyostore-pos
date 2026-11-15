@@ -11,6 +11,12 @@
 
 	handle /uploads/* {
 		reverse_proxy 127.0.0.1:3001
+		# Berkas unggahan tidak boleh dieksekusi sebagai halaman: matikan script,
+		# frame, dan form walau ada file yang lolos dengan tipe salah.
+		header {
+			Content-Security-Policy "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'none'; script-src 'none'; frame-ancestors 'none'; sandbox"
+			X-Content-Type-Options "nosniff"
+		}
 	}
 
 	handle {

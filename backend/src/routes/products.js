@@ -636,7 +636,12 @@ router.post('/:id/variants/:variantId/photo', authorize('owner', 'manager', 'adm
     await db.execute('DELETE FROM product_photos WHERE variant_id = ?', [variants[0].id]);
     const publicPath = await persistUploadedFile(req.file, 'products');
     await db.execute('INSERT INTO product_photos (product_id, variant_id, filename, path, media_type, is_primary, sort_order) VALUES (?, ?, ?, ?, \'image\', FALSE, 0)', [req.params.id, variants[0].id, req.file.filename, publicPath]);
-    for (const item of previous) await removeMedia(item.path);
+    // Jangan hapus file yang masih dipakai baris product_photos lain (foto
+    // bisa dipakai bersama oleh baris lama/yatim).
+    for (const item of previous) {
+      const [ref] = await db.execute('SELECT COUNT(*) AS cnt FROM product_photos WHERE path = ?', [item.path]);
+      if (Number(ref[0]?.cnt || 0) === 0) await removeMedia(item.path);
+    }
     res.status(201).json({ success: true, data: { path: publicPath } });
   } catch (error) { next(error); }
 });
@@ -669,7 +674,12 @@ router.post('/:id/variants/:variantId/photo-data', authorize('owner', 'manager',
     const publicPath = await persistUploadedFile(file, 'products');
     await db.execute('DELETE FROM product_photos WHERE variant_id = ?', [variants[0].id]);
     await db.execute('INSERT INTO product_photos (product_id, variant_id, filename, path, media_type, is_primary, sort_order) VALUES (?, ?, ?, ?, \'image\', FALSE, 0)', [req.params.id, variants[0].id, file.filename, publicPath]);
-    for (const item of previous) await removeMedia(item.path);
+    // Jangan hapus file yang masih dipakai baris product_photos lain (foto
+    // bisa dipakai bersama oleh baris lama/yatim).
+    for (const item of previous) {
+      const [ref] = await db.execute('SELECT COUNT(*) AS cnt FROM product_photos WHERE path = ?', [item.path]);
+      if (Number(ref[0]?.cnt || 0) === 0) await removeMedia(item.path);
+    }
     res.status(201).json({ success: true, data: { path: publicPath } });
   } catch (error) { next(error); }
 });

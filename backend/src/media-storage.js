@@ -7,7 +7,18 @@ const db = require('./db');
 const useDatabase = () => process.env.MEDIA_STORAGE === 'database';
 const useMemoryStorage = () => useDatabase();
 const cleanExtension = (filename) => path.extname(filename || '').toLowerCase().replace(/[^.a-z0-9]/g, '');
-const makeFilename = (file) => `${Date.now()}-${crypto.randomUUID()}${cleanExtension(file.originalname)}`;
+// Ekstensi di disk SELALU diturunkan dari tipe media yang divalidasi, bukan dari
+// nama kiriman klien. Tanpa ini, file valid berisi HTML bisa tersimpan sebagai
+// *.html dan disajikan express.static sebagai text/html (stored XSS).
+const SAFE_EXTENSIONS = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'video/mp4': '.mp4',
+  'video/webm': '.webm',
+};
+const extensionForMime = (mimetype) => SAFE_EXTENSIONS[normalizeMimeType(mimetype)] || '';
+const makeFilename = (file) => `${Date.now()}-${crypto.randomUUID()}${extensionForMime(file.mimetype)}`;
 
 function normalizeMimeType(mimetype) {
   return String(mimetype || '').toLowerCase() === 'image/jpg' ? 'image/jpeg' : String(mimetype || '').toLowerCase();
@@ -30,15 +41,6 @@ function detectMimeType(buffer) {
   return null;
 }
 
-function extensionForMime(mimetype) {
-  return ({
-    'image/jpeg': '.jpg',
-    'image/png': '.png',
-    'image/webp': '.webp',
-    'video/mp4': '.mp4',
-    'video/webm': '.webm',
-  })[mimetype] || '';
-}
 
 function decodeDataUpload(payload, { fileSize, mimeTypes }) {
   const dataUrl = String(payload?.data_url || '');
@@ -52,9 +54,9 @@ function decodeDataUpload(payload, { fileSize, mimeTypes }) {
     throw Object.assign(new Error('Isi file tidak sesuai dengan format media'), { status: 400 });
   }
   const suppliedName = path.basename(String(payload?.filename || 'media'));
-  const originalname = cleanExtension(suppliedName)
-    ? suppliedName
-    : `${suppliedName}${extensionForMime(detectedMimetype)}`;
+  // Buang ekstensi kiriman klien; pakai ekstensi dari tipe yang terdeteksi.
+  const baseName = suppliedName.replace(/\.[^.]*$/, '') || 'media';
+  const originalname = `${baseName}${extensionForMime(detectedMimetype)}`;
   return { buffer, mimetype: detectedMimetype, originalname };
 }
 
