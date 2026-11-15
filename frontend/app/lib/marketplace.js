@@ -31,7 +31,13 @@ export function shopeeSearchUrl(shopId, keyword) {
   const id = String(shopId ?? '').replace(/[^0-9]/g, '');
   if (!id) return '';
   const q = String(keyword ?? '').trim();
-  return `https://shopee.co.id/shop/${id}/search${q ? `?keyword=${encodeURIComponent(q)}` : ''}`;
+  const params = new URLSearchParams();
+  if (q) params.set('keyword', q);
+  params.set('shopid', id);
+  // Format /search?keyword=..&shopid=.. dipakai halaman pencarian Shopee dengan
+  // filter toko. Format lama /shop/<id>/search hanya membuka halaman toko pada
+  // sebagian browser sehingga produk yang diklik tidak langsung dicari.
+  return `https://shopee.co.id/search?${params.toString()}`;
 }
 
 /** TikTok: profil toko (menerima URL penuh atau username dengan/tanpa @). */
