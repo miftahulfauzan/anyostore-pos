@@ -31,6 +31,11 @@ function BrandImage({ brand, size, radius, style }) {
         height: s,
         objectFit: 'contain',
         borderRadius: radius ?? (brand === 'shopee' ? 999 : 6),
+        // File logo Shopee memakai LUBANG transparan berbentuk kantong (bukan
+        // tinta hitam). Tanpa pelat gelap, kantong itu meniru warna latar
+        // (putih di kartu) sehingga logo tidak seperti aslinya. Pelat dibuat
+        // selebar lingkaran agar sudut luar tetap ikut terpotong border-radius.
+        background: brand === 'shopee' ? '#111' : 'transparent',
         ...style,
       }}
     />
