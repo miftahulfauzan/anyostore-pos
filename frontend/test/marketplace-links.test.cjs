@@ -19,19 +19,21 @@ const publicRoute = fs.readFileSync(path.join(repo, 'backend', 'src', 'routes', 
 const settingsRoute = fs.readFileSync(path.join(repo, 'backend', 'src', 'routes', 'settings.js'), 'utf8');
 const migration = fs.readFileSync(path.join(repo, 'backend', 'migrations', '20261116_marketplace_links.sql'), 'utf8');
 
-test('Shopee: URL template dari pemilik toko menang, fallback pencarian global', () => {
+test('Shopee: bentuk baku /mall/search?shop=, template pemilik toko menang', () => {
   assert.equal(
     shopeeSearchUrl('5046365', 'Kemeja AB83 Salur'),
-    'https://shopee.co.id/search?keyword=Kemeja%20AB83%20Salur',
+    'https://shopee.co.id/mall/search?keyword=Kemeja+AB83+Salur&shop=5046365',
   );
   // Nama dengan tanda hubung & garis miring tetap di-encode aman.
   assert.equal(
     shopeeSearchUrl('5046365', 'A101-BLAZE / Biru'),
-    'https://shopee.co.id/search?keyword=A101-BLAZE%20%2F%20Biru',
+    'https://shopee.co.id/mall/search?keyword=A101-BLAZE+%2F+Biru&shop=5046365',
   );
   // Format lama /shop/<id>/search tidak dipakai lagi: sebagian browser hanya
   // membuka halaman toko tanpa mencari produk.
   assert.doesNotMatch(shopeeSearchUrl('5046365', 'B08'), /\/shop\//);
+  // Bentuk baku: /mall/search + parameter `shop` (dikonfirmasi dari Shopee).
+  assert.match(shopeeSearchUrl('5046365', 'B08'), /^https:\/\/shopee\.co\.id\/mall\/search\?keyword=B08&shop=5046365$/);
   // URL template dari pemilik toko (paling akurat) + {keyword} diganti.
   assert.equal(
     shopeeSearchUrl('5046365', 'B08', 'https://shopee.co.id/search?keyword={keyword}&shopId=999&page_type=search_store'),
@@ -83,15 +85,15 @@ test('marketplaceLinks menggabungkan keduanya dan hormati toggle kartu', () => {
     { marketplace_shopee_shop_id: '5046365', marketplace_tiktok_shop_url: 'https://www.tiktok.com/@anyostore' },
     'B08',
   );
-  assert.equal(links.shopee, 'https://shopee.co.id/search?keyword=B08');
+  assert.equal(links.shopee, 'https://shopee.co.id/mall/search?keyword=B08&shop=5046365');
   // Nama ber-varian otomatis dipangkas ke kode produk.
   assert.equal(
     marketplaceLinks({ marketplace_shopee_shop_id: '5046365' }, 'AB12 ON MODEL').shopee,
-    'https://shopee.co.id/search?keyword=AB12',
+    'https://shopee.co.id/mall/search?keyword=AB12&shop=5046365',
   );
   assert.equal(
     marketplaceLinks({ marketplace_shopee_shop_id: '5046365' }, 'ROK-03').shopee,
-    'https://shopee.co.id/search?keyword=ROK',
+    'https://shopee.co.id/mall/search?keyword=ROK&shop=5046365',
   );
   assert.equal(links.tiktok, 'https://www.tiktok.com/@anyostore');
   assert.equal(showMarketplaceOnCards({ marketplace_show_on_cards: 'true' }), true);
