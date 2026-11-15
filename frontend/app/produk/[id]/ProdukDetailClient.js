@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import FloatingWA from '../../components/FloatingWA';
 import SafeImage from '../../components/SafeImage';
 import { marketplaceLinks } from '../../lib/marketplace';
+import { ShopeeMark, TikTokMark } from '../../lib/brand-icons';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const C = { white: '#ffffff', bg: '#f8fafc', ink: '#0f172a', muted: '#64748b', border: '#e2e8f0', accent: '#1e3a5f', accentLight: '#eef2ff' };
@@ -260,9 +261,11 @@ export default function ProdukDetail() {
                     href={market.shopee}
                     target="_blank"
                     rel="noopener noreferrer nofollow"
-                    style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 44, borderRadius: 10, background: '#ee4d2d', color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 48, padding: '0 14px', borderRadius: 12, border: '1px solid #f3d3c9', background: '#fff7f4', color: '#c43d16', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}
                   >
-                    Beli di Shopee
+                    <ShopeeMark size={26} />
+                    <span style={{ flex: 1 }}>Beli di Shopee</span>
+                    <span aria-hidden="true" style={{ fontSize: 16 }}>{'\u203A'}</span>
                   </a>
                 )}
                 {market.tiktok && (
@@ -270,9 +273,11 @@ export default function ProdukDetail() {
                     href={market.tiktok}
                     target="_blank"
                     rel="noopener noreferrer nofollow"
-                    style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 44, borderRadius: 10, background: '#111827', color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 48, padding: '0 14px', borderRadius: 12, border: '1px solid #d8dbe2', background: '#f7f8fa', color: '#111827', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}
                   >
-                    Lihat di TikTok
+                    <TikTokMark size={26} />
+                    <span style={{ flex: 1 }}>Lihat di TikTok</span>
+                    <span aria-hidden="true" style={{ fontSize: 16 }}>{'\u203A'}</span>
                   </a>
                 )}
                 <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: C.muted, textAlign: 'center' }}>

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { marketplaceLinks, showMarketplaceOnCards } from './lib/marketplace';
+import { ShopeeMark, TikTokMark } from './lib/brand-icons';
 import FloatingWA from './components/FloatingWA';
 import SafeImage from './components/SafeImage';
 
@@ -17,8 +18,6 @@ const I = {
   chevL: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="m15 18-6-6 6-6" /></svg>),
   chevR: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="m9 18 6-6-6-6" /></svg>),
   search: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>),
-  bag: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1-8 0" /></svg>),
-  music: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>),
   cart: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" /></svg>),
   plus: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 5v14M5 12h14" /></svg>),
   minus: (p) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M5 12h14" /></svg>),
@@ -96,27 +95,27 @@ function ProductCard({ product, onWa, onAdd, inCart, marketplace }) {
           {colors.map((c) => <span key={c} className="pcard-color">{c}</span>)}
         </div>
         {(marketplace?.shopee || marketplace?.tiktok) && (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div className="pcard-market">
             {marketplace.shopee && (
               <a
+                className="pcard-market-tag pcard-market-shopee"
                 href={marketplace.shopee}
                 target="_blank"
                 rel="noopener noreferrer nofollow"
                 title="Cari produk ini di toko Shopee kami"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 999, background: '#ee4d2d', color: '#fff', fontSize: 'var(--fs-2xs)', fontWeight: 700, textDecoration: 'none' }}
               >
-                <I.bag style={{ width: 11, height: 11 }} /> Shopee
+                <ShopeeMark size={16} /> Shopee
               </a>
             )}
             {marketplace.tiktok && (
               <a
+                className="pcard-market-tag pcard-market-tiktok"
                 href={marketplace.tiktok}
                 target="_blank"
                 rel="noopener noreferrer nofollow"
                 title="Buka toko TikTok kami"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 999, background: '#111827', color: '#fff', fontSize: 'var(--fs-2xs)', fontWeight: 700, textDecoration: 'none' }}
               >
-                <I.music style={{ width: 11, height: 11 }} /> TikTok
+                <TikTokMark size={16} /> TikTok
               </a>
             )}
           </div>
@@ -1083,6 +1082,15 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
         .pcard-body { padding: 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
         .pcard-body strong { font-size: 14px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .pcard-price { color: ${T.blue}; font-weight: 700; font-size: 16px; }
+        .pcard-market { display: flex; gap: 6px; flex-wrap: wrap; }
+        .pcard-market-tag { display: inline-flex; align-items: center; gap: 5px;
+          height: 24px; padding: 0 9px 0 5px; border-radius: 999px;
+          border: 1px solid ${T.border}; background: #fff; color: ${T.black};
+          font-size: 11.5px; font-weight: 700; line-height: 1; text-decoration: none;
+          transition: border-color .12s ease, box-shadow .12s ease; }
+        .pcard-market-tag:hover { border-color: ${T.blue}; box-shadow: 0 2px 8px rgba(15,23,42,.10); }
+        .pcard-market-tag svg { border-radius: 999px; }
+        .pcard-market-tiktok svg { border-radius: 5px; }
         .pcard-color { padding: 2px 8px; border-radius: 4px; background: rgba(30,58,95,.08); font-size: 11px; color: #52525b; }
         .pcard-actions { display: flex; gap: 10px; margin-top: auto; padding-top: 12px; }
         .pcard-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 0 10px; border-radius: 8px; font-size: 13px; font-weight: 700; line-height: 1.1; text-align: center; text-decoration: none; cursor: pointer; box-sizing: border-box; transition: all .3s cubic-bezier(.4,0,.2,1); }
