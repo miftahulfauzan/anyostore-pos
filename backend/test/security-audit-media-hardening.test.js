@@ -34,10 +34,29 @@ test('/uploads hanya menyajikan tipe media dan menolak sisanya', () => {
   assert.match(app, /res\.setHeader\('X-Content-Type-Options', 'nosniff'\)/);
 });
 
-test('Caddy memberi CSP tanpa script untuk /uploads', () => {
-  assert.match(caddy, /handle \/uploads\/\*/);
-  assert.match(caddy, /Content-Security-Policy "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'none'; script-src 'none'; frame-ancestors 'none'; sandbox"/);
+test('Caddy memberi CSP tanpa script khusus untuk /uploads', () => {
+  // Matcher eksplisit WAJIB: blok `header` tingkat site bersifat deferred dan
+  // menimpa CSP yang ditulis di dalam handle, sehingga /uploads sempat tetap
+  // memakai CSP longgar ('unsafe-inline').
+  assert.match(caddy, /@uploads path \/uploads\/*/);
+  assert.match(caddy, /handle @uploads \{/);
+  const uploadsBlock = /header @uploads \{([\s\S]*?)\n\t\}/.exec(caddy);
+  assert.ok(uploadsBlock, 'blok header @uploads harus ada');
+  assert.match(uploadsBlock[1], /default-src 'none'/);
+  assert.match(uploadsBlock[1], /script-src 'none'/);
+  assert.match(uploadsBlock[1], /frame-ancestors 'none'/);
+  assert.match(uploadsBlock[1], /sandbox/);
+  // Jalur non-unggah tetap memakai CSP aplikasi.
+  assert.match(caddy, /@app not path \/uploads\/*/);
+  const appBlock = /header @app \{([\s\S]*?)\n\t\}/.exec(caddy);
+  assert.ok(appBlock, 'blok header @app harus ada');
+  assert.match(appBlock[1], /script-src 'self' 'unsafe-inline'/);
+  // CSP tidak boleh lagi ditulis di blok header tingkat site.
+  const siteBlock = /\n\theader \{([\s\S]*?)\n\t\}/.exec(caddy);
+  assert.ok(siteBlock, 'blok header site harus ada');
+  assert.doesNotMatch(siteBlock[1], /Content-Security-Policy/);
 });
+
 
 test('ganti foto varian memakai refcount sebelum menghapus file', () => {
   const guards = products.match(/SELECT COUNT\(\*\) AS cnt FROM product_photos WHERE path = \?/g) || [];
