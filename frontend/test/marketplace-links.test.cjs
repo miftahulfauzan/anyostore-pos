@@ -19,19 +19,29 @@ const publicRoute = fs.readFileSync(path.join(repo, 'backend', 'src', 'routes', 
 const settingsRoute = fs.readFileSync(path.join(repo, 'backend', 'src', 'routes', 'settings.js'), 'utf8');
 const migration = fs.readFileSync(path.join(repo, 'backend', 'migrations', '20261116_marketplace_links.sql'), 'utf8');
 
-test('Shopee memakai pencarian global dengan filter toko (shopid)', () => {
+test('Shopee: URL template dari pemilik toko menang, fallback pakai shopId', () => {
   assert.equal(
     shopeeSearchUrl('5046365', 'Kemeja AB83 Salur'),
-    'https://shopee.co.id/search?keyword=Kemeja+AB83+Salur&shopid=5046365',
+    'https://shopee.co.id/search?keyword=Kemeja+AB83+Salur&shopId=5046365&page_type=search_store',
   );
   // Nama dengan tanda hubung & garis miring tetap di-encode aman.
   assert.equal(
     shopeeSearchUrl('5046365', 'A101-BLAZE / Biru'),
-    'https://shopee.co.id/search?keyword=A101-BLAZE+%2F+Biru&shopid=5046365',
+    'https://shopee.co.id/search?keyword=A101-BLAZE+%2F+Biru&shopId=5046365&page_type=search_store',
   );
   // Format lama /shop/<id>/search tidak dipakai lagi: sebagian browser hanya
   // membuka halaman toko tanpa mencari produk.
   assert.doesNotMatch(shopeeSearchUrl('5046365', 'B08'), /\/shop\//);
+  // URL template dari pemilik toko (paling akurat) + {keyword} diganti.
+  assert.equal(
+    shopeeSearchUrl('5046365', 'B08', 'https://shopee.co.id/search?keyword={keyword}&shopId=999&page_type=search_store'),
+    'https://shopee.co.id/search?keyword=B08&shopId=999&page_type=search_store',
+  );
+  // Template tanpa {keyword} tetap dipakai dan kata kunci ditempel sebagai parameter.
+  assert.match(
+    shopeeSearchUrl('5046365', 'B08', 'https://shopee.co.id/shop/5046365/search'),
+    /keyword=B08/,
+  );
   // Tanpa shop id -> tombol tidak dibuat.
   assert.equal(shopeeSearchUrl('', 'B08'), '');
   assert.equal(shopeeSearchUrl('abc', 'B08'), '');
@@ -73,15 +83,15 @@ test('marketplaceLinks menggabungkan keduanya dan hormati toggle kartu', () => {
     { marketplace_shopee_shop_id: '5046365', marketplace_tiktok_shop_url: 'https://www.tiktok.com/@anyostore' },
     'B08',
   );
-  assert.equal(links.shopee, 'https://shopee.co.id/search?keyword=B08&shopid=5046365');
+  assert.equal(links.shopee, 'https://shopee.co.id/search?keyword=B08&shopId=5046365&page_type=search_store');
   // Nama ber-varian otomatis dipangkas ke kode produk.
   assert.equal(
     marketplaceLinks({ marketplace_shopee_shop_id: '5046365' }, 'AB12 ON MODEL').shopee,
-    'https://shopee.co.id/search?keyword=AB12&shopid=5046365',
+    'https://shopee.co.id/search?keyword=AB12&shopId=5046365&page_type=search_store',
   );
   assert.equal(
     marketplaceLinks({ marketplace_shopee_shop_id: '5046365' }, 'ROK-03').shopee,
-    'https://shopee.co.id/search?keyword=ROK&shopid=5046365',
+    'https://shopee.co.id/search?keyword=ROK&shopId=5046365&page_type=search_store',
   );
   assert.equal(links.tiktok, 'https://www.tiktok.com/@anyostore');
   assert.equal(showMarketplaceOnCards({ marketplace_show_on_cards: 'true' }), true);
@@ -101,7 +111,7 @@ test('kartu produk dan detail memakai builder yang sama', () => {
 });
 
 test('setelan marketplace bisa diubah dari Setelan Toko dan dikirim ke publik', () => {
-  for (const key of ['marketplace_shopee_shop_id', 'marketplace_tiktok_shop_url', 'marketplace_show_on_cards']) {
+  for (const key of ['marketplace_shopee_shop_id', 'marketplace_shopee_search_url', 'marketplace_tiktok_shop_url', 'marketplace_show_on_cards']) {
     assert.match(settingsRoute, new RegExp(key), `${key} harus diizinkan`);
     assert.match(storeSettings, new RegExp(key), `${key} harus ada di form`);
     assert.match(publicRoute, new RegExp(key), `${key} harus dikirim ke katalog publik`);

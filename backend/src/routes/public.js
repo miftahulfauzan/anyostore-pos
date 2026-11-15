@@ -77,6 +77,8 @@ router.get('/settings', async (req, res, next) => {
         min_order_qty: Number(settings.min_order_qty ?? 4) >= 0 ? Number(settings.min_order_qty ?? 4) : 4,
         // Tautan marketplace (opsional). Kosong = tombol tidak ditampilkan.
         marketplace_shopee_shop_id: String(settings.marketplace_shopee_shop_id || ''),
+        // URL pencarian Shopee pasti dari pemilik toko (berisi {keyword}).
+        marketplace_shopee_search_url: String(settings.marketplace_shopee_search_url || ''),
         marketplace_tiktok_shop_url: String(settings.marketplace_tiktok_shop_url || ''),
         marketplace_show_on_cards: String(settings.marketplace_show_on_cards || 'false'),
         ongkir_provider: settings.ongkir_provider === 'rajaongkir' ? 'rajaongkir' : 'manual',

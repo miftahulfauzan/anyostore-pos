@@ -219,6 +219,7 @@ export default function StoreSettingsPage() {
       // Tautan marketplace: pembeli diarahkan ke pencarian di dalam toko Shopee
       // (kata kunci = nama produk) dan ke profil TikTok toko.
       marketplace_shopee_shop_id: String(form.marketplace_shopee_shop_id || '').replace(/[^0-9]/g, ''),
+      marketplace_shopee_search_url: String(form.marketplace_shopee_search_url || '').trim(),
       marketplace_tiktok_shop_url: form.marketplace_tiktok_shop_url || '',
       marketplace_show_on_cards: form.marketplace_show_on_cards || 'false',
     }, 'Aturan landing tersimpan.');
@@ -613,6 +614,16 @@ export default function StoreSettingsPage() {
                 inputMode="numeric"
               />
               <span className="muted" style={{ fontSize: 'var(--fs-sm)' }}>Angka dari URL toko: shopee.co.id/shop/<strong>5046365</strong></span>
+            </label>
+            <label>URL pencarian Shopee (opsional, paling akurat)
+              <input
+                value={form.marketplace_shopee_search_url || ''}
+                onChange={(event) => set('marketplace_shopee_search_url', event.target.value)}
+                placeholder="https://shopee.co.id/search?keyword={keyword}&shopId=5046365&page_type=search_store"
+              />
+              <span className="muted" style={{ fontSize: 'var(--fs-sm)' }}>
+                Buka pencarian di dalam toko Shopee dari browser Anda, salin URL-nya, lalu ganti kata kunci dengan <code>{'{keyword}'}</code>. Bila diisi, tautan ini yang dipakai.
+              </span>
             </label>
             <label>Profil TikTok
               <input

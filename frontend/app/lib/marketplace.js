@@ -27,16 +27,32 @@ export function marketplaceKeyword(name) {
 }
 
 /** Shopee: pencarian di dalam toko (shop-scoped). */
-export function shopeeSearchUrl(shopId, keyword) {
+/**
+ * Tautan pencarian Shopee untuk satu produk.
+ *
+ * Prioritas:
+ * 1. `template` — URL pasti yang ditempel pemilik toko dari browser (mengandung
+ *    {keyword}). Ini sumber kebenaran karena Shopee tidak mendokumentasikan
+ *    parameternya dan perilakunya berubah antar versi.
+ * 2. Fallback: /search dengan `shopId` (camelCase) + `page_type=search_store`,
+ *    parameter yang dipakai Shopee saat mencari dari dalam halaman toko.
+ *    `shopid` lowercase terbukti TIDAK memfilter (hasil tetap global).
+ */
+export function shopeeSearchUrl(shopId, keyword, template = '') {
+  const q = String(keyword ?? '').trim();
+  const raw = String(template ?? '').trim();
+  if (raw.includes('{keyword}')) return raw.replace(/\{keyword\}/g, encodeURIComponent(q));
+  if (raw && /^https?:\/\//i.test(raw)) {
+    const url = new URL(raw);
+    if (q) url.searchParams.set('keyword', q);
+    return url.toString();
+  }
   const id = String(shopId ?? '').replace(/[^0-9]/g, '');
   if (!id) return '';
-  const q = String(keyword ?? '').trim();
   const params = new URLSearchParams();
   if (q) params.set('keyword', q);
-  params.set('shopid', id);
-  // Format /search?keyword=..&shopid=.. dipakai halaman pencarian Shopee dengan
-  // filter toko. Format lama /shop/<id>/search hanya membuka halaman toko pada
-  // sebagian browser sehingga produk yang diklik tidak langsung dicari.
+  params.set('shopId', id);
+  params.set('page_type', 'search_store');
   return `https://shopee.co.id/search?${params.toString()}`;
 }
 
@@ -56,7 +72,11 @@ export function tiktokShopUrl(value) {
  */
 export function marketplaceLinks(settings = {}, productName = '') {
   return {
-    shopee: shopeeSearchUrl(settings?.marketplace_shopee_shop_id, marketplaceKeyword(productName)),
+    shopee: shopeeSearchUrl(
+      settings?.marketplace_shopee_shop_id,
+      marketplaceKeyword(productName),
+      settings?.marketplace_shopee_search_url,
+    ),
     tiktok: tiktokShopUrl(settings?.marketplace_tiktok_shop_url),
   };
 }
