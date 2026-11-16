@@ -23,6 +23,14 @@ test('laporan: kartu brand tidak lagi mengulang baris periode', () => {
   assert.doesNotMatch(page, /<small>Periode \{period\.start\}/);
 });
 
+test('komisi: tanggal laporan & arsip diterapkan otomatis tanpa tombol', () => {
+  const page = read('commissions/page.js');
+  assert.doesNotMatch(page, />Tampilkan</);
+  assert.match(page, /setTimeout\(/);
+  assert.match(page, /loadReport\(selectedBranch, reportPeriod\.start, reportPeriod\.end\)/);
+  assert.match(page, /loadRecords\(selectedBranch, period\.period_start, period\.period_end\)/);
+});
+
 test('dasbor & dashboard stok: periode default hari ini dan tanpa tombol Terapkan', () => {
   const dashboard = read('dashboard/page.js');
   const stock = read('inventory/dashboard/page.js');

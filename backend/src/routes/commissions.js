@@ -122,17 +122,27 @@ router.get('/', authenticate, authorize('owner'), async (req, res, next) => {
   try {
     const requestedBranch = Number(req.query.branch_id);
     const branchId = Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
+    // Arsip boleh disaring per periode supaya tabel ikut berubah saat tanggal diganti.
+    const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || '');
+    const start = isDate(req.query.start) ? req.query.start : null;
+    const end = isDate(req.query.end) ? req.query.end : null;
+    const recordWhere = ['r.branch_id = ?'];
+    const recordParams = [branchId];
+    if (start && end) {
+      recordWhere.push('r.period_start <= ? AND r.period_end >= ?');
+      recordParams.push(end, start);
+    }
     const [branches] = await db.execute('SELECT id, name FROM branches WHERE is_active=TRUE ORDER BY id');
     const [rules, records] = await Promise.all([
       db.execute(`SELECT cr.*, u.name AS staff_name FROM commission_rules cr LEFT JOIN users u ON u.id = cr.user_id WHERE (cr.branch_id = ? OR cr.branch_id IS NULL) ORDER BY cr.is_active DESC, cr.created_at DESC`, [branchId]),
-      db.execute(`SELECT r.*, u.name AS staff_name, u.role, cr.name AS rule_name FROM commission_records r JOIN users u ON u.id = r.user_id LEFT JOIN commission_rules cr ON cr.id = r.rule_id WHERE r.branch_id = ? ORDER BY r.created_at DESC LIMIT 100`, [branchId])
+      db.execute(`SELECT r.*, u.name AS staff_name, u.role, cr.name AS rule_name FROM commission_records r JOIN users u ON u.id = r.user_id LEFT JOIN commission_rules cr ON cr.id = r.rule_id WHERE ${recordWhere.join(' AND ')} ORDER BY r.created_at DESC LIMIT 100`, recordParams)
     ]);
-    res.json({ success: true, data: { branches, branch_id: branchId, rules: rules[0], records: records[0] } });
+    res.json({ success: true, data: { branches, branch_id: branchId, period_start: start, period_end: end, rules: rules[0], records: records[0] } });
   } catch (error) { next(error); }
 });
 
 async function computeBranchReport(branchId, start, end) {
-  const [rules] = await db.execute(`SELECT * FROM commission_rules WHERE (branch_id = ? OR branch_id IS NULL) AND (is_active=TRUE OR is_active=1)`, [branchId]);
+  const [rules] = await db.execute(`SELECT * FROM commission_rules WHERE (branch_id = ? OR branch_id IS NULL) AND (is_active=TRUE OR is_active=1) AND start_date <= ? AND (end_date IS NULL OR end_date >= ?)`, [branchId, end, start]);
   const [users] = await db.execute('SELECT id, name, role FROM users WHERE branch_id=? AND is_active=TRUE ORDER BY role, name', [branchId]);
   const perAccount = [];
   for (const u of users) {
@@ -304,6 +314,8 @@ router.post('/generate', authenticate, authorize('owner', 'manager', 'admin'), a
     await connection.beginTransaction();
     const [rules] = await connection.execute(`SELECT * FROM commission_rules WHERE (branch_id = ? OR branch_id IS NULL) AND is_active = TRUE AND start_date <= ? AND (end_date IS NULL OR end_date >= ?)`, [branchId, periodEnd, periodStart]);
     let created = 0;
+    let updated = 0;
+    let skipped = 0;
     for (const rule of rules) {
       let staffSql = 'SELECT id, role FROM users WHERE branch_id = ? AND is_active = TRUE';
       const staffParams = [branchId];
@@ -311,19 +323,38 @@ router.post('/generate', authenticate, authorize('owner', 'manager', 'admin'), a
       if (rule.applies_to === 'user') { staffSql += ' AND id = ?'; staffParams.push(rule.user_id); }
       const [staff] = await connection.execute(staffSql, staffParams);
       for (const user of staff) {
-        const [existing] = await connection.execute('SELECT id FROM commission_records WHERE rule_id = ? AND user_id = ? AND period_start = ? AND period_end = ?', [rule.id, user.id, periodStart, periodEnd]);
-        if (existing[0]) continue;
         const scope = ruleScope(rule);
         const opts = { scope, branchId, userId: user.id, start: periodStart, end: periodEnd };
         const agg = await tierAggregate(connection, opts);
         if (!qualifies(rule, agg)) continue;
         const profit = rule.calculation_type === 'percentage_profit' ? await profitAggregate(connection, opts) : 0;
         const commission = ruleCommission(rule, agg, profit);
-        const [record] = await connection.execute(
-          `INSERT INTO commission_records (branch_id, user_id, rule_id, period_start, period_end, total_sales, total_profit, total_transactions, qty_reguler, qty_semi_grosir, qty_grosir_seri, commission_amount)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [branchId, user.id, rule.id, periodStart, periodEnd, agg.sales, profit, agg.trx, agg.qty_reguler, 0, agg.qty_grosir, commission],
-        );
+        const [existing] = await connection.execute('SELECT id, status FROM commission_records WHERE rule_id = ? AND user_id = ? AND period_start = ? AND period_end = ?', [rule.id, user.id, periodStart, periodEnd]);
+        let recordId;
+        if (existing[0]) {
+          // Arsip yang sudah disetujui/dibayar tidak boleh berubah diam-diam.
+          if (existing[0].status !== 'pending') {
+            skipped += 1;
+            continue;
+          }
+          recordId = existing[0].id;
+          await connection.execute(
+            `UPDATE commission_records
+                SET total_sales = ?, total_profit = ?, total_transactions = ?, qty_reguler = ?, qty_semi_grosir = 0, qty_grosir_seri = ?, commission_amount = ?
+              WHERE id = ?`,
+            [agg.sales, profit, agg.trx, agg.qty_reguler, agg.qty_grosir, commission, recordId],
+          );
+          await connection.execute('DELETE FROM commission_items WHERE record_id = ?', [recordId]);
+          updated += 1;
+        } else {
+          const [record] = await connection.execute(
+            `INSERT INTO commission_records (branch_id, user_id, rule_id, period_start, period_end, total_sales, total_profit, total_transactions, qty_reguler, qty_semi_grosir, qty_grosir_seri, commission_amount)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [branchId, user.id, rule.id, periodStart, periodEnd, agg.sales, profit, agg.trx, agg.qty_reguler, 0, agg.qty_grosir, commission],
+          );
+          recordId = record.insertId;
+          created += 1;
+        }
         if (commission) {
           const rows = await scopeTransactions(connection, opts);
           const basis = rule.calculation_type === 'percentage_profit' ? Number(profit) : agg.sales;
@@ -332,14 +363,13 @@ router.post('/generate', authenticate, authorize('owner', 'manager', 'admin'), a
               ? Number(trx.profit)
               : (Number(trx.grand_total) - Number(trx.cancelled_amount || 0) - Number(trx.refunded_amount || 0));
             const itemCommission = basis > 0 ? asMoney(commission * source / basis) : 0;
-            await connection.execute('INSERT INTO commission_items (record_id, transaction_id, sale_amount, profit_amount, commission_amount) VALUES (?, ?, ?, ?, ?)', [record.insertId, trx.id, trx.grand_total, trx.profit, itemCommission]);
+            await connection.execute('INSERT INTO commission_items (record_id, transaction_id, sale_amount, profit_amount, commission_amount) VALUES (?, ?, ?, ?, ?)', [recordId, trx.id, trx.grand_total, trx.profit, itemCommission]);
           }
         }
-        created += 1;
       }
     }
     await connection.commit();
-    res.status(201).json({ success: true, data: { created, branch_id: branchId } });
+    res.status(201).json({ success: true, data: { created, updated, skipped, branch_id: branchId } });
   } catch (error) { await connection.rollback(); next(error); } finally { connection.release(); }
 });
 

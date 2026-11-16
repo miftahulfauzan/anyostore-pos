@@ -44,6 +44,7 @@ export default function CommissionsPage() {
   const [reportPeriod, setReportPeriod] = useState({ start: '', end: '' });
   const [reportPreset, setReportPreset] = useState('');
   const [generationPreset, setGenerationPreset] = useState('');
+  const [reportLoading, setReportLoading] = useState(false);
 
   const headers = () => ({ 'Content-Type': 'application/json'});
 
@@ -71,7 +72,22 @@ export default function CommissionsPage() {
     }
   }
 
+  // Arsip komisi mengikuti rentang tanggal yang dipilih (tanpa tombol).
+  async function loadRecords(branchId = selectedBranch, start = period.period_start, end = period.period_end) {
+    if (!start || !end || start > end) return;
+    try {
+      const qs = new URLSearchParams({ ...(branchId ? { branch_id: branchId } : {}), start, end }).toString();
+      const r = await fetch(`${apiUrl}/commissions?${qs}`, { headers: headers() });
+      const b = await r.json();
+      if (!r.ok) throw new Error(b.message);
+      setRecords(b.data.records || []);
+    } catch (e) {
+      setMessage(e.message);
+    }
+  }
+
   async function loadReport(branchId = selectedBranch, start = reportPeriod.start, end = reportPeriod.end) {
+    setReportLoading(true);
     try {
       const qs = new URLSearchParams({ start, end, ...(branchId ? { branch_id: branchId } : {}) }).toString();
       const r = await fetch(`${apiUrl}/commissions/report?${qs}`, { headers: headers() });
@@ -81,6 +97,8 @@ export default function CommissionsPage() {
       if (b.data.branches) setBranches(b.data.branches);
     } catch (e) {
       setMessage(e.message);
+    } finally {
+      setReportLoading(false);
     }
   }
 
@@ -96,6 +114,27 @@ export default function CommissionsPage() {
     setPeriod((p) => ({ period_start: p.period_start || todayStr(), period_end: p.period_end || todayStr() }));
     setReportPeriod((p) => ({ start: p.start || todayStr(), end: p.end || todayStr() }));
   }, []);
+
+  // Tanggal laporan diganti → hitung ulang otomatis setelah jeda singkat (tanpa tombol).
+  useEffect(() => {
+    if (!reportPeriod.start || !reportPeriod.end || reportPeriod.start > reportPeriod.end) return undefined;
+    const timer = setTimeout(() => {
+      loadReport(selectedBranch, reportPeriod.start, reportPeriod.end);
+    }, 350);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportPeriod.start, reportPeriod.end, selectedBranch]);
+
+  // Tanggal arsip diganti → tabel record ikut berganti otomatis.
+  useEffect(() => {
+    if (!period.period_start || !period.period_end || period.period_start > period.period_end) return undefined;
+    const timer = setTimeout(() => {
+      loadRecords(selectedBranch, period.period_start, period.period_end);
+    }, 350);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period.period_start, period.period_end, selectedBranch]);
+
   useEffect(() => {
     /* sesi via httpOnly cookie */
     loadBranches();
@@ -106,7 +145,6 @@ export default function CommissionsPage() {
         setRole(userRole);
         if (userRole === 'owner') {
           load();
-          loadReport();
         } else setMessage('Halaman komisi hanya dapat diakses oleh owner.');
       })
       .catch(() => setMessage('Gagal memuat profil pengguna.'));
@@ -144,8 +182,10 @@ export default function CommissionsPage() {
       const response = await fetch(`${apiUrl}/commissions/generate`, { method: 'POST', headers: headers(), body: JSON.stringify(period) });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message);
-      setMessage(`${body.data.created} catatan komisi dibuat.`);
+      const { created = 0, updated = 0, skipped = 0 } = body.data || {};
+      setMessage(`${created} catatan dibuat, ${updated} dihitung ulang${skipped ? `, ${skipped} dilewati (sudah disetujui/dibayar)` : ''}.`);
       load();
+      loadRecords(selectedBranch, period.period_start, period.period_end);
     } catch (error) {
       setMessage(error.message);
     }
@@ -205,21 +245,19 @@ export default function CommissionsPage() {
             <div style={{ width: '100%' }}>
               <DateRangePresets active={reportPreset} onPick={(key, range) => {
                 setReportPreset(key);
-                if (range) {
-                  setReportPeriod(range);
-                  loadReport(selectedBranch, range.start, range.end);
-                }
+                if (range) setReportPeriod(range);
               }} />
             </div>
             <label>Toko
-              <select value={selectedBranch} onChange={(e) => { setSelectedBranch(e.target.value); load(e.target.value); loadReport(e.target.value); }}>
+              <select value={selectedBranch} onChange={(e) => { setSelectedBranch(e.target.value); load(e.target.value); }}>
                 {branches.map((b) => <option key={b.id} value={b.id}>{b.name} (ID {b.id})</option>)}
               </select>
             </label>
             <label style={{ minWidth: 150 }}>Dari<input type="date" value={reportPeriod.start} onChange={(e) => { setReportPreset('custom'); setReportPeriod({ ...reportPeriod, start: e.target.value }); }} /></label>
             <label style={{ minWidth: 150 }}>Sampai<input type="date" value={reportPeriod.end} onChange={(e) => { setReportPreset('custom'); setReportPeriod({ ...reportPeriod, end: e.target.value }); }} /></label>
-            <button type="button" onClick={() => loadReport()} style={{ minHeight: 40 }}>Tampilkan</button>
-            <span className="muted" style={{ fontSize: 'var(--fs-sm)', alignSelf: 'center' }}>{report?.period_start} → {report?.period_end} {report?.branch_id ? `• Cabang ${report.branch_id}` : ''}</span>
+            <span className="muted" style={{ fontSize: 'var(--fs-sm)', alignSelf: 'center' }}>
+              {reportLoading ? 'Menghitung…' : `${report?.period_start} → ${report?.period_end}${report?.branch_id ? ` • Cabang ${report.branch_id}` : ''}`}
+            </span>
           </div>
           {report ? (
             <div className="table-wrap" style={{ marginTop: '1rem' }}>
@@ -254,10 +292,10 @@ export default function CommissionsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '1rem', alignItems: 'start' }}>
           <section className="panel">
             <h2>Aturan Komisi Baru</h2>
-            <p className="muted" style={{ marginTop: 0, fontSize: 'var(--fs-md)' }}>Untuk manager: pakai tipe <strong>Per pcs by customer tier</strong>, isi 3000/3000/1000 per pcs.</p>
+            <p className="muted" style={{ marginTop: 0, fontSize: 'var(--fs-md)' }}>Untuk manager: pakai tipe <strong>Per pcs by customer tier</strong>, isi tarif reguler dan grosir per pcs.</p>
             <form onSubmit={createRule} style={{ display: 'grid', gap: '.75rem', marginTop: '.75rem' }}>
               <label>Toko
-                <select value={selectedBranch} onChange={(e) => { setSelectedBranch(e.target.value); load(e.target.value); loadReport(e.target.value); }}>
+                <select value={selectedBranch} onChange={(e) => { setSelectedBranch(e.target.value); load(e.target.value); }}>
                   <option value="">Global (semua toko)</option>
                   {branches.map((b) => <option key={b.id} value={b.id}>{b.name} (ID {b.id})</option>)}
                 </select>
@@ -358,7 +396,7 @@ export default function CommissionsPage() {
 
         <section className="panel">
           <h2>Generate Komisi (arsip)</h2>
-          <p className="muted">Opsional, untuk riwayat pembayaran. Komisi live di Akun Saya & Laporan sudah otomatis tanpa generate.</p>
+          <p className="muted">Opsional, untuk riwayat pembayaran. Komisi live di Akun Saya & Laporan sudah otomatis tanpa generate. Menekan Generate lagi akan menghitung ulang arsip yang masih pending; arsip yang sudah disetujui/dibayar tidak diubah.</p>
           <DateRangePresets active={generationPreset} onPick={(key, range) => {
             setGenerationPreset(key);
             setPeriod({ period_start: range.start, period_end: range.end });
@@ -388,7 +426,7 @@ export default function CommissionsPage() {
                     </td>
                   </tr>
                 ))}
-                {!records.length && <tr><td colSpan={10}>Belum ada record.</td></tr>}
+                {!records.length && <tr><td colSpan={10}>Belum ada arsip untuk rentang ini. Tekan Generate untuk menghitung komisi periode tersebut.</td></tr>}
               </tbody>
             </table>
           </div>

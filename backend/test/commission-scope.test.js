@@ -59,3 +59,29 @@ test('UI web menyediakan pilihan dasar perhitungan', () => {
   }
   assert.match(webPage, /Dasar perhitungan/);
 });
+
+test('laporan live memakai filter tanggal aturan yang sama dengan generate', () => {
+  assert.match(
+    commissions,
+    /FROM commission_rules WHERE \(branch_id = \? OR branch_id IS NULL\) AND \(is_active=TRUE OR is_active=1\) AND start_date <= \? AND \(end_date IS NULL OR end_date >= \?\)/,
+  );
+});
+
+test('arsip komisi bisa disaring per periode', () => {
+  assert.match(commissions, /r\.period_start <= \? AND r\.period_end >= \?/);
+  assert.match(commissions, /const start = isDate\(req\.query\.start\)/);
+});
+
+test('generate ulang memperbarui arsip pending dan melewati yang sudah disetujui', () => {
+  assert.match(commissions, /if \(existing\[0\]\.status !== 'pending'\)/);
+  assert.match(commissions, /UPDATE commission_records/);
+  assert.match(commissions, /DELETE FROM commission_items WHERE record_id = \?/);
+  assert.match(commissions, /data: \{ created, updated, skipped, branch_id: branchId \}/);
+});
+
+test('halaman komisi menerapkan tanggal otomatis tanpa tombol Tampilkan', () => {
+  assert.doesNotMatch(webPage, />Tampilkan</);
+  assert.match(webPage, /setTimeout\(/);
+  assert.match(webPage, /loadRecords\(/);
+  assert.match(webPage, /loadReport\(selectedBranch, reportPeriod\.start, reportPeriod\.end\)/);
+});

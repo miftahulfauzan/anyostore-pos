@@ -284,7 +284,8 @@ class _CommissionsPageState extends State<CommissionsPage> {
           .generateCommissions({'period_start': start, 'period_end': end});
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Komisi dibuat: ${result['created'] ?? 0} catatan')));
+          content: Text(
+              'Komisi: ${result['created'] ?? 0} dibuat, ${result['updated'] ?? 0} dihitung ulang')));
       _load();
     } on ApiException catch (e) {
       if (mounted) {
