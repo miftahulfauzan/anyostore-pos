@@ -38,10 +38,13 @@ async function tierAggregate(executor, opts) {
   const { scope, branchId, userId } = opts;
   const filter = scopeWhere(opts);
   const params = scopeParams({ scope, branchId, userId, start, end });
+  // qty harus dari baris item (per pcs), sedangkan penjualan & jumlah transaksi
+  // HARUS dari tabel transactions saja. Kalau grand_total ikut di-SUM di query
+  // yang join transaction_items, nilainya berlipat sebanyak baris item
+  // (1 transaksi 4 baris = penjualan 4x).
   const [rows] = await executor.execute(
     `SELECT ${TIER_EXPR} AS tier,
-            COALESCE(SUM(ti.quantity - ti.cancelled_qty - ti.returned_qty),0) AS qty,
-            COALESCE(SUM(t.grand_total - t.cancelled_amount - t.refunded_amount),0) AS sales
+            COALESCE(SUM(ti.quantity - ti.cancelled_qty - ti.returned_qty),0) AS qty
        FROM transactions t
        JOIN transaction_items ti ON ti.transaction_id = t.id
        LEFT JOIN customers c ON c.id = t.customer_id
@@ -49,16 +52,19 @@ async function tierAggregate(executor, opts) {
       GROUP BY tier`,
     params,
   );
-  const [cntRows] = await executor.execute(
-    `SELECT COUNT(DISTINCT t.id) AS cnt FROM transactions t WHERE ${filter.where}`,
+  const [totals] = await executor.execute(
+    `SELECT COALESCE(SUM(t.grand_total - t.cancelled_amount - t.refunded_amount),0) AS sales,
+            COUNT(*) AS trx
+       FROM transactions t
+      WHERE ${filter.where}`,
     params,
   );
   const map = Object.fromEntries(rows.map((r) => [r.tier, r]));
   return {
     qty_reguler: Number(map.reguler?.qty || 0),
     qty_grosir: Number(map.grosir_seri?.qty || 0),
-    sales: asMoney(rows.reduce((s, r) => s + Number(r.sales || 0), 0)),
-    trx: Number(cntRows[0]?.cnt || 0),
+    sales: asMoney(Number(totals[0]?.sales || 0)),
+    trx: Number(totals[0]?.trx || 0),
   };
 }
 
@@ -359,11 +365,12 @@ router.post('/generate', authenticate, authorize('owner', 'manager', 'admin'), a
           const rows = await scopeTransactions(connection, opts);
           const basis = rule.calculation_type === 'percentage_profit' ? Number(profit) : agg.sales;
           for (const trx of rows) {
+            const netSale = Number(trx.grand_total) - Number(trx.cancelled_amount || 0) - Number(trx.refunded_amount || 0);
             const source = rule.calculation_type === 'percentage_profit'
               ? Number(trx.profit)
-              : (Number(trx.grand_total) - Number(trx.cancelled_amount || 0) - Number(trx.refunded_amount || 0));
+              : netSale;
             const itemCommission = basis > 0 ? asMoney(commission * source / basis) : 0;
-            await connection.execute('INSERT INTO commission_items (record_id, transaction_id, sale_amount, profit_amount, commission_amount) VALUES (?, ?, ?, ?, ?)', [recordId, trx.id, trx.grand_total, trx.profit, itemCommission]);
+            await connection.execute('INSERT INTO commission_items (record_id, transaction_id, sale_amount, profit_amount, commission_amount) VALUES (?, ?, ?, ?, ?)', [recordId, trx.id, netSale, trx.profit, itemCommission]);
           }
         }
       }

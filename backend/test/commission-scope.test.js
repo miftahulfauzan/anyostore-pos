@@ -104,3 +104,11 @@ test('komisi pribadi memakai rincian tanpa semi dan tanpa tombol Tampilkan', () 
   assert.match(profilePage, /setTimeout\(/);
   assert.match(webPage, /Reg \$\{rupiah\(r\.commission_reguler_per_pcs\)\}\/pcs • Grosir/);
 });
+
+test('penjualan komisi tidak berlipat oleh jumlah baris item', () => {
+  // Satu transaksi dengan 4 baris item sebelumnya terhitung 4x grand_total.
+  const joinedQuery = commissions.match(/JOIN transaction_items ti ON ti\.transaction_id = t\.id[\s\S]*?GROUP BY tier/);
+  assert.ok(joinedQuery, 'query qty per tier harus ada');
+  assert.doesNotMatch(joinedQuery[0], /grand_total/, 'grand_total tidak boleh di-SUM di query yang join item');
+  assert.match(commissions, /COALESCE\(SUM\(t\.grand_total - t\.cancelled_amount - t\.refunded_amount\),0\) AS sales,\s*\n\s*COUNT\(\*\) AS trx\s*\n\s*FROM transactions t/);
+});
