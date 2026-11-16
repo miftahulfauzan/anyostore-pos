@@ -1,3 +1,23 @@
+const MOTION_MODES = ['full', 'reduced', 'off'];
+
+// Preferensi gerak: pilihan eksplisit pengguna (pos_motion) menang; kalau belum
+// dipilih, ikuti setelan sistem (prefers-reduced-motion).
+function prefersReducedMotion() {
+  try {
+    return typeof window !== 'undefined'
+      && typeof window.matchMedia === 'function'
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  } catch {
+    return false;
+  }
+}
+
+function resolveMotion(stored) {
+  // Daftar ditulis di dalam fungsi supaya ikut terserialisasi ke preferencesScript.
+  if (['full', 'reduced', 'off'].includes(stored)) return stored;
+  return prefersReducedMotion() ? 'reduced' : 'full';
+}
+
 function readPreferences(storage) {
   try {
     const brand = storage.getItem('pos_brand_theme');
@@ -5,9 +25,10 @@ function readPreferences(storage) {
       collapsed: storage.getItem('pos_sidebar_collapsed') === 'true',
       theme: storage.getItem('pos_theme') === 'dark' ? 'dark' : 'light',
       brandTheme: ['green', 'blue', 'purple'].includes(brand) ? brand : '',
+      motion: resolveMotion(storage.getItem('pos_motion')),
     };
   } catch {
-    return { collapsed: false, theme: 'light', brandTheme: '' };
+    return { collapsed: false, theme: 'light', brandTheme: '', motion: resolveMotion('') };
   }
 }
 
@@ -15,12 +36,14 @@ function applyPreferences(preferences, element) {
   element.dataset.posCollapsed = String(preferences.collapsed);
   element.classList.toggle('dark', preferences.theme === 'dark');
   element.style.colorScheme = preferences.theme;
+  element.dataset.motion = preferences.motion;
   if (preferences.brandTheme) element.dataset.theme = preferences.brandTheme;
 }
 
 // Same validated defaults during HTML parsing and hydration. No user data is
 // interpolated into this script and storage failure must not block rendering.
-const preferencesScript = `try{(${applyPreferences.toString()})((${readPreferences.toString()})(localStorage),document.documentElement)}catch(e){}`;
+// Helper ikut diserialisasi karena readPreferences memakainya.
+const preferencesScript = `try{const prefersReducedMotion=${prefersReducedMotion.toString()};const resolveMotion=${resolveMotion.toString()};const readPreferences=${readPreferences.toString()};const applyPreferences=${applyPreferences.toString()};applyPreferences(readPreferences(localStorage),document.documentElement)}catch(e){}`;
 
 function createSessionLoader(fetchSession) {
   let pending;
@@ -84,6 +107,8 @@ function readActiveBranchId(storage, fallback = 'all') {
 }
 
 module.exports = {
+  MOTION_MODES,
+  resolveMotion,
   readPreferences,
   applyPreferences,
   preferencesScript,

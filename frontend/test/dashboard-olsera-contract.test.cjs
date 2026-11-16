@@ -87,6 +87,12 @@ test('komponen dasbor tidak memakai ikon/props yang tidak diimpor', () => {
   // ReferenceError "CreditCard is not defined" dan halaman dasbor gagal render.
   assert.doesNotMatch(sections, /icon=\{[A-Z]/);
   const declared = new Set([...sections.matchAll(/(?:function|const|let)\s+([A-Za-z_$][\w$]*)/g)].map((m) => m[1]));
+  for (const statement of sections.matchAll(/import\s+([^;]+?)\s+from/g)) {
+    for (const part of statement[1].replace(/[{}]/g, ',').split(',')) {
+      const name = part.trim().split(/\s+as\s+/).pop().trim();
+      if (name && !name.startsWith('*')) declared.add(name);
+    }
+  }
   declared.add('Link');
   const referenced = [
     ...[...sections.matchAll(/<([A-Z][\w]*)/g)].map((m) => m[1]),

@@ -15,12 +15,13 @@ test('preload and hydrated preferences agree, and blocked storage falls back saf
   const storage = { getItem: (key) => ({ pos_theme: 'dark', pos_sidebar_collapsed: 'true', pos_brand_theme: 'blue' })[key] };
   const element = { dataset: {}, style: {}, classList: { toggle: (name, enabled) => { element[name] = enabled; } } };
   vm.runInNewContext(preferencesScript, { localStorage: storage, document: { documentElement: element } });
-  assert.deepEqual(readPreferences(storage), { collapsed: true, theme: 'dark', brandTheme: 'blue' });
+  assert.deepEqual(readPreferences(storage), { collapsed: true, theme: 'dark', brandTheme: 'blue', motion: 'full' });
   assert.equal(element.dataset.posCollapsed, 'true');
+  assert.equal(element.dataset.motion, 'full');
   assert.equal(element.dark, true);
   assert.equal(element.style.colorScheme, 'dark');
   const blocked = { getItem() { throw new Error('blocked'); } };
-  assert.deepEqual(readPreferences(blocked), { collapsed: false, theme: 'light', brandTheme: '' });
+  assert.deepEqual(readPreferences(blocked), { collapsed: false, theme: 'light', brandTheme: '', motion: 'full' });
   assert.doesNotThrow(() => vm.runInNewContext(preferencesScript, { localStorage: blocked, document: { documentElement: element } }));
 });
 

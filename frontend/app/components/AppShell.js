@@ -194,6 +194,21 @@ export default function AppShell({ title, eyebrow, actions, children }) {
     .filter((group) => group.items.length > 0) : [];
 
   useEffect(() => {
+    // Preferensi eksplisit pengguna (pos_motion) menang; kalau belum ada,
+    // atribut data-motion mengikuti setelan sistem secara langsung.
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const sync = () => {
+      let stored = '';
+      try { stored = window.localStorage.getItem('pos_motion') || ''; } catch { stored = ''; }
+      if (stored) return;
+      document.documentElement.dataset.motion = media.matches ? 'reduced' : 'full';
+    };
+    sync();
+    media.addEventListener('change', sync);
+    return () => media.removeEventListener('change', sync);
+  }, []);
+
+  useEffect(() => {
     setMobileNavOpen(false);
     setTooltip(null);
     setSearch(window.location.search);
@@ -414,7 +429,7 @@ export default function AppShell({ title, eyebrow, actions, children }) {
             </div>
           </div>
         ) : null}
-        <div className="app-content">{children}</div>
+        <div className="app-content m-page" key={pathname}>{children}</div>
       </main>
     </div>
   );

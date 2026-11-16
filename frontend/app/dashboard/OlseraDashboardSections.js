@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useId } from 'react';
+import AnimatedValue from '../components/AnimatedValue';
 
 const rupiah = (value) => 'Rp' + Number(value || 0).toLocaleString('id-ID');
 const number = (value) => Number(value || 0);
@@ -56,10 +57,11 @@ function Section({ title, tone = 'denim', meta, children, className = '', ...pro
   </section>;
 }
 
-function MetricTile({ label, value, change }) {
+function MetricTile({ label, value, change, countTo, money = false, suffix = '' }) {
+  const animated = Number.isFinite(Number(countTo));
   return <div className="dashboard-kpi-tile">
     <span className="dashboard-kpi-label">{label}</span>
-    <strong>{value}</strong>
+    <strong>{animated ? <AnimatedValue value={countTo} money={money} suffix={suffix} /> : value}</strong>
     {change ? <span className={`dashboard-kpi-change${change.startsWith('↓') ? ' is-down' : ''}`}>{change}</span> : null}
   </div>;
 }
@@ -184,10 +186,10 @@ export default function OlseraDashboardSections({ reportData, fallbackData, acti
       meta={{ value: rupiah(summary.gross_sales), sub: `${number(summary.transactions)} pesanan` }}
     >
       <div className="dashboard-kpi-grid">
-        <MetricTile label="Pendapatan" value={rupiah(summary.gross_sales)} change={changePercent(summary.gross_sales, previousSummary.gross_sales)} />
-        <MetricTile label="Pesanan" value={number(summary.transactions)} change={changePercent(summary.transactions, previousSummary.transactions)} />
-        <MetricTile label="Produk terjual" value={`${productsSold} pcs`} change={changePercent(productsSold, previousSummary.products_sold)} />
-        <MetricTile label={fourthKpiLabel} value={fourthKpiValue} change={changePercent(hasProfit ? summary.net_profit : summary.expenses, hasProfit ? previousSummary.net_profit : previousSummary.expenses)} />
+        <MetricTile label="Pendapatan" value={rupiah(summary.gross_sales)} countTo={summary.gross_sales} money change={changePercent(summary.gross_sales, previousSummary.gross_sales)} />
+        <MetricTile label="Pesanan" value={number(summary.transactions)} countTo={summary.transactions} change={changePercent(summary.transactions, previousSummary.transactions)} />
+        <MetricTile label="Produk terjual" value={`${productsSold} pcs`} countTo={productsSold} suffix=" pcs" change={changePercent(productsSold, previousSummary.products_sold)} />
+        <MetricTile label={fourthKpiLabel} value={fourthKpiValue} countTo={hasProfit ? summary.net_profit : summary.expenses} money change={changePercent(hasProfit ? summary.net_profit : summary.expenses, hasProfit ? previousSummary.net_profit : previousSummary.expenses)} />
       </div>
       {isOwner && <div className="dashboard-overview-footline">
         <span>Margin keuntungan</span>
@@ -202,7 +204,7 @@ export default function OlseraDashboardSections({ reportData, fallbackData, acti
       data-dashboard-section="sales"
       meta={{ value: rupiah(summary.gross_sales), sub: `${number(summary.transactions)} trx` }}
     >
-      <div className="dashboard-report-focal"><span>Total penjualan</span><strong>{rupiah(summary.gross_sales)}</strong><small>{number(summary.transactions)} pesanan</small></div>
+      <div className="dashboard-report-focal"><span>Total penjualan</span><strong><AnimatedValue value={summary.gross_sales} money /></strong><small>{number(summary.transactions)} pesanan</small></div>
       <TrendChart rows={dailySales} color={colors.blue} emptyMessage="Belum ada data penjualan pada periode ini." />
       <span className="dashboard-report-legend"><i style={{ backgroundColor: colors.blue }} />Penjualan</span>
       <div className="dashboard-sales-metrics">

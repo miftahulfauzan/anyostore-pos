@@ -4,6 +4,7 @@ import { localDateString } from '../lib/local-date';
 import { useEffect, useState } from 'react';
 import AppShell from '../components/AppShell';
 import DateRangePresets from '../components/DateRangePresets';
+import AnimatedValue from '../components/AnimatedValue';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rupiah = (value) => `Rp${Number(value || 0).toLocaleString('id-ID')}`;
@@ -17,8 +18,8 @@ const SCOPE_LABEL = {
 };
 
 // Kartu ringkasan dipakai bersama oleh Komisi Saya (semua role) dan laporan owner.
-const statCard = (label, value, tone) => (
-  <div style={{
+const statCard = (label, value, { tone = false, money = false, suffix = '' } = {}) => (
+  <div className="stat-tile" style={{
     display: 'grid',
     placeItems: 'center',
     gap: '.35rem',
@@ -29,7 +30,9 @@ const statCard = (label, value, tone) => (
     textAlign: 'center',
   }}>
     <span style={{ fontSize: 'var(--fs-xs)', color: tone ? '#15803d' : 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase' }}>{label}</span>
-    <strong style={{ fontSize: '1.1rem', color: tone ? '#16a34a' : undefined }}>{value}</strong>
+    <strong style={{ fontSize: '1.1rem', color: tone ? '#16a34a' : undefined }}>
+      <AnimatedValue value={value} money={money} suffix={suffix} />
+    </strong>
   </div>
 );
 
@@ -218,6 +221,7 @@ export default function CommissionsPage() {
   const isPerPcs = form.calculation_type === 'per_pcs_customer_tier';
   const mineLive = mine?.live;
   const mineRules = mine?.applicable_rules || [];
+  const minePcsTotal = Number(mineLive?.qty_reguler || 0) + Number(mineLive?.qty_grosir_seri || 0);
 
   // Kontrol periode dipakai bersama Laporan & Komisi Saya (satu rentang tanggal).
   const periodControls = (
@@ -265,11 +269,27 @@ export default function CommissionsPage() {
             {mine && (
               <>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '.75rem', marginTop: '1rem' }}>
-                  {statCard('Penjualan dasar', rupiah(mineLive?.total_sales))}
+                  {statCard('Penjualan dasar', mineLive?.total_sales, { money: true })}
                   {statCard('Transaksi dasar', mineLive?.total_transactions || 0)}
-                  {statCard('Estimasi Komisi', rupiah(mineLive?.estimated), true)}
+                  {statCard('Estimasi Komisi', mineLive?.estimated, { money: true, tone: true })}
                   {statCard('Reguler pcs dasar', mineLive?.qty_reguler || 0)}
                   {statCard('Grosir pcs dasar', mineLive?.qty_grosir_seri || 0)}
+                </div>
+                <div className="m-compose" aria-label="Komposisi pcs">
+                  <div className="m-compose-head">
+                    <span>Reguler</span>
+                    <strong>{Number(mineLive?.qty_reguler || 0)} pcs{minePcsTotal ? ` (${Math.round((Number(mineLive?.qty_reguler || 0) / minePcsTotal) * 100)}%)` : ''}</strong>
+                  </div>
+                  <div className="m-compose-track">
+                    <div className="m-compose-fill" style={{ '--m-compose-width': `${minePcsTotal ? (Number(mineLive?.qty_reguler || 0) / minePcsTotal) * 100 : 0}%`, '--m-compose-index': 0 }} />
+                  </div>
+                  <div className="m-compose-head">
+                    <span>Grosir</span>
+                    <strong>{Number(mineLive?.qty_grosir_seri || 0)} pcs{minePcsTotal ? ` (${Math.round((Number(mineLive?.qty_grosir_seri || 0) / minePcsTotal) * 100)}%)` : ''}</strong>
+                  </div>
+                  <div className="m-compose-track">
+                    <div className="m-compose-fill" style={{ '--m-compose-width': `${minePcsTotal ? (Number(mineLive?.qty_grosir_seri || 0) / minePcsTotal) * 100 : 0}%`, '--m-compose-index': 1, background: 'linear-gradient(90deg, #c2410c, #ea8a52)' }} />
+                  </div>
                 </div>
                 <p className="muted" style={{ fontSize: 'var(--fs-sm)', margin: '.5rem 0 0' }}>
                   Angka di atas adalah dasar perhitungan aturan terbesar Anda: <strong>{SCOPE_LABEL[mineLive?.basis_scope] || 'Sendiri'}</strong>

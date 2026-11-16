@@ -4,6 +4,7 @@ import { localDateString } from '../lib/local-date';
 import { useEffect, useState } from 'react';
 import AppShell from '../components/AppShell';
 import DateRangePresets from '../components/DateRangePresets';
+import { MOTION_CHOICES, currentMotionChoice, setMotionChoice } from '../lib/motion';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rp = (n) => `Rp${Number(n || 0).toLocaleString('id-ID')}`;
@@ -28,6 +29,7 @@ export default function MyAccount() {
   const [range, setRange] = useState({ start: '', end: '' });
   const [preset, setPreset] = useState('');
   const [loadingComm, setLoadingComm] = useState(false);
+  const [motionChoice, setMotionChoiceState] = useState('');
 
   const headers = () => ({ 'Content-Type': 'application/json'});
 
@@ -53,6 +55,7 @@ export default function MyAccount() {
 
   useEffect(() => {
     setRange({ start: todayStr(), end: todayStr() });
+    setMotionChoiceState(currentMotionChoice());
   }, []);
   useEffect(() => {
     fetch(`${api}/auth/me`, { headers: {} })
@@ -143,6 +146,27 @@ export default function MyAccount() {
               </form>
             </>
           ) : <p>Memuat profil…</p>}
+        </section>
+
+        <section className="panel">
+          <h2>Tampilan</h2>
+          <p className="muted" style={{ marginTop: 0, fontSize: 'var(--fs-sm)' }}>
+            Atur seberapa banyak animasi di antarmuka. Tersimpan di perangkat ini saja.
+          </p>
+          <label>Animasi antarmuka
+            <select
+              value={motionChoice}
+              onChange={(e) => { setMotionChoiceState(e.target.value); setMotionChoice(e.target.value); }}
+            >
+              {MOTION_CHOICES.map((choice) => (
+                <option key={choice.value} value={choice.value}>{choice.label}</option>
+              ))}
+            </select>
+          </label>
+          <p className="muted" style={{ marginBottom: 0, fontSize: 'var(--fs-sm)' }}>
+            “Sederhana” hanya memakai fade singkat; “Nonaktif” mematikan semua animasi. Jika setelan sistem
+            meminta kurangi gerak, animasi tetap dimatikan.
+          </p>
         </section>
 
         <section className="panel">

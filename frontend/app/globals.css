@@ -8055,3 +8055,137 @@ html[data-theme] .app-main .tabs button:not(.active):hover {
 @media (max-width: 760px) {
   .store-settings-section-nav { grid-template-columns: 1fr; gap: 12px; }
 }
+
+/* ============================================================
+   Sistem animasi (motion)
+   - Hanya transform & opacity supaya tetap 60fps dan murah di PWA.
+   - Mode: <html data-motion="full|reduced|off"> diisi preferencesScript
+     (lihat app/components/app-state.cjs) dan bisa diubah di Akun Saya.
+   - Setelan sistem "kurangi gerak" tetap menang (blok reduced-motion lama).
+   ============================================================ */
+:root {
+  --motion-fast: 140ms;
+  --motion-base: 220ms;
+  --motion-slow: 320ms;
+  --motion-draw: 620ms;
+  --ease-standard: cubic-bezier(.2, .8, .2, 1);
+  --ease-emphasized: cubic-bezier(.2, .9, .15, 1);
+}
+
+@keyframes m-page-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes m-row-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes m-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes m-bar-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* Transisi halaman (konten admin). PWA standalone memakai durasi lebih pendek. */
+html[data-motion="full"] .app-content.m-page {
+  animation: m-page-in var(--motion-base) var(--ease-standard) both;
+}
+@media all and (display-mode: standalone) {
+  html[data-motion="full"] .app-content.m-page {
+    animation-duration: var(--motion-fast);
+  }
+}
+
+/* Panel masuk bergantian: maksimal enam panel pertama per induk. */
+html[data-motion="full"] .app-content .panel {
+  animation: m-fade-up var(--motion-base) var(--ease-standard) both;
+}
+html[data-motion="full"] .app-content .panel:nth-of-type(2) { animation-delay: 40ms; }
+html[data-motion="full"] .app-content .panel:nth-of-type(3) { animation-delay: 80ms; }
+html[data-motion="full"] .app-content .panel:nth-of-type(4) { animation-delay: 120ms; }
+html[data-motion="full"] .app-content .panel:nth-of-type(5) { animation-delay: 160ms; }
+html[data-motion="full"] .app-content .panel:nth-of-type(6) { animation-delay: 200ms; }
+
+/* Baris tabel: hanya dua belas baris pertama yang dianimasikan. */
+html[data-motion="full"] .app-content table tbody tr {
+  animation: m-row-in 200ms var(--ease-standard) both;
+}
+html[data-motion="full"] .app-content table tbody tr:nth-child(2) { animation-delay: 28ms; }
+html[data-motion="full"] .app-content table tbody tr:nth-child(3) { animation-delay: 56ms; }
+html[data-motion="full"] .app-content table tbody tr:nth-child(4) { animation-delay: 84ms; }
+html[data-motion="full"] .app-content table tbody tr:nth-child(5) { animation-delay: 112ms; }
+html[data-motion="full"] .app-content table tbody tr:nth-child(6) { animation-delay: 140ms; }
+html[data-motion="full"] .app-content table tbody tr:nth-child(7) { animation-delay: 168ms; }
+html[data-motion="full"] .app-content table tbody tr:nth-child(8) { animation-delay: 196ms; }
+html[data-motion="full"] .app-content table tbody tr:nth-child(9) { animation-delay: 224ms; }
+html[data-motion="full"] .app-content table tbody tr:nth-child(10) { animation-delay: 252ms; }
+html[data-motion="full"] .app-content table tbody tr:nth-child(11) { animation-delay: 280ms; }
+html[data-motion="full"] .app-content table tbody tr:nth-child(12) { animation-delay: 308ms; }
+html[data-motion="full"] .app-content table tbody tr:nth-child(n + 13) { animation: none; }
+
+/* Submenu sidebar muncul halus tanpa mengukur tinggi. */
+html[data-motion="full"] .sidebar .nav-subgroup-items {
+  animation: m-fade-up 180ms var(--ease-standard) both;
+}
+
+/* Chip periode: tekanan kecil saat ditekan. */
+.period-chip,
+.date-range-presets button {
+  transition: transform var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+}
+.period-chip:active,
+.date-range-presets button:active {
+  transform: scale(.96);
+}
+
+/* Bar komposisi pcs (dipakai halaman komisi). */
+.m-compose { display: grid; gap: 8px; margin-top: 14px; }
+.m-compose-head { display: flex; justify-content: space-between; gap: 8px; font-size: var(--fs-sm); color: var(--muted); font-weight: 600; }
+.m-compose-track { height: 10px; border-radius: 999px; background: var(--panel-muted, rgba(30, 58, 95, .08)); overflow: hidden; }
+.m-compose-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2e5d8f, #5a8bbf);
+  width: var(--m-compose-width, 0%);
+  transform-origin: left center;
+}
+html[data-motion="full"] .m-compose-fill {
+  animation: m-bar-grow var(--motion-draw) var(--ease-emphasized) both;
+  animation-delay: calc(120ms + var(--m-compose-index, 0) * 90ms);
+}
+
+/* Mode Sederhana: hanya fade singkat, tanpa pergerakan. */
+html[data-motion="reduced"] .app-content.m-page,
+html[data-motion="reduced"] .app-content .panel,
+html[data-motion="reduced"] .app-content table tbody tr,
+html[data-motion="reduced"] .sidebar .nav-subgroup-items {
+  animation: m-fade-in 120ms linear both;
+}
+html[data-motion="reduced"] .m-compose-fill { animation: none; }
+
+/* Mode Nonaktif: matikan animasi dan transisi dekoratif. */
+html[data-motion="off"] .app-content *,
+html[data-motion="off"] .app-content *::before,
+html[data-motion="off"] .app-content *::after,
+html[data-motion="off"] .sidebar *,
+html[data-motion="off"] .period-chip,
+html[data-motion="off"] .date-range-presets button {
+  animation: none !important;
+  transition: none !important;
+}
+
+@media print {
+  .app-content *,
+  .app-content *::before,
+  .app-content *::after,
+  .sidebar * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
