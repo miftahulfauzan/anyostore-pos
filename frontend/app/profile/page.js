@@ -65,14 +65,12 @@ export default function MyAccount() {
       })
       .catch((e) => setMessage(e.message || String(e)));
   }, []);
+  // Tanggal diganti → komisi dihitung ulang otomatis setelah jeda singkat.
   useEffect(() => {
-    if (range.start && range.end) fetchCommission(range.start, range.end);
+    if (!range.start || !range.end || range.start > range.end) return undefined;
+    const timer = setTimeout(() => fetchCommission(range.start, range.end), 350);
+    return () => clearTimeout(timer);
   }, [range.start, range.end]);
-
-  function applyRange() {
-    if (range.start > range.end) return setMessage('Tanggal mulai tidak boleh setelah akhir');
-    fetchCommission(range.start, range.end);
-  }
 
   async function saveProfile(e) {
     e.preventDefault();
@@ -185,7 +183,6 @@ export default function MyAccount() {
               <DateRangePresets active={preset} onPick={(key, nextRange) => { setPreset(key); setRange(nextRange); }} label="Pilih rentang komisi saya" />
               <label style={{ minWidth: 160 }}>Dari<input type="date" value={range.start} onChange={(e) => { setPreset('custom'); setRange({ ...range, start: e.target.value }); }} /></label>
               <label style={{ minWidth: 160 }}>Sampai<input type="date" value={range.end} onChange={(e) => { setPreset('custom'); setRange({ ...range, end: e.target.value }); }} /></label>
-              <button type="button" onClick={applyRange} disabled={loadingComm} style={{ minHeight: 40 }}>{loadingComm ? 'Memuat…' : 'Tampilkan'}</button>
               <span className="muted" style={{ alignSelf: 'center', fontSize: 'var(--fs-sm)' }}>{live?.period_start} → {live?.period_end}</span>
             </div>
 
@@ -207,9 +204,9 @@ export default function MyAccount() {
                     <strong style={{ fontSize: '1.15rem', color: '#16a34a' }}>{rp(live?.estimated)}</strong>
                   </div>
                   <div style={{ display: 'grid', placeItems: 'center', gap: '.2rem', padding: '.75rem', border: '1px solid var(--border)', borderRadius: '.5rem', background: 'var(--card)', textAlign: 'center' }}>
-                    <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)', fontWeight: 600 }}>Reguler pcs</span>
-                    <strong>{live?.qty_reguler || 0}</strong>
-                    <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>Semi {live?.qty_semi_grosir || 0} • Grosir {live?.qty_grosir_seri || 0}</span>
+                    <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)', fontWeight: 600 }}>Total pcs</span>
+                    <strong>{(live?.qty_reguler || 0) + (live?.qty_grosir_seri || 0)}</strong>
+                    <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>Reg {live?.qty_reguler || 0} • Grosir {live?.qty_grosir_seri || 0}</span>
                   </div>
                   <div style={{ display: 'grid', placeItems: 'center', gap: '.35rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '.5rem', background: 'var(--card)', textAlign: 'center' }}>
                     <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>Aturan</span>
@@ -228,7 +225,7 @@ export default function MyAccount() {
                             <td><span className="tag" style={{ fontSize: 'var(--fs-xs)' }}>{r.type}</span></td>
                             <td style={{ fontSize: 'var(--fs-sm)' }}>
                               {r.type === 'per_pcs_customer_tier'
-                                ? <>Reg {rp(r.commission_reguler_per_pcs)}/pcs • Semi {rp(r.commission_semi_grosir_per_pcs)} • Grosir {rp(r.commission_grosir_seri_per_pcs)} (Reg {r.qty_breakdown?.reguler || 0} • Semi {r.qty_breakdown?.semi_grosir || 0} • Grosir {r.qty_breakdown?.grosir_seri || 0} pcs)</>
+                                ? <>Reg {rp(r.commission_reguler_per_pcs)}/pcs • Grosir {rp(r.commission_grosir_seri_per_pcs)}/pcs (Reg {r.qty_breakdown?.reguler || 0} • Grosir {r.qty_breakdown?.grosir_seri || 0} pcs)</>
                                 : r.type?.includes('percentage') ? `${r.percentage}%` : rp(r.flat_amount)
                               }
                             </td>

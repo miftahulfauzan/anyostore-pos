@@ -9,6 +9,7 @@ const read = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8')
 const commissions = read('src/routes/commissions.js');
 const webPage = fs.readFileSync(path.join(__dirname, '..', '..', 'frontend', 'app', 'commissions', 'page.js'), 'utf8');
 const mobilePage = fs.readFileSync(path.join(__dirname, '..', '..', 'mobile', 'lib', 'src', 'commissions_page.dart'), 'utf8');
+const profilePage = fs.readFileSync(path.join(__dirname, '..', '..', 'frontend', 'app', 'profile', 'page.js'), 'utf8');
 const migration = fs.readFileSync(path.join(__dirname, '..', 'migrations', '20261116_commission_scope.sql'), 'utf8');
 
 test('skema menyediakan empat dasar perhitungan komisi', () => {
@@ -37,6 +38,7 @@ test('semi grosir tidak lagi dipakai: pcs semi dihitung sebagai grosir', () => {
   assert.doesNotMatch(webPage, /Semi grosir/i);
   assert.doesNotMatch(webPage, /qty_semi/);
   assert.doesNotMatch(mobilePage, /Semi Grosir/i);
+  assert.doesNotMatch(profilePage, /Semi/i);
 });
 
 test('aturan baru menyimpan scope dan menolak nilai tak dikenal', () => {
@@ -84,4 +86,21 @@ test('halaman komisi menerapkan tanggal otomatis tanpa tombol Tampilkan', () => 
   assert.match(webPage, /setTimeout\(/);
   assert.match(webPage, /loadRecords\(/);
   assert.match(webPage, /loadReport\(selectedBranch, reportPeriod\.start, reportPeriod\.end\)/);
+});
+
+test('manager & admin melihat komisi pribadi di halaman komisi (bukan ditolak)', () => {
+  assert.doesNotMatch(webPage, /Halaman komisi hanya dapat diakses oleh owner/);
+  assert.doesNotMatch(webPage, /Halaman komisi hanya owner/);
+  assert.match(webPage, /async function loadMine/);
+  assert.match(webPage, /commissions\/mine/);
+  // Endpoint khusus owner tidak boleh dipanggil oleh role lain.
+  assert.match(webPage, /if \(!role \|\| role === 'owner'\) return undefined;/);
+  assert.match(webPage, /if \(role !== 'owner'\) return undefined;/);
+  assert.match(webPage, /const canSeeTeamReport = isOwner \|\| role === 'manager' \|\| role === 'admin';/);
+});
+
+test('komisi pribadi memakai rincian tanpa semi dan tanpa tombol Tampilkan', () => {
+  assert.doesNotMatch(profilePage, />Tampilkan</);
+  assert.match(profilePage, /setTimeout\(/);
+  assert.match(webPage, /Reg \$\{rupiah\(r\.commission_reguler_per_pcs\)\}\/pcs • Grosir/);
 });
