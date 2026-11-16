@@ -265,12 +265,18 @@ export default function CommissionsPage() {
             {mine && (
               <>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '.75rem', marginTop: '1rem' }}>
-                  {statCard('Penjualan', rupiah(mineLive?.total_sales))}
-                  {statCard('Transaksi', mineLive?.total_transactions || 0)}
+                  {statCard('Penjualan dasar', rupiah(mineLive?.total_sales))}
+                  {statCard('Transaksi dasar', mineLive?.total_transactions || 0)}
                   {statCard('Estimasi Komisi', rupiah(mineLive?.estimated), true)}
-                  {statCard('Reguler pcs (Anda)', mineLive?.qty_reguler || 0)}
-                  {statCard('Grosir pcs (Anda)', mineLive?.qty_grosir_seri || 0)}
+                  {statCard('Reguler pcs dasar', mineLive?.qty_reguler || 0)}
+                  {statCard('Grosir pcs dasar', mineLive?.qty_grosir_seri || 0)}
                 </div>
+                <p className="muted" style={{ fontSize: 'var(--fs-sm)', margin: '.5rem 0 0' }}>
+                  Angka di atas adalah dasar perhitungan aturan terbesar Anda: <strong>{SCOPE_LABEL[mineLive?.basis_scope] || 'Sendiri'}</strong>
+                  {mineLive?.basis_scope && mineLive.basis_scope !== 'self'
+                    ? ` (transaksi Anda sendiri: ${rupiah(mineLive?.own_sales)} • ${mineLive?.own_qty_reguler || 0} + ${mineLive?.own_qty_grosir_seri || 0} pcs)`
+                    : ''}
+                </p>
                 {mineLive?.rules?.length ? (
                   <div className="table-wrap" style={{ marginTop: '1rem' }}>
                     <table>
@@ -331,7 +337,7 @@ export default function CommissionsPage() {
                 <table>
                   <thead>
                     <tr>
-                      <th>Akun</th><th>Role</th><th>Reguler pcs</th><th>Grosir pcs</th><th>Total pcs</th><th>Penjualan</th><th>Komisi</th><th>Breakdown</th>
+                      <th>Akun</th><th>Role</th><th>Dasar</th><th>Reguler pcs</th><th>Grosir pcs</th><th>Total pcs</th><th>Penjualan</th><th>Komisi</th><th>Breakdown</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -339,21 +345,32 @@ export default function CommissionsPage() {
                       <tr key={r.user_id}>
                         <td><strong>{r.name}</strong></td>
                         <td>{r.role}</td>
+                        <td>{SCOPE_LABEL[r.basis_scope] || 'Sendiri'}</td>
                         <td>{r.qty_reguler}</td>
                         <td>{r.qty_grosir}</td>
                         <td>{r.total_qty}</td>
-                        <td>{rupiah(r.total_sales)}</td>
+                        <td>
+                          {rupiah(r.total_sales)}
+                          {r.basis_scope && r.basis_scope !== 'self' && (
+                            <><br /><small className="muted">sendiri: {rupiah(r.own_sales)}</small></>
+                          )}
+                        </td>
                         <td><strong>{rupiah(r.commission)}</strong></td>
-                        <td style={{ fontSize: 'var(--fs-sm)' }}>{r.breakdown.map((b) => `${b.name}: ${rupiah(b.commission)}`).join(' • ')}</td>
+                        <td style={{ fontSize: 'var(--fs-sm)' }}>{r.breakdown.map((b) => `${b.name} (${SCOPE_LABEL[b.scope] || 'Sendiri'}): ${rupiah(b.commission)}`).join(' • ')}</td>
                       </tr>
-                    )) : <tr><td colSpan={8}>Tidak ada komisi di periode ini.</td></tr>}
+                    )) : <tr><td colSpan={9}>Tidak ada komisi di periode ini.</td></tr>}
                   </tbody>
                   <tfoot>
-                    <tr><td colSpan={6} style={{ textAlign: 'right' }}><strong>Total Komisi Semua Akun</strong></td><td colSpan={2}><strong>{rupiah(report.total_commission)}</strong></td></tr>
+                    <tr><td colSpan={7} style={{ textAlign: 'right' }}><strong>Total Komisi Semua Akun</strong></td><td colSpan={2}><strong>{rupiah(report.total_commission)}</strong></td></tr>
                   </tfoot>
                 </table>
               </div>
             ) : <p className="muted">Memuat laporan…</p>}
+            {report && (
+              <p className="muted" style={{ fontSize: 'var(--fs-sm)', margin: '.5rem 0 0' }}>
+                Pcs & penjualan mengikuti <strong>Dasar</strong> tiap akun. Manager dengan dasar “Semua staf cabang” berarti total seluruh produk terjual di toko, bukan hanya transaksi manager itu sendiri.
+              </p>
+            )}
           </section>
         )}
 

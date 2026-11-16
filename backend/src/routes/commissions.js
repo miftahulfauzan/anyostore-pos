@@ -165,6 +165,12 @@ async function computeBranchReport(branchId, start, end) {
     const own = await aggregate('self');
     let totalCommission = 0;
     const breakdown = [];
+    // Angka pcs/penjualan yang ditampilkan mengikuti DASAR aturan yang memberi
+    // komisi terbesar. Untuk manager dengan aturan "semua staf cabang", pcs
+    // berarti total pcs toko — bukan hanya transaksi manager itu sendiri.
+    let basis = own;
+    let basisScope = 'self';
+    let basisCommission = -1;
     for (const r of applicable) {
       const scope = ruleScope(r);
       const agg = await aggregate(scope);
@@ -176,6 +182,11 @@ async function computeBranchReport(branchId, start, end) {
       if (comm > 0) {
         totalCommission += comm;
         breakdown.push({ rule_id: r.id, name: r.name, type: r.calculation_type, scope, commission: comm });
+        if (comm > basisCommission) {
+          basisCommission = comm;
+          basis = agg;
+          basisScope = scope;
+        }
       }
     }
     if (totalCommission > 0 || own.trx > 0) {
@@ -183,12 +194,15 @@ async function computeBranchReport(branchId, start, end) {
         user_id: u.id,
         name: u.name,
         role: u.role,
-        qty_reguler: own.qty_reguler,
+        qty_reguler: basis.qty_reguler,
         qty_semi: 0,
-        qty_grosir: own.qty_grosir,
-        total_qty: own.qty_reguler + own.qty_grosir,
-        total_sales: own.sales,
-        total_transactions: own.trx,
+        qty_grosir: basis.qty_grosir,
+        total_qty: basis.qty_reguler + basis.qty_grosir,
+        total_sales: basis.sales,
+        total_transactions: basis.trx,
+        basis_scope: basisScope,
+        own_qty: own.qty_reguler + own.qty_grosir,
+        own_sales: own.sales,
         commission: asMoney(totalCommission),
         breakdown,
       });
@@ -439,6 +453,11 @@ router.get('/mine', authenticate, async (req, res, next) => {
     const own = await tierAggregate(db, { scope: 'self', branchId, userId, start: monthStart, end: monthEnd });
     let estimated = 0;
     const ruleBreakdown = [];
+    // Sama seperti laporan owner: angka pcs/penjualan yang ditampilkan mengikuti
+    // dasar aturan yang memberi komisi terbesar, jadi manager melihat total toko.
+    let basis = own;
+    let basisScope = 'self';
+    let basisCommission = -1;
     for (const rule of rules) {
       const scope = ruleScope(rule);
       const opts = { scope, branchId, userId, start: monthStart, end: monthEnd };
@@ -447,6 +466,11 @@ router.get('/mine', authenticate, async (req, res, next) => {
       const profit = rule.calculation_type === 'percentage_profit' ? await profitAggregate(db, opts) : 0;
       const comm = ruleCommission(rule, agg, profit);
       if (comm >= 0) estimated += comm;
+      if (comm > basisCommission) {
+        basisCommission = comm;
+        basis = agg;
+        basisScope = scope;
+      }
       ruleBreakdown.push({
         rule_id: rule.id,
         name: rule.name,
@@ -465,15 +489,20 @@ router.get('/mine', authenticate, async (req, res, next) => {
       success: true,
       data: {
         live: {
-          total_sales: own.sales,
-          total_transactions: own.trx,
+          total_sales: basis.sales,
+          total_transactions: basis.trx,
           estimated: asMoney(estimated),
           period_start: monthStart,
           period_end: monthEnd,
           rules: ruleBreakdown,
-          qty_reguler: own.qty_reguler,
+          basis_scope: basisScope,
+          own_sales: own.sales,
+          own_total_transactions: own.trx,
+          own_qty_reguler: own.qty_reguler,
+          own_qty_grosir_seri: own.qty_grosir,
+          qty_reguler: basis.qty_reguler,
           qty_semi_grosir: 0,
-          qty_grosir_seri: own.qty_grosir,
+          qty_grosir_seri: basis.qty_grosir,
         },
         applicable_rules: rules.map((r) => ({
           id: r.id,

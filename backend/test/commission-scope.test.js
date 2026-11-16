@@ -113,3 +113,22 @@ test('penjualan komisi tidak berlipat oleh jumlah baris item', () => {
   assert.doesNotMatch(joinedQuery[0], /grand_total/, 'grand_total tidak boleh di-SUM di query yang join item');
   assert.match(commissions, /COALESCE\(SUM\(t\.grand_total - t\.cancelled_amount - t\.refunded_amount\),0\) AS sales,\s*\n\s*COUNT\(\*\) AS trx\s*\n\s*FROM transactions t/);
 });
+
+test('pcs & penjualan laporan mengikuti dasar aturan, bukan selalu transaksi sendiri', () => {
+  // Manager dengan aturan scope=branch harus menampilkan total toko.
+  assert.match(commissions, /let basis = own;/);
+  assert.match(commissions, /if \(comm > basisCommission\)/);
+  assert.match(commissions, /basis_scope: basisScope/);
+  assert.match(commissions, /own_sales: own\.sales/);
+  assert.match(commissions, /qty_reguler: basis\.qty_reguler/);
+  assert.match(commissions, /total_sales: basis\.sales/);
+  // /mine memakai basis yang sama.
+  assert.match(commissions, /total_sales: basis\.sales,\s*\n\s*total_transactions: basis\.trx/);
+  assert.match(commissions, /basis_scope: basisScope,\s*\n\s*own_sales: own\.sales/);
+});
+
+test('UI laporan menampilkan kolom dasar perhitungan', () => {
+  assert.match(webPage, /<th>Dasar<\/th>/);
+  assert.match(webPage, /SCOPE_LABEL\[r\.basis_scope\]/);
+  assert.match(webPage, /Penjualan dasar/);
+});
