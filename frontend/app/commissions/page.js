@@ -122,7 +122,6 @@ export default function CommissionsPage() {
       loadReport(selectedBranch, reportPeriod.start, reportPeriod.end);
     }, 350);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportPeriod.start, reportPeriod.end, selectedBranch]);
 
   // Tanggal arsip diganti → tabel record ikut berganti otomatis.
@@ -132,7 +131,6 @@ export default function CommissionsPage() {
       loadRecords(selectedBranch, period.period_start, period.period_end);
     }, 350);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period.period_start, period.period_end, selectedBranch]);
 
   useEffect(() => {
