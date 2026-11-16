@@ -84,7 +84,8 @@ test('generate ulang memperbarui arsip pending dan melewati yang sudah disetujui
 test('halaman komisi menerapkan tanggal otomatis tanpa tombol Tampilkan', () => {
   assert.doesNotMatch(webPage, />Tampilkan</);
   assert.match(webPage, /setTimeout\(/);
-  assert.match(webPage, /loadRecords\(/);
+  assert.doesNotMatch(webPage, /Generate Komisi \(arsip\)/);
+  assert.match(webPage, /loadMine\(/);
   assert.match(webPage, /loadReport\(selectedBranch, reportPeriod\.start, reportPeriod\.end\)/);
 });
 
@@ -95,7 +96,7 @@ test('manager & admin melihat komisi pribadi di halaman komisi (bukan ditolak)',
   assert.match(webPage, /commissions\/mine/);
   // Endpoint khusus owner tidak boleh dipanggil oleh role lain.
   assert.match(webPage, /if \(!role \|\| role === 'owner'\) return undefined;/);
-  assert.match(webPage, /if \(role !== 'owner'\) return undefined;/);
+  assert.match(webPage, /if \(!role \|\| !\['owner', 'manager', 'admin'\]\.includes\(role\)\) return undefined;/);
   assert.match(webPage, /const canSeeTeamReport = isOwner \|\| role === 'manager' \|\| role === 'admin';/);
 });
 

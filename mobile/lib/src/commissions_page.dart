@@ -22,12 +22,10 @@ class CommissionsPage extends StatefulWidget {
 class _CommissionsPageState extends State<CommissionsPage> {
   String _tab = 'saya';
   List<Map<String, dynamic>> _rules = [];
-  List<Map<String, dynamic>> _records = [];
   Map<String, dynamic>? _report;
   Map<String, dynamic>? _mine;
   bool _loading = true;
   String? _error;
-  bool _generating = false;
   String _preset = 'bulan';
   String? _customStart;
   String? _customEnd;
@@ -40,8 +38,8 @@ class _CommissionsPageState extends State<CommissionsPage> {
   /// Manager/Admin juga boleh melihat Laporan komisi semua pegawai.
   bool get _canManage => ['owner', 'manager', 'admin'].contains(widget.role);
   List<String> get _tabs {
-    if (_isOwner) return ['saya', 'rules', 'records', 'report'];
-    // Manager/Admin: hanya Saya + Laporan (Aturan/Catatan khusus owner).
+    if (_isOwner) return ['saya', 'rules', 'report'];
+    // Manager/Admin: hanya Saya + Laporan (Aturan khusus owner).
     if (_canManage) return ['saya', 'report'];
     return ['saya'];
   }
@@ -161,8 +159,6 @@ class _CommissionsPageState extends State<CommissionsPage> {
         setState(() {
           _rules =
               ((data['rules'] as List?) ?? []).cast<Map<String, dynamic>>();
-          _records =
-              ((data['records'] as List?) ?? []).cast<Map<String, dynamic>>();
         });
       }
     } on ApiException catch (e) {
@@ -276,26 +272,6 @@ class _CommissionsPageState extends State<CommissionsPage> {
     }
   }
 
-  Future<void> _generate() async {
-    setState(() => _generating = true);
-    try {
-      final (start, end) = _range;
-      final result = await widget.api
-          .generateCommissions({'period_start': start, 'period_end': end});
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Komisi dibuat: ${result['created'] ?? 0} catatan')));
-      _load();
-    } on ApiException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
-      }
-    } finally {
-      if (mounted) setState(() => _generating = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -387,20 +363,6 @@ class _CommissionsPageState extends State<CommissionsPage> {
                         },
                       ),
                     ),
-                    if (_tab == 'report') ...[
-                      const SizedBox(width: 10),
-                      FilledButton.icon(
-                        onPressed: _generating ? null : _generate,
-                        icon: _generating
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2))
-                            : const Icon(Icons.play_arrow),
-                        label: const Text('Generate'),
-                      ),
-                    ],
                   ],
                 ),
                 if (_preset == 'custom') ...[
@@ -468,28 +430,6 @@ class _CommissionsPageState extends State<CommissionsPage> {
               _Row('Sampai', '${mine['period_end'] ?? ''}'),
             ]),
           ],
-        );
-      case 'records':
-        if (_records.isEmpty) {
-          return const Center(child: Text('Belum ada catatan komisi'));
-        }
-        return ListView.separated(
-          padding: const EdgeInsets.all(12),
-          itemCount: _records.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
-          itemBuilder: (_, i) {
-            final r = _records[i];
-            return GlassCard(
-              padding: EdgeInsets.zero,
-              child: ListTile(
-                title: Text(r['staff_name']?.toString() ?? ''),
-                subtitle:
-                    Text('${r['rule_name'] ?? ''} · ${r['created_at'] ?? ''}'),
-                trailing: Text(fmtRp(asNum(r['commission_amount'])),
-                    style: const TextStyle(fontWeight: FontWeight.w800)),
-              ),
-            );
-          },
         );
       case 'report':
         final accounts = ((_report?['per_account'] as List?) ?? [])

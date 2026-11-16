@@ -28,7 +28,7 @@ test('komisi: tanggal laporan & arsip diterapkan otomatis tanpa tombol', () => {
   assert.doesNotMatch(page, />Tampilkan</);
   assert.match(page, /setTimeout\(/);
   assert.match(page, /loadReport\(selectedBranch, reportPeriod\.start, reportPeriod\.end\)/);
-  assert.match(page, /loadRecords\(selectedBranch, period\.period_start, period\.period_end\)/);
+  assert.doesNotMatch(page, /Generate Komisi \(arsip\)/, 'arsip komisi dihapus dari halaman');
 });
 
 test('dasbor & dashboard stok: periode default hari ini dan tanpa tombol Terapkan', () => {

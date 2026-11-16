@@ -4,7 +4,6 @@ import { localDateString } from '../lib/local-date';
 import { useEffect, useState } from 'react';
 import AppShell from '../components/AppShell';
 import DateRangePresets from '../components/DateRangePresets';
-import { labelFor, statusLabels } from '../lib/ui-labels';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const rupiah = (value) => `Rp${Number(value || 0).toLocaleString('id-ID')}`;
@@ -36,7 +35,6 @@ const statCard = (label, value, tone) => (
 
 export default function CommissionsPage() {
   const [rules, setRules] = useState([]);
-  const [records, setRecords] = useState([]);
   const [report, setReport] = useState(null);
   const [mine, setMine] = useState(null);
   const [staff, setStaff] = useState([]);
@@ -59,10 +57,8 @@ export default function CommissionsPage() {
     min_transactions: '0',
     start_date: '',
   });
-  const [period, setPeriod] = useState({ period_start: '', period_end: '' });
   const [reportPeriod, setReportPeriod] = useState({ start: '', end: '' });
   const [reportPreset, setReportPreset] = useState('');
-  const [generationPreset, setGenerationPreset] = useState('');
   const [reportLoading, setReportLoading] = useState(false);
   const [mineLoading, setMineLoading] = useState(false);
 
@@ -81,7 +77,6 @@ export default function CommissionsPage() {
       const branchesBody = await branchesRes.json().catch(() => ({ data: [] }));
       if (!main.ok) throw new Error(mainBody.message);
       setRules(mainBody.data.rules);
-      setRecords(mainBody.data.records);
       // prefer settings/branches for full list
       if (branchesBody.data?.length) setBranches(branchesBody.data);
       else if (mainBody.data.branches) setBranches(mainBody.data.branches);
@@ -89,20 +84,6 @@ export default function CommissionsPage() {
       setStaff(peopleBody.data || []);
     } catch (error) {
       setMessage(error.message || 'Komisi tidak dapat dimuat');
-    }
-  }
-
-  // Arsip komisi mengikuti rentang tanggal yang dipilih (tanpa tombol).
-  async function loadRecords(branchId = selectedBranch, start = period.period_start, end = period.period_end) {
-    if (!start || !end || start > end) return;
-    try {
-      const qs = new URLSearchParams({ ...(branchId ? { branch_id: branchId } : {}), start, end }).toString();
-      const r = await fetch(`${apiUrl}/commissions?${qs}`, { headers: headers() });
-      const b = await r.json();
-      if (!r.ok) throw new Error(b.message);
-      setRecords(b.data.records || []);
-    } catch (e) {
-      setMessage(e.message);
     }
   }
 
@@ -149,7 +130,6 @@ export default function CommissionsPage() {
   }
 
   useEffect(() => {
-    setPeriod((p) => ({ period_start: p.period_start || todayStr(), period_end: p.period_end || todayStr() }));
     setReportPeriod((p) => ({ start: p.start || todayStr(), end: p.end || todayStr() }));
   }, []);
 
@@ -171,16 +151,6 @@ export default function CommissionsPage() {
     }, 350);
     return () => clearTimeout(timer);
   }, [role, reportPeriod.start, reportPeriod.end]);
-
-  // Arsip hanya milik owner (endpoint /commissions memang dibatasi owner).
-  useEffect(() => {
-    if (role !== 'owner') return undefined;
-    if (!period.period_start || !period.period_end || period.period_start > period.period_end) return undefined;
-    const timer = setTimeout(() => {
-      loadRecords(selectedBranch, period.period_start, period.period_end);
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [role, period.period_start, period.period_end, selectedBranch]);
 
   useEffect(() => {
     /* sesi via httpOnly cookie */
@@ -215,33 +185,6 @@ export default function CommissionsPage() {
       if (!response.ok) throw new Error(body.message);
       setMessage('Aturan komisi disimpan.');
       setForm({ ...form, name: '' });
-      load();
-    } catch (error) {
-      setMessage(error.message);
-    }
-  }
-
-  async function generate(event) {
-    event.preventDefault();
-    try {
-      const response = await fetch(`${apiUrl}/commissions/generate`, { method: 'POST', headers: headers(), body: JSON.stringify(period) });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.message);
-      const { created = 0, updated = 0, skipped = 0 } = body.data || {};
-      setMessage(`${created} catatan dibuat, ${updated} dihitung ulang${skipped ? `, ${skipped} dilewati (sudah disetujui/dibayar)` : ''}.`);
-      load();
-      loadRecords(selectedBranch, period.period_start, period.period_end);
-    } catch (error) {
-      setMessage(error.message);
-    }
-  }
-
-  async function updateStatus(id, status) {
-    try {
-      const response = await fetch(`${apiUrl}/commissions/records/${id}/status`, { method: 'PUT', headers: headers(), body: JSON.stringify({ status }) });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.message);
-      setMessage(status === 'paid' ? 'Komisi ditandai sudah dibayar.' : 'Komisi disetujui.');
       load();
     } catch (error) {
       setMessage(error.message);
@@ -521,45 +464,6 @@ export default function CommissionsPage() {
           </div>
         )}
 
-        {isOwner && (
-          <section className="panel">
-            <h2>Generate Komisi (arsip)</h2>
-            <p className="muted">Opsional, untuk riwayat pembayaran. Komisi live di Akun Saya & Laporan sudah otomatis tanpa generate. Menekan Generate lagi akan menghitung ulang arsip yang masih pending; arsip yang sudah disetujui/dibayar tidak diubah.</p>
-            <DateRangePresets active={generationPreset} onPick={(key, range) => {
-              setGenerationPreset(key);
-              setPeriod({ period_start: range.start, period_end: range.end });
-            }} label="Pilih rentang generate komisi" />
-            <form onSubmit={generate} style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', alignItems: 'end', marginTop: '.5rem' }}>
-              <label>Dari<input type="date" value={period.period_start} onChange={(e) => { setGenerationPreset('custom'); setPeriod({ ...period, period_start: e.target.value }); }} /></label>
-              <label>Sampai<input type="date" value={period.period_end} onChange={(e) => { setGenerationPreset('custom'); setPeriod({ ...period, period_end: e.target.value }); }} /></label>
-              <button type="submit">Generate</button>
-            </form>
-            <div className="table-wrap" style={{ marginTop: '1rem' }}>
-              <table>
-                <thead><tr><th>Staf</th><th>Periode</th><th>Sales</th><th>Trx</th><th>Reg</th><th>Grosir</th><th>Komisi</th><th>Status</th><th>Aksi</th></tr></thead>
-                <tbody>
-                  {records.map((rec) => (
-                    <tr key={rec.id}>
-                      <td>{rec.staff_name}</td>
-                      <td>{rec.period_start} s/d {rec.period_end}</td>
-                      <td>{rupiah(rec.total_sales)}</td>
-                      <td>{rec.total_transactions}</td>
-                      <td>{rec.qty_reguler || 0}</td>
-                      <td>{rec.qty_grosir_seri || 0}</td>
-                      <td>{rupiah(rec.commission_amount)}</td>
-                      <td><span className={'status ' + rec.status}>{labelFor(statusLabels, rec.status)}</span></td>
-                      <td style={{ display: 'flex', gap: '.25rem' }}>
-                        <button type="button" className="small secondary" onClick={() => updateStatus(rec.id, 'approved')}>Setujui</button>
-                        <button type="button" className="small" onClick={() => updateStatus(rec.id, 'paid')}>Bayar</button>
-                      </td>
-                    </tr>
-                  ))}
-                  {!records.length && <tr><td colSpan={9}>Belum ada arsip untuk rentang ini. Tekan Generate untuk menghitung komisi periode tersebut.</td></tr>}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        )}
       </div>
     </AppShell>
   );
