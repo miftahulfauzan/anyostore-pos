@@ -15,6 +15,12 @@ export default function CommissionsPage() {
   const [records, setRecords] = useState([]);
   const [report, setReport] = useState(null);
   const [staff, setStaff] = useState([]);
+  const SCOPE_LABEL = {
+    self: 'Sendiri',
+    team: 'Staf lain',
+    branch: 'Semua staf cabang',
+    company: 'Semua cabang',
+  };
   const [branches, setBranches] = useState([]);
   const [selectedBranch, setSelectedBranch] = useState('');
   const [message, setMessage] = useState('');
@@ -25,10 +31,10 @@ export default function CommissionsPage() {
     role: 'manager',
     user_id: '',
     calculation_type: 'per_pcs_customer_tier',
+    scope: 'self',
     percentage: '2',
     flat_amount: '',
     commission_reguler_per_pcs: '3000',
-    commission_semi_grosir_per_pcs: '3000',
     commission_grosir_seri_per_pcs: '1000',
     min_target: '0',
     min_transactions: '0',
@@ -116,7 +122,6 @@ export default function CommissionsPage() {
         percentage: Number(form.percentage || 0),
         flat_amount: Number(form.flat_amount || 0),
         commission_reguler_per_pcs: Number(form.commission_reguler_per_pcs || 0),
-        commission_semi_grosir_per_pcs: Number(form.commission_semi_grosir_per_pcs || 0),
         commission_grosir_seri_per_pcs: Number(form.commission_grosir_seri_per_pcs || 0),
         min_target: Number(form.min_target || 0),
         min_transactions: Number(form.min_transactions || 0),
@@ -221,7 +226,7 @@ export default function CommissionsPage() {
               <table>
                 <thead>
                   <tr>
-                    <th>Akun</th><th>Role</th><th>Reguler pcs</th><th>Semi pcs</th><th>Grosir pcs</th><th>Total pcs</th><th>Penjualan</th><th>Komisi</th><th>Breakdown</th>
+                    <th>Akun</th><th>Role</th><th>Reguler pcs</th><th>Grosir pcs</th><th>Total pcs</th><th>Penjualan</th><th>Komisi</th><th>Breakdown</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -230,7 +235,6 @@ export default function CommissionsPage() {
                       <td><strong>{r.name}</strong></td>
                       <td>{r.role}</td>
                       <td>{r.qty_reguler}</td>
-                      <td>{r.qty_semi}</td>
                       <td>{r.qty_grosir}</td>
                       <td>{r.total_qty}</td>
                       <td>{rupiah(r.total_sales)}</td>
@@ -286,6 +290,14 @@ export default function CommissionsPage() {
                   </label>
                 )}
               </div>
+              <label>Dasar perhitungan
+                <select value={form.scope} onChange={(e) => setForm({ ...form, scope: e.target.value })}>
+                  <option value="self">Transaksi sendiri (kinerja pribadi)</option>
+                  <option value="team">Staf lain di cabang (tanpa dirinya)</option>
+                  <option value="branch">Semua staf di cabang (termasuk dirinya)</option>
+                  <option value="company">Semua cabang</option>
+                </select>
+              </label>
               <label>Cara hitung
                 <select value={form.calculation_type} onChange={(e) => setForm({ ...form, calculation_type: e.target.value })}>
                   <option value="per_pcs_customer_tier">Per pcs by customer tier (baru)</option>
@@ -296,10 +308,9 @@ export default function CommissionsPage() {
                 </select>
               </label>
               {isPerPcs ? (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '.5rem' }}>
+                <div className="two-fields">
                   <label>Reguler /pcs<input type="number" min="0" value={form.commission_reguler_per_pcs} onChange={(e) => setForm({ ...form, commission_reguler_per_pcs: e.target.value })} placeholder="3000" /></label>
-                  <label>Semi grosir /pcs<input type="number" min="0" value={form.commission_semi_grosir_per_pcs} onChange={(e) => setForm({ ...form, commission_semi_grosir_per_pcs: e.target.value })} placeholder="3000" /></label>
-                  <label>Grosir seri /pcs<input type="number" min="0" value={form.commission_grosir_seri_per_pcs} onChange={(e) => setForm({ ...form, commission_grosir_seri_per_pcs: e.target.value })} placeholder="1000" /></label>
+                  <label>Grosir /pcs<input type="number" min="0" value={form.commission_grosir_seri_per_pcs} onChange={(e) => setForm({ ...form, commission_grosir_seri_per_pcs: e.target.value })} placeholder="1000" /></label>
                 </div>
               ) : form.calculation_type.startsWith('percentage') ? (
                 <label>Persentase (%)<input type="number" min="0" step="0.01" value={form.percentage} onChange={(e) => setForm({ ...form, percentage: e.target.value })} /></label>
@@ -321,16 +332,17 @@ export default function CommissionsPage() {
             </div>
             <div className="table-wrap">
               <table>
-                <thead><tr><th>Nama</th><th>Berlaku</th><th>Cara</th><th>Nilai</th><th>Aksi</th></tr></thead>
+                <thead><tr><th>Nama</th><th>Berlaku</th><th>Dasar</th><th>Cara</th><th>Nilai</th><th>Aksi</th></tr></thead>
                 <tbody>
                   {rules.map((r) => (
                     <tr key={r.id}>
                       <td><strong>{r.name}</strong><br /><small className="muted">{r.staff_name || r.role || 'semua'}</small></td>
                       <td>{r.applies_to}{r.role ? `:${r.role}` : ''}</td>
+                      <td>{SCOPE_LABEL[r.scope] || 'Sendiri'}</td>
                       <td>{r.calculation_type}</td>
                       <td style={{ fontSize: 'var(--fs-sm)' }}>
                         {r.calculation_type === 'per_pcs_customer_tier'
-                          ? `Reg ${rupiah(r.commission_reguler_per_pcs)}/pcs • Semi ${rupiah(r.commission_semi_grosir_per_pcs)} • Grosir ${rupiah(r.commission_grosir_seri_per_pcs)}`
+                          ? `Reg ${rupiah(r.commission_reguler_per_pcs)}/pcs • Grosir ${rupiah(r.commission_grosir_seri_per_pcs)}/pcs`
                           : r.calculation_type.startsWith('percentage') ? `${r.percentage}%` : rupiah(r.flat_amount)
                         }
                       </td>
@@ -358,7 +370,7 @@ export default function CommissionsPage() {
           </form>
           <div className="table-wrap" style={{ marginTop: '1rem' }}>
             <table>
-              <thead><tr><th>Staf</th><th>Periode</th><th>Sales</th><th>Trx</th><th>Reg</th><th>Semi</th><th>Grosir</th><th>Komisi</th><th>Status</th><th>Aksi</th></tr></thead>
+              <thead><tr><th>Staf</th><th>Periode</th><th>Sales</th><th>Trx</th><th>Reg</th><th>Grosir</th><th>Komisi</th><th>Status</th><th>Aksi</th></tr></thead>
               <tbody>
                 {records.map((rec) => (
                   <tr key={rec.id}>
@@ -367,7 +379,6 @@ export default function CommissionsPage() {
                     <td>{rupiah(rec.total_sales)}</td>
                     <td>{rec.total_transactions}</td>
                     <td>{rec.qty_reguler || 0}</td>
-                    <td>{rec.qty_semi_grosir || 0}</td>
                     <td>{rec.qty_grosir_seri || 0}</td>
                     <td>{rupiah(rec.commission_amount)}</td>
                     <td><span className={'status ' + rec.status}>{labelFor(statusLabels, rec.status)}</span></td>

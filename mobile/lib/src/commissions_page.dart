@@ -175,7 +175,6 @@ class _CommissionsPageState extends State<CommissionsPage> {
   Future<void> _addRule() async {
     final name = TextEditingController();
     final reguler = TextEditingController(text: '0');
-    final semi = TextEditingController(text: '0');
     final grosir = TextEditingController(text: '0');
     var global = true;
     final saved = await showDialog<bool>(
@@ -204,13 +203,6 @@ class _CommissionsPageState extends State<CommissionsPage> {
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
                         labelText: 'Reguler (Rp/pcs)',
-                        border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: semi,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                        labelText: 'Semi Grosir (Rp/pcs)',
                         border: OutlineInputBorder())),
                 const SizedBox(height: 8),
                 TextField(
@@ -243,8 +235,6 @@ class _CommissionsPageState extends State<CommissionsPage> {
         'calculation_type': 'per_pcs_customer_tier',
         'commission_reguler_per_pcs':
             double.tryParse(reguler.text.replaceAll('.', '')) ?? 0,
-        'commission_semi_grosir_per_pcs':
-            double.tryParse(semi.text.replaceAll('.', '')) ?? 0,
         'commission_grosir_seri_per_pcs':
             double.tryParse(grosir.text.replaceAll('.', '')) ?? 0,
         'start_date': todayWib(),
@@ -471,7 +461,6 @@ class _CommissionsPageState extends State<CommissionsPage> {
             ]),
             _Card('Jumlah pcs (per tier)', [
               _Row('Reguler', '${mine['qty_reguler'] ?? 0} pcs'),
-              _Row('Semi Grosir', '${mine['qty_semi_grosir'] ?? 0} pcs'),
               _Row('Grosir Seri', '${mine['qty_grosir_seri'] ?? 0} pcs'),
             ]),
             _Card('Periode', [
@@ -532,7 +521,7 @@ class _CommissionsPageState extends State<CommissionsPage> {
                   title: Text(a['name']?.toString() ?? '',
                       style: const TextStyle(fontWeight: FontWeight.w700)),
                   subtitle: Text(
-                      '${a['total_qty'] ?? 0} pcs (R ${a['qty_reguler'] ?? 0} / SG ${a['qty_semi'] ?? 0} / GS ${a['qty_grosir'] ?? 0})'),
+                      '${a['total_qty'] ?? 0} pcs (R ${a['qty_reguler'] ?? 0} / G ${a['qty_grosir'] ?? 0})'),
                   trailing: Text(fmtRp(asNum(a['commission'])),
                       style: const TextStyle(fontWeight: FontWeight.w800)),
                 ),

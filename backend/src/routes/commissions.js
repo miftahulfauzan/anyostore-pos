@@ -9,6 +9,104 @@ const allowedTargets = new Set(['all', 'role', 'user']);
 const allowedRoles = new Set(['owner', 'manager', 'admin', 'kasir', 'gudang']);
 const asMoney = (value) => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 const customerTiers = new Set(['reguler', 'semi_grosir', 'grosir_seri']);
+
+const allowedScopes = new Set(['self', 'team', 'branch', 'company']);
+const ruleScope = (rule) => (allowedScopes.has(String(rule?.scope)) ? String(rule.scope) : 'self');
+
+// Semi grosir sudah tidak dipakai: pcs pelanggan semi dihitung sebagai grosir
+// seri agar transaksi lama tetap punya nilai komisi.
+const TIER_EXPR = "CASE WHEN c.price_tier = 'semi_grosir' THEN 'grosir_seri' ELSE COALESCE(c.price_tier,'reguler') END";
+
+function scopeWhere({ scope, branchId, userId }) {
+  const where = [`t.status IN (${SALES_STATUSES_SQL})`, 't.transaction_date BETWEEN ? AND ?'];
+  const params = [];
+  if (scope !== 'company') { where.push('t.branch_id = ?'); }
+  if (scope === 'self') where.push('t.user_id = ?');
+  if (scope === 'team') where.push('t.user_id <> ?');
+  return { where: where.join(' AND '), params };
+}
+
+function scopeParams({ scope, branchId, userId, start, end }) {
+  const params = [start, end];
+  if (scope !== 'company') params.push(branchId);
+  if (scope === 'self' || scope === 'team') params.push(userId);
+  return params;
+}
+
+async function tierAggregate(executor, opts) {
+  const { start, end } = opts;
+  const { scope, branchId, userId } = opts;
+  const filter = scopeWhere(opts);
+  const params = scopeParams({ scope, branchId, userId, start, end });
+  const [rows] = await executor.execute(
+    `SELECT ${TIER_EXPR} AS tier,
+            COALESCE(SUM(ti.quantity - ti.cancelled_qty - ti.returned_qty),0) AS qty,
+            COALESCE(SUM(t.grand_total - t.cancelled_amount - t.refunded_amount),0) AS sales
+       FROM transactions t
+       JOIN transaction_items ti ON ti.transaction_id = t.id
+       LEFT JOIN customers c ON c.id = t.customer_id
+      WHERE ${filter.where}
+      GROUP BY tier`,
+    params,
+  );
+  const [cntRows] = await executor.execute(
+    `SELECT COUNT(DISTINCT t.id) AS cnt FROM transactions t WHERE ${filter.where}`,
+    params,
+  );
+  const map = Object.fromEntries(rows.map((r) => [r.tier, r]));
+  return {
+    qty_reguler: Number(map.reguler?.qty || 0),
+    qty_grosir: Number(map.grosir_seri?.qty || 0),
+    sales: asMoney(rows.reduce((s, r) => s + Number(r.sales || 0), 0)),
+    trx: Number(cntRows[0]?.cnt || 0),
+  };
+}
+
+async function profitAggregate(executor, opts) {
+  const filter = scopeWhere(opts);
+  const params = scopeParams(opts);
+  const [rows] = await executor.execute(
+    `SELECT COALESCE(SUM((ti.price - ti.cost) * (ti.quantity - ti.cancelled_qty - ti.returned_qty)
+        - ti.discount * (ti.quantity - ti.cancelled_qty - ti.returned_qty) / NULLIF(ti.quantity, 0)), 0) AS profit
+       FROM transactions t JOIN transaction_items ti ON ti.transaction_id = t.id
+      WHERE ${filter.where}`,
+    params,
+  );
+  return asMoney(Number(rows[0]?.profit || 0));
+}
+
+async function scopeTransactions(executor, opts) {
+  const filter = scopeWhere(opts);
+  const params = scopeParams(opts);
+  const [rows] = await executor.execute(
+    `SELECT t.id, t.grand_total, t.cancelled_amount, t.refunded_amount,
+            COALESCE(SUM((ti.price - ti.cost) * (ti.quantity - ti.cancelled_qty - ti.returned_qty)
+              - ti.discount * (ti.quantity - ti.cancelled_qty - ti.returned_qty) / NULLIF(ti.quantity, 0)), 0) AS profit
+       FROM transactions t LEFT JOIN transaction_items ti ON ti.transaction_id = t.id
+      WHERE ${filter.where}
+      GROUP BY t.id`,
+    params,
+  );
+  return rows;
+}
+
+/** Hitung komisi satu aturan dari agregat cakupannya. */
+function ruleCommission(rule, agg, profit) {
+  const type = rule.calculation_type;
+  if (type === 'per_pcs_customer_tier') {
+    return asMoney(agg.qty_reguler * Number(rule.commission_reguler_per_pcs || 0)
+      + agg.qty_grosir * Number(rule.commission_grosir_seri_per_pcs || 0));
+  }
+  if (type === 'percentage_sales') return asMoney(agg.sales * Number(rule.percentage) / 100);
+  if (type === 'percentage_profit') return asMoney(Number(profit || 0) * Number(rule.percentage) / 100);
+  if (type === 'per_transaction') return asMoney(agg.trx * Number(rule.flat_amount));
+  return asMoney(Number(rule.flat_amount));
+}
+
+function qualifies(rule, agg) {
+  return agg.sales >= Number(rule.min_target) && agg.trx >= Number(rule.min_transactions);
+}
+
 const { localDateString, localMonthStartString } = require('../local-date');
 
 router.get('/staff', authenticate, authorize('owner'), async (req, res, next) => {
@@ -40,54 +138,43 @@ async function computeBranchReport(branchId, start, end) {
   for (const u of users) {
     const applicable = rules.filter((r) => r.applies_to === 'all' || (r.applies_to === 'role' && String(r.role).toLowerCase() === String(u.role).toLowerCase()) || (r.applies_to === 'user' && Number(r.user_id) === Number(u.id)));
     if (!applicable.length) continue;
-    const [rows] = await db.execute(
-      `SELECT COALESCE(c.price_tier, 'reguler') AS tier, COALESCE(SUM(ti.quantity - ti.cancelled_qty - ti.returned_qty),0) AS qty, COUNT(DISTINCT t.id) AS trx, COALESCE(SUM(t.grand_total - t.cancelled_amount - t.refunded_amount),0) AS sales
-       FROM transactions t
-       JOIN transaction_items ti ON ti.transaction_id=t.id
-       LEFT JOIN customers c ON c.id=t.customer_id
-       WHERE t.branch_id=? AND t.user_id=? AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?
-       GROUP BY tier`,
-      [branchId, u.id, start, end]
-    );
-    const tierMap = Object.fromEntries(rows.map((r) => [r.tier, r]));
-    const getQty = (tier) => Number(tierMap[tier]?.qty || 0);
-    const getSales = () => rows.reduce((sum, r) => sum + Number(r.sales || 0), 0);
+    // Cakupan dihitung sekali per (scope) untuk user ini.
+    const cache = new Map();
+    const aggregate = async (scope) => {
+      if (!cache.has(scope)) {
+        cache.set(scope, await tierAggregate(db, { scope, branchId, userId: u.id, start, end }));
+      }
+      return cache.get(scope);
+    };
+    const own = await aggregate('self');
     let totalCommission = 0;
     const breakdown = [];
     for (const r of applicable) {
-      let comm = 0;
-      if (r.calculation_type === 'per_pcs_customer_tier') {
-        comm += getQty('reguler') * Number(r.commission_reguler_per_pcs || 0);
-        comm += getQty('semi_grosir') * Number(r.commission_semi_grosir_per_pcs || 0);
-        comm += getQty('grosir_seri') * Number(r.commission_grosir_seri_per_pcs || 0);
-      } else if (r.calculation_type === 'percentage_sales') {
-        comm = getSales() * Number(r.percentage) / 100;
-      } else if (r.calculation_type === 'per_transaction') {
-        const [cntRow] = await db.execute(`SELECT COUNT(*) AS cnt FROM transactions WHERE branch_id=? AND user_id=? AND status IN (${SALES_STATUSES_SQL}) AND transaction_date BETWEEN ? AND ?`, [branchId, u.id, start, end]);
-        comm = Number(cntRow[0].cnt) * Number(r.flat_amount);
-      } else {
-        comm = Number(r.flat_amount);
-      }
-      comm = asMoney(comm);
+      const scope = ruleScope(r);
+      const agg = await aggregate(scope);
+      if (!qualifies(r, agg)) continue;
+      const profit = r.calculation_type === 'percentage_profit'
+        ? await profitAggregate(db, { scope, branchId, userId: u.id, start, end })
+        : 0;
+      const comm = ruleCommission(r, agg, profit);
       if (comm > 0) {
         totalCommission += comm;
-        breakdown.push({ rule_id: r.id, name: r.name, type: r.calculation_type, commission: comm });
+        breakdown.push({ rule_id: r.id, name: r.name, type: r.calculation_type, scope, commission: comm });
       }
     }
-    if (totalCommission > 0 || rows.length) {
+    if (totalCommission > 0 || own.trx > 0) {
       perAccount.push({
         user_id: u.id,
         name: u.name,
         role: u.role,
-        qty_reguler: getQty('reguler'),
-        qty_semi: getQty('semi_grosir'),
-        qty_grosir: getQty('grosir_seri'),
-        total_qty: getQty('reguler') + getQty('semi_grosir') + getQty('grosir_seri'),
-        total_sales: asMoney(getSales()),
-        total_transactions: rows.reduce((a, r) => a + Number(r.trx || 0), 0),
+        qty_reguler: own.qty_reguler,
+        qty_semi: 0,
+        qty_grosir: own.qty_grosir,
+        total_qty: own.qty_reguler + own.qty_grosir,
+        total_sales: own.sales,
+        total_transactions: own.trx,
         commission: asMoney(totalCommission),
         breakdown,
-        tiers: rows,
       });
     }
   }
@@ -153,12 +240,13 @@ router.post('/rules', authenticate, authorize('owner'), async (req, res, next) =
       min_transactions: minTransactions = 0,
       start_date: startDate,
       end_date: endDate = null,
+      scope: scopeInput = 'self',
       commission_reguler_per_pcs: regulerPcs = 0,
-      commission_semi_grosir_per_pcs: semiPcs = 0,
       commission_grosir_seri_per_pcs: grosirPcs = 0,
     } = req.body;
     const targetBranchId = branchInput != null && branchInput !== '' ? Number(branchInput) : null;
     if (targetBranchId != null && !Number.isInteger(targetBranchId)) return res.status(400).json({ success: false, message: 'Toko tidak valid' });
+    if (!allowedScopes.has(String(scopeInput))) return res.status(400).json({ success: false, message: 'Dasar perhitungan komisi tidak valid' });
     if (!name?.trim() || !allowedTargets.has(appliesTo) || !allowedTypes.has(calculationType) || !startDate || Number(percentage) < 0 || Number(flatAmount) < 0 || Number(minTarget) < 0 || Number(minTransactions) < 0) return res.status(400).json({ success: false, message: 'Data aturan komisi tidak valid' });
     if (appliesTo === 'role' && !allowedRoles.has(role)) return res.status(400).json({ success: false, message: 'Pilih peran staf yang valid' });
     if (appliesTo === 'user' && !Number.isInteger(Number(userId))) return res.status(400).json({ success: false, message: 'Pilih staf untuk aturan ini' });
@@ -171,10 +259,10 @@ router.post('/rules', authenticate, authorize('owner'), async (req, res, next) =
       }
     }
     if (calculationType === 'per_pcs_customer_tier') {
-      if (Number(regulerPcs) < 0 || Number(semiPcs) < 0 || Number(grosirPcs) < 0) return res.status(400).json({ success: false, message: 'Komisi per pcs tidak boleh negatif' });
+      if (Number(regulerPcs) < 0 || Number(grosirPcs) < 0) return res.status(400).json({ success: false, message: 'Komisi per pcs tidak boleh negatif' });
     }
     const [result] = await db.execute(
-      `INSERT INTO commission_rules (branch_id, name, description, applies_to, role, user_id, calculation_type, percentage, flat_amount, commission_reguler_per_pcs, commission_semi_grosir_per_pcs, commission_grosir_seri_per_pcs, min_target, min_transactions, start_date, end_date)
+      `INSERT INTO commission_rules (branch_id, name, description, applies_to, role, user_id, calculation_type, percentage, flat_amount, scope, commission_reguler_per_pcs, commission_grosir_seri_per_pcs, min_target, min_transactions, start_date, end_date)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         targetBranchId != null ? targetBranchId : req.user.branch_id,
@@ -186,8 +274,8 @@ router.post('/rules', authenticate, authorize('owner'), async (req, res, next) =
         calculationType,
         asMoney(percentage),
         asMoney(flatAmount),
+        String(scopeInput),
         asMoney(regulerPcs),
-        asMoney(semiPcs),
         asMoney(grosirPcs),
         asMoney(minTarget),
         Number(minTransactions),
@@ -206,72 +294,52 @@ router.post('/rules', authenticate, authorize('owner'), async (req, res, next) =
 router.post('/generate', authenticate, authorize('owner', 'manager', 'admin'), async (req, res, next) => {
   const connection = await db.getConnection();
   try {
-    const { period_start: periodStart, period_end: periodEnd } = req.body;
+    const { period_start: periodStart, period_end: periodEnd, branch_id: branchInput } = req.body;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(periodStart || '') || !/^\d{4}-\d{2}-\d{2}$/.test(periodEnd || '') || periodStart > periodEnd) return res.status(400).json({ success: false, message: 'Periode komisi tidak valid' });
+    // Owner boleh memilih cabang; role lain selalu cabang akunnya.
+    const requestedBranch = Number(branchInput);
+    const branchId = req.user.role === 'owner' && Number.isInteger(requestedBranch) && requestedBranch > 0
+      ? requestedBranch
+      : req.user.branch_id;
     await connection.beginTransaction();
-    const [rules] = await connection.execute(`SELECT * FROM commission_rules WHERE (branch_id = ? OR branch_id IS NULL) AND is_active = TRUE AND start_date <= ? AND (end_date IS NULL OR end_date >= ?)`, [req.user.branch_id, periodEnd, periodStart]);
+    const [rules] = await connection.execute(`SELECT * FROM commission_rules WHERE (branch_id = ? OR branch_id IS NULL) AND is_active = TRUE AND start_date <= ? AND (end_date IS NULL OR end_date >= ?)`, [branchId, periodEnd, periodStart]);
     let created = 0;
     for (const rule of rules) {
       let staffSql = 'SELECT id, role FROM users WHERE branch_id = ? AND is_active = TRUE';
-      const staffParams = [req.user.branch_id];
+      const staffParams = [branchId];
       if (rule.applies_to === 'role') { staffSql += ' AND role = ?'; staffParams.push(rule.role); }
       if (rule.applies_to === 'user') { staffSql += ' AND id = ?'; staffParams.push(rule.user_id); }
       const [staff] = await connection.execute(staffSql, staffParams);
       for (const user of staff) {
         const [existing] = await connection.execute('SELECT id FROM commission_records WHERE rule_id = ? AND user_id = ? AND period_start = ? AND period_end = ?', [rule.id, user.id, periodStart, periodEnd]);
         if (existing[0]) continue;
-
-        // qty per customer tier
-        const [tierRows] = await connection.execute(
-          `SELECT COALESCE(c.price_tier, 'reguler') AS tier, COALESCE(SUM(ti.quantity - ti.cancelled_qty - ti.returned_qty),0) AS qty
-           FROM transactions t
-           JOIN transaction_items ti ON ti.transaction_id=t.id
-           LEFT JOIN customers c ON c.id=t.customer_id
-           WHERE t.branch_id=? AND t.user_id=? AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?
-           GROUP BY tier`,
-          [req.user.branch_id, user.id, periodStart, periodEnd]
-        );
-        const tierQty = Object.fromEntries(tierRows.map((r) => [r.tier, Number(r.qty)]));
-        const qtyReg = tierQty['reguler'] || 0;
-        const qtySemi = tierQty['semi_grosir'] || 0;
-        const qtyGrosir = tierQty['grosir_seri'] || 0;
-
-        const [transactions] = await connection.execute(
-          `SELECT t.id, t.grand_total, t.cancelled_amount, t.refunded_amount, COALESCE(SUM((ti.price - ti.cost) * (ti.quantity - ti.cancelled_qty - ti.returned_qty) - ti.discount * (ti.quantity - ti.cancelled_qty - ti.returned_qty) / NULLIF(ti.quantity, 0)), 0) AS profit
-           FROM transactions t LEFT JOIN transaction_items ti ON ti.transaction_id = t.id
-           WHERE t.branch_id = ? AND t.user_id = ? AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ? GROUP BY t.id`,
-          [req.user.branch_id, user.id, periodStart, periodEnd]
-        );
-        const totalSales = asMoney(transactions.reduce((sum, row) => sum + Number(row.grand_total) - Number(row.cancelled_amount || 0) - Number(row.refunded_amount || 0), 0));
-        const totalProfit = asMoney(transactions.reduce((sum, row) => sum + Number(row.profit), 0));
-        const qualifies = totalSales >= Number(rule.min_target) && transactions.length >= Number(rule.min_transactions);
-        let commission = 0;
-        if (qualifies) {
-          if (rule.calculation_type === 'percentage_sales') commission = totalSales * Number(rule.percentage) / 100;
-          else if (rule.calculation_type === 'percentage_profit') commission = totalProfit * Number(rule.percentage) / 100;
-          else if (rule.calculation_type === 'per_transaction') commission = transactions.length * Number(rule.flat_amount);
-          else if (rule.calculation_type === 'per_pcs_customer_tier') {
-            commission = qtyReg * Number(rule.commission_reguler_per_pcs || 0) + qtySemi * Number(rule.commission_semi_grosir_per_pcs || 0) + qtyGrosir * Number(rule.commission_grosir_seri_per_pcs || 0);
-          } else commission = Number(rule.flat_amount);
-        }
+        const scope = ruleScope(rule);
+        const opts = { scope, branchId, userId: user.id, start: periodStart, end: periodEnd };
+        const agg = await tierAggregate(connection, opts);
+        if (!qualifies(rule, agg)) continue;
+        const profit = rule.calculation_type === 'percentage_profit' ? await profitAggregate(connection, opts) : 0;
+        const commission = ruleCommission(rule, agg, profit);
         const [record] = await connection.execute(
           `INSERT INTO commission_records (branch_id, user_id, rule_id, period_start, period_end, total_sales, total_profit, total_transactions, qty_reguler, qty_semi_grosir, qty_grosir_seri, commission_amount)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [req.user.branch_id, user.id, rule.id, periodStart, periodEnd, totalSales, totalProfit, transactions.length, qtyReg, qtySemi, qtyGrosir, asMoney(commission)]
+          [branchId, user.id, rule.id, periodStart, periodEnd, agg.sales, profit, agg.trx, agg.qty_reguler, 0, agg.qty_grosir, commission],
         );
-        if (transactions.length && commission) {
-          const basis = rule.calculation_type === 'percentage_profit' ? totalProfit : totalSales;
-          for (const transaction of transactions) {
-            const source = rule.calculation_type === 'percentage_profit' ? Number(transaction.profit) : (Number(transaction.grand_total) - Number(transaction.cancelled_amount || 0) - Number(transaction.refunded_amount || 0));
+        if (commission) {
+          const rows = await scopeTransactions(connection, opts);
+          const basis = rule.calculation_type === 'percentage_profit' ? Number(profit) : agg.sales;
+          for (const trx of rows) {
+            const source = rule.calculation_type === 'percentage_profit'
+              ? Number(trx.profit)
+              : (Number(trx.grand_total) - Number(trx.cancelled_amount || 0) - Number(trx.refunded_amount || 0));
             const itemCommission = basis > 0 ? asMoney(commission * source / basis) : 0;
-            await connection.execute('INSERT INTO commission_items (record_id, transaction_id, sale_amount, profit_amount, commission_amount) VALUES (?, ?, ?, ?, ?)', [record.insertId, transaction.id, transaction.grand_total, transaction.profit, itemCommission]);
+            await connection.execute('INSERT INTO commission_items (record_id, transaction_id, sale_amount, profit_amount, commission_amount) VALUES (?, ?, ?, ?, ?)', [record.insertId, trx.id, trx.grand_total, trx.profit, itemCommission]);
           }
         }
         created += 1;
       }
     }
     await connection.commit();
-    res.status(201).json({ success: true, data: { created } });
+    res.status(201).json({ success: true, data: { created, branch_id: branchId } });
   } catch (error) { await connection.rollback(); next(error); } finally { connection.release(); }
 });
 
@@ -331,88 +399,55 @@ router.get('/mine', authenticate, async (req, res, next) => {
       [branchId, monthEnd, monthStart, role, userId]
     );
 
-    let live = { period_start: monthStart, period_end: monthEnd, total_sales: 0, total_transactions: 0, estimated: 0, rules: [], qty_reguler: 0, qty_semi_grosir: 0, qty_grosir_seri: 0 };
-
-    if (rules.length) {
-      const [tierRows] = await db.execute(
-        `SELECT COALESCE(c.price_tier, 'reguler') AS tier, COALESCE(SUM(ti.quantity - ti.cancelled_qty - ti.returned_qty),0) AS qty, COUNT(DISTINCT t.id) AS cnt, COALESCE(SUM(t.grand_total - t.cancelled_amount - t.refunded_amount),0) AS sales
-         FROM transactions t
-         JOIN transaction_items ti ON ti.transaction_id=t.id
-         LEFT JOIN customers c ON c.id=t.customer_id
-         WHERE t.branch_id=? AND t.user_id=? AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?
-         GROUP BY tier`,
-        [branchId, userId, monthStart, monthEnd]
-      );
-      const tierMap = Object.fromEntries(tierRows.map((r) => [r.tier, r]));
-      const qtyReg = Number(tierMap['reguler']?.qty || 0);
-      const qtySemi = Number(tierMap['semi_grosir']?.qty || 0);
-      const qtyGrosir = Number(tierMap['grosir_seri']?.qty || 0);
-      const sales = tierRows.reduce((s, r) => s + Number(r.sales || 0), 0);
-      const cnt = tierRows.reduce((s, r) => s + Number(r.cnt || 0), 0);
-      // distinct transactions
-      const [cntRow] = await db.execute(`SELECT COUNT(*) AS cnt FROM transactions WHERE branch_id=? AND user_id=? AND status IN (${SALES_STATUSES_SQL}) AND transaction_date BETWEEN ? AND ?`, [branchId, userId, monthStart, monthEnd]);
-      const totalTrx = Number(cntRow[0].cnt);
-
-      let estimated = 0;
-      const ruleBreakdown = [];
-      for (const rule of rules) {
-        if (sales < Number(rule.min_target) || totalTrx < Number(rule.min_transactions)) continue;
-        let comm = 0;
-        if (rule.calculation_type === 'percentage_sales') comm = sales * Number(rule.percentage) / 100;
-        else if (rule.calculation_type === 'per_transaction') comm = totalTrx * Number(rule.flat_amount);
-        else if (rule.calculation_type === 'per_pcs_customer_tier') {
-          comm = qtyReg * Number(rule.commission_reguler_per_pcs || 0) + qtySemi * Number(rule.commission_semi_grosir_per_pcs || 0) + qtyGrosir * Number(rule.commission_grosir_seri_per_pcs || 0);
-        } else if (rule.calculation_type === 'percentage_profit') {
-          const [profitRows] = await db.execute(
-            `SELECT COALESCE(SUM((ti.price - ti.cost) * (ti.quantity - ti.cancelled_qty - ti.returned_qty) - ti.discount * (ti.quantity - ti.cancelled_qty - ti.returned_qty) / NULLIF(ti.quantity, 0)),0) AS profit
-             FROM transactions t JOIN transaction_items ti ON ti.transaction_id=t.id
-             WHERE t.branch_id=? AND t.user_id=? AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?`,
-            [branchId, userId, monthStart, monthEnd]
-          );
-          comm = Number(profitRows[0]?.profit || 0) * Number(rule.percentage) / 100;
-        } else comm = Number(rule.flat_amount);
-        comm = asMoney(comm);
-        if (comm >= 0) estimated += comm;
-        ruleBreakdown.push({
-          rule_id: rule.id,
-          name: rule.name,
-          type: rule.calculation_type,
-          percentage: rule.percentage,
-          flat_amount: rule.flat_amount,
-          commission_reguler_per_pcs: rule.commission_reguler_per_pcs,
-          commission_semi_grosir_per_pcs: rule.commission_semi_grosir_per_pcs,
-          commission_grosir_seri_per_pcs: rule.commission_grosir_seri_per_pcs,
-          commission: comm,
-          qty_breakdown: { reguler: qtyReg, semi_grosir: qtySemi, grosir_seri: qtyGrosir },
-        });
-      }
-      live = {
-        total_sales: asMoney(sales),
-        total_transactions: totalTrx,
-        estimated: asMoney(estimated),
-        period_start: monthStart,
-        period_end: monthEnd,
-        rules: ruleBreakdown,
-        qty_reguler: qtyReg,
-        qty_semi_grosir: qtySemi,
-        qty_grosir_seri: qtyGrosir,
-      };
+    const own = await tierAggregate(db, { scope: 'self', branchId, userId, start: monthStart, end: monthEnd });
+    let estimated = 0;
+    const ruleBreakdown = [];
+    for (const rule of rules) {
+      const scope = ruleScope(rule);
+      const opts = { scope, branchId, userId, start: monthStart, end: monthEnd };
+      const agg = await tierAggregate(db, opts);
+      if (!qualifies(rule, agg)) continue;
+      const profit = rule.calculation_type === 'percentage_profit' ? await profitAggregate(db, opts) : 0;
+      const comm = ruleCommission(rule, agg, profit);
+      if (comm >= 0) estimated += comm;
+      ruleBreakdown.push({
+        rule_id: rule.id,
+        name: rule.name,
+        type: rule.calculation_type,
+        scope,
+        percentage: rule.percentage,
+        flat_amount: rule.flat_amount,
+        commission_reguler_per_pcs: rule.commission_reguler_per_pcs,
+        commission_grosir_seri_per_pcs: rule.commission_grosir_seri_per_pcs,
+        commission: comm,
+        qty_breakdown: { reguler: agg.qty_reguler, grosir_seri: agg.qty_grosir },
+      });
     }
 
     res.json({
       success: true,
       data: {
-        live,
+        live: {
+          total_sales: own.sales,
+          total_transactions: own.trx,
+          estimated: asMoney(estimated),
+          period_start: monthStart,
+          period_end: monthEnd,
+          rules: ruleBreakdown,
+          qty_reguler: own.qty_reguler,
+          qty_semi_grosir: 0,
+          qty_grosir_seri: own.qty_grosir,
+        },
         applicable_rules: rules.map((r) => ({
           id: r.id,
           name: r.name,
           applies_to: r.applies_to,
           role: r.role,
+          scope: ruleScope(r),
           type: r.calculation_type,
           percentage: r.percentage,
           flat_amount: r.flat_amount,
           commission_reguler_per_pcs: r.commission_reguler_per_pcs,
-          commission_semi_grosir_per_pcs: r.commission_semi_grosir_per_pcs,
           commission_grosir_seri_per_pcs: r.commission_grosir_seri_per_pcs,
           min_target: r.min_target,
           min_transactions: r.min_transactions,
