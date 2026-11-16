@@ -16,8 +16,10 @@ const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffec
 export default function AnimatedValue({ value, money = false, suffix = '', duration = 520, className }) {
   const numeric = Number(value) || 0;
   const [display, setDisplay] = useState(() => formatCount(numeric, money));
+  const [bumped, setBumped] = useState(false);
   const previousRef = useRef(numeric);
   const frameRef = useRef(0);
+  const bumpTimerRef = useRef(0);
   const mountedRef = useRef(false);
 
   useIsomorphicLayoutEffect(() => {
@@ -31,9 +33,16 @@ export default function AnimatedValue({ value, money = false, suffix = '', durat
       return undefined;
     }
 
-    // Pertama kali tampil: hitung dari 0. Perubahan berikutnya: dari angka lama.
-    const from = mountedRef.current ? previousRef.current : 0;
+    // Pertama kali tampil: hitung dari 0. Perubahan berikutnya: dari angka lama
+    // dan kartu diberi "pop" singkat supaya perubahan nilai terasa.
+    const isUpdate = mountedRef.current;
+    const from = isUpdate ? previousRef.current : 0;
     mountedRef.current = true;
+    if (isUpdate && from !== numeric) {
+      setBumped(true);
+      window.clearTimeout(bumpTimerRef.current);
+      bumpTimerRef.current = window.setTimeout(() => setBumped(false), 460);
+    }
     previousRef.current = numeric;
     const start = performance.now();
     const step = (now) => {
@@ -43,7 +52,10 @@ export default function AnimatedValue({ value, money = false, suffix = '', durat
     };
     setDisplay(formatCount(from, money));
     frameRef.current = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(frameRef.current);
+    return () => {
+      cancelAnimationFrame(frameRef.current);
+      window.clearTimeout(bumpTimerRef.current);
+    };
   }, [numeric, money, duration]);
 
   // Saat pengguna mematikan animasi di tengah jalan, langsung loncat ke nilai akhir.
@@ -60,5 +72,9 @@ export default function AnimatedValue({ value, money = false, suffix = '', durat
     return () => window.removeEventListener('pos:motion-change', onMotion);
   }, [numeric, money]);
 
-  return <span className={className}>{display}{suffix}</span>;
+  return (
+    <span className={`m-animated-value${bumped ? ' is-bumped' : ''}${className ? ` ${className}` : ''}`}>
+      {display}{suffix}
+    </span>
+  );
 }

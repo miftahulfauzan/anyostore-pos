@@ -222,6 +222,9 @@ export default function CommissionsPage() {
   const mineLive = mine?.live;
   const mineRules = mine?.applicable_rules || [];
   const minePcsTotal = Number(mineLive?.qty_reguler || 0) + Number(mineLive?.qty_grosir_seri || 0);
+  const topRuleId = mineLive?.rules?.length
+    ? mineLive.rules.reduce((best, rule) => (Number(rule.commission) > Number(best.commission) ? rule : best), mineLive.rules[0]).rule_id
+    : null;
 
   // Kontrol periode dipakai bersama Laporan & Komisi Saya (satu rentang tanggal).
   const periodControls = (
@@ -303,7 +306,7 @@ export default function CommissionsPage() {
                       <thead><tr><th>Aturan</th><th>Dasar</th><th>Tipe</th><th>Rincian</th><th>Komisi</th></tr></thead>
                       <tbody>
                         {mineLive.rules.map((r) => (
-                          <tr key={r.rule_id}>
+                          <tr key={r.rule_id} className={r.rule_id === topRuleId ? 'is-top-rule' : ''}>
                             <td><strong>{r.name}</strong></td>
                             <td>{SCOPE_LABEL[r.scope] || 'Sendiri'}</td>
                             <td><span className="tag" style={{ fontSize: 'var(--fs-xs)' }}>{r.type}</span></td>

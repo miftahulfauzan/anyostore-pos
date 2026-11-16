@@ -87,3 +87,28 @@ test('tidak menambah dependency animasi baru', () => {
     assert.equal(deps.includes(banned), false, `${banned} tidak boleh ditambahkan`);
   }
 });
+test('grafik digambar sekali tanpa menyentuh properti layout', () => {
+  assert.match(css, /@keyframes m-draw \{\s*\n\s*to \{ stroke-dashoffset: 0; \}/);
+  assert.match(css, /html\[data-motion="full"\] \.dashboard-report-chart-line/);
+  assert.match(css, /html\[data-motion="full"\] \.trend-line/);
+  assert.match(css, /html\[data-motion="reduced"\] \.dashboard-report-chart-line/);
+  // pathLength=1 membuat dasharray konsisten untuk semua ukuran grafik.
+  assert.match(dashboardSections, /dashboard-report-chart-line[^>]*pathLength="1"/);
+  const warehouse = read('app/dashboard/WarehouseDashboard.js');
+  assert.match(warehouse, /className="trend-line trend-in" pathLength="1"/);
+  const mutation = read('app/inventory/mutation-report/MutationReportInsights.js');
+  assert.match(mutation, /className="mutation-chart-line" pathLength="1"/);
+});
+
+test('bar daftar tumbuh dengan scaleX dan baris aturan terbesar ditandai', () => {
+  assert.match(css, /html\[data-motion="full"\] \.dashboard-list-track i,[\s\S]*?\.warehouse-bar-row div i\s*\{[^}]*animation: m-bar-grow/s);
+  assert.match(css, /tr\.is-top-rule td:first-child\s*\{[^}]*box-shadow: inset 3px 0 0/s);
+  assert.match(commissions, /className=\{r\.rule_id === topRuleId \? 'is-top-rule' : ''\}/);
+});
+
+test('angka ringkasan berubah memberi pop singkat, bukan animasi terus-menerus', () => {
+  assert.match(animatedValue, /const \[bumped, setBumped\] = useState\(false\)/);
+  assert.match(animatedValue, /m-animated-value/);
+  assert.match(css, /@keyframes m-pop/);
+  assert.match(css, /html\[data-motion="full"\] \.m-animated-value\.is-bumped/);
+});

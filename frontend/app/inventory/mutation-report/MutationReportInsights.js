@@ -46,7 +46,7 @@ export default function MutationReportInsights({ type, summary, daily, topProduc
                     <line x1="16" y1="170" x2="624" y2="170" className="mutation-chart-gridline" />
                     <line x1="16" y1="97" x2="624" y2="97" className="mutation-chart-gridline" />
                     <line x1="16" y1="24" x2="624" y2="24" className="mutation-chart-gridline" />
-                    <path d={chartPath} className="mutation-chart-line" />
+                    <path d={chartPath} className="mutation-chart-line" pathLength="1" />
                     {chartCoordinates.length <= 14 && chartCoordinates.map((point, index) =>
                       <circle key={chart.points[index].date} cx={point.x} cy={point.y} r="3.5" className="mutation-chart-point" />)}
                   </svg>

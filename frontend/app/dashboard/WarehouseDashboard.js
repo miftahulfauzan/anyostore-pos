@@ -20,8 +20,8 @@ function WarehouseTrend({ daily }) {
   return <div className="warehouse-trend">
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Grafik stok masuk dan keluar">
       {[0, 1, 2, 3].map((line) => <line key={line} x1="0" x2={width} y1={chartTop + line * 51} y2={chartTop + line * 51} className="trend-grid-line" />)}
-      <polyline points={inPoints} fill="none" className="trend-line trend-in" />
-      <polyline points={outPoints} fill="none" className="trend-line trend-out" />
+      <polyline points={inPoints} fill="none" className="trend-line trend-in" pathLength="1" />
+      <polyline points={outPoints} fill="none" className="trend-line trend-out" pathLength="1" />
       {(daily || []).map((item, index) => <g key={item.date}><title>{`${shortDate(item.date)} · Masuk: ${Number(item.in || 0).toLocaleString('id-ID')} · Keluar: ${Number(item.out || 0).toLocaleString('id-ID')}`}</title><circle cx={point(item.in, index).split(',')[0]} cy={point(item.in, index).split(',')[1]} r="4" className="trend-dot trend-in" /><circle cx={point(item.out, index).split(',')[0]} cy={point(item.out, index).split(',')[1]} r="4" className="trend-dot trend-out" /></g>)}
     </svg>
     <div className="trend-labels" style={{ position: 'relative', minHeight: '1.5em' }}>{(daily || []).map((item, index) => index % labelStep === 0 || index === daily.length - 1 ? <span key={item.date} style={{ position: 'absolute', left: `${daily.length > 1 ? index / (daily.length - 1) * 100 : 50}%`, transform: index === 0 ? undefined : index === daily.length - 1 ? 'translateX(-100%)' : 'translateX(-50%)' }}>{shortDate(item.date)}</span> : null)}</div>

@@ -103,7 +103,7 @@ function TrendChart({ rows, valueKey = 'revenue', color, emptyMessage }) {
       <line x1="0" y1="39.33" x2="100" y2="39.33" className="chart-grid" />
       <line x1="0" y1="12" x2="100" y2="12" className="chart-grid" />
       <path className="dashboard-report-chart-area" d={areaPath} fill={`url(#sales-area-gradient-${chartId})`} />
-      <path className="dashboard-report-chart-line" d={linePath} fill="none" stroke={color} strokeWidth="2.2" vectorEffect="non-scaling-stroke" />
+      <path className="dashboard-report-chart-line" d={linePath} fill="none" stroke={color} strokeWidth="2.2" vectorEffect="non-scaling-stroke" pathLength="1" />
       </svg>
       <div className="dashboard-report-chart-points" aria-hidden="true">
         {chartPoints.map(([x, y], index) => <span

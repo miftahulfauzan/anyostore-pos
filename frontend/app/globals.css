@@ -8189,3 +8189,95 @@ html[data-motion="off"] .date-range-presets button {
     transition: none !important;
   }
 }
+
+/* ---------- Detail animasi grafik & kartu ---------- */
+@keyframes m-draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes m-pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.07); }
+  100% { transform: scale(1); }
+}
+
+.m-animated-value {
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+}
+html[data-motion="full"] .m-animated-value.is-bumped {
+  animation: m-pop 420ms var(--ease-emphasized);
+}
+
+/* Garis grafik digambar sekali (pathLength=1 membuat dasharray konsisten). */
+html[data-motion="full"] .dashboard-report-chart-line,
+html[data-motion="full"] .trend-line,
+html[data-motion="full"] .mutation-chart-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: m-draw 900ms var(--ease-standard) forwards;
+}
+html[data-motion="full"] .dashboard-report-chart-area {
+  animation: m-fade-in 520ms 260ms ease both;
+}
+html[data-motion="full"] .dashboard-report-chart-point {
+  animation: m-fade-in 260ms ease both;
+}
+html[data-motion="full"] .dashboard-report-chart-points .dashboard-report-chart-point:nth-child(2) { animation-delay: 60ms; }
+html[data-motion="full"] .dashboard-report-chart-points .dashboard-report-chart-point:nth-child(3) { animation-delay: 120ms; }
+html[data-motion="full"] .dashboard-report-chart-points .dashboard-report-chart-point:nth-child(4) { animation-delay: 180ms; }
+html[data-motion="full"] .dashboard-report-chart-points .dashboard-report-chart-point:nth-child(5) { animation-delay: 240ms; }
+html[data-motion="full"] .dashboard-report-chart-points .dashboard-report-chart-point:nth-child(6) { animation-delay: 300ms; }
+html[data-motion="full"] .dashboard-report-chart-points .dashboard-report-chart-point:nth-child(7) { animation-delay: 360ms; }
+html[data-motion="full"] .dashboard-report-chart-points .dashboard-report-chart-point:nth-child(8) { animation-delay: 420ms; }
+html[data-motion="full"] .dashboard-report-chart-points .dashboard-report-chart-point:nth-child(n + 9) { animation-delay: 460ms; }
+
+/* Bar daftar (produk terlaris, kategori, top produk keluar). */
+html[data-motion="full"] .dashboard-list-track i,
+html[data-motion="full"] .warehouse-bar-row div i {
+  transform-origin: left center;
+  animation: m-bar-grow 620ms var(--ease-emphasized) both;
+}
+html[data-motion="full"] .stock-donut {
+  animation: m-fade-in 420ms ease both;
+}
+
+/* Hover angkat hanya di perangkat berpointer presisi. */
+@media (hover: hover) and (pointer: fine) {
+  html[data-motion="full"] .dashboard-kpi-tile,
+  html[data-motion="full"] .stat-tile {
+    transition: transform var(--motion-base) var(--ease-standard),
+      box-shadow var(--motion-base) var(--ease-standard);
+  }
+  html[data-motion="full"] .dashboard-kpi-tile:hover,
+  html[data-motion="full"] .stat-tile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px -18px rgba(30, 58, 95, .9);
+  }
+}
+
+/* Baris aturan komisi penyumbang terbesar. */
+.app-content table tr.is-top-rule td:first-child {
+  box-shadow: inset 3px 0 0 var(--action-bg, #1e3a5f);
+}
+
+/* Mode Sederhana & Nonaktif: grafik tampil utuh tanpa animasi. */
+html[data-motion="reduced"] .dashboard-report-chart-line,
+html[data-motion="reduced"] .trend-line,
+html[data-motion="reduced"] .mutation-chart-line {
+  stroke-dasharray: none;
+  stroke-dashoffset: 0;
+}
+html[data-motion="reduced"] .dashboard-report-chart-area,
+html[data-motion="reduced"] .dashboard-report-chart-point,
+html[data-motion="reduced"] .dashboard-list-track i,
+html[data-motion="reduced"] .warehouse-bar-row div i,
+html[data-motion="reduced"] .stock-donut,
+html[data-motion="reduced"] .m-animated-value.is-bumped {
+  animation: none;
+}
+html[data-motion="off"] .dashboard-report-chart-line,
+html[data-motion="off"] .trend-line,
+html[data-motion="off"] .mutation-chart-line {
+  stroke-dasharray: none !important;
+  stroke-dashoffset: 0 !important;
+}
