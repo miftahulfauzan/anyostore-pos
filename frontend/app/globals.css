@@ -8281,3 +8281,82 @@ html[data-motion="off"] .mutation-chart-line {
   stroke-dasharray: none !important;
   stroke-dashoffset: 0 !important;
 }
+
+/* ============================================================
+   Utilitas baris + halaman Pesanan Reseller
+   (sebelumnya memakai class .card/.row yang tidak pernah didefinisikan,
+   sehingga filter, ringkasan, dan tombol aksi saling menempel)
+   ============================================================ */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.reseller-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin-top: 12px;
+}
+.reseller-filters label { min-width: 0; }
+.reseller-filters label.grow { flex: 1 1 220px; }
+.reseller-filters > label:not(.grow) { flex: 0 1 220px; }
+
+.reseller-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.reseller-detail-head h3 { margin: 0; }
+
+.reseller-detail-buyer {
+  margin: 2px 0 0;
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  color: var(--muted-foreground);
+}
+
+.reseller-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin: 0;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-sm);
+  color: var(--muted-foreground);
+}
+.reseller-summary strong { color: var(--foreground); }
+
+.reseller-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.reseller-ship {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+  flex: 1 1 100%;
+}
+.reseller-ship label { flex: 1 1 180px; min-width: 0; }
+
+@media (max-width: 700px) {
+  .row { gap: 8px; }
+  .reseller-filters { align-items: stretch; }
+  .reseller-filters > label,
+  .reseller-filters label.grow { flex: 1 1 100%; }
+  .reseller-actions > * { flex: 1 1 auto; }
+  .reseller-ship label { flex: 1 1 100%; }
+  .reseller-detail-head .secondary { flex: 0 0 auto; }
+}

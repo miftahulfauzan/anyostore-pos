@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '../components/AppShell';
 import { useAppSession } from '../components/AppStateProvider';
 import { openPrintView } from '../lib/print-utils';
@@ -49,6 +49,11 @@ export default function ResellerOrdersPage() {
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
+  const detailRef = useRef(null);
+  useEffect(() => {
+    if (!selected || !detailRef.current) return;
+    detailRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [selected]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [labelOrder, setLabelOrder] = useState(null);
@@ -213,7 +218,7 @@ export default function ResellerOrdersPage() {
 
   return (
     <AppShell title="Pesanan Reseller" eyebrow="PENJUALAN ONLINE" actions={actions}>
-      <div className="card">
+      <div className="panel">
         <div className="tabs" role="tablist">
           <button type="button" className={tab === 'orders' ? 'active' : ''} onClick={() => setTab('orders')} role="tab" aria-selected={tab === 'orders'}>
             Pesanan {counts.new ? `(${counts.new} baru)` : ''}
@@ -223,7 +228,7 @@ export default function ResellerOrdersPage() {
           </button>
         </div>
 
-        <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+        <div className="reseller-filters">
           {isOwner && (
             <label>
               Toko
@@ -236,7 +241,7 @@ export default function ResellerOrdersPage() {
               </select>
             </label>
           )}
-          <label style={{ flex: 1, minWidth: 200 }}>
+          <label className="grow">
             Cari
             <input
               value={search}
@@ -261,10 +266,18 @@ export default function ResellerOrdersPage() {
       </div>
 
       {tab === 'orders' && (
-        <div className="card">
+        <div className="panel">
+          <div className="section-heading">
+            <div>
+              <h2>Daftar pesanan</h2>
+              <p>Klik Detail untuk memproses pesanan.</p>
+            </div>
+            <span className="tag">{orders.length} pesanan</span>
+          </div>
           {!orders.length ? (
             <p>Belum ada pesanan pada filter ini.</p>
           ) : (
+            <div className="table-wrap">
             <table>
               <thead>
                 <tr>
@@ -301,15 +314,23 @@ export default function ResellerOrdersPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       )}
 
       {tab === 'accounts' && (
-        <div className="card">
+        <div className="panel">
+          <div className="section-heading">
+            <div>
+              <h2>Akun pembeli</h2>
+              <p>Akun yang mendaftar di situs reseller.</p>
+            </div>
+          </div>
           {!accounts.length ? (
             <p>Belum ada pembeli terdaftar.</p>
           ) : (
+            <div className="table-wrap">
             <table>
               <thead>
                 <tr>
@@ -333,24 +354,27 @@ export default function ResellerOrdersPage() {
                     <td>
                       <span className="status">{row.status === 'active' ? 'Aktif' : 'Suspend'}</span>
                     </td>
-                    <td className="row" style={{ gap: 6 }}>
-                      <button type="button" className="secondary" onClick={() => toggleAccount(row)} disabled={busy}>
-                        {row.status === 'active' ? 'Suspend' : 'Aktifkan'}
-                      </button>
-                      <button type="button" onClick={() => resetPassword(row)} disabled={busy}>
-                        Reset password
-                      </button>
+                    <td>
+                      <div className="row" style={{ gap: 6 }}>
+                        <button type="button" className="secondary" onClick={() => toggleAccount(row)} disabled={busy}>
+                          {row.status === 'active' ? 'Suspend' : 'Aktifkan'}
+                        </button>
+                        <button type="button" onClick={() => resetPassword(row)} disabled={busy}>
+                          Reset password
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       )}
 
       {tempPassword && (
-        <div className="card">
+        <div className="panel">
           <h3>Password sementara</h3>
           <p>
             {tempPassword.email} - kirim lewat WhatsApp, lalu minta pembeli menggantinya setelah masuk.
@@ -372,17 +396,21 @@ export default function ResellerOrdersPage() {
       )}
 
       {selected && (
-        <div className="card">
-          <h3>
-            {selected.order_no} · <span className="status">{STATUS_LABEL[selected.status]}</span>
-          </h3>
-          <p>
-            {selected.buyer_name} · {selected.buyer_phone}
+        <div className="panel" ref={detailRef}>
+          <div className="reseller-detail-head">
+            <h3>
+              {selected.order_no} · <span className="status">{STATUS_LABEL[selected.status]}</span>
+            </h3>
+            <button type="button" className="secondary" onClick={() => setSelected(null)}>Tutup</button>
+          </div>
+          <p className="reseller-detail-buyer">
+            <strong>{selected.buyer_name}</strong> · {selected.buyer_phone}
             <br />
             {selected.buyer_address}
             {selected.buyer_city ? `, ${selected.buyer_city}` : ''} {selected.buyer_postal || ''}
             {selected.notes ? <><br /><em>{selected.notes}</em></> : null}
           </p>
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -408,12 +436,15 @@ export default function ResellerOrdersPage() {
               ))}
             </tbody>
           </table>
-          <p>
-            Subtotal {rp(selected.subtotal)} · Diskon {rp(selected.discount)} · Ongkir {rp(selected.shipping_cost)} ·{' '}
-            <strong>Total {rp(selected.total)}</strong>
+          </div>
+          <p className="reseller-summary">
+            <span>Subtotal <strong>{rp(selected.subtotal)}</strong></span>
+            <span>Diskon <strong>{rp(selected.discount)}</strong></span>
+            <span>Ongkir <strong>{rp(selected.shipping_cost)}</strong></span>
+            <span>Total <strong>{rp(selected.total)}</strong></span>
           </p>
 
-          <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <div className="reseller-actions">
             {selected.status === 'new' && (
               <button type="button" onClick={() => act('confirm', {}, 'Pesanan dikonfirmasi.')} disabled={busy}>
                 Konfirmasi
@@ -438,7 +469,7 @@ export default function ResellerOrdersPage() {
               </>
             )}
             {selected.status === 'paid' && (
-              <span className="row" style={{ gap: 6, alignItems: 'flex-end' }}>
+              <span className="reseller-ship">
                 <label>
                   Kurir
                   <input value={shipForm.courier} onChange={(event) => setShipForm({ ...shipForm, courier: event.target.value })} placeholder="JNE / J&T / SiCepat" />
