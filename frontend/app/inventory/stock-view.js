@@ -93,14 +93,14 @@ export default function StockReportSection() {
     return Array.from(byId.values()).sort((a, b) => (a.type === 'utama' ? 0 : 1) - (b.type === 'utama' ? 0 : 1) || String(a.name || '').localeCompare(String(b.name || '')));
   }, [allWarehouses, effectiveBranchId, warehouseRows]);
 
-  // Baris: satu per produk+warna, qty per gudang + total.
+  // Baris: satu per produk (varian = pembeda gambar, bukan stok).
   const grouped = useMemo(() => {
     const map = new Map();
     for (const r of warehouseRows) {
-      const key = `${r.product_id}:${r.variant_id || 'x'}`;
+      const key = String(r.product_id);
       let g = map.get(key);
       if (!g) {
-        g = { key, product_id: r.product_id, variant_id: r.variant_id ?? null, name: r.product_name, sku: r.sku, photo_path: r.photo_path || '', color: r.variant_color || null, min_stock: Number(r.min_stock || 0), qtyByWarehouse: {}, rackByWarehouse: {}, total: 0, reserved: 0 };
+        g = { key, product_id: r.product_id, variant_id: null, name: r.product_name, sku: r.sku, photo_path: r.photo_path || '', min_stock: Number(r.min_stock || 0), qtyByWarehouse: {}, rackByWarehouse: {}, total: 0, reserved: 0 };
         map.set(key, g);
       }
       if (!g.photo_path && r.photo_path) g.photo_path = r.photo_path;
@@ -123,12 +123,12 @@ export default function StockReportSection() {
     };
   }, [grouped, warehouseRows]);
 
-  const colSpan = 2 + whColumns.length + 1;
+  const colSpan = 1 + whColumns.length + 1;
 
   function exportCsv() {
     if (!grouped.length) return;
-    const header = ['Produk', 'Warna', ...whColumns.map((w) => w.name), 'Total'];
-    const lines = grouped.map((g) => [g.name, g.color || '', ...whColumns.map((w) => g.qtyByWarehouse[String(w.id)] || 0), g.total]);
+    const header = ['Produk', ...whColumns.map((w) => w.name), 'Total'];
+    const lines = grouped.map((g) => [g.name, ...whColumns.map((w) => g.qtyByWarehouse[String(w.id)] || 0), g.total]);
     const csv = [header, ...lines].map((row) => row.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
@@ -163,7 +163,6 @@ export default function StockReportSection() {
         body: JSON.stringify({
           warehouse_id: Number(warehouse.id),
           product_id: Number(product.product_id),
-          variant_id: product.variant_id == null ? null : Number(product.variant_id),
           rack_position: rackDraft,
         }),
       });
@@ -273,7 +272,6 @@ export default function StockReportSection() {
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
                 <th style={{ padding: '8px 10px' }}>Produk</th>
-                <th style={{ padding: '8px 10px' }}>Warna</th>
                 {whColumns.map((w) => <th key={w.id} style={{ padding: '8px 10px', textAlign: 'right', whiteSpace: 'nowrap' }}>{w.name}</th>)}
                 <th style={{ padding: '8px 10px', textAlign: 'right' }}>Total</th>
               </tr>
@@ -290,7 +288,6 @@ export default function StockReportSection() {
                       <span>{g.name}</span>
                     </div>
                   </td>
-                  <td style={{ padding: '8px 10px' }}>{g.color ? <span style={{ padding: '1px 5px', borderRadius: 4, background: 'var(--muted)', fontSize: 'var(--fs-xs)' }}>{g.color}</span> : <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>-</span>}</td>
                   {whColumns.map((w) => <td key={w.id} style={{ padding: '8px 10px', textAlign: 'right' }}><strong>{money(g.qtyByWarehouse[String(w.id)] || 0)}</strong>{rackControl(g, w)}</td>)}
                   <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>{money(g.total)}</td>
                 </tr>
@@ -315,7 +312,6 @@ export default function StockReportSection() {
                     <strong style={{ fontSize: 14, display: 'block' }}>{g.name}</strong>
                     <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>{g.sku || ''}</span>
                   </div>
-                  <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>{g.color || 'Tanpa warna'}</span>
                 </div>
                 <strong style={{ fontSize: 16, color: '#1e3a5f', whiteSpace: 'nowrap' }}>{money(g.total)}</strong>
               </div>

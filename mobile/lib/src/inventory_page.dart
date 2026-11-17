@@ -1355,9 +1355,7 @@ class _InOutFormState extends State<_InOutForm> {
   }
 
   Future<void> _addCatalogProduct(Map<String, dynamic> product) async {
-    final variants =
-        ((product['variants'] as List?) ?? []).cast<Map<String, dynamic>>();
-    var variantId = variants.isEmpty ? null : variants.first['id'] as int?;
+    // Stok per produk; varian hanya pembeda gambar.
     final qty = TextEditingController(text: '1');
     final cost = TextEditingController();
     final ok = await showDialog<bool>(
@@ -1369,22 +1367,6 @@ class _InOutFormState extends State<_InOutForm> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (variants.isNotEmpty) ...[
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final variant in variants)
-                      ChoiceChip(
-                        label: Text(variant['color']?.toString() ?? ''),
-                        selected: variant['id'] == variantId,
-                        onSelected: (_) => setDialogState(
-                            () => variantId = variant['id'] as int?),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-              ],
               TextField(
                 controller: qty,
                 keyboardType: TextInputType.number,
@@ -1418,17 +1400,12 @@ class _InOutFormState extends State<_InOutForm> {
     if (ok != true || !mounted) return;
     final quantity = int.tryParse(qty.text) ?? 0;
     if (quantity <= 0) return;
-    final variantLabel = variants
-        .where((variant) => variant['id'] == variantId)
-        .map((variant) => variant['color']?.toString() ?? '')
-        .join(', ');
     setState(() {
       _items.add({
         'product_id': product['id'],
-        if (variantId != null) 'variant_id': variantId,
         'name': product['name'],
         'photo_path': stockProductPhotoPath(product),
-        'variant_label': variantLabel,
+        'variant_label': null,
         'quantity': quantity,
         if (widget.kind == 'incoming' && cost.text.trim().isNotEmpty)
           'cost': double.tryParse(cost.text.replaceAll('.', '')) ?? 0,
@@ -2118,9 +2095,7 @@ class _CatalogPickerState extends State<_CatalogPicker> {
   }
 
   Future<void> _add(Map<String, dynamic> product) async {
-    final variants =
-        ((product['variants'] as List?) ?? []).cast<Map<String, dynamic>>();
-    var variantId = variants.isEmpty ? null : variants.first['id'] as int?;
+    // Stok per produk; varian hanya pembeda gambar.
     final qty = TextEditingController(text: '1');
     final cost = TextEditingController();
     final ok = await showDialog<bool>(
@@ -2132,22 +2107,6 @@ class _CatalogPickerState extends State<_CatalogPicker> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (variants.isNotEmpty) ...[
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final v in variants)
-                      ChoiceChip(
-                        label: Text(v['color']?.toString() ?? ''),
-                        selected: v['id'] == variantId,
-                        onSelected: (_) =>
-                            setDialogState(() => variantId = v['id'] as int?),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-              ],
               TextField(
                 controller: qty,
                 keyboardType: TextInputType.number,
@@ -2181,17 +2140,12 @@ class _CatalogPickerState extends State<_CatalogPicker> {
     if (ok != true || !mounted) return;
     final quantity = int.tryParse(qty.text) ?? 0;
     if (quantity <= 0) return;
-    final variantLabel = variants
-        .where((v) => v['id'] == variantId)
-        .map((v) => v['color']?.toString() ?? '')
-        .join(', ');
     setState(() {
       _added.add({
         'product_id': product['id'],
-        if (variantId != null) 'variant_id': variantId,
         'name': product['name'],
         'photo_path': stockProductPhotoPath(product),
-        'variant_label': variantLabel,
+        'variant_label': null,
         'quantity': quantity,
         if (widget.withCost && cost.text.trim().isNotEmpty)
           'cost': double.tryParse(cost.text.replaceAll('.', '')) ?? 0,
@@ -3111,11 +3065,7 @@ class _OpnamePickerState extends State<_OpnamePicker> {
       );
       return;
     }
-    final variants =
-        ((product['variants'] as List?) ?? []).cast<Map<String, dynamic>>();
-    var variantId = product['variant_id'] is num
-        ? (product['variant_id'] as num).toInt()
-        : (variants.isEmpty ? null : variants.first['id'] as int?);
+    // Opname per produk; varian tidak dipilih.
     final physical = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
@@ -3126,22 +3076,6 @@ class _OpnamePickerState extends State<_OpnamePicker> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (variants.isNotEmpty && product['variant_id'] == null) ...[
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final v in variants)
-                      ChoiceChip(
-                        label: Text(v['color']?.toString() ?? ''),
-                        selected: v['id'] == variantId,
-                        onSelected: (_) =>
-                            setDialogState(() => variantId = v['id'] as int?),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-              ],
               TextField(
                 controller: physical,
                 keyboardType: TextInputType.number,
@@ -3179,19 +3113,12 @@ class _OpnamePickerState extends State<_OpnamePicker> {
       );
       return;
     }
-    final variantLabel = variants
-        .where((v) => v['id'] == variantId)
-        .map((v) => v['color']?.toString() ?? '')
-        .join(', ');
     setState(() {
       _added.add({
         'product_id': product['product_id'] ?? product['id'],
-        if (variantId != null) 'variant_id': variantId,
         'name': product['name'],
         'photo_path': stockProductPhotoPath(product),
-        'variant_label': product['variant_color'] != null
-            ? '${product['variant_color']}${product['variant_size'] == null ? '' : ' · ${product['variant_size']}'}'
-            : variantLabel,
+        'variant_label': null,
         'physical_stock': value,
         'expected_stock': int.tryParse('${product['quantity'] ?? 0}') ?? 0,
         'expected_revision': product['stock_revision'],

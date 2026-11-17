@@ -4,7 +4,6 @@ import { Printer } from 'lucide-react';
 import AppShell from '../../components/AppShell';
 import { useAppSession, useUnsavedWork } from '../../components/AppStateProvider';
 import SafeImage from '../../components/SafeImage';
-import StockVariantPicker from '../../components/StockVariantPicker';
 import DateRangePresets from '../../components/DateRangePresets';
 import transferDefaults from './transfer-defaults.cjs';
 import transferLabels from './transfer-labels.cjs';
@@ -282,7 +281,6 @@ export default function TransferPage() {
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
-  const [picker, setPicker] = useState(null);
   const [historyRows, setHistoryRows] = useState([]);
   const [historyTotal, setHistoryTotal] = useState(0);
   const [historyPage, setHistoryPage] = useState(1);
@@ -448,16 +446,13 @@ export default function TransferPage() {
     return sorted;
   }, [products, query, sort]);
 
-  function addToCart(product, variant = null, qty = 1) {
-    if (!variant && product.variants && product.variants.length > 0) {
-      setMessage(`Produk ${product.name} punya varian. Pilih warnanya dulu.`);
-      return;
-    }
-    const key = `${product.id}:${variant?.id || 'umum'}`;
+  function addToCart(product, qty = 1) {
+    // Stok per produk; transfer tidak memilih varian.
+    const key = String(product.id);
     setCart((cur) => {
       const found = cur.find((c) => c.key === key);
       if (found) return cur.map((c) => (c.key === key ? { ...c, quantity: c.quantity + qty } : c));
-      return [...cur, { key, product_id: product.id, variant_id: variant?.id || null, name: product.name, sku: product.sku, color: variant?.color || null, quantity: qty }];
+      return [...cur, { key, product_id: product.id, variant_id: null, name: product.name, sku: product.sku, color: null, quantity: qty }];
     });
   }
   function setQty(key, value) {
@@ -527,7 +522,7 @@ export default function TransferPage() {
 
   async function submit() {
     if (!from || !to || from === to) return setMessage('Pilih gudang asal dan tujuan yang berbeda.');
-    const payload = cart.map((c) => ({ product_id: Number(c.product_id), variant_id: c.variant_id ? Number(c.variant_id) : undefined, quantity: Number(c.quantity) }));
+    const payload = cart.map((c) => ({ product_id: Number(c.product_id), variant_id: undefined, quantity: Number(c.quantity) }));
     if (!payload.length) return setMessage('Belum ada produk di keranjang.');
     setSaving(true);
     setMessage('');
@@ -597,7 +592,7 @@ export default function TransferPage() {
         </div>
         <div className="stock-picker-grid">
           {visibleProducts.map((p) => (
-            <article key={p.id} className="stock-picker-card" onClick={() => (p.variants && p.variants.length > 0 ? setPicker(p) : addToCart(p))} title={p.variants && p.variants.length > 0 ? 'Pilih varian & jumlah' : 'Klik untuk transfer stok umum'}>
+            <article key={p.id} className="stock-picker-card" onClick={() => addToCart(p)} title="Klik untuk transfer stok produk">
               <div className="stock-picker-media">
                 {p.photo_path
                   ? <SafeImage src={mediaUrl(p.photo_path)} alt={p.name} />
@@ -608,13 +603,6 @@ export default function TransferPage() {
                 <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{p.sku || 'Tanpa SKU'}</span>
                 <span className="stock-picker-badge">Stok asal: {Number(p.stock || 0)}</span>
                 {p.rack_position && <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>Posisi Rak: {p.rack_position}</span>}
-                {p.variants && p.variants.length > 0 && (
-                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }} onClick={(e) => e.stopPropagation()}>
-                    {p.variants.map((v) => (
-                      <button key={v.id} type="button" className="small secondary" title={`Stok ${v.color}: ${v.stock}${v.rack_position ? ` · Rak ${v.rack_position}` : ''}`} onClick={() => addToCart(p, v)}>{v.color} ({v.stock}){v.rack_position ? ` · ${v.rack_position}` : ''}</button>
-                    ))}
-                  </div>
-                )}
               </div>
             </article>
           ))}
@@ -672,7 +660,6 @@ export default function TransferPage() {
     </div>
     {!cartOpen && cart.length > 0 && <button type="button" className="cart-fab" onClick={() => setCartOpen(true)} aria-expanded={cartOpen} aria-controls="transfer-cart"><span>Keranjang</span><strong>{cart.length} produk · {totalQty} pcs</strong></button>}
     {cartOpen && <div className="cart-backdrop" onClick={() => setCartOpen(false)} aria-hidden="true" />}
-    {picker && <StockVariantPicker product={picker} onClose={() => setPicker(null)} onAdd={(p, v, q) => { addToCart(p, v, q); setPicker(null); }} />}
     </> : <TransferHistory
       rows={historyRows}
       loading={historyLoading}

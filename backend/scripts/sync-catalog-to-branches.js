@@ -206,14 +206,15 @@ async function main() {
         }
 
         // Stok per gudang (map utama->utama, reject->reject, dst)
+        // Stok per produk (varian hanya gambar): jumlahkan semua baris gudang.
         const [stocks] = await connection.execute(
-          'SELECT warehouse_id, variant_id, quantity FROM warehouse_stocks WHERE product_id=?', [p.id]
+          'SELECT warehouse_id, SUM(quantity) AS quantity FROM warehouse_stocks WHERE product_id=? GROUP BY warehouse_id', [p.id]
         );
         for (const st of stocks) {
           const tw = warehouseMap.get(st.warehouse_id) || mainTgt.id;
           await connection.execute(
-            'INSERT INTO warehouse_stocks (warehouse_id, product_id, variant_id, quantity) VALUES (?,?,?,?)',
-            [tw, newProductId, st.variant_id != null ? (variantIdMap.get(st.variant_id) || null) : null, st.quantity || 0]
+            'INSERT INTO warehouse_stocks (warehouse_id, product_id, variant_id, quantity) VALUES (?,?,NULL,?)',
+            [tw, newProductId, Number(st.quantity || 0)]
           );
         }
 

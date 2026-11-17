@@ -14,10 +14,11 @@ function validateOpnameItems(items) {
   if (!Array.isArray(items) || !items.length) throw fail(400, 'Pilih minimal satu produk dan isi stok fisiknya.');
   const seen = new Set();
   for (const item of items) {
-    if (!positiveId(item?.product_id) || (item.variant_id != null && !positiveId(item.variant_id))) {
-      throw fail(400, 'Produk atau varian opname tidak valid.');
+    if (!positiveId(item?.product_id)) {
+      throw fail(400, 'Produk opname tidak valid.');
     }
-    const key = `${Number(item.product_id)}:${item.variant_id == null ? 'null' : Number(item.variant_id)}`;
+    // Stok hanya di produk: varian tidak lagi menjadi kunci opname.
+    const key = String(Number(item.product_id));
     if (seen.has(key)) throw fail(400, 'Produk yang sama tidak boleh dihitung dua kali.');
     seen.add(key);
     if (typeof item.physical_stock === 'boolean' || item.physical_stock === '' || item.physical_stock == null
@@ -59,13 +60,13 @@ function validateTransferItems(items) {
   if (!Array.isArray(items) || !items.length) throw fail(400, 'Pilih minimal satu produk untuk ditransfer.');
   const seen = new Set();
   for (const item of items) {
-    if (!positiveId(item?.product_id) || (item.variant_id != null && !positiveId(item.variant_id))
+    if (!positiveId(item?.product_id)
         || typeof item.quantity === 'boolean' || item.quantity === '' || !integer(item.quantity)
         || Number(item.quantity) <= 0) {
-      throw fail(400, 'Produk, varian, dan jumlah transfer tidak valid.');
+      throw fail(400, 'Produk dan jumlah transfer tidak valid.');
     }
-    const key = `${Number(item.product_id)}:${item.variant_id == null ? 'null' : Number(item.variant_id)}`;
-    if (seen.has(key)) throw fail(400, 'Produk/varian yang sama tidak boleh dimasukkan dua kali.');
+    const key = String(Number(item.product_id));
+    if (seen.has(key)) throw fail(400, 'Produk yang sama tidak boleh dimasukkan dua kali.');
     seen.add(key);
   }
   return items;

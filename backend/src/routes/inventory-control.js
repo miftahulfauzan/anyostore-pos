@@ -22,10 +22,11 @@ const { beginTransferRequest, finishTransferRequest } = require("../transfer-req
 const router = express.Router();
 router.use(authenticate);
 const fail = (s, m) => Object.assign(new Error(m), { status: s });
-async function balance(c, warehouseId, productId, variantId) {
+// Saldo selalu di baris produk (variant_id NULL); varian hanya keterangan.
+async function balance(c, warehouseId, productId) {
   const [r] = await c.execute(
-    "SELECT id, quantity, CAST(revision AS CHAR) AS revision FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id <=> ? FOR UPDATE",
-    [warehouseId, productId, variantId],
+    "SELECT id, quantity, CAST(revision AS CHAR) AS revision FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id IS NULL FOR UPDATE",
+    [warehouseId, productId],
   );
   return r[0];
 }
@@ -42,7 +43,7 @@ async function change(
   refId,
   notes = null,
 ) {
-  const row = await balance(c, warehouseId, productId, variantId);
+  const row = await balance(c, warehouseId, productId);
   const before = Number(row?.quantity ?? 0);
   const after = before + qty;
   if (after < 0) throw fail(400, "Stok gudang tidak mencukupi");
@@ -573,23 +574,12 @@ router.post(
           [item.product_id, branchId],
         );
         if (!pi[0]) throw fail(404, "Produk tidak ditemukan");
-        if (!item.variant_id) {
-          const [pc] = await c.execute(
-            "SELECT COUNT(*) AS cnt FROM product_variants WHERE product_id=? AND is_active=TRUE",
-            [item.product_id],
-          );
-          if (Number(pc[0].cnt) > 0)
-            throw fail(
-              400,
-              "Produk " + pi[0].name + " punya varian — wajib pilih warna",
-            );
-        }
         await change(
           c,
           branchId,
           fromId,
           item.product_id,
-          item.variant_id || null,
+          null,
           -q,
           req.user.id,
           "transfer_out",
@@ -601,7 +591,7 @@ router.post(
           branchId,
           toId,
           item.product_id,
-          item.variant_id || null,
+          null,
           q,
           req.user.id,
           "transfer_in",
@@ -610,7 +600,7 @@ router.post(
         );
         await c.execute(
           "INSERT INTO stock_transfer_items (transfer_id,product_id,variant_id,destination_product_id,destination_variant_id,quantity) VALUES (?,?,?,?,?,?)",
-          [t.insertId, item.product_id, item.variant_id || null, item.product_id, item.variant_id || null, q],
+          [t.insertId, item.product_id, null, item.product_id, null, q],
         );
       }
       const response = { id: t.insertId, status: "completed" };
@@ -700,17 +690,6 @@ router.post(
           [productId, branchId],
         );
         if (!p[0]) throw fail(404, "Produk asal tidak ditemukan");
-        if (!variantId) {
-          const [pc] = await c.execute(
-            "SELECT COUNT(*) AS cnt FROM product_variants WHERE product_id=? AND is_active=TRUE",
-            [productId],
-          );
-          if (Number(pc[0].cnt) > 0)
-            throw fail(
-              400,
-              "Produk " + p[0].name + " punya varian — wajib pilih warna",
-            );
-        }
         const [nameMatches] = await c.execute(
           "SELECT id,name,sku FROM products WHERE branch_id=? AND is_active=TRUE ORDER BY id FOR UPDATE",
           [target[0].branch_id],
@@ -958,20 +937,9 @@ router.post(
           physical < 0
         )
           throw fail(400, "Item opname tidak valid");
-        const variantId = item.variant_id == null ? null : Number(item.variant_id);
-        if (variantId) {
-          const [variants] = await c.execute(
-            "SELECT id FROM product_variants WHERE id=? AND product_id=? AND is_active=TRUE FOR UPDATE",
-            [variantId, item.product_id],
-          );
-          if (!variants[0]) throw fail(400, "Varian opname tidak cocok dengan produknya");
-        }
-        const row = await balance(
-          c,
-          warehouseId,
-          item.product_id,
-          variantId,
-        );
+        // Opname dihitung per produk; varian hanya keterangan gambar.
+        const variantId = null;
+        const row = await balance(c, warehouseId, item.product_id);
         assertStockSnapshot(item, row);
         const system = Number(row?.quantity ?? 0);
         const delta = physical - system;

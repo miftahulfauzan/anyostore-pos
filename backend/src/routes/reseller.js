@@ -418,15 +418,15 @@ router.post('/orders', orderLimiter, async (req, res, next) => {
       const product = productById.get(productId);
       const variantId = input.variant_id ? Number(input.variant_id) : null;
       let variantLabel = null;
-      let price = money(product.price);
+      const price = money(product.price);
       if (variantId) {
         const [variants] = await connection.execute(
-          'SELECT id, color, size, price FROM product_variants WHERE id = ? AND product_id = ? AND is_active = TRUE LIMIT 1',
+          'SELECT id, color, size FROM product_variants WHERE id = ? AND product_id = ? AND is_active = TRUE LIMIT 1',
           [variantId, productId],
         );
         const variant = variants[0];
         if (!variant) throw httpError(400, `Varian ${product.name} tidak ditemukan`);
-        if (Number(variant.price) > 0) price = money(variant.price);
+        // Harga selalu dari produk; varian hanya keterangan warna.
         variantLabel = [variant.color, variant.size].filter(Boolean).join(' / ') || null;
       }
       const lineSubtotal = money(price * quantity);

@@ -42,7 +42,9 @@ test('stock opname hanya mengambil produk aktif dari cabang gudang yang dipilih'
   assert.equal(nextError, undefined);
   assert.match(captured.sql, /p\.branch_id\s*=\s*w\.branch_id/);
   assert.match(captured.sql, /p\.is_active\s*=\s*TRUE/);
-  assert.match(captured.sql, /LEFT JOIN product_variants pv ON pv\.id = ws\.variant_id AND pv\.product_id = p\.id AND pv\.is_active = TRUE/);
-  assert.match(captured.sql, /ws\.variant_id IS NULL OR pv\.id IS NOT NULL/);
-  assert.deepEqual(captured.params, [20, 8, 8, 20, 8, 20]);
+  // Stok per produk: hanya baris variant_id NULL, tanpa cabang UNION varian.
+  assert.match(captured.sql, /ws\.variant_id IS NULL/);
+  assert.doesNotMatch(captured.sql, /JOIN product_variants/);
+  assert.match(captured.sql, /NOT EXISTS \(SELECT 1 FROM warehouse_stocks ws2 WHERE ws2\.warehouse_id = \? AND ws2\.product_id = p\.id AND ws2\.variant_id IS NULL\)/);
+  assert.deepEqual(captured.params, [20, 8, 8, 20]);
 });

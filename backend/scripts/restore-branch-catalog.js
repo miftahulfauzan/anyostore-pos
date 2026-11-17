@@ -23,14 +23,15 @@ async function main() {
       console.log(`- Cabang ${id}: ${products.length} produk akan ${apply ? 'dipulihkan' : '[DRY] dipulihkan'}`);
       if (!apply) continue;
       await connection.execute('UPDATE products SET is_active=TRUE WHERE branch_id=?', [id]);
-      // warehouse_stocks: bangun dari mutasi terakhir per (warehouse, product, variant)
+      // warehouse_stocks: bangun dari mutasi terakhir per (warehouse, product).
+      // Varian tidak menyimpan stok, jadi baris selalu variant_id NULL.
       await connection.execute(
         `INSERT INTO warehouse_stocks (warehouse_id, product_id, variant_id, quantity)
-         SELECT m.warehouse_id, m.product_id, m.variant_id, m.stock_after
+         SELECT m.warehouse_id, m.product_id, NULL, m.stock_after
          FROM stock_mutations m
          JOIN (
-           SELECT warehouse_id, product_id, variant_id, MAX(id) AS mid
-           FROM stock_mutations WHERE branch_id=? GROUP BY warehouse_id, product_id, variant_id
+           SELECT warehouse_id, product_id, MAX(id) AS mid
+           FROM stock_mutations WHERE branch_id=? GROUP BY warehouse_id, product_id
          ) x ON x.mid = m.id`,
         [id]
       );

@@ -180,33 +180,27 @@ router.get('/stock', async (req, res, next) => {
     // Owner dan admin gudang boleh melihat stok gudang cabang lain yang
     // terlihat di dropdown (warehouses/all). Role lain tetap cabang sendiri.
     const branchId = ['owner', 'gudang'].includes(req.user.role) && Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
+    // Stok hanya di baris produk (variant_id NULL). Varian = pembeda gambar,
+    // jadi satu produk = satu baris walau punya banyak warna.
     const [rows] = await db.execute(
-      `SELECT ws.product_id, ws.variant_id, ws.quantity, ws.reserved_quantity, ws.rack_position, CAST(ws.revision AS CHAR) AS stock_revision, p.name, p.sku, p.min_stock,
+      `SELECT ws.product_id, NULL AS variant_id, ws.quantity, ws.reserved_quantity, ws.rack_position,
+              CAST(ws.revision AS CHAR) AS stock_revision, p.name, p.sku, p.min_stock,
               (SELECT pp.path FROM product_photos pp WHERE pp.product_id = p.id AND pp.media_type = 'image' ORDER BY (pp.variant_id IS NULL) DESC, pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
-              pv.color AS variant_color, pv.size AS variant_size
+              NULL AS variant_color, NULL AS variant_size
        FROM warehouse_stocks ws
        JOIN warehouses w ON w.id = ws.warehouse_id
        JOIN products p ON p.id = ws.product_id AND p.branch_id = w.branch_id AND p.is_active = TRUE
-       LEFT JOIN product_variants pv ON pv.id = ws.variant_id AND pv.product_id = p.id AND pv.is_active = TRUE
-       WHERE ws.warehouse_id = ? AND w.branch_id = ? AND (ws.variant_id IS NULL OR pv.id IS NOT NULL)
+       WHERE ws.warehouse_id = ? AND w.branch_id = ? AND ws.variant_id IS NULL
        UNION ALL
-       SELECT p.id AS product_id, pv.id AS variant_id, 0 AS quantity, 0 AS reserved_quantity, NULL AS rack_position, CAST(0 AS CHAR) AS stock_revision, p.name, p.sku, p.min_stock,
-              (SELECT pp.path FROM product_photos pp WHERE pp.product_id = p.id AND pp.media_type = 'image' ORDER BY (pp.variant_id IS NULL) DESC, pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
-              pv.color AS variant_color, pv.size AS variant_size
-       FROM products p
-       JOIN product_variants pv ON pv.product_id = p.id AND pv.is_active = TRUE
-       WHERE p.branch_id = ? AND p.is_active = TRUE
-         AND NOT EXISTS (SELECT 1 FROM warehouse_stocks ws2 WHERE ws2.warehouse_id = ? AND ws2.product_id = p.id AND ws2.variant_id = pv.id)
-       UNION ALL
-       SELECT p.id AS product_id, NULL AS variant_id, 0 AS quantity, 0 AS reserved_quantity, NULL AS rack_position, CAST(0 AS CHAR) AS stock_revision, p.name, p.sku, p.min_stock,
+       SELECT p.id AS product_id, NULL AS variant_id, 0 AS quantity, 0 AS reserved_quantity, NULL AS rack_position,
+              CAST(0 AS CHAR) AS stock_revision, p.name, p.sku, p.min_stock,
               (SELECT pp.path FROM product_photos pp WHERE pp.product_id = p.id AND pp.media_type = 'image' ORDER BY (pp.variant_id IS NULL) DESC, pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
               NULL AS variant_color, NULL AS variant_size
        FROM products p
        WHERE p.branch_id = ? AND p.is_active = TRUE
-         AND NOT EXISTS (SELECT 1 FROM product_variants pv2 WHERE pv2.product_id = p.id AND pv2.is_active = TRUE)
-         AND NOT EXISTS (SELECT 1 FROM warehouse_stocks ws3 WHERE ws3.warehouse_id = ? AND ws3.product_id = p.id AND ws3.variant_id IS NULL)
-       ORDER BY name, variant_color, variant_size`,
-      [warehouseId, branchId, branchId, warehouseId, branchId, warehouseId]
+         AND NOT EXISTS (SELECT 1 FROM warehouse_stocks ws2 WHERE ws2.warehouse_id = ? AND ws2.product_id = p.id AND ws2.variant_id IS NULL)
+       ORDER BY name`,
+      [warehouseId, branchId, branchId, warehouseId]
     );
     // BIGINT revision harus dikirim sebagai string agar frontend tidak
     // membulatkan nilainya saat melewati batas aman Number JavaScript.
@@ -426,10 +420,10 @@ router.put('/stock-location', authorize('owner', 'manager', 'admin', 'gudang'), 
   try {
     const warehouseId = Number(req.body.warehouse_id);
     const productId = Number(req.body.product_id);
-    const variantId = req.body.variant_id === null || req.body.variant_id === undefined || req.body.variant_id === ''
-      ? null
-      : Number(req.body.variant_id);
-    if (!Number.isInteger(warehouseId) || !Number.isInteger(productId) || (variantId !== null && !Number.isInteger(variantId))) {
+    // Varian tidak menyimpan stok/lokasi: posisi rak selalu di baris produk.
+    // Nilai variant_id dari klien lama diterima tetapi diabaikan.
+    const variantId = null;
+    if (!Number.isInteger(warehouseId) || !Number.isInteger(productId)) {
       return res.status(400).json({ success: false, message: 'Gudang, produk, atau varian tidak valid' });
     }
     const rackPosition = normalizeRackPosition(req.body.rack_position);
@@ -454,17 +448,9 @@ router.put('/stock-location', authorize('owner', 'manager', 'admin', 'gudang'), 
     if (!product || Number(product.branch_id) !== Number(warehouse.branch_id)) {
       throw Object.assign(new Error('Produk tidak ditemukan di cabang gudang tersebut'), { status: 404 });
     }
-    if (variantId !== null) {
-      const [variants] = await connection.execute(
-        'SELECT id FROM product_variants WHERE id = ? AND product_id = ? AND is_active = TRUE FOR UPDATE',
-        [variantId, productId]
-      );
-      if (!variants[0]) throw Object.assign(new Error('Varian produk tidak ditemukan'), { status: 404 });
-    }
-
     const [balances] = await connection.execute(
-      'SELECT id FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id <=> ? FOR UPDATE',
-      [warehouseId, productId, variantId]
+      'SELECT id FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id IS NULL FOR UPDATE',
+      [warehouseId, productId]
     );
     if (balances[0]) {
       await connection.execute('UPDATE warehouse_stocks SET rack_position = ? WHERE id = ?', [rackPosition, balances[0].id]);
@@ -793,7 +779,7 @@ router.post('/mutations', authorize('owner', 'manager', 'admin', 'gudang'), asyn
       const [variants] = await connection.execute('SELECT id FROM product_variants WHERE id = ? AND product_id = ? AND is_active = TRUE FOR UPDATE', [variantId, productId]);
       if (!variants[0]) throw Object.assign(new Error('Varian tidak sesuai produk'), { status: 400 });
     }
-    const [balances] = await connection.execute('SELECT id, quantity FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id <=> ? FOR UPDATE', [warehouseId, productId, variantId]);
+    const [balances] = await connection.execute('SELECT id, quantity FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id IS NULL FOR UPDATE', [warehouseId, productId]);
     const before = balances[0]?.quantity || 0;
     const after = before + quantity;
     if (after < 0) throw Object.assign(new Error('Stok gudang tidak mencukupi'), { status: 400 });
@@ -870,13 +856,13 @@ router.post('/incoming', authorize('owner', 'gudang'), async (req, res, next) =>
       warehouseId = w[0].id;
     }
     const batchNumber = String(req.body.batch_number||'').trim() || await nextBatchNumber(connection,'manual_incoming',transactionDate);
-    for(const input of items){const productId=Number(input.product_id),variantId=input.variant_id?Number(input.variant_id):null,quantity=Number(input.quantity),cost=input.cost===''||input.cost===undefined?null:Number(input.cost);if(!Number.isInteger(productId)||!Number.isInteger(quantity)||quantity<=0||(cost!==null&&(!Number.isFinite(cost)||cost<0)))throw Object.assign(new Error('Data item produk masuk tidak valid'),{status:400});const[products]=await connection.execute('SELECT id,name FROM products WHERE id=? AND branch_id=? AND is_active=TRUE FOR UPDATE',[productId,branchId]);if(!products[0])throw Object.assign(new Error('Produk tidak ditemukan di katalog toko tujuan — pilih produk dari daftar toko tersebut'),{status:404});if(!variantId){const[vc]=await connection.execute('SELECT COUNT(*) AS cnt FROM product_variants WHERE product_id=? AND is_active=TRUE',[productId]);if(Number(vc[0].cnt)>0)throw Object.assign(new Error('Produk '+products[0].name+' punya varian — wajib pilih warna'),{status:400});}if(variantId){const[variants]=await connection.execute('SELECT id FROM product_variants WHERE id=? AND product_id=? AND is_active=TRUE FOR UPDATE',[variantId,productId]);if(!variants[0])throw Object.assign(new Error('Varian warna tidak ditemukan'),{status:404});}await adjustStock(connection,{branchId,warehouseId,productId,variantId,delta:quantity,userId:req.user.id,type:'purchase',referenceType:'manual_incoming',referenceId:batchRef,batchNumber,createdAt:transactionDate,notes:req.body.notes?.trim()||null});await connection.execute('UPDATE products SET cost=COALESCE(?,cost) WHERE id=?',[cost,productId]);}
+    for(const input of items){const productId=Number(input.product_id),variantId=input.variant_id?Number(input.variant_id):null,quantity=Number(input.quantity),cost=input.cost===''||input.cost===undefined?null:Number(input.cost);if(!Number.isInteger(productId)||!Number.isInteger(quantity)||quantity<=0||(cost!==null&&(!Number.isFinite(cost)||cost<0)))throw Object.assign(new Error('Data item produk masuk tidak valid'),{status:400});const[products]=await connection.execute('SELECT id,name FROM products WHERE id=? AND branch_id=? AND is_active=TRUE FOR UPDATE',[productId,branchId]);if(!products[0])throw Object.assign(new Error('Produk tidak ditemukan di katalog toko tujuan — pilih produk dari daftar toko tersebut'),{status:404});/* Varian tidak wajib: stok disimpan di produk. */if(variantId){const[variants]=await connection.execute('SELECT id FROM product_variants WHERE id=? AND product_id=? AND is_active=TRUE FOR UPDATE',[variantId,productId]);if(!variants[0])throw Object.assign(new Error('Varian warna tidak ditemukan'),{status:404});}await adjustStock(connection,{branchId,warehouseId,productId,variantId,delta:quantity,userId:req.user.id,type:'purchase',referenceType:'manual_incoming',referenceId:batchRef,batchNumber,createdAt:transactionDate,notes:req.body.notes?.trim()||null});await connection.execute('UPDATE products SET cost=COALESCE(?,cost) WHERE id=?',[cost,productId]);}
     await connection.execute('INSERT INTO activity_logs (user_id,action,description,ip_address,user_agent) VALUES (?,?,?,?,?)',[req.user.id,'incoming_stock','Produk masuk '+items.length+' item ke toko '+branchId+' ('+batchNumber+')',req.ip,req.get('user-agent')||null]);await connection.commit();res.status(201).json({success:true,data:{items:items.length,branch_id:branchId,warehouse_id:warehouseId,batch_number:batchNumber}});
   }catch(error){await connection.rollback();next(error);}finally{connection.release();}
 });
 router.post('/outgoing', authorize('owner','gudang'), async (req,res,next)=>{
   const connection=await db.getConnection();
-  try{const requestedBranch=Number(req.body.branch_id),branchId=(req.user.role==='owner'||req.user.role==='gudang')&&Number.isInteger(requestedBranch)?requestedBranch:req.user.branch_id,items=req.body.items,channel=(req.body.channel||'').trim()||'toko';if(!Array.isArray(items)||!items.length)return res.status(400).json({success:false,message:'Tambahkan minimal satu produk keluar'});if(req.user.role==='gudang'&&Number.isInteger(requestedBranch)){const[gb]=await connection.execute('SELECT id FROM branches WHERE id=? AND is_active=TRUE',[requestedBranch]);if(!gb[0])return res.status(403).json({success:false,message:'Cabang tujuan tidak aktif atau tidak ditemukan'});}const transactionDate = /^\d{4}-\d{2}-\d{2}$/.test(req.body.transaction_date||'') ? req.body.transaction_date : localDateString();await connection.beginTransaction();{const chVal=String(channel||'').trim().toLowerCase().replace(/\s+/g,'_');if(chVal){await connection.execute('INSERT IGNORE INTO sales_channels (value, name, sort_order) VALUES (?,?,99)',[chVal,String(channel||'').trim()]);}}const batchRef=Date.now();let warehouseId = Number(req.body.warehouse_id);if (Number.isInteger(warehouseId)) {const [w]=await connection.execute('SELECT id FROM warehouses WHERE id=? AND branch_id=? AND is_active=TRUE FOR UPDATE',[warehouseId,branchId]);if(!w[0]) throw Object.assign(new Error('Gudang tidak ditemukan di toko asal'),{status:404});} else {let [w]=await connection.execute("SELECT id FROM warehouses WHERE branch_id=? AND is_active=TRUE AND type='utama' ORDER BY id LIMIT 1 FOR UPDATE",[branchId]);if(!w[0]){w=await connection.execute('SELECT id FROM warehouses WHERE branch_id=? AND is_active=TRUE ORDER BY id LIMIT 1 FOR UPDATE',[branchId]);}if(!w[0])throw Object.assign(new Error('Gudang aktif toko tidak ditemukan'),{status:404});warehouseId = w[0].id;}const batchNumber = String(req.body.batch_number||'').trim() || await nextBatchNumber(connection,'manual_outgoing',transactionDate);for(const input of items){const productId=Number(input.product_id),variantId=input.variant_id?Number(input.variant_id):null,quantity=Number(input.quantity);if(!Number.isInteger(productId)||!Number.isInteger(quantity)||quantity<=0)throw Object.assign(new Error('Data item produk keluar tidak valid'),{status:400});const[products]=await connection.execute('SELECT id,name,stock FROM products WHERE id=? AND branch_id=? AND is_active=TRUE FOR UPDATE',[productId,branchId]);if(!products[0])throw Object.assign(new Error('Produk tidak ditemukan di toko asal'),{status:404});if(!variantId){const[vc]=await connection.execute('SELECT COUNT(*) AS cnt FROM product_variants WHERE product_id=? AND is_active=TRUE',[productId]);if(Number(vc[0].cnt)>0)throw Object.assign(new Error('Produk '+products[0].name+' punya varian — wajib pilih warna'),{status:400});}if(variantId){const[variants]=await connection.execute('SELECT id,stock FROM product_variants WHERE id=? AND product_id=? AND is_active=TRUE FOR UPDATE',[variantId,productId]);if(!variants[0])throw Object.assign(new Error('Varian warna tidak ditemukan'),{status:404});if(variants[0].stock<quantity)throw Object.assign(new Error('Stok varian warna tidak mencukupi'),{status:400});}const[stockBalances]=await connection.execute('SELECT id,quantity FROM warehouse_stocks WHERE warehouse_id=? AND product_id=? AND variant_id <=> ? FOR UPDATE',[warehouseId,productId,variantId]);if(Number(stockBalances[0]?.quantity||0)-quantity<0)throw Object.assign(new Error('Stok produk tidak mencukupi'),{status:400});await adjustStock(connection,{branchId,warehouseId,productId,variantId,delta:-quantity,userId:req.user.id,type:'adjustment',referenceType:'manual_outgoing',referenceId:batchRef,batchNumber,createdAt:transactionDate,channel,notes:req.body.notes?.trim()||null});}await connection.execute('INSERT INTO activity_logs (user_id,action,description,ip_address,user_agent) VALUES (?,?,?,?,?)',[req.user.id,'outgoing_stock','Produk keluar '+items.length+' item dari toko '+branchId+' ('+channel+')',req.ip,req.get('user-agent')||null]);await connection.commit();res.status(201).json({success:true,data:{items:items.length,branch_id:branchId,warehouse_id:warehouseId,batch_number:batchNumber,channel}});}catch(error){await connection.rollback();next(error);}finally{connection.release();}
+  try{const requestedBranch=Number(req.body.branch_id),branchId=(req.user.role==='owner'||req.user.role==='gudang')&&Number.isInteger(requestedBranch)?requestedBranch:req.user.branch_id,items=req.body.items,channel=(req.body.channel||'').trim()||'toko';if(!Array.isArray(items)||!items.length)return res.status(400).json({success:false,message:'Tambahkan minimal satu produk keluar'});if(req.user.role==='gudang'&&Number.isInteger(requestedBranch)){const[gb]=await connection.execute('SELECT id FROM branches WHERE id=? AND is_active=TRUE',[requestedBranch]);if(!gb[0])return res.status(403).json({success:false,message:'Cabang tujuan tidak aktif atau tidak ditemukan'});}const transactionDate = /^\d{4}-\d{2}-\d{2}$/.test(req.body.transaction_date||'') ? req.body.transaction_date : localDateString();await connection.beginTransaction();{const chVal=String(channel||'').trim().toLowerCase().replace(/\s+/g,'_');if(chVal){await connection.execute('INSERT IGNORE INTO sales_channels (value, name, sort_order) VALUES (?,?,99)',[chVal,String(channel||'').trim()]);}}const batchRef=Date.now();let warehouseId = Number(req.body.warehouse_id);if (Number.isInteger(warehouseId)) {const [w]=await connection.execute('SELECT id FROM warehouses WHERE id=? AND branch_id=? AND is_active=TRUE FOR UPDATE',[warehouseId,branchId]);if(!w[0]) throw Object.assign(new Error('Gudang tidak ditemukan di toko asal'),{status:404});} else {let [w]=await connection.execute("SELECT id FROM warehouses WHERE branch_id=? AND is_active=TRUE AND type='utama' ORDER BY id LIMIT 1 FOR UPDATE",[branchId]);if(!w[0]){w=await connection.execute('SELECT id FROM warehouses WHERE branch_id=? AND is_active=TRUE ORDER BY id LIMIT 1 FOR UPDATE',[branchId]);}if(!w[0])throw Object.assign(new Error('Gudang aktif toko tidak ditemukan'),{status:404});warehouseId = w[0].id;}const batchNumber = String(req.body.batch_number||'').trim() || await nextBatchNumber(connection,'manual_outgoing',transactionDate);for(const input of items){const productId=Number(input.product_id),variantId=input.variant_id?Number(input.variant_id):null,quantity=Number(input.quantity);if(!Number.isInteger(productId)||!Number.isInteger(quantity)||quantity<=0)throw Object.assign(new Error('Data item produk keluar tidak valid'),{status:400});const[products]=await connection.execute('SELECT id,name,stock FROM products WHERE id=? AND branch_id=? AND is_active=TRUE FOR UPDATE',[productId,branchId]);if(!products[0])throw Object.assign(new Error('Produk tidak ditemukan di toko asal'),{status:404});/* Varian tidak wajib: stok disimpan di produk. */if(variantId){const[variants]=await connection.execute('SELECT id,stock FROM product_variants WHERE id=? AND product_id=? AND is_active=TRUE FOR UPDATE',[variantId,productId]);if(!variants[0])throw Object.assign(new Error('Varian warna tidak ditemukan'),{status:404});}const[stockBalances]=await connection.execute('SELECT id,quantity FROM warehouse_stocks WHERE warehouse_id=? AND product_id=? AND variant_id IS NULL FOR UPDATE',[warehouseId,productId]);if(Number(stockBalances[0]?.quantity||0)-quantity<0)throw Object.assign(new Error('Stok produk tidak mencukupi'),{status:400});await adjustStock(connection,{branchId,warehouseId,productId,variantId,delta:-quantity,userId:req.user.id,type:'adjustment',referenceType:'manual_outgoing',referenceId:batchRef,batchNumber,createdAt:transactionDate,channel,notes:req.body.notes?.trim()||null});}await connection.execute('INSERT INTO activity_logs (user_id,action,description,ip_address,user_agent) VALUES (?,?,?,?,?)',[req.user.id,'outgoing_stock','Produk keluar '+items.length+' item dari toko '+branchId+' ('+channel+')',req.ip,req.get('user-agent')||null]);await connection.commit();res.status(201).json({success:true,data:{items:items.length,branch_id:branchId,warehouse_id:warehouseId,batch_number:batchNumber,channel}});}catch(error){await connection.rollback();next(error);}finally{connection.release();}
 });
 
 module.exports = router;

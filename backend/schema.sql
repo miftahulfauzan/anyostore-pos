@@ -91,6 +91,7 @@ CREATE TABLE product_variants (
     color VARCHAR(50),
     sku VARCHAR(50) UNIQUE,
     barcode VARCHAR(50),
+    -- DEPRECATED: stok disimpan di products/warehouse_stocks (variant_id NULL).
     stock INT DEFAULT 0,
     price DECIMAL(12,2),
     is_active BOOLEAN DEFAULT TRUE,

@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppShell from '../../components/AppShell';
 import SafeImage from '../../components/SafeImage';
-import StockVariantPicker from '../../components/StockVariantPicker';
 import { useAppSession, useUnsavedWork } from '../../components/AppStateProvider';
 import mutationQuantity from './mutation-quantity.cjs';
 import { createRequestSequence } from '../../components/app-state.cjs';
@@ -38,7 +37,6 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
   const [saving, setSaving] = useState(false);
   const [locationsLoaded, setLocationsLoaded] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
-  const [picker, setPicker] = useState(null);
   const [quantityPrompt, setQuantityPrompt] = useState(null);
   const [quantityPromptQty, setQuantityPromptQty] = useState('1');
   const [quantityPromptError, setQuantityPromptError] = useState('');
@@ -132,16 +130,13 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
     return sorted;
   }, [products, query, sort]);
 
-  function addToCart(product, variant = null, qty = 1) {
-    if (!variant && product.variants && product.variants.length > 0) {
-      setMessage(`Produk ${product.name} punya varian. Pilih warnanya dulu.`);
-      return;
-    }
-    const key = `${product.id}:${variant?.id || 'umum'}`;
+  function addToCart(product, qty = 1) {
+    // Stok per produk; varian tidak dipilih di stok masuk/keluar.
+    const key = String(product.id);
     setCart((cur) => {
       const found = cur.find((c) => c.key === key);
       if (found) return cur.map((c) => (c.key === key ? { ...c, quantity: c.quantity + qty } : c));
-      return [...cur, { key, product_id: product.id, variant_id: variant?.id || null, name: product.name, sku: product.sku, color: variant?.color || null, quantity: qty }];
+      return [...cur, { key, product_id: product.id, variant_id: null, name: product.name, sku: product.sku, color: null, quantity: qty }];
     });
   }
   function askQuantity(product) {
@@ -155,7 +150,7 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
       setQuantityPromptError('Jumlah harus berupa bilangan bulat minimal 1.');
       return;
     }
-    addToCart(quantityPrompt, null, qty);
+    addToCart(quantityPrompt, qty);
     setQuantityPrompt(null);
   }
   function setQty(key, value) {
@@ -278,7 +273,7 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
 
   async function submit() {
     if (!store || !warehouse) return setMessage('Pilih toko dan gudang terlebih dahulu.');
-    const payload = cart.map((c) => ({ product_id: Number(c.product_id), variant_id: c.variant_id ? Number(c.variant_id) : undefined, quantity: Number(c.quantity) }));
+    const payload = cart.map((c) => ({ product_id: Number(c.product_id), variant_id: undefined, quantity: Number(c.quantity) }));
     if (!payload.length) return setMessage('Belum ada produk di keranjang.');
     setSaving(true);
     setMessage('');
@@ -408,7 +403,7 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
         </div>
         <div className="stock-picker-grid">
           {visibleProducts.map((p) => (
-            <article key={p.id} className="stock-picker-card" onClick={() => (p.variants && p.variants.length > 0 ? setPicker(p) : askQuantity(p))} title={p.variants && p.variants.length > 0 ? 'Pilih varian & jumlah' : 'Tentukan jumlah stok sebelum ditambahkan'}>
+            <article key={p.id} className="stock-picker-card" onClick={() => askQuantity(p)} title="Tentukan jumlah stok sebelum ditambahkan">
               <div className="stock-picker-media">
                 {p.photo_path
                   ? <SafeImage src={mediaUrl(p.photo_path)} alt={p.name} />
@@ -419,16 +414,6 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
                 <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{p.sku || 'Tanpa SKU'}</span>
                 <span className="stock-picker-badge">Stok: {Number(p.stock || 0)}</span>
                 {p.rack_position && <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>Posisi Rak: {p.rack_position}</span>}
-                {p.variants && p.variants.length > 0 && (
-                  <>
-                    <span className="stock-picker-variant-note">{p.variants.length} warna · ketuk untuk pilih</span>
-                    <div className="stock-picker-variants" style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }} onClick={(e) => e.stopPropagation()}>
-                      {p.variants.map((v) => (
-                        <button key={v.id} type="button" className="small secondary" title={`Stok ${v.color}: ${v.stock}${v.rack_position ? ` · Rak ${v.rack_position}` : ''}`} onClick={() => addToCart(p, v)}>{v.color} ({v.stock}){v.rack_position ? ` · ${v.rack_position}` : ''}</button>
-                      ))}
-                    </div>
-                  </>
-                )}
               </div>
             </article>
           ))}
@@ -486,7 +471,6 @@ export function MutationPage({ initialMode = null, separatePage = false } = {}) 
     </div>
     {!cartOpen && cart.length > 0 && <button type="button" className="cart-fab" onClick={openCart} aria-expanded={cartOpen} aria-controls="mutation-cart"><span>Keranjang</span><strong>{cart.length} produk · {totalQty} pcs</strong></button>}
     {cartOpen && <div className="cart-backdrop" onClick={() => setCartOpen(false)} aria-hidden="true" />}
-    {picker && <StockVariantPicker product={picker} onClose={() => setPicker(null)} onAdd={(p, v, q) => { addToCart(p, v, q); setPicker(null); }} />}
     {quantityPrompt && <div className="quantity-dialog-backdrop" onMouseDown={() => setQuantityPrompt(null)}>
       <section className="quantity-dialog" role="dialog" aria-modal="true" aria-labelledby="mutation-quantity-title" onMouseDown={(e) => e.stopPropagation()}>
         <div className="quantity-dialog-heading">

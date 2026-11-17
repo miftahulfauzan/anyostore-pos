@@ -106,9 +106,10 @@ function normalizeVariants(input) {
     size: String(variant.size ?? '').trim() || null,
     sku: String(variant.sku || '').trim() || null,
     barcode: String(variant.barcode || '').trim() || null,
-    price: variant.price === '' || variant.price == null ? null : Number(variant.price),
+    // Harga selalu dari produk; harga khusus varian tidak dipakai lagi.
+    price: null,
   }));
-  if (variants.some((variant) => (!variant.color && !variant.size) || (variant.price != null && !positiveNumber(variant.price)))) {
+  if (variants.some((variant) => (!variant.color && !variant.size))) {
     throw Object.assign(new Error('Setiap varian wajib memiliki warna atau ukuran; harga varian harus valid'), { status: 400 });
   }
   // `color` atau `size` boleh kosong selama field lainnya terisi. Simpan
@@ -164,7 +165,7 @@ async function syncVariantColorsAcrossStores(productId, branchId, executor = db)
       if (!existingColors.has(color.toUpperCase())) {
         await executor.execute(
           'INSERT INTO product_variants (product_id, size, color, stock, price) VALUES (?, NULL, ?, 0, ?)',
-          [target.id, color, variant.price]
+          [target.id, color, null]
         );
         existingColors.add(color.toUpperCase());
       }
@@ -425,7 +426,6 @@ router.get('/', async (req, res, next) => {
                (SELECT pp.path FROM product_photos pp WHERE pp.product_id = p.id AND pp.variant_id IS NULL AND pp.media_type = 'image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
                (SELECT pp.\`transform\` FROM product_photos pp WHERE pp.product_id = p.id AND pp.variant_id IS NULL AND pp.media_type = 'image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_transform,
               (SELECT COUNT(*) FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_active = TRUE) AS variant_count,
-              (SELECT COALESCE(SUM(pv.stock), 0) FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_active = TRUE) AS variant_stock_total,
               (SELECT GROUP_CONCAT(DISTINCT pv.color ORDER BY pv.color SEPARATOR '|') FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_active = TRUE AND pv.color IS NOT NULL AND pv.color <> '') AS variant_colors${wholesaleSelect}
        FROM products p JOIN categories c ON c.id = p.category_id JOIN branches b ON b.id=p.branch_id
        ${where} ORDER BY ${orderBy}, p.id LIMIT ${limit} OFFSET ${offset}`, params
@@ -702,7 +702,7 @@ router.post('/', authorize('owner', 'manager', 'admin', 'gudang'), async (req, r
       [branchId, categoryId, name.trim(), description?.trim() || null, sku?.trim() || null, barcode?.trim() || null, Number(price), Number(cost), Number(minStock), gender, Math.max(0, Number(weightGram) || 0)]
     );
     for (const tier of tiers) await db.execute('INSERT INTO wholesale_prices (product_id, min_qty, max_qty, price) VALUES (?, ?, ?, ?)', [result.insertId, tier.min_qty, tier.max_qty, tier.price]);
-    for (const variant of variants) await db.execute('INSERT INTO product_variants (product_id, size, color, sku, barcode, stock, price) VALUES (?, ?, ?, ?, ?, 0, ?)', [result.insertId, variant.size || null, variant.color || null, variant.sku, variant.barcode, variant.price]);
+    for (const variant of variants) await db.execute('INSERT INTO product_variants (product_id, size, color, sku, barcode, stock, price) VALUES (?, ?, ?, ?, ?, 0, NULL)', [result.insertId, variant.size || null, variant.color || null, variant.sku, variant.barcode]);
     await syncVariantColorsAcrossStores(result.insertId, branchId);
     res.status(201).json({ success: true, data: { id: result.insertId } });
   } catch (error) { next(error); }
@@ -810,10 +810,10 @@ router.put('/:id', authorize('owner', 'manager', 'admin', 'gudang'), async (req,
     }
     for (const variant of variants) {
       if (variant.id) {
-        const [updated] = await db.execute('UPDATE product_variants SET size = ?, color = ?, sku = ?, barcode = ?, price = ?, is_active = TRUE WHERE id = ? AND product_id = ?', [variant.size || null, variant.color || null, variant.sku, variant.barcode, variant.price, variant.id, req.params.id]);
+        const [updated] = await db.execute('UPDATE product_variants SET size = ?, color = ?, sku = ?, barcode = ?, price = NULL, is_active = TRUE WHERE id = ? AND product_id = ?', [variant.size || null, variant.color || null, variant.sku, variant.barcode, variant.id, req.params.id]);
         if (!updated.affectedRows) throw Object.assign(new Error('Varian produk tidak ditemukan'), { status: 404 });
       } else {
-        await db.execute('INSERT INTO product_variants (product_id, size, color, sku, barcode, stock, price) VALUES (?, ?, ?, ?, ?, 0, ?)', [req.params.id, variant.size || null, variant.color || null, variant.sku, variant.barcode, variant.price]);
+        await db.execute('INSERT INTO product_variants (product_id, size, color, sku, barcode, stock, price) VALUES (?, ?, ?, ?, ?, 0, NULL)', [req.params.id, variant.size || null, variant.color || null, variant.sku, variant.barcode]);
       }
     }
     await syncVariantColorsAcrossStores(Number(req.params.id), branchId);

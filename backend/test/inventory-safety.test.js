@@ -8,8 +8,13 @@ test('opname requires an explicit count and original snapshot, including zero co
   for (const value of ['', null, undefined, -1, 1.5, ' ', false]) {
     assert.throws(() => validateOpnameItems([{ ...counted, physical_stock: value }]), { status: 400 });
   }
+  // Varian tidak lagi wajib: stok dihitung per produk.
+  assert.doesNotThrow(() => validateOpnameItems([{ product_id: 1, variant_id: null, physical_stock: 0, expected_stock: 0, expected_revision: 0 }]));
+  // Snapshot asal tetap wajib ada.
   assert.throws(() => validateOpnameItems([{ product_id: 1, physical_stock: 0 }]), { status: 400 });
   assert.throws(() => validateOpnameItems([counted, counted]), { status: 400 });
+  // Produk yang sama dengan varian berbeda tetap dianggap duplikat.
+  assert.throws(() => validateOpnameItems([counted, { ...counted, variant_id: 9 }]), { status: 400 });
 });
 test('opname rejects stale quantity AND ABA changes with the same quantity', () => {
   assert.doesNotThrow(() => assertStockSnapshot(counted, { quantity: 4, revision: 2 }));
@@ -39,5 +44,7 @@ test('transfer validates IDs and whole positive quantities without coercing blan
   for (const quantity of ['', false, 0, -1, 1.5]) {
     assert.throws(() => validateTransferItems([{ product_id: 1, quantity }]), { status: 400 });
   }
-  assert.throws(() => validateTransferItems([{ product_id: 1, variant_id: -2, quantity: 1 }]), { status: 400 });
+  // Varian hanya keterangan; nilai aneh diabaikan, bukan alasan penolakan.
+  assert.doesNotThrow(() => validateTransferItems([{ product_id: 1, variant_id: -2, quantity: 1 }]));
+  assert.throws(() => validateTransferItems([{ product_id: 1, quantity: 1 }, { product_id: 1, variant_id: 5, quantity: 2 }]), { status: 400 });
 });

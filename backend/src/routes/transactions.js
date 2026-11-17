@@ -114,11 +114,12 @@ router.post('/preview', authorize('owner', 'manager', 'admin', 'kasir'), async (
       const product = productById.get(productId);
       let variant = null;
       if (variantId) {
-        const [variants] = await db.execute('SELECT id, color, stock, price FROM product_variants WHERE id = ? AND product_id = ? AND is_active = TRUE', [variantId, productId]);
+        // Varian = pembeda gambar/keterangan; harga & stok selalu dari produk.
+        const [variants] = await db.execute('SELECT id, color FROM product_variants WHERE id = ? AND product_id = ? AND is_active = TRUE', [variantId, productId]);
         if (!variants[0]) return res.status(400).json({ success: false, message: 'Varian tidak ditemukan' });
         variant = variants[0];
       }
-      const basePrice = money(variant && variant.price > 0 ? variant.price : product.price);
+      const basePrice = money(product.price);
       let price = basePrice;
       let priceOverride = 0;
       if (input.price_override != null && input.price_override !== '') {
@@ -348,9 +349,10 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
       const allowNegative = isOffline
           ? true
           : req.body.allow_negative_stock === true && storeAllowsNegative;
-      const stockKey = `${productId}|${variantId}`;
+      // Stok dihitung per produk (varian tidak menyimpan stok).
+      const stockKey = String(productId);
       const alreadyReserved = reserved.get(stockKey) || 0;
-      const [balances] = await connection.execute('SELECT id, quantity FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id <=> ? FOR UPDATE', [warehouseId, productId, variantId]);
+      const [balances] = await connection.execute('SELECT id, quantity FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id IS NULL FOR UPDATE', [warehouseId, productId]);
       const available = Number(balances[0]?.quantity || 0);
       if (!allowNegative && available - alreadyReserved < quantity) {
         throw httpError(400, storeAllowsNegative
@@ -359,14 +361,13 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
       }
       let variant = null;
       if (variantId) {
-        const [variants] = await connection.execute('SELECT id, color, stock, price FROM product_variants WHERE id = ? AND product_id = ? AND is_active = TRUE FOR UPDATE', [variantId, productId]);
+        // Varian hanya keterangan (warna) & foto; stok dan harga dari produk.
+        const [variants] = await connection.execute('SELECT id, color FROM product_variants WHERE id = ? AND product_id = ? AND is_active = TRUE FOR UPDATE', [variantId, productId]);
         if (!variants[0]) throw httpError(400, 'Varian tidak ditemukan');
-        if (!allowNegative && Number(variants[0].stock) - alreadyReserved < quantity) throw httpError(400, `Stok varian ${product.name} tidak mencukupi`);
         variant = variants[0];
       }
       reserved.set(stockKey, alreadyReserved + quantity);
-      // Harga dasar dari produk/varian.
-      const basePrice = money(variant && variant.price > 0 ? variant.price : product.price);
+      const basePrice = money(product.price);
       // Ubah harga manual di keranjang (admin/kasir). Tanpa batas bawah, dicatat untuk audit.
       let price = basePrice;
       let priceOverride = 0;

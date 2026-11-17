@@ -43,19 +43,17 @@ async function main() {
     }
     const warehouseId = warehouseRows[0].id;
 
-    const [variants] = await connection.execute(
-      `SELECT pv.id, pv.product_id
-       FROM product_variants pv
-       JOIN products p ON p.id = pv.product_id
-       WHERE p.branch_id = ? AND p.is_active = TRUE AND pv.is_active = TRUE`,
+    // Stok per produk (varian tidak menyimpan stok).
+    const [products] = await connection.execute(
+      `SELECT id FROM products WHERE branch_id = ? AND is_active = TRUE ORDER BY id`,
       [branchId]
     );
 
     let updated = 0;
-    for (const v of variants) {
+    for (const v of products.map((row) => ({ product_id: row.id }))) {
       const [balanceRows] = await connection.execute(
-        `SELECT id, quantity FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id <=> ?`,
-        [warehouseId, v.product_id, v.id]
+        `SELECT id, quantity FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id IS NULL`,
+        [warehouseId, v.product_id]
       );
       const stockBefore = balanceRows.length ? Number(balanceRows[0].quantity) : 0;
       const stockAfter = qtyPerModel;
@@ -67,15 +65,12 @@ async function main() {
         );
       } else {
         await connection.execute(
-          `INSERT INTO warehouse_stocks (warehouse_id, product_id, variant_id, quantity) VALUES (?, ?, ?, ?)`,
-          [warehouseId, v.product_id, v.id, stockAfter]
+          `INSERT INTO warehouse_stocks (warehouse_id, product_id, variant_id, quantity) VALUES (?, ?, NULL, ?)`,
+          [warehouseId, v.product_id, stockAfter]
         );
       }
 
-      await connection.execute(
-        `UPDATE product_variants SET stock = ? WHERE id = ?`,
-        [stockAfter, v.id]
-      );
+      await connection.execute('UPDATE products SET stock = ? WHERE id = ?', [stockAfter, v.product_id]);
 
       // Catat history perubahan stok (manual adjustment)
       const [userRows] = await connection.execute(
@@ -86,23 +81,12 @@ async function main() {
       await connection.execute(
         `INSERT INTO stock_mutations (branch_id, warehouse_id, product_id, variant_id, user_id, type, reference_type, qty, stock_before, stock_after, notes)
          VALUES (?, ?, ?, ?, ?, 'adjustment', 'manual_setup', ?, ?, ?, ?)`,
-        [branchId, warehouseId, v.product_id, v.id, userId, stockAfter - stockBefore, stockBefore, stockAfter, `Auto-fill ${qtyPerModel} pcs per model`]
+        [branchId, warehouseId, v.product_id, null, userId, stockAfter - stockBefore, stockBefore, stockAfter, `Auto-fill ${qtyPerModel} pcs per model`]
       );
 
       updated++;
     }
 
-    // Sinkronkan stok produk agregat dari varian
-    await connection.execute(
-      `UPDATE products p
-       SET p.stock = COALESCE((
-         SELECT SUM(pv.stock)
-         FROM product_variants pv
-         WHERE pv.product_id = p.id AND pv.is_active = TRUE
-       ), 0)
-       WHERE p.branch_id = ?`,
-      [branchId]
-    );
 
     await connection.commit();
     console.log(`✅ Berhasil set ${qtyPerModel} pcs untuk ${updated} model di branch "${branchName}" (warehouse ${warehouseId}).`);

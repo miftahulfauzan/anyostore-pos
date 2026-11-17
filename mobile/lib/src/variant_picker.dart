@@ -35,18 +35,10 @@ class _VariantPickerState extends State<VariantPicker> {
     }
   }
 
-  Map<String, dynamic>? get _selected {
-    for (final v in widget.variants) {
-      if (v['id'] == _variantId) return v;
-    }
-    return null;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final sel = _selected;
-    final selPrice = sel != null ? asNum(sel['price']) : 0;
-    final price = selPrice > 0 ? selPrice : asNum(widget.product['price']);
+    final price = asNum(widget.product['price']);
+    final productStock = int.tryParse('${widget.product['stock'] ?? 0}') ?? 0;
     return AlertDialog(
       title: Text(widget.product['name']?.toString() ?? 'Produk',
           style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
@@ -74,10 +66,9 @@ class _VariantPickerState extends State<VariantPicker> {
                 ],
               ),
               const SizedBox(height: 10),
-              if (sel != null)
-                Text('Stok: ${sel['stock'] ?? 0}',
-                    style: TextStyle(
-                        color: Theme.of(context).colorScheme.outline)),
+              Text('Stok: $productStock',
+                  style:
+                      TextStyle(color: Theme.of(context).colorScheme.outline)),
             ],
             const SizedBox(height: 12),
             Row(

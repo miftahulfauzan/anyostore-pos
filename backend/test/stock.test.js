@@ -39,16 +39,22 @@ test('adjustStock menulis warehouse_stocks + products.stock + stock_mutations se
   assert.equal((mutationCall.sql.match(/\?/g) || []).length, mutationCall.params.length);
 });
 
-test('adjustStock mengupdate baris existing + varian', async () => {
+test('adjustStock mengupdate baris produk; stok varian tidak disentuh', async () => {
   const conn = makeConnection({ existing: true });
   await adjustStock(conn, {
     branchId: 1, warehouseId: 2, productId: 3, variantId: 7, delta: -2,
     userId: 4, type: 'sale', referenceType: 'transaction', referenceId: 5,
   });
-  assert.equal(conn.calls.length, 5);
+  assert.equal(conn.calls.length, 4);
+  const selectCall = conn.calls.find((c) => c.sql.includes('SELECT id, quantity'));
+  assert.ok(selectCall.sql.includes('variant_id IS NULL'));
+  assert.ok(!selectCall.params.includes(7));
   assert.ok(conn.calls.some((c) => c.sql.includes('UPDATE warehouse_stocks SET quantity = ?') && c.sql.includes('revision')));
-  assert.ok(conn.calls.some((c) => c.sql.includes('UPDATE product_variants SET stock')));
+  assert.ok(!conn.calls.some((c) => c.sql.includes('UPDATE product_variants')));
   assert.ok(conn.calls.some((c) => c.sql.includes('channel')));
+  // Varian tetap dicatat sebagai keterangan mutasi.
+  const mutationCall = conn.calls.find((c) => c.sql.includes('INSERT INTO stock_mutations'));
+  assert.ok(mutationCall.params.includes(7));
 });
 
 test('adjustStock dengan createdAt: jumlah placeholder = jumlah parameter', async () => {

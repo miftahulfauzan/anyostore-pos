@@ -158,12 +158,11 @@ router.get('/products', async (req, res, next) => {
               (SELECT pp.transform FROM product_photos pp WHERE pp.product_id=p.id AND pp.variant_id IS NULL ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_transform,
               (SELECT COUNT(*) FROM product_variants pv WHERE pv.product_id=p.id AND pv.is_active=TRUE) AS variant_count,
               (SELECT GROUP_CONCAT(DISTINCT pv.color ORDER BY pv.color SEPARATOR '|') FROM product_variants pv WHERE pv.product_id=p.id AND pv.is_active=TRUE AND pv.color IS NOT NULL AND pv.color<>'') AS variant_colors,
-              (SELECT COALESCE(SUM(ws.quantity),0) FROM warehouse_stocks ws JOIN warehouses w ON w.id=ws.warehouse_id WHERE ws.product_id=p.id AND w.branch_id=p.branch_id) AS total_stock,
+              (SELECT COALESCE(SUM(ws.quantity),0) FROM warehouse_stocks ws JOIN warehouses w ON w.id=ws.warehouse_id WHERE ws.product_id=p.id AND w.branch_id=p.branch_id AND ws.variant_id IS NULL) AS total_stock,
               (SELECT COALESCE(SUM(GREATEST(ws.quantity-COALESCE(ws.reserved_quantity,0),0)),0)
                  FROM warehouse_stocks ws JOIN warehouses w ON w.id=ws.warehouse_id
                 WHERE ws.product_id=p.id AND w.branch_id=p.branch_id AND w.is_active=TRUE AND COALESCE(w.type,'utama')<>'reject'
-                  AND ((ws.variant_id IS NULL AND NOT EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id=p.id AND pv.is_active=TRUE))
-                    OR EXISTS (SELECT 1 FROM product_variants pv WHERE pv.id=ws.variant_id AND pv.product_id=p.id AND pv.is_active=TRUE))) AS available_stock
+                  AND ws.variant_id IS NULL) AS available_stock
        FROM products p JOIN categories c ON c.id=p.category_id
         ${where}
         ORDER BY ${order} LIMIT ${limit} OFFSET ${offset}`,
@@ -188,8 +187,7 @@ router.get('/products/:id', async (req, res, next) => {
                       (SELECT COALESCE(SUM(GREATEST(ws.quantity-COALESCE(ws.reserved_quantity,0),0)),0)
                          FROM warehouse_stocks ws JOIN warehouses w ON w.id=ws.warehouse_id
                         WHERE ws.product_id=p.id AND w.branch_id=p.branch_id AND w.is_active=TRUE AND COALESCE(w.type,'utama')<>'reject'
-                          AND ((ws.variant_id IS NULL AND NOT EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id=p.id AND pv.is_active=TRUE))
-                            OR EXISTS (SELECT 1 FROM product_variants pv WHERE pv.id=ws.variant_id AND pv.product_id=p.id AND pv.is_active=TRUE))) AS available_stock
+                          AND ws.variant_id IS NULL) AS available_stock
                FROM products p JOIN categories c ON c.id=p.category_id JOIN branches b ON b.id=p.branch_id
                WHERE p.id=? AND p.is_active=TRUE`;
     const params = [id];
@@ -202,11 +200,17 @@ router.get('/products/:id', async (req, res, next) => {
       `SELECT id, path, media_type, is_primary, sort_order, \`transform\` FROM product_photos WHERE product_id=? ORDER BY is_primary DESC, sort_order ASC, id DESC`,
       [id]
     );
-    const [variants] = await db.execute(`SELECT pv.id, pv.color, pv.size, pv.price,
+    // Varian hanya pembeda gambar: stoknya mengikuti stok produk, bukan baris
+    // warehouse_stocks per varian.
+    const [variantRows] = await db.execute(`SELECT pv.id, pv.color, pv.size, pv.price,
       (SELECT path FROM product_photos WHERE variant_id=pv.id ORDER BY sort_order LIMIT 1) AS photo_path,
-      (SELECT transform FROM product_photos WHERE variant_id=pv.id ORDER BY sort_order LIMIT 1) AS photo_transform,
-      (SELECT COALESCE(SUM(GREATEST(ws.quantity-COALESCE(ws.reserved_quantity,0),0)),0) FROM warehouse_stocks ws JOIN warehouses w ON w.id=ws.warehouse_id WHERE ws.product_id=pv.product_id AND ws.variant_id=pv.id AND w.branch_id=? AND w.is_active=TRUE AND COALESCE(w.type,'utama')<>'reject') AS available_stock
-      FROM product_variants pv WHERE pv.product_id=? AND pv.is_active=TRUE ORDER BY pv.color`, [rows[0].branch_id, id]);
+      (SELECT transform FROM product_photos WHERE variant_id=pv.id ORDER BY sort_order LIMIT 1) AS photo_transform
+      FROM product_variants pv WHERE pv.product_id=? AND pv.is_active=TRUE ORDER BY pv.color`, [id]);
+    const variants = variantRows.map((variant) => ({
+      ...variant,
+      price: null,
+      available_stock: Number(rows[0].available_stock || 0),
+    }));
 
     const colors = [...new Set(variants.map(v => v.color).filter(Boolean))];
 

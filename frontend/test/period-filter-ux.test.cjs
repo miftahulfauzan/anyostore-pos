@@ -176,7 +176,9 @@ test('katalog HP: 3 kartu per baris di stok masuk/keluar, transfer, dan daftar p
   assert.match(css, /@media \(max-width: 600px\)\s*\{[\s\S]{0,400}?\.product-list\.grid-view\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)\s*!important/s);
   assert.match(css, /\.product-list\.grid-view \.product-card \.product-actions\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s);
   const mutations = read('inventory/mutations/page.js');
-  assert.match(mutations, /stock-picker-variant-note/);
+  assert.match(mutations, /stock-picker-grid/);
+  // Varian = pembeda gambar; kartu stok tidak lagi memecah per warna.
+  assert.doesNotMatch(mutations, /stock-picker-variant-note/);
 });
 
 test('cetak transfer: teks lebih besar/tebal dan punya margin', () => {

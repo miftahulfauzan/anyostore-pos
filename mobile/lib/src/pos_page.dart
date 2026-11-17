@@ -823,13 +823,11 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
             variants.where((v) => v['id'] == variantId).toList();
         final selectedVariant =
             selectedVariants.isEmpty ? null : selectedVariants.first;
-        // Harga varian dipakai kalau > 0; harga 0/NULL mengikuti harga produk
-        // (sama dengan basis harga server) supaya total lokal = total server.
-        final variantPrice = asNum(selectedVariant?['price']);
+        // Harga selalu dari produk; varian hanya pembeda gambar/keterangan.
         _addToCart(
           productId: int.parse('${product['id']}'),
           name: product['name']?.toString() ?? '',
-          price: variantPrice > 0 ? variantPrice : asNum(d['price']),
+          price: asNum(d['price']),
           variantId: variantId,
           variantLabel: selectedVariant == null
               ? null
@@ -839,7 +837,7 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
           photo: selectedVariant?['photo_path']?.toString(),
           qty: qty,
           stockAvailable:
-              int.tryParse('${selectedVariant?['stock'] ?? 0}') ?? 0,
+              int.tryParse('${d['stock'] ?? product['stock'] ?? 0}') ?? 0,
         );
       } on ApiException catch (e) {
         if (mounted) {
