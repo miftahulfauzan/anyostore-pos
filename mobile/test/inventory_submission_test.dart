@@ -57,11 +57,9 @@ class InventoryApi extends ApiClient {
       '/inventory/stock' => [
           {
             'product_id': 10,
-            'variant_id': 20,
+            'variant_id': null,
             'name': 'Denim',
             'sku': 'D10',
-            'variant_color': 'Biru',
-            'variant_size': 'M',
             'quantity': 8,
             if (!missingRevision) 'stock_revision': '9007199254740993',
           },
@@ -451,7 +449,6 @@ void main() {
     expect(api.posts.single.$2['items'], [
       {
         'product_id': 10,
-        'variant_id': 20,
         'physical_stock': 0,
         'expected_stock': 8,
         'expected_revision': '9007199254740993',
