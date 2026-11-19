@@ -33,7 +33,6 @@ export default function PosPage() {
   const [submitting, setSubmitting] = useState(false);
   const [manualDiscount, setManualDiscount] = useState('');
   const [preview, setPreview] = useState(null);
-  const [variantProduct, setVariantProduct] = useState(null);
   const [printPrompt, setPrintPrompt] = useState(null);
   const [loadingStore, setLoadingStore] = useState(true);
   const [storesLoaded, setStoresLoaded] = useState(false);
@@ -125,7 +124,6 @@ export default function PosPage() {
     setCash('');
     setPaymentAmounts({});
     setPaymentSheetOpen(false);
-    setVariantProduct(null);
     setCustomerId('');
     setPriceTier('retail');
     pendingTransactionId.current = null;
@@ -133,12 +131,6 @@ export default function PosPage() {
     try { localStorage.setItem('pos_branch_id', String(selected.id)); } catch { /* Compatibility preference only. */ }
     loadStore(selected.id);
   }, [storesLoaded, stores, activeBranchId]);
-  useEffect(() => {
-    if (!variantProduct) return undefined;
-    const closeOnEscape = (event) => { if (event.key === 'Escape') setVariantProduct(null); };
-    window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [variantProduct]);
   useEffect(() => {
     if (!printPrompt) return undefined;
     const closeOnEscape = (event) => { if (event.key === 'Escape') finishPayment(false); };
@@ -262,27 +254,16 @@ export default function PosPage() {
     }
   }
 
-  async function chooseProduct(product) {
-    if (Number(product.variant_count) === 0) return addToCart(product);
-    try {
-      const response = await fetch(`${apiUrl}/products/${product.id}?branch_id=${encodeURIComponent(storeId)}`, { headers: headers() });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.message || 'Varian warna tidak dapat dimuat');
-      setVariantProduct(body.data);
-    } catch (error) { setMessage(error.message); }
-  }
-  function addToCart(product, variant = null) {
-    const cartId = `${product.id}:${variant?.id || 'utama'}`;
-    // Harga mengikuti produk; varian hanya menentukan foto/keterangan.
+  function addToCart(product) {
+    // POS menjual produk, bukan varian: warna tidak dipilih di kasir.
+    const cartId = String(product.id);
     const price = product.price;
     const wholesalePrices = product.wholesale_prices || [];
     setCart((current) => {
       const found = current.find((item) => item.cart_id === cartId);
       if (found) return current.map((item) => item.cart_id === cartId ? { ...item, quantity: item.quantity + 1 } : item);
-      // Stok selalu dari produk; varian hanya pembeda gambar/keterangan.
-      return [...current, { ...product, cart_id: cartId, variant_id: variant?.id || null, variant_color: variant?.color || '', price, quantity: defaultCartQuantity(selectedStore?.name), wholesale_prices: wholesalePrices, stock_available: Number(product.stock ?? 0) }];
+      return [...current, { ...product, cart_id: cartId, variant_id: null, variant_color: '', price, quantity: defaultCartQuantity(selectedStore?.name), wholesale_prices: wholesalePrices, stock_available: Number(product.stock ?? 0) }];
     });
-    setVariantProduct(null);
   }
   function quantity(cartId, next) { setCart((current) => current.flatMap((item) => item.cart_id === cartId ? (next > 0 ? [{ ...item, quantity: next }] : []) : [item])); }
   function changeCustomer(event) {
@@ -646,7 +627,7 @@ export default function PosPage() {
               {search && <button type="button" className="pos-pos-catalog-search-clear" onClick={() => setSearch('')} aria-label="Hapus pencarian">×</button>}
             </div>
           </div>
-          <div className="catalog-grid">{filteredProducts.map((product) => { const hasVariants = Number(product.variant_count) > 0; const availableStock = Number(product.stock || 0); return <button type="button" className="product-tile" key={product.id} onClick={() => chooseProduct(product)} disabled={loadingStore} aria-label={`${product.name}, ${rupiah(product.price)}, stok ${availableStock}`}>{product.photo_path ? <img src={mediaUrl(product.photo_path)} alt="" loading="lazy" /> : <span className="pos-photo-placeholder">Tanpa foto</span>}<strong>{product.name}</strong><span>{rupiah(product.price)}</span><small>{hasVariants ? `${product.variant_count} warna · Stok: ${availableStock}` : `Stok: ${availableStock}`}</small></button>; })}{!filteredProducts.length && <p className="muted">Tidak ada produk cocok "{search}"</p>}</div>
+          <div className="catalog-grid">{filteredProducts.map((product) => { const availableStock = Number(product.stock || 0); return <button type="button" className="product-tile" key={product.id} onClick={() => addToCart(product)} disabled={loadingStore} aria-label={`${product.name}, ${rupiah(product.price)}, stok ${availableStock}`}>{product.photo_path ? <img src={mediaUrl(product.photo_path)} alt="" loading="lazy" /> : <span className="pos-photo-placeholder">Tanpa foto</span>}<strong>{product.name}</strong><span>{rupiah(product.price)}</span><small>Stok: {availableStock}</small></button>; })}{!filteredProducts.length && <p className="muted">Tidak ada produk cocok "{search}"</p>}</div>
         </section>
         <aside className={`panel cart ${mobileCartOpen ? 'mobile-cart-open' : ''}`}>
           <div className="cart-mobile-header">
@@ -749,7 +730,6 @@ export default function PosPage() {
             <div className="pos-payment-sheet-body"><div className="pos-payment-total">{rupiah(total)}</div>{renderPaymentControls('pos-payment-controls')}{message && <p className="message" role="status">{message}</p>}</div>
             <footer className="pos-payment-sheet-footer"><button type="button" disabled={submitting || !cart.length || discountExceedsSubtotal} onClick={checkout}>{submitting ? 'Memproses…' : 'Selesaikan pembayaran'}</button><button type="button" className="secondary" onClick={() => setPaymentSheetOpen(false)}>Kembali ke keranjang</button></footer>
           </section></div>}
-      {variantProduct && <div className="pos-variant-modal-backdrop" role="presentation" onMouseDown={() => setVariantProduct(null)}><section className="pos-variant-modal" role="dialog" aria-modal="true" aria-labelledby="variant-dialog-title" onMouseDown={(event) => event.stopPropagation()}><div className="pos-variant-heading"><div><strong id="variant-dialog-title">Pilih warna</strong><span>{variantProduct.name}</span></div><button type="button" onClick={() => setVariantProduct(null)} aria-label="Tutup pilihan warna"><X aria-hidden="true" size={16} /></button></div><div className="pos-variant-options">{variantProduct.variants?.map((variant) => <button type="button" key={variant.id} className={Number(variantProduct.stock || 0) <= 0 ? 'out-of-stock' : ''} onClick={() => addToCart(variantProduct, variant)}>{variant.photo_path ? <img src={mediaUrl(variant.photo_path)} alt="" /> : <span className="variant-color-dot" aria-hidden="true" />}<strong>{variant.color}</strong><small>{rupiah(variantProduct.price)} · Stok {Number(variantProduct.stock || 0)}{Number(variantProduct.stock || 0) <= 0 ? ' (habis)' : ''}</small></button>)}</div></section></div>}
       {printPrompt && <div className="pos-variant-modal-backdrop" role="presentation" onMouseDown={() => finishPayment(false)}><section className="pos-print-modal" role="dialog" aria-modal="true" aria-labelledby="print-dialog-title" onMouseDown={(event) => event.stopPropagation()}><div className="pos-variant-heading"><div><strong id="print-dialog-title">Transaksi berhasil</strong><span>{printPrompt.invoice_no}</span></div><button type="button" onClick={() => finishPayment(false)} aria-label="Tutup tanpa mencetak"><X aria-hidden="true" size={16} /></button></div><p>Transaksi sudah disimpan. Apakah struk ingin dicetak sekarang?</p><strong className="print-prompt-total">{rupiah(printPrompt.grand_total)}</strong><div className="print-prompt-actions"><button type="button" className="secondary" onClick={() => finishPayment(false)}>Tidak, selesai</button><button type="button" onClick={() => finishPayment(true)}>Cetak struk</button></div></section></div>}
     </div>
   );

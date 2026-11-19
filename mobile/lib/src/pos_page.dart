@@ -17,7 +17,6 @@ import 'inventory_page.dart';
 import 'more_page.dart';
 import 'offline_status.dart';
 import 'offline_store.dart';
-import 'prefetch_service.dart';
 import 'reports_page.dart';
 import 'sales_dashboard_page.dart';
 import 'format.dart';
@@ -30,7 +29,6 @@ import 'printer_setup.dart';
 import 'barcode_scanner_page.dart';
 import 'dashboard_page.dart';
 import 'finance_page.dart';
-import 'variant_picker.dart';
 import 'task_ui.dart';
 import 'ui_kit.dart';
 
@@ -227,13 +225,6 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
       // fallback when Android kills the process before the request finishes.
       unawaited(_autoHoldServerDraft());
     }
-  }
-
-  /// Unduh detail + varian semua produk cabang aktif ke cache lokal
-  /// supaya offline langsung bisa pilih varian tanpa klik produk satu per satu.
-  Future<void> _prefetchVariants() async {
-    final branch = _posBranchId ?? _branchId;
-    await PrefetchService.prefetchProductVariants(_client, branchId: branch);
   }
 
   Future<void> _syncPending() async {
@@ -477,7 +468,6 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
             _lastProductsSync ?? '', todayWib());
       } catch (_) {}
       // Unduh varian produk cabang aktif untuk offline (tidak mengganggu UI).
-      _prefetchVariants();
     } on ApiException catch (e) {
       if (e.isNetwork) {
         // Offline: pakai cache produk berapa pun tanggalnya supaya POS tetap
@@ -765,99 +755,18 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
   }
 
   Future<void> _addProduct(Map<String, dynamic> product) async {
-    final variantCount = int.tryParse('${product['variant_count'] ?? 0}') ?? 0;
-    int? variantId;
-    int qty = 1;
-    if (variantCount > 0) {
-      final productId = int.parse('${product['id']}');
-      final branch = _posBranchId ?? _branchId;
-      final cacheKey = 'product-$branch-$productId';
-      Map<String, dynamic>? detail;
-      // Cache dulu (prefetch saat buka app sudah mengisi) supaya dialog
-      // varian langsung muncul tanpa nunggu jaringan.
-      try {
-        final cached = await OfflineStore.cacheGet(cacheKey);
-        detail = cached?['payload'] as Map<String, dynamic>?;
-      } catch (_) {}
-      if (detail != null) {
-        // Tampilkan segera; versi terbaru di-refresh di background.
-        unawaited(() async {
-          try {
-            final fresh = await _client.product(productId, branchId: branch);
-            await OfflineStore.cacheSet(cacheKey, jsonEncode(fresh));
-          } catch (_) {}
-        }());
-      } else {
-        try {
-          detail = await _client.product(productId, branchId: branch);
-          await OfflineStore.cacheSet(cacheKey, jsonEncode(detail));
-        } on ApiException catch (e) {
-          if (!e.isNetwork) rethrow;
-        }
-      }
-      if (detail == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text(
-                  'Detail produk belum tersimpan offline. Buka produk ini sekali saat online.')));
-        }
-        return;
-      }
-      if (!mounted) return;
-      final d = detail;
-      try {
-        final variants =
-            ((d['variants'] as List?) ?? []).cast<Map<String, dynamic>>();
-        final result = await showDialog<Map<String, dynamic>>(
-          context: context,
-          builder: (_) => VariantPicker(
-              product: d,
-              variants: variants,
-              mediaUrl: _mediaUrl,
-              initialQty: _defaultCartQty),
-        );
-        if (result == null) return;
-        variantId = result['variant_id'] as int?;
-        qty = (result['qty'] as int?) ?? _defaultCartQty;
-        final selectedVariants =
-            variants.where((v) => v['id'] == variantId).toList();
-        final selectedVariant =
-            selectedVariants.isEmpty ? null : selectedVariants.first;
-        // Harga selalu dari produk; varian hanya pembeda gambar/keterangan.
-        _addToCart(
-          productId: int.parse('${product['id']}'),
-          name: product['name']?.toString() ?? '',
-          price: asNum(d['price']),
-          variantId: variantId,
-          variantLabel: selectedVariant == null
-              ? null
-              : [selectedVariant['color'], selectedVariant['size']]
-                  .where((e) => e != null && e.toString().isNotEmpty)
-                  .join(' / '),
-          photo: selectedVariant?['photo_path']?.toString(),
-          qty: qty,
-          stockAvailable:
-              int.tryParse('${d['stock'] ?? product['stock'] ?? 0}') ?? 0,
-        );
-      } on ApiException catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(e.message)));
-        }
-        return;
-      }
-    } else {
-      _addToCart(
-        productId: int.parse('${product['id']}'),
-        name: product['name']?.toString() ?? '',
-        price: asNum(product['price']),
-        variantId: null,
-        variantLabel: null,
-        photo: product['photo_path']?.toString(),
-        qty: _defaultCartQty,
-        stockAvailable: int.tryParse('${product['stock'] ?? 0}') ?? 0,
-      );
-    }
+    // POS menjual produk; varian hanya pembeda gambar di katalog/web,
+    // jadi kasir tidak diminta memilih warna.
+    _addToCart(
+      productId: int.parse('${product['id']}'),
+      name: product['name']?.toString() ?? '',
+      price: asNum(product['price']),
+      variantId: null,
+      variantLabel: null,
+      photo: product['photo_path']?.toString(),
+      qty: _defaultCartQty,
+      stockAvailable: int.tryParse('${product['stock'] ?? 0}') ?? 0,
+    );
     setState(() {});
     _schedulePreview();
   }

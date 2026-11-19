@@ -7,13 +7,18 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, 'app', file), 'utf8');
 
-test('POS menampilkan stok produk untuk semua varian', () => {
+test('POS web menjual produk tanpa memilih varian', () => {
   const pos = read('pos/page.js');
   assert.match(pos, /const availableStock = Number\(product\.stock \|\| 0\);/);
   assert.doesNotMatch(pos, /variant_stock_total/);
   assert.doesNotMatch(pos, /variant\.stock/);
   assert.doesNotMatch(pos, /variant\.price/);
   assert.match(pos, /const price = product\.price;/);
+  // Tidak ada dialog "Pilih warna" atau pemanggilan chooseProduct.
+  assert.doesNotMatch(pos, /Pilih warna/);
+  assert.doesNotMatch(pos, /chooseProduct/);
+  assert.doesNotMatch(pos, /variantProduct/);
+  assert.match(pos, /onClick=\{\(\) => addToCart\(product\)\}/);
 });
 
 test('form varian hanya warna/ukuran/foto (tanpa stok & harga khusus)', () => {
@@ -40,9 +45,12 @@ test('tabel stok tidak lagi punya kolom/CSV warna', () => {
   assert.match(view, /const key = String\(r\.product_id\);/);
 });
 
-test('picker varian di Android memakai stok & harga produk', () => {
-  const picker = fs.readFileSync(path.join(root, '..', 'mobile', 'lib', 'src', 'variant_picker.dart'), 'utf8');
-  assert.match(picker, /final price = asNum\(widget\.product\['price'\]\)/);
-  assert.match(picker, /final productStock = int\.tryParse\('\$\{widget\.product\['stock'\] \?\? 0\}'\)/);
-  assert.doesNotMatch(picker, /sel\['stock'\]/);
+test('POS Android langsung menambah produk tanpa dialog varian', () => {
+  const pos = fs.readFileSync(path.join(root, '..', 'mobile', 'lib', 'src', 'pos_page.dart'), 'utf8');
+  assert.doesNotMatch(pos, /VariantPicker/);
+  assert.doesNotMatch(pos, /variant_picker\.dart/);
+  assert.match(pos, /POS menjual produk/);
+  assert.match(pos, /variantId: null,/);
+  // File picker varian sudah tidak ada di repo.
+  assert.equal(fs.existsSync(path.join(root, '..', 'mobile', 'lib', 'src', 'variant_picker.dart')), false);
 });
