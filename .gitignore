@@ -18,11 +18,18 @@ uploads/
 .netlify
 .DS_Store
 
-# Local OpenCode skills
-.opencode/
+# Local OpenCode tooling — hanya skill graphify & plugin yang di-commit
+.opencode/*
+!.opencode/plugins/
+!.opencode/skills/
+.opencode/skills/*
+!.opencode/skills/graphify/
 .agents/
 skills-lock.json
 .gstack/
+
+# graphify: graph dibangun lokal per mesin (`graphify update .`), tidak di-commit
+graphify-out/
 
 # Local squire tooling
 squire.md
