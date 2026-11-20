@@ -94,35 +94,37 @@ function ProductCard({ product, onWa, onAdd, inCart, marketplace }) {
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {colors.map((c) => <span key={c} className="pcard-color">{c}</span>)}
         </div>
-        {(marketplace?.shopee || marketplace?.tiktok) && (
-          <div className="pcard-market">
-            {marketplace.shopee && (
-              <a
-                className="pcard-market-tag pcard-market-shopee"
-                href={marketplace.shopee}
-                target="_blank"
-                rel="noopener noreferrer nofollow"
-                title="Cari produk ini di toko Shopee kami"
-              >
-                <ShopeeMark size={16} /> Shopee
-              </a>
-            )}
-            {marketplace.tiktok && (
-              <a
-                className="pcard-market-tag pcard-market-tiktok"
-                href={marketplace.tiktok}
-                target="_blank"
-                rel="noopener noreferrer nofollow"
-                title="Buka toko TikTok kami"
-              >
-                <TikTokMark size={16} /> TikTok
-              </a>
-            )}
+        <div className="pcard-market-actions">
+          {(marketplace?.shopee || marketplace?.tiktok) && (
+            <div className="pcard-market">
+              {marketplace.shopee && (
+                <a
+                  className="pcard-market-tag pcard-market-shopee"
+                  href={marketplace.shopee}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  title="Cari produk ini di toko Shopee kami"
+                >
+                  <ShopeeMark size={18} /> Shopee
+                </a>
+              )}
+              {marketplace.tiktok && (
+                <a
+                  className="pcard-market-tag pcard-market-tiktok"
+                  href={marketplace.tiktok}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  title="Buka toko TikTok kami"
+                >
+                  <TikTokMark size={18} /> TikTok
+                </a>
+              )}
+            </div>
+          )}
+          <div className="pcard-actions">
+            <a href={`/produk/${product.id}`} className="pcard-btn primary">Lihat Detail</a>
+            <button type="button" onClick={() => onWa(`Saya tertarik dengan ${product.name}`)} className="pcard-btn secondary">Chat</button>
           </div>
-        )}
-        <div className="pcard-actions">
-          <a href={`/produk/${product.id}`} className="pcard-btn primary">Lihat Detail</a>
-          <button type="button" onClick={() => onWa(`Saya tertarik dengan ${product.name}`)} className="pcard-btn secondary">Chat</button>
         </div>
       </div>
     </article>
@@ -1084,22 +1086,22 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
         .pcard-body { padding: 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
         .pcard-body strong { font-size: 14px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .pcard-price { color: ${T.blue}; font-weight: 700; font-size: 16px; }
-        .pcard-market { display: flex; gap: 6px; flex-wrap: wrap; }
-        .pcard-market-tag { display: inline-flex; align-items: center; gap: 5px;
-          height: 24px; padding: 0 9px 0 5px; border-radius: 999px;
+        .pcard-market-actions { display: grid; gap: 8px; margin-top: auto; padding-top: 2px; }
+        .pcard-market { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 8px; }
+        .pcard-market-tag { display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+          width: 100%; height: 40px; min-height: 40px; padding: 0 8px; border-radius: 10px;
           border: 1px solid ${T.border}; background: #fff; color: ${T.black};
-          font-size: 11.5px; font-weight: 700; line-height: 1; text-decoration: none;
-          transition: border-color .12s ease, box-shadow .12s ease; }
-        .pcard-market-tag:hover { border-color: ${T.blue}; box-shadow: 0 2px 8px rgba(15,23,42,.10); }
+          font-size: 12.5px; font-weight: 700; line-height: 1; text-decoration: none;
+          transition: border-color .12s ease, box-shadow .12s ease, background .12s ease; }
+        .pcard-market-tag:hover { border-color: ${T.blue}; background: #f8fafc; box-shadow: 0 2px 8px rgba(15,23,42,.10); }
         /* Mark brand memakai file gambar; radius mengikuti bentuk logonya. */
         .pcard-market-shopee img { border-radius: 999px; }
         .pcard-market-tiktok img { border-radius: 5px; }
         .pcard-color { padding: 2px 8px; border-radius: 4px; background: rgba(30,58,95,.08); font-size: 11px; color: #52525b; }
-        .pcard-actions { display: flex; gap: 10px; margin-top: auto; padding-top: 12px; }
-        /* flex-basis 0 supaya dua tombol benar-benar sama lebar, bukan
-           mengikuti panjang teks; border transparan di tombol primer agar
-           ukuran visual kedua tombol identik. */
-        .pcard-btn { flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 0 8px; border-radius: 8px; font-size: 13px; font-weight: 700; line-height: 1.1; text-align: center; text-decoration: none; cursor: pointer; box-sizing: border-box; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: all .3s cubic-bezier(.4,0,.2,1); }
+        .pcard-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        /* Empat tombol satu keluarga: tinggi, radius, dan lebar sama.
+           Lihat Detail tetap denim solid, Chat outline, marketplace outline putih. */
+        .pcard-btn { display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 40px; min-height: 40px; padding: 0 8px; border-radius: 10px; font-size: 12.5px; font-weight: 700; line-height: 1.1; text-align: center; text-decoration: none; cursor: pointer; box-sizing: border-box; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: all .3s cubic-bezier(.4,0,.2,1); }
         .pcard-btn.primary { background: ${T.blue}; color: #fff; border: 1.5px solid ${T.blue}; }
         .pcard-btn.primary:hover { background: #152d4a; transform: translateY(-1px); }
         .pcard-btn.secondary { background: #fff; color: ${T.blue}; border: 1.5px solid rgba(30,58,95,.3); }
@@ -1129,10 +1131,19 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
         }
         @media (max-width: 600px) {
           .pcard-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+          .pcard-body { padding: 12px; gap: 5px; }
+          .pcard-market-actions { gap: 6px; }
+          .pcard-market, .pcard-actions { gap: 6px; }
+          .pcard-market-tag { height: 36px; min-height: 36px; padding: 0 4px; gap: 4px; border-radius: 9px; font-size: 11px; }
+          .pcard-market-tag img { width: 16px !important; height: 16px !important; }
+          .pcard-btn { height: 36px; min-height: 36px; padding: 0 4px; border-radius: 9px; font-size: 11px; }
           .feature-strip { grid-template-columns: 1fr; gap: 8px; padding: 16px 16px 4px; }
           .landing-footer { padding: 40px 20px 24px; }
           .landing-footer-grid { grid-template-columns: 1fr; gap: 28px; }
           .landing-footer-bottom { align-items: flex-start; flex-direction: column; gap: 6px; margin-top: 36px; }
+        }
+        @media (max-width: 360px) {
+          .pcard-market, .pcard-actions { grid-template-columns: 1fr; }
         }
         @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
       `}</style>
