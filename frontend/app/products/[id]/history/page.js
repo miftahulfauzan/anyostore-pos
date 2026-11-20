@@ -116,7 +116,7 @@ export default function ProductHistoryPage() {
           {!loadingProduct && product && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                {product.photo_path ? <img src={`${api.replace('/api', '')}${product.photo_path}`} alt="" style={{ width: 56, height: 70, borderRadius: 10, objectFit: 'cover', border: '1px solid var(--border)' }} /> : <div style={{ width: 56, height: 70, display: 'grid', placeItems: 'center', borderRadius: 10, background: 'var(--muted)', color: 'var(--muted-foreground)' }}><PackageSearch size={22} /></div>}
+                {product.photo_path ? <img src={`${api.replace('/api', '')}${product.photo_path}`} alt="" style={{ width: 56, height: 56, borderRadius: 10, objectFit: 'cover', border: '1px solid var(--border)' }} /> : <div style={{ width: 56, height: 56, display: 'grid', placeItems: 'center', borderRadius: 10, background: 'var(--muted)', color: 'var(--muted-foreground)' }}><PackageSearch size={22} /></div>}
                 <div style={{ minWidth: 0 }}>
                   <h2 style={{ margin: 0, overflowWrap: 'anywhere' }}>{product.name}</h2>
                   <p className="muted" style={{ margin: '4px 0 0' }}>{product.sku || 'Tanpa SKU'}{product.category_name ? ` · ${product.category_name}` : ''}</p>

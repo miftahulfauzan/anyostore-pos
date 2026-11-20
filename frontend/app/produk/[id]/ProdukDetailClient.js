@@ -182,7 +182,7 @@ export default function ProdukDetail() {
       <main style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, alignItems: 'start' }}>
         {/* gallery */}
         <div style={{ display: 'grid', gap: 10 }} className="m-fade-up">
-          <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', background: C.white, border: `1px solid ${C.border}`, aspectRatio: '3 / 4' }}>
+          <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', background: C.white, border: `1px solid ${C.border}`, aspectRatio: '1 / 1' }}>
             <SafeImage src={imgs[activeImg]?.path ? `${api.replace('/api','')}${imgs[activeImg].path}` : ''} alt={product.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block', objectFit: 'cover', objectPosition: 'center', ...((imgs[activeImg]?.transform||'').trim() ? (() => { const t = (imgs[activeImg].transform||'').split(',').map(Number); return { objectFit: 'cover', transform: `translate(${t[1]||0}%, ${t[2]||0}%) scale(${t[0]})` }; })() : {}) }} />
           </div>
           {imgs.length > 1 && (

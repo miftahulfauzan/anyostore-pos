@@ -550,7 +550,7 @@ router.post('/:id/media-data', authorize('owner', 'manager', 'admin', 'gudang'),
 });
 
 // PATCH /api/products/:id/media/:mediaId/image-data — ganti file foto yang sudah ada
-// dengan hasil crop (JPEG 1200x1600 dari modal "Atur Foto"). Transform lama direset
+// dengan hasil crop (JPEG 1200x1200 (1:1) dari modal "Atur Foto"). Transform lama direset
 // karena crop sudah "dipanggang" ke dalam file.
 router.patch('/:id/media/:mediaId/image-data', authorize('owner', 'manager', 'admin', 'gudang'), async (req, res, next) => {
   try {

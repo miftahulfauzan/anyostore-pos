@@ -235,7 +235,7 @@ export default function BulkPhotoUploadPage() {
                   const product = findProduct(item.file);
                   return (
                     <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 8, border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff' }}>
-                      <img src={item.preview} alt="" style={{ width: 40, height: 50, objectFit: 'cover', borderRadius: 6, background: '#f1f5f9' }} />
+                      <img src={item.preview} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6, background: '#f1f5f9' }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <strong style={{ fontSize: 'var(--fs-sm)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.file.webkitRelativePath || item.file.name}</strong>
                         {product

@@ -282,7 +282,7 @@ export default function StockReportSection() {
                 <tr key={g.key} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td style={{ padding: '8px 10px', fontWeight: 600 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 150 }}>
-                      <div style={{ width: 36, height: 46, borderRadius: 6, overflow: 'hidden', flex: '0 0 auto' }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 6, overflow: 'hidden', flex: '0 0 auto' }}>
                         <SafeImage src={g.photo_path ? mediaUrl(g.photo_path) : ''} alt={g.name} />
                       </div>
                       <span>{g.name}</span>
@@ -305,7 +305,7 @@ export default function StockReportSection() {
             <article key={g.key} className="stock-card" style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 12, background: '#fff' }}>
               <div className="stock-card-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                 <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ width: 42, height: 54, borderRadius: 8, overflow: 'hidden', flex: '0 0 auto' }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 8, overflow: 'hidden', flex: '0 0 auto' }}>
                     <SafeImage src={g.photo_path ? mediaUrl(g.photo_path) : ''} alt={g.name} />
                   </div>
                   <div style={{ minWidth: 0 }}>

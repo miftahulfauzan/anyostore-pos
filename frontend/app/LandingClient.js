@@ -811,10 +811,10 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
               {cartStep === 'cart' && (
                 <>
                   {cart.map((it) => (
-                    <div key={it.key} style={{ display: 'grid', gridTemplateColumns: '36px minmax(0,1fr) auto', gap: 8, alignItems: 'center', padding: '5px 0', borderBottom: `1px solid ${T.border}` }}>
+                    <div key={it.key} style={{ display: 'grid', gridTemplateColumns: '42px minmax(0,1fr) auto', gap: 8, alignItems: 'center', padding: '5px 0', borderBottom: `1px solid ${T.border}` }}>
                       {it.photo
-                        ? <img src={`${api.replace('/api', '')}${it.photo}`} alt={it.name} style={{ width: 36, height: 46, objectFit: 'cover', borderRadius: 6 }} />
-                        : <div style={{ width: 36, height: 46, borderRadius: 6, background: '#f3f4f6' }} />}
+                        ? <img src={`${api.replace('/api', '')}${it.photo}`} alt={it.name} style={{ width: 42, height: 42, objectFit: 'cover', borderRadius: 6 }} />
+                        : <div style={{ width: 42, height: 42, borderRadius: 6, background: '#f3f4f6' }} />}
                       <div style={{ minWidth: 0 }}>
                         <strong style={{ fontSize: 12.5, display: 'block', color: T.black, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.name}</strong>
                         {it.variantLabel && <span style={{ fontSize: 10.5, color: T.muted }}>{it.variantLabel}</span>}
@@ -1002,9 +1002,11 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.black }}>{picker.product.name}</h3>
               <button type="button" onClick={closePicker} aria-label="Tutup" style={{ width: 34, height: 34, padding: 0, borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, cursor: 'pointer', color: T.muted, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}><I.close style={{ width: 16, height: 16, display: 'block' }} /></button>
             </div>
-            {pickerPhoto
-              ? <img src={`${api.replace('/api', '')}${pickerPhoto}`} alt={picker.product.name} style={{ width: '100%', height: 200, objectFit: 'cover', borderRadius: 10, display: 'block', marginBottom: 16, background: '#f3f4f6' }} />
-              : <div style={{ width: '100%', height: 200, borderRadius: 10, background: '#f3f4f6', display: 'grid', placeItems: 'center', color: T.muted, fontSize: 'var(--fs-md)', marginBottom: 16 }}>Tanpa foto</div>}
+            <div style={{ width: '100%', maxWidth: 280, aspectRatio: '1 / 1', margin: '0 auto 16px', borderRadius: 10, overflow: 'hidden', background: '#f3f4f6' }}>
+              {pickerPhoto
+                ? <img src={`${api.replace('/api', '')}${pickerPhoto}`} alt={picker.product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                : <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: T.muted, fontSize: 'var(--fs-md)' }}>Tanpa foto</div>}
+            </div>
             {pickerLoading && <p style={{ color: T.muted, fontSize: 'var(--fs-md)' }}>Memuat varian…</p>}
             {!pickerLoading && picker.variants.length > 0 && (
               <>
@@ -1073,7 +1075,7 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
         .qty-btn svg { display: block; }
         .qty-input { width: 52px; height: 28px; text-align: center; border: 1px solid #94a3b8; border-radius: 8px; font-weight: 700; font-size: 13px; color: #1a1a1a; background: #fff; -moz-appearance: textfield; }
         .qty-input::-webkit-outer-spin-button, .qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-        .pcard-img { display: grid; place-items: center; aspect-ratio: 3/4; overflow: hidden; position: relative; background: #f3f4f6; }
+        .pcard-img { display: grid; place-items: center; aspect-ratio: 1/1; overflow: hidden; position: relative; background: #f3f4f6; }
         .pcard-img img { animation: photoIn .35s ease; }
         .pcard-dots { position: absolute; left: 0; right: 0; bottom: 8px; display: flex; justify-content: center; gap: 4px; z-index: 2; pointer-events: none; }
         .pcard-dot { width: 5px; height: 5px; border-radius: 999px; background: rgba(255,255,255,.7); box-shadow: 0 0 0 1px rgba(0,0,0,.18); transition: all .25s cubic-bezier(.4,0,.2,1); }

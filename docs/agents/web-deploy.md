@@ -52,7 +52,7 @@ Semua pemakaian `SafeImage` wajib mengimpor komponen tersebut secara eksplisit. 
 - Liquid glass: `backdrop-filter: blur(16-20px) saturate(150-180%)`, translucent white `rgba(255,255,255,.55)`, radius 12-16px
 - Hero slideshow: 2 kolom (teks kiri, gambar kanan), auto-rotate 5 detik, arrow prev/next, dots
 - 10 produk random stabil per tanggal (seeded shuffle, prioritas yang punya foto)
-- Grid 4 kolom → 3 (900px) → 2 (600px), kartu 3:4, 24/halaman
+- Grid 4 kolom → 3 (900px) → 2 (600px), kartu foto 1:1, 24/halaman
 - Tombol: primary = denim blue + shadow; secondary = outline biru
 
 ### Detail produk

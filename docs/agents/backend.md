@@ -31,7 +31,7 @@
 |--------|--------|-------------|
 | `public.js` | `/api/public` | Landing: settings (multi-WA), categories, products (paginasi/search/sort), products/:id (media+variants) |
 | `products.js` | `/api/products` | CRUD produk, media (max 10 img + 1 video), varian, wholesale prices, categories CRUD, transform foto; `POST /:id/copy` = salin produk (nama + " (Salinan)", SKU unik -C/-C2, barcode kosong, varian+wholesale+foto disalin via copyMediaFile, stok 0); POST `/` TIDAK boleh menyentuh req.params.id; PUT wajib deklarasi `oldProducts` (untuk log harga); route `/:id/copy` JANGAN menamai hasil query `res` (menimpa response Express -> 500) — pakai `ins` |
-| `products.js` | `/api/products/:id/media/:mediaId/image-data` | Ganti file foto dengan hasil crop 1200×1600 (modal Ubah Foto Produk) |
+| `products.js` | `/api/products/:id/media/:mediaId/image-data` | Ganti file foto dengan hasil crop 1200×1200 1:1 (modal Ubah Foto Produk) |
 | `inventory.js` | `/api/inventory` | Warehouse, mutasi, stock-total (branch/all), stock-by-warehouse + posisi rak, barcode search, incoming/outgoing per batch (`batch_number` BATCH-YYYYMMDD-NNN, `warehouse_id`, `transaction_date`) |
 | `inventory-control.js` | `/api/inventory-control` | Transfer antar gudang/cabang, simpan opname dengan snapshot/revision stok, dan riwayat opname beserta detail item |
 | `transactions.js` | `/api/transactions` | Checkout (idempotency `client_transaction_id`), hold/resume, cancel, hapus draft (`DELETE /pending/:id`, owner boleh pilih `branch_id`, role lain terkunci ke cabangnya, hanya draft yang belum resumed dan mengembalikan 404 kalau tidak ada baris terhapus) |
