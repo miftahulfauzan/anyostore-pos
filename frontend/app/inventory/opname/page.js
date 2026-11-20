@@ -20,6 +20,7 @@ export default function Opname() {
   const [notes, setNotes] = useState('');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const historyRequestSequence = useRef(createRequestSequence());
@@ -194,6 +195,39 @@ export default function Opname() {
     setHistory([]);
   }
 
+  async function exportOpname() {
+    if (!warehouse || exporting) return;
+    setExporting(true);
+    setMessage('');
+    try {
+      const selectedWarehouse = warehouses.find((item) => String(item.id) === String(warehouse));
+      const query = new URLSearchParams({ warehouse_id: String(warehouse) });
+      if (['owner', 'gudang'].includes(role) && selectedWarehouse?.branch_id) {
+        query.set('branch_id', String(selectedWarehouse.branch_id));
+      }
+      const response = await fetch(`${api}/inventory-control/opnames/export?${query}`, {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.message || 'File Excel gagal diunduh.');
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchorEl = document.createElement('a');
+      const fromHeader = response.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1];
+      anchorEl.href = url;
+      anchorEl.download = fromHeader || `stock-opname-${warehouse}.xlsx`;
+      anchorEl.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      setMessage(error.message || 'File Excel gagal diunduh.');
+    } finally {
+      setExporting(false);
+    }
+  }
+
   function changeWarehouse(event) {
     const id = event.target.value;
     setWarehouse(id);
@@ -228,8 +262,13 @@ export default function Opname() {
               <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari nama atau SKU..." aria-label="Cari produk berdasarkan nama atau SKU" disabled={!warehouse} />
             </label>
           </div>
-          {warehouse && <><div className="opname-search-meta" aria-live="polite">
-            {search.trim() ? `${visibleStock.length} dari ${stock.length} item stok` : `${stock.length} item stok`}
+          {warehouse && <><div className="opname-toolbar">
+            <div className="opname-search-meta" aria-live="polite">
+              {search.trim() ? `${visibleStock.length} dari ${stock.length} item stok` : `${stock.length} item stok`}
+            </div>
+            <button type="button" className="secondary" onClick={exportOpname} disabled={exporting || stockLoading}>
+              {exporting ? 'Menyiapkan…' : 'Export Excel'}
+            </button>
           </div>
           <div className="table-wrap">
             <table>

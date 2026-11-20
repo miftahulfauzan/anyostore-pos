@@ -18,6 +18,8 @@ const {
   validateTransferStatus,
 } = require("../transfer-cancellation");
 const { validateOpnameItems, assertStockSnapshot, matchingVariant, validateTransferItems } = require("../inventory-safety");
+const { createOpnameWorkbook, XLSX_MIME } = require("../opname-excel");
+const { localDateString } = require("../local-date");
 const { beginTransferRequest, finishTransferRequest } = require("../transfer-request");
 const router = express.Router();
 router.use(authenticate);
@@ -60,6 +62,68 @@ async function change(
     notes,
   });
 }
+
+// Export formulir stok opname ke Excel (stok sistem terisi, stok fisik kosong).
+router.get(
+  "/opnames/export",
+  authorize("owner", "manager", "admin", "gudang"),
+  async (req, res, next) => {
+    try {
+      const warehouseId = Number(req.query.warehouse_id);
+      if (!Number.isInteger(warehouseId) || warehouseId <= 0) {
+        return res.status(400).json({ success: false, message: "Gudang wajib dipilih" });
+      }
+      const [warehouses] = await db.execute(
+        `SELECT w.id, w.name, w.branch_id, b.name AS branch_name
+           FROM warehouses w JOIN branches b ON b.id = w.branch_id
+          WHERE w.id = ? AND w.is_active = TRUE`,
+        [warehouseId],
+      );
+      const warehouse = warehouses[0];
+      if (!warehouse) {
+        return res.status(404).json({ success: false, message: "Gudang tidak ditemukan" });
+      }
+      const canCrossBranch = ["owner", "gudang"].includes(req.user.role);
+      const requestedBranch = Number(req.query.branch_id);
+      if (!canCrossBranch && Number(warehouse.branch_id) !== Number(req.user.branch_id)) {
+        return res.status(403).json({ success: false, message: "Anda tidak memiliki akses ke gudang ini" });
+      }
+      if (canCrossBranch && Number.isInteger(requestedBranch) && requestedBranch > 0
+          && Number(requestedBranch) !== Number(warehouse.branch_id)) {
+        return res.status(400).json({ success: false, message: "Gudang bukan milik cabang yang dipilih" });
+      }
+
+      // Satu baris per produk; stok = saldo gudang (varian tidak menyimpan stok).
+      const [products] = await db.execute(
+        `SELECT p.id, p.sku, p.name, COALESCE(ws.quantity, 0) AS system_stock
+           FROM products p
+           LEFT JOIN warehouse_stocks ws
+             ON ws.product_id = p.id AND ws.warehouse_id = ? AND ws.variant_id IS NULL
+          WHERE p.branch_id = ? AND p.is_active = TRUE
+          ORDER BY (p.sku IS NULL OR p.sku = ''), p.sku, p.name`,
+        [warehouseId, warehouse.branch_id],
+      );
+
+      const dateLabel = localDateString();
+      const workbook = createOpnameWorkbook({
+        branchName: warehouse.branch_name,
+        warehouseName: warehouse.name,
+        dateLabel,
+        products,
+      });
+      const bytes = Buffer.from(await workbook.xlsx.writeBuffer());
+      res.set({
+        "Content-Type": XLSX_MIME,
+        "Content-Disposition": `attachment; filename="stock-opname-${warehouse.branch_id}-${warehouseId}-${dateLabel}.xlsx"`,
+        "Content-Length": String(bytes.length),
+        "Cache-Control": "no-store",
+      });
+      res.send(bytes);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 router.get(
   "/opnames",

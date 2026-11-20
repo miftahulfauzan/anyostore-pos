@@ -8360,3 +8360,20 @@ html[data-motion="off"] .mutation-chart-line {
   .reseller-ship label { flex: 1 1 100%; }
   .reseller-detail-head .secondary { flex: 0 0 auto; }
 }
+
+/* Toolbar opname: jumlah item di kiri, aksi export di kanan. */
+.opname-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 6px;
+}
+.opname-toolbar .opname-search-meta { margin: 0; }
+.opname-toolbar button { flex: 0 0 auto; }
+
+@media (max-width: 700px) {
+  .opname-toolbar { flex-wrap: wrap; }
+  .opname-toolbar .opname-search-meta { order: 2; flex: 1 1 100%; }
+  .opname-toolbar button { order: 1; flex: 1 1 100%; }
+}
