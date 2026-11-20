@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Crop, FlipHorizontal2, FlipVertical2, GripVertical, ImagePlus, Plus, RotateCcw, RotateCw, Trash2, Video, X, ZoomIn, ZoomOut } from 'lucide-react';
 import AppShell from '../../../components/AppShell';
@@ -42,6 +43,12 @@ function AdjModal({ photo, mediaUrl, onClose, onSave }) {
   const pinchRef = useRef(null);
   const [cropScale, setCropScale] = useState(1);
   const [previewScale, setPreviewScale] = useState(0.66);
+
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previous; };
+  }, []);
 
   useEffect(() => {
     setStatus('loading');
@@ -271,15 +278,15 @@ function AdjModal({ photo, mediaUrl, onClose, onSave }) {
   const toolBtn = { display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 36, padding: '0 12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#1e293b', fontSize: 'var(--fs-sm)', fontWeight: 600, cursor: 'pointer' };
   const toolBtnActive = { ...toolBtn, background: ACCENT, borderColor: ACCENT, color: '#fff' };
 
-  return (
+  return createPortal((
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, .62)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', zIndex: 120, padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Ubah Foto Produk" style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 920, maxHeight: '94vh', overflowY: 'auto', boxShadow: '0 24px 60px rgba(15, 23, 42, .35)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #eef1f5' }}>
+      <div onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Ubah Foto Produk" style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 920, maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', overscrollBehavior: 'contain', boxShadow: '0 24px 60px rgba(15, 23, 42, .35)' }}>
+        <div style={{ position: 'sticky', top: 0, zIndex: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '16px 20px', borderBottom: '1px solid #eef1f5', background: '#fff' }}>
           <div>
             <strong style={{ fontSize: 16, color: '#0f172a' }}>Ubah Foto Produk</strong>
             <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-xs)', color: '#94a3b8' }}>Geser untuk posisi · gulir / pinch untuk zoom · hasil 1200×1200 (1:1)</p>
           </div>
-          <button type="button" onClick={onClose} disabled={saving} aria-label="Tutup" style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#f1f5f9', fontSize: 16, lineHeight: 1, cursor: 'pointer', color: '#475569', display: 'grid', placeItems: 'center' }}>×</button>
+          <button type="button" onClick={onClose} disabled={saving} aria-label="Tutup" style={{ flex: '0 0 auto', width: 36, height: 36, padding: 0, borderRadius: 10, border: 'none', background: '#f1f5f9', cursor: 'pointer', color: '#475569', display: 'grid', placeItems: 'center' }}><X aria-hidden="true" size={18} /></button>
         </div>
 
         <div style={{ display: 'flex', gap: 18, padding: 20, flexWrap: 'wrap', alignItems: 'flex-start' }}>
@@ -340,7 +347,7 @@ function AdjModal({ photo, mediaUrl, onClose, onSave }) {
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 }
 
 export default function EditProductPage() {
