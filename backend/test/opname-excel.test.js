@@ -9,7 +9,7 @@ test('formulir opname mengikuti template: judul, header, stok sistem, fisik koso
     warehouseName: 'Gudang B',
     dateLabel: '2026-11-20',
     products: [
-      { id: 1, sku: 'AB83', name: 'AB83', system_stock: 12 },
+      { id: 1, sku: 'B1-AB83', name: 'AB83', system_stock: 12 },
       { id: 2, sku: '', name: 'Tanpa SKU', system_stock: 0 },
     ],
   });
@@ -32,7 +32,8 @@ test('formulir opname mengikuti template: judul, header, stok sistem, fisik koso
   assert.equal(sheet.getCell('F7').value, 'Catatan');
 
   assert.equal(sheet.getCell('A8').value, 1);
-  assert.equal(sheet.getCell('B8').value, 'AB83');
+  assert.equal(sheet.getCell('B8').value, 'AB83', 'kolom kode memakai nama/model seperti template');
+  assert.match(sheet.getCell('B8').note || '', /SKU: B1-AB83/);
   assert.equal(sheet.getCell('C8').value, 12);
   assert.equal(sheet.getCell('D8').value, null, 'stok fisik harus kosong untuk diisi manual');
   assert.match(sheet.getCell('E8').value.formula, /D8-C8/);

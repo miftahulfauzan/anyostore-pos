@@ -79,7 +79,13 @@ function createOpnameWorkbook({ branchName = '', warehouseName = '', dateLabel =
   products.forEach((product, index) => {
     const row = sheet.getRow(firstRow + index);
     row.getCell(1).value = index + 1;
-    row.getCell(2).value = String(product.sku || product.name || '').trim() || `#${product.id}`;
+    // Template manual memakai nama/model (mis. "A101-BLAZE"), bukan SKU
+    // ber-prefix cabang. SKU tetap disimpan sebagai komentar sel.
+    const label = String(product.name || product.sku || '').trim() || `#${product.id}`;
+    row.getCell(2).value = label;
+    if (product.sku && String(product.sku).trim() && String(product.sku).trim() !== label) {
+      row.getCell(2).note = `SKU: ${String(product.sku).trim()}`;
+    }
     row.getCell(3).value = Number(product.system_stock || 0);
     row.getCell(4).value = null;
     // Selisih otomatis; kosong selama stok fisik belum diisi.
