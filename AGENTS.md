@@ -11,217 +11,31 @@ Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https:
 - **Mobile**: Flutter (`mobile/`) — workflow terpisah di `.github/workflows/mobile.yml`. Push ke `main` hanya memicu workflow ini jika ada perubahan di `mobile/**`; analisis Flutter tetap `continue-on-error`. Build APK berjalan pada push tersebut atau manual (`workflow_dispatch`), tidak pada PR, dan mengunggah artifact `anyostore-pos-apk`. PR tetap menjalankan pemeriksaan mobile.
 - **Deploy**: Push ke `main` menjalankan CI web dan workflow mobile secara paralel; deploy web hanya mengikuti CI web yang sukses. `deploy.yml` memverifikasi exact full SHA, lalu mengirim `scripts/deploy/release.sh` melalui SSH ke VPS. Script memakai lock, checkout detached ke SHA target, migrasi one-off, image OCI bertag SHA, health check, refresh Caddy, dan verifikasi HTTPS publik `/api/health` + `/version`. Build memakai BuildKit cache mount (`--mount=type=cache` di Dockerfile) supaya `npm ci`/`next build` cepat; prune hanya cache >7 hari (`builder prune -f --filter "until=168h"`) + `image prune -f`, BUKAN `builder prune -af`.
 
-## Arsitektur Backend
+## Peta dokumen (baca sebelum mengubah area terkait)
 
-### Struktur
+`AGENTS.md` ini sengaja ringkas. Detail lengkap ada di `docs/agents/`, isinya utuh dari versi lama:
 
-| File | Fungsi |
-|------|--------|
-| `src/index.js` | Entry point, listen port |
-| `src/app.js` | Express setup: helmet, cors, json 6mb, rate limit 600/min, static `/uploads`, mount 18 routers, 404 + error handler |
-| `src/config.js` | Validasi env (DB_HOST/USER/PASS/NAME, JWT_SECRET, JWT_REFRESH_SECRET). Throw kalau kurang |
-| `src/db.js` | mysql2/promise pool, connectionLimit 10 |
-| `src/auth.js` | JWT access + refresh 365 hari, login password (`/api/auth/login`) & PIN (`/api/auth/login-pin`), `authenticate`, `authorize(roles...)` |
-| `src/media-storage.js` | Storage disk/DB (`MEDIA_STORAGE=database`), `persistUploadedFile`, `removeMedia`, `copyMediaFile`, `serveBlob` |
-| `src/pricing.js` | Satu-satunya logika tier harga (grosir seri/semi grosir/retail + harga wholesale) — dipakai checkout DAN `POST /api/transactions/preview`. JANGAN duplikasi di frontend |
-| `src/stock.js` | Satu-satunya jalur penulisan stok: `adjustStock()` mengubah `warehouse_stocks` + `products.stock` + `product_variants.stock` + `stock_mutations` sekaligus |
-| `src/money.js` | Satu definisi pembulatan uang (`Number.EPSILON`) — jangan definisikan `money` sendiri di route |
-| `src/local-date.js` | Tanggal lokal WIB (`localDateString`/`localMonthStartString`) — jangan pakai `toISOString().slice(0,10)` untuk "hari ini" |
-| `src/netlify.js` | Serverless adapter (TIDAK DIPAKAI, Netlify sudah dihapus) |
-| `scripts/migrate.js` | Jalankan migrasi SQL di `migrations/`, track `_migrations` table |
-| `scripts/fix-clone-paths.js` | One-off: copy file foto yang di-share antar cabang ke path baru (idempoten) |
-| `scripts/merge-warehouses.js` | One-off: sisakan 1 gudang per cabang — gabungkan stok, pindahkan referensi, hapus duplikat (JALANKAN MANUAL, bukan otomatis) |
-| `scripts/sync-catalog-to-branches.js` | One-off: HAPUS (soft) semua produk cabang target lalu SALIN katalog cabang sumber (foto produk+varian via copyMediaFile, stok products/variants/warehouse_stocks dengan mapping gudang utama->utama/reject->reject, harga grosir, varian; SKU baru B<targetId>-; BARCODE DISALIN APA ADANYA (boleh sama di semua cabang — migrasi 20260815_barcode_multi_branch menghapus UNIQUE products.barcode, index tetap); dry-run default, eksekusi `--apply`; riwayat lama aman karena soft-delete) |
-| `scripts/sync-product-photos.js` | One-off: **HANYA foto produk** (bukan stok/harga/varian) — sumber → target, `node scripts/sync-product-photos.js --from "Blok B" --to "Gudang Utama" [--apply]`. Pencocokan produk lewat NAMA (normalisasi ketat: lowercase + spasi dirapatkan; tanda hubung & "(Salinan)" harus persis), nama ganda diselesaikan SKU tanpa prefix `B<id>-` lalu dilewati bila masih ambigu. Salin file via `copyMediaFile` (path baru) + `transform`/`is_primary`/`sort_order`; baris foto target lama dihapus dan file lama hanya dibuang bila `COUNT(*) WHERE path = 0`. Batch 50 + `FOR UPDATE`, snapshot stok/harga dicetak sebelum-sesudah sebagai bukti tidak berubah. Dry-run default; foto varian & video tidak disentuh |
+| File | Isi |
+|------|-----|
+| `docs/agents/backend.md` | Struktur backend, tabel semua router + fitur, skema & tabel inti, daftar migrasi, aturan migrasi, alur bisnis (multi-cabang, checkout, komisi, media) |
+| `docs/agents/web-deploy.md` | Daftar halaman & komponen web, desain landing/detail produk, CI/CD, docker compose produksi |
+| `docs/agents/mobile.md` | Android/iOS: design system, navigasi, semua fitur per halaman, catatan teknis, iOS |
+| `docs/agents/audit-2026-08-24.md` | Temuan QA menyeluruh + perbaikannya |
+| `docs/agents/AGENTS-FULL-2026-11-20.md` | Salinan utuh AGENTS.md sebelum diringkas (rujukan terakhir) |
 
-### Routes (`backend/src/routes/`)
+## Aturan inti (tidak boleh dilanggar)
 
-| Router | Prefix | Fitur utama |
-|--------|--------|-------------|
-| `public.js` | `/api/public` | Landing: settings (multi-WA), categories, products (paginasi/search/sort), products/:id (media+variants) |
-| `products.js` | `/api/products` | CRUD produk, media (max 10 img + 1 video), varian, wholesale prices, categories CRUD, transform foto; `POST /:id/copy` = salin produk (nama + " (Salinan)", SKU unik -C/-C2, barcode kosong, varian+wholesale+foto disalin via copyMediaFile, stok 0); POST `/` TIDAK boleh menyentuh req.params.id; PUT wajib deklarasi `oldProducts` (untuk log harga); route `/:id/copy` JANGAN menamai hasil query `res` (menimpa response Express -> 500) — pakai `ins` |
-| `products.js` | `/api/products/:id/media/:mediaId/image-data` | Ganti file foto dengan hasil crop 1200×1600 (modal Ubah Foto Produk) |
-| `inventory.js` | `/api/inventory` | Warehouse, mutasi, stock-total (branch/all), stock-by-warehouse + posisi rak, barcode search, incoming/outgoing per batch (`batch_number` BATCH-YYYYMMDD-NNN, `warehouse_id`, `transaction_date`) |
-| `inventory-control.js` | `/api/inventory-control` | Transfer antar gudang/cabang, simpan opname dengan snapshot/revision stok, dan riwayat opname beserta detail item |
-| `transactions.js` | `/api/transactions` | Checkout (idempotency `client_transaction_id`), hold/resume, cancel, hapus draft (`DELETE /pending/:id`, owner boleh pilih `branch_id`, role lain terkunci ke cabangnya, hanya draft yang belum resumed dan mengembalikan 404 kalau tidak ada baris terhapus) |
-| `printer.js` | `/api/printer` | Struk thermal 58/80mm |
-| `customers.js` | `/api/customers` | CRUD pelanggan + price_tier |
-| `returns.js` | `/api/returns` | GET /:id mengembalikan detail retur + item (dipakai mobile). Retur AUTO-APPROVE saat dibuat (POST langsung stok kembali + refund kas, tanpa persetujuan; `approve:false` di body bisa memaksa pending); PUT /:id/approve tetap ada untuk legacy. Saat retur disetujui, `transaction_items.returned_qty` diperbarui, `transactions.refunded_amount` diakumulasi, & status transaksi jadi `partially_refunded` (retur sebagian) / `refunded` (semua item diretur). Migrasi 20260815_return_partial_status.sql + 20260815_refunded_amount_column.sql (kolom refunded_amount HARUS di file migrasi terpisah — jangan mengedit file migrasi yang sudah terlanjur jalan!). CATATAN PENTING setelah audit 2026-08-15: (1) PENUTUPAN & LACI KAS: refund retur TIDAK boleh dikurangi ganda — payments.cancellations HANYA `cancelled_amount` (refund sudah lewat `returns` di penutupan & movement cash_out di laci kas); (2) retur WAJIB set status approved DULU sebelum hitung returned_qty/status transaksi (kalau tidak, retur pertama tidak terhitung); (3) dashboard owner 'all' mengirim branch_id=all ke stock-by-category/top-products-out. |
-| `returns.js` | `/api/returns` | Retur menyimpan `refund_method` (cash/qris/transfer/debit) untuk laporan & laci kas |
-| `cash-drawer.js` | `/api/cash-drawer` | Buka/tutup kas, cash in/out |
-| `suppliers.js` | `/api/suppliers` | Supplier per cabang |
-| `reports.js` | `/api/reports` | Sales + overview (owner bisa pilih branch via `?branch_id`). `GET /daily-closing` tanpa `?date` memakai hari bisnis WIB saat ini (web `/closing` dan Android ikut membuka tanggal yang sama); klien tetap boleh mengirim tanggal lain untuk mencetak penutupan hari sebelumnya. SEMUA query penjualan menyertakan status `partially_refunded`/`refunded` dan mengurangi `refunded_amount` (refund retur) dari gross/revenue/payment; COGS/produk/komisi pakai `quantity - cancelled_qty - returned_qty` |
-| `purchase-orders.js` | `/api/purchase-orders` | PO + receive (update stok) |
-| `finance.js` | `/api/finance` | Expenses, income, journals, profit-loss |
-| `users.js` | `/api/users` | CRUD pegawai, role, PIN, password |
-| `settings.js` | `/api/settings` | Branch CRUD (clone katalog), store settings, WA dinamis, logo |
-| `dashboard.js` | `/api/dashboard` | Ringkasan penjualan; data Dashboard Stok terpisah, Owner dapat mengirim `branch_id` untuk satu cabang (tanpa filter = semua cabang), manager/admin tetap cabangnya sendiri, role gudang dibatasi ke cabang tipe gudang |
-| `commissions.js` | `/api/commissions` | Komisi staf (per_pcs_customer_tier dll), rules, report, generate |
-| `promotions.js` | `/api/promotions` | Promo/diskon + validate |
-| `tax.js` | `/api/tax` | Laporan pajak: PPN, Faktur Pajak, PPh23 |
-| `reseller.js` | `/api/reseller` | **Pembeli reseller** (publik, cookie `buyer_session`, bukan `pos_access`): register/login/logout/me, alamat tersimpan (multi), `POST /orders` (guest & member; harga dihitung server dari produk/varian, tanpa minimum order), `GET /orders` (riwayat akun), `GET /orders/:token` (status publik via token 32 hex), `GET /orders/lookup?order_no=&phone=`, `GET /payment-info` (rekening + QRIS statis dari setelan) |
-| `reseller-admin.js` | `/api/reseller-admin` | Staf (owner/manager/admin): daftar & detail pesanan, `confirm`/`reject`/`mark-paid`/`ship`/`done`, `convert` (buat transaksi POS + potong stok lewat `adjustStock`, hanya setelah `payment_status=paid`), akun pembeli (suspend, reset password sementara), `summary` untuk badge sidebar |
-
-### Struk: satu aturan untuk web & Android (2026-11-13)
-
-- `backend/src/receipt-lines.js` adalah **satu-satunya** penyusun baris struk (port 1:1 dari `mobile/lib/src/receipt_layout.dart`). Keluaran: `{ text, bold, alignment }` + `receipt_meta { width, margin, font, inner }`.
-- Dipakai oleh: `GET /api/printer/invoice/:id`, `POST /api/transactions` (field `data.receipt`, jadi cetak otomatis tak perlu request tambahan), `POST /api/printer/preview` (pratinjau template di web), dan halaman resi `/receipt/[id]` (render baris apa adanya, bukan HTML kaya lagi).
-- Android: `printer_service.printReceipt` memakai `receipt.lines` bila ada; kalau tidak (offline) menyusun lokal dari setelan cabang yang di-cache (`_receiptSettings`) — termasuk cetak transaksi offline bernomor sementara `OFF-<branch>-<ts>`.
-- Paritas dijaga fixture golden `backend/test/fixtures/receipt-lines/*.json` (dibaca `backend/test/receipt-lines.test.js` DAN `mobile/test/receipt_lines_golden_test.dart`). Ubah aturan → jalankan `node backend/scripts/generate-receipt-fixtures.js`, tinjau diff, lalu sesuaikan kedua sisi.
-- `receipt_contacts` (field mati) sudah dihapus dari UI Android, Setelan Toko, dan daftar `allowed` settings.
-
-### Auth & Roles
-
-- JWT access & refresh token 365 HARI (praktis tanpa batas — user minta tidak ada auto-logout; logout hanya lewat tombol Keluar), hash SHA-256 di DB
-- Login/PIN/refresh menyetel **httpOnly cookie** (`pos_access`, `pos_refresh`, SameSite=Strict, Secure di produksi); `authenticate` membaca cookie (Bearer header tetap diterima). Refresh token TIDAK dikembalikan di body respons. Frontend tidak menyimpan JWT di localStorage.
-- Roles: `owner`, `manager`, `admin`, `kasir`, `gudang`
-- `authorize('owner')` dsb memfilter akses per route
-- Owner bisa akses semua cabang (banyak route pakai `req.user.role === 'owner' ? (Number(req.query.branch_id) || req.user.branch_id) : req.user.branch_id`)
-
-## Skema Database (`backend/schema.sql` + seluruh `backend/migrations/`, ±50 tabel live; snapshot terkini bisa di-regenerate via `scripts/dump-schema.sh`)
-
-### Aturan migrasi (PENTING)
-- JANGAN PERNAH mengedit file migrasi yang sudah pernah dijalankan — selalu buat file migrasi BARU. `migrate.js` sekarang menyimpan SHA-256 isi file di `_migrations.content_hash`; kalau file yang sudah terpasang isinya berubah, migrasi `FAILED` saat deploy (bukan diam-diam skip). Migrasi lama tanpa hash hanya di-skip dengan peringatan.
-- Skema dasar di `backend/schema.sql` HANYA dieksekusi saat database baru dibuat (docker-entrypoint-initdb). Semua perubahan produksi wajib lewat migrasi.
-- Status penjualan terpusat di `backend/src/sales-status.js` (`SALES_STATUSES` + `SALES_STATUSES_SQL`) — SEMUA query laporan wajib pakai konstanta ini, jangan menulis literal status.
-- Logika rincian metode bayar penutupan dipisah di `backend/src/closing-math.js` (unit test `test/closing-math.test.js` — regression refund dobel).
-
-### Tabel inti
-
-| Tabel | Kolom penting |
-|-------|--------------|
-| `branches` | id, name, address, phone, email, npwp, pricing_tier_enabled, is_active |
-| `reseller_accounts` | email (UNIQUE), password_hash, customer_id, branch_id, status active/suspended — akun pembeli situs reseller, terpisah dari `users` |
-| `reseller_orders` | order_no `RS-YYYYMMDD-B<branch>-NNNN`, public_token (32 hex, dipakai halaman status tanpa login), status new/confirmed/paid/shipped/done/rejected/cancelled, payment_status, shipping_cost, tracking_no, transaction_id (diisi saat konversi), client_order_id (idempotensi) |
-| `reseller_order_items` | order_id, product_id, variant_id, product_name, sku, price, quantity, subtotal |
-| `customer_addresses` | account_id, recipient, phone, address, city, postal_code, is_default (multi alamat pembeli) |
-| `users` | branch_id, name, role, pin, is_active |
-| `categories` | name, slug, sku_prefix, is_active |
-| `products` | branch_id, category_id, name, description, sku (UNIQUE global), barcode, price, cost, stock, min_stock, gender, is_active |
-| `product_variants` | product_id, size, color, sku, barcode, price, is_active — **stock deprecated (selalu 0)**, harga mengikuti produk |
-| `product_photos` | product_id, variant_id, filename, path, media_type (image/video), is_primary, sort_order, `transform` (scale,x,y) |
-| `warehouse_stocks` | warehouse_id, product_id, variant_id, quantity, reserved_quantity, `rack_position` (VARCHAR(100), nullable) |
-| `warehouses` | branch_id, name, description, type (utama/cadangan/reject) |
-| `stock_opnames` | warehouse_id, branch_id, opname_date, total_items, total_selisih, status, notes, created_by |
-| `stock_opname_items` | opname_id, product_id, variant_id, system_stock, physical_stock, selisih, notes |
-| `transactions` | branch_id, invoice_no, client_transaction_id (UNIQUE), user_id, customer_id, subtotal, discount, grand_total, payment_method, status (completed/cancelled/refunded/pending/held/partially_cancelled/**partially_refunded**), cancelled_amount, **refunded_amount** |
-| `transaction_items` | transaction_id, product_id, variant_id, product_name, quantity, price, original_price, price_override, cost, cancelled_qty, **returned_qty** |
-| `invoice_sequences` | branch_id + business_date (PK), last_number — counter invoice atomik |
-| `customers` | name, phone, price_tier (reguler/semi_grosir/grosir_seri) |
-| `store_settings` | branch_id + `key` (PK), value — key-value settings |
-| `media_files` | `key`, content_type, data (blob, kalau MEDIA_STORAGE=database) |
-| `commission_rules` | branch_id (NULL=global), type, per_pcs_customer_tier config |
-| `expenses` | branch_id, type (expense/income), amount, status (approved) |
-
-### Migrasi (`backend/migrations/`)
-
-43 file saat ini: seluruh migrasi katalog, media, harga, cabang, mutasi, retur, komisi, foto, channel, dan tipe gudang yang sudah tercantum di bawah, ditambah migrasi terbaru `20260812_*` (username, transaksi offline, default commission rules), `20260909_auth_refresh_sessions.sql`, `20260909_auth_user_token_version.sql`, `20260909_inventory_safety.sql`, `20260909_transfer_destination_identity.sql`, `20260909_warehouse_catalog_permission.sql`, `20260909_warehouse_catalog_permission_seed.sql`, dan `20260924_warehouse_stock_rack_position.sql` (menambah `warehouse_stocks.rack_position` untuk posisi rak per gudang dan produk/varian). Migrasi lama mencakup promotions, branch_contact_tax, denim_variant_stock, product_media (variant_id, media_type), sync_variant_colours, media_files, price_tiers, customer_price_tier, transaction_cancellation, branch_pricing_tier, expense_income_type, commission_per_pcs_customer_tier, product_photo_transform, partial_cancel_purchase_received (tambah `partially_cancelled` ke ENUM status transactions + kolom `received_at` di purchase_orders untuk laporan PPN Masukan), photo_transform_percent (konversi pan px→% supaya crop konsisten lintas ukuran box), stock_mutation_channel (kolom `channel` di `stock_mutations`: wa/shopee/tiktok/reseller/toko untuk penjualan gudang via channel), warehouse_type (kolom `type` di `warehouses`: utama/cadangan/reject untuk gudang barang reject), rename_gudang_utara (rename nama gudang legacy 'Gudang Utara' → 'Gudang Utama'), branch_type (kolom `type` di `branches`: toko/gudang — gudang murni stok tanpa POS), sales_channels (tabel `sales_channels` + CRUD di `/api/inventory/channels` untuk saluran penjualan dinamis), branch_type_gudang_names (tandai cabang bernama 'Gudang…'/'Riject' sebagai type gudang supaya dipilih admin gudang), warehouse_names_match_branch (rename gudang mengikuti nama cabang: 'Gudang Anyostore Metro', 'Gudang Toko B', dll), stock_mutation_reference_bigint (ubah `stock_mutations.reference_id` INT → BIGINT karena dipakai menyimpan batch id Date.now() 13 digit).
-
-**Migrasi**: `migrate.js` hanya toleran terhadap error idempotent (duplicate column/entry/already exists, misalnya saat initdb sudah memasang schema lalu migrate.js menjalankan file yang sama). Error lain = kegagalan nyata: file TIDAK ditandai selesai, script exit 1, dan dicoba ulang saat restart/deploy berikutnya. Cari `[migrate] FAILED` di log container backend kalau migrasi baru tidak kelihatan terpasang.
-
-## Alur bisnis penting
-
-### Multi-cabang
-- Setiap cabang punya katalog sendiri (`products.branch_id`), produk di-clone saat buat cabang
-- SKU clone: `B{branchId}-{sku}` (unik global)
-- Clone foto: `copyMediaFile` salin file ke path baru (bukan share path)
-- Hapus cabang: soft-delete dulu (`is_active=FALSE`), lalu hard-delete (cascade semua tabel branch_id, `SET FOREIGN_KEY_CHECKS=0`)
-- Owner bisa pilih cabang di `/settings`, laporan, stock report; **route tulis produk** (tambah/edit/hapus/salin/upload foto) memakai helper writableBranchId(req) di products.js: owner memilih cabang via branch_id (body/query), role lain tetap cabangnya sendiri (fix: owner tidak bisa simpan edit produk di toko/gudang terpilih karena PUT/multipart lama terkunci ke branch akun).
-
-### Transaksi (checkout)
-- `client_transaction_id` UUID → idempotency (retry tidak dobel)
-- Invoice: `{invoice_prefix}-YYYYMMDD-B{branch}-0001` (prefix dari `store_settings.invoice_prefix`, default `INV`) via `invoice_sequences` + `FOR UPDATE`; PO pakai `order_prefix` (default `PO`)
-- Harga otomatis: tier pelanggan → wholesale price → override manual (`price_override` di audit); **harga varian 0/NULL = ikut harga produk** (`basePrice = variant && variant.price > 0 ? variant.price : product.price` di preview & checkout) supaya produk dengan harga varian belum diisi tidak pernah jadi Rp0.
-- Cancel/retur: `cancelled_qty` di transaction_items, stok dikembalikan, status `partially_cancelled`; refund tunai dicatat ke laci kas (`cash_drawer_movements` type `cash_out`, porsi proporsional dari metode bayar asli) kalau petugas punya laci terbuka
-
-### Komisi
-- Rule `per_pcs_customer_tier`: reguler 3000/pcs, semi_grosir 3000/pcs, grosir_seri 1000/pcs
-- Rule bisa per-cabang atau global (branch_id NULL)
-- Owner bisa hapus rule cabang mana pun
-
-### Media/foto
-- Upload: max 10 foto + 1 video per produk
-- Foto varian: per-variant photo
-- `transform` (zoom/pan): format `scale,xPct,yPct` — **pan dalam persen terhadap box** (`maxPanPct = (scale-1)/2*100`), disimpan di `product_photos.transform`
-- **Render transform (WYSIWYG)**: `objectFit: cover` SELALU sebagai basis, lalu `transform: translate(xPct%, yPct%) scale(s)` di atasnya. Jangan pakai `objectFit: none` (basis render berbeda → hasil simpan tidak cocok dengan preview). Pan pakai persen supaya hasil crop konsisten di semua ukuran box (modal, grid admin, landing, detail).
-- Konsisten di: modal "Atur" (edit page), grid produk admin, landing page, detail produk.
-- `openAdj` harus load transform yang sudah disimpan (parsing `scale,xPct,yPct`), bukan reset ke `1,0,0`.
-- Pan di-clamp: `maxPanPct = (scale - 1) / 2 * 100` (persen, berlaku X & Y).
-- Grid edit produk: tanpa transform = `contain` (foto utuh); dengan transform = `cover` + transform (WYSIWYG hasil crop). Modal "Atur" punya thumbnail foto utuh di pojok.
-
-## Frontend
-
-### Pages (`frontend/app/`)
-
-| Route | File | Catatan |
-|-------|------|---------|
-| `/` | `page.js` | Landing grosir (public) |
-| `/produk/[id]` | `produk/[id]/page.js` | Detail produk (public) |
-| `/login` | `login/page.js` | Login POS |
-| `/pos` | `pos/page.js` | Kasir |
-| `/history` | `history/page.js` | Riwayat + retur/batal |
-| `/products` | `products/page.js` | Daftar produk |
-| `/products/new` | `products/new/page.js` | Tambah produk |
-| `/products/[id]/edit` | `products/[id]/edit/page.js` | Edit produk + media + varian |
-| `/inventory` | `inventory/page.js` + `stock-view.js` | Stok per produk/varian dalam matriks gudang (desktop) atau kartu (mobile), foto produk, total/agregat, filter cabang/kategori, dan edit posisi rak per gudang |
-| `/inventory/movements` | `inventory/movements/page.js` | Riwayat stok (card list) |
-| `/inventory/mutations` | `inventory/mutations/page.js` | Mutasi stok: form transaksi (tanggal, batch/nota, toko, gudang, keterangan) + katalog grid (foto, stok per gudang, warna) + keranjang; dropdown channel untuk keluar |
-| `/inventory/transfers` | `inventory/transfers/page.js` | Transfer stok antar gudang/cabang (auto-buat produk di tujuan) |
-| `/inventory/{barcodes,opname}` | ... | Cetak barcode, opname dengan snapshot stok/revision agar konflik terdeteksi, serta riwayat opname yang dapat dibuka untuk melihat detail per item; Owner dapat memilih gudang lintas cabang, sementara role lain tetap cabang akun |
-| `/inventory/dashboard` | `inventory/dashboard/page.js` + `dashboard/WarehouseDashboard.js` | Dashboard stok terpisah dari dasbor penjualan; Owner dapat melihat agregat atau memilih satu toko/gudang, manager/admin melihat cabang akunnya |
-| `/finance` | `finance/page.js` | Keuangan (tab: Ringkasan Laba Rugi / Pengeluaran / Pemasukan) |
-| `/reports` | `reports/page.js` | Laporan (owner pilih toko) |
-| `/reports/tax` | `reports/tax/page.js` | PPN/Faktur/PPh23 |
-| `/finance` | `finance/page.js` | Keuangan (tab: Ringkasan / Pengeluaran / Pemasukan) |
-| `/settings` | `settings/page.js` | Pengaturan + cabang + kategori |
-| `/commissions` | `commissions/page.js` | Komisi staf (owner) |
-| `/users` | `users/page.js` | Pegawai (owner) |
-| `/dashboard` | `dashboard/page.js` | Dasbor penjualan; role gudang tetap melihat dashboard operasional gudang |
-| `/profile` | `profile/page.js` | Akun |
-| `/receipt/[id]` | `receipt/[id]/page.js` | Resi |
-| `/operations`, `/customers`, `/promotions` | ... | Operasional, pelanggan, promo |
-
-### Components (`frontend/app/components/`)
-
-- `AppShell.js` — layout sidebar fixed + collapsible (localStorage `pos_sidebar_collapsed`), menu per role
-- `SafeImage.js` — img dengan fallback 404 (tidak infinite loop)
-- `FloatingWA.js` — tombol WA mengambang multi-admin
-- `CategoryManager.js` — CRUD kategori (dipakai di settings)
-- `NotificationCenter.js`, `BarcodeLabel.js`
-
-Semua pemakaian `SafeImage` wajib mengimpor komponen tersebut secara eksplisit. `stock-view.js` pernah menyebabkan halaman stok gagal render (`ReferenceError: SafeImage is not defined`, yang dapat muncul sebagai React error #418); regression test frontend menjaga import ini tetap ada.
-
-## Desain UI
-
-### Landing page
-- Palet: hitam `#1a1a1a`, denim blue `#1e3a5f` (aksen), bg `#fafafa`, muted `#71717a`, border `#e5e7eb`
-- Font: DM Sans (700 heading, 400/500 body)
-- Liquid glass: `backdrop-filter: blur(16-20px) saturate(150-180%)`, translucent white `rgba(255,255,255,.55)`, radius 12-16px
-- Hero slideshow: 2 kolom (teks kiri, gambar kanan), auto-rotate 5 detik, arrow prev/next, dots
-- 10 produk random stabil per tanggal (seeded shuffle, prioritas yang punya foto)
-- Grid 4 kolom → 3 (900px) → 2 (600px), kartu 3:4, 24/halaman
-- Tombol: primary = denim blue + shadow; secondary = outline biru
-
-### Detail produk
-- DM Sans + Instrument Serif (hanya di heading)
-- SVG icons, tanpa emoji
-- Deskripsi full-width di bawah grid
-- Foto `objectFit: cover` + transform kalau diatur
-
-## Deploy & CI/CD
-
-### Workflow
-1. Push ke `main` menjalankan `.github/workflows/ci.yml` untuk web. `.github/workflows/mobile.yml` hanya dipicu push `main` yang mengubah `mobile/**`, atau manual; PR tetap menjalankan analisis mobile tanpa APK. CI web menjalankan backend test serialized (`npm test -- --test-concurrency=1`), audit, regression/release tests, dan frontend build. Job analyzer mobile boleh `continue-on-error`; APK diunggah sebagai artifact dan tidak menjadi bagian dari gate deploy web.
-2. Setelah CI web sukses, `.github/workflows/deploy.yml` memverifikasi CI untuk exact full 40-character SHA. Deploy kemudian mengirim `scripts/deploy/release.sh` melalui SSH; script memperoleh lock, memastikan checkout VPS bersih, fetch `origin/main`, memastikan SHA ada di history, checkout detached ke SHA, menjalankan migrasi one-off, build dengan tag SHA, merecreate backend/frontend, menghapus lalu membuat ulang Caddy, memvalidasi konfigurasi Caddy serta endpoint loopback, menunggu health `running healthy` dengan revision yang sama, lalu memverifikasi HTTPS publik `/api/health` dan `/version`. Deploy otomatis tidak menerima release lama yang sudah terlewati; retry/rollback harus memakai workflow manual dengan SHA penuh. Caddy produksi berjalan dengan host network dan meneruskan ke port loopback stabil `127.0.0.1:3001` (backend) serta `127.0.0.1:3000` (frontend); kedua port hanya bind ke loopback host agar routing tidak bergantung pada alias DNS Docker yang bisa stale setelah container diganti.
-3. Jika verifikasi lokal VPS berhasil tetapi verifikasi publik gagal, cek image/revision container, nama container live, dan routing Caddy sebelum retry. Jangan menganggap deploy selesai hanya karena `docker compose up` sukses.
-4. Caddy handle HTTPS otomatis (Let's Encrypt).
-
-### Docker compose production
-- `db` (mysql:8.4, initdb.d = semua migration), `backend`, `frontend`, `caddy`
-- Backend/frontend live memakai nama tetap `anyostore-backend-live` dan `anyostore-frontend-live`; image aplikasi ditag dengan exact `RELEASE_SHA` dan label OCI `org.opencontainers.image.revision` yang sama. Jangan menyimpulkan release dari nama project Compose lama (`anyostore-pos-backend-1`/`anyostore-pos-frontend-1`) saja.
-- Backend entrypoint: `node scripts/migrate.js || true; node scripts/fix-clone-paths.js || true; node src/index.js`
-- Frontend build arg: `NEXT_PUBLIC_API_URL=/api`
-- Caddy route: `/api/*` dan `/uploads/*` → `127.0.0.1:3001`, sisanya → `127.0.0.1:3000`; Caddy memakai `network_mode: host`, sedangkan backend/frontend hanya bind ke loopback host.
+- **Harga**: `backend/src/pricing.js` satu-satunya logika tier (grosir seri/semi grosir/retail + wholesale). Dipakai checkout DAN `POST /api/transactions/preview`. Jangan duplikasi di frontend.
+- **Stok**: `backend/src/stock.js` → `adjustStock()` satu-satunya jalur tulis stok (warehouse_stocks + products.stock + stock_mutations). Jangan menulis stok langsung dari route.
+- **Varian bukan stok**: `product_variants` hanya pembeda gambar (warna/ukuran + foto; SKU/barcode opsional). Stok = satu angka per produk per gudang (`variant_id IS NULL`). Checkout/POS, stok masuk/keluar, transfer, opname tidak memilih varian; harga selalu dari produk. Kolom `product_variants.stock` deprecated (0) — jangan menambah jalur tulis stok dengan `variant_id` terisi.
+- **Uang**: `backend/src/money.js` satu definisi pembulatan. **Tanggal**: `backend/src/local-date.js` (`localDateString`) untuk "hari ini" WIB — jangan `toISOString().slice(0,10)`.
+- **Status penjualan**: `backend/src/sales-status.js` (`SALES_STATUSES`/`SALES_STATUSES_SQL`) di semua query laporan — jangan tulis literal status.
+- **Migrasi**: JANGAN PERNAH mengedit file migrasi yang sudah jalan (`_migrations.content_hash` SHA-256 → deploy FAILED). Perubahan skema = file migrasi baru.
+- **Retur**: refund tidak boleh dikurangi ganda (`closing-math.js`), `payments.cancellations` hanya `cancelled_amount`, status retur wajib `approved` dulu sebelum hitung `returned_qty`.
+- **Struk**: baris struk hanya dari `backend/src/receipt-lines.js`; paritas Android dijaga fixture golden (`backend/test/fixtures/receipt-lines/`).
+- **Media**: clone cabang memakai `copyMediaFile` (path baru), `removeMedia` hanya setelah cek ref-count.
+- **Web**: aksi header ikut pola `.header-action-links` (≤820px jadi menu ⋯), tombol utama satu warna denim (`--action-bg`), jangan tambah aturan `button`/`a` global di `globals.css`.
+- **Mobile**: setiap perubahan `mobile/**` wajib disusul build artefak sesuai instruksi di `docs/agents/mobile.md` (build di luar OneDrive).
 
 ## Pola penting / jebakan
 
@@ -245,100 +59,6 @@ Semua pemakaian `SafeImage` wajib mengimpor komponen tersebut secara eksplisit. 
 - **Commission**: rule `per_pcs_customer_tier` (reguler 3000, semi 3000, grosir 1000 per pcs). Owner bisa hapus rule cabang manapun.
 - **Rate limit**: 600 req/menit per IP global, 20/15 menit untuk login.
 
-## Mobile UI/Desain & Fitur Terbaru (Agustus 2026)
-
-Aplikasi Android (Flutter, folder mobile/) sudah melalui banyak perubahan. Dokumentasi ini agar AI berikutnya langsung paham tanpa menebak.
-
-### Status aktif (1 November 2026 — bagian ini mengalahkan catatan lama di bawah jika berbeda)
-- Navigasi Android memakai **drawer kiri** dari tombol menu di AppBar; tidak ada bottom navbar. Menu non-gudang mengikuti grup web: **Utama → Produk & Inventori → Bisnis → Administrasi**. Stok masuk/keluar membuka form langsung; riwayat transfer terpisah. Admin gudang mengikuti grup web **Utama → Transaksi → Gudang → Lainnya**. Drawer juga punya menu Cetak Barcode dan utilitas akun/offline khusus mobile.
-- Tujuan utama non-gudang: POS, Dashboard, Transaksi, Keuangan. Gudang: Dashboard, Stok Produk, Stok Masuk/Mutasi. Halaman tetap dipertahankan di `IndexedStack` agar state/keranjang POS tidak hilang saat menu berpindah; item tambahan dibuka dari drawer.
-- Dashboard non-gudang memakai `ReportsPage(dashboardMode: true)`: ringkasan penjualan, tren harian, pembayaran per metode, produk terlaris, dan stok rendah. Owner/manajer/admin memakai `/reports/overview`; kasir memakai `/dashboard` karena endpoint laporan dibatasi role. Filter periode dan data offline tetap aktif.
-- Dashboard gudang tetap dashboard stok (`DashboardPage`). Ringkasan gudang berasal dari `warehouse_dashboard`; jangan gabungkan ke dashboard penjualan.
-- Owner memilih toko dari POS atau **drawer → Toko/Gudang aktif**. `BranchScope.active` adalah sumber pilihan bersama untuk POS, Dashboard, Riwayat, Laporan, dan Keuangan. Dashboard penjualan tidak menambah filter cabang lokal. Nilai `null` berarti semua cabang hanya pada endpoint yang mendukungnya; Finance menolak input baru sampai satu cabang dipilih.
-- Laporan lengkap dan Dashboard Stok tetap tersedia di drawer. Keuangan berada di grup **Bisnis** pada drawer.
-- Android saja. Pengguna meminta **IPA dilewati**; jangan build/export IPA kecuali diminta lagi. Pertahankan `applicationId` `com.anyostore.pos_pakaian_mobile`, keystore dan alias rilis yang sama. Naikkan `versionCode` pada setiap APK agar dapat menimpa versi lama.
-- Build lokal release memakai `flutter build apk --release --split-per-abi`. File hasil: `mobile/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`, `app-armeabi-v7a-release.apk`, dan `app-x86_64-release.apk`. Setelah build split, jangan berikan `app-release.apk` universal lama sebagai hasil terbaru.
-- Perbaikan endpoint gudang di `backend/src/routes/dashboard.js` menghindari query penjualan yang tidak dipakai role gudang. Perubahan backend baru aktif di situs setelah commit, push, dan deploy; jangan klaim sudah live sebelum verifikasi deploy.
-
-### Design system (file kunci: mobile/lib/src/task_ui.dart)
-- Warna: latar krem #F5F1EA, biru denim #1E3A5F (aksen utama), #2E5D8F / #5A8BBF / #7FA8CF (variasi denim), abu #8A857C, border #E7E0D6. JANGAN pakai oranye/hijau tua/ink #1c1c1c sebagai aksen.
-- Liquid glass: komponen GlassCard (gradien putih transparan + border tipis; **default `frosted: false` = TANPA BackdropFilter** karena blur per kartu mahal di device lama — efek kaca tetap via gradien+border; `frosted: true` hanya untuk kartu hero tunggal seperti Login). Kartu utama di semua halaman memakai GlassCard, bukan Card polos.
-- PillTabs - tab pil: 2 menu -> satu baris dibagi 2, 3 menu -> dibagi 3, 4+ -> bisa di-slide samping (otomatis: tabs.length <= 3 pakai Row Expanded); konten ikon+label SELALU Center eksplisit (Row mainAxisSize.min di dalam Center, ellipsis kalau label kepanjangan).
-- GlassNavBar adalah komponen legacy dan tidak dipasang oleh `PosPage`. `PosPage.requestTab` tetap tersedia untuk perpindahan dari halaman lain. Widget test komponen legacy: `test/glass_nav_bar_test.dart`.
-- POS memakai AppBar center title dengan tombol drawer otomatis dari `Scaffold.drawer`; konten utama berada di bawah AppBar dan SafeArea. Logout ada di bagian bawah drawer (`MorePage`). AppBar halaman lain otomatis centerTitle: true.
-- STOK MASUK/KELUAR (_InOutForm + _CatalogPicker): UI ala POS (grid produk 2 kolom foto CachedNetworkImage memCacheWidth 420 + nama+SKU/stok, cari, ketuk -> dialog qty/cost). Item yang sudah dipilih BISA DIEDIT jumlahnya (ketuk baris / ikon edit; untuk Stok Masuk juga edit harga beli) — tidak hanya hapus; Transfer Stok juga bisa edit jumlah. dengan WARNA PEMBEDA: Stok Masuk HIJAU (#2E7E4F), Stok Keluar ORANYE (#C2410C) — AppBar, banner SOLID + teks PUTIH, tombol & header picker ikut warna; warna penuh sampai PINGGIR ATAS via `extendBodyBehindAppBar:true` + `flexibleSpace: Container(color)` + `systemOverlayStyle.light`; judul AppBar DIJAMIN PUTIH via `titleTextStyle` (theme global denim). Dropdown Channel punya tombol + Tambah Channel (POST /api/inventory/channels, api_client.createChannel). `POST /inventory/outgoing` otomatis mendaftarkan channel baru ke `sales_channels` (INSERT IGNORE) supaya tabel channel satu-satunya sumber. Tabel legacy kandidat di-audit via `node scripts/audit-legacy-tables.js` (read-only).
-- LAPORAN MASUK/KELUAR (mutation_report_page): rentang Hari ini/Kemarin/7 hari/30 hari/Bulan ini/Bulan lalu/Rentang kustom (showDateRangePicker).
-- ROLE GUDANG: drawer berisi Dashboard, Master Produk, Stok Masuk/Keluar, Stok Opname, Manajemen Gudang, Transfer Gudang, Riwayat Transfer, Riwayat Mutasi, Laporan Lainnya, dan Pengaturan; laporan penjualan tidak dipakai.
-- `MorePage` memiliki akses Halaman Link untuk owner (`link_page_settings.dart`), Riwayat Transfer (`transfer_history_page.dart`), serta akses langsung form Stok Masuk/Keluar melalui `InventoryPage.initialSection`.
-- Stok (inventory_page.dart): header ala POS untuk OWNER — 1 baris 2 segmen (_InvHeaderSegment): segmen "Toko / Gudang" (kiri, label generik TANPA nama toko aktif) membuka bottom sheet pilihan toko (`_pickBranch`: daftar cabang + "Semua toko/gudang"), segmen "Cari produk" (kanan) MENGGANTI baris dengan field cari full-width (autofocus + tombol X, ala POS); TIDAK ada dropdown toko kedua di bawah. Selain owner langsung field cari saja. Ringkasan Produk/Stok/Stok rendah/Habis jadi 1 baris dibagi 4 (_StatCell, font kecil seragam 9/13 + FittedBox scaleDown), berjarak 12. Ada baris kontrol: dropdown Urut (Nama A-Z/Z-A, Stok terendah/tertinggi — client-side `_sorted`) + toggle Card/Grid bergaya pill (_ViewToggle, senada PillTabs, lebar 104 tinggi 46, ikon 19px). MODE CARD = kartu besar 1 kolom dengan foto produk (CachedNetworkImage memCacheWidth 120); MODE GRID = kartu 2 kolom dengan foto (memCacheWidth 420, childAspectRatio 0.8). Mode gelap: _StatCell pakai GlassCard (auto-dark).
-- SoftBlobs - blob dekoratif denim di latar halaman.
-- BrandLogo - logo toko dari store_settings.store_logo (cache SharedPreferences kunci pos_store_logo), fallback ikon keranjang.
-- UI responsif: main.dart membungkus app dengan skala berbasis design 390x844 (Transform.scale, clamp 0.8-1.35) supaya di HP kecil UI mengecil. Kotak desain di-`Align(topCenter)` + tinggi kotak = penuh layar (child height `maxH/scale`, Transform.scale alignment topCenter, MediaQuery size = 390 x maxH/scale) — hasil akhir TEPAT menutupi layar: warna aksen memenuhi status bar DAN TIDAK ada pita kosong di bawah. Area di luar area desain diisi warna tema (ColoredBox, bukan hitam) + SystemChrome edge-to-edge dengan status bar transparan (ikon gelap) — supaya TIDAK ada garis hitam di HP rasio layar lebih tinggi.
-- MODE GELAP (menyeluruh): helper task_ui.dart `pageBg(context)` (krem #F5F1EA / gelap #12151B) & `ink(context)` (denim / #E7ECF4) dipakai di SEMUA halaman: tab (history/inventory/reports/more/dashboard/products) + semua halaman push dari drawer (activity_log, cash_drawer, customers, finance, commissions, promotions, mutation_report, offline_queue, product_form, profile, settings, stock_movements, users) + login/splash — background, teks/ikon, chip status, AppBar, filter, kartu. GlassCard auto-dark dari Theme.brightness; drawer dan input qty keranjang/harga ikut tema. File dengan warna dinamis diberi `// ignore_for_file: prefer_const_constructors`.
-
-### Halaman & fitur mobile
-- Splash (splash_page.dart): tampil sebentar lalu otomatis ke Login (tanpa tombol/tagline).
-- Login: field Email / Username (backend terima username ATAU email), Password/PIN, tombol Login.
-- KECEPATAN VARIAN & KERANJANG: pilih varian baca CACHE dulu (langsung tampil, prefetch sudah isi), refresh detail di background; baris keranjang `frosted:false` (tanpa blur); preview total di-debounce 150ms.
-- POS/Kasir (pos_page.dart) — sheet keranjang (_CartSheet jadi StatefulWidget) FOKUS DAFTAR BARANG: pelanggan, kode promo, Tahan & Ambil Tahan dipindah ke bagian "Opsi" yang tertutup default (tombol Opsi/Tutup Opsi; chip pelanggan/promo muncul bila sudah dipilih). Nama produk PENUH (tanpa ellipsis) di setengah kiri baris; kontrol - qty + edit hapus di kanan (IconButton compact 28px). Info: "Total pcs: N pcs" menggantikan Subtotal. Sheet dibungkus DraggableScrollableSheet (initial 55% -> max di bawah Dynamic Island/status bar via `maxChildSize: (1 - MediaQuery.padding.top/height).clamp(0.6, 1.0)` — WAJIB pakai MediaQuery dari halaman POS (context PosPage), BUKAN context sheet: route bottom sheet memakai `MediaQuery.removePadding` sehingga padding di dalam sheet selalu 0 dan max tidak pernah terkunci) + ClipRRect/Material warna surface (ada background), Column mainAxisSize.max supaya tombol bayar PIN di bawah saat ditarik. TOMBOL BAYAR = jumlah total orderan (`Text(fmtRp(grandTotal))`), baris "Total:" terpisah dihapus; tap tombol tetap lanjut ke pembayaran. Sheet pakai StatefulBuilder + `_sheetRefresh` (StateSetter): showModalBottomSheet TIDAK rebuild otomatis saat setState halaman, jadi setiap mutasi (qty, hapus item, pelanggan, promo, ubah harga) & hasil preview memanggil `_sheetRefresh?.call(() {})` supaya daftar/total langsung ter-update (fix: tombol hapus tidak menghilangkan item). TOTAL KERANJANG: `_cartVersion`/`_previewVersion` — total & grand_total memakai preview HANYA kalau preview fresh (`_previewFresh`), kalau tidak pakai hitungan lokal (harga x qty); mencegah total basi saat qty diubah (mis. 12 pcs masih tampil 760). _doPreview memakai snapshot requestVersion = _cartVersion saat request dikirim; respons hanya diterapkan kalau requestVersion == _cartVersion saat selesai (mencegah request lama menimpa preview baru saat urutan selesai berbalik), _cartError di-reset saat preview sukses. SUBTOTAL PER ITEM: ditampilkan di BARIS yang sama (antara kontrol qty dan tombol edit/hapus, FittedBox lebar 72, font 11, warna ink/adaptif gelap), dihitung lokal (priceOverride ?? price) x qty. Hitungan terpusat di helper top-level pos_page.dart cartSubtotal(cart) & cartTotalPcs(cart) supaya subtotal item, Total pcs, dan grand total selalu dari SATU sumber data (SEMUA item masuk, tidak ada hardcode/indeks). Unit test: test/cart_totals_test.dart berisi 5 skenario wajib (1/2/3 produk x 4, ubah qty 4->5, hapus item) + priceOverride. HARGA VARIAN: item keranjang & VariantPicker memakai harga varian kalau > 0, selain itu ikut harga produk (sama dengan basis harga server) supaya subtotal lokal = grand total server; fix: A104 dkk yang harga variannya 0 tidak lagi berubah totalnya saat preview tiba. VariantPicker menampilkan FOTO varian terpilih (CachedNetworkImage, param mediaUrl). — Tahan/Lanjut transaksi:
-  - Tombol Tahan (di sheet keranjang) -> POST /api/transactions/hold (item disimpan + nama/varian/foto), keranjang dikosongkan.
-  - Tombol Ambil Tahan -> GET /api/transactions/pending, pilih dari dialog -> POST /api/transactions/pending/:id/resume, keranjang di-restore, preview dihitung ulang.
-  - Backend hold/pending/resume menghormati branch_id (owner bisa pilih toko/gudang); kasir/manager tetap pakai cabangnya sendiri.
-- POS/Kasir (pos_page.dart):
-  - Grid produk 3 kolom; kartu: nama kiri + harga kanan satu baris, font kecil, varian/stok di bawah.
-  - Header accordion _PosHeaderRow: Toko/Gudang di kiri & Cari di kanan satu baris; klik salah satu -> memanjang menutup yang lain; dropdown Gudang muncul saat Toko/Gudang terekspansi.
-  - Owner bisa pilih Toko/Gudang tujuan input (_posBranchId); ganti cabang -> keranjang dikosongkan & data di-reload.
-  - Qty keranjang bisa diketik keyboard (_QtyInput) + tombol -/+; nama+harga satu baris.
-  - Pemilih varian (variant_picker.dart): qty juga bisa diketik (_QtyField).
-  - Transaksi offline: saat gagal jaringan (SocketException/Timeout/ClientException) -> simpan ke OfflineStore (sqflite anyostore_offline.db), nomor sementara OFF-<branch>-<ts>, harga ikut HP, stok negatif diizinkan, auto-sync via syncOfflineTransactions() saat app dibuka + halaman Antrean Offline (menu Lainnya). Backend menerima offline:true + offline_invoice_no di POST /api/transactions (skip tier/promo, total ikut klien); nomor resmi dibuat server saat sync, nomor sementara tersimpan di kolom transactions.offline_invoice_no dan tetap bisa dicari di Riwayat. OFFLINE VISIBLE: transaksi offline (pending) ditampilkan di tab Riwayat dengan latar KUNING + chip OFFLINE (di atas daftar, `_mergeOffline`); tap hanya info "belum tersinkron".
-- PENGELUARAN/PEMASUKAN OFFLINE: tabel `offline_expenses` (DB v4). Form Keuangan saat offline -> `OfflineStore.insertExpense` (muncul kuning + label OFFLINE di daftar, bisa dihapus lokal, edit dilarang sampai sync). Kategori boleh kosong offline -> backend `/finance/expenses` POST/PUT kini kategori OPSIONAL (auto pakai/buat kategori 'Umum' sesuai type). Form menampilkan "Kategori: Umum (otomatis)" kalau daftar kategori kosong. `syncOfflineExpenses()` auto-sync saat app dibuka/koneksi pulih (dipanggil bersama syncOfflineTransactions di pos_page._syncPending & tombol Sync di Antrean Offline, yang sekarang menampilkan transaksi + pengeluaran/pemasukan). RINGKASAN & PENUTUPAN ikut menghitung data offline: reports_page._mergeOffline menambah transaksi (total, count, per metode bayar), pengeluaran & pemasukan ke summary/revenue/expenses/income/net_profit & penutupan (total_sales, receipt_count, methods, expenses, income, expected_total); finance_page LABA RUGI HARI INI juga menambah transaksi+pemasukan ke revenue, pengeluaran ke expenses.
-- Riwayat: detail transaksi ditampilkan ALA STRUK (_StrukRow label-kiri nilai-kanan: header invoice+status chip+tanggal+kasir, item qty x harga + subtotal + penanda batal/retur, subtotal/diskon/total/bayar/kembalian/metode); status chip baru: `partially_refunded` -> "Retur sebagian", `refunded` -> "Retur penuh", `approved` -> "Disetujui"; tombol Buat Retur juga muncul saat status retur sebagian. TAB RETUR: tap baris retur membuka detail ala struk (return_no + status + invoice + tanggal + oleh + alasan + item + total refund + metode). Kartu glass, status chip, filter Rentang/Status/Cari satu gaya dengan Laporan (Rentang: Hari ini/7 hari/30 hari/Kemarin/Bulan ini/Bulan kemarin/Semua); tab Riwayat & Laporan punya `reloadTick` statis (di-bump pos_page saat tab dibuka / transaksi offline disimpan) supaya data offline langsung muncul tanpa buka-tutup app; kartu transaksi menampilkan "Kasir: <nama>" (dari kolom cashier di list transaksi); field Cari punya ikon scan barcode (BarcodeScannerPage) yang langsung mengisi nomor invoice/barcode lalu memuat hasil (buat retur cepat).
-- OFFLINE PENUH (riwayat + laporan + keuangan + varian produk): data yang pernah dimuat otomatis tersimpan di cache lokal (sqflite anyostore_offline.db, tabel `generic_cache`, DB version 3) lewat `OfflineStore.cacheSet/cacheGet`. Saat internet putus (`ApiException.isNetwork`), halaman otomatis memakai cache: Riwayat Transaksi per filter/halaman (key `history-<dari>-<sampai>-<status>-<cari>-<page>`), tab Retur (`history-retur`), detail transaksi (`tx-detail-<id>`), Laporan per section/preset/branch (`report-<section>-<preset>-<branchId>`), Keuangan Pengeluaran/Pemasukan/Laba Rugi per tab+branch (`finance-<tab>-<branchId>`), detail produk + varian POS (`product-<branch>-<productId>`). Indikator offline = SATU titik kuning kecil (10px, Tooltip "Offline — memakai data tersimpan") di atas semua tab (PosPage), tanpa teks; snackbar "memakai data tersimpan" saat fallback cache dihapus (tidak dobel). Di-set lewat `OfflineStatus.offline` (ValueNotifier, di-set api_client saat request sukses/gagal jaringan). Auto-sync: pos_page listen `Connectivity().onConnectivityChanged` -> `OfflineStatus.notifyOnline()` (offline=false + `syncTick`++) -> `_syncPending()` (transaksi offline) + reload POS; HistoryTab, ReportsPage & FinancePage listen `OfflineStatus.syncTick` dan panggil `_load(silent:true)` supaya data normal lagi dari server. Kalau cache belum ada saat offline, muncul pesan "belum tersimpan offline".
-- PERFORMA (device lama aman): kartu non-blur (`GlassCard(frosted: false)`); thumbnail memakai decode cache kecil; Flutter image cache dibatasi 160 gambar/48 MiB; daftar panjang lazy, POS grid membuang kartu di luar layar, dan pencarian debounce 180 ms. Hindari blur per kartu dan pekerjaan katalog duplikat saat startup.
-- PREFETCH VARIAN OTOMATIS: `PrefetchService.prefetchProductVariants(api, branchId)` mengunduh detail hanya untuk produk yang punya varian, tiga produk paralel, setelah katalog berhasil diperbarui. Kegagalan tidak mengganggu POS; cache lama tetap dipakai.
-- Dashboard (dashboard_page.dart) — REDESIGN "RINGKASAN" ala SaaS (pakai dependency fl_chart): header card (judul Ringkasan + ikon kalender, filter Date From/To + dropdown Preset Hari ini/7 Hari/30 Hari/Bulan ini/Rentang kustom + tombol Apply, label tanggal aktif "Sabtu, 15 Agustus 2026"); OWNER punya dropdown Toko/Gudang (Toko saya default / Semua toko/gudang / pilih cabang — memengaruhi semua grafik & kartu), selain owner otomatis sesuai toko/gudang masing-masing (server pakai branch sendiri), 3 kartu ringkasan (Masuk hijau, Keluar merah, Selisih biru — dari SEMUA mutasi via endpoint GET /inventory/mutations-summary (tanpa batas paginasi — sebelumnya pakai list mutations limit 200 yang bisa terpotong); konsisten dengan grafik harian; angka POLOS tanpa Rp dengan pemisah ribuan), LINE CHART "Pergerakan Stock 7 Hari" (masuk biru/keluar merah, smooth curve, titik, area fill, grid tipis, tooltip, badge total), DONUT "Status Stok" (Aman/Hampir Habis/Kosong dari stockTotal summary + ring progress), BAR CHART "Stok per Kategori" (label miring 45°) & HORIZONTAL BAR "Top Produk Keluar" (magenta) pakai DATA RIIL dari endpoint baru GET /api/inventory/stock-by-category (SUM products.stock per kategori, top 8) & GET /api/inventory/top-products-out (SUM ABS(qty<0) stock_mutations per rentang, top 6). Dummy hanya tampilan awal/fallback. Data harian digabung dari `mutationsSummary.daily` (hari kosong diisi 0). Ringkasan Laporan menampilkan baris Penjualan (gross_sales) & Pemasukan (income) terpisah. Data dummy default supaya langsung tampil.
-- Laporan: Ringkasan/Penutupan/PPN (tab PENJUALAN DIHAPUS — informasinya sudah ada di Ringkasan); OWNER punya dropdown "Toko" (branch_id diteruskan ke reportOverview/reportSales/reportDailyClosing/taxReport — fix data 0 karena sebelumnya selalu cabang default owner). Penutupan menampilkan baris Pengeluaran & Pemasukan (backend daily-closing kini mengembalikan expenses/income dari expenses approved tanggal tsb) dan defaultnya tanggal bisnis WIB **hari ini** (`todayWib()`), bukan hari sebelumnya. Cetak Penutupan (struk thermal via printer tersimpan); kartu diberi jarak antar-kartu. Tombol Export (share_plus) menghasilkan file CSV laporan berjalan dan bisa langsung dibagikan (WA/email/Drive).
-- Keuangan: kartu LABA RUGI HARI INI (blok gelap denim, angka besar di tengah, Pendapatan/Pengeluaran/Pemasukan sejajar).
-- Pengaturan:
-  - Header struk (receipt_header) bisa diisi sampai 4 BARIS (minLines 1, maxLines 4) untuk daftar beberapa no HP admin; printReceipt memecah header per baris (split '\n').
-  - Kartu Ganti Logo Aplikasi (key store_logo) & Logo Toko/Kepala Invoice (key invoice_logo) via POST /api/settings/logo-data (body: content_type, filename, data_url, key).
-  - Printer Thermal multi-per toko: PrinterService menyimpan per branch (prefiks pos_saved_printer_name-<branchId> / pos_saved_printer_addr-<branchId>); pos_page memanggil PrinterService.setActiveBranch saat ganti cabang. Pilih printer sekali -> semua cetak (struk, barcode, penutupan) langsung pakai tanpa scan ulang; ada Uji Cetak & Hapus.
-  - Tampilan (mode gelap): ThemeController (pos_theme_mode di SharedPreferences) dengan pilihan Terang/Gelap/Sistem; main.dart membungkus MaterialApp dengan ValueListenableBuilder<ThemeMode> + _buildTheme(brightness) untuk darkTheme.
-  - Backup Data: tombol Backup Sekarang -> GET /api/backup (owner), file JSON disimpan di app documents (path_provider) lalu bisa di-Bagikan (share_plus -> Google Drive/email/WA). Toggle "Backup otomatis harian" (pos_auto_backup): saat app dibuka, backup otomatis bila >24 jam sejak terakhir (BackupService.shouldAutoBackup/runBackup).
-  - Notifikasi: toggle "Notifikasi stok menipis" (pos_notify_low_stock, default ON). NotificationService (flutter_local_notifications + timezone Asia/Jakarta): cek stok rendah dari reportOverview low_stock saat app dibuka; pengingat harian 09.00 WIB (zonedSchedule matchDateTimeComponents.time). Android butuh coreLibraryDesugaringEnabled + desugar_jdk_libs di android/app/build.gradle.kts dan permission POST_NOTIFICATIONS/RECEIVE_BOOT_COMPLETED/SCHEDULE_EXACT_ALARM + receiver ScheduledNotification(Boot)Receiver di AndroidManifest.
-- Komisi: tab Saya/Aturan/Catatan/Laporan; migrasi menambah aturan default global "Komisi per pcs (default)" (Reguler 3000, Semi 3000, Grosir Seri 1000 per pcs, branch_id NULL) kalau belum ada; perhitungan live dari transaksi per pegawai.
-- GANTI AKUN (Level 2): halaman AccountSwitcherPage BODY-ONLY (tanpa Scaffold/AppBar — MorePage `_open` sudah membungkus AppBar, biar header tidak dobel). AuthStore punya `savedAccounts` (SharedPreferences `pos_saved_accounts`, list JSON {user, token, refreshToken, savedAt}). Login punya checkbox "Ingat akun ini" (default centang) -> `saveCurrentAccount(remember)`. Menu drawer > Administrasi > "Ganti Akun" (AccountSwitcherPage): daftar akun tersimpan, tap akun lain -> `switchToAccount` (tanpa login ulang, pakai refresh token; reset `api.activeBranchId` + `BranchScope`), ikon hapus per akun (`removeAccount`, akun aktif -> logout+remove), tombol "Tambah Akun" -> logout ke login. Logout di drawer menggunakan dialog 2 pilihan: "Keluar saja (akun tersimpan)" / "Keluar & hapus akun ini". `_refresh` ikut memperbarui token akun tersimpan. main.dart: `PosPage(key: ValueKey(auth.userId))` supaya PosPage dibuat ulang (data fresh) saat ganti akun.
-- Drawer mengikuti urutan web dan memfilter item menurut role. Antrean Offline memiliki badge jumlah; Riwayat Aktivitas (ActivityLogPage) menyediakan filter Semua/Transaksi/Stok/Retur/Produk (query `?action=` pada `/api/activity-logs`). Audit Modal vs Harga tidak ada di app (dihapus atas permintaan user); script server `node scripts/audit-product-cost.js` tetap ada.
-- Daftar Produk (products_page.dart): tiap kartu punya tombol cetak label harga (printPriceLabel di PrinterService: nama, varian, harga besar 2x, sku, barcode opsional) — label rak 40x30, cetak via printer tersimpan tanpa scan ulang.
-- Opname (inventory_page.dart): item yang sudah masuk daftar bisa di-edit stok fisiknya dengan ketuk kartu (dialog input keyboard numeric), selain dihapus. Sheet pemilih produk punya tombol "Selesai memilih (N)" di bagian bawah (key `opname-picker-done-bottom-button`) di samping tombol di app bar.
-
-### iOS (baru disiapkan Agustus 2026)
-- Folder `mobile/ios/` dibuat via `flutter create --platforms ios --org com.anyostore .`; bundle id default `com.anyostore.posPakaianMobile`.
-- `ios/Runner/Info.plist` sudah berisi NSCameraUsageDescription (scan barcode), NSBluetoothAlwaysUsageDescription + NSBluetoothPeripheralUsageDescription (printer GPrinter BLE), dan UIBackgroundModes bluetooth-central.
-- Printer thermal iOS pakai plugin bluetooth_print_plus yang punya podspec dengan dependency `GSDK` (SDK resmi GPrinter, BLE) — WAJIB diuji dengan printer asli (mode BLE).
-- Prasyarat mesin: Xcode 27 beta (/Applications/Xcode-beta.app) + CocoaPods (terinstall) + Apple ID di Xcode (Signing). SUDAH TERINSTALL DI IPHONE ASLI (iPhone 16 Pro, iOS 27 beta): app "Pos Pakaian Mobile" (com.anyostore.posPakaianMobile) jalan via Xcode GUI — free provisioning team M837887BPA ("Miftahul Fauzan (Personal Team)"), berlaku 7 hari (perlu renew berkala; Apple Developer $99/th untuk stabil/TestFlight). Runner.xcodeproj sudah berisi DEVELOPMENT_TEAM=M837887BPA + CODE_SIGN_STYLE=Automatic. Catatan: flutter CLI belum mendeteksi iPhone (pakai Xcode GUI untuk run ke device); devicectl bisa cek app: `xcrun devicectl device info apps --device <id>`. PENTING: build DEBUG (Xcode ⌘R) TIDAK bisa dibuka dari home screen iOS (crash signal 11 "Cannot create FlutterEngine in debug mode without Flutter tooling") — untuk dipakai normal install RELEASE: `DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer flutter build ios --release` lalu `xcrun devicectl device install app --device <id> build/ios/iphoneos/Runner.app`.
-- Build uji (SUKSES Agustus 2026): pakai Xcode 27 beta — `DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer flutter build ios --no-codesign`. Konfigurasi penting: deployment target iOS 15.0 (Runner.pbxproj + Podfile `platform :ios, '15.0'` + post_install memaksa IPHONEOS_DEPLOYMENT_TARGET=15.0); Podfile TANPA `use_frameworks!` (plugin bluetooth/GSDK di-link sebagai static library, menghindari error "Include of non-modular header inside framework module" di Xcode 27); podspec bluetooth_print_plus `DEFINES_MODULE = 'NO'`. Hasil: build/ios/iphoneos/Runner.app. Untuk perangkat asli/TestFlight tetap butuh Apple Developer + signing.
-
-## Mobile teknis
-- File baru: lib/src/theme_controller.dart (ThemeMode + SharedPreferences), lib/src/notification_service.dart (notif lokal & jadwal harian), lib/src/backup_service.dart (backup JSON ke dokumen + cek jadwal + cek stok rendah). Main.dart memanggil NotificationService.init() + cek stok + auto-backup + jadwal pengingat saat app dibuka (hanya kalau sudah login).
-- ApiClient._request membungkus error jaringan (TimeoutException/SocketException/http.ClientException) menjadi ApiException(isNetwork: true) dengan pesan ramah — SEMUA halaman cukup catch `on ApiException`. 401: coba refresh dulu; kalau refresh GAGAL -> TIDAK logout otomatis (sesi tetap; logout hanya tombol Keluar). Deteksi offline di pos_page memakai `e is ApiException && e.isNetwork` (atau tipe mentah) supaya mode offline tetap jalan.
-- Dependensi baru di pubspec.yaml: share_plus, flutter_local_notifications, timezone, path_provider.
-- Build APK: JANGAN build di folder OneDrive (APK korup ZIP_BAD). Rsync mobile/ ke `/private/tmp/mbuild2`, build di sana, copy hasilnya. Gradle butuh `ANDROID_HOME=/opt/homebrew/share/android-commandlinetools` dan `JAVA_HOME=/opt/homebrew/opt/openjdk@17` (di mesin ini). CI build APK berada di `.github/workflows/mobile.yml` (bukan `ci.yml`), berjalan otomatis hanya saat push ke `main` mengubah `mobile/**` atau saat dipicu manual, dan upload artifact `anyostore-pos-apk`. Untuk build lokal, hasil utama tetap `mobile/build/app/outputs/flutter-apk/app-release.apk` setelah disalin kembali ke workspace.
-- ATURAN: SETIAP perubahan/edit aplikasi mobile WAJIB langsung produksi juga kedua artefak build: APK di `mobile/build/app/outputs/flutter-apk/app-release.apk` dan IPA (development export) di `mobile/build/ios/ipa/anyostore-app.ipa` — lalu copy ke workspace. Urutan: flutter build apk --release; flutter build ipa --release (archive; export App Store gagal utk akun gratis — wajar); xcodebuild -exportArchive ... -exportOptionsPlist /private/tmp/export_dev.plist (method development) -> ipa_dev. Instal juga ke perangkat (Android via adb, iOS via devicectl; iOS perlu uninstall dulu kalau ada error MismatchedApplicationIdentifierEntitlement, dan user harus Trust developer di iPhone).
-
-### Backend tambahan
-- transactions.js: mode offline (harga/total ikut HP, allow_negative_stock, offline_invoice_no), search riwayat mencakup offline_invoice_no; hold/pending/resume menerima branch_id (owner); list transaksi mengembalikan u.name AS cashier.
-- dashboard.js: untuk owner, array `stores` berisi metrik per cabang: today/7d/month sales, expenses, transactions + jumlah produk.
-- commissions.js: helper computeBranchReport dipakai /report dan endpoint baru /all-branches (owner) — ringkasan komisi per cabang + total untuk rentang start/end.
-- activity-logs.js: dukung filter ?action=<prefix> (mis. transaction_, stock_, return_, product_).
-- products.js: log product_update / product_price_update (harga lama -> baru) ke activity_logs; inventory-control.js: log stock_opname (jumlah item + selisih).
-- settings.js: /logo-data menerima key (store_logo | invoice_logo).
-- users.js + auth.js: login pakai email ATAU username; CRUD pegawai punya field username (unik, 3-50, lowercase).
-- Migrasi baru: 20260812_user_username.sql, 20260812_offline_transaction_sync.sql, 20260812_default_commission_rules.sql.
-
-### Web
-- Web dan mobile sekarang didokumentasikan/dirilis terpisah: perubahan web mengikuti CI + deploy exact-SHA, sedangkan APK mengikuti workflow mobile. Web tetap memakai desain admin yang sudah ada, tetapi fitur operasional web aktif dipelihara; versi terbaru mencakup tampilan stok per gudang dengan foto serta edit posisi rak. Backend yang sama membuat web otomatis mendukung login username/email dan fitur backend lainnya.
-
 ## Perintah
 
 ```bash
@@ -352,14 +72,6 @@ adb install -r build/app/outputs/flutter-apk/app-release.apk && adb logcat
 cd backend && node scripts/reconcile-stock.js [--fix]  # audit/perbaiki selisih stok (jalankan di container backend)
 cd backend && node scripts/audit-payments.js           # audit konsistensi pembayaran (read-only)
 ```
-
-## Perbaikan audit 2026-08-24 (QA menyeluruh)
-
-- **Dashboard (backend/src/routes/dashboard.js)**: semua query ringkasan/grafik/breakdown pembayaran kini memakai `SALES_STATUSES_SQL` (tidak hardcode completed/partially_cancelled), tanggal pakai `DATE(created_at)`/`CURDATE()` langsung (DB produksi sudah `--default-time-zone=+07:00`, jangan tambah `INTERVAL 7 HOUR` lagi), dan pengeluaran hanya `status='approved'` (sejalan dengan finance/profit-loss). Perbaiki juga `stores` subquery dengan pola sama.
-- **Retur lanjutan (returns.js)**: `POST /api/returns` sekarang menerima transaksi `completed` ATAU `partially_refunded` supaya retur sebagian bisa dilanjutkan ke sisa item; `transactions.js` filter status riwayat menyertakan `partially_refunded`.
-- **Batas retur (mobile history_tab.dart + web history/page.js)**: sisa qty retur/batal dihitung `quantity - cancelled_qty - returned_qty`.
-- **Backup (backup.js)**: respons kini menyertakan `truncated_tables[]` (nama tabel + total baris) kalau ada tabel >10.000 baris sehingga backup yang terpotong tidak diam-diam.
-- **Keamanan**: JSON-LD detail produk di-escape `<` → `\u003c` (cegah stored XSS via `</script>`); Caddyfile menambah `X-Frame-Options` + `Content-Security-Policy`; token/refresh/daftar akun mobile dipindah dari SharedPreferences ke `flutter_secure_storage` (Keychain/Keystore) dengan migrasi otomatis dari data lama.
 
 ## Bahasa
 
