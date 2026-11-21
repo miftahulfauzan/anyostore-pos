@@ -683,15 +683,6 @@ class _ReportsPageState extends State<ReportsPage> {
                         color: taskMuted(context))),
               ),
             ],
-            if (!usesClosingDate) ...[
-              const SizedBox(height: 4),
-              Text(
-                  'Periode: ${_presetLabel(_preset)} · ${_range.$1} s.d. ${_range.$2}',
-                  style: TextStyle(
-                      fontSize: TaskTypography.secondary,
-                      fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.outline)),
-            ],
           ],
         ),
       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'app_ui.dart';
 import 'auth_store.dart';
 import 'task_ui.dart';
 
@@ -121,11 +122,13 @@ class _AccountSwitcherPageState extends State<AccountSwitcherPage> {
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
       children: [
         if (accounts.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 48),
-            child: Center(
-                child: Text(
-                    'Belum ada akun tersimpan. Centang "Ingat akun ini" saat login.')),
+          AppEmptyState(
+            icon: Icons.switch_account_outlined,
+            title: 'Belum ada akun tersimpan',
+            message:
+                'Centang "Ingat akun ini" saat login untuk menyimpan akun di perangkat.',
+            actionLabel: 'Tambah akun',
+            onAction: () => _addAccount(context, auth),
           )
         else
           for (final acc in accounts)

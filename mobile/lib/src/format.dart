@@ -40,3 +40,36 @@ String formatDateTime(DateTime dt) {
 
 double asNum(dynamic v) =>
     (v is num) ? v.toDouble() : double.tryParse('$v') ?? 0;
+
+const _monthShort = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'Mei',
+  'Jun',
+  'Jul',
+  'Agu',
+  'Sep',
+  'Okt',
+  'Nov',
+  'Des'
+];
+
+/// Tanggal + jam WIB dari ISO/MySQL. ISO dengan zona UTC digeser +7 jam;
+/// string tanpa zona dianggap sudah waktu lokal (WIB). Tanggal polos hanya
+/// menampilkan tanggal.
+String formatWibDateTime(Object? raw) {
+  final text = (raw ?? '').toString().trim();
+  if (text.isEmpty) return '-';
+  final parsed = DateTime.tryParse(text.replaceFirst(' ', 'T'));
+  if (parsed == null) return text;
+  final wib = parsed.isUtc ? parsed.add(const Duration(hours: 7)) : parsed;
+  final date = '${wib.day} ${_monthShort[wib.month - 1]} ${wib.year}';
+  final hasTime = text.contains('T') || text.contains(':');
+  if (!hasTime) return date;
+  return '$date · ${wib.hour.toString().padLeft(2, '0')}:'
+      '${wib.minute.toString().padLeft(2, '0')}';
+}
+
+String formatWibDate(Object? raw) => formatWibDateTime(raw).split(' · ').first;

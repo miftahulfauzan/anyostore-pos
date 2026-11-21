@@ -5,6 +5,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
+import 'app_ui.dart';
+import 'ui_kit.dart';
 import 'format.dart';
 import 'offline_store.dart';
 import 'task_ui.dart';
@@ -126,11 +128,12 @@ class _OfflineQueuePageState extends State<OfflineQueuePage> {
   }
 
   Widget _body() {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) return const UiLoadingState(label: 'Memuat antrean…');
     if (_rows.isEmpty) {
-      return const Center(
-        child: Text('Tidak ada data offline menunggu sync.',
-            style: TextStyle(fontSize: 14)),
+      return const AppEmptyState(
+        icon: Icons.cloud_done_outlined,
+        title: 'Antrean kosong',
+        message: 'Tidak ada data offline yang menunggu sinkronisasi.',
       );
     }
     return ListView.separated(
@@ -144,53 +147,70 @@ class _OfflineQueuePageState extends State<OfflineQueuePage> {
         final payload = jsonDecode(raw['payload'] as String? ?? '{}')
             as Map<String, dynamic>;
         final created = raw['created_at']?.toString() ?? '';
-        final datePart =
-            created.contains('T') ? created.split('T').first : created;
         final title = isExpense
             ? (payload['name']?.toString() ?? 'Pengeluaran')
             : (raw['temp_invoice_no']?.toString() ?? '-');
         final amount = isExpense
             ? '${payload['type'] == 'income' ? 'Pemasukan' : 'Pengeluaran'} ${fmtRp(asNum(payload['amount']))}'
             : "Transaksi ${fmtRp(asNum(payload['grand_total'] ?? raw['grand_total']))}";
-        return GlassCard(
-          padding: const EdgeInsets.all(12),
-          radius: 18,
+        final accent =
+            isExpense ? const Color(0xFFB45309) : const Color(0xFF1D4ED8);
+        return AppListCard(
           child: Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
-                  color: kTaskSand,
-                  borderRadius: BorderRadius.circular(12),
+                  color: accent.withValues(alpha: .1),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
-                    isExpense ? Icons.account_balance_wallet : Icons.cloud_off,
-                    size: 20,
-                    color: ink(context)),
+                    isExpense
+                        ? Icons.account_balance_wallet_outlined
+                        : Icons.cloud_off_outlined,
+                    size: 18,
+                    color: accent),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 9),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 12.5,
                             fontWeight: FontWeight.w800,
                             color: ink(context))),
+                    const SizedBox(height: 1),
                     Text(amount,
                         style:
-                            TextStyle(fontSize: 12, color: taskMuted(context))),
-                    Text(datePart,
-                        style:
-                            TextStyle(fontSize: 12, color: taskMuted(context))),
+                            TextStyle(fontSize: 11, color: taskMuted(context))),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 5,
+                      runSpacing: 3,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        AppStatusPill(
+                          label: 'MENUNGGU SYNC',
+                          fg: const Color(0xFFB45309),
+                          bg: const Color(0xFFFEF3C7),
+                        ),
+                        Text(formatWibDateTime(created),
+                            style: TextStyle(
+                                fontSize: 9.5, color: taskMuted(context))),
+                      ],
+                    ),
                   ],
                 ),
               ),
               IconButton(
                 onPressed: () => _remove(row),
-                icon: Icon(Icons.delete_outline, color: taskMuted(context)),
+                icon: Icon(Icons.delete_outline,
+                    size: 19, color: taskMuted(context)),
                 tooltip: 'Hapus dari antrean',
               ),
             ],

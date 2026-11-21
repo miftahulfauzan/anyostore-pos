@@ -58,6 +58,25 @@ class _StockMovementsPageState extends State<StockMovementsPage> {
     }
   }
 
+  String _movementTypeLabel(String? type, num qty) {
+    final value = (type ?? '').toLowerCase();
+    if (value == 'in' ||
+        value.contains('masuk') ||
+        value.contains('incoming')) {
+      return 'Masuk';
+    }
+    if (value == 'out' ||
+        value.contains('keluar') ||
+        value.contains('outgoing')) {
+      return 'Keluar';
+    }
+    if (value.contains('adjust') || value.contains('opname')) {
+      return 'Penyesuaian';
+    }
+    if (value.contains('transfer')) return 'Transfer';
+    return value.isEmpty ? (qty >= 0 ? 'Masuk' : 'Keluar') : '$type';
+  }
+
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
@@ -150,7 +169,7 @@ class _StockMovementsPageState extends State<StockMovementsPage> {
                                                       color: ink(context))),
                                               const SizedBox(height: 2),
                                               Text(
-                                                  '${r['type'] ?? ''} · ${r['warehouse_name'] ?? ''} · ${r['created_at'] ?? ''}',
+                                                  '${_movementTypeLabel(r['type']?.toString(), qty)} · ${r['warehouse_name'] ?? ''} · ${formatWibDateTime(r['created_at'])}',
                                                   maxLines: 2,
                                                   overflow:
                                                       TextOverflow.ellipsis,

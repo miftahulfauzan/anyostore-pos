@@ -823,6 +823,8 @@ class _StockSectionState extends State<_StockSection> {
                                   radius: 12,
                                   onTap: () => _openProductEditor(r),
                                   child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       ClipRRect(
                                         borderRadius: BorderRadius.circular(12),
@@ -910,7 +912,10 @@ class _StockSectionState extends State<_StockSection> {
                                         ),
                                       ),
                                       const SizedBox(width: 8),
-                                      const _StockEditBadge(),
+                                      const Padding(
+                                        padding: EdgeInsets.only(top: 1),
+                                        child: _StockEditBadge(),
+                                      ),
                                     ],
                                   ),
                                 );

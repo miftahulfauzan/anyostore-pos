@@ -22,6 +22,7 @@ import 'opname_reminder.dart';
 import 'printer_service.dart';
 import 'printer_setup.dart';
 import 'task_ui.dart';
+import 'ui_kit.dart';
 import 'theme_controller.dart';
 
 /// Batasi input teks ke sejumlah baris (Enter berlebih diabaikan).
@@ -2101,8 +2102,10 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_error != null) return Center(child: Text(_error!));
+    if (_loading) return const UiLoadingState(label: 'Memuat pengaturan…');
+    if (_error != null) {
+      return UiErrorState(message: _error!, onRetry: _load);
+    }
     if (widget.section != null) {
       return _buildDetailSection(context, widget.section!);
     }

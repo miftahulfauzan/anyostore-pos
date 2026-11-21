@@ -3,6 +3,9 @@
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
+import 'app_ui.dart';
+import 'format.dart';
+import 'ui_kit.dart';
 import 'task_ui.dart';
 
 class ActivityLogPage extends StatefulWidget {
@@ -48,6 +51,77 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
       if (mounted) setState(() => _loading = false);
     }
   }
+
+  String _actionLabel(String action) {
+    final text = action.replaceAll('_', ' ').trim();
+    if (text.isEmpty) return 'Aktivitas';
+    return text[0].toUpperCase() + text.substring(1);
+  }
+
+  Widget _activityCard(Map<String, dynamic> row) {
+    final action = row['action']?.toString() ?? '';
+    final color = action.contains('stock')
+        ? const Color(0xFF0F766E)
+        : action.contains('transaction') || action.contains('sale')
+            ? const Color(0xFF1D4ED8)
+            : action.contains('return')
+                ? const Color(0xFF6D28D9)
+                : action.contains('login') || action.contains('auth')
+                    ? const Color(0xFF137A43)
+                    : const Color(0xFF475569);
+    final meta = [row['user_name'], row['branch_name']]
+        .map((part) => part?.toString().trim() ?? '')
+        .where((part) => part.isNotEmpty)
+        .join(' · ');
+    return AppListCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: _isDark ? .2 : .1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(Icons.history, size: 17, color: color),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_actionLabel(action),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                        color: ink(context))),
+                const SizedBox(height: 2),
+                Text(row['description']?.toString() ?? '',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 11, height: 1.4, color: ink(context))),
+                const SizedBox(height: 3),
+                Text(
+                    [
+                      if (meta.isNotEmpty) meta,
+                      formatWibDateTime(row['created_at']),
+                    ].join(' · '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 9.5, color: taskMuted(context))),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
 
   @override
   Widget build(BuildContext context) {
@@ -123,11 +197,16 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
               ),
               Expanded(
                 child: _loading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const UiLoadingState(label: 'Memuat aktivitas…')
                     : _error != null
-                        ? Center(child: Text(_error!))
+                        ? UiErrorState(message: _error!, onRetry: _load)
                         : _rows.isEmpty
-                            ? const Center(child: Text('Belum ada aktivitas'))
+                            ? AppEmptyState(
+                                icon: Icons.history,
+                                title: 'Belum ada aktivitas',
+                                message:
+                                    'Aktivitas transaksi, stok, dan pengguna akan tampil di sini.',
+                              )
                             : ListView.separated(
                                 padding: const EdgeInsets.all(12),
                                 itemCount: _rows.length,
@@ -135,58 +214,7 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                                     const SizedBox(height: 8),
                                 itemBuilder: (_, i) {
                                   final r = _rows[i];
-                                  return GlassCard(
-                                    padding: const EdgeInsets.all(12),
-                                    radius: 20,
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Container(
-                                          width: 38,
-                                          height: 38,
-                                          decoration: BoxDecoration(
-                                            color: kTaskSand,
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                          ),
-                                          child: Icon(Icons.history,
-                                              size: 18, color: ink(context)),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                  r['action']?.toString() ?? '',
-                                                  style: TextStyle(
-                                                      fontSize: 12,
-                                                      fontWeight:
-                                                          FontWeight.w800,
-                                                      color: ink(context))),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                  r['description']
-                                                          ?.toString() ??
-                                                      '',
-                                                  style: const TextStyle(
-                                                    fontSize: 12,
-                                                  )),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                  '${r['user_name'] ?? ''} · ${r['branch_name'] ?? ''} · ${r['created_at'] ?? ''}',
-                                                  style: const TextStyle(
-                                                    fontSize:
-                                                        TaskTypography.micro,
-                                                  )),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
+                                  return _activityCard(r);
                                 },
                               ),
               ),
