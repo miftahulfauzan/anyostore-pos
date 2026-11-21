@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -142,15 +141,11 @@ class _CommissionsPageState extends State<CommissionsPage> {
       if (_tab == 'saya') {
         final data = await widget.api
             .commissionMine(start: start, end: end, branchId: _branchId);
-        debugPrint(
-            'KOMISI_MINE branch=$_branchId range=$start..$end => ${jsonEncode(data)}');
         if (!isCurrent()) return;
         setState(() => _mine = data);
       } else if (_tab == 'report') {
         final data = await widget.api
             .commissionReport(start: start, end: end, branchId: _branchId);
-        debugPrint(
-            'KOMISI_REPORT branch=$_branchId range=$start..$end => ${jsonEncode(data)}');
         if (!isCurrent()) return;
         setState(() => _report = data);
       } else {
@@ -405,151 +400,510 @@ class _CommissionsPageState extends State<CommissionsPage> {
     );
   }
 
+  String get _presetLabel => switch (_preset) {
+        'today' => 'Hari ini',
+        'yesterday' => 'Kemarin',
+        '7d' => '7 hari terakhir',
+        '30d' => '30 hari terakhir',
+        'lastmonth' => 'Bulan lalu',
+        'custom' => 'Rentang custom',
+        _ => 'Bulan ini',
+      };
+
   Widget _buildBody() {
     if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_error != null) return Center(child: Text(_error!));
-    switch (_tab) {
-      case 'saya':
-        // Backend mengembalikan data di objek `live`; fallback ke root.
-        final raw = _mine ?? {};
-        final mine = (raw['live'] as Map<String, dynamic>?) ?? raw;
-        return ListView(
-          padding: const EdgeInsets.all(12),
-          children: [
-            _Card('Komisi Saya', [
-              _Row('Estimasi komisi', fmtRp(asNum(mine['estimated']))),
-              _Row('Penjualan', fmtRp(asNum(mine['total_sales']))),
-              _Row('Transaksi', '${mine['total_transactions'] ?? 0}'),
-            ]),
-            _Card('Jumlah pcs (per tier)', [
-              _Row('Reguler', '${mine['qty_reguler'] ?? 0} pcs'),
-              _Row('Grosir Seri', '${mine['qty_grosir_seri'] ?? 0} pcs'),
-            ]),
-            _Card('Periode', [
-              _Row('Dari', '${mine['period_start'] ?? ''}'),
-              _Row('Sampai', '${mine['period_end'] ?? ''}'),
-            ]),
-          ],
-        );
-      case 'report':
-        final accounts = ((_report?['per_account'] as List?) ?? [])
-            .cast<Map<String, dynamic>>();
-        return ListView(
-          padding: const EdgeInsets.all(12),
-          children: [
-            GlassCard(
-              padding: EdgeInsets.zero,
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                        'Total komisi: ${fmtRp(asNum(_report?['total_commission']))}',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w800, fontSize: 16)),
-                    Text(
-                        'Periode ${_report?['period_start']} s.d. ${_report?['period_end']}'),
-                  ],
-                ),
-              ),
-            ),
-            for (final a in accounts)
-              GlassCard(
-                padding: EdgeInsets.zero,
-                child: ListTile(
-                  title: Text(a['name']?.toString() ?? '',
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
-                  subtitle: Text(
-                      '${a['total_qty'] ?? 0} pcs (R ${a['qty_reguler'] ?? 0} / G ${a['qty_grosir'] ?? 0})'),
-                  trailing: Text(fmtRp(asNum(a['commission'])),
-                      style: const TextStyle(fontWeight: FontWeight.w800)),
-                ),
-              ),
-          ],
-        );
-      default:
-        return ListView(
-          padding: const EdgeInsets.all(12),
-          children: [
-            FilledButton.icon(
-              onPressed: _addRule,
-              icon: const Icon(Icons.add),
-              label: const Text('Tambah Aturan (per pcs)'),
-            ),
-            const SizedBox(height: 8),
-            for (final rule in _rules)
-              GlassCard(
-                padding: EdgeInsets.zero,
-                child: ListTile(
-                  title: Text(rule['name']?.toString() ?? '',
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
-                  subtitle: Text(
-                      '${rule['calculation_type'] ?? ''} · ${rule['branch_id'] == null ? 'Global' : 'Toko ${rule['branch_id']}'}'),
-                  trailing: IconButton(
-                    onPressed: () => _deleteRule(rule),
-                    icon: const Icon(Icons.delete_outline),
-                  ),
-                ),
-              ),
-          ],
-        );
-    }
-  }
-}
-
-class _Card extends StatelessWidget {
-  const _Card(this.title, this.rows);
-  final String title;
-  final List<Widget> rows;
-
-  @override
-  Widget build(BuildContext context) => GlassCard(
-        padding: EdgeInsets.zero,
+    if (_error != null) {
+      return Center(
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(24),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(title,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w800, fontSize: 15)),
-              const SizedBox(height: 10),
-              for (var i = 0; i < rows.length; i++) ...[
-                if (i > 0)
-                  const Divider(
-                      height: 14, thickness: 1, color: Color(0x14E2E8F0)),
-                rows[i],
-              ],
+              const Icon(Icons.error_outline, size: 30, color: kTaskTerracotta),
+              const SizedBox(height: 8),
+              Text(_error!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12.5, color: ink(context))),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: _load,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Coba lagi'),
+              ),
             ],
           ),
         ),
       );
-}
+    }
+    switch (_tab) {
+      case 'saya':
+        return _buildMine();
+      case 'report':
+        return _buildReport();
+      default:
+        return _buildRules();
+    }
+  }
 
-class _Row extends StatelessWidget {
-  const _Row(this.label, this.value);
-  final String label;
-  final String value;
+  // ===== Gaya bersama =====
+  // Label memakai abu tua (taskMuted) + huruf kapital kecil; nilai memakai
+  // ink supaya kontras di atas kartu putih, termasuk saat mode gelap.
+  bool get _dark => Theme.of(context).brightness == Brightness.dark;
 
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 7),
-        child: Row(
+  Color get _blue => _dark ? kTaskAccentDark : const Color(0xFF1D4ED8);
+  Color get _amber => _dark ? const Color(0xFFFCD34D) : const Color(0xFFB45309);
+  Color get _teal => _dark ? const Color(0xFF6EE7B7) : const Color(0xFF0F766E);
+  Color get _purple =>
+      _dark ? const Color(0xFFC4B5FD) : const Color(0xFF6D28D9);
+
+  TextStyle get _capStyle => TextStyle(
+        fontSize: 8.5,
+        fontWeight: FontWeight.w800,
+        letterSpacing: .9,
+        color: taskMuted(context),
+      );
+
+  TextStyle get _valueStyle => TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w800,
+        color: ink(context),
+      );
+
+  TextStyle get _headingStyle => TextStyle(
+        fontSize: 12.5,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -.1,
+        color: ink(context),
+      );
+
+  BoxDecoration _panelDecoration({double radius = 14}) => BoxDecoration(
+        color: taskSurface(context),
+        border: Border.all(color: taskBorder(context)),
+        borderRadius: BorderRadius.circular(radius),
+      );
+
+  Widget _panel({required Widget child}) => Container(
+        padding: const EdgeInsets.all(13),
+        decoration: _panelDecoration(),
+        child: child,
+      );
+
+  Widget _chip(String text, Color color) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: _dark ? .18 : .12),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(text,
+            style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                letterSpacing: .3,
+                color: color)),
+      );
+
+  Widget _hero(String caption, String amount, String meta) => Container(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF1E3A5F), Color(0xFF2D5D92)],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [
+            BoxShadow(
+                color: Color(0x331E3A5F), blurRadius: 18, offset: Offset(0, 8)),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Text(label,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.outline)),
+            Text(caption.toUpperCase(),
+                style: const TextStyle(
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.4,
+                    color: Color(0xB8FFFFFF))),
+            const SizedBox(height: 4),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(amount,
+                  maxLines: 1,
+                  style: const TextStyle(
+                      fontSize: 29,
+                      height: 1.1,
+                      letterSpacing: -.6,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white)),
             ),
-            const SizedBox(width: 14),
-            Text(value,
-                style:
-                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 7),
+            Text(meta,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xBEFFFFFF))),
           ],
         ),
       );
+
+  Widget _statTile(String label, String value, IconData icon, Color color) =>
+      Container(
+        padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
+        decoration: _panelDecoration(radius: 13),
+        child: Row(
+          children: [
+            Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: _dark ? .2 : .12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, size: 15, color: color),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _capStyle),
+                  const SizedBox(height: 2),
+                  Text(value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _valueStyle.copyWith(fontSize: 12.5)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _tierRow(String label, num qty, Color color) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            _chip(label, color),
+            const Spacer(),
+            Text('${qty.toInt()}', style: _valueStyle),
+            const SizedBox(width: 3),
+            Text('pcs',
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: taskMuted(context))),
+          ],
+        ),
+      );
+
+  Widget _periodCard(String caption, String value) => _panel(
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: (_dark ? kTaskAccentDark : kTaskAccent)
+                    .withValues(alpha: _dark ? .2 : .1),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(Icons.calendar_month_outlined,
+                  size: 16, color: _dark ? kTaskAccentDark : kTaskAccent),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(caption.toUpperCase(), style: _capStyle),
+                  const SizedBox(height: 1),
+                  Text(value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _valueStyle.copyWith(fontSize: 12)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _buildMine() {
+    final raw = _mine ?? {};
+    // Backend mengembalikan data di objek `live`; fallback ke root.
+    final mine = (raw['live'] as Map<String, dynamic>?) ?? raw;
+    final start = _commissionDate(mine['period_start']);
+    final end = _commissionDate(mine['period_end']);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(12, 2, 12, 16),
+      children: [
+        _hero('Estimasi komisi', fmtRp(asNum(mine['estimated'])),
+            '$_presetLabel · $start – $end'),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _statTile('Penjualan', fmtRp(asNum(mine['total_sales'])),
+                  Icons.trending_up_rounded, _blue),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _statTile(
+                  'Transaksi',
+                  '${mine['total_transactions'] ?? 0}',
+                  Icons.receipt_long_outlined,
+                  _teal),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        _panel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Jumlah pcs per tier', style: _headingStyle),
+              const SizedBox(height: 4),
+              _tierRow('Reguler', asNum(mine['qty_reguler']), _blue),
+              _tierRow('Grosir Seri', asNum(mine['qty_grosir_seri']), _amber),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        _periodCard('Periode data', '$start → $end'),
+      ],
+    );
+  }
+
+  Widget _buildReport() {
+    final report = _report ?? {};
+    final accounts =
+        ((report['per_account'] as List?) ?? []).cast<Map<String, dynamic>>();
+    final start = _commissionDate(report['period_start']);
+    final end = _commissionDate(report['period_end']);
+    final totalQty = accounts.fold<num>(
+        0, (sum, account) => sum + asNum(account['total_qty']));
+    final totalReg = accounts.fold<num>(
+        0, (sum, account) => sum + asNum(account['qty_reguler']));
+    final totalGrosir = accounts.fold<num>(
+        0, (sum, account) => sum + asNum(account['qty_grosir']));
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(12, 2, 12, 16),
+      children: [
+        _hero('Total komisi', fmtRp(asNum(report['total_commission'])),
+            '$start – $end · ${accounts.length} pegawai'),
+        const SizedBox(height: 10),
+        _panel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text('Rincian pegawai', style: _headingStyle),
+                  const Spacer(),
+                  _chip('${accounts.length} akun', _blue),
+                ],
+              ),
+              const SizedBox(height: 2),
+              if (accounts.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text('Belum ada komisi pada periode ini.',
+                      style:
+                          TextStyle(fontSize: 12, color: taskMuted(context))),
+                )
+              else
+                for (var i = 0; i < accounts.length; i++) ...[
+                  if (i > 0) Divider(height: 1, color: taskBorder(context)),
+                  _accountRow(accounts[i], i),
+                ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        _periodCard('Total pcs',
+            '${totalQty.toInt()} pcs · R ${totalReg.toInt()} / G ${totalGrosir.toInt()}'),
+      ],
+    );
+  }
+
+  Widget _accountRow(Map<String, dynamic> account, int index) {
+    final palette = [_blue, _teal, _amber, _purple];
+    final color = palette[index % palette.length];
+    final name = (account['name'] ?? '').toString().trim();
+    final initial = name.isEmpty ? '?' : name.characters.first.toUpperCase();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: _dark ? .2 : .12),
+              shape: BoxShape.circle,
+            ),
+            child: Text(initial,
+                style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w800, color: color)),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name.isEmpty ? '-' : name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: ink(context))),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    _chip('R ${asNum(account['qty_reguler']).toInt()}', _blue),
+                    const SizedBox(width: 5),
+                    _chip('G ${asNum(account['qty_grosir']).toInt()}', _amber),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(fmtRp(asNum(account['commission'])),
+              style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                  color: _dark ? kTaskAccentDark : kTaskDark)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRules() {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(12, 2, 12, 16),
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: _addRule,
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Tambah aturan (per pcs)'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(0, 46),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (_rules.isEmpty)
+          _panel(
+            child: Text('Belum ada aturan komisi.',
+                style: TextStyle(fontSize: 12, color: taskMuted(context))),
+          )
+        else
+          for (final rule in _rules) ...[
+            _panel(
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: _purple.withValues(alpha: _dark ? .2 : .12),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Icon(Icons.rule, size: 17, color: _purple),
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(rule['name']?.toString() ?? '',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: ink(context))),
+                        const SizedBox(height: 2),
+                        Text(
+                            '${_ruleTypeLabel(rule['calculation_type'])} · '
+                            '${rule['branch_id'] == null ? 'Global' : 'Toko ${rule['branch_id']}'}',
+                            style: TextStyle(
+                                fontSize: 10.5, color: taskMuted(context))),
+                        if ('${rule['calculation_type']}' ==
+                            'per_pcs_customer_tier') ...[
+                          const SizedBox(height: 4),
+                          Wrap(
+                            spacing: 5,
+                            runSpacing: 4,
+                            children: [
+                              _chip(
+                                  'Reguler ${fmtRp(asNum(rule['commission_reguler_per_pcs']))}/pcs',
+                                  _blue),
+                              _chip(
+                                  'Grosir ${fmtRp(asNum(rule['commission_grosir_seri_per_pcs']))}/pcs',
+                                  _amber),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => _deleteRule(rule),
+                    icon: const Icon(Icons.delete_outline),
+                    color: kTaskTerracotta,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+      ],
+    );
+  }
+}
+
+String _ruleTypeLabel(Object? type) => switch ('$type') {
+      'per_pcs_customer_tier' => 'Per pcs · tier pelanggan',
+      'percentage_sales' => 'Persentase penjualan',
+      'percentage_profit' => 'Persentase laba',
+      'per_transaction' => 'Per transaksi',
+      'flat_monthly' => 'Flat bulanan',
+      _ => '$type',
+    };
+
+String _commissionDate(Object? raw) {
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'Mei',
+    'Jun',
+    'Jul',
+    'Agu',
+    'Sep',
+    'Okt',
+    'Nov',
+    'Des'
+  ];
+  final text = (raw ?? '').toString().trim();
+  if (text.isEmpty) return '-';
+  final date = DateTime.tryParse(text);
+  if (date == null) return text;
+  return '${date.day} ${months[date.month - 1]} ${date.year}';
 }
