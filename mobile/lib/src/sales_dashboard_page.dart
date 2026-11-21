@@ -36,6 +36,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   int _generation = 0;
 
   bool get _isKasir => widget.role == 'kasir';
+  bool get _dark => Theme.of(context).brightness == Brightness.dark;
 
   @override
   void initState() {
@@ -267,46 +268,65 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 _sectionHead(context, 'Ringkasan toko',
                     trailing: '${transactions.toInt()} pesanan'),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                        child: _kpi(context, 'Penjualan', fmtRp(grossSales),
-                            _changePercent(grossSales, previous['gross_sales']),
-                            lead: true)),
-                    const SizedBox(width: 6),
-                    Expanded(
-                        child: _kpi(
-                            context,
-                            'Pesanan',
-                            '${transactions.toInt()}',
-                            _changePercent(
-                                transactions, previous['transactions']))),
-                  ],
+                _summaryHero(
+                  context,
+                  label: 'Penjualan',
+                  value: fmtRp(grossSales),
+                  change: _changePercent(grossSales, previous['gross_sales']),
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Expanded(
-                        child: _kpi(
-                            context,
-                            'Produk',
-                            '${productsSold.toInt()} pcs',
-                            _changePercent(
-                                productsSold, previous['products_sold']))),
-                    const SizedBox(width: 6),
-                    Expanded(
-                        child: _kpi(
-                            context,
-                            fourthLabel,
-                            fmtRp(fourthValue),
-                            _changePercent(
-                                hasProfit
-                                    ? summary['net_profit']
-                                    : summary['expenses'],
-                                hasProfit
-                                    ? previous['net_profit']
-                                    : previous['expenses']))),
-                  ],
+                const SizedBox(height: 7),
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _summaryTile(
+                          context,
+                          label: 'Pesanan',
+                          value: '${transactions.toInt()}',
+                          change: _changePercent(
+                              transactions, previous['transactions']),
+                          icon: Icons.receipt_long_outlined,
+                          color: _dark ? kTaskAccentDark : kTaskAccent,
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      Expanded(
+                        child: _summaryTile(
+                          context,
+                          label: 'Produk',
+                          value: '${productsSold.toInt()} pcs',
+                          change: _changePercent(
+                              productsSold, previous['products_sold']),
+                          icon: Icons.inventory_2_outlined,
+                          color: _dark
+                              ? const Color(0xFF6EE7B7)
+                              : const Color(0xFF0F766E),
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      Expanded(
+                        child: _summaryTile(
+                          context,
+                          label: fourthLabel,
+                          value: fmtRp(fourthValue),
+                          change: _changePercent(
+                              hasProfit
+                                  ? summary['net_profit']
+                                  : summary['expenses'],
+                              hasProfit
+                                  ? previous['net_profit']
+                                  : previous['expenses']),
+                          icon: hasProfit
+                              ? Icons.savings_outlined
+                              : Icons.account_balance_wallet_outlined,
+                          color: _dark
+                              ? const Color(0xFFFCD34D)
+                              : const Color(0xFFB45309),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 if (widget.role == 'owner') ...[
                   const SizedBox(height: 10),
@@ -545,60 +565,139 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     );
   }
 
-  Widget _kpi(BuildContext context, String label, String value, String? change,
-      {bool lead = false}) {
-    final bg = lead ? kTaskDark : taskSurface(context);
-    final border = lead ? kTaskDark : taskBorder(context);
+  /// Kartu utama ringkasan: penjualan jadi fokus, badge perubahan lega.
+  Widget _summaryHero(
+    BuildContext context, {
+    required String label,
+    required String value,
+    required String? change,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 12),
       decoration: BoxDecoration(
-          color: bg,
-          border: Border.all(color: border),
-          borderRadius: BorderRadius.circular(10)),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1E3A5F), Color(0xFF2B5688)],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x261E3A5F), blurRadius: 12, offset: Offset(0, 5)),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
+          Text(label.toUpperCase(),
+              style: const TextStyle(
+                  fontSize: 9,
+                  letterSpacing: .7,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xB8FFFFFF))),
+          const SizedBox(height: 2),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(value,
+                maxLines: 1,
+                style: const TextStyle(
+                    fontSize: 23,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -.4,
+                    color: Colors.white)),
+          ),
+          const SizedBox(height: 6),
+          _changeChip(context, change, lead: true, suffix: ' vs periode lalu'),
+        ],
+      ),
+    );
+  }
+
+  /// Tile kecil untuk Pesanan/Produk/Laba bersih atau Pengeluaran.
+  Widget _summaryTile(
+    BuildContext context, {
+    required String label,
+    required String value,
+    required String? change,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: taskSurface(context),
+        border: Border.all(color: taskBorder(context)),
+        borderRadius: BorderRadius.circular(11),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: _dark ? .2 : .12),
+              borderRadius: BorderRadius.circular(7),
+            ),
+            child: Icon(icon, size: 13, color: color),
+          ),
+          const SizedBox(height: 6),
+          Text(label.toUpperCase(),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: lead ? const Color(0xCCFFFFFF) : taskMuted(context))),
+                  fontSize: 8,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: .5,
+                  color: taskMuted(context))),
           const SizedBox(height: 2),
           Text(value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 12.5,
                   fontWeight: FontWeight.w800,
-                  letterSpacing: -.2,
-                  color: lead ? Colors.white : ink(context))),
-          if (change != null) ...[
-            const SizedBox(height: 3),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-              decoration: BoxDecoration(
-                color: lead
-                    ? const Color(0x33FFFFFF)
-                    : (change.startsWith('↓')
-                        ? const Color(0xFFFFEDD5)
-                        : const Color(0xFFDCFCE7)),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(change,
-                  style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      color: lead
-                          ? const Color(0xFFD8F5E3)
-                          : (change.startsWith('↓')
-                              ? const Color(0xFFC2410C)
-                              : const Color(0xFF137A43)))),
-            ),
-          ],
+                  letterSpacing: -.1,
+                  color: ink(context))),
+          const SizedBox(height: 5),
+          _changeChip(context, change),
         ],
       ),
+    );
+  }
+
+  Widget _changeChip(
+    BuildContext context,
+    String? change, {
+    bool lead = false,
+    String suffix = '',
+  }) {
+    final has = change != null;
+    final up = change?.startsWith('↑') ?? false;
+    final bg = lead
+        ? const Color(0x2EFFFFFF)
+        : !has
+            ? taskBorder(context).withValues(alpha: .35)
+            : up
+                ? (_dark ? const Color(0x3316A34A) : const Color(0xFFDCFCE7))
+                : (_dark ? const Color(0x33EA580C) : const Color(0xFFFFEDD5));
+    final fg = lead
+        ? const Color(0xFFD8F5E3)
+        : !has
+            ? taskMuted(context)
+            : up
+                ? (_dark ? const Color(0xFF86EFAC) : const Color(0xFF137A43))
+                : (_dark ? const Color(0xFFFDBA74) : const Color(0xFFC2410C));
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration:
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+      child: Text('${change ?? '—'}${has ? suffix : ''}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style:
+              TextStyle(fontSize: 8.5, fontWeight: FontWeight.w800, color: fg)),
     );
   }
 

@@ -111,6 +111,14 @@ void main() {
   testWidgets('grafik halus dan daftar terlaris/stok berwarna', (tester) async {
     await _pump(tester);
 
+    // Ringkasan toko: penjualan jadi kartu utama, sisanya tiga tile sejajar.
+    expect(find.text('PENJUALAN'), findsOneWidget);
+    expect(find.text('Rp44.415.000'), findsWidgets);
+    expect(find.text('PESANAN'), findsOneWidget);
+    expect(find.text('PRODUK'), findsOneWidget);
+    expect(find.text('LABA BERSIH'), findsOneWidget);
+    expect(find.textContaining('vs periode lalu'), findsOneWidget);
+
     expect(find.byKey(const ValueKey('dashboard-sparkline')), findsOneWidget);
     expect(find.text('1 Nov'), findsOneWidget);
     expect(find.text('21 Nov'), findsOneWidget);
