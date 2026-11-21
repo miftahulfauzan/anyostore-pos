@@ -18,6 +18,31 @@ String _shiftDay(String date, int days) {
 
 class _HistoryApi extends ApiClient {
   @override
+  Future<Map<String, dynamic>> transactionDetail(int id) async => {
+        'id': id,
+        'invoice_no': 'INV-B1-0001',
+        'transaction_date': todayWib(),
+        'created_at': '${todayWib()}T06:32:19.000Z',
+        'status': 'completed',
+        'subtotal': 400000,
+        'discount': 0,
+        'grand_total': 400000,
+        'amount_paid': 400000,
+        'change': 0,
+        'payment_method': 'cash',
+        'cashier': 'ade',
+        'items': [
+          {
+            'product_name': 'Kemeja Denim',
+            'variant_detail': 'Biru · L',
+            'quantity': 2,
+            'price': 200000,
+            'subtotal': 400000,
+          },
+        ],
+      };
+
+  @override
   Future<(List<dynamic>, int)> transactionsPage({
     int page = 1,
     int limit = 50,
@@ -32,6 +57,7 @@ class _HistoryApi extends ApiClient {
     return (
       [
         {
+          'id': 1,
           'invoice_no': 'INV-B1-0001',
           'transaction_date': today,
           'created_at': '${today}T06:32:19.000Z',
@@ -41,6 +67,7 @@ class _HistoryApi extends ApiClient {
           'cashier': 'ade',
         },
         {
+          'id': 2,
           'invoice_no': 'INV-B1-0002',
           'transaction_date': today,
           'created_at': '${today}T05:00:00.000Z',
@@ -50,6 +77,7 @@ class _HistoryApi extends ApiClient {
           'cashier': 'ade',
         },
         {
+          'id': 3,
           'invoice_no': 'INV-B1-0003',
           'transaction_date': yesterday,
           'created_at': '${yesterday}T08:00:00.000Z',
@@ -262,6 +290,30 @@ void main() {
     await tester.drag(find.byType(ListView), const Offset(0, -900));
     await tester.pump();
     expect(find.text('Tutup Laci Kas'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('detail transaksi tampil sebagai sheet ringkas', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      theme: app.buildAnyostoreTheme(),
+      home: Scaffold(
+        body: HistoryTab(api: _HistoryApi(), role: 'kasir'),
+      ),
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+
+    await tester.tap(find.text('INV-B1-0001').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Produk (1)'), findsOneWidget);
+    expect(find.text('Kemeja Denim'), findsOneWidget);
+    expect(find.text('Biru · L'), findsOneWidget);
+    expect(find.textContaining('21'), findsWidgets);
+    expect(find.text('Total'), findsOneWidget);
+    expect(find.text('Cetak Struk'), findsOneWidget);
+    expect(find.byTooltip('Tutup'), findsOneWidget);
+    expect(find.textContaining('20/'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

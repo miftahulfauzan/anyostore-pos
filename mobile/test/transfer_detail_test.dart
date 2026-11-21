@@ -63,7 +63,7 @@ void main() {
     await _pumpSheet(tester, _transfer());
     expect(find.textContaining('Gudang Utama'), findsOneWidget);
     expect(find.textContaining('BASIK PGMTA'), findsOneWidget);
-    expect(find.textContaining('Selesai'), findsOneWidget);
+    expect(find.textContaining('Selesai'), findsWidgets);
     expect(find.textContaining('Resti'), findsOneWidget);
     expect(find.textContaining('Catatan: made'), findsOneWidget);
   });

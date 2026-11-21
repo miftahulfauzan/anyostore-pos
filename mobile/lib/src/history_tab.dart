@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
+import 'app_ui.dart';
 import 'branch_scope.dart';
 import 'offline_status.dart';
 import 'offline_store.dart';
@@ -12,6 +13,7 @@ import 'barcode_scanner_page.dart';
 import 'format.dart';
 import 'printer_setup.dart';
 import 'task_ui.dart';
+import 'ui_kit.dart';
 
 class HistoryTab extends StatefulWidget {
   const HistoryTab({super.key, required this.api, required this.role});
@@ -373,129 +375,290 @@ class _HistoryTabState extends State<HistoryTab> {
     if (!mounted) return;
     final items =
         ((detail['items'] as List?) ?? []).cast<Map<String, dynamic>>();
-    await showDialog(
+    final isOffline = row['offline'] == true;
+    final status = detail['status']?.toString() ?? '';
+    final cashier = (detail['cashier'] ?? '').toString().trim();
+    final paymentMethod =
+        (detail['payment_method'] ?? '').toString().toUpperCase();
+    final payments =
+        ((detail['payments'] as List?) ?? []).whereType<Map>().toList();
+    await showModalBottomSheet<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(detail['invoice_no']?.toString() ?? 'Transaksi'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        constraints:
+            BoxConstraints(maxHeight: MediaQuery.sizeOf(ctx).height * .88),
+        decoration: BoxDecoration(
+          color: pageBg(ctx),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: taskMuted(ctx).withValues(alpha: .35),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
+                child: Row(
                   children: [
-                    Expanded(
-                      child: Text(
-                          detail['invoice_no']?.toString() ?? 'Transaksi',
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w800)),
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: kTaskAccent.withValues(alpha: .12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.receipt_long_outlined,
+                          size: 18, color: kTaskAccent),
                     ),
-                    _StatusChip(detail['status']?.toString() ?? ''),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(detail['invoice_no']?.toString() ?? 'Transaksi',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -.2,
+                                  color: ink(ctx))),
+                          Text(
+                              '${formatWibDate(detail['transaction_date'])} · ${_historyTime(detail['created_at'])} WIB',
+                              style: TextStyle(
+                                  fontSize: 10, color: taskMuted(ctx))),
+                        ],
+                      ),
+                    ),
+                    _StatusChip(status),
+                    IconButton(
+                      tooltip: 'Tutup',
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Tanggal transaksi: ${_dateLabel(detail['transaction_date']?.toString())}',
-                  style: TextStyle(fontSize: 12, color: taskMuted(context)),
+              ),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(11, 10, 11, 10),
+                      decoration: BoxDecoration(
+                        color: taskSurface(ctx),
+                        border: Border.all(color: taskBorder(ctx)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Wrap(
+                        spacing: 14,
+                        runSpacing: 8,
+                        children: [
+                          _DetailFact(
+                              label: 'TANGGAL',
+                              value: formatWibDate(detail['transaction_date'])),
+                          _DetailFact(
+                              label: 'DICATAT',
+                              value: formatWibDateTime(detail['created_at'])),
+                          _DetailFact(
+                              label: 'KASIR',
+                              value: cashier.isEmpty ? '-' : cashier),
+                          _DetailFact(
+                              label: 'METODE',
+                              value:
+                                  paymentMethod.isEmpty ? '-' : paymentMethod),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text('Produk (${items.length})',
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                            color: ink(ctx))),
+                    const SizedBox(height: 6),
+                    if (items.isEmpty)
+                      Text('Tidak ada rincian produk.',
+                          style:
+                              TextStyle(fontSize: 11, color: taskMuted(ctx))),
+                    for (final item in items)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
+                        decoration: BoxDecoration(
+                          color: taskSurface(ctx),
+                          border: Border.all(color: taskBorder(ctx)),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                      item['product_name']?.toString() ?? '',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                          color: ink(ctx))),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(fmtRp(asNum(item['subtotal'])),
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: ink(ctx))),
+                              ],
+                            ),
+                            if ((item['variant_detail'] ?? '')
+                                .toString()
+                                .isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 1),
+                                child: Text(
+                                    (item['variant_detail'] ?? '').toString(),
+                                    style: TextStyle(
+                                        fontSize: 10.5, color: taskMuted(ctx))),
+                              ),
+                            const SizedBox(height: 3),
+                            Text(
+                              '${item['quantity']} x ${fmtRp(asNum(item['price']))}'
+                              '${asNum(item['cancelled_qty']) > 0 ? '  · batal ${item['cancelled_qty']}' : ''}'
+                              '${asNum(item['returned_qty']) > 0 ? '  · retur ${item['returned_qty']}' : ''}',
+                              style: TextStyle(
+                                  fontSize: 10, color: taskMuted(ctx)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(11, 8, 11, 8),
+                      decoration: BoxDecoration(
+                        color: taskSurface(ctx),
+                        border: Border.all(color: taskBorder(ctx)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        children: [
+                          _StrukRow('Subtotal',
+                              fmtRp(asNum(detail['subtotal'] ?? 0))),
+                          if (asNum(detail['discount'] ?? 0) > 0)
+                            _StrukRow('Diskon',
+                                '-${fmtRp(asNum(detail['discount']))}',
+                                valueColor: kTaskTerracotta),
+                          const Divider(height: 12),
+                          _StrukRow(
+                              'Total', fmtRp(asNum(detail['grand_total'])),
+                              bold: true),
+                          _StrukRow(
+                              'Bayar', fmtRp(asNum(detail['amount_paid']))),
+                          if (asNum(detail['change']) > 0)
+                            _StrukRow(
+                                'Kembalian', fmtRp(asNum(detail['change']))),
+                          for (final payment in payments)
+                            _StrukRow(
+                              (payment['payment_method'] ?? '')
+                                  .toString()
+                                  .toUpperCase(),
+                              fmtRp(asNum(payment['amount'])),
+                            ),
+                          if (detail['cancelled_amount'] != null &&
+                              asNum(detail['cancelled_amount']) > 0)
+                            _StrukRow('Dibatalkan',
+                                '-${fmtRp(asNum(detail['cancelled_amount']))}',
+                                valueColor: kTaskTerracotta),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        if (_isOwner && !isOffline)
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              _editTransactionDate(id, detail);
+                            },
+                            icon: const Icon(Icons.edit_calendar_outlined,
+                                size: 16),
+                            label: const Text('Ubah tanggal'),
+                            style: OutlinedButton.styleFrom(
+                                minimumSize: const Size(0, 38)),
+                          ),
+                        if (_canCancel && status != 'cancelled')
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              _cancelFlow(id, detail, items);
+                            },
+                            icon: const Icon(Icons.remove_circle_outline,
+                                size: 16),
+                            label: const Text('Batalkan Item'),
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(0, 38),
+                              foregroundColor: kTaskTerracotta,
+                            ),
+                          ),
+                        if (status == 'completed' ||
+                            status == 'partially_refunded')
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              _returnFlow(id, items);
+                            },
+                            icon: const Icon(Icons.assignment_return_outlined,
+                                size: 16),
+                            label: const Text('Buat Retur'),
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(0, 38),
+                              foregroundColor: kTaskPurple,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          printReceiptNow(context,
+                              () => loadReceiptForPrint(widget.api, id));
+                        },
+                        icon: const Icon(Icons.print_outlined, size: 18),
+                        label: const Text('Cetak Struk'),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(0, 44),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(11)),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                Text(
-                  'Dicatat: ${detail['created_at'] ?? ''}${detail['cashier'] != null && (detail['cashier'] as String).isNotEmpty ? ' · Kasir: ${detail['cashier']}' : ''}',
-                  style: TextStyle(fontSize: 12, color: taskMuted(context)),
-                ),
-                const Divider(),
-                for (final item in items) ...[
-                  Text(item['product_name']?.toString() ?? '',
-                      style: const TextStyle(
-                          fontSize: 12.5, fontWeight: FontWeight.w700)),
-                  if ((item['variant_detail'] ?? '').toString().isNotEmpty)
-                    Text((item['variant_detail'] ?? '').toString(),
-                        style:
-                            TextStyle(fontSize: 12, color: taskMuted(context))),
-                  _StrukRow(
-                    '${item['quantity']} x ${fmtRp(asNum(item['price']))}'
-                    '${asNum(item['cancelled_qty']) > 0 ? '  (batal ${item['cancelled_qty']})' : ''}'
-                    '${asNum(item['returned_qty']) > 0 ? '  (retur ${item['returned_qty']})' : ''}',
-                    fmtRp(asNum(item['subtotal'])),
-                  ),
-                  const SizedBox(height: 4),
-                ],
-                const Divider(),
-                _StrukRow('Subtotal', fmtRp(asNum(detail['subtotal'] ?? 0))),
-                if (asNum(detail['discount'] ?? 0) > 0)
-                  _StrukRow('Diskon', '-${fmtRp(asNum(detail['discount']))}',
-                      valueColor: kTaskTerracotta),
-                _StrukRow('Total', fmtRp(asNum(detail['grand_total'])),
-                    bold: true),
-                const Divider(),
-                _StrukRow('Bayar', fmtRp(asNum(detail['amount_paid']))),
-                if (asNum(detail['change']) > 0)
-                  _StrukRow('Kembalian', fmtRp(asNum(detail['change']))),
-                _StrukRow('Metode',
-                    (detail['payment_method'] ?? '').toString().toUpperCase()),
-                for (final payment
-                    in ((detail['payments'] as List?) ?? []).whereType<Map>())
-                  _StrukRow(
-                    (payment['payment_method'] ?? '').toString().toUpperCase(),
-                    fmtRp(asNum(payment['amount'])),
-                  ),
-                if (detail['cancelled_amount'] != null &&
-                    asNum(detail['cancelled_amount']) > 0)
-                  _StrukRow('Dibatalkan',
-                      '-${fmtRp(asNum(detail['cancelled_amount']))}',
-                      valueColor: kTaskTerracotta),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
-        actions: [
-          if (_isOwner && row['offline'] != true)
-            TextButton.icon(
-              onPressed: () async {
-                Navigator.pop(ctx);
-                await _editTransactionDate(id, detail);
-              },
-              icon: const Icon(Icons.edit_calendar_outlined),
-              label: const Text('Ubah tanggal'),
-            ),
-          if (_canCancel && detail['status'] != 'cancelled')
-            TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                _cancelFlow(id, detail, items);
-              },
-              child: const Text('Batalkan Item'),
-            ),
-          if (detail['status'] == 'completed' ||
-              detail['status'] == 'partially_refunded')
-            TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                _returnFlow(id, items);
-              },
-              child: const Text('Buat Retur'),
-            ),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Tutup')),
-          FilledButton.icon(
-            onPressed: () {
-              Navigator.pop(ctx);
-              printReceiptNow(
-                  context, () => loadReceiptForPrint(widget.api, id));
-            },
-            icon: const Icon(Icons.print),
-            label: const Text('Cetak Struk'),
-          ),
-        ],
       ),
     );
-  }
-
-  String _dateLabel(String? value) {
-    final date = DateTime.tryParse(value ?? '');
-    if (date == null) return value ?? '-';
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
   Future<void> _editTransactionDate(int id, Map<String, dynamic> detail) async {
@@ -1348,25 +1511,17 @@ class _HistoryTabState extends State<HistoryTab> {
   }
 
   Widget _buildBody() {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) return const UiLoadingState(label: 'Memuat transaksi…');
     if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(_error!),
-              const SizedBox(height: 12),
-              FilledButton(onPressed: _load, child: const Text('Coba lagi')),
-            ],
-          ),
-        ),
-      );
+      return UiErrorState(message: _error!, onRetry: _load);
     }
     if (_section == 'retur') {
       if (_returns.isEmpty) {
-        return const Center(child: Text('Belum ada retur'));
+        return const AppEmptyState(
+          icon: Icons.assignment_return_outlined,
+          title: 'Belum ada retur',
+          message: 'Retur penjualan yang disetujui akan tampil di sini.',
+        );
       }
       return ListView.separated(
         padding: EdgeInsets.fromLTRB(
@@ -1381,7 +1536,8 @@ class _HistoryTabState extends State<HistoryTab> {
             iconBg: kTaskPurpleLight,
             iconFg: kTaskPurple,
             title: row['return_no']?.toString() ?? '-',
-            subtitle: '${row['invoice_no'] ?? ''} · ${row['created_at'] ?? ''}',
+            subtitle:
+                '${row['invoice_no'] ?? ''} · ${formatWibDateTime(row['created_at'])}',
             trailing: fmtRp(asNum(row['refund_amount'])),
             status: status,
             // Retur otomatis disetujui backend — tidak perlu tombol Setujui.
@@ -1392,7 +1548,12 @@ class _HistoryTabState extends State<HistoryTab> {
       );
     }
     if (_rows.isEmpty) {
-      return const Center(child: Text('Tidak ada transaksi'));
+      return const AppEmptyState(
+        icon: Icons.receipt_long_outlined,
+        title: 'Belum ada transaksi',
+        message:
+            'Transaksi pada periode ini akan tampil di sini. Coba ubah rentang atau status.',
+      );
     }
     final groups = <String, List<Map<String, dynamic>>>{};
     for (final row in _rows) {
@@ -1641,6 +1802,39 @@ class _StatusChip extends StatelessWidget {
               fontSize: TaskTypography.badge,
               fontWeight: FontWeight.w700,
               color: fg)),
+    );
+  }
+}
+
+class _DetailFact extends StatelessWidget {
+  const _DetailFact({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 132,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: TextStyle(
+                  fontSize: 8.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: .4,
+                  color: taskMuted(context))),
+          const SizedBox(height: 1),
+          Text(value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: ink(context))),
+        ],
+      ),
     );
   }
 }
