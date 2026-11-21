@@ -127,6 +127,14 @@ const cases = [
     },
   },
   {
+    file: 'catatan-transaksi.json',
+    description: 'Catatan transaksi panjang dibatasi maksimal empat baris.',
+    receipt: {
+      ...baseReceipt,
+      notes: 'Tolong bungkus kado, kirim via JNE. Hubungi 0812-3456-7890 jika alamat kurang jelas. Jangan dilipat.',
+    },
+  },
+  {
     file: 'tanpa-diskon-tanpa-pelanggan.json',
     description: 'Tanpa diskon, tanpa pelanggan, satu metode bayar tanpa array payments.',
     receipt: {

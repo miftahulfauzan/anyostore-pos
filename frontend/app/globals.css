@@ -1318,7 +1318,24 @@ a, .photo-upload { color:var(--expressive-secondary); }
 .pos-store-bar select { min-height: 44px; margin: 0; border-color: #1e3a5f; background: #fff; color: #111827; font-size: 12px; font-weight: 700; cursor: pointer; }
 .pos-store-bar select:focus-visible { outline: 3px solid rgba(37, 99, 235, .28); outline-offset: 2px; }
 .pos-store-bar select:disabled { border-color: #cbd5e1; background: #f8fafc; cursor: not-allowed; opacity: .78; }
-.pos-customer-select { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 9px; margin: 0 0 10px; color: #475569; font-size: 10px; font-weight: 700; }
+.pos-customer-row { display: flex; align-items: flex-end; gap: 8px; }
+.pos-customer-row .pos-customer-select { flex: 1 1 auto; min-width: 0; margin: 0; }
+.pos-customer-add {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1e3a5f;
+  font-size: 11px;
+  font-weight: 800;
+  text-decoration: none;
+}
+.pos-customer-add:hover { background: #dbeafe; }
+.pos-customer-select { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 9px; color: #475569; font-size: 10px; font-weight: 700; }
 .pos-customer-select select { min-height: 40px; margin: 0; border-color: #1e3a5f; background: #fff; color: #111827; font-size: 12px; font-weight: 700; cursor: pointer; }
 .pos-transaction-date { display: grid; gap: 5px; margin: 0 0 10px; color: #334155; font-size: 12px; font-weight: 700; }
 .pos-transaction-date input { width: 100%; min-height: 40px; margin: 0; }
@@ -1849,8 +1866,21 @@ a, .photo-upload { color:var(--expressive-secondary); }
 .pos-draft-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 8px 10px; border: 1px solid #bfdbfe; border-radius: 4px; background: #eff6ff; color: #1d4ed8; font-size: 10px; }
 .cart-mobile-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .cart-mobile-header h2 { flex: 1 1 auto; min-width: 0; }
-.cart-back-button,
-.cart-actions-toggle { display: none; }
+.cart-back-button { display: none; }
+/* Tombol Opsi juga tersedia di desktop supaya Diskon/Catatan bisa dibuka. */
+.cart-actions-toggle {
+  display: inline-grid;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+}
 .cart-lines article { grid-template-columns: minmax(0, 1fr) auto minmax(0, auto) 36px; grid-template-areas: "info quantity total actions"; }
 .cart-lines-header { display: grid; grid-template-columns: minmax(0, 1fr) 56px minmax(0, auto) 36px; gap: 8px; align-items: center; padding: 10px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); color: var(--foreground); font-size: 12px; font-weight: 800; }
 .cart-lines-header span:nth-child(2) { text-align: center; }
@@ -1947,6 +1977,8 @@ a, .photo-upload { color:var(--expressive-secondary); }
   .pos-cart-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
   .pos-cart-actions button { min-height: 58px; padding-inline: 3px; font-size: 10px; }
   .pos-cart-options { padding: 10px; }
+  .pos-customer-row { flex-wrap: wrap; }
+  .pos-customer-add { flex: 1 1 auto; justify-content: center; }
   .pos-drafts-backdrop,
   .pos-price-dialog-backdrop { align-items: end; padding: 12px; }
   .pos-drafts-dialog,

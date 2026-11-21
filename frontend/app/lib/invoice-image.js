@@ -146,7 +146,14 @@ export function renderInvoiceCanvas(payload) {
   canvas.width = OUTPUT_WIDTH;
   // Item banyak butuh kanvas lebih tinggi; 1440 tetap tinggi minimum (3:4).
   const itemEstimate = Array.isArray(payload.items) ? payload.items.length : 0;
-  let canvasHeight = Math.max(OUTPUT_HEIGHT, 1180 + itemEstimate * 52);
+  const notesText = String(payload.notes || '').trim();
+  const noteLinesEstimate = notesText
+    ? Math.min(4, Math.max(1, Math.ceil(notesText.length / 52)))
+    : 0;
+  let canvasHeight = Math.max(
+    OUTPUT_HEIGHT,
+    1180 + itemEstimate * 52 + (noteLinesEstimate ? 42 + noteLinesEstimate * 28 : 0),
+  );
   canvas.height = canvasHeight;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#ffffff';
@@ -420,6 +427,36 @@ export function renderInvoiceCanvas(payload) {
   }
   ctx.fillText(valueText, valueRightEdge, y + 16);
   y += totalBoxHeight + 10;
+
+  // ===== Catatan transaksi (maksimal 4 baris) =====
+  if (notesText) {
+    const noteFont = font(19, 600);
+    const noteLines = wrapText(ctx, notesText, noteFont, contentWidth - 40);
+    const visible = noteLines.slice(0, 4);
+    if (noteLines.length > 4 && visible.length) {
+      visible[visible.length - 1] = fitText(ctx, `${visible[visible.length - 1]}...`, noteFont, contentWidth - 40);
+    }
+    const noteBoxHeight = 34 + visible.length * 26 + 12;
+    y += 8;
+    roundedRect(ctx, pad, y, contentWidth, noteBoxHeight, 14);
+    ctx.fillStyle = '#f8fafc';
+    ctx.fill();
+    ctx.strokeStyle = LINE;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.textAlign = 'left';
+    ctx.fillStyle = DENIM;
+    ctx.font = font(15, 800);
+    drawSpacedText(ctx, 'CATATAN', pad + 18, y + 28, 1.4);
+    let noteY = y + 54;
+    visible.forEach((line) => {
+      ctx.fillStyle = '#334155';
+      ctx.font = noteFont;
+      ctx.fillText(line, pad + 18, noteY);
+      noteY += 26;
+    });
+    y += noteBoxHeight + 16;
+  }
 
   // ===== Rekening + kaki: diletakkan di tengah sisa ruang kosong =====
   const bankBoxHeight = 214;

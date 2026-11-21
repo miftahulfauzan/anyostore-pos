@@ -8,13 +8,23 @@ router.use(authenticate);
 router.get('/', async (req, res, next) => {
   try {
     const term = req.query.search?.trim() || '';
+    // POS owner bisa berpindah toko: hormati branch_id pilihan, dengan validasi.
+    // Role lain selalu memakai cabang akunnya.
+    const requestedBranch = Number(req.query.branch_id);
+    let branchId = req.user.branch_id;
+    if (req.user.role === 'owner' && Number.isInteger(requestedBranch) && requestedBranch > 0) {
+      const [branches] = await db.execute('SELECT id FROM branches WHERE id = ? AND is_active = TRUE', [requestedBranch]);
+      if (!branches[0]) return res.status(400).json({ success: false, message: 'Cabang tidak ditemukan atau tidak aktif' });
+      branchId = requestedBranch;
+    }
+    const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 100));
     const [rows] = await db.execute(
       `SELECT id, name, phone, email, address, loyalty_points, membership_tier, price_tier, total_spent
        FROM customers WHERE branch_id = ? AND is_active = TRUE
-       AND (name LIKE ? OR phone LIKE ?) ORDER BY name LIMIT 100`,
-      [req.user.branch_id, `%${term}%`, `%${term}%`]
+       AND (name LIKE ? OR phone LIKE ?) ORDER BY name LIMIT ${limit}`,
+      [branchId, `%${term}%`, `%${term}%`]
     );
-    res.json({ success: true, data: rows });
+    res.json({ success: true, data: rows, branch_id: branchId });
   } catch (error) { next(error); }
 });
 

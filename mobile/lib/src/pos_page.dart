@@ -1391,6 +1391,7 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
       subtotal: subtotal,
       discount: discount,
       total: grand,
+      note: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
     );
     try {
       await shareInvoiceImage(context, payload);
@@ -1441,6 +1442,9 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
         subtotal: asNum(data['subtotal']),
         discount: asNum(data['discount']),
         total: asNum(data['grand_total']),
+        note: (data['notes'] ?? '').toString().trim().isEmpty
+            ? null
+            : data['notes'].toString().trim(),
       );
       await shareInvoiceImage(context, payload);
     } catch (error) {
@@ -1711,6 +1715,7 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
       'created_at': DateTime.now().toUtc().toIso8601String(),
       'cashier': cashier,
       'customer_name': customerLabel,
+      'notes': (payload['notes'] ?? '').toString(),
       'items': [
         for (final line in _cart)
           {

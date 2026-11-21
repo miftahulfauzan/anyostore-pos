@@ -466,6 +466,32 @@ class InvoiceImage extends StatelessWidget {
           ],
         ),
       ),
+      if (payload.note?.trim().isNotEmpty ?? false)
+        Container(
+          margin: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+          padding: const EdgeInsets.fromLTRB(11, 9, 11, 10),
+          decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              border: Border.all(color: line),
+              borderRadius: BorderRadius.circular(9)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('CATATAN',
+                  style: TextStyle(
+                      fontSize: 8,
+                      letterSpacing: 1.4,
+                      fontWeight: FontWeight.w800,
+                      color: denim)),
+              const SizedBox(height: 3),
+              Text(payload.note!.trim(),
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 10.5, height: 1.5, color: Color(0xFF334155))),
+            ],
+          ),
+        ),
     ];
 
     final footerChildren = <Widget>[

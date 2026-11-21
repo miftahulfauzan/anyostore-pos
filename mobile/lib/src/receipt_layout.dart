@@ -277,6 +277,22 @@ class ReceiptLayout {
           fmtRp(asNum(data['change'])));
     }
 
+    // Catatan transaksi (termasuk promo bila ada). Maksimal 4 baris di nota;
+    // teks lengkap tetap tersimpan di transactions.notes.
+    final transactionNotes = _ascii((data['notes'] ?? '').toString().trim());
+    if (transactionNotes.isNotEmpty) {
+      rule();
+      emit(_text(store, 'receipt_label_notes', 'CATATAN'), bold: true);
+      final noteLines = _wrap(transactionNotes, _inner);
+      final visible = noteLines.take(4).toList();
+      if (noteLines.length > 4 && visible.isNotEmpty) {
+        visible[visible.length - 1] = _fit('${visible.last}...', _inner);
+      }
+      for (final part in visible) {
+        emit(part);
+      }
+    }
+
     rule();
     centered(
         _text(store, 'receipt_closing', 'Terima kasih, sampai jumpa lagi!'));

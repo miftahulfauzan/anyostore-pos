@@ -362,6 +362,20 @@ function buildReceipt(receipt = {}) {
   if (isOn(store, 'receipt_show_paid')) pair(text(store, 'receipt_label_paid', 'Dibayar'), money(paid));
   if (isOn(store, 'receipt_show_change')) pair(text(store, 'receipt_label_change', 'Kembalian'), money(data.change));
 
+  // Catatan transaksi (termasuk promo bila ada). Maksimal 4 baris di nota;
+  // teks lengkap tetap tersimpan di transactions.notes.
+  const transactionNotes = ascii(String(data.notes ?? '').trim());
+  if (transactionNotes) {
+    rule();
+    emit(text(store, 'receipt_label_notes', 'CATATAN'), { bold: true });
+    const noteLines = wrap(transactionNotes, inner);
+    const visible = noteLines.slice(0, 4);
+    if (noteLines.length > 4 && visible.length) {
+      visible[visible.length - 1] = fit(`${visible[visible.length - 1]}...`, inner);
+    }
+    for (const part of visible) emit(part);
+  }
+
   rule();
   centered(text(store, 'receipt_closing', 'Terima kasih, sampai jumpa lagi!'));
   optional(store.receipt_footer, centered);

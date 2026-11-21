@@ -202,7 +202,6 @@ export default function PosPage() {
   }, [cart, storeId, customerId]);
 
   const selectedStore = stores.find((store) => String(store.id) === String(storeId));
-  const selectedCustomer = customers.find((customer) => String(customer.id) === String(customerId));
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return products;
@@ -490,6 +489,7 @@ export default function PosPage() {
         subtotal,
         discount,
         total,
+        notes: notes.trim(),
       });
       if (result === 'downloaded') setMessage('Browser tidak mendukung berbagi file. Gambar invoice sudah diunduh.');
     } catch (error) {
@@ -636,7 +636,17 @@ export default function PosPage() {
             <button type="button" className="cart-actions-toggle" onClick={toggleCartActions} aria-label="Tampilkan aksi keranjang" aria-expanded={showCartActions}><MoreVertical aria-hidden="true" size={21} /></button>
           </div>
           <div className="pos-cart-scroll">
-          {selectedCustomer && <button type="button" className="pos-cart-customer" onClick={() => setShowCartOptions(true)}><UserRound aria-hidden="true" size={19} /><span>{selectedCustomer.name}</span><ChevronDown aria-hidden="true" size={17} /></button>}
+          {/* Pelanggan selalu terlihat; tidak lagi tersembunyi di panel Opsi. */}
+          <div className="pos-customer-row">
+            <label className="pos-customer-select">
+              <span><UserRound aria-hidden="true" size={16} /> Pelanggan</span>
+              <select value={customerId} onChange={changeCustomer} disabled={loadingStore}>
+                <option value="">{customers.length ? 'Umum (tanpa pelanggan)' : 'Belum ada pelanggan di toko ini'}</option>
+                {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name} {customer.phone ? `(${customer.phone})` : ''}{tiersEnabled ? ` : ${tierLabel[customer.price_tier || 'retail']}` : ''}</option>)}
+              </select>
+            </label>
+            {['owner', 'manager', 'admin'].includes(user?.role) && <a className="pos-customer-add" href="/customers">Tambah</a>}
+          </div>
           {cart.length > 0 && tiersEnabled && <div className="pos-tier-badge"><span className={`tier-badge ${effectiveTier}`}>{tierLabel[effectiveTier]}</span><small>{priceTier === 'retail' ? 'Harga mengikuti qty otomatis' : 'Harga mengikuti tipe pelanggan'}</small></div>}
           {cart.length ? <div className="cart-lines"><div className="cart-lines-header" aria-hidden="true"><span>Nama</span><span>Qty</span><span>Total</span><span /></div>{cart.map((item) => (
             <article key={item.cart_id}>
@@ -694,7 +704,6 @@ export default function PosPage() {
             <button type="button" onClick={() => setShowCartOptions((current) => !current)}><ChevronDown aria-hidden="true" size={18} /> Lainnya</button>
           </div>}
           {showCartOptions && <section className="pos-cart-options" aria-label="Opsi transaksi">
-            {customers.length > 0 && <label className="pos-customer-select"><span>Pelanggan</span><select value={customerId} onChange={changeCustomer} disabled={loadingStore}><option value="">Tanpa pelanggan</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name} {customer.phone ? `(${customer.phone})` : ''}{tiersEnabled ? ` : ${tierLabel[customer.price_tier || 'retail']}` : ''}</option>)}</select></label>}
             <label className="pos-discount-field" htmlFor="pos-manual-discount"><span>Diskon (Rp)</span><span className="pos-discount-input"><span aria-hidden="true">Rp</span><input id="pos-manual-discount" type="number" inputMode="numeric" min="0" step="1" max={Math.floor(subtotal)} value={manualDiscount} onChange={(event) => { const value = event.target.value; if (value === '' || (Number.isFinite(Number(value)) && Number(value) >= 0)) setManualDiscount(value); }} placeholder="0" disabled={loadingStore || !cart.length} aria-describedby={discountExceedsSubtotal ? 'pos-discount-error' : undefined} /></span>{discountExceedsSubtotal && <small id="pos-discount-error" className="pos-discount-error" role="alert">Diskon melebihi subtotal {rupiah(subtotal)}.</small>}</label>
             <label className="pos-notes-field" htmlFor="pos-transaction-notes"><span>Catatan</span><textarea id="pos-transaction-notes" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Catatan transaksi (opsional)" rows="2" /></label>
           </section>}
