@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
 import 'api_client.dart';
+import 'app_ui.dart';
 import 'app_navigation.dart';
 import 'branch_scope.dart';
 import 'format.dart';
@@ -2690,8 +2691,9 @@ class _TransferSectionState extends State<_TransferSection> {
       children: [
         DropdownButtonFormField<String>(
           initialValue: _from.isEmpty ? null : _from,
-          decoration: const InputDecoration(
-              labelText: 'Dari lokasi', border: OutlineInputBorder()),
+          isExpanded: true,
+          decoration: appFieldDecoration(context,
+              label: 'Dari lokasi', icon: Icons.warehouse_outlined),
           items: [
             for (final w in _warehouses)
               DropdownMenuItem(
@@ -2709,8 +2711,9 @@ class _TransferSectionState extends State<_TransferSection> {
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
           initialValue: _to.isEmpty ? null : _to,
-          decoration: const InputDecoration(
-              labelText: 'Ke lokasi tujuan', border: OutlineInputBorder()),
+          isExpanded: true,
+          decoration: appFieldDecoration(context,
+              label: 'Ke lokasi tujuan', icon: Icons.place_outlined),
           items: [
             for (final t in _targets)
               DropdownMenuItem<String>(
@@ -2720,8 +2723,8 @@ class _TransferSectionState extends State<_TransferSection> {
         ),
         const SizedBox(height: 8),
         TextField(
-          decoration: const InputDecoration(
-              labelText: 'Keterangan', border: OutlineInputBorder()),
+          decoration: appFieldDecoration(context,
+              label: 'Keterangan', icon: Icons.edit_note_outlined),
           onChanged: (v) => _notes = v,
         ),
         const SizedBox(height: 12),
@@ -2735,33 +2738,61 @@ class _TransferSectionState extends State<_TransferSection> {
           Text(_error!,
               style: TextStyle(color: Theme.of(context).colorScheme.error)),
         ],
+        if (_items.isEmpty)
+          Container(
+            margin: const EdgeInsets.only(top: 4),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: taskSurface(context),
+              border: Border.all(color: taskBorder(context)),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text('Belum ada produk. Ketuk Tambah Produk untuk memilih.',
+                style: TextStyle(fontSize: 10.5, color: taskMuted(context))),
+          ),
         for (final item in _items)
-          GlassCard(
-            padding: EdgeInsets.zero,
-            child: ListTile(
-              dense: true,
-              leading: _InventoryThumbnail(
-                  path: stockProductMediaUrl(stockProductPhotoPath(item),
-                      baseUrl: widget.api.baseUrl),
-                  size: const Size(42, 42)),
-              onTap: () => _editItem(item, withCost: false),
-              title: Text(item['name']?.toString() ?? ''),
-              subtitle: Text(
-                  '${item['variant_label'] ?? ''} · ${item['quantity']} pcs · ketuk untuk ubah'),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    onPressed: () => _editItem(item, withCost: false),
-                    icon: const Icon(Icons.edit_outlined, size: 18),
-                    tooltip: 'Ubah jumlah',
+          AppListCard(
+            onTap: () => _editItem(item, withCost: false),
+            child: Row(
+              children: [
+                _InventoryThumbnail(
+                    path: stockProductMediaUrl(stockProductPhotoPath(item),
+                        baseUrl: widget.api.baseUrl),
+                    size: const Size(42, 42)),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(item['name']?.toString() ?? '',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: ink(context))),
+                      const SizedBox(height: 1),
+                      Text(
+                          '${item['variant_label'] ?? ''} · ${item['quantity']} pcs',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 10, color: taskMuted(context))),
+                    ],
                   ),
-                  IconButton(
-                    onPressed: () => setState(() => _items.remove(item)),
-                    icon: const Icon(Icons.delete_outline),
-                  ),
-                ],
-              ),
+                ),
+                IconButton(
+                  onPressed: () => _editItem(item, withCost: false),
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  tooltip: 'Ubah jumlah',
+                ),
+                IconButton(
+                  onPressed: () => setState(() => _items.remove(item)),
+                  icon: const Icon(Icons.delete_outline, size: 19),
+                  color: kTaskTerracotta,
+                  tooltip: 'Hapus item',
+                ),
+              ],
             ),
           ),
       ],
@@ -2912,6 +2943,84 @@ class _OpnameSectionState extends State<_OpnameSection> {
     }
   }
 
+  Widget _opnameItemCard(Map<String, dynamic> item) {
+    final expected = asNum(item['expected_stock']);
+    final physical = asNum(item['physical_stock']);
+    final difference = physical - expected;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final diffFg = difference == 0
+        ? (isDark ? const Color(0xFF86EFAC) : const Color(0xFF137A43))
+        : (isDark ? const Color(0xFFFDA4AF) : const Color(0xFFBE123C));
+    final diffBg = difference == 0
+        ? (isDark ? const Color(0x2E86EFAC) : const Color(0xFFDCFCE7))
+        : (isDark ? const Color(0x2EFDA4AF) : const Color(0xFFFFE4E6));
+    return AppListCard(
+      onTap: () => _editItem(item),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _InventoryThumbnail(
+            path: stockProductMediaUrl(stockProductPhotoPath(item),
+                baseUrl: widget.api.baseUrl),
+            size: const Size(42, 42),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item['name']?.toString() ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: ink(context))),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: [
+                    AppStatusPill(
+                      label: 'SISTEM ${expected.toInt()}',
+                      fg: isDark
+                          ? const Color(0xFFCBD5E1)
+                          : const Color(0xFF334155),
+                      bg: isDark
+                          ? const Color(0x2ECBD5E1)
+                          : const Color(0xFFE2E8F0),
+                    ),
+                    AppStatusPill(
+                      label: 'FISIK ${physical.toInt()}',
+                      fg: isDark
+                          ? const Color(0xFF93C5FD)
+                          : const Color(0xFF1D4ED8),
+                      bg: isDark
+                          ? const Color(0x2E93C5FD)
+                          : const Color(0xFFDBEAFE),
+                    ),
+                    AppStatusPill(
+                      label:
+                          'SELISIH ${difference > 0 ? '+' : ''}${difference.toInt()}',
+                      fg: diffFg,
+                      bg: diffBg,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () => setState(() => _items.remove(item)),
+            icon: const Icon(Icons.delete_outline, size: 19),
+            color: kTaskTerracotta,
+            tooltip: 'Hapus item',
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const UiLoadingState(label: 'Memuat opname…');
@@ -2935,8 +3044,9 @@ class _OpnameSectionState extends State<_OpnameSection> {
       children: [
         DropdownButtonFormField<String>(
           initialValue: _warehouseId.isEmpty ? null : _warehouseId,
-          decoration: const InputDecoration(
-              labelText: 'Gudang', border: OutlineInputBorder()),
+          isExpanded: true,
+          decoration: appFieldDecoration(context,
+              label: 'Gudang', icon: Icons.warehouse_outlined),
           items: [
             for (final w in _warehouses)
               DropdownMenuItem(
@@ -2962,28 +3072,7 @@ class _OpnameSectionState extends State<_OpnameSection> {
           Text(_error!,
               style: TextStyle(color: Theme.of(context).colorScheme.error)),
         ],
-        for (final item in _items)
-          GlassCard(
-            padding: EdgeInsets.zero,
-            child: ListTile(
-              dense: true,
-              leading: _InventoryThumbnail(
-                path: stockProductMediaUrl(
-                  stockProductPhotoPath(item),
-                  baseUrl: widget.api.baseUrl,
-                ),
-                size: const Size(42, 42),
-              ),
-              onTap: () => _editItem(item),
-              title: Text(item['name']?.toString() ?? ''),
-              subtitle: Text(
-                  '${item['variant_label'] ?? ''}\nSistem ${item['expected_stock']} · Fisik ${item['physical_stock']}\nSelisih ${asNum(item['physical_stock']) - asNum(item['expected_stock'])}'),
-              trailing: IconButton(
-                onPressed: () => setState(() => _items.remove(item)),
-                icon: const Icon(Icons.delete_outline),
-              ),
-            ),
-          ),
+        for (final item in _items) _opnameItemCard(item),
       ],
     );
   }

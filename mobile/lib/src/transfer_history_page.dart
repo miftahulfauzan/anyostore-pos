@@ -1,19 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
+import 'format.dart';
 import 'task_ui.dart';
 import 'ui_kit.dart';
 
 /// Tanggal + jam lokal dari string timestamp server (dipakai kartu & detail).
-String transferDateLabel(Object? raw) {
-  final parsed = DateTime.tryParse('${raw ?? ''}'.replaceFirst(' ', 'T'));
-  if (parsed == null) return '${raw ?? ''}';
-  final date = parsed.toLocal();
-  return '${date.day.toString().padLeft(2, '0')}/'
-      '${date.month.toString().padLeft(2, '0')}/${date.year} '
-      '${date.hour.toString().padLeft(2, '0')}:'
-      '${date.minute.toString().padLeft(2, '0')}';
-}
+String transferDateLabel(Object? raw) => formatWibDateTime(raw);
 
 class TransferHistoryPage extends StatefulWidget {
   const TransferHistoryPage({super.key, required this.api, this.role});

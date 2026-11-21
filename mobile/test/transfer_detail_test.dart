@@ -41,7 +41,7 @@ Future<void> _pumpSheet(
 
 void main() {
   test('label tanggal memakai format hari/bulan/tahun jam:menit', () {
-    expect(transferDateLabel('2026-11-11 09:56:00'), '11/11/2026 09:56');
+    expect(transferDateLabel('2026-11-11 09:56:00'), '11 Nov 2026 · 09:56');
     expect(transferDateLabel('bukan tanggal'), 'bukan tanggal');
   });
 
