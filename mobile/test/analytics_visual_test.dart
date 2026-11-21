@@ -303,7 +303,7 @@ void main() {
         expect(find.text('Rp25.000'), findsOneWidget);
         expect(find.byKey(const ValueKey('finance-summary')), findsOneWidget);
         expect(find.text('1 catatan'), findsOneWidget);
-        expect(find.text('Ongkir denim'), findsWidgets);
+        expect(find.textContaining('Ongkir denim'), findsWidgets);
         // Aksi edit/hapus ada di menu ⋮ agar baris tetap ringkas.
         await tester.tap(find.byTooltip('Aksi').first);
         await tester.pumpAndSettle();

@@ -728,12 +728,28 @@ class _FinancePageState extends State<FinancePage> {
     return label;
   }
 
-  String _financeTime(Object? raw) {
-    final date = DateTime.tryParse((raw ?? '').toString());
-    if (date == null) return '';
-    final wib = date.toUtc().add(const Duration(hours: 7));
-    return '${wib.hour.toString().padLeft(2, '0')}:'
-        '${wib.minute.toString().padLeft(2, '0')}';
+  String _financeTime(Map<String, dynamic> row) {
+    // Data Olsera menaruh jam transaksi pada expense_date; pakai apa adanya
+    // (jangan digeser 7 jam). created_at hanya cadangan bila tanggal polos.
+    final expense =
+        (row['expense_date'] ?? row['income_date'] ?? '').toString().trim();
+    if (expense.contains('T')) {
+      final date = DateTime.tryParse(expense);
+      if (date != null) {
+        return '${date.hour.toString().padLeft(2, '0')}:'
+            '${date.minute.toString().padLeft(2, '0')}';
+      }
+    }
+    final created = (row['created_at'] ?? '').toString().trim();
+    if (created.isNotEmpty) {
+      final date = DateTime.tryParse(created);
+      if (date != null) {
+        final wib = date.toUtc().add(const Duration(hours: 7));
+        return '${wib.hour.toString().padLeft(2, '0')}:'
+            '${wib.minute.toString().padLeft(2, '0')}';
+      }
+    }
+    return '';
   }
 
   IconData _expenseIcon(String name) {
@@ -756,31 +772,20 @@ class _FinancePageState extends State<FinancePage> {
     return Icons.receipt_long_outlined;
   }
 
-  Color _expenseColor(String name) {
-    final palette = [
-      const Color(0xFFB45309),
-      const Color(0xFF1D4ED8),
-      const Color(0xFF0F766E),
-      const Color(0xFF6D28D9),
-      const Color(0xFFBE123C),
-      const Color(0xFF475569),
-    ];
-    final seed = name.codeUnits.fold<int>(0, (sum, code) => sum + code);
-    return palette[seed % palette.length];
-  }
+  Color get _financeAccent => _tab == 'income'
+      ? (_dark ? const Color(0xFF6EE7B7) : const Color(0xFF137A43))
+      : (_dark ? const Color(0xFFFCD34D) : const Color(0xFFB45309));
 
   Widget _financeSummary() {
     final total = _rows.fold<num>(0, (sum, row) => sum + asNum(row['amount']));
-    final accent = _tab == 'income'
-        ? (_dark ? const Color(0xFF6EE7B7) : const Color(0xFF137A43))
-        : (_dark ? const Color(0xFFFDBA74) : const Color(0xFFC2410C));
+    final accent = _financeAccent;
     return Container(
       key: const ValueKey('finance-summary'),
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: accent.withValues(alpha: _dark ? .16 : .08),
-        border: Border.all(color: accent.withValues(alpha: .22)),
+        color: taskSurface(context),
+        border: Border.all(color: taskBorder(context)),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -814,9 +819,7 @@ class _FinancePageState extends State<FinancePage> {
 
   Widget _financeDayHeader(String key, List<Map<String, dynamic>> rows) {
     final total = rows.fold<num>(0, (sum, row) => sum + asNum(row['amount']));
-    final accent = _tab == 'income'
-        ? (_dark ? const Color(0xFF6EE7B7) : const Color(0xFF137A43))
-        : (_dark ? const Color(0xFFFDBA74) : const Color(0xFFC2410C));
+    final accent = _financeAccent;
     return Padding(
       padding: const EdgeInsets.fromLTRB(2, 10, 2, 6),
       child: Row(
@@ -853,9 +856,13 @@ class _FinancePageState extends State<FinancePage> {
 
   Widget _financeRow(Map<String, dynamic> row) {
     final isOffline = row['offline'] == true;
-    final name = (row['name'] ?? 'Tanpa keterangan').toString();
     final category = (row['category'] ?? '').toString().trim();
-    final color = _expenseColor(category.isEmpty ? name : category);
+    final description = (row['name'] ?? '').toString().trim();
+    // Kategori selalu diisi; jadikan judul. Keterangan (opsional) di bawahnya.
+    final title = category.isEmpty
+        ? 'Tanpa kategori'
+        : '${category[0].toUpperCase()}${category.substring(1)}';
+    final color = _financeAccent;
     final rawMethod = (row['payment_method'] ?? '').toString();
     final method = switch (rawMethod) {
       'cash' => 'Tunai',
@@ -864,11 +871,10 @@ class _FinancePageState extends State<FinancePage> {
       _ => rawMethod.isEmpty ? 'Tunai' : rawMethod,
     };
     final meta = [
+      if (description.isNotEmpty) description,
       if (isOffline) 'OFFLINE',
       method,
-      _financeTime(row['created_at']),
-      if ((row['notes'] ?? '').toString().trim().isNotEmpty)
-        (row['notes'] ?? '').toString().trim(),
+      _financeTime(row),
     ].where((part) => part.trim().isNotEmpty).join(' · ');
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
@@ -890,15 +896,14 @@ class _FinancePageState extends State<FinancePage> {
                 color: color.withValues(alpha: _dark ? .2 : .12),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(_expenseIcon(category.isEmpty ? name : category),
-                  size: 16, color: color),
+              child: Icon(_expenseIcon(title), size: 16, color: color),
             ),
             const SizedBox(width: 9),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name,
+                  Text(title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -919,13 +924,7 @@ class _FinancePageState extends State<FinancePage> {
                 style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w800,
-                    color: _tab == 'income'
-                        ? (_dark
-                            ? const Color(0xFF6EE7B7)
-                            : const Color(0xFF137A43))
-                        : (_dark
-                            ? const Color(0xFFFDA4AF)
-                            : const Color(0xFFBE123C)))),
+                    color: ink(context))),
             PopupMenuButton<String>(
               tooltip: 'Aksi',
               padding: EdgeInsets.zero,

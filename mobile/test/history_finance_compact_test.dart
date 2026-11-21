@@ -82,7 +82,7 @@ class _FinanceApi extends ApiClient {
       'data': [
         {
           'id': 1,
-          'name': 'Gudang',
+          'name': 'Beli rak',
           'category': 'Gudang',
           'category_id': 1,
           'expense_date': today,
@@ -92,7 +92,7 @@ class _FinanceApi extends ApiClient {
         },
         {
           'id': 2,
-          'name': 'Trip Toko',
+          'name': 'Bensin',
           'category': 'Transport',
           'category_id': 2,
           'expense_date': yesterday,
@@ -182,6 +182,11 @@ void main() {
     expect(find.textContaining('Hari ini ·'), findsOneWidget);
     expect(find.textContaining('Kemarin ·'), findsOneWidget);
     expect(find.textContaining('1 catatan · Rp10.000'), findsOneWidget);
+    // Kategori jadi judul, keterangan opsional di baris bawahnya.
+    expect(find.text('Gudang'), findsOneWidget);
+    expect(find.textContaining('Beli rak'), findsOneWidget);
+    expect(find.text('Transport'), findsOneWidget);
+    expect(find.textContaining('Bensin'), findsOneWidget);
     expect(find.textContaining('Tunai'), findsWidgets);
     expect(find.byTooltip('Aksi'), findsNWidgets(2));
     expect(tester.takeException(), isNull);
