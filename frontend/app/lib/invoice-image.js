@@ -150,10 +150,22 @@ export function renderInvoiceCanvas(payload) {
   const noteLinesEstimate = notesText
     ? Math.min(4, Math.max(1, Math.ceil(notesText.length / 52)))
     : 0;
+  const shippingInfo = {
+    name: String(payload.customerName || '').trim(),
+    phone: String(payload.customerPhone || '').trim(),
+    address: String(payload.customerAddress || '').trim(),
+    expedition: String(payload.expedition || '').trim(),
+  };
+  const hasShipping = !!(shippingInfo.expedition || shippingInfo.phone || shippingInfo.address);
+  const shippingEstimate = hasShipping
+    ? 120 + Math.min(3, Math.max(1, Math.ceil(shippingInfo.address.length / 52))) * 30
+    : 0;
   let canvasHeight = Math.max(
     OUTPUT_HEIGHT,
-    1180 + itemEstimate * 52 + (noteLinesEstimate ? 42 + noteLinesEstimate * 28 : 0),
+    1180 + itemEstimate * 52 + (noteLinesEstimate ? 42 + noteLinesEstimate * 28 : 0) + shippingEstimate,
   );
+  canvas.height = canvasHeight;
+
   canvas.height = canvasHeight;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#ffffff';
@@ -461,9 +473,18 @@ export function renderInvoiceCanvas(payload) {
   // ===== Rekening + kaki: diletakkan di tengah sisa ruang kosong =====
   const bankBoxHeight = 214;
   const footerHeight = 112;
+  const shipAddressLines = shippingInfo.address
+    ? wrapText(ctx, shippingInfo.address, font(21, 600), contentWidth - 44 - 130).slice(0, 3)
+    : [];
+  const shippingRows =
+    (shippingInfo.name ? 1 : 0) + (shippingInfo.phone ? 1 : 0) + (shipAddressLines.length ? 1 : 0);
+  const shippingBoxHeight = hasShipping
+    ? 66 + shippingRows * 32 + Math.max(0, shipAddressLines.length - 1) * 28 + 16
+    : 0;
   const contentEnd = y;
   const freeSpace = canvasHeight - contentEnd - pad;
-  const stackHeight = bankBoxHeight + footerHeight;
+  const stackHeight =
+    bankBoxHeight + footerHeight + (hasShipping ? shippingBoxHeight + 18 : 0);
   const gapTop = Math.min(140, Math.max(36, (freeSpace - stackHeight) / 2));
   y = contentEnd + gapTop;
 
@@ -501,7 +522,66 @@ export function renderInvoiceCanvas(payload) {
   ctx.font = font(20, 600);
   ctx.fillText(bankNote, pad + 22, bankY);
 
-  let footerY = y + bankBoxHeight + 46;
+  let shippingTop = 0;
+  if (hasShipping) {
+    shippingTop = y + bankBoxHeight + 18;
+    roundedRect(ctx, pad, shippingTop, contentWidth, shippingBoxHeight, 18);
+    ctx.fillStyle = '#f8fafc';
+    ctx.fill();
+    ctx.strokeStyle = LINE;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = DENIM;
+    ctx.font = font(19, 800);
+    drawSpacedText(ctx, 'PENGIRIMAN', pad + 22, shippingTop + 34, 2);
+
+    if (shippingInfo.expedition) {
+      ctx.font = font(19, 800);
+      const pillText = shippingInfo.expedition.toUpperCase();
+      const pillWidth = ctx.measureText(pillText).width + 30;
+      roundedRect(ctx, OUTPUT_WIDTH - pad - 22 - pillWidth, shippingTop + 14, pillWidth, 32, 8);
+      ctx.fillStyle = '#eef3fb';
+      ctx.fill();
+      ctx.fillStyle = DENIM;
+      ctx.textAlign = 'center';
+      ctx.fillText(pillText, OUTPUT_WIDTH - pad - 22 - pillWidth / 2, shippingTop + 36);
+      ctx.textAlign = 'left';
+    }
+
+    const labelX = pad + 22;
+    const valueX = labelX + 130;
+    let shipY = shippingTop + 68;
+    const shipRow = (label, value) => {
+      ctx.textAlign = 'left';
+      ctx.fillStyle = MUTED;
+      ctx.font = font(15, 800);
+      drawSpacedText(ctx, label.toUpperCase(), labelX, shipY, 1.2);
+      ctx.fillStyle = INK;
+      ctx.font = font(21, 700);
+      ctx.fillText(
+        fitText(ctx, value, font(21, 700), OUTPUT_WIDTH - pad - 22 - valueX),
+        valueX,
+        shipY,
+      );
+      shipY += 32;
+    };
+    if (shippingInfo.name) shipRow('Penerima', shippingInfo.name);
+    if (shippingInfo.phone) shipRow('No. HP', shippingInfo.phone);
+    if (shipAddressLines.length) {
+      ctx.textAlign = 'left';
+      ctx.fillStyle = MUTED;
+      ctx.font = font(15, 800);
+      drawSpacedText(ctx, 'ALAMAT', labelX, shipY, 1.2);
+      ctx.fillStyle = INK;
+      ctx.font = font(21, 600);
+      shipAddressLines.forEach((line, index) => ctx.fillText(line, valueX, shipY + index * 28));
+    }
+  }
+
+  let footerY =
+    (hasShipping ? shippingTop + shippingBoxHeight : y + bankBoxHeight) + 46;
   ctx.textAlign = 'center';
   ctx.fillStyle = DENIM;
   ctx.font = font(22, 800);

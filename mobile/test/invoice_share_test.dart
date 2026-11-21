@@ -2,8 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_pakaian_mobile/src/invoice_share.dart';
 
-InvoicePayload _payload({String storeName = 'BASIK PGMTA'}) => InvoicePayload(
+InvoicePayload _payload({
+  String storeName = 'BASIK PGMTA',
+  String? customerName,
+  String? customerPhone,
+  String? customerAddress,
+  String? expedition,
+}) =>
+    InvoicePayload(
       storeName: storeName,
+      customerName: customerName,
+      customerPhone: customerPhone,
+      customerAddress: customerAddress,
+      expedition: expedition,
       storeAddress: 'LANTAI 6 blok B no 116',
       storePhones: const ['0812-3456-7890', '0857-0000-1111'],
       instagram: invoiceInstagram(storeName),
@@ -97,5 +108,39 @@ void main() {
     expect(find.text('ANYOSTORE'), findsOneWidget);
     expect(find.text('BLOK B'), findsOneWidget);
     expect(find.text('@anyostore'), findsOneWidget);
+  });
+
+  testWidgets('blok PENGIRIMAN hanya muncul kalau data pelanggan tersedia',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+          body: SingleChildScrollView(child: InvoiceImage(payload: _payload()))),
+    ));
+    expect(find.text('PENGIRIMAN'), findsNothing);
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: InvoiceImage(
+            payload: _payload(
+              customerName: 'Hanni Mart',
+              customerPhone: '0813-2211-4455',
+              customerAddress:
+                  'Jl. Pahlawan No. 12, Kel. Sukamaju, Kec. Cilodong, Kota Depok',
+              expedition: 'JNE',
+            ),
+          ),
+        ),
+      ),
+    ));
+    expect(find.text('PENGIRIMAN'), findsOneWidget);
+    expect(find.text('JNE'), findsOneWidget);
+    expect(find.text('Hanni Mart'), findsOneWidget);
+    expect(find.text('0813-2211-4455'), findsOneWidget);
+    expect(
+        find.text(
+            'Jl. Pahlawan No. 12, Kel. Sukamaju, Kec. Cilodong, Kota Depok'),
+        findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

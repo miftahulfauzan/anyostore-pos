@@ -31,7 +31,10 @@ test('form pelanggan punya kolom alamat dan API mengembalikannya', () => {
   assert.match(customers, /<label>Alamat<textarea rows=\{2\} value=\{form\.address\}/);
   assert.match(customers, /startEdit[\s\S]{0,200}address: c\.address \|\| ''/);
   assert.match(customers, /customer-address/);
-  assert.match(backendCustomers, /SELECT id, name, phone, email, address, loyalty_points/);
+  // Ekspedisi ikut di form dan SELECT pelanggan (dipakai blok PENGIRIMAN invoice).
+  assert.match(customers, /expedition: ''/);
+  assert.match(customers, /customer-expedition-options/);
+  assert.match(backendCustomers, /SELECT id, name, phone, email, address, expedition, loyalty_points/);
 });
 
 test('halaman laporan tanpa keterangan periode otomatis dan tertutup untuk gudang', () => {

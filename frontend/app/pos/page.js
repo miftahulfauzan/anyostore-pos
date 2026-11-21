@@ -479,6 +479,10 @@ export default function PosPage() {
         dateText: invoiceDate(new Date()),
         cashier: user?.name || '-',
         customerLabel: customer ? `${customer.name} · ${customerTierLabel(customer.price_tier)}` : 'Umum',
+        customerName: customer?.name || '',
+        customerPhone: customer?.phone || '',
+        customerAddress: customer?.address || '',
+        expedition: customer?.expedition || '',
         items: cart.map((item) => ({
           name: item.name,
           variant: item.variant_label || '',

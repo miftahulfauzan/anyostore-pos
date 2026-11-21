@@ -48,6 +48,10 @@ export default function Receipt({ params }) {
         customerLabel: data.customer_name
           ? `${data.customer_name} · ${customerTierLabel(data.customer_tier || data.price_tier)}`
           : 'Umum',
+        customerName: data.customer_name || '',
+        customerPhone: data.customer_phone || '',
+        customerAddress: data.customer_address || '',
+        expedition: data.customer_expedition || '',
         items: (data.items || []).map((item) => ({
           name: item.name,
           variant: item.variant_detail || '',

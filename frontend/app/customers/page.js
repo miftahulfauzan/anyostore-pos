@@ -11,7 +11,7 @@ export default function CustomersPage() {
   const [listError, setListError] = useState('');
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', price_tier: 'reguler' });
+  const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', expedition: '', price_tier: 'reguler' });
   const listRequest = useRef(0);
   const h = () => ({ 'Content-Type': 'application/json'});
 
@@ -38,11 +38,11 @@ export default function CustomersPage() {
 
   function startEdit(c) {
     setEditing(c.id);
-    setForm({ name: c.name || '', phone: c.phone || '', email: c.email || '', address: c.address || '', price_tier: c.price_tier || 'reguler' });
+    setForm({ name: c.name || '', phone: c.phone || '', email: c.email || '', address: c.address || '', expedition: c.expedition || '', price_tier: c.price_tier || 'reguler' });
   }
   function reset() {
     setEditing(null);
-    setForm({ name: '', phone: '', email: '', address: '', price_tier: 'reguler' });
+    setForm({ name: '', phone: '', email: '', address: '', expedition: '', price_tier: 'reguler' });
   }
   async function submit(e) {
     e.preventDefault();
@@ -77,6 +77,17 @@ export default function CustomersPage() {
           <label>Telepon<input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
           <label>Email<input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
           <label>Alamat<textarea rows={2} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Jalan, nomor, kelurahan, kota" /></label>
+          <label>Ekspedisi
+            <input list="customer-expedition-options" value={form.expedition} onChange={(e) => setForm({ ...form, expedition: e.target.value })} placeholder="JNE / J&T / SiCepat / Ambil di toko" />
+            <datalist id="customer-expedition-options">
+              <option value="JNE" />
+              <option value="J&T" />
+              <option value="SiCepat" />
+              <option value="AnterAja" />
+              <option value="POS Indonesia" />
+              <option value="Ambil di toko" />
+            </datalist>
+          </label>
           <label>Tipe Harga
             <select value={form.price_tier} onChange={(e) => setForm({ ...form, price_tier: e.target.value })}>
               <option value="reguler">Reguler</option>
@@ -105,6 +116,7 @@ export default function CustomersPage() {
                   <strong>{c.name}</strong>
                   <span>{c.phone || c.email || 'Tanpa kontak'}</span>
                   {c.address ? <span className="customer-address">{c.address}</span> : null}
+                  {c.expedition ? <span className="customer-expedition">Ekspedisi · {c.expedition}</span> : null}
                   <span className={`tier-badge ${c.price_tier || 'retail'}`}>
                     {c.price_tier === 'semi_grosir' ? 'Semi Grosir' : c.price_tier === 'grosir_seri' ? 'Grosir Seri' : 'Reguler'}
                   </span>

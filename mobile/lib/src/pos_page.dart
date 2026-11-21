@@ -1323,16 +1323,19 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     return text.isEmpty ? const [] : [text];
   }
 
-  String _invoiceCustomerLabel() {
-    if (_customerId == null) return 'Umum';
+  Map<String, dynamic>? get _invoiceCustomer {
     for (final customer in _customers) {
-      if ('${customer['id']}' == '$_customerId') {
-        final name = customer['name']?.toString().trim() ?? '';
-        if (name.isEmpty) return 'Umum';
-        return '$name · ${invoiceCustomerTierLabel(customer['price_tier'])}';
-      }
+      if ('${customer['id']}' == '$_customerId') return customer;
     }
-    return 'Umum';
+    return null;
+  }
+
+  String _invoiceCustomerLabel() {
+    final customer = _invoiceCustomer;
+    if (customer == null) return 'Umum';
+    final name = customer['name']?.toString().trim() ?? '';
+    if (name.isEmpty) return 'Umum';
+    return '$name · ${invoiceCustomerTierLabel(customer['price_tier'])}';
   }
 
   /// Bagikan invoice gambar dari keranjang (sebelum dibayar) supaya pembeli
@@ -1368,6 +1371,7 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     }
     if (invoiceNo == null || invoiceNo.isEmpty) return;
     if (!mounted) return;
+    final customer = _invoiceCustomer;
     final payload = InvoicePayload(
       storeName: store.name,
       storeAddress: store.address,
@@ -1378,6 +1382,10 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
       dateText: invoiceDateText(DateTime.now().toIso8601String()),
       cashier: context.read<AuthStore>().userName ?? '-',
       customerLabel: _invoiceCustomerLabel(),
+      customerName: customer?['name']?.toString() ?? '',
+      customerPhone: customer?['phone']?.toString() ?? '',
+      customerAddress: customer?['address']?.toString() ?? '',
+      expedition: customer?['expedition']?.toString() ?? '',
       items: [
         for (final line in _cart)
           InvoiceLine(
@@ -1429,6 +1437,10 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
             (data['customer_name']?.toString().trim().isNotEmpty ?? false)
                 ? data['customer_name'].toString()
                 : 'Umum',
+        customerName: (data['customer_name'] ?? '').toString(),
+        customerPhone: (data['customer_phone'] ?? '').toString(),
+        customerAddress: (data['customer_address'] ?? '').toString(),
+        expedition: (data['customer_expedition'] ?? '').toString(),
         items: [
           for (final item in rawItems)
             InvoiceLine(

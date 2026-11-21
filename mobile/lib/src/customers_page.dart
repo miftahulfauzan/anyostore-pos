@@ -56,6 +56,8 @@ class _CustomersPageState extends State<CustomersPage> {
         TextEditingController(text: existing?['email']?.toString() ?? '');
     final address =
         TextEditingController(text: existing?['address']?.toString() ?? '');
+    final expedition =
+        TextEditingController(text: existing?['expedition']?.toString() ?? '');
     var tier = existing?['price_tier']?.toString() ?? 'reguler';
 
     final saved = await showDialog<bool>(
@@ -95,6 +97,9 @@ class _CustomersPageState extends State<CustomersPage> {
                   const SizedBox(height: 12),
                   _label('Alamat'),
                   _field(address, 'Alamat lengkap'),
+                  const SizedBox(height: 12),
+                  _label('Ekspedisi'),
+                  _field(expedition, 'JNE / J&T / SiCepat / Ambil di toko'),
                   const SizedBox(height: 12),
                   _label('Tipe harga'),
                   DropdownButtonFormField<String>(
@@ -162,6 +167,7 @@ class _CustomersPageState extends State<CustomersPage> {
       'phone': phone.text.trim(),
       'email': email.text.trim(),
       'address': address.text.trim(),
+      'expedition': expedition.text.trim(),
       'price_tier': tier,
     };
     try {
@@ -306,6 +312,11 @@ class _CustomersPageState extends State<CustomersPage> {
                                 subtitle: Text([
                                   row['phone']?.toString() ?? '',
                                   (row['price_tier'] ?? '').toString(),
+                                  if ((row['expedition'] ?? '')
+                                      .toString()
+                                      .trim()
+                                      .isNotEmpty)
+                                    'Ekspedisi ${row['expedition'].toString().trim()}',
                                 ].where((e) => e.isNotEmpty).join(' · ')),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,

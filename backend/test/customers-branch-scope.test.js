@@ -71,3 +71,48 @@ test('manager tetap terkunci ke cabang akun walau mengirim branch_id lain', asyn
   assert.ok(calls[0].params.includes(1));
   assert.match(calls[0].sql, /LIMIT 10/);
 });
+
+function loadCustomerPostHandler(dbStub) {
+  const dbPath = require.resolve('../src/db');
+  require.cache[dbPath] = { id: dbPath, filename: dbPath, loaded: true, exports: dbStub };
+  const routePath = require.resolve('../src/routes/customers');
+  delete require.cache[routePath];
+  const router = require('../src/routes/customers');
+  const layer = router.stack.find((item) => item.route?.path === '/' && item.route.methods.post);
+  assert.ok(layer, 'route POST / customers harus ada');
+  return layer.route.stack.at(-1).handle;
+}
+
+test('ekspedisi pelanggan disimpan dan dikirim kembali ke POS', async () => {
+  const calls = [];
+  const dbStub = {
+    execute: async (sql, params) => {
+      calls.push({ sql, params });
+      return [{ insertId: 5 }, []];
+    },
+  };
+  const handler = loadCustomerPostHandler(dbStub);
+  const res = makeRes();
+  let nextError;
+  await handler(
+    { user: { role: 'owner', branch_id: 1 }, body: { name: ' Hanni Mart ', expedition: ' JNE ' } },
+    res,
+    (error) => { nextError = error; },
+  );
+  assert.equal(nextError, undefined);
+  const insert = calls.find((call) => call.sql.includes('INSERT INTO customers'));
+  assert.match(insert.sql, /expedition/);
+  assert.ok(insert.params.includes('JNE'), 'ekspedisi harus ikut tersimpan');
+
+  calls.length = 0;
+  const getHandler = loadCustomerHandler(dbStub);
+  const listRes = makeRes();
+  await getHandler(
+    { user: { role: 'owner', branch_id: 1 }, query: {} },
+    listRes,
+    (error) => { nextError = error; },
+  );
+  assert.equal(nextError, undefined);
+  const select = calls.find((call) => call.sql.includes('FROM customers'));
+  assert.match(select.sql, /expedition/, 'daftar pelanggan harus memuat ekspedisi');
+});

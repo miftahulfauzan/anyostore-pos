@@ -39,6 +39,10 @@ class InvoicePayload {
     required this.dateText,
     required this.cashier,
     required this.customerLabel,
+    this.customerName,
+    this.customerPhone,
+    this.customerAddress,
+    this.expedition,
     required this.items,
     required this.subtotal,
     required this.discount,
@@ -59,6 +63,13 @@ class InvoicePayload {
   final String dateText;
   final String cashier;
   final String customerLabel;
+
+  /// Data pengiriman pelanggan untuk blok PENGIRIMAN di kaki invoice.
+  /// Blok hanya dicetak bila salah satu dari expedition/phone/address terisi.
+  final String? customerName;
+  final String? customerPhone;
+  final String? customerAddress;
+  final String? expedition;
   final List<InvoiceLine> items;
   final double subtotal;
   final double discount;
@@ -165,6 +176,44 @@ class InvoiceImage extends StatelessWidget {
                       fontSize: bold ? 14 : 12,
                       color: bold ? denim : inkColor,
                       fontWeight: bold ? FontWeight.w800 : FontWeight.w600)),
+            ],
+          ),
+        );
+
+    final shippingName = payload.customerName?.trim() ?? '';
+    final shippingPhone = payload.customerPhone?.trim() ?? '';
+    final shippingAddress = payload.customerAddress?.trim() ?? '';
+    final shippingExpedition = payload.expedition?.trim() ?? '';
+    final hasShipping = shippingExpedition.isNotEmpty ||
+        shippingPhone.isNotEmpty ||
+        shippingAddress.isNotEmpty;
+
+    Widget shippingRow(String label, String value, {int maxLines = 1}) =>
+        Padding(
+          padding: const EdgeInsets.only(top: 5),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 66,
+                child: Text(label.toUpperCase(),
+                    style: const TextStyle(
+                        fontSize: 8,
+                        letterSpacing: .6,
+                        fontWeight: FontWeight.w800,
+                        color: muted)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(value,
+                    maxLines: maxLines,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 10.5,
+                        height: 1.4,
+                        fontWeight: FontWeight.w700,
+                        color: inkColor)),
+              ),
             ],
           ),
         );
@@ -559,6 +608,54 @@ class InvoiceImage extends StatelessWidget {
           ],
         ),
       ),
+
+      // ===== Pengiriman (hanya bila data pelanggan tersedia) =====
+      if (hasShipping)
+        Container(
+          margin: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+          padding: const EdgeInsets.fromLTRB(13, 10, 13, 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            border: Border.all(color: line),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Text('PENGIRIMAN',
+                      style: TextStyle(
+                          fontSize: 10,
+                          letterSpacing: 1,
+                          fontWeight: FontWeight.w800,
+                          color: denim)),
+                  const Spacer(),
+                  if (shippingExpedition.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEEF3FB),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(shippingExpedition.toUpperCase(),
+                          style: const TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                              color: denim)),
+                    ),
+                ],
+              ),
+              if (shippingName.isNotEmpty)
+                shippingRow('Penerima', shippingName),
+              if (shippingPhone.isNotEmpty)
+                shippingRow('No. HP', shippingPhone),
+              if (shippingAddress.isNotEmpty)
+                shippingRow('Alamat', shippingAddress, maxLines: 3),
+            ],
+          ),
+        ),
 
       // ===== Kaki =====
       Padding(

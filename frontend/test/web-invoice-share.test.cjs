@@ -12,6 +12,7 @@ const receipt = read('app/receipt/[id]/page.js');
 const styles = read('app/globals.css');
 const printer = fs.readFileSync(path.join(root, '..', 'backend', 'src', 'routes', 'printer.js'), 'utf8');
 const receiptData = fs.readFileSync(path.join(root, '..', 'backend', 'src', 'receipt-data.js'), 'utf8');
+const customers = read('app/customers/page.js');
 
 test('PWA merender invoice 3:4 dan membagikannya', () => {
   assert.match(invoice, /const OUTPUT_WIDTH = 1080;/);
@@ -79,4 +80,24 @@ test('setiap pemakai modul invoice benar-benar mengimpornya', () => {
       assert.match(source, new RegExp(`\\b${name}\\b`), `${file} tidak memakai ${name}`);
     }
   }
+});
+
+test('invoice share menampilkan blok PENGIRIMAN dari data pelanggan', () => {
+  assert.match(invoice, /PENGIRIMAN/);
+  assert.match(invoice, /payload\.customerName/);
+  assert.match(invoice, /payload\.customerPhone/);
+  assert.match(invoice, /payload\.customerAddress/);
+  assert.match(invoice, /payload\.expedition/);
+  // Blok hanya dicetak kalau ada ekspedisi/no HP/alamat.
+  assert.match(invoice, /const hasShipping =/);
+  // POS dan halaman struk mengirim data pelanggan ke invoice.
+  for (const source of [pos, receipt]) {
+    assert.match(source, /customerName:/);
+    assert.match(source, /customerPhone:/);
+    assert.match(source, /customerAddress:/);
+    assert.match(source, /expedition:/);
+  }
+  assert.match(customers, /customer-expedition-options/);
+  assert.match(customers, /Ekspedisi/);
+  assert.match(receiptData, /c\.expedition AS customer_expedition/);
 });

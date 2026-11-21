@@ -32,7 +32,7 @@
 | `/dashboard` | `dashboard/page.js` | Dasbor penjualan; role gudang tetap melihat dashboard operasional gudang |
 | `/profile` | `profile/page.js` | Akun |
 | `/receipt/[id]` | `receipt/[id]/page.js` | Resi |
-| `/operations`, `/customers`, `/promotions` | ... | Operasional, pelanggan, promo |
+| `/operations`, `/customers`, `/promotions` | ... | Operasional, pelanggan (termasuk ekspedisi), promo |
 
 ### Components (`frontend/app/components/`)
 

@@ -36,7 +36,7 @@
 | `inventory-control.js` | `/api/inventory-control` | Transfer antar gudang/cabang, simpan opname dengan snapshot/revision stok, dan riwayat opname beserta detail item |
 | `transactions.js` | `/api/transactions` | Checkout (idempotency `client_transaction_id`), hold/resume, cancel, hapus draft (`DELETE /pending/:id`, owner boleh pilih `branch_id`, role lain terkunci ke cabangnya, hanya draft yang belum resumed dan mengembalikan 404 kalau tidak ada baris terhapus) |
 | `printer.js` | `/api/printer` | Struk thermal 58/80mm |
-| `customers.js` | `/api/customers` | CRUD pelanggan + price_tier |
+| `customers.js` | `/api/customers` | CRUD pelanggan + price_tier + expedition |
 | `returns.js` | `/api/returns` | GET /:id mengembalikan detail retur + item (dipakai mobile). Retur AUTO-APPROVE saat dibuat (POST langsung stok kembali + refund kas, tanpa persetujuan; `approve:false` di body bisa memaksa pending); PUT /:id/approve tetap ada untuk legacy. Saat retur disetujui, `transaction_items.returned_qty` diperbarui, `transactions.refunded_amount` diakumulasi, & status transaksi jadi `partially_refunded` (retur sebagian) / `refunded` (semua item diretur). Migrasi 20260815_return_partial_status.sql + 20260815_refunded_amount_column.sql (kolom refunded_amount HARUS di file migrasi terpisah — jangan mengedit file migrasi yang sudah terlanjur jalan!). CATATAN PENTING setelah audit 2026-08-15: (1) PENUTUPAN & LACI KAS: refund retur TIDAK boleh dikurangi ganda — payments.cancellations HANYA `cancelled_amount` (refund sudah lewat `returns` di penutupan & movement cash_out di laci kas); (2) retur WAJIB set status approved DULU sebelum hitung returned_qty/status transaksi (kalau tidak, retur pertama tidak terhitung); (3) dashboard owner 'all' mengirim branch_id=all ke stock-by-category/top-products-out. |
 | `returns.js` | `/api/returns` | Retur menyimpan `refund_method` (cash/qris/transfer/debit) untuk laporan & laci kas |
 | `cash-drawer.js` | `/api/cash-drawer` | Buka/tutup kas, cash in/out |
@@ -98,7 +98,7 @@
 | `transactions` | branch_id, invoice_no, client_transaction_id (UNIQUE), user_id, customer_id, subtotal, discount, grand_total, payment_method, status (completed/cancelled/refunded/pending/held/partially_cancelled/**partially_refunded**), cancelled_amount, **refunded_amount** |
 | `transaction_items` | transaction_id, product_id, variant_id, product_name, quantity, price, original_price, price_override, cost, cancelled_qty, **returned_qty** |
 | `invoice_sequences` | branch_id + business_date (PK), last_number — counter invoice atomik |
-| `customers` | name, phone, price_tier (reguler/semi_grosir/grosir_seri) |
+| `customers` | name, phone, address, expedition (ekspedisi langganan, mis. JNE/J&T), price_tier (reguler/semi_grosir/grosir_seri) |
 | `store_settings` | branch_id + `key` (PK), value — key-value settings |
 | `media_files` | `key`, content_type, data (blob, kalau MEDIA_STORAGE=database) |
 | `commission_rules` | branch_id (NULL=global), type, per_pcs_customer_tier config |

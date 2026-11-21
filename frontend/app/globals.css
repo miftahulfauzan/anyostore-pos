@@ -7392,6 +7392,17 @@ html[data-theme] .app-main .tabs button:not(.active):hover {
   -webkit-line-clamp: 2;
 }
 .dark .customer-address { color: #94a3b8; }
+/* Ekspedisi langganan pelanggan: baris kecil denim, bukan badge penuh. */
+.customer-expedition {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 2px;
+  color: #1e3a5f;
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+.dark .customer-expedition { color: #93c5fd; }
 
 /* Panel daftar pelanggan ikut tinggi panel form (kiri), sehingga input cari
    ikut melar sampai ~200px. Input dikunci setinggi normal dan daftar mulai
