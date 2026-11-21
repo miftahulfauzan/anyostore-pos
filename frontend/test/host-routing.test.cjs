@@ -18,9 +18,9 @@ const robots = read('app/robots.js');
 const layout = read('app/layout.js');
 
 test('tiga host dengan peran berbeda terdaftar di middleware dan Caddy', () => {
-  assert.match(middleware, /export const APP_HOST = 'anyostore\.my\.id'/);
-  assert.match(middleware, /export const GROSIR_HOST = 'grosir\.anyostore\.my\.id'/);
-  assert.match(middleware, /export const RESELLER_HOST = 'reseller\.anyostore\.my\.id'/);
+  assert.match(middleware, /export const APP_HOST = 'anyostore\.id'/);
+  assert.match(middleware, /export const GROSIR_HOST = 'grosir\.anyostore\.id'/);
+  assert.match(middleware, /export const RESELLER_HOST = 'reseller\.anyostore\.id'/);
   assert.match(caddy, /grosir\.\{\$APP_DOMAIN\}/);
 });
 
