@@ -10,6 +10,7 @@ import 'src/branch_scope.dart';
 import 'src/backup_service.dart';
 import 'src/login_page.dart';
 import 'src/notification_service.dart';
+import 'src/opname_reminder.dart';
 import 'src/pos_page.dart';
 import 'src/font_scale_controller.dart';
 import 'src/theme_controller.dart';
@@ -54,6 +55,8 @@ Future<void> main() async {
       unawaited(_autoBackup(auth.api));
     }
     unawaited(NotificationService.scheduleDailyReminder());
+    final opnameReminder = await OpnameReminderSettings.load();
+    unawaited(NotificationService.scheduleOpnameReminder(opnameReminder));
   }
   runApp(
     ChangeNotifierProvider.value(

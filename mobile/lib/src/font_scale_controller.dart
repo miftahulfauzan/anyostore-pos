@@ -33,7 +33,11 @@ class FontScaleController {
   }
 
   static double _normalize(double? value) {
-    if (value != null && options.contains(value)) return value;
+    if (value == null || !value.isFinite) return defaultScale;
+    // Slider bisa menghasilkan 0.999999... untuk 100%; snap ke opsi terdekat.
+    for (final option in options) {
+      if ((option - value).abs() < .001) return option;
+    }
     return defaultScale;
   }
 }

@@ -17,6 +17,7 @@ import 'category_settings_card.dart';
 import 'font_scale_controller.dart';
 import 'media_mime.dart';
 import 'notification_service.dart';
+import 'opname_reminder.dart';
 import 'printer_service.dart';
 import 'printer_setup.dart';
 import 'task_ui.dart';
@@ -68,10 +69,19 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _backingUp = false;
   bool _autoBackup = false;
   bool _notifyLowStock = true;
+  bool _opnameEnabled = false;
+  Set<int> _opnameDays = {1};
+  List<TimeOfDay> _opnameTimes = const [TimeOfDay(hour: 9, minute: 0)];
 
   @override
   void initState() {
     super.initState();
+    // Halaman Tampilan hanya memakai preferensi lokal (tema & ukuran teks),
+    // jadi tidak perlu menunggu setelan toko dari server.
+    if (widget.section == 'display') {
+      _loading = false;
+      return;
+    }
     _load();
   }
 
@@ -125,11 +135,15 @@ class _SettingsPageState extends State<SettingsPage> {
       final prefs = await SharedPreferences.getInstance();
       final autoBackup = prefs.getBool('pos_auto_backup') ?? false;
       final notifyLowStock = prefs.getBool('pos_notify_low_stock') ?? true;
+      final opname = await OpnameReminderSettings.load();
       final savedPrinter = await PrinterService().savedPrinter();
       if (mounted) {
         setState(() {
           _autoBackup = autoBackup;
           _notifyLowStock = notifyLowStock;
+          _opnameEnabled = opname.enabled;
+          _opnameDays = {...opname.days};
+          _opnameTimes = [...opname.times];
           _printerLabel = savedPrinter == null
               ? ''
               : '${savedPrinter.name} (${savedPrinter.address})';
@@ -525,6 +539,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   bool get _canManageStore =>
       ['owner', 'manager', 'admin'].contains(widget.role);
+  bool get _dark => Theme.of(context).brightness == Brightness.dark;
 
   Widget _detailCard({required String title, required Widget child}) {
     return GlassCard(
@@ -544,73 +559,467 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _profileDetailCard() {
-    return _detailCard(
-      title: 'Identitas toko & struk',
+  Widget _storeSectionCard(
+    BuildContext context, {
+    required String title,
+    required String hint,
+    required IconData icon,
+    required Color color,
+    required List<Widget> children,
+  }) {
+    return GlassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(13),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: .12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, size: 14, color: color),
+                ),
+                const SizedBox(width: 8),
+                Text(title,
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: ink(context))),
+                const Spacer(),
+                Flexible(
+                  child: Text(hint,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w600,
+                          color: taskMuted(context))),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _storeField(
+    TextEditingController controller,
+    String label, {
+    String? hint,
+    IconData? icon,
+    int maxLines = 1,
+    List<TextInputFormatter>? formatters,
+    String? helper,
+    TextInputType? keyboard,
+  }) {
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: taskBorder(context)),
+    );
+    return TextField(
+      controller: controller,
+      minLines: 1,
+      maxLines: maxLines,
+      keyboardType: keyboard,
+      inputFormatters: formatters,
+      style: TextStyle(fontSize: 12, color: ink(context)),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        helperText: helper,
+        isDense: true,
+        filled: true,
+        fillColor: _dark ? const Color(0xFF162132) : const Color(0xFFFBFCFE),
+        prefixIcon: icon == null
+            ? null
+            : Icon(icon, size: 17, color: taskMuted(context)),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+        border: border,
+        enabledBorder: border,
+        focusedBorder: border.copyWith(
+            borderSide: BorderSide(
+                color: Theme.of(context).colorScheme.primary, width: 1.6)),
+        labelStyle: TextStyle(fontSize: 11.5, color: taskMuted(context)),
+        hintStyle: TextStyle(
+            fontSize: 11.5, color: taskMuted(context).withValues(alpha: .72)),
+        helperStyle: TextStyle(fontSize: 9.5, color: taskMuted(context)),
+      ),
+    );
+  }
+
+  Widget _storeHeroCard() {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_name, _address, _phone, _email]),
+      builder: (context, _) {
+        final name =
+            _name.text.trim().isEmpty ? 'Nama toko' : _name.text.trim();
+        final address = _address.text.trim();
+        final phone = _phone.text.trim();
+        final email = _email.text.trim();
+        return Container(
+          padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF1E3A5F), Color(0xFF2B5688)],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(
+                  color: Color(0x261E3A5F),
+                  blurRadius: 16,
+                  offset: Offset(0, 6)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  BrandLogo(api: widget.api, size: 46, radius: 13),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -.2,
+                                color: Colors.white)),
+                        if (address.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(address,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 9.5,
+                                  height: 1.4,
+                                  color: Color(0xC7FFFFFF))),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (phone.isNotEmpty || email.isNotEmpty) ...[
+                const SizedBox(height: 9),
+                Wrap(
+                  spacing: 5,
+                  runSpacing: 5,
+                  children: [
+                    if (phone.isNotEmpty)
+                      _heroChip(Icons.phone_outlined, phone),
+                    if (email.isNotEmpty) _heroChip(Icons.mail_outline, email),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _heroChip(IconData icon, String text) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: const Color(0x24FFFFFF),
+          borderRadius: BorderRadius.circular(99),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 10, color: const Color(0xE6FFFFFF)),
+            const SizedBox(width: 4),
+            Text(text,
+                style: const TextStyle(
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xF2FFFFFF))),
+          ],
+        ),
+      );
+
+  Widget _identityDetailCard() {
+    return _storeSectionCard(
+      context,
+      title: 'Identitas toko',
+      hint: 'Tampil di invoice',
+      icon: Icons.storefront_outlined,
+      color: _dark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8),
+      children: [
+        _storeField(_name, 'Nama toko', icon: Icons.storefront_outlined),
+        const SizedBox(height: 8),
+        _storeField(_address, 'Alamat',
+            maxLines: 3,
+            formatters: [maxLinesFormatter(3)],
+            helper: 'Maksimal 3 baris, tampil apa adanya di invoice'),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _storeField(_phone, 'Telepon',
+                  icon: Icons.phone_outlined, keyboard: TextInputType.phone),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _storeField(_npwp, 'NPWP', icon: Icons.badge_outlined),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        _storeField(_email, 'Email',
+            icon: Icons.mail_outline, keyboard: TextInputType.emailAddress),
+      ],
+    );
+  }
+
+  Widget _invoiceTextDetailCard() {
+    return _storeSectionCard(
+      context,
+      title: 'Invoice & struk',
+      hint: 'Teks cetak',
+      icon: Icons.receipt_long_outlined,
+      color: const Color(0xFFB45309),
+      children: [
+        _storeField(_invoicePrefix, 'Prefix invoice',
+            hint: 'INV', icon: Icons.tag_rounded),
+        const SizedBox(height: 8),
+        _storeField(_receiptHeader, 'Header struk',
+            maxLines: 4,
+            formatters: [maxLinesFormatter(4)],
+            helper: 'Maksimal 4 baris'),
+        const SizedBox(height: 8),
+        _storeField(_receiptFooter, 'Footer struk'),
+        const SizedBox(height: 8),
+        _storeField(_receiptNote, 'Catatan struk'),
+      ],
+    );
+  }
+
+  Widget _logoRowCard() {
+    final invoiceLogo = _settings['invoice_logo']?.toString().trim() ?? '';
+    return GlassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(13),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6D28D9).withValues(alpha: .12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.image_outlined,
+                      size: 14, color: Color(0xFF6D28D9)),
+                ),
+                const SizedBox(width: 8),
+                Text('Logo',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: ink(context))),
+                const Spacer(),
+                Flexible(
+                  child: Text('JPG / PNG maks 3 MB',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w600,
+                          color: taskMuted(context))),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _logoTile(
+                    label: 'Logo aplikasi',
+                    preview: BrandLogo(api: widget.api, size: 56, radius: 14),
+                    actions: [
+                      _logoAction('Ganti', _uploadingLogo ? null : _pickLogo),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _logoTile(
+                    label: 'Logo invoice',
+                    preview: _logoPreview(invoiceLogo),
+                    actions: [
+                      _logoAction(
+                          'Ganti',
+                          _uploadingLogo
+                              ? null
+                              : () => _pickLogo(key: 'invoice_logo')),
+                      if (invoiceLogo.isNotEmpty)
+                        _logoAction(
+                            'Hapus', _uploadingLogo ? null : _removeInvoiceLogo,
+                            danger: true),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _logoTile(
+      {required String label,
+      required Widget preview,
+      required List<Widget> actions}) {
+    return Container(
+      padding: const EdgeInsets.all(9),
+      decoration: BoxDecoration(
+        color: _dark ? const Color(0xFF162132) : const Color(0xFFFBFCFE),
+        border: Border.all(color: taskBorder(context)),
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextField(
-              controller: _name,
-              decoration: const InputDecoration(
-                  labelText: 'Nama toko', border: OutlineInputBorder())),
-          const SizedBox(height: 8),
-          TextField(
-              controller: _address,
-              minLines: 1,
-              maxLines: 3,
-              keyboardType: TextInputType.multiline,
-              inputFormatters: [maxLinesFormatter(3)],
-              decoration: const InputDecoration(
-                  labelText: 'Alamat',
-                  helperText: 'Maksimal 3 baris, tampil apa adanya di invoice',
-                  border: OutlineInputBorder())),
-          const SizedBox(height: 8),
-          TextField(
-              controller: _phone,
-              decoration: const InputDecoration(
-                  labelText: 'Telepon', border: OutlineInputBorder())),
-          const SizedBox(height: 8),
-          TextField(
-              controller: _email,
-              decoration: const InputDecoration(
-                  labelText: 'Email', border: OutlineInputBorder())),
-          const SizedBox(height: 8),
-          TextField(
-              controller: _npwp,
-              decoration: const InputDecoration(
-                  labelText: 'NPWP', border: OutlineInputBorder())),
-          const SizedBox(height: 8),
-          TextField(
-              controller: _invoicePrefix,
-              decoration: const InputDecoration(
-                  labelText: 'Prefix invoice (INV)',
-                  border: OutlineInputBorder())),
-          const SizedBox(height: 8),
-          TextField(
-              controller: _receiptHeader,
-              minLines: 1,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                  labelText: 'Header struk (maks 4 baris)',
-                  border: OutlineInputBorder())),
-          const SizedBox(height: 8),
-          TextField(
-              controller: _receiptFooter,
-              decoration: const InputDecoration(
-                  labelText: 'Footer struk', border: OutlineInputBorder())),
-          const SizedBox(height: 8),
-          TextField(
-              controller: _receiptNote,
-              decoration: const InputDecoration(
-                  labelText: 'Catatan struk', border: OutlineInputBorder())),
-          const SizedBox(height: 12),
-          FilledButton(
-            onPressed: _saving ? null : _saveSettings,
-            child: Text(_saving ? 'Menyimpan...' : 'Simpan Perubahan'),
+          SizedBox(height: 58, child: Center(child: preview)),
+          const SizedBox(height: 6),
+          Text(label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w800,
+                  color: ink(context))),
+          const SizedBox(height: 3),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            children: actions,
           ),
         ],
       ),
+    );
+  }
+
+  Widget _logoAction(String label, VoidCallback? onTap,
+          {bool danger = false}) =>
+      InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+          child: Text(label,
+              style: TextStyle(
+                  fontSize: 8.5,
+                  fontWeight: FontWeight.w800,
+                  color: danger
+                      ? kTaskTerracotta
+                      : Theme.of(context).colorScheme.primary)),
+        ),
+      );
+
+  Widget _receiptPreviewCard() {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_name, _address]),
+      builder: (context, _) {
+        final name =
+            _name.text.trim().isEmpty ? 'Nama toko' : _name.text.trim();
+        final address = _address.text.trim();
+        return _storeSectionCard(
+          context,
+          title: 'Pratinjau struk',
+          hint: '$_printerSize mm',
+          icon: Icons.point_of_sale_outlined,
+          color: const Color(0xFF0F766E),
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+              decoration: BoxDecoration(
+                color:
+                    _dark ? const Color(0xFF162132) : const Color(0xFFF8FAFC),
+                border: Border.all(color: taskBorder(context)),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                children: [
+                  Text(name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: ink(context))),
+                  if (address.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(address,
+                        maxLines: 2,
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 8.5, color: taskMuted(context))),
+                  ],
+                  const SizedBox(height: 7),
+                  Text('Kemeja Denim A100',
+                      style:
+                          TextStyle(fontSize: 8.5, color: taskMuted(context))),
+                  const SizedBox(height: 1),
+                  Text('Rp130.000',
+                      style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                          color: ink(context))),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _storeSaveCard() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: _saving ? null : _saveSettings,
+            icon: const Icon(Icons.save_outlined, size: 18),
+            label: Text(_saving ? 'Menyimpan...' : 'Simpan Perubahan'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(0, 46),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text('Perubahan langsung dipakai di struk & invoice berikutnya.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                fontSize: TaskTypography.micro, color: taskMuted(context))),
+      ],
     );
   }
 
@@ -982,104 +1391,335 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _notificationsDetailCard() {
-    return _detailCard(
+    final primary = Theme.of(context).colorScheme.primary;
+    return _storeSectionCard(
+      context,
       title: 'Notifikasi',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Notifikasi stok menipis',
-                style: TextStyle(fontSize: TaskTypography.label)),
-            subtitle: const Text('Beri tahu saat produk di bawah stok minimum.',
-                style: TextStyle(fontSize: TaskTypography.secondary)),
-            value: _notifyLowStock,
-            onChanged: _toggleNotifyLowStock,
-          ),
-          Text('Pengingat harian dijadwalkan jam 09.00 WIB.',
+      hint: 'Pengingat operasional',
+      icon: Icons.notifications_active_outlined,
+      color: const Color(0xFFB45309),
+      children: [
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Stok menipis',
               style: TextStyle(
-                  fontSize: TaskTypography.secondary,
-                  color: taskMuted(context))),
-        ],
-      ),
+                  fontSize: TaskTypography.label, fontWeight: FontWeight.w700)),
+          subtitle: const Text('Beri tahu saat produk di bawah stok minimum.',
+              style: TextStyle(fontSize: TaskTypography.secondary)),
+          value: _notifyLowStock,
+          onChanged: _toggleNotifyLowStock,
+        ),
+        Divider(height: 14, color: taskBorder(context)),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Jadwal Stock Opname',
+              style: TextStyle(
+                  fontSize: TaskTypography.label, fontWeight: FontWeight.w700)),
+          subtitle: const Text('Pengingat rutin untuk menghitung stok fisik.',
+              style: TextStyle(fontSize: TaskTypography.secondary)),
+          value: _opnameEnabled,
+          onChanged: (value) async {
+            setState(() => _opnameEnabled = value);
+            if (value) return;
+            final settings = OpnameReminderSettings(
+                enabled: false, days: _opnameDays, times: _opnameTimes);
+            await settings.save();
+            await NotificationService.scheduleOpnameReminder(settings);
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Pengingat stock opname dimatikan.')));
+          },
+        ),
+        if (_opnameEnabled) _opnameEditor(primary),
+        const SizedBox(height: 6),
+        Text('Pengingat harian lain dijadwalkan jam 09.00 WIB.',
+            style: TextStyle(
+                fontSize: TaskTypography.secondary, color: taskMuted(context))),
+      ],
     );
   }
 
-  Widget _logoApplicationDetailCard() {
-    return _detailCard(
-      title: 'Logo aplikasi',
+  Widget _opnameEditor(Color primary) {
+    final days = _opnameDays.toList()..sort();
+    final settings = OpnameReminderSettings(
+        enabled: _opnameEnabled, days: _opnameDays, times: _opnameTimes);
+    return Container(
+      margin: const EdgeInsets.only(top: 4),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: _dark ? const Color(0xFF162132) : const Color(0xFFFBFCFE),
+        border: Border.all(color: taskBorder(context)),
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
+          Text('TANGGAL (SETIAP BULAN)', style: _opnameCapStyle),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 5,
+            runSpacing: 5,
             children: [
-              BrandLogo(api: widget.api, size: 64, radius: 16),
-              const SizedBox(width: 14),
-              const Expanded(
-                child: Text(
-                    'Tampil di splash, login, dan header menu. JPG/PNG/WebP maksimal 3 MB.',
-                    style: TextStyle(fontSize: TaskTypography.secondary)),
+              for (final day in days)
+                Container(
+                  width: 28,
+                  height: 28,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                      color: primary, borderRadius: BorderRadius.circular(9)),
+                  child: Text('$day',
+                      style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white)),
+                ),
+              InkWell(
+                onTap: _pickOpnameDays,
+                borderRadius: BorderRadius.circular(9),
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: taskSurface(context),
+                    border: Border.all(color: taskBorder(context)),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Icon(Icons.add, size: 15, color: taskMuted(context)),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          FilledButton.icon(
-            onPressed: _uploadingLogo ? null : _pickLogo,
-            icon: _uploadingLogo
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.image_outlined, size: 18),
-            label: Text(_uploadingLogo ? 'Mengunggah...' : 'Ganti Logo'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _invoiceLogoDetailCard() {
-    return _detailCard(
-      title: 'Logo invoice',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+          Text('BERAPA KALI SEHARI', style: _opnameCapStyle),
+          const SizedBox(height: 6),
           Row(
             children: [
-              _logoPreview(_settings['invoice_logo']?.toString() ?? ''),
-              const SizedBox(width: 14),
-              const Expanded(
-                child: Text(
-                    'Logo ini dipakai di kepala struk/invoice toko atau gudang. JPG/PNG/WebP maksimal 3 MB.',
-                    style: TextStyle(fontSize: TaskTypography.secondary)),
-              ),
+              for (var count = 1;
+                  count <= OpnameReminderSettings.maxTimesPerDay;
+                  count++) ...[
+                if (count > 1) const SizedBox(width: 5),
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _setOpnameTimesCount(count),
+                    borderRadius: BorderRadius.circular(9),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 7),
+                      decoration: BoxDecoration(
+                        color: _opnameTimes.length == count
+                            ? primary
+                            : taskSurface(context),
+                        border: Border.all(
+                            color: _opnameTimes.length == count
+                                ? primary
+                                : taskBorder(context)),
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      child: Text('$count×',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                              color: _opnameTimes.length == count
+                                  ? Theme.of(context).colorScheme.onPrimary
+                                  : taskMuted(context))),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 10),
-          FilledButton.icon(
-            onPressed:
-                _uploadingLogo ? null : () => _pickLogo(key: 'invoice_logo'),
-            icon: _uploadingLogo
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.receipt_long, size: 18),
-            label:
-                Text(_uploadingLogo ? 'Mengunggah...' : 'Ganti Logo Invoice'),
+          Text('JAM', style: _opnameCapStyle),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 5,
+            runSpacing: 5,
+            children: [
+              for (var index = 0; index < _opnameTimes.length; index++)
+                InkWell(
+                  onTap: () => _pickOpnameTime(index),
+                  borderRadius: BorderRadius.circular(9),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: taskSurface(context),
+                      border: Border.all(color: primary.withValues(alpha: .4)),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Text(
+                        OpnameReminderSettings.formatTime(_opnameTimes[index]),
+                        style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: primary)),
+                  ),
+                ),
+            ],
           ),
-          if ((_settings['invoice_logo']?.toString().trim().isNotEmpty ??
-              false)) ...[
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: _uploadingLogo ? null : _removeInvoiceLogo,
-              icon: const Icon(Icons.delete_outline),
-              label: const Text('Hapus Logo Invoice'),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+            decoration: BoxDecoration(
+              color: primary.withValues(alpha: _dark ? .16 : .08),
+              border: Border.all(color: primary.withValues(alpha: .2)),
+              borderRadius: BorderRadius.circular(9),
             ),
-          ],
+            child: Text(settings.summary,
+                style:
+                    TextStyle(fontSize: 9, height: 1.45, color: ink(context))),
+          ),
+          const SizedBox(height: 9),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _saveOpnameReminder,
+              icon: const Icon(Icons.notifications_active_outlined, size: 18),
+              label: const Text('Simpan & Jadwalkan'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 42),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(11)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text('Notifikasi muncul di HP walau aplikasi ditutup.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 8.5, color: taskMuted(context))),
         ],
       ),
     );
+  }
+
+  TextStyle get _opnameCapStyle => TextStyle(
+        fontSize: 8.5,
+        fontWeight: FontWeight.w800,
+        letterSpacing: .7,
+        color: taskMuted(context),
+      );
+
+  void _setOpnameTimesCount(int count) {
+    final times = [..._opnameTimes];
+    const defaults = [
+      TimeOfDay(hour: 9, minute: 0),
+      TimeOfDay(hour: 16, minute: 0),
+      TimeOfDay(hour: 12, minute: 0),
+      TimeOfDay(hour: 18, minute: 0),
+    ];
+    while (times.length < count) {
+      times.add(defaults[times.length % defaults.length]);
+    }
+    if (times.length > count) times.removeRange(count, times.length);
+    setState(() => _opnameTimes = times);
+  }
+
+  Future<void> _pickOpnameTime(int index) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _opnameTimes[index],
+      helpText: 'Jam pengingat stock opname',
+    );
+    if (picked == null || !mounted) return;
+    final times = [..._opnameTimes];
+    times[index] = picked;
+    setState(() => _opnameTimes = times);
+  }
+
+  Future<void> _pickOpnameDays() async {
+    final selected = {..._opnameDays};
+    final result = await showModalBottomSheet<Set<int>>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: taskSurface(context),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 2, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Tanggal stock opname',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: ink(ctx))),
+                const SizedBox(height: 3),
+                Text(
+                    'Pilih satu atau beberapa tanggal. Pengingat berulang setiap bulan.',
+                    style: TextStyle(fontSize: 10.5, color: taskMuted(ctx))),
+                const SizedBox(height: 10),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                      maxHeight: MediaQuery.sizeOf(ctx).height * .5),
+                  child: SingleChildScrollView(
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (var day = 1; day <= 31; day++)
+                          ChoiceChip(
+                            label: Text('$day'),
+                            selected: selected.contains(day),
+                            showCheckmark: false,
+                            onSelected: (on) => setSheet(() {
+                              if (on) {
+                                selected.add(day);
+                              } else {
+                                selected.remove(day);
+                              }
+                            }),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Batal'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: selected.isEmpty
+                            ? null
+                            : () => Navigator.pop(ctx, selected),
+                        child: const Text('Terapkan'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (result == null || result.isEmpty || !mounted) return;
+    setState(() => _opnameDays = result);
+  }
+
+  Future<void> _saveOpnameReminder() async {
+    if (_opnameDays.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pilih minimal satu tanggal')));
+      return;
+    }
+    final settings = OpnameReminderSettings(
+        enabled: _opnameEnabled, days: _opnameDays, times: _opnameTimes);
+    await settings.save();
+    await NotificationService.scheduleOpnameReminder(settings);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(_opnameEnabled
+            ? 'Pengingat stock opname dijadwalkan.'
+            : 'Pengingat stock opname dimatikan.')));
   }
 
   Widget _printerDetailCard() {
@@ -1200,11 +1840,17 @@ class _SettingsPageState extends State<SettingsPage> {
       case 'store':
         if (_canManageStore) {
           children.addAll([
-            _profileDetailCard(),
+            _storeHeroCard(),
             const SizedBox(height: 10),
-            _logoApplicationDetailCard(),
+            _identityDetailCard(),
             const SizedBox(height: 10),
-            _invoiceLogoDetailCard(),
+            _invoiceTextDetailCard(),
+            const SizedBox(height: 10),
+            _logoRowCard(),
+            const SizedBox(height: 10),
+            _receiptPreviewCard(),
+            const SizedBox(height: 12),
+            _storeSaveCard(),
           ]);
         }
         break;

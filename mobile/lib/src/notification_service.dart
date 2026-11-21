@@ -2,6 +2,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+import 'opname_reminder.dart';
+
 /// Notifikasi lokal: stok menipis + pengingat backup harian.
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _plugin =
@@ -92,6 +94,54 @@ class NotificationService {
         matchDateTimeComponents: DateTimeComponents.time,
       );
     } catch (_) {}
+  }
+
+  static const _opnameBaseId = 2100;
+  static const _opnameSlots = 31 * OpnameReminderSettings.maxTimesPerDay;
+
+  /// Jadwalkan pengingat stock opname berulang tiap bulan. Selalu batalkan
+  /// jadwal lama lebih dulu supaya tidak dobel saat pengaturan disimpan ulang.
+  static Future<void> scheduleOpnameReminder(
+      OpnameReminderSettings settings) async {
+    if (!_ready) return;
+    try {
+      for (var i = 0; i < _opnameSlots; i++) {
+        await _plugin.cancel(_opnameBaseId + i);
+      }
+      if (!settings.enabled) return;
+      var id = _opnameBaseId;
+      for (final item in settings.occurrences) {
+        await _plugin.zonedSchedule(
+          id++,
+          'Waktunya Stock Opname',
+          'Cek dan hitung stok fisik untuk tanggal ini.',
+          _nextMonthly(item.day, item.hour, item.minute),
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'opname_reminder',
+              'Stock Opname',
+              channelDescription: 'Pengingat jadwal stock opname',
+              importance: Importance.high,
+              priority: Priority.high,
+            ),
+          ),
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          matchDateTimeComponents: DateTimeComponents.dayOfMonthAndTime,
+        );
+      }
+    } catch (_) {}
+  }
+
+  static tz.TZDateTime _nextMonthly(int day, int hour, int minute) {
+    final now = tz.TZDateTime.now(tz.local);
+    for (var offset = 0; offset < 14; offset++) {
+      final candidate = tz.TZDateTime(
+          tz.local, now.year, now.month + offset, day, hour, minute);
+      if (candidate.day != day) continue;
+      if (!candidate.isAfter(now)) continue;
+      return candidate;
+    }
+    return tz.TZDateTime.now(tz.local).add(const Duration(days: 1));
   }
 
   static tz.TZDateTime _next(int hour, int minute) {

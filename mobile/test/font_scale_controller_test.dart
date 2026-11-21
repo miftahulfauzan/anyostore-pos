@@ -49,4 +49,11 @@ void main() {
     expect(FontScaleController.effectiveScale(.4, 320), .4);
     expect(FontScaleController.effectiveScale(1.8, 390), 1.4);
   });
+
+  test('nilai slider yang meleset sedikit tetap tersimpan', () async {
+    await FontScaleController.set(0.9999999999999999);
+    expect(FontScaleController.scale.value, 1.0);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getDouble('pos_font_scale'), 1.0);
+  });
 }
