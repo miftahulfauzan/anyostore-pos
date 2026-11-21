@@ -240,6 +240,10 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
         widget.role == 'owner' ? summary['profit_margin_percent'] : null;
     final expenses = _num(summary['expenses']);
     final returns = _num(summary['return_amount'] ?? summary['refund_amount']);
+    // Backend mengurutkan produk berdasarkan omzet; daftar ini menampilkan pcs,
+    // jadi urutkan ulang supaya panjang bar selalu turun dari peringkat 1.
+    final topProducts = [..._products]..sort(
+        (a, b) => _num(b['quantity_sold']).compareTo(_num(a['quantity_sold'])));
 
     return RefreshIndicator(
       onRefresh: () => _load(silent: true),
@@ -336,7 +340,9 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _sectionHead(context, 'Penjualan',
-                    trailing: '${transactions.toInt()} trx'),
+                    trailing: '${transactions.toInt()} trx',
+                    icon: Icons.show_chart_rounded,
+                    iconColor: kTaskAccent),
                 const SizedBox(height: 10),
                 Text('Total penjualan',
                     style: TextStyle(
@@ -384,43 +390,51 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
           ),
           const SizedBox(height: 10),
           GlassCard(
+            key: const ValueKey('dashboard-top-products'),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _sectionHead(context, 'Produk terlaris',
-                    trailing: '${productsSold.toInt()} pcs'),
+                    trailing: '${productsSold.toInt()} pcs',
+                    icon: Icons.local_fire_department_rounded,
+                    iconColor: const Color(0xFFD97706)),
                 const SizedBox(height: 6),
-                if (_products.isEmpty)
+                if (topProducts.isEmpty)
                   _empty(context, 'Belum ada produk terlaris pada periode ini.')
                 else
-                  ..._products.take(5).map((product) => _barRow(
-                        context,
-                        '${product['name'] ?? '-'}',
-                        '${_num(product['quantity_sold']).toInt()} pcs',
-                        maxValue:
-                            math.max(1, _num(_products.first['quantity_sold'])),
-                        value: _num(product['quantity_sold']),
-                        color: kTaskDark,
-                      )),
+                  ...topProducts
+                      .take(5)
+                      .toList()
+                      .asMap()
+                      .entries
+                      .map((entry) => _bestSellerRow(
+                            context,
+                            entry.key,
+                            entry.value,
+                            maxValue: math.max(
+                                1, _num(topProducts.first['quantity_sold'])),
+                            value: _num(entry.value['quantity_sold']),
+                          )),
               ],
             ),
           ),
           const SizedBox(height: 10),
           GlassCard(
+            key: const ValueKey('dashboard-low-stock'),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _sectionHead(context, 'Stok rendah',
-                    trailing: '${_lowStock.length} produk'),
+                    trailing: '${_lowStock.length} produk',
+                    icon: Icons.warning_amber_rounded,
+                    iconColor: const Color(0xFFBE123C)),
                 const SizedBox(height: 6),
                 if (_lowStock.isEmpty)
                   _empty(context, 'Tidak ada stok yang perlu diperiksa.')
                 else
-                  ..._lowStock.take(5).map((product) => _plainRow(
-                        context,
-                        '${product['name'] ?? '-'}',
-                        '${_num(product['stock']).toInt()} / min ${_num(product['min_stock']).toInt()}',
-                      )),
+                  ..._lowStock
+                      .take(5)
+                      .map((product) => _lowStockRow(context, product)),
               ],
             ),
           ),
@@ -486,14 +500,27 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     );
   }
 
-  Widget _sectionHead(BuildContext context, String title, {String? trailing}) {
+  Widget _sectionHead(BuildContext context, String title,
+      {String? trailing, IconData? icon, Color? iconColor}) {
+    final accent = iconColor ?? kTaskDark;
     return Row(
       children: [
-        Container(
-            width: 4,
-            height: 14,
+        if (icon != null)
+          Container(
+            width: 24,
+            height: 24,
             decoration: BoxDecoration(
-                color: kTaskDark, borderRadius: BorderRadius.circular(2))),
+              color: accent.withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 14, color: accent),
+          )
+        else
+          Container(
+              width: 4,
+              height: 14,
+              decoration: BoxDecoration(
+                  color: accent, borderRadius: BorderRadius.circular(2))),
         const SizedBox(width: 7),
         Text(title,
             style: TextStyle(
@@ -502,11 +529,18 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 color: ink(context))),
         const Spacer(),
         if (trailing != null)
-          Text(trailing,
-              style: TextStyle(
-                  fontSize: TaskTypography.micro,
-                  fontWeight: FontWeight.w700,
-                  color: taskMuted(context))),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: taskBorder(context).withValues(alpha: .35),
+              borderRadius: BorderRadius.circular(99),
+            ),
+            child: Text(trailing,
+                style: TextStyle(
+                    fontSize: TaskTypography.micro,
+                    fontWeight: FontWeight.w700,
+                    color: taskMuted(context))),
+          ),
       ],
     );
   }
@@ -598,86 +632,216 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     );
   }
 
-  /// Satu baris terlaris: nama di kiri, bar di tengah, angka di kanan.
-  Widget _barRow(
+  /// Baris terlaris: peringkat, nama (+SKU), angka, lalu bar gradien.
+  Widget _bestSellerRow(
     BuildContext context,
-    String name,
-    String valueText, {
+    int index,
+    Map<String, dynamic> product, {
     required double maxValue,
     required double value,
-    required Color color,
   }) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final palette = dark
+        ? const [
+            (fg: Color(0xFFFCD34D), bar: Color(0xFFF59E0B)),
+            (fg: Color(0xFFCBD5E1), bar: Color(0xFF94A3B8)),
+            (fg: Color(0xFFFDBA74), bar: Color(0xFFFB923C)),
+            (fg: Color(0xFF93C5FD), bar: Color(0xFF60A5FA)),
+            (fg: Color(0xFFC4B5FD), bar: Color(0xFFA78BFA)),
+          ]
+        : const [
+            (fg: Color(0xFFB45309), bar: Color(0xFFF59E0B)),
+            (fg: Color(0xFF334155), bar: Color(0xFF64748B)),
+            (fg: Color(0xFFC2410C), bar: Color(0xFFEA580C)),
+            (fg: Color(0xFF1D4ED8), bar: Color(0xFF2563EB)),
+            (fg: Color(0xFF6D28D9), bar: Color(0xFF7C3AED)),
+          ];
+    final tone = palette[index % palette.length];
     final ratio = maxValue <= 0 ? 0.0 : (value / maxValue).clamp(0.05, 1.0);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
+    final name = (product['name'] ?? '-').toString();
+    final nameKey = name.toLowerCase().trim();
+    final sku = (product['sku'] ?? '').toString().trim();
+    final category = (product['category_name'] ?? '').toString().trim();
+    // Jangan mengulang nama produk bila SKU sama persis (umum di data Olsera).
+    final subtitle = sku.isNotEmpty && sku.toLowerCase() != nameKey
+        ? sku
+        : (category.isNotEmpty && category.toLowerCase() != nameKey
+            ? category
+            : '');
+    return Container(
+      margin: EdgeInsets.only(top: index == 0 ? 0 : 4),
+      padding: const EdgeInsets.fromLTRB(6, 6, 6, 7),
+      decoration: BoxDecoration(
+        color: index == 0
+            ? tone.bar.withValues(alpha: dark ? .08 : .07)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+      ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Flexible(
-            flex: 5,
-            child: Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  fontSize: TaskTypography.secondary,
-                  fontWeight: FontWeight.w700,
-                  color: ink(context)),
+          Container(
+            width: 22,
+            height: 22,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: tone.fg.withValues(alpha: dark ? .2 : .14),
+              borderRadius: BorderRadius.circular(8),
             ),
+            child: Text('${index + 1}',
+                style: TextStyle(
+                    fontSize: 10, fontWeight: FontWeight.w800, color: tone.fg)),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 9),
           Expanded(
-            flex: 4,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(99),
-              child: LinearProgressIndicator(
-                value: ratio,
-                minHeight: 6,
-                backgroundColor: taskBorder(context),
-                valueColor: AlwaysStoppedAnimation<Color>(color),
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: TaskTypography.secondary,
+                            fontWeight: FontWeight.w800,
+                            color: ink(context)),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text('${value.toInt()} pcs',
+                        style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            color: ink(context))),
+                  ],
+                ),
+                if (subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 1),
+                  Text(subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                          color: taskMuted(context))),
+                ],
+                const SizedBox(height: 5),
+                SizedBox(
+                  height: 6,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: taskBorder(context).withValues(alpha: .45),
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                      ),
+                      FractionallySizedBox(
+                        alignment: Alignment.centerLeft,
+                        widthFactor: ratio,
+                        heightFactor: 1,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: [
+                              tone.bar,
+                              tone.bar.withValues(alpha: .55),
+                            ]),
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            valueText,
-            style: TextStyle(
-                fontSize: TaskTypography.micro,
-                fontWeight: FontWeight.w800,
-                color: ink(context)),
           ),
         ],
       ),
     );
   }
 
-  /// Baris polos (stok rendah): nama di kiri, nilai di kanan.
-  Widget _plainRow(BuildContext context, String name, String valueText) {
+  /// Baris stok rendah dengan status warna (MINUS / HABIS / MENIPIS).
+  Widget _lowStockRow(BuildContext context, Map<String, dynamic> product) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final stock = _num(product['stock']).toInt();
+    final minStock = _num(product['min_stock']).toInt();
+    final name = (product['name'] ?? '-').toString();
+    final rawSku = (product['sku'] ?? '').toString().trim();
+    final sku = rawSku.toLowerCase() == name.toLowerCase().trim() ? '' : rawSku;
+    final isOut = stock <= 0;
+    final status = stock < 0 ? 'MINUS' : (stock == 0 ? 'HABIS' : 'MENIPIS');
+    final color = isOut
+        ? (dark ? const Color(0xFFFDA4AF) : const Color(0xFFBE123C))
+        : (dark ? const Color(0xFFFCD34D) : const Color(0xFFB45309));
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 7),
       decoration: BoxDecoration(
         border:
             Border(bottom: BorderSide(color: taskBorder(context), width: 1)),
       ),
       child: Row(
         children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  fontSize: TaskTypography.secondary,
-                  fontWeight: FontWeight.w700,
-                  color: ink(context)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: TaskTypography.secondary,
+                      fontWeight: FontWeight.w700,
+                      color: ink(context)),
+                ),
+                if (sku.isNotEmpty) ...[
+                  const SizedBox(height: 1),
+                  Text(sku,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                          color: taskMuted(context))),
+                ],
+              ],
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            valueText,
-            style: TextStyle(
-                fontSize: TaskTypography.micro,
-                fontWeight: FontWeight.w700,
-                color: taskMuted(context)),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: dark ? .2 : .12),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Text(status,
+                    style: TextStyle(
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: .3,
+                        color: color)),
+              ),
+              const SizedBox(height: 3),
+              Text('$stock / min $minStock',
+                  style: TextStyle(
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w600,
+                      color: taskMuted(context))),
+            ],
           ),
         ],
       ),
@@ -696,49 +860,192 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     final values = [
       for (final row in rows) _num(row['revenue'] ?? row['sales'])
     ];
-    return Container(
-      height: 96,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(
+    final labels = [for (final row in rows) _shortDay(row['date'])];
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    if (values.length < 2) {
+      return Container(
+        key: const ValueKey('dashboard-sparkline'),
+        height: 88,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
           color: taskSurface(context),
           border: Border.all(color: taskBorder(context)),
-          borderRadius: BorderRadius.circular(10)),
-      child: values.length < 2
-          ? Center(
-              child: Text('Belum ada data penjualan.',
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.show_chart_rounded,
+                  size: 20, color: taskMuted(context)),
+              const SizedBox(height: 4),
+              Text('Belum ada data penjualan.',
                   style: TextStyle(
                       fontSize: TaskTypography.micro,
-                      color: taskMuted(context))))
-          : CustomPaint(
-              painter: _SparkPainter(values: values, color: kTaskAccent),
-              size: Size.infinite),
+                      color: taskMuted(context))),
+            ],
+          ),
+        ),
+      );
+    }
+    return Container(
+      key: const ValueKey('dashboard-sparkline'),
+      height: 138,
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: dark
+              ? [taskSurface(context), taskSurface(context)]
+              : [const Color(0xFFFBFDFF), taskSurface(context)],
+        ),
+        border: Border.all(color: taskBorder(context)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Expanded(
+            child: CustomPaint(
+              painter: _SparkPainter(
+                values: values,
+                color: kTaskAccent,
+                gridColor: taskBorder(context),
+              ),
+              size: Size.infinite,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Text(labels.first,
+                  style: TextStyle(
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w600,
+                      color: taskMuted(context))),
+              const Spacer(),
+              if (labels.length > 2)
+                Text(labels[labels.length ~/ 2],
+                    style: TextStyle(
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w600,
+                        color: taskMuted(context))),
+              const Spacer(),
+              Text(labels.last,
+                  style: TextStyle(
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w600,
+                      color: taskMuted(context))),
+            ],
+          ),
+        ],
+      ),
     );
+  }
+
+  String _shortDay(Object? raw) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des'
+    ];
+    final text = (raw ?? '').toString().trim();
+    if (text.isEmpty) return '';
+    final date = DateTime.tryParse(text);
+    if (date == null) return text;
+    return '${date.day} ${months[date.month - 1]}';
   }
 }
 
 class _SparkPainter extends CustomPainter {
-  _SparkPainter({required this.values, required this.color});
+  _SparkPainter(
+      {required this.values, required this.color, required this.gridColor});
 
   final List<double> values;
   final Color color;
+  final Color gridColor;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (values.length < 2 || size.width <= 0 || size.height <= 0) return;
+
+    // Grid halus: tiga garis horizontal, bukan kotak penuh.
+    final grid = Paint()
+      ..color = gridColor.withValues(alpha: .55)
+      ..strokeWidth = 1;
+    for (var i = 1; i <= 3; i++) {
+      final y = size.height * i / 4;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
+    }
+
     final maxValue = values.reduce(math.max);
     final minValue = values.reduce(math.min);
     final span = math.max(1e-6, maxValue - minValue);
-    final dx = size.width / (values.length - 1);
+    const sidePad = 4.0;
+    const topPad = 8.0;
+    const bottomPad = 6.0;
+    final chartWidth = math.max(1.0, size.width - sidePad * 2);
+    final chartHeight = math.max(1.0, size.height - topPad - bottomPad);
+    final dx = chartWidth / (values.length - 1);
     final points = <Offset>[];
     for (var i = 0; i < values.length; i++) {
       final normalized = (values[i] - minValue) / span;
-      points.add(
-          Offset(i * dx, size.height - normalized * (size.height - 6) - 3));
+      points.add(Offset(
+        sidePad + i * dx,
+        topPad + (1 - normalized) * chartHeight,
+      ));
+    }
+
+    // Kurva monotone (Fritsch-Carlson): halus tetapi tidak melewati titik
+    // maksimum/minimum data, jadi puncak tidak terlihat lebih tinggi.
+    final count = points.length;
+    final slopes = List<double>.filled(count - 1, 0);
+    for (var i = 0; i < count - 1; i++) {
+      slopes[i] =
+          (points[i + 1].dy - points[i].dy) / (points[i + 1].dx - points[i].dx);
+    }
+    final tangents = List<double>.filled(count, 0);
+    tangents[0] = slopes.first;
+    tangents[count - 1] = slopes.last;
+    for (var i = 1; i < count - 1; i++) {
+      tangents[i] =
+          slopes[i - 1] * slopes[i] <= 0 ? 0 : (slopes[i - 1] + slopes[i]) / 2;
+    }
+    for (var i = 0; i < count - 1; i++) {
+      if (slopes[i] == 0) {
+        tangents[i] = 0;
+        tangents[i + 1] = 0;
+        continue;
+      }
+      final a = tangents[i] / slopes[i];
+      final b = tangents[i + 1] / slopes[i];
+      final sum = a * a + b * b;
+      if (sum > 9) {
+        final scale = 3 / math.sqrt(sum);
+        tangents[i] = scale * a * slopes[i];
+        tangents[i + 1] = scale * b * slopes[i];
+      }
     }
     final line = Path()..moveTo(points.first.dx, points.first.dy);
-    for (var i = 1; i < points.length; i++) {
-      line.lineTo(points[i].dx, points[i].dy);
+    for (var i = 0; i < count - 1; i++) {
+      final h = points[i + 1].dx - points[i].dx;
+      final c1 =
+          Offset(points[i].dx + h / 3, points[i].dy + tangents[i] * h / 3);
+      final c2 = Offset(
+          points[i + 1].dx - h / 3, points[i + 1].dy - tangents[i + 1] * h / 3);
+      line.cubicTo(
+          c1.dx, c1.dy, c2.dx, c2.dy, points[i + 1].dx, points[i + 1].dy);
     }
+
     final area = Path.from(line)
       ..lineTo(points.last.dx, size.height)
       ..lineTo(points.first.dx, size.height)
@@ -756,24 +1063,28 @@ class _SparkPainter extends CustomPainter {
       line,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
+        ..strokeWidth = 2.4
         ..strokeCap = StrokeCap.round
         ..color = color,
     );
-    for (final point in points) {
-      canvas.drawCircle(point, 3, Paint()..color = Colors.white);
-      canvas.drawCircle(
-        point,
-        3,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
-          ..color = color,
-      );
-    }
+
+    // Hanya titik terakhir yang diberi penanda supaya grafik terasa luwes.
+    final last = points.last;
+    canvas.drawCircle(last, 8, Paint()..color = color.withValues(alpha: .12));
+    canvas.drawCircle(last, 4, Paint()..color = Colors.white);
+    canvas.drawCircle(
+      last,
+      4,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.2
+        ..color = color,
+    );
   }
 
   @override
   bool shouldRepaint(_SparkPainter oldDelegate) =>
-      oldDelegate.values != values || oldDelegate.color != color;
+      oldDelegate.values != values ||
+      oldDelegate.color != color ||
+      oldDelegate.gridColor != gridColor;
 }
