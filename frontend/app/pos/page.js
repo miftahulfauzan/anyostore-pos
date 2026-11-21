@@ -468,7 +468,20 @@ export default function PosPage() {
       const settings = settingsResponse.ok ? (settingsBody.data || {}) : {};
       const store = stores.find((item) => String(item.id) === String(storeId)) || {};
       const storeName = String(settings.store_name || store.name || 'Anyostore').trim();
-      const customer = customers.find((item) => String(item.id) === String(customerId));
+      let customer = customers.find((item) => String(item.id) === String(customerId));
+      // Ekspedisi/alamat pelanggan bisa baru diubah di CRM. Ambil ulang supaya
+      // invoice yang dibagikan memakai data terbaru, bukan salinan saat POS dibuka.
+      if (customerId) {
+        try {
+          const customerResponse = await fetch(`${apiUrl}/customers?limit=500&branch_id=${Number(storeId)}`, { headers: headers() });
+          const customerBody = await customerResponse.json();
+          const rows = customerResponse.ok && Array.isArray(customerBody.data) ? customerBody.data : [];
+          const fresh = rows.find((item) => String(item.id) === String(customerId));
+          if (fresh) customer = fresh;
+        } catch (_) {
+          // Offline: tetap pakai data pelanggan yang sudah dimuat.
+        }
+      }
       const result = await shareInvoiceImage({
         storeName,
         storeAddress: settings.store_address || store.address || '',

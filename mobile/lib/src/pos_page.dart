@@ -1338,6 +1338,24 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     return '$name · ${invoiceCustomerTierLabel(customer['price_tier'])}';
   }
 
+  /// Data pelanggan terbaru dari server. Dipakai saat membagikan invoice agar
+  /// ekspedisi/alamat yang baru diubah di CRM tidak tertinggal di salinan POS.
+  Future<Map<String, dynamic>?> _freshInvoiceCustomer() async {
+    final selected = _customerId;
+    if (selected == null) return null;
+    try {
+      final rows = await _client.customers();
+      final customers = rows.cast<Map<String, dynamic>>();
+      if (mounted) setState(() => _customers = customers);
+      for (final customer in customers) {
+        if ('${customer['id']}' == '$selected') return customer;
+      }
+    } on ApiException catch (_) {
+      // Offline: pakai daftar yang sudah dimuat.
+    }
+    return _invoiceCustomer;
+  }
+
   /// Bagikan invoice gambar dari keranjang (sebelum dibayar) supaya pembeli
   /// bisa langsung transfer.
   Future<void> _shareCartInvoice() async {
@@ -1371,7 +1389,8 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     }
     if (invoiceNo == null || invoiceNo.isEmpty) return;
     if (!mounted) return;
-    final customer = _invoiceCustomer;
+    final customer = await _freshInvoiceCustomer();
+    if (!mounted) return;
     final payload = InvoicePayload(
       storeName: store.name,
       storeAddress: store.address,

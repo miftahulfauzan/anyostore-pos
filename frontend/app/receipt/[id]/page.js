@@ -62,6 +62,7 @@ export default function Receipt({ params }) {
         subtotal: data.subtotal,
         discount: data.discount,
         total: data.grand_total,
+        notes: data.notes || '',
       });
       if (result === 'downloaded') setMessage('Browser tidak mendukung berbagi file. Gambar invoice sudah diunduh.');
     } catch (error) {

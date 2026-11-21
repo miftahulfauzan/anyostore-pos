@@ -769,7 +769,10 @@ Future<void> shareInvoiceImage(
     final directory = await getTemporaryDirectory();
     final safeNumber =
         payload.invoiceNo.replaceAll(RegExp(r'[^A-Za-z0-9-]'), '');
-    final file = File('${directory.path}/invoice-$safeNumber.png');
+    // Nama file unik per share: aplikasi tujuan (WhatsApp/Telegram) bisa
+    // menyimpan pratinjau lama bila path-nya sama persis.
+    final stamp = DateTime.now().millisecondsSinceEpoch;
+    final file = File('${directory.path}/invoice-$safeNumber-$stamp.png');
     await file.writeAsBytes(data.buffer.asUint8List(), flush: true);
     await Share.shareXFiles([XFile(file.path)],
         subject: 'Invoice ${payload.invoiceNo}');

@@ -101,3 +101,12 @@ test('invoice share menampilkan blok PENGIRIMAN dari data pelanggan', () => {
   assert.match(customers, /Ekspedisi/);
   assert.match(receiptData, /c\.expedition AS customer_expedition/);
 });
+
+test('share invoice memakai pelanggan & catatan terbaru', () => {
+  // POS mengambil ulang pelanggan sebelum membuat gambar supaya ekspedisi/
+  // alamat yang baru diubah di CRM ikut terpakai.
+  assert.match(pos, /\/customers\?limit=500&branch_id=/);
+  assert.match(pos, /const fresh = rows\.find/);
+  // Halaman struk juga mengirim catatan transaksi ke generator invoice.
+  assert.match(receipt, /notes: data\.notes \|\| ''/);
+});
