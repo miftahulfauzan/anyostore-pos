@@ -150,6 +150,7 @@ process.exit(1);
     run: (mode = 'automatic') => spawnSync('bash', [join(root, 'scripts/deploy/release.sh'), sha, mode], {
       encoding: 'utf8', timeout: 15000,
       env: { ...process.env, PATH: bin + ':' + process.env.PATH, DEPLOY_DIR: dir,
+        APP_DOMAIN: 'example.test', APP_ORIGIN: 'https://example.test',
         HEALTH_ATTEMPTS: '3', HEALTH_INTERVAL: '0', ENDPOINT_ATTEMPTS: '2' },
     }),
     commands: () => existsSync(join(dir, 'commands.log'))
