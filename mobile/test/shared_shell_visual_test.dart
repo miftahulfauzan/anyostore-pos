@@ -74,8 +74,20 @@ void main() {
         expect(drawer.shape, isNotNull);
         expect(find.text('Pemilik Toko'), findsOneWidget);
         expect(find.byKey(const ValueKey('sidebar-profile')), findsOneWidget);
-        expect(find.text('Toko/Gudang aktif'), findsOneWidget);
+        expect(find.text('TOKO / GUDANG AKTIF'), findsOneWidget);
         expect(find.text('Anyostore Metro'), findsOneWidget);
+        // Kartu toko: nilai terpilih harus putih di atas pil terang, bukan
+        // teks gelap bawaan DropdownButton di atas denim.
+        final scopeCard = tester.widget<Container>(
+            find.byKey(const ValueKey('sidebar-branch-scope')));
+        final scopeDecoration = scopeCard.decoration as BoxDecoration;
+        expect(scopeDecoration.color, const Color(0x13FFFFFF));
+        expect(scopeDecoration.borderRadius, BorderRadius.circular(12));
+        final branchDropdown = tester
+            .widget<DropdownButton<int?>>(find.byType(DropdownButton<int?>));
+        expect(branchDropdown.value, 4);
+        expect(branchDropdown.dropdownColor, kDrawerMid);
+        expect(branchDropdown.style?.color, Colors.white);
         expect(find.text('AKSES CEPAT'), findsNothing);
         expect(find.text('Operasional'), findsOneWidget);
         final posIcon = find.byIcon(Icons.point_of_sale).last;
