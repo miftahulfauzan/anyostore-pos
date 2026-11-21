@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'api_client.dart';
+import 'app_ui.dart';
 import 'auth_store.dart';
 import 'branch_scope.dart';
 import 'format.dart';
@@ -160,6 +161,107 @@ class _ProductsPageState extends State<ProductsPage> {
     }
   }
 
+  int get _lowStockCount => _rows.where((row) {
+        final stock = asNum(row['stock']);
+        final minStock =
+            row['min_stock'] == null ? 5 : asNum(row['min_stock']).toInt();
+        return stock <= minStock;
+      }).length;
+
+  Widget _productCard(Map<String, dynamic> row) {
+    final name = productDisplayName(row);
+    final sku = row['sku']?.toString().trim() ?? '';
+    final category = row['category_name']?.toString().trim() ?? '';
+    final stock = asNum(row['stock']).toInt();
+    final minStock =
+        row['min_stock'] == null ? 5 : asNum(row['min_stock']).toInt();
+    final status = appStockStyle(context, stock, minStock);
+    final photo = _mediaUrl(row['photo_path']?.toString());
+    final subtitle =
+        [sku, category].where((part) => part.isNotEmpty).join(' · ');
+    return AppListCard(
+      onTap: () => _openForm(row),
+      tint: taskSurface(context),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: SizedBox(
+              width: 52,
+              height: 52,
+              child: UiProductPhoto(
+                path: photo,
+                baseUrl: '',
+                width: 52,
+                height: 52,
+                fit: BoxFit.cover,
+                label: 'Foto $name',
+              ),
+            ),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: ink(context))),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(fmtRp(asNum(row['price'])),
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                            color: ink(context))),
+                  ],
+                ),
+                if (subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 1),
+                  Text(subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          TextStyle(fontSize: 10.5, color: taskMuted(context))),
+                ],
+                const SizedBox(height: 5),
+                AppStatusPill(
+                    label: '${status.label} · $stock',
+                    fg: status.fg,
+                    bg: status.bg),
+              ],
+            ),
+          ),
+          AppKebab(
+            tooltip: 'Aksi produk',
+            onSelected: (value) {
+              if (value == 'print') {
+                _printLabel(row);
+              } else if (value == 'copy') {
+                _copy(row);
+              } else if (value == 'delete') {
+                _delete(row);
+              }
+            },
+            items: const [
+              PopupMenuItem(value: 'print', child: Text('Cetak label harga')),
+              PopupMenuItem(value: 'copy', child: Text('Salin produk')),
+              PopupMenuItem(value: 'delete', child: Text('Hapus produk')),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
@@ -175,10 +277,8 @@ class _ProductsPageState extends State<ProductsPage> {
                   child: DropdownButtonFormField<int?>(
                     initialValue: _effectiveBranch,
                     isExpanded: true,
-                    decoration: const InputDecoration(
-                        isDense: true,
-                        labelText: 'Toko/Gudang',
-                        border: OutlineInputBorder()),
+                    decoration: appFieldDecoration(context,
+                        label: 'Toko/Gudang', icon: Icons.storefront_outlined),
                     items: [
                       for (final b in _branches)
                         DropdownMenuItem<int?>(
@@ -215,132 +315,50 @@ class _ProductsPageState extends State<ProductsPage> {
                   onSubmitted: (_) => _load(),
                 ),
               ),
+              if (!_loading && _error == null && _rows.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                  child: Row(
+                    children: [
+                      Icon(Icons.inventory_2_outlined,
+                          size: 14, color: taskMuted(context)),
+                      const SizedBox(width: 6),
+                      Text('${_rows.length} produk',
+                          style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                              color: ink(context))),
+                      if (_lowStockCount > 0) ...[
+                        const SizedBox(width: 6),
+                        Text('· $_lowStockCount perlu restock',
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFFB45309))),
+                      ],
+                    ],
+                  ),
+                ),
               Expanded(
                 child: _loading
                     ? const UiLoadingState(label: 'Memuat produk…')
                     : _error != null
                         ? UiErrorState(message: _error!, onRetry: _load)
                         : _rows.isEmpty
-                            ? const UiEmptyState(
+                            ? AppEmptyState(
+                                icon: Icons.inventory_2_outlined,
                                 title: 'Belum ada produk',
-                                message: 'Ketuk Tambah Produk untuk mulai.')
-                            : ListView.separated(
-                                padding: const EdgeInsets.all(12),
-                                itemCount: _rows.length,
-                                separatorBuilder: (_, __) =>
-                                    const SizedBox(height: 8),
-                                itemBuilder: (_, i) {
-                                  final r = _rows[i];
-                                  final photo =
-                                      _mediaUrl(r['photo_path']?.toString());
-                                  return GlassCard(
-                                    padding: const EdgeInsets.all(10),
-                                    radius: 20,
-                                    onTap: () => _openForm(r),
-                                    child: Row(
-                                      children: [
-                                        ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                          child: SizedBox(
-                                            width: 48,
-                                            height: 48,
-                                            child: UiProductPhoto(
-                                              path: photo,
-                                              baseUrl: '',
-                                              width: 48,
-                                              height: 48,
-                                              fit: BoxFit.cover,
-                                              label:
-                                                  'Foto ${productDisplayName(r)}',
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(productDisplayName(r),
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: TextStyle(
-                                                      fontSize:
-                                                          TaskTypography.label,
-                                                      fontWeight:
-                                                          FontWeight.w800,
-                                                      color: ink(context))),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                  '${r['sku'] ?? ''} · Stok ${r['stock'] ?? 0}',
-                                                  style: const TextStyle(
-                                                    fontSize:
-                                                        TaskTypography.micro,
-                                                  )),
-                                            ],
-                                          ),
-                                        ),
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.end,
-                                          children: [
-                                            Text(fmtRp(asNum(r['price'])),
-                                                style: TextStyle(
-                                                    fontSize:
-                                                        TaskTypography.label,
-                                                    fontWeight: FontWeight.w800,
-                                                    color: ink(context))),
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                IconButton(
-                                                  onPressed: () =>
-                                                      _printLabel(r),
-                                                  constraints:
-                                                      const BoxConstraints(
-                                                          minWidth: 44,
-                                                          minHeight: 44),
-                                                  padding: EdgeInsets.zero,
-                                                  tooltip: 'Cetak label harga',
-                                                  icon: Icon(Icons.print,
-                                                      size: 18,
-                                                      color: ink(context)),
-                                                ),
-                                                IconButton(
-                                                  onPressed: () => _copy(r),
-                                                  constraints:
-                                                      const BoxConstraints(
-                                                          minWidth: 44,
-                                                          minHeight: 44),
-                                                  padding: EdgeInsets.zero,
-                                                  tooltip: 'Salin produk',
-                                                  icon: const Icon(
-                                                      Icons.copy_outlined,
-                                                      size: 17),
-                                                ),
-                                                IconButton(
-                                                  onPressed: () => _delete(r),
-                                                  constraints:
-                                                      const BoxConstraints(
-                                                          minWidth: 44,
-                                                          minHeight: 44),
-                                                  padding: EdgeInsets.zero,
-                                                  tooltip: 'Hapus produk',
-                                                  icon: const Icon(
-                                                      Icons.delete_outline,
-                                                      size: 18,
-                                                      color: kTaskTerracotta),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
+                                message:
+                                    'Tambahkan produk pertama untuk mulai berjualan.',
+                                actionLabel: 'Tambah produk',
+                                onAction: () => _openForm(),
+                              )
+                            : ListView(
+                                padding:
+                                    const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                                children: [
+                                  for (final row in _rows) _productCard(row),
+                                ],
                               ),
               ),
               Padding(
@@ -350,11 +368,9 @@ class _ProductsPageState extends State<ProductsPage> {
                 child: FilledButton.icon(
                   onPressed: () => _openForm(),
                   style: FilledButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                    minimumSize: const Size.fromHeight(50),
+                        borderRadius: BorderRadius.circular(12)),
+                    minimumSize: const Size.fromHeight(48),
                   ),
                   icon: const Icon(Icons.add, size: 20),
                   label: const Text('Tambah Produk'),

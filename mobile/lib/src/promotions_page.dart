@@ -1,8 +1,12 @@
+// ignore_for_file: prefer_const_constructors
+
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
+import 'app_ui.dart';
 import 'format.dart';
 import 'task_ui.dart';
+import 'ui_kit.dart';
 
 class PromotionsPage extends StatefulWidget {
   const PromotionsPage({super.key, required this.api});
@@ -47,77 +51,138 @@ class _PromotionsPageState extends State<PromotionsPage> {
     final maxDiscount = TextEditingController();
     final usageLimit = TextEditingController();
     var type = 'percentage';
-    final saved = await showDialog<bool>(
+    final saved = await showModalBottomSheet<bool>(
       context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: taskSurface(context),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Tambah Promo'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                    controller: code,
-                    decoration: const InputDecoration(
-                        labelText: 'Kode *', border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: name,
-                    decoration: const InputDecoration(
-                        labelText: 'Nama *', border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: type,
-                  decoration: const InputDecoration(
-                      labelText: 'Jenis', border: OutlineInputBorder()),
-                  items: const [
-                    DropdownMenuItem(
-                        value: 'percentage', child: Text('Persen (%)')),
-                    DropdownMenuItem(
-                        value: 'nominal', child: Text('Nominal (Rp)')),
-                  ],
-                  onChanged: (v) =>
-                      setDialogState(() => type = v ?? 'percentage'),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: value,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                        labelText: 'Nilai diskon',
-                        border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: minPurchase,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                        labelText: 'Min. pembelian (opsional)',
-                        border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: maxDiscount,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                        labelText: 'Maks diskon (opsional)',
-                        border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: usageLimit,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                        labelText: 'Batas pemakaian (opsional)',
-                        border: OutlineInputBorder())),
-              ],
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+          child: SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 2, 16, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFB45309).withValues(alpha: .12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.local_offer_outlined,
+                            size: 18, color: Color(0xFFB45309)),
+                      ),
+                      const SizedBox(width: 9),
+                      Text('Tambah Promo',
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: ink(ctx))),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  AppField(
+                      controller: code,
+                      label: 'Kode promo',
+                      hint: 'GAJIAN25',
+                      icon: Icons.tag_rounded,
+                      textInputAction: TextInputAction.next),
+                  const SizedBox(height: 8),
+                  AppField(
+                      controller: name,
+                      label: 'Nama promo',
+                      icon: Icons.local_offer_outlined,
+                      textInputAction: TextInputAction.next),
+                  const SizedBox(height: 12),
+                  Text('Jenis diskon',
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: .5,
+                          color: taskMuted(ctx))),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      ChoiceChip(
+                        label: const Text('Persen (%)'),
+                        selected: type == 'percentage',
+                        showCheckmark: false,
+                        onSelected: (_) => setSheet(() => type = 'percentage'),
+                      ),
+                      ChoiceChip(
+                        label: const Text('Nominal (Rp)'),
+                        selected: type == 'nominal',
+                        showCheckmark: false,
+                        onSelected: (_) => setSheet(() => type = 'nominal'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  AppField(
+                      controller: value,
+                      label: 'Nilai diskon',
+                      icon: Icons.percent_rounded,
+                      keyboard: TextInputType.number),
+                  const SizedBox(height: 8),
+                  AppField(
+                      controller: minPurchase,
+                      label: 'Min. pembelian (opsional)',
+                      icon: Icons.shopping_bag_outlined,
+                      keyboard: TextInputType.number),
+                  const SizedBox(height: 8),
+                  AppField(
+                      controller: maxDiscount,
+                      label: 'Maks diskon (opsional)',
+                      icon: Icons.speed_outlined,
+                      keyboard: TextInputType.number),
+                  const SizedBox(height: 8),
+                  AppField(
+                      controller: usageLimit,
+                      label: 'Batas pemakaian (opsional)',
+                      icon: Icons.repeat_rounded,
+                      keyboard: TextInputType.number),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 46),
+                            foregroundColor: taskMuted(ctx),
+                            side: BorderSide(color: taskBorder(ctx)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(11)),
+                          ),
+                          child: const Text('Batal'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 46),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(11)),
+                          ),
+                          child: const Text('Simpan'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Batal')),
-            FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Simpan')),
-          ],
         ),
       ),
     );
@@ -165,6 +230,88 @@ class _PromotionsPageState extends State<PromotionsPage> {
     }
   }
 
+  Widget _promoCard(Map<String, dynamic> row) {
+    final active = row['is_active'] != false;
+    final type = row['discount_type']?.toString() ?? 'percentage';
+    final value = row['discount_value'];
+    final discountLabel =
+        type == 'percentage' ? '$value%' : fmtRp(asNum(value));
+    final code = row['code']?.toString() ?? '';
+    final used = int.tryParse('${row['usage_count'] ?? 0}') ?? 0;
+    final limit = int.tryParse('${row['usage_limit'] ?? 0}') ?? 0;
+    final status = appActiveStyle(context, active);
+    final accent = _isDark ? const Color(0xFFFCD34D) : const Color(0xFFB45309);
+    return AppListCard(
+      tint: taskSurface(context),
+      child: Row(
+        children: [
+          AppAvatar(
+              text: code.isEmpty ? '%' : code.substring(0, 1),
+              fg: accent,
+              bg: _isDark ? const Color(0x2EFCD34D) : const Color(0xFFFEF3C7)),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(row['name']?.toString() ?? '-',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: ink(context))),
+                    ),
+                    Text(discountLabel,
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                            color: ink(context))),
+                  ],
+                ),
+                const SizedBox(height: 1),
+                Text('${code.isEmpty ? '-' : code} · $discountLabel',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        TextStyle(fontSize: 10.5, color: taskMuted(context))),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    AppStatusPill(
+                        label: status.label.toUpperCase(),
+                        fg: status.fg,
+                        bg: status.bg),
+                    const SizedBox(width: 4),
+                    AppStatusPill(
+                      label: limit > 0 ? '$used / $limit' : '$used dipakai',
+                      fg: _isDark
+                          ? const Color(0xFFCBD5E1)
+                          : const Color(0xFF334155),
+                      bg: _isDark
+                          ? const Color(0x2ECBD5E1)
+                          : const Color(0xFFE2E8F0),
+                    ),
+                    const Spacer(),
+                    Switch.adaptive(
+                      value: active,
+                      onChanged: (_) => _toggle(row),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -173,64 +320,51 @@ class _PromotionsPageState extends State<PromotionsPage> {
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
           child: Row(
             children: [
-              Expanded(
-                child: Text('Promo (${_rows.length})',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w800, fontSize: 15)),
+              Text('Promo',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: ink(context))),
+              const SizedBox(width: 7),
+              AppStatusPill(
+                label: '${_rows.length}',
+                fg: _isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                bg: _isDark ? const Color(0x2ECBD5E1) : const Color(0xFFE2E8F0),
               ),
+              const Spacer(),
               FilledButton.icon(
                 onPressed: _form,
-                icon: const Icon(Icons.add),
+                icon: const Icon(Icons.add, size: 18),
                 label: const Text('Tambah'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 38),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
               ),
             ],
           ),
         ),
         Expanded(
           child: _loading
-              ? const Center(child: CircularProgressIndicator())
+              ? const UiLoadingState(label: 'Memuat promo…')
               : _error != null
-                  ? Center(child: Text(_error!))
+                  ? UiErrorState(message: _error!, onRetry: _load)
                   : _rows.isEmpty
-                      ? const Center(child: Text('Belum ada promo'))
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(12),
-                          itemCount: _rows.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 8),
-                          itemBuilder: (_, i) {
-                            final row = _rows[i];
-                            final active = row['is_active'] != false;
-                            final value = row['discount_value'];
-                            final label = row['discount_type'] == 'percentage'
-                                ? '$value%'
-                                : fmtRp(asNum(value));
-                            return GlassCard(
-                              padding: EdgeInsets.zero,
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  child: Text(() {
-                                    final code = row['code']?.toString() ?? '';
-                                    return code.isEmpty
-                                        ? 'P'
-                                        : code.substring(0, 1);
-                                  }()),
-                                ),
-                                title: Text(row['name']?.toString() ?? '',
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w700)),
-                                subtitle: Text(
-                                    '${row['code']} · $label · ${row['usage_count'] ?? 0}/${row['usage_limit'] ?? '∞'}'),
-                                trailing: IconButton(
-                                  onPressed: () => _toggle(row),
-                                  icon: Icon(active
-                                      ? Icons.toggle_on
-                                      : Icons.toggle_off),
-                                  tooltip: active ? 'Nonaktifkan' : 'Aktifkan',
-                                ),
-                              ),
-                            );
-                          },
+                      ? AppEmptyState(
+                          icon: Icons.local_offer_outlined,
+                          title: 'Belum ada promo',
+                          message:
+                              'Buat kode diskon untuk pelanggan grosir maupun retail.',
+                          actionLabel: 'Buat promo pertama',
+                          onAction: _form,
+                        )
+                      : ListView(
+                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
+                          children: [
+                            for (final row in _rows) _promoCard(row),
+                          ],
                         ),
         ),
       ],

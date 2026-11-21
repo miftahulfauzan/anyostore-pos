@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pos_pakaian_mobile/main.dart' as app;
+import 'package:pos_pakaian_mobile/src/app_ui.dart';
 import 'package:pos_pakaian_mobile/src/auth_store.dart';
 import 'package:pos_pakaian_mobile/src/inventory_page.dart';
 import 'package:pos_pakaian_mobile/src/mutation_report_page.dart';
@@ -207,15 +208,18 @@ void main() {
         await mountInventory(tester, api, ProductsPage(api: api, branchId: 4),
             width, brightness);
         expect(find.text('Denim'), findsOneWidget);
-        expectSolidCards(tester, brightness);
-        for (final tooltip in [
-          'Cetak label harga',
-          'Salin produk',
-          'Hapus produk'
-        ]) {
-          expect(tester.getSize(find.byTooltip(tooltip)).shortestSide,
-              greaterThanOrEqualTo(44));
-        }
+        expect(find.byType(AppListCard), findsWidgets);
+        // Aksi produk ada di menu ⋮ agar baris tidak penuh ikon.
+        final productMenu = find.byTooltip('Aksi produk').first;
+        expect(
+            tester.getSize(productMenu).shortestSide, greaterThanOrEqualTo(44));
+        await tester.tap(productMenu);
+        await tester.pumpAndSettle();
+        expect(find.text('Cetak label harga'), findsOneWidget);
+        expect(find.text('Salin produk'), findsOneWidget);
+        expect(find.text('Hapus produk'), findsOneWidget);
+        await tester.tapAt(const Offset(8, 8));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Tambah Produk'));
         await tester.pumpAndSettle();
         expect(find.byType(ProductFormPage), findsOneWidget);

@@ -1,7 +1,11 @@
+// ignore_for_file: prefer_const_constructors
+
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
+import 'app_ui.dart';
 import 'task_ui.dart';
+import 'ui_kit.dart';
 
 class UsersPage extends StatefulWidget {
   const UsersPage(
@@ -76,87 +80,140 @@ class _UsersPageState extends State<UsersPage> {
         ? int.tryParse('${existing?['branch_id']}')
         : _selectedBranchId ?? widget.branchId;
 
-    final saved = await showDialog<bool>(
+    final saved = await showModalBottomSheet<bool>(
       context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: taskSurface(context),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(existing == null ? 'Tambah Pegawai' : 'Edit Pegawai'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                    controller: name,
-                    decoration: const InputDecoration(
-                        labelText: 'Nama *', border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: username,
-                  decoration: const InputDecoration(
-                      labelText: 'Username *',
-                      border: OutlineInputBorder(),
-                      hintText: 'contoh: nining'),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: email,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                        labelText: 'Email *', border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                if (existing == null)
-                  TextField(
-                      controller: password,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                          labelText: 'Password (min. 8)',
-                          border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: role,
-                  decoration: const InputDecoration(
-                      labelText: 'Role', border: OutlineInputBorder()),
-                  items: [
-                    for (final r in roles)
-                      DropdownMenuItem(value: r, child: Text(r.toUpperCase())),
-                  ],
-                  onChanged: (v) => setDialogState(() => role = v ?? 'kasir'),
-                ),
-                if (widget.isOwner) ...[
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<int?>(
-                    initialValue: branchId,
-                    decoration: const InputDecoration(
-                        labelText: 'Toko', border: OutlineInputBorder()),
-                    items: [
-                      for (final b in _branches)
-                        DropdownMenuItem<int?>(
-                            value: int.tryParse('${b['id']}'),
-                            child: Text(b['name']?.toString() ?? '')),
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+          child: SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 2, 16, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6D28D9).withValues(alpha: .12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.badge_outlined,
+                            size: 18, color: Color(0xFF6D28D9)),
+                      ),
+                      const SizedBox(width: 9),
+                      Text(existing == null ? 'Tambah Pegawai' : 'Edit Pegawai',
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: ink(ctx))),
                     ],
-                    onChanged: (v) => setDialogState(() => branchId = v),
+                  ),
+                  const SizedBox(height: 12),
+                  AppField(
+                      controller: name,
+                      label: 'Nama',
+                      icon: Icons.person_outline,
+                      textInputAction: TextInputAction.next),
+                  const SizedBox(height: 8),
+                  AppField(
+                      controller: username,
+                      label: 'Username',
+                      hint: 'contoh: nining',
+                      icon: Icons.alternate_email,
+                      textInputAction: TextInputAction.next),
+                  const SizedBox(height: 8),
+                  AppField(
+                      controller: email,
+                      label: 'Email',
+                      icon: Icons.mail_outline,
+                      keyboard: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next),
+                  if (existing == null) ...[
+                    const SizedBox(height: 8),
+                    AppField(
+                        controller: password,
+                        label: 'Password (min. 8)',
+                        icon: Icons.lock_outline,
+                        obscure: true),
+                  ],
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: role,
+                    isExpanded: true,
+                    decoration: appFieldDecoration(ctx,
+                        label: 'Role',
+                        icon: Icons.admin_panel_settings_outlined),
+                    items: [
+                      for (final r in roles)
+                        DropdownMenuItem(
+                            value: r, child: Text(r.toUpperCase())),
+                    ],
+                    onChanged: (v) => setSheet(() => role = v ?? 'kasir'),
+                  ),
+                  if (widget.isOwner) ...[
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<int?>(
+                      initialValue: branchId,
+                      isExpanded: true,
+                      decoration: appFieldDecoration(ctx,
+                          label: 'Toko', icon: Icons.storefront_outlined),
+                      items: [
+                        for (final b in _branches)
+                          DropdownMenuItem<int?>(
+                              value: int.tryParse('${b['id']}'),
+                              child: Text(b['name']?.toString() ?? '')),
+                      ],
+                      onChanged: (v) => setSheet(() => branchId = v),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  AppField(
+                      controller: pin,
+                      label: 'PIN 6 digit (opsional)',
+                      icon: Icons.pin_outlined,
+                      keyboard: TextInputType.number),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 46),
+                            foregroundColor: taskMuted(ctx),
+                            side: BorderSide(color: taskBorder(ctx)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(11)),
+                          ),
+                          child: const Text('Batal'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 46),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(11)),
+                          ),
+                          child: const Text('Simpan'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-                const SizedBox(height: 8),
-                TextField(
-                    controller: pin,
-                    keyboardType: TextInputType.number,
-                    maxLength: 6,
-                    decoration: const InputDecoration(
-                        labelText: 'PIN 6 digit (opsional)',
-                        counterText: '',
-                        border: OutlineInputBorder())),
-              ],
+              ),
             ),
           ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Batal')),
-            FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Simpan')),
-          ],
         ),
       ),
     );
@@ -205,12 +262,11 @@ class _UsersPageState extends State<UsersPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Reset password ${row['name']}'),
-        content: TextField(
+        content: AppField(
             controller: controller,
-            obscureText: true,
-            decoration: const InputDecoration(
-                labelText: 'Password baru (min. 8)',
-                border: OutlineInputBorder())),
+            label: 'Password baru (min. 8)',
+            icon: Icons.lock_outline,
+            obscure: true),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -250,29 +306,112 @@ class _UsersPageState extends State<UsersPage> {
     }
   }
 
+  Widget _userCard(Map<String, dynamic> row) {
+    final active = row['is_active'] != false;
+    final name = row['name']?.toString() ?? '-';
+    final username = row['username']?.toString() ?? '';
+    final email = row['email']?.toString() ?? '';
+    final roleStyle = appRoleStyle(context, row['role']);
+    final activeStyle = appActiveStyle(context, active);
+    final hasPin = row['has_pin'] == true;
+    final detail = [username.isEmpty ? '' : '@$username', email]
+        .where((part) => part.isNotEmpty)
+        .join(' · ');
+    return AppListCard(
+      onTap: () => _form(row),
+      tint: taskSurface(context),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppAvatar(text: appInitial(name), fg: roleStyle.fg, bg: roleStyle.bg),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: ink(context))),
+                if (detail.isNotEmpty) ...[
+                  const SizedBox(height: 1),
+                  Text(detail,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          TextStyle(fontSize: 10.5, color: taskMuted(context))),
+                ],
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: [
+                    AppStatusPill(
+                        label: roleStyle.label.toUpperCase(),
+                        fg: roleStyle.fg,
+                        bg: roleStyle.bg),
+                    AppStatusPill(
+                        label: activeStyle.label.toUpperCase(),
+                        fg: activeStyle.fg,
+                        bg: activeStyle.bg),
+                    if (hasPin)
+                      AppStatusPill(
+                        label: 'PIN',
+                        fg: _isDark
+                            ? const Color(0xFFCBD5E1)
+                            : const Color(0xFF334155),
+                        bg: _isDark
+                            ? const Color(0x2ECBD5E1)
+                            : const Color(0xFFE2E8F0),
+                        icon: Icons.pin_outlined,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          AppKebab(
+            tooltip: 'Aksi pegawai',
+            onSelected: (value) {
+              if (value == 'password') {
+                _password(row);
+              } else if (value == 'toggle') {
+                _toggle(row);
+              } else if (value == 'edit') {
+                _form(row);
+              }
+            },
+            items: [
+              const PopupMenuItem(
+                  value: 'password', child: Text('Reset password')),
+              PopupMenuItem(
+                  value: 'toggle',
+                  child: Text(active ? 'Nonaktifkan' : 'Aktifkan')),
+              const PopupMenuItem(value: 'edit', child: Text('Edit')),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
+
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        if (widget.isOwner) ...[
+        if (widget.isOwner)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
             child: DropdownButtonFormField<int?>(
               initialValue: _selectedBranchId ?? widget.branchId,
-              decoration: InputDecoration(
-                labelText: 'Toko / Gudang',
-                filled: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: taskBorder(context))),
-                focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(
-                        color: Theme.of(context).colorScheme.primary,
-                        width: 2)),
-              ),
+              isExpanded: true,
+              decoration: appFieldDecoration(context,
+                  label: 'Toko / Gudang', icon: Icons.storefront_outlined),
               items: [
                 for (final b in _branches)
                   DropdownMenuItem<int?>(
@@ -285,72 +424,54 @@ class _UsersPageState extends State<UsersPage> {
               },
             ),
           ),
-        ],
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
           child: Row(
             children: [
-              Expanded(
-                child: Text('Pegawai (${_rows.length})',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w800, fontSize: 15)),
+              Text('Pegawai',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: ink(context))),
+              const SizedBox(width: 7),
+              AppStatusPill(
+                label: '${_rows.length}',
+                fg: _isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                bg: _isDark ? const Color(0x2ECBD5E1) : const Color(0xFFE2E8F0),
               ),
+              const Spacer(),
               FilledButton.icon(
                 onPressed: _form,
-                icon: const Icon(Icons.person_add),
+                icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
                 label: const Text('Tambah'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 38),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
               ),
             ],
           ),
         ),
         Expanded(
           child: _loading
-              ? const Center(child: CircularProgressIndicator())
+              ? const UiLoadingState(label: 'Memuat pegawai…')
               : _error != null
-                  ? Center(child: Text(_error!))
+                  ? UiErrorState(message: _error!, onRetry: _load)
                   : _rows.isEmpty
-                      ? const Center(child: Text('Belum ada pegawai'))
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(12),
-                          itemCount: _rows.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 8),
-                          itemBuilder: (_, i) {
-                            final row = _rows[i];
-                            final active = row['is_active'] != false;
-                            return GlassCard(
-                              padding: EdgeInsets.zero,
-                              child: ListTile(
-                                title: Text(row['name']?.toString() ?? '',
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w700)),
-                                subtitle: Text(
-                                    '@${row['username'] ?? ''} · ${row['role'] ?? ''} · ${row['email'] ?? ''}${row['has_pin'] == true ? ' · PIN ✓' : ''}'),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      onPressed: () => _password(row),
-                                      icon: const Icon(Icons.key),
-                                      tooltip: 'Reset password',
-                                    ),
-                                    IconButton(
-                                      onPressed: () => _toggle(row),
-                                      icon: Icon(active
-                                          ? Icons.toggle_on
-                                          : Icons.toggle_off),
-                                      tooltip:
-                                          active ? 'Nonaktifkan' : 'Aktifkan',
-                                    ),
-                                    IconButton(
-                                      onPressed: () => _form(row),
-                                      icon: const Icon(Icons.edit_outlined),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
+                      ? AppEmptyState(
+                          icon: Icons.badge_outlined,
+                          title: 'Belum ada pegawai',
+                          message: 'Tambahkan pegawai dan atur role aksesnya.',
+                          actionLabel: 'Tambah pegawai',
+                          onAction: _form,
+                        )
+                      : ListView(
+                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
+                          children: [
+                            for (final row in _rows) _userCard(row),
+                          ],
                         ),
         ),
       ],

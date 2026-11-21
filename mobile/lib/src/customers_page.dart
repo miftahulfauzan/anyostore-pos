@@ -3,7 +3,9 @@
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
+import 'app_ui.dart';
 import 'task_ui.dart';
+import 'ui_kit.dart';
 
 class CustomersPage extends StatefulWidget {
   const CustomersPage({super.key, required this.api});
@@ -60,63 +62,109 @@ class _CustomersPageState extends State<CustomersPage> {
         TextEditingController(text: existing?['expedition']?.toString() ?? '');
     var tier = existing?['price_tier']?.toString() ?? 'reguler';
 
-    final saved = await showDialog<bool>(
+    final saved = await showModalBottomSheet<bool>(
       context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: taskSurface(context),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => Dialog(
-          backgroundColor: Theme.of(ctx).colorScheme.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: kTaskBorder),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+          child: SafeArea(
+            top: false,
             child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 2, 16, 16),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(existing == null ? 'Tambah Pelanggan' : 'Edit Pelanggan',
-                      style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: ink(context))),
-                  const SizedBox(height: 4),
-                  const Text('Lengkapi data pelanggan di bawah ini.',
-                      style: TextStyle(fontSize: 12)),
-                  const SizedBox(height: 18),
-                  _label('Nama *'),
-                  _field(name, 'Nama pelanggan'),
-                  const SizedBox(height: 12),
-                  _label('No. HP'),
-                  _field(phone, '08xxxxxxxxxx', keyboard: TextInputType.phone),
-                  const SizedBox(height: 12),
-                  _label('Email'),
-                  _field(email, 'nama@email.com',
-                      keyboard: TextInputType.emailAddress),
-                  const SizedBox(height: 12),
-                  _label('Alamat'),
-                  _field(address, 'Alamat lengkap'),
-                  const SizedBox(height: 12),
-                  _label('Ekspedisi'),
-                  _field(expedition, 'JNE / J&T / SiCepat / Ambil di toko'),
-                  const SizedBox(height: 12),
-                  _label('Tipe harga'),
-                  DropdownButtonFormField<String>(
-                    initialValue: tier,
-                    decoration: _decoration(),
-                    items: const [
-                      DropdownMenuItem(
-                          value: 'reguler', child: Text('Reguler')),
-                      DropdownMenuItem(
-                          value: 'semi_grosir', child: Text('Semi Grosir')),
-                      DropdownMenuItem(
-                          value: 'grosir_seri', child: Text('Grosir Seri')),
+                  Row(
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: Theme.of(ctx)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: .1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(Icons.person_add_alt_1_outlined,
+                            size: 18, color: Theme.of(ctx).colorScheme.primary),
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                            existing == null
+                                ? 'Tambah Pelanggan'
+                                : 'Edit Pelanggan',
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: ink(ctx))),
+                      ),
                     ],
-                    onChanged: (v) =>
-                        setDialogState(() => tier = v ?? 'reguler'),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
+                  AppField(
+                      controller: name,
+                      label: 'Nama pelanggan',
+                      icon: Icons.person_outline,
+                      textInputAction: TextInputAction.next),
+                  const SizedBox(height: 8),
+                  AppField(
+                      controller: phone,
+                      label: 'No. HP',
+                      icon: Icons.phone_outlined,
+                      keyboard: TextInputType.phone,
+                      textInputAction: TextInputAction.next),
+                  const SizedBox(height: 8),
+                  AppField(
+                      controller: email,
+                      label: 'Email',
+                      icon: Icons.mail_outline,
+                      keyboard: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next),
+                  const SizedBox(height: 8),
+                  AppField(
+                      controller: address,
+                      label: 'Alamat',
+                      icon: Icons.location_on_outlined,
+                      maxLines: 2,
+                      textInputAction: TextInputAction.next),
+                  const SizedBox(height: 8),
+                  AppField(
+                      controller: expedition,
+                      label: 'Ekspedisi',
+                      hint: 'JNE / J&T / SiCepat / Ambil di toko',
+                      icon: Icons.local_shipping_outlined),
+                  const SizedBox(height: 12),
+                  Text('Tipe harga',
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: .5,
+                          color: taskMuted(ctx))),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final option in const [
+                        ('reguler', 'Reguler'),
+                        ('semi_grosir', 'Semi Grosir'),
+                        ('grosir_seri', 'Grosir Seri'),
+                      ])
+                        ChoiceChip(
+                          label: Text(option.$2),
+                          selected: tier == option.$1,
+                          showCheckmark: false,
+                          onSelected: (_) => setSheet(() => tier = option.$1),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(
@@ -124,25 +172,22 @@ class _CustomersPageState extends State<CustomersPage> {
                           onPressed: () => Navigator.pop(ctx, false),
                           style: OutlinedButton.styleFrom(
                             minimumSize: const Size(0, 46),
-                            foregroundColor: kTaskSecondary,
-                            side: const BorderSide(color: kTaskBorder),
+                            foregroundColor: taskMuted(ctx),
+                            side: BorderSide(color: taskBorder(ctx)),
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
+                                borderRadius: BorderRadius.circular(11)),
                           ),
                           child: const Text('Batal'),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: FilledButton(
                           onPressed: () => Navigator.pop(ctx, true),
                           style: FilledButton.styleFrom(
                             minimumSize: const Size(0, 46),
-                            backgroundColor: Theme.of(ctx).colorScheme.primary,
-                            foregroundColor:
-                                Theme.of(ctx).colorScheme.onPrimary,
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14)),
+                                borderRadius: BorderRadius.circular(11)),
                           ),
                           child: const Text('Simpan'),
                         ),
@@ -215,40 +260,93 @@ class _CustomersPageState extends State<CustomersPage> {
     }
   }
 
-  Widget _label(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Text(text,
-            style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xff334155))),
-      );
-
-  InputDecoration _decoration() {
-    final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: BorderSide(color: taskBorder(context)),
-    );
-    return InputDecoration(
-      filled: true,
-      fillColor: taskSurface(context),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      enabledBorder: border,
-      focusedBorder: border.copyWith(
-          borderSide: BorderSide(
-              color: Theme.of(context).colorScheme.primary, width: 2)),
+  Widget _customerCard(Map<String, dynamic> row) {
+    final name = row['name']?.toString() ?? '-';
+    final phone = row['phone']?.toString().trim() ?? '';
+    final address = row['address']?.toString().trim() ?? '';
+    final expedition = row['expedition']?.toString().trim() ?? '';
+    final tierStyle = appTierStyle(context, row['price_tier']);
+    final detail =
+        [phone, address].where((part) => part.isNotEmpty).join(' · ');
+    return AppListCard(
+      onTap: () => _edit(row),
+      tint: taskSurface(context),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppAvatar(text: appInitial(name), fg: tierStyle.fg, bg: tierStyle.bg),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: ink(context))),
+                if (detail.isNotEmpty) ...[
+                  const SizedBox(height: 1),
+                  Text(detail,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          TextStyle(fontSize: 10.5, color: taskMuted(context))),
+                ],
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: [
+                    AppStatusPill(
+                        label: tierStyle.label.toUpperCase(),
+                        fg: tierStyle.fg,
+                        bg: tierStyle.bg),
+                    if (expedition.isNotEmpty)
+                      AppStatusPill(
+                        label: expedition.toUpperCase(),
+                        fg: _isDark
+                            ? const Color(0xFFFCD34D)
+                            : const Color(0xFFB45309),
+                        bg: _isDark
+                            ? const Color(0x2EFCD34D)
+                            : const Color(0xFFFEF3C7),
+                        icon: Icons.local_shipping_outlined,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          AppKebab(
+            tooltip: 'Aksi pelanggan',
+            onSelected: (value) {
+              if (value == 'edit') {
+                _edit(row);
+              } else if (value == 'delete') {
+                _delete(row);
+              }
+            },
+            items: const [
+              PopupMenuItem(value: 'edit', child: Text('Edit')),
+              PopupMenuItem(value: 'delete', child: Text('Hapus')),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _field(TextEditingController controller, String hint,
-          {TextInputType? keyboard}) =>
-      TextField(
-          controller: controller,
-          keyboardType: keyboard,
-          decoration: _decoration().copyWith(hintText: hint));
+  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
 
   @override
   Widget build(BuildContext context) {
+    final wholesale = _rows
+        .where((row) =>
+            row['price_tier'] != null && row['price_tier'] != 'reguler')
+        .length;
     return Column(
       children: [
         Padding(
@@ -256,84 +354,70 @@ class _CustomersPageState extends State<CustomersPage> {
           child: Row(
             children: [
               Expanded(
-                child: TextField(
+                child: AppSearchField(
                   controller: _search,
-                  decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.search),
-                      isDense: true,
-                      hintText: 'Cari nama / nomor HP',
-                      border: OutlineInputBorder()),
+                  hint: 'Cari nama / nomor HP',
                   onSubmitted: (_) => _load(),
+                  onClear: _load,
                 ),
               ),
               const SizedBox(width: 8),
-              IconButton.filled(
-                onPressed: _edit,
-                icon: const Icon(Icons.person_add),
-                tooltip: 'Tambah pelanggan',
+              SizedBox(
+                width: 46,
+                height: 46,
+                child: FilledButton(
+                  onPressed: _edit,
+                  style: FilledButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Icon(Icons.person_add_alt_1_outlined, size: 21),
+                ),
               ),
             ],
           ),
         ),
+        if (!_loading && _error == null && _rows.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+            child: Row(
+              children: [
+                Icon(Icons.people_outline, size: 14, color: taskMuted(context)),
+                const SizedBox(width: 6),
+                Text('${_rows.length} pelanggan',
+                    style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        color: ink(context))),
+                if (wholesale > 0) ...[
+                  const SizedBox(width: 6),
+                  Text('· $wholesale grosir/semi',
+                      style:
+                          TextStyle(fontSize: 10, color: taskMuted(context))),
+                ],
+              ],
+            ),
+          ),
         Expanded(
           child: _loading
-              ? const Center(child: CircularProgressIndicator())
+              ? const UiLoadingState(label: 'Memuat pelanggan…')
               : _error != null
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(_error!),
-                            const SizedBox(height: 12),
-                            FilledButton(
-                                onPressed: _load,
-                                child: const Text('Coba lagi')),
-                          ],
-                        ),
-                      ),
-                    )
+                  ? UiErrorState(message: _error!, onRetry: _load)
                   : _rows.isEmpty
-                      ? const Center(child: Text('Belum ada pelanggan'))
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(12),
-                          itemCount: _rows.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 8),
-                          itemBuilder: (_, i) {
-                            final row = _rows[i];
-                            return GlassCard(
-                              padding: EdgeInsets.zero,
-                              child: ListTile(
-                                title: Text(row['name']?.toString() ?? '',
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w700)),
-                                subtitle: Text([
-                                  row['phone']?.toString() ?? '',
-                                  (row['price_tier'] ?? '').toString(),
-                                  if ((row['expedition'] ?? '')
-                                      .toString()
-                                      .trim()
-                                      .isNotEmpty)
-                                    'Ekspedisi ${row['expedition'].toString().trim()}',
-                                ].where((e) => e.isNotEmpty).join(' · ')),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      onPressed: () => _edit(row),
-                                      icon: const Icon(Icons.edit_outlined),
-                                    ),
-                                    IconButton(
-                                      onPressed: () => _delete(row),
-                                      icon: const Icon(Icons.delete_outline),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
+                      ? AppEmptyState(
+                          icon: Icons.person_search_outlined,
+                          title: 'Belum ada pelanggan',
+                          message:
+                              'Tambahkan pelanggan agar tier harga dan ekspedisi tersimpan otomatis.',
+                          actionLabel: 'Tambah pelanggan',
+                          onAction: _edit,
+                        )
+                      : ListView(
+                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
+                          children: [
+                            for (final row in _rows) _customerCard(row),
+                          ],
                         ),
         ),
       ],
