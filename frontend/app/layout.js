@@ -18,8 +18,14 @@ export const metadata = {
   title: { default: siteName, template: '%s | Anyostore' },
   description: siteDescription,
   icons: {
-    icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }, { url: '/icon.svg', type: 'image/svg+xml' }],
-    apple: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    // iOS tidak mendukung SVG untuk ikon home screen dan meng-cache ikon per URL.
+    // Bila logo berubah, simpan file dengan nama baru (mis. apple-touch-icon-v2.png).
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
   manifest: '/manifest.json',
   // Scrollbar & kontrol native langsung mengikuti tema terang/gelap.
