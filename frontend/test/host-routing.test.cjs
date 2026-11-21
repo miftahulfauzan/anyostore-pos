@@ -47,12 +47,12 @@ test('halaman pembeli reseller selalu di subdomain reseller', () => {
 });
 
 test('root sekarang gateway, katalog grosir punya halaman sendiri', () => {
-  assert.match(gateway, /grosir\.anyostore\.my\.id/);
-  assert.match(gateway, /reseller\.anyostore\.my\.id/);
+  assert.match(gateway, /grosir\.anyostore\.id/);
+  assert.match(gateway, /reseller\.anyostore\.id/);
   assert.match(gateway, /Masuk staf/);
   assert.match(gateway, /\/api\/public\/settings/);
   assert.match(grosirPage, /<LandingClient/);
-  assert.match(grosirPage, /canonical: 'https:\/\/grosir\.anyostore\.my\.id'/);
+  assert.match(grosirPage, /canonical: 'https:\/\/grosir\.anyostore\.id'/);
   // Root bukan lagi katalog grosir.
   assert.doesNotMatch(gateway, /LandingClient/);
 });
@@ -68,8 +68,9 @@ test('sitemap dan robots mengikuti host', () => {
 test('deploy memverifikasi host grosir (VPS + publik)', () => {
   assert.match(release, /verify_grosir_endpoint \/version/);
   assert.match(release, /grosir\.\$\{domain\}/);
-  assert.match(workflow, /EXPECTED_GROSIR_DOMAIN=grosir\.anyostore\.my\.id/);
-  assert.match(workflow, /verify_public_endpoint grosir\.anyostore\.my\.id \/version/);
+  assert.match(workflow, /APP_DOMAIN=anyostore\.id APP_ORIGIN=https:\/\/anyostore\.id EXPECTED_APP_DOMAIN=anyostore\.id/);
+  assert.match(workflow, /verify_public_endpoint grosir\.anyostore\.id \/version/);
+  assert.match(workflow, /verify_public_endpoint reseller\.anyostore\.id \/version/);
 });
 
 test('meta verifikasi Google Search Console terpasang di semua host', () => {

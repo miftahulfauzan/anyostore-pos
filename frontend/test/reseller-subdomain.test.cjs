@@ -14,7 +14,7 @@ const landing = read('app/LandingClient.js');
 const detail = read('app/produk/[id]/ProdukDetailClient.js');
 
 test('reseller memakai subdomain sendiri', () => {
-  assert.match(middleware, /reseller\.anyostore\.my\.id/);
+  assert.match(middleware, /reseller\.anyostore\.id/);
   assert.match(caddy, /reseller\.\{\$APP_DOMAIN\}/);
   // www tetap ke landing grosir.
   assert.match(caddy, /www\.\{\$APP_DOMAIN\}/);
