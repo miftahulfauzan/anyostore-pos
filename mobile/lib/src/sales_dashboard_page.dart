@@ -494,21 +494,20 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
       child: Row(
         children: [
           Expanded(
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                dropdownColor: appDropdownColor(context),
-                borderRadius: BorderRadius.circular(14),
-                menuMaxHeight: 320,
-                value: _preset,
-                isExpanded: true,
-                icon: const Icon(Icons.keyboard_arrow_down_rounded),
-                items: [
-                  for (final option in kMobileDateFilterOptions)
-                    DropdownMenuItem<String>(
-                        value: option.value, child: Text(option.label)),
-                ],
-                onChanged: _pickPreset,
+            child: AppSelectField<String>(
+              value: _preset,
+              maxMenuHeight: 320,
+              decoration: const InputDecoration(
+                isDense: true,
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               ),
+              items: [
+                for (final option in kMobileDateFilterOptions)
+                  DropdownMenuItem<String>(
+                      value: option.value, child: Text(option.label)),
+              ],
+              onChanged: _pickPreset,
             ),
           ),
           const SizedBox(width: 8),

@@ -307,12 +307,8 @@ class _CommissionsPageState extends State<CommissionsPage> {
             child: Column(
               children: [
                 if (_isOwner && _branches.isNotEmpty && _tab == 'report')
-                  DropdownButtonFormField<int?>(
-                    dropdownColor: appDropdownColor(context),
-                    borderRadius: BorderRadius.circular(14),
-                    menuMaxHeight: 320,
-                    initialValue: _branchId ?? widget.branchId,
-                    isExpanded: true,
+                  AppSelectField<int?>(
+                    value: _branchId ?? widget.branchId,
                     decoration: const InputDecoration(
                         isDense: true,
                         labelText: 'Toko',
@@ -334,12 +330,8 @@ class _CommissionsPageState extends State<CommissionsPage> {
                 Row(
                   children: [
                     Expanded(
-                      child: DropdownButtonFormField<String>(
-                        dropdownColor: appDropdownColor(context),
-                        borderRadius: BorderRadius.circular(14),
-                        menuMaxHeight: 320,
-                        initialValue: _preset,
-                        isExpanded: true,
+                      child: AppSelectField<String>(
+                        value: _preset,
                         decoration: const InputDecoration(
                             isDense: true,
                             labelText: 'Periode',

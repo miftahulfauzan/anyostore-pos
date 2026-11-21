@@ -145,12 +145,8 @@ class _UsersPageState extends State<UsersPage> {
                         obscure: true),
                   ],
                   const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    dropdownColor: appDropdownColor(context),
-                    borderRadius: BorderRadius.circular(14),
-                    menuMaxHeight: 320,
-                    initialValue: role,
-                    isExpanded: true,
+                  AppSelectField<String>(
+                    value: role,
                     decoration: appFieldDecoration(ctx,
                         label: 'Role',
                         icon: Icons.admin_panel_settings_outlined),
@@ -163,12 +159,8 @@ class _UsersPageState extends State<UsersPage> {
                   ),
                   if (widget.isOwner) ...[
                     const SizedBox(height: 8),
-                    DropdownButtonFormField<int?>(
-                      dropdownColor: appDropdownColor(context),
-                      borderRadius: BorderRadius.circular(14),
-                      menuMaxHeight: 320,
-                      initialValue: branchId,
-                      isExpanded: true,
+                    AppSelectField<int?>(
+                      value: branchId,
                       decoration: appFieldDecoration(ctx,
                           label: 'Toko', icon: Icons.storefront_outlined),
                       items: [
@@ -413,12 +405,8 @@ class _UsersPageState extends State<UsersPage> {
         if (widget.isOwner)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-            child: DropdownButtonFormField<int?>(
-              dropdownColor: appDropdownColor(context),
-              borderRadius: BorderRadius.circular(14),
-              menuMaxHeight: 320,
-              initialValue: _selectedBranchId ?? widget.branchId,
-              isExpanded: true,
+            child: AppSelectField<int?>(
+              value: _selectedBranchId ?? widget.branchId,
               decoration: appFieldDecoration(context,
                   label: 'Toko / Gudang', icon: Icons.storefront_outlined),
               items: [

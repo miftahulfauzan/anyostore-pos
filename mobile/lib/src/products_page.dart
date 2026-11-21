@@ -274,12 +274,8 @@ class _ProductsPageState extends State<ProductsPage> {
               if (_isOwner)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                  child: DropdownButtonFormField<int?>(
-                    dropdownColor: appDropdownColor(context),
-                    borderRadius: BorderRadius.circular(14),
-                    menuMaxHeight: 320,
-                    initialValue: _effectiveBranch,
-                    isExpanded: true,
+                  child: AppSelectField<int?>(
+                    value: _effectiveBranch,
                     decoration: appFieldDecoration(context,
                         label: 'Toko/Gudang', icon: Icons.storefront_outlined),
                     items: [

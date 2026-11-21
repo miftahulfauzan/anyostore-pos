@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pos_pakaian_mobile/main.dart' as app;
 import 'package:pos_pakaian_mobile/src/api_client.dart';
+import 'package:pos_pakaian_mobile/src/app_ui.dart';
 import 'package:pos_pakaian_mobile/src/auth_store.dart';
 import 'package:pos_pakaian_mobile/src/branch_scope.dart';
 import 'package:pos_pakaian_mobile/src/pos_page.dart';
@@ -97,7 +98,7 @@ void main() {
   testWidgets('pemilih toko memakai label tipe, alamat, dan cabang aktif saja',
       (tester) async {
     await _openDrawer(tester);
-    await tester.tap(find.byType(DropdownButton<int?>));
+    await tester.tap(find.byType(AppSelectField<int?>));
     await _settle(tester);
 
     expect(find.text('Toko · Anyostore Metro'), findsWidgets);
@@ -112,7 +113,7 @@ void main() {
     await _openDrawer(tester);
     BranchScope.pendingCartCount = () => 3;
 
-    await tester.tap(find.byType(DropdownButton<int?>));
+    await tester.tap(find.byType(AppSelectField<int?>));
     await _settle(tester);
     await tester.tap(find.text('Gudang · Gudang Utama').last);
     await _settle(tester);
@@ -127,7 +128,7 @@ void main() {
     await _settle(tester);
     expect(BranchScope.active.value, 4);
 
-    await tester.tap(find.byType(DropdownButton<int?>));
+    await tester.tap(find.byType(AppSelectField<int?>));
     await _settle(tester);
     await tester.tap(find.text('Gudang · Gudang Utama').last);
     await _settle(tester);

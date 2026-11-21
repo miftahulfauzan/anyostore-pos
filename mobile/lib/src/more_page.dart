@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'account_switcher_page.dart';
 import 'activity_log_page.dart';
 import 'api_client.dart';
+import 'app_ui.dart';
 import 'app_navigation.dart';
 import 'auth_store.dart';
 import 'branch_scope.dart';
@@ -1091,98 +1092,79 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
                 border: Border.all(color: const Color(0x24FFFFFF)),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: DropdownButtonHideUnderline(
-                child: Theme(
-                  data: Theme.of(context).copyWith(
-                    highlightColor: const Color(0x3360A5FA),
-                    splashColor: const Color(0x2260A5FA),
-                  ),
-                  child: DropdownButton<int?>(
-                    menuMaxHeight: 320,
-                    value: current.id,
-                    isExpanded: true,
-                    isDense: true,
-                    itemHeight: 56,
-                    borderRadius: BorderRadius.circular(14),
-                    dropdownColor: kDrawerMid,
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                        size: 20, color: Color(0xCCFFFFFF)),
-                    style: const TextStyle(
+              child: AppSelectField<int?>(
+                value: current.id,
+                transparentField: true,
+                darkMenu: true,
+                labelBuilder: (item) => options
+                    .firstWhere((option) => option.id == item.value,
+                        orElse: () => options.first)
+                    .label,
+                maxMenuHeight: 320,
+                fieldChild: Text(
+                  current.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
-                    selectedItemBuilder: (context) => [
-                      for (final option in options)
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            option.label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                    ],
-                    items: [
-                      for (final option in options)
-                        DropdownMenuItem<int?>(
-                          value: option.id,
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  color: const Color(0x1FFFFFFF),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Icon(option.icon,
-                                    size: 15, color: const Color(0xB3FFFFFF)),
-                              ),
-                              const SizedBox(width: 9),
-                              Expanded(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      option.label,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    if (option.address != null)
-                                      Text(
-                                        option.address!,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w500,
-                                          color: Color(0x8FFFFFFF),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              if (option.id == current.id)
-                                const Icon(Icons.check_rounded,
-                                    size: 16, color: Color(0xFF93C5FD)),
-                            ],
-                          ),
-                        ),
-                    ],
-                    onChanged: (value) async {
-                      final changed = await BranchScope.request(context, value);
-                      if (!changed || !context.mounted) return;
-                      Scaffold.maybeOf(context)?.closeDrawer();
-                    },
-                  ),
+                      color: Colors.white),
                 ),
+                items: [
+                  for (final option in options)
+                    DropdownMenuItem<int?>(
+                      value: option.id,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: const Color(0x1FFFFFFF),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(option.icon,
+                                size: 15, color: const Color(0xB3FFFFFF)),
+                          ),
+                          const SizedBox(width: 9),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  option.label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                if (option.address != null)
+                                  Text(
+                                    option.address!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0x8FFFFFFF),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+                onChanged: (value) async {
+                  final changed = await BranchScope.request(context, value);
+                  if (!changed || !context.mounted) return;
+                  Scaffold.maybeOf(context)?.closeDrawer();
+                },
               ),
             ),
           if (!_loading && _error != null) ...[

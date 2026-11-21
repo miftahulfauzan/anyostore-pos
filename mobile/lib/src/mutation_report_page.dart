@@ -493,46 +493,27 @@ class _MutationReportPageState extends State<MutationReportPage> {
   }
 
   Widget _buildPeriodSelector(BuildContext context) {
-    return Container(
+    return AppSelectField<String>(
       key: const ValueKey('mutation-period-selector'),
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: taskSurface(context),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: taskBorder(context)),
+      value: _preset,
+      maxMenuHeight: 320,
+      decoration: const InputDecoration(
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 15),
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          dropdownColor: appDropdownColor(context),
-          borderRadius: BorderRadius.circular(14),
-          menuMaxHeight: 320,
-          value: _preset,
-          isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded),
-          selectedItemBuilder: (_) => [
-            for (final _ in kMobileDateFilterOptions)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(_periodSummary(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: ink(context))),
-              ),
-          ],
-          items: [
-            for (final option in kMobileDateFilterOptions)
-              DropdownMenuItem<String>(
-                value: option.value,
-                child: Text(option.label),
-              ),
-          ],
-          onChanged: _selectPreset,
-        ),
-      ),
+      fieldChild: Text(_periodSummary(),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+              fontSize: 13, fontWeight: FontWeight.w700, color: ink(context))),
+      items: [
+        for (final option in kMobileDateFilterOptions)
+          DropdownMenuItem<String>(
+            value: option.value,
+            child: Text(option.label),
+          ),
+      ],
+      onChanged: _selectPreset,
     );
   }
 
@@ -1045,12 +1026,8 @@ class _MutationFilterSheetState extends State<_MutationFilterSheet> {
             ),
             const SizedBox(height: 8),
             if (widget.isOwner) ...[
-              DropdownButtonFormField<String>(
-                dropdownColor: appDropdownColor(context),
-                borderRadius: BorderRadius.circular(14),
-                menuMaxHeight: 320,
-                initialValue: _branchMode,
-                isExpanded: true,
+              AppSelectField<String>(
+                value: _branchMode,
                 decoration: const InputDecoration(
                   labelText: 'Toko / Gudang',
                   prefixIcon: Icon(Icons.storefront_outlined),

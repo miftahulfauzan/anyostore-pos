@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:pos_pakaian_mobile/main.dart' as app;
 import 'package:pos_pakaian_mobile/src/api_client.dart';
+import 'package:pos_pakaian_mobile/src/app_ui.dart';
 import 'package:pos_pakaian_mobile/src/auth_store.dart';
 import 'package:pos_pakaian_mobile/src/branch_scope.dart';
 import 'package:pos_pakaian_mobile/src/category_visuals.dart';
@@ -683,7 +684,7 @@ void main() {
         await tester.tap(find.text('Anyostore Metro').first);
         await tester.pumpAndSettle();
         expect(find.text('Gudang'), findsOneWidget);
-        await tester.tap(find.byType(DropdownButtonFormField<int?>).first);
+        await tester.tap(find.byType(AppSelectField<int?>).first);
         await tester.pumpAndSettle();
         await tester.tap(find.text('Anyostore Metro').last);
         await tester.pumpAndSettle();

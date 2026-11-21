@@ -2378,12 +2378,8 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
         branchArea = Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            DropdownButtonFormField<int?>(
-              dropdownColor: appDropdownColor(context),
-              borderRadius: BorderRadius.circular(14),
-              menuMaxHeight: 320,
-              initialValue: widget.posBranchId,
-              isExpanded: true,
+            AppSelectField<int?>(
+              value: widget.posBranchId,
               style: TextStyle(fontSize: 14, color: ink(context)),
               decoration: InputDecoration(
                   labelText: 'Toko / Gudang',
@@ -2407,13 +2403,8 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
             ),
             if (widget.warehouses.length > 1) ...[
               const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                dropdownColor: appDropdownColor(context),
-                borderRadius: BorderRadius.circular(14),
-                menuMaxHeight: 320,
-                initialValue:
-                    widget.warehouseId.isEmpty ? null : widget.warehouseId,
-                isExpanded: true,
+              AppSelectField<String>(
+                value: widget.warehouseId.isEmpty ? null : widget.warehouseId,
                 style: TextStyle(fontSize: 14, color: ink(context)),
                 decoration: InputDecoration(
                     labelText: 'Gudang',
@@ -2907,12 +2898,8 @@ class _CartSheetState extends State<_CartSheet> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           if (widget.customers.isNotEmpty)
-                            DropdownButtonFormField<int?>(
-                              dropdownColor: appDropdownColor(context),
-                              borderRadius: BorderRadius.circular(14),
-                              menuMaxHeight: 320,
-                              isExpanded: true,
-                              initialValue: widget.customerId,
+                            AppSelectField<int?>(
+                              value: widget.customerId,
                               decoration: const InputDecoration(
                                   isDense: true,
                                   labelText: 'Pelanggan (opsional)',

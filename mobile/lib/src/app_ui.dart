@@ -1,5 +1,7 @@
 // ignore_for_file: prefer_const_constructors
 
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -202,6 +204,360 @@ class AppSectionCard extends StatelessWidget {
           ),
         ),
       );
+}
+
+/// Satu pilihan untuk [AppSelectField].
+class AppSelectField<T> extends StatefulWidget {
+  const AppSelectField({
+    super.key,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+    this.decoration,
+    this.enabled = true,
+    this.fieldChild,
+    this.itemBuilder,
+    this.darkMenu = false,
+    this.transparentField = false,
+    this.maxMenuHeight = 340,
+    this.style,
+    this.labelBuilder,
+  });
+
+  final T? value;
+  final List<DropdownMenuItem<T>> items;
+  final ValueChanged<T?>? onChanged;
+  final InputDecoration? decoration;
+  final bool enabled;
+  final Widget? fieldChild;
+  final Widget Function(BuildContext, DropdownMenuItem<T>, bool)? itemBuilder;
+  final bool darkMenu;
+  final bool transparentField;
+  final double maxMenuHeight;
+  final TextStyle? style;
+  final String Function(DropdownMenuItem<T>)? labelBuilder;
+
+  @override
+  State<AppSelectField<T>> createState() => _AppSelectFieldState<T>();
+}
+
+class _AppSelectFieldState<T> extends State<AppSelectField<T>> {
+  String _labelOf(DropdownMenuItem<T> item) {
+    if (widget.labelBuilder != null) return widget.labelBuilder!(item);
+    final child = item.child;
+    if (child is Text) return child.data ?? '';
+    return item.value?.toString() ?? '';
+  }
+
+  DropdownMenuItem<T>? get _selected {
+    for (final item in widget.items) {
+      if (item.value == widget.value) return item;
+    }
+    return null;
+  }
+
+  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
+
+  Future<void> _open() async {
+    if (!widget.enabled || widget.onChanged == null || widget.items.isEmpty) {
+      return;
+    }
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (overlay == null) return;
+    final origin = box.localToGlobal(Offset.zero, ancestor: overlay);
+    final screen = overlay.size;
+    final insets = MediaQuery.viewInsetsOf(context).bottom;
+    final visibleBottom = screen.height - insets - 10;
+    final maxWidth = screen.width - 24;
+    final width =
+        (box.size.width < 240 ? 240.0 : box.size.width).clamp(180.0, maxWidth);
+    final left = origin.dx.clamp(12.0, screen.width - width - 12);
+    const rowHeight = 48.0;
+    final contentHeight = widget.items.length * rowHeight + 8;
+    final maxHeight = widget.maxMenuHeight.clamp(160.0, screen.height * .64);
+    final menuHeight = contentHeight < maxHeight ? contentHeight : maxHeight;
+    const gap = 6.0;
+    final below = origin.dy + box.size.height + gap;
+    final above = origin.dy - menuHeight - gap;
+    final openAbove = below + menuHeight > visibleBottom && above > 12;
+    final top = openAbove ? above : below;
+
+    final selectedValue = widget.value;
+    await showDialog<void>(
+      context: context,
+      barrierColor: Colors.transparent,
+      barrierDismissible: true,
+      useSafeArea: false,
+      builder: (dialogContext) => _AppSelectOverlay<T>(
+        left: left,
+        top: top,
+        width: width,
+        height: menuHeight,
+        items: widget.items,
+        selectedValue: selectedValue,
+        darkMenu: widget.darkMenu,
+        itemBuilder: widget.itemBuilder,
+        labelOf: _labelOf,
+        onPick: (value) {
+          Navigator.of(dialogContext).pop();
+          widget.onChanged?.call(value);
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = _selected;
+    final disabled = !widget.enabled || widget.onChanged == null;
+    final base = widget.decoration;
+    final rounded = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: taskBorder(context)),
+    );
+    final decoration = (base ?? const InputDecoration()).copyWith(
+      isDense: true,
+      filled: true,
+      fillColor: _isDark ? const Color(0xFF162132) : const Color(0xFFFBFCFE),
+      contentPadding: base?.contentPadding ??
+          const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+      border: rounded,
+      enabledBorder: rounded,
+      disabledBorder: rounded,
+      focusedBorder: rounded.copyWith(
+        borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.primary, width: 1.6),
+      ),
+      suffixIcon: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (base?.suffixIcon != null) base!.suffixIcon!,
+          Icon(Icons.keyboard_arrow_down_rounded,
+              size: 20,
+              color: disabled
+                  ? taskMuted(context).withValues(alpha: .5)
+                  : taskMuted(context)),
+          const SizedBox(width: 6),
+        ],
+      ),
+      suffixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+    );
+
+    final label = selected == null ? '' : _labelOf(selected);
+    Widget field = InputDecorator(
+      decoration: decoration,
+      isEmpty: false,
+      child: widget.fieldChild ??
+          Text(
+            label.isEmpty ? (widget.decoration?.hintText ?? '') : label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: widget.style ??
+                TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: label.isEmpty
+                      ? taskMuted(context).withValues(alpha: .72)
+                      : ink(context),
+                ),
+          ),
+    );
+    if (widget.transparentField) {
+      field = Row(
+        children: [
+          Expanded(child: widget.fieldChild ?? field),
+          Icon(Icons.keyboard_arrow_down_rounded,
+              size: 20,
+              color: disabled
+                  ? taskMuted(context).withValues(alpha: .5)
+                  : taskMuted(context)),
+        ],
+      );
+    }
+
+    return Semantics(
+      button: true,
+      enabled: !disabled,
+      label: widget.decoration?.labelText,
+      child: Opacity(
+        opacity: disabled ? .6 : 1,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: disabled ? null : _open,
+            borderRadius: BorderRadius.circular(12),
+            child: field,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AppSelectOverlay<T> extends StatelessWidget {
+  const _AppSelectOverlay({
+    required this.left,
+    required this.top,
+    required this.width,
+    required this.height,
+    required this.items,
+    required this.selectedValue,
+    required this.darkMenu,
+    required this.itemBuilder,
+    required this.labelOf,
+    required this.onPick,
+  });
+
+  final double left;
+  final double top;
+  final double width;
+  final double height;
+  final List<DropdownMenuItem<T>> items;
+  final T? selectedValue;
+  final bool darkMenu;
+  final Widget Function(BuildContext, DropdownMenuItem<T>, bool)? itemBuilder;
+  final String Function(DropdownMenuItem<T>) labelOf;
+  final ValueChanged<T?> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = darkMenu || Theme.of(context).brightness == Brightness.dark;
+    final surface = dark ? const Color(0xFF162132) : Colors.white;
+    final accent = dark ? const Color(0xFF5EEAD4) : const Color(0xFF0F766E);
+    final fg = dark ? Colors.white : const Color(0xFF0F172A);
+    final sub = dark ? const Color(0xB3FFFFFF) : const Color(0xFF64748B);
+    final border = dark ? const Color(0x24FFFFFF) : const Color(0xE6FFFFFF);
+    final screen = MediaQuery.sizeOf(context);
+    final animate = !MediaQuery.disableAnimationsOf(context);
+
+    Widget content = ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          decoration: BoxDecoration(
+            color: surface.withValues(alpha: .95),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: border, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: dark ? const Color(0x66000000) : const Color(0x2E1E3A5F),
+                blurRadius: 28,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Scrollbar(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final item in items)
+                    _row(context, item, accent, fg, sub),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (animate) {
+      content = TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOutCubic,
+        builder: (context, value, child) => Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, -4 * (1 - value)),
+            child: child,
+          ),
+        ),
+        child: content,
+      );
+    }
+
+    return SizedBox(
+      width: screen.width,
+      height: screen.height,
+      child: Stack(
+        children: [
+          Positioned(
+            left: left,
+            top: top,
+            width: width,
+            height: height,
+            child: content,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _row(BuildContext context, DropdownMenuItem<T> item, Color accent,
+      Color fg, Color sub) {
+    final selected = item.value == selectedValue;
+    final enabled = item.enabled;
+    final custom = itemBuilder?.call(context, item, selected);
+    final Widget child = custom ??
+        (item.child is Text
+            ? Text(
+                labelOf(item),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                  color: enabled ? fg : sub,
+                ),
+              )
+            : item.child);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: Material(
+        color: selected ? accent.withValues(alpha: .10) : Colors.transparent,
+        borderRadius: BorderRadius.circular(13),
+        child: InkWell(
+          onTap: enabled ? () => onPick(item.value) : null,
+          borderRadius: BorderRadius.circular(13),
+          child: Container(
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(
+                color: selected
+                    ? accent.withValues(alpha: .32)
+                    : Colors.transparent,
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(child: child),
+                if (selected)
+                  Container(
+                    width: 22,
+                    height: 22,
+                    decoration:
+                        BoxDecoration(color: accent, shape: BoxShape.circle),
+                    child: Icon(Icons.check_rounded,
+                        size: 14,
+                        color: accent == const Color(0xFF5EEAD4)
+                            ? const Color(0xFF0F3B2E)
+                            : Colors.white),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class AppStatusPill extends StatelessWidget {

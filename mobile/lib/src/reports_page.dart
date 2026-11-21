@@ -723,47 +723,30 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   Widget _buildPeriodSelector(BuildContext context) {
-    return Container(
+    return AppSelectField<String>(
       key: const ValueKey('reports-period-selector'),
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: taskSurface(context),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: taskBorder(context)),
+      value: _preset,
+      maxMenuHeight: 320,
+      decoration: const InputDecoration(
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 15),
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          dropdownColor: appDropdownColor(context),
-          borderRadius: BorderRadius.circular(14),
-          menuMaxHeight: 320,
-          value: _preset,
-          isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded),
-          selectedItemBuilder: (_) => [
-            for (final _ in kMobileDateFilterOptions)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                    '${_presetLabel(_preset)} · ${_range.$1} s.d. ${_range.$2}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: TaskTypography.label,
-                        fontWeight: FontWeight.w700,
-                        color: ink(context))),
-              ),
-          ],
-          items: [
-            for (final option in kMobileDateFilterOptions)
-              DropdownMenuItem<String>(
-                value: option.value,
-                child: Text(option.label),
-              ),
-          ],
-          onChanged: _selectPreset,
-        ),
-      ),
+      fieldChild: Text(
+          '${_presetLabel(_preset)} · ${_range.$1} s.d. ${_range.$2}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+              fontSize: TaskTypography.label,
+              fontWeight: FontWeight.w700,
+              color: ink(context))),
+      items: [
+        for (final option in kMobileDateFilterOptions)
+          DropdownMenuItem<String>(
+            value: option.value,
+            child: Text(option.label),
+          ),
+      ],
+      onChanged: _selectPreset,
     );
   }
 
@@ -2631,12 +2614,8 @@ class _ReportFilterSheetState extends State<_ReportFilterSheet> {
                 const SizedBox(height: 8),
                 if (widget.isOwner) ...[
                   const SizedBox(height: 8),
-                  DropdownButtonFormField<int?>(
-                    dropdownColor: appDropdownColor(context),
-                    borderRadius: BorderRadius.circular(14),
-                    menuMaxHeight: 320,
-                    initialValue: _branchId,
-                    isExpanded: true,
+                  AppSelectField<int?>(
+                    value: _branchId,
                     decoration: const InputDecoration(
                       labelText: 'Toko / Gudang',
                       prefixIcon: Icon(Icons.store_outlined),

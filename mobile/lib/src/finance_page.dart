@@ -322,12 +322,8 @@ class _FinancePageState extends State<FinancePage> {
                             style:
                                 TextStyle(fontSize: TaskTypography.secondary)),
                       )
-                    : DropdownButtonFormField<int?>(
-                        dropdownColor: appDropdownColor(context),
-                        borderRadius: BorderRadius.circular(14),
-                        menuMaxHeight: 320,
-                        isExpanded: true,
-                        initialValue: categoryId,
+                    : AppSelectField<int?>(
+                        value: categoryId,
                         decoration: const InputDecoration(
                             labelText: 'Kategori',
                             border: OutlineInputBorder()),
@@ -361,12 +357,8 @@ class _FinancePageState extends State<FinancePage> {
                         labelText: 'Tanggal (YYYY-MM-DD)',
                         border: OutlineInputBorder())),
                 const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  dropdownColor: appDropdownColor(context),
-                  borderRadius: BorderRadius.circular(14),
-                  menuMaxHeight: 320,
-                  isExpanded: true,
-                  initialValue: method,
+                AppSelectField<String>(
+                  value: method,
                   decoration: const InputDecoration(
                       labelText: 'Metode', border: OutlineInputBorder()),
                   items: const [

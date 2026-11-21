@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pos_pakaian_mobile/main.dart' as app;
 import 'package:pos_pakaian_mobile/src/api_client.dart';
+import 'package:pos_pakaian_mobile/src/app_ui.dart';
 import 'package:pos_pakaian_mobile/src/auth_store.dart';
 import 'package:pos_pakaian_mobile/src/branch_scope.dart';
 import 'package:pos_pakaian_mobile/src/login_page.dart';
@@ -89,11 +90,11 @@ void main() {
         final scopeDecoration = scopeCard.decoration as BoxDecoration;
         expect(scopeDecoration.color, const Color(0x13FFFFFF));
         expect(scopeDecoration.borderRadius, BorderRadius.circular(12));
-        final branchDropdown = tester
-            .widget<DropdownButton<int?>>(find.byType(DropdownButton<int?>));
+        final branchDropdown = tester.widget<AppSelectField<int?>>(
+            find.byType(AppSelectField<int?>).first);
         expect(branchDropdown.value, 4);
-        expect(branchDropdown.dropdownColor, kDrawerMid);
-        expect(branchDropdown.style?.color, Colors.white);
+        expect(branchDropdown.darkMenu, isTrue);
+        expect(branchDropdown.transparentField, isTrue);
         expect(find.text('AKSES CEPAT'), findsNothing);
         expect(find.text('Operasional'), findsOneWidget);
         final posIcon = find.byIcon(Icons.point_of_sale).last;

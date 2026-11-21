@@ -359,12 +359,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
                     const SizedBox(height: 14),
                     TextField(controller: _name, decoration: _dec('Nama *')),
                     const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
-                      dropdownColor: appDropdownColor(context),
-                      borderRadius: BorderRadius.circular(14),
-                      menuMaxHeight: 320,
-                      isExpanded: true,
-                      initialValue: _categoryId,
+                    AppSelectField<String>(
+                      value: _categoryId,
                       decoration: _dec('Kategori *'),
                       items: [
                         for (final c in _categories)
@@ -415,12 +411,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
                                 decoration: _dec('Stok min'))),
                         const SizedBox(width: 10),
                         Expanded(
-                            child: DropdownButtonFormField<String>(
-                          dropdownColor: appDropdownColor(context),
-                          borderRadius: BorderRadius.circular(14),
-                          menuMaxHeight: 320,
-                          isExpanded: true,
-                          initialValue: _gender,
+                            child: AppSelectField<String>(
+                          value: _gender,
                           decoration: _dec('Gender'),
                           items: const [
                             DropdownMenuItem(

@@ -915,12 +915,8 @@ class _HistoryTabState extends State<HistoryTab> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                DropdownButtonFormField<String>(
-                  dropdownColor: appDropdownColor(context),
-                  borderRadius: BorderRadius.circular(14),
-                  menuMaxHeight: 320,
-                  isExpanded: true,
-                  initialValue: refundMethod,
+                AppSelectField<String>(
+                  value: refundMethod,
                   decoration: const InputDecoration(
                       labelText: 'Metode refund', border: OutlineInputBorder()),
                   items: const [

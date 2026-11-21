@@ -200,12 +200,8 @@ class _TransferHistoryPageState extends State<TransferHistoryPage> {
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
-                              dropdownColor: appDropdownColor(context),
-                              borderRadius: BorderRadius.circular(14),
-                              menuMaxHeight: 320,
-                              initialValue: _direction,
-                              isExpanded: true,
+                            child: AppSelectField<String>(
+                              value: _direction,
                               decoration: appFieldDecoration(context,
                                   label: 'Arah',
                                   icon: Icons.swap_horiz_rounded),
@@ -225,12 +221,8 @@ class _TransferHistoryPageState extends State<TransferHistoryPage> {
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: DropdownButtonFormField<String>(
-                              dropdownColor: appDropdownColor(context),
-                              borderRadius: BorderRadius.circular(14),
-                              menuMaxHeight: 320,
-                              initialValue: _status,
-                              isExpanded: true,
+                            child: AppSelectField<String>(
+                              value: _status,
                               decoration: appFieldDecoration(context,
                                   label: 'Status',
                                   icon: Icons.filter_alt_outlined),

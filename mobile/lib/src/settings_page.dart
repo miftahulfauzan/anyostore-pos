@@ -222,12 +222,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     decoration: const InputDecoration(
                         labelText: 'Telepon', border: OutlineInputBorder())),
                 const SizedBox(height: 8),
-                DropdownButtonFormField<int?>(
-                  dropdownColor: appDropdownColor(context),
-                  borderRadius: BorderRadius.circular(14),
-                  menuMaxHeight: 320,
-                  isExpanded: true,
-                  initialValue: sourceId,
+                AppSelectField<int?>(
+                  value: sourceId,
                   decoration: const InputDecoration(
                       labelText: 'Sumber katalog',
                       border: OutlineInputBorder()),
@@ -2185,12 +2181,8 @@ class _SettingsPageState extends State<SettingsPage> {
                           labelText: 'Catatan struk',
                           border: OutlineInputBorder())),
                   const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    dropdownColor: appDropdownColor(context),
-                    borderRadius: BorderRadius.circular(14),
-                    menuMaxHeight: 320,
-                    isExpanded: true,
-                    initialValue: _printerSize,
+                  AppSelectField<String>(
+                    value: _printerSize,
                     decoration: const InputDecoration(
                         labelText: 'Ukuran printer',
                         border: OutlineInputBorder()),

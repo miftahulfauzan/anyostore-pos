@@ -475,47 +475,33 @@ class _DashboardPageState extends State<DashboardPage> {
               size: 19, color: Theme.of(context).colorScheme.primary),
           const SizedBox(width: 10),
           Expanded(
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                dropdownColor: appDropdownColor(context),
-                borderRadius: BorderRadius.circular(14),
-                menuMaxHeight: 320,
-                value: value,
-                isExpanded: true,
-                icon: const Icon(Icons.keyboard_arrow_down_rounded),
-                onChanged: (next) {
-                  if (next == null || next == 'selected') return;
-                  final branchId = next == 'all'
-                      ? null
-                      : next == 'own'
-                          ? context.read<AuthStore>().branchId
-                          : int.tryParse(next.replaceFirst('branch-', ''));
-                  unawaited(BranchScope.request(context, branchId));
-                },
-                selectedItemBuilder: (_) => [
-                  for (final item in branchItems)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                          item.value == value
-                              ? (item.value == 'all'
-                                  ? 'Semua toko/gudang'
-                                  : item.value == 'own'
-                                      ? 'Toko saya (default)'
-                                      : _selectedBranchLabel)
-                              : item.child is Text
-                                  ? (item.child as Text).data ?? ''
-                                  : '',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: ink(context))),
-                    ),
-                ],
-                items: branchItems,
+            child: AppSelectField<String>(
+              value: value,
+              transparentField: true,
+              maxMenuHeight: 320,
+              fieldChild: Text(
+                value == 'all'
+                    ? 'Semua toko/gudang'
+                    : value == 'own'
+                        ? 'Toko saya (default)'
+                        : _selectedBranchLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: ink(context)),
               ),
+              items: branchItems,
+              onChanged: (next) {
+                if (next == null || next == 'selected') return;
+                final branchId = next == 'all'
+                    ? null
+                    : next == 'own'
+                        ? context.read<AuthStore>().branchId
+                        : int.tryParse(next.replaceFirst('branch-', ''));
+                unawaited(BranchScope.request(context, branchId));
+              },
             ),
           ),
         ],
@@ -568,46 +554,27 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildPeriodSelector(BuildContext context) {
-    return Container(
+    return AppSelectField<String>(
       key: const ValueKey('dashboard-period-selector'),
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: taskSurface(context),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: taskBorder(context)),
+      value: _preset,
+      maxMenuHeight: 320,
+      decoration: const InputDecoration(
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 15),
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          dropdownColor: appDropdownColor(context),
-          borderRadius: BorderRadius.circular(14),
-          menuMaxHeight: 320,
-          value: _preset,
-          isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded),
-          selectedItemBuilder: (_) => [
-            for (final _ in kMobileDateFilterOptions)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text('$_presetLabel · $_activeLabel',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: ink(context))),
-              ),
-          ],
-          items: [
-            for (final option in kMobileDateFilterOptions)
-              DropdownMenuItem<String>(
-                value: option.value,
-                child: Text(option.label),
-              ),
-          ],
-          onChanged: _selectPreset,
-        ),
-      ),
+      fieldChild: Text('$_presetLabel · $_activeLabel',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+              fontSize: 13, fontWeight: FontWeight.w700, color: ink(context))),
+      items: [
+        for (final option in kMobileDateFilterOptions)
+          DropdownMenuItem<String>(
+            value: option.value,
+            child: Text(option.label),
+          ),
+      ],
+      onChanged: _selectPreset,
     );
   }
 
@@ -699,12 +666,8 @@ class _DashboardFilterSheetState extends State<_DashboardFilterSheet> {
                 ),
                 if (widget.isOwner) ...[
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    dropdownColor: appDropdownColor(context),
-                    borderRadius: BorderRadius.circular(14),
-                    menuMaxHeight: 320,
-                    initialValue: _branchMode,
-                    isExpanded: true,
+                  AppSelectField<String>(
+                    value: _branchMode,
                     decoration: const InputDecoration(
                       labelText: 'Toko / Gudang',
                       prefixIcon: Icon(Icons.store_outlined),

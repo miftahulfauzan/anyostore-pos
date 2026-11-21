@@ -1137,12 +1137,8 @@ class _MutasiSectionState extends State<_MutasiSection> {
             ])),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-          child: DropdownButtonFormField<String>(
-            dropdownColor: appDropdownColor(context),
-            borderRadius: BorderRadius.circular(14),
-            menuMaxHeight: 320,
-            isExpanded: true,
-            initialValue: _filter,
+          child: AppSelectField<String>(
+            value: _filter,
             decoration: const InputDecoration(
                 isDense: true,
                 labelText: 'Jenis mutasi',
@@ -1868,13 +1864,8 @@ class _InOutFormState extends State<_InOutForm> {
                                   child: Text(_transactionDate)),
                             ),
                             const SizedBox(height: 8),
-                            DropdownButtonFormField<String>(
-                              dropdownColor: appDropdownColor(context),
-                              borderRadius: BorderRadius.circular(14),
-                              menuMaxHeight: 320,
-                              isExpanded: true,
-                              initialValue:
-                                  _warehouseId.isEmpty ? null : _warehouseId,
+                            AppSelectField<String>(
+                              value: _warehouseId.isEmpty ? null : _warehouseId,
                               decoration: const InputDecoration(
                                   labelText: 'Gudang',
                                   border: OutlineInputBorder()),
@@ -1892,12 +1883,8 @@ class _InOutFormState extends State<_InOutForm> {
                             ),
                             if (widget.kind == 'outgoing') ...[
                               const SizedBox(height: 8),
-                              DropdownButtonFormField<String>(
-                                dropdownColor: appDropdownColor(context),
-                                borderRadius: BorderRadius.circular(14),
-                                menuMaxHeight: 320,
-                                isExpanded: true,
-                                initialValue: _channel,
+                              AppSelectField<String>(
+                                value: _channel,
                                 decoration: InputDecoration(
                                     labelText: 'Saluran',
                                     border: const OutlineInputBorder(),
@@ -2703,12 +2690,8 @@ class _TransferSectionState extends State<_TransferSection> {
             : const Text('Buat Transfer'),
       ),
       children: [
-        DropdownButtonFormField<String>(
-          dropdownColor: appDropdownColor(context),
-          borderRadius: BorderRadius.circular(14),
-          menuMaxHeight: 320,
-          initialValue: _from.isEmpty ? null : _from,
-          isExpanded: true,
+        AppSelectField<String>(
+          value: _from.isEmpty ? null : _from,
           decoration: appFieldDecoration(context,
               label: 'Dari lokasi', icon: Icons.warehouse_outlined),
           items: [
@@ -2726,12 +2709,8 @@ class _TransferSectionState extends State<_TransferSection> {
                   }),
         ),
         const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          dropdownColor: appDropdownColor(context),
-          borderRadius: BorderRadius.circular(14),
-          menuMaxHeight: 320,
-          initialValue: _to.isEmpty ? null : _to,
-          isExpanded: true,
+        AppSelectField<String>(
+          value: _to.isEmpty ? null : _to,
           decoration: appFieldDecoration(context,
               label: 'Ke lokasi tujuan', icon: Icons.place_outlined),
           items: [
@@ -3062,12 +3041,8 @@ class _OpnameSectionState extends State<_OpnameSection> {
         label: const Text('Simpan Opname'),
       ),
       children: [
-        DropdownButtonFormField<String>(
-          dropdownColor: appDropdownColor(context),
-          borderRadius: BorderRadius.circular(14),
-          menuMaxHeight: 320,
-          initialValue: _warehouseId.isEmpty ? null : _warehouseId,
-          isExpanded: true,
+        AppSelectField<String>(
+          value: _warehouseId.isEmpty ? null : _warehouseId,
           decoration: appFieldDecoration(context,
               label: 'Gudang', icon: Icons.warehouse_outlined),
           items: [
