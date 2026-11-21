@@ -418,7 +418,8 @@ void main() {
     api.empty = true;
     await tester.tap(find.text('Coba lagi'));
     await tester.pumpAndSettle();
-    expect(find.text('Belum ada penjualan pada rentang ini.'), findsOneWidget);
+    expect(find.textContaining('Belum ada penjualan pada rentang ini.'),
+        findsOneWidget);
     final productMessage =
         find.text('Belum ada produk terlaris pada periode ini.');
     await scrollToFinder(tester, productMessage);

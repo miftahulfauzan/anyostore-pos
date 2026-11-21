@@ -18,6 +18,7 @@ import 'format.dart';
 import 'printer_setup.dart';
 import 'report_filter.dart';
 import 'task_ui.dart';
+import 'ui_kit.dart';
 
 bool reportDateInRange(String? date, String start, String end) {
   if (date == null || !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(date)) {
@@ -926,30 +927,10 @@ class _ReportsPageState extends State<ReportsPage> {
 
   Widget _buildBody() {
     if (_loading) {
-      return const Center(
-          child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 12),
-          Text('Memuat laporan…')
-        ],
-      ));
+      return const UiLoadingState(label: 'Memuat laporan…');
     }
     if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(_error!),
-              const SizedBox(height: 12),
-              FilledButton(onPressed: _load, child: const Text('Coba lagi')),
-            ],
-          ),
-        ),
-      );
+      return UiErrorState(message: _error!, onRetry: _load);
     }
     final summary = (_data?['summary'] as Map<String, dynamic>?) ?? {};
     final emptySales = (widget.dashboardMode ||
@@ -965,22 +946,56 @@ class _ReportsPageState extends State<ReportsPage> {
         children: _spaced([
           if (emptySales)
             GlassCard(
-                child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(widget.dashboardMode && widget.role == 'kasir'
-                    ? 'Belum ada penjualan pada periode ini.'
-                    : 'Belum ada penjualan pada rentang ini.'),
-                const SizedBox(height: 8),
-                OutlinedButton(
-                    onPressed: widget.dashboardMode && widget.role == 'kasir'
-                        ? _load
-                        : () => _selectPreset('custom'),
-                    child: Text(widget.dashboardMode && widget.role == 'kasir'
-                        ? 'Muat ulang'
-                        : 'Ubah periode')),
-              ],
-            )),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: kTaskDark.withValues(alpha: .1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(Icons.receipt_long_outlined,
+                            size: 17, color: kTaskDark),
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text('Belum ada penjualan',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: ink(context))),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 7),
+                  Text(
+                      widget.dashboardMode && widget.role == 'kasir'
+                          ? 'Belum ada penjualan pada periode ini.'
+                          : 'Belum ada penjualan pada rentang ini. Coba ubah periode untuk melihat data lain.',
+                      style: TextStyle(
+                          fontSize: 11,
+                          height: 1.4,
+                          color: taskMuted(context))),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                      onPressed: widget.dashboardMode && widget.role == 'kasir'
+                          ? _load
+                          : () => _selectPreset('custom'),
+                      icon: Icon(
+                          widget.dashboardMode && widget.role == 'kasir'
+                              ? Icons.refresh
+                              : Icons.date_range_outlined,
+                          size: 17),
+                      label: Text(widget.dashboardMode && widget.role == 'kasir'
+                          ? 'Muat ulang'
+                          : 'Ubah periode')),
+                ],
+              ),
+            ),
           ...(widget.dashboardMode
               ? _dashboard()
               : switch (_section) {

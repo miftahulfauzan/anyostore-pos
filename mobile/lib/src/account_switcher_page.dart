@@ -179,85 +179,71 @@ class _AccountTile extends StatelessWidget {
     final name = (user['name'] ?? '').toString();
     final email = (user['email'] ?? '').toString();
     final dark = Theme.of(context).brightness == Brightness.dark;
-    return GlassCard(
-      padding: EdgeInsets.zero,
-      radius: 12,
+    final accent = isCurrent
+        ? Theme.of(context).colorScheme.primary
+        : (dark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8));
+    return AppListCard(
       onTap: isCurrent ? null : onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: dark ? kTaskDarkBorder : kTaskSurfaceMuted,
-              ),
-              alignment: Alignment.center,
-              child: Text(name.isEmpty ? '?' : name[0].toUpperCase(),
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: ink(context))),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: ink(context))),
+      child: Row(
+        children: [
+          AppAvatar(
+            text: appInitial(name),
+            fg: isCurrent ? Theme.of(context).colorScheme.onPrimary : accent,
+            bg: isCurrent
+                ? Theme.of(context).colorScheme.primary
+                : accent.withValues(alpha: dark ? .2 : .12),
+            size: 40,
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 5,
+                  runSpacing: 3,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      name.isEmpty ? 'Tanpa nama' : name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: ink(context)),
+                    ),
+                    if (isCurrent)
+                      AppStatusPill(
+                        label: 'AKTIF',
+                        fg: dark
+                            ? const Color(0xFF86EFAC)
+                            : const Color(0xFF137A43),
+                        bg: dark
+                            ? const Color(0x2E86EFAC)
+                            : const Color(0xFFDCFCE7),
                       ),
-                      if (isCurrent) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primary,
-                            borderRadius: BorderRadius.circular(99),
-                          ),
-                          child: Text('AKTIF',
-                              style: TextStyle(
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.w800,
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary)),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    email.isEmpty ? roleLabel : '$roleLabel · $email',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: TaskTypography.micro,
-                        color: dark ? const Color(0xffCBD5E1) : kTaskSecondary),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  email.isEmpty ? roleLabel : '$roleLabel · $email',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 10.5, color: taskMuted(context)),
+                ),
+              ],
             ),
-            if (!isCurrent)
-              IconButton(
-                onPressed: onDelete,
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.delete_outline,
-                    size: 18, color: kTaskTerracotta),
-                tooltip: 'Hapus akun',
-              ),
-          ],
-        ),
+          ),
+          if (!isCurrent)
+            IconButton(
+              onPressed: onDelete,
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.delete_outline,
+                  size: 19, color: kTaskTerracotta),
+              tooltip: 'Hapus akun',
+            ),
+        ],
       ),
     );
   }

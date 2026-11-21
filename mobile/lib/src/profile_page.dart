@@ -1,9 +1,11 @@
 // ignore_for_file: prefer_const_constructors
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'api_client.dart';
+import 'app_ui.dart';
 import 'auth_store.dart';
 import 'task_ui.dart';
 
@@ -29,6 +31,8 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _savingPass = false;
   bool _savingPin = false;
   String? _message;
+
+  static const _denim = Color(0xFF1E3A5F);
 
   @override
   void initState() {
@@ -56,6 +60,25 @@ class _ProfilePageState extends State<ProfilePage> {
   void _snack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  String _roleLabel(String? role) {
+    switch (role) {
+      case 'owner':
+        return 'Owner';
+      case 'manager':
+        return 'Manager';
+      case 'admin':
+        return 'Admin';
+      case 'kasir':
+        return 'Kasir';
+      case 'gudang':
+        return 'Gudang';
+      default:
+        final text = (role ?? '').trim();
+        if (text.isEmpty) return 'Pengguna';
+        return text[0].toUpperCase() + text.substring(1);
+    }
   }
 
   Future<void> _saveProfile() async {
@@ -138,24 +161,114 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  InputDecoration _dec(String label) {
-    final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: BorderSide(color: taskBorder(context)),
+  Widget _hero(AuthStore auth) {
+    final email = _email.text.trim().isEmpty ? '-' : _email.text.trim();
+    final username = _username.text.trim();
+    return Container(
+      padding: const EdgeInsets.fromLTRB(15, 14, 15, 15),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1E3A5F), Color(0xFF2B5688)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x261E3A5F), blurRadius: 16, offset: Offset(0, 6)),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0x24FFFFFF),
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(color: const Color(0x33FFFFFF)),
+            ),
+            child: Text(appInitial(_name.text),
+                style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white)),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                    _name.text.trim().isEmpty ? 'Akun Saya' : _name.text.trim(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -.2,
+                        color: Colors.white)),
+                const SizedBox(height: 2),
+                Text(email,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 10.5, color: Color(0xC7FFFFFF))),
+                if (username.isNotEmpty) ...[
+                  const SizedBox(height: 1),
+                  Text('@$username',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 9.5, color: Color(0x99FFFFFF))),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: const Color(0x24FFFFFF),
+              borderRadius: BorderRadius.circular(99),
+            ),
+            child: Text(_roleLabel(auth.role).toUpperCase(),
+                style: const TextStyle(
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: .3,
+                    color: Color(0xE6FFFFFF))),
+          ),
+        ],
+      ),
     );
-    return InputDecoration(
-      labelText: label,
-      filled: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      enabledBorder: border,
-      focusedBorder: border.copyWith(
-          borderSide: BorderSide(
-              color: Theme.of(context).colorScheme.primary, width: 2)),
+  }
+
+  Widget _submitButton({
+    required bool saving,
+    required String label,
+    required VoidCallback onPressed,
+    Color? color,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton(
+        onPressed: saving ? null : onPressed,
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(0, 44),
+          backgroundColor: color,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+        ),
+        child: Text(saving ? 'Menyimpan...' : label),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthStore>();
     return ColoredBox(
       color: pageBg(context),
       child: Stack(
@@ -164,135 +277,98 @@ class _ProfilePageState extends State<ProfilePage> {
           ListView(
             padding: const EdgeInsets.all(12),
             children: [
-              GlassCard(
-                radius: 12,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text('Profil Saya',
-                        style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: ink(context))),
-                    const SizedBox(height: 12),
-                    TextField(controller: _name, decoration: _dec('Nama *')),
-                    const SizedBox(height: 10),
-                    TextField(
-                        controller: _email,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: _dec('Email *')),
-                    const SizedBox(height: 10),
-                    TextField(
-                        controller: _username,
-                        decoration: _dec('Username (untuk login)')),
-                    const SizedBox(height: 6),
-                    const Text(
-                        '3-30 karakter: huruf, angka, titik, garis bawah, strip. Dipakai untuk login.',
-                        style: TextStyle(fontSize: 12)),
-                    const SizedBox(height: 14),
-                    FilledButton(
-                      onPressed: _savingProfile ? null : _saveProfile,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        foregroundColor:
-                            Theme.of(context).colorScheme.onPrimary,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                      ),
-                      child: Text(
-                          _savingProfile ? 'Menyimpan...' : 'Simpan Profil'),
-                    ),
-                  ],
-                ),
+              _hero(auth),
+              const SizedBox(height: 10),
+              AppSectionCard(
+                icon: Icons.person_outline,
+                color: _denim,
+                title: 'Profil Saya',
+                hint: 'Data akun',
+                children: [
+                  AppField(
+                    controller: _name,
+                    label: 'Nama *',
+                    icon: Icons.badge_outlined,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 8),
+                  AppField(
+                    controller: _email,
+                    label: 'Email *',
+                    icon: Icons.mail_outline,
+                    keyboard: TextInputType.emailAddress,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 8),
+                  AppField(
+                    controller: _username,
+                    label: 'Username (untuk login)',
+                    icon: Icons.alternate_email,
+                    helper:
+                        '3-30 karakter: huruf, angka, titik, garis bawah, strip.',
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 12),
+                  _submitButton(
+                    saving: _savingProfile,
+                    label: 'Simpan Profil',
+                    onPressed: _saveProfile,
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              GlassCard(
-                radius: 12,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text('Ganti Password',
-                        style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: ink(context))),
-                    const SizedBox(height: 12),
-                    TextField(
-                        controller: _current,
-                        obscureText: true,
-                        decoration: _dec('Password lama *')),
-                    const SizedBox(height: 10),
-                    TextField(
-                        controller: _next,
-                        obscureText: true,
-                        decoration: _dec('Password baru (min 8) *')),
-                    const SizedBox(height: 10),
-                    TextField(
-                        controller: _confirm,
-                        obscureText: true,
-                        decoration: _dec('Ulangi password baru *')),
-                    const SizedBox(height: 14),
-                    FilledButton(
-                      onPressed: _savingPass ? null : _savePassword,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        foregroundColor:
-                            Theme.of(context).colorScheme.onPrimary,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                      ),
-                      child:
-                          Text(_savingPass ? 'Menyimpan...' : 'Ganti Password'),
-                    ),
-                  ],
-                ),
+              const SizedBox(height: 10),
+              AppSectionCard(
+                icon: Icons.lock_outline,
+                color: const Color(0xFFB45309),
+                title: 'Ganti Password',
+                hint: 'Minimal 8 karakter',
+                children: [
+                  _SecretField(controller: _current, label: 'Password lama *'),
+                  const SizedBox(height: 8),
+                  _SecretField(
+                      controller: _next, label: 'Password baru (min 8) *'),
+                  const SizedBox(height: 8),
+                  _SecretField(
+                      controller: _confirm, label: 'Ulangi password baru *'),
+                  const SizedBox(height: 12),
+                  _submitButton(
+                    saving: _savingPass,
+                    label: 'Ganti Password',
+                    onPressed: _savePassword,
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              GlassCard(
-                radius: 12,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text('Ganti PIN (login cepat)',
-                        style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: ink(context))),
-                    const SizedBox(height: 12),
-                    TextField(
-                        controller: _pinCurrent,
-                        obscureText: true,
-                        keyboardType: TextInputType.number,
-                        decoration:
-                            _dec('PIN lama (kosongkan jika belum punya)')),
-                    const SizedBox(height: 10),
-                    TextField(
-                        controller: _pinNext,
-                        obscureText: true,
-                        keyboardType: TextInputType.number,
-                        maxLength: 6,
-                        decoration: _dec('PIN baru (6 digit) *')),
-                    const SizedBox(height: 10),
-                    TextField(
-                        controller: _pinConfirm,
-                        obscureText: true,
-                        keyboardType: TextInputType.number,
-                        maxLength: 6,
-                        decoration: _dec('Ulangi PIN baru *')),
-                    const SizedBox(height: 14),
-                    FilledButton(
-                      onPressed: _savingPin ? null : _savePin,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        foregroundColor:
-                            Theme.of(context).colorScheme.onPrimary,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                      ),
-                      child: Text(_savingPin ? 'Menyimpan...' : 'Ganti PIN'),
-                    ),
-                  ],
-                ),
+              const SizedBox(height: 10),
+              AppSectionCard(
+                icon: Icons.pin_outlined,
+                color: const Color(0xFF6D28D9),
+                title: 'Ganti PIN',
+                hint: 'Login cepat 6 digit',
+                children: [
+                  _SecretField(
+                      controller: _pinCurrent,
+                      label: 'PIN lama (kosongkan jika belum punya)',
+                      keyboard: TextInputType.number,
+                      maxLength: 6),
+                  const SizedBox(height: 8),
+                  _SecretField(
+                      controller: _pinNext,
+                      label: 'PIN baru (6 digit) *',
+                      keyboard: TextInputType.number,
+                      maxLength: 6),
+                  const SizedBox(height: 8),
+                  _SecretField(
+                      controller: _pinConfirm,
+                      label: 'Ulangi PIN baru *',
+                      keyboard: TextInputType.number,
+                      maxLength: 6),
+                  const SizedBox(height: 12),
+                  _submitButton(
+                    saving: _savingPin,
+                    label: 'Ganti PIN',
+                    onPressed: _savePin,
+                  ),
+                ],
               ),
               if (_message != null) ...[
                 const SizedBox(height: 10),
@@ -300,9 +376,53 @@ class _ProfilePageState extends State<ProfilePage> {
                     textAlign: TextAlign.center,
                     style: TextStyle(color: taskMuted(context))),
               ],
+              const SizedBox(height: 10),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SecretField extends StatefulWidget {
+  const _SecretField({
+    required this.controller,
+    required this.label,
+    this.keyboard,
+    this.maxLength,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final TextInputType? keyboard;
+  final int? maxLength;
+
+  @override
+  State<_SecretField> createState() => _SecretFieldState();
+}
+
+class _SecretFieldState extends State<_SecretField> {
+  bool _hidden = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppField(
+      controller: widget.controller,
+      label: widget.label,
+      icon: Icons.lock_outline,
+      keyboard: widget.keyboard,
+      obscure: _hidden,
+      formatters: widget.maxLength == null
+          ? null
+          : [LengthLimitingTextInputFormatter(widget.maxLength)],
+      suffix: IconButton(
+        onPressed: () => setState(() => _hidden = !_hidden),
+        icon: Icon(
+            _hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+            size: 18,
+            color: taskMuted(context)),
+        tooltip: _hidden ? 'Tampilkan' : 'Sembunyikan',
       ),
     );
   }
