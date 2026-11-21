@@ -925,6 +925,7 @@ class _BranchScopeCard extends StatefulWidget {
 class _BranchScopeCardState extends State<_BranchScopeCard> {
   List<Map<String, dynamic>> _branches = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -940,14 +941,84 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
   }
 
   Future<void> _load() async {
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final rows = await widget.api.branches();
       if (!mounted) return;
       setState(() => _branches = rows.cast<Map<String, dynamic>>());
-    } on ApiException catch (_) {
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _error = error.message);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  List<_BranchOption> get _options {
+    final options = <_BranchOption>[
+      const _BranchOption(
+        id: null,
+        label: 'Semua toko/gudang',
+        address: 'Gabungan semua cabang',
+        icon: Icons.domain,
+      ),
+    ];
+    for (final branch in _branches) {
+      final id = int.tryParse('${branch['id']}');
+      if (id == null) continue;
+      // Cabang nonaktif tidak ditawarkan, sama seperti pemilih toko di web.
+      final active = branch['is_active'];
+      if (active == false || active == 0 || active == '0') continue;
+      final isWarehouse = branch['type'] == 'gudang';
+      final address = (branch['address'] ?? '').toString().trim();
+      options.add(_BranchOption(
+        id: id,
+        label: '${isWarehouse ? 'Gudang' : 'Toko'} · ${branch['name'] ?? ''}',
+        address: address.isEmpty ? null : address,
+        icon: isWarehouse ? Icons.warehouse_outlined : Icons.storefront,
+      ));
+    }
+    // Cabang aktif bisa saja tidak ada di daftar (mis. aksesnya baru dicabut).
+    final selected = BranchScope.active.value;
+    if (selected != null && !options.any((option) => option.id == selected)) {
+      options.add(_BranchOption(
+        id: selected,
+        label: 'Toko/gudang dipilih',
+        icon: Icons.storefront,
+      ));
+    }
+    return options;
+  }
+
+  Future<void> _choose(int? value) async {
+    if (value == BranchScope.active.value) return;
+    final pending = BranchScope.pendingItems;
+    if (pending > 0) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Pindah toko?'),
+          content: Text(
+              'Keranjang POS berisi $pending pcs. Draft akan disimpan dan keranjang dikosongkan.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Simpan & pindah'),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true) return;
+    }
+    await BranchScope.set(value);
   }
 
   @override
@@ -958,18 +1029,11 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const SizedBox.shrink();
-    final selected = BranchScope.active.value;
-    final options = <MapEntry<int?, String>>[
-      const MapEntry(null, 'Semua toko/gudang'),
-      for (final b in _branches)
-        if (int.tryParse('${b['id']}') != null)
-          MapEntry(int.tryParse('${b['id']}'), b['name']?.toString() ?? ''),
-    ];
-    // Cabang aktif bisa saja tidak ada di daftar (mis. aksesnya baru dicabut).
-    if (selected != null && !options.any((option) => option.key == selected)) {
-      options.add(MapEntry(selected, 'Toko/gudang dipilih'));
-    }
+    final options = _options;
+    final current = options.firstWhere(
+      (option) => option.id == BranchScope.active.value,
+      orElse: () => options.first,
+    );
     return Container(
       key: const ValueKey('sidebar-branch-scope'),
       padding: const EdgeInsets.all(10),
@@ -1012,79 +1076,187 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
               ],
             ),
           ),
-          Container(
-            height: 42,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: const Color(0x1FFFFFFF),
-              border: Border.all(color: const Color(0x24FFFFFF)),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: Theme(
-                data: Theme.of(context).copyWith(
-                  highlightColor: const Color(0x3360A5FA),
-                  splashColor: const Color(0x2260A5FA),
-                ),
-                child: DropdownButton<int?>(
-                  value: selected,
-                  isExpanded: true,
-                  isDense: true,
-                  itemHeight: 48,
-                  borderRadius: BorderRadius.circular(12),
-                  dropdownColor: kDrawerMid,
-                  icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                      size: 20, color: Color(0xCCFFFFFF)),
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
+          if (_loading)
+            Container(
+              height: 42,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: const Color(0x1FFFFFFF),
+                border: Border.all(color: const Color(0x24FFFFFF)),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Row(
+                children: [
+                  SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Color(0xFF93C5FD)),
                   ),
-                  selectedItemBuilder: (context) => [
-                    for (final option in options)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          option.value,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                  SizedBox(width: 9),
+                  Flexible(
+                    child: Text(
+                      'Memuat daftar toko…',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xB3FFFFFF),
                       ),
-                  ],
-                  items: [
-                    for (final option in options)
-                      DropdownMenuItem<int?>(
-                        value: option.key,
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                option.value,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xDEFFFFFF),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Container(
+              height: 42,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: const Color(0x1FFFFFFF),
+                border: Border.all(color: const Color(0x24FFFFFF)),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: Theme(
+                  data: Theme.of(context).copyWith(
+                    highlightColor: const Color(0x3360A5FA),
+                    splashColor: const Color(0x2260A5FA),
+                  ),
+                  child: DropdownButton<int?>(
+                    value: current.id,
+                    isExpanded: true,
+                    isDense: true,
+                    itemHeight: 56,
+                    borderRadius: BorderRadius.circular(12),
+                    dropdownColor: kDrawerMid,
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                        size: 20, color: Color(0xCCFFFFFF)),
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                    selectedItemBuilder: (context) => [
+                      for (final option in options)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            option.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                    items: [
+                      for (final option in options)
+                        DropdownMenuItem<int?>(
+                          value: option.id,
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: const Color(0x1FFFFFFF),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(option.icon,
+                                    size: 15, color: const Color(0xB3FFFFFF)),
+                              ),
+                              const SizedBox(width: 9),
+                              Expanded(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      option.label,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    if (option.address != null)
+                                      Text(
+                                        option.address!,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w500,
+                                          color: Color(0x8FFFFFFF),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
-                            ),
-                            if (option.key == selected)
-                              const Icon(Icons.check_rounded,
-                                  size: 16, color: Color(0xFF93C5FD)),
-                          ],
+                              if (option.id == current.id)
+                                const Icon(Icons.check_rounded,
+                                    size: 16, color: Color(0xFF93C5FD)),
+                            ],
+                          ),
                         ),
-                      ),
-                  ],
-                  onChanged: (v) {
-                    BranchScope.set(v);
-                  },
+                    ],
+                    onChanged: _choose,
+                  ),
                 ),
               ),
             ),
-          ),
+          if (!_loading && _error != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.error_outline,
+                    size: 14, color: Color(0xFFFCA5A5)),
+                const SizedBox(width: 6),
+                const Expanded(
+                  child: Text(
+                    'Gagal memuat daftar toko',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: Color(0xCCFFFFFF)),
+                  ),
+                ),
+                TextButton(
+                  onPressed: _load,
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(0, 32),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text(
+                    'Coba lagi',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF93C5FD),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
+}
+
+class _BranchOption {
+  const _BranchOption({
+    required this.id,
+    required this.label,
+    required this.icon,
+    this.address,
+  });
+
+  final int? id;
+  final String label;
+  final String? address;
+  final IconData icon;
 }

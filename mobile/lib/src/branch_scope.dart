@@ -6,6 +6,12 @@ class BranchScope {
   static const _key = 'pos_owner_active_branch';
   static final ValueNotifier<int?> active = ValueNotifier(null);
 
+  /// Jumlah pcs di keranjang POS yang belum disimpan. Dipakai pemilih toko
+  /// untuk meminta konfirmasi sebelum pindah cabang. Null kalau POS tidak aktif.
+  static int Function()? pendingCartCount;
+
+  static int get pendingItems => pendingCartCount?.call() ?? 0;
+
   static Future<void> load() async {
     try {
       final prefs = await SharedPreferences.getInstance();

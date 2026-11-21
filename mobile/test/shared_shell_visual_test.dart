@@ -28,7 +28,13 @@ class _ShellApi extends ApiClient {
       {};
   @override
   Future<List<dynamic>> branches() async => [
-        {'id': 4, 'name': 'Anyostore Metro'},
+        {
+          'id': 4,
+          'name': 'Anyostore Metro',
+          'type': 'toko',
+          'is_active': 1,
+          'address': 'Jl. Metro 1',
+        },
       ];
 }
 
@@ -75,7 +81,7 @@ void main() {
         expect(find.text('Pemilik Toko'), findsOneWidget);
         expect(find.byKey(const ValueKey('sidebar-profile')), findsOneWidget);
         expect(find.text('TOKO / GUDANG AKTIF'), findsOneWidget);
-        expect(find.text('Anyostore Metro'), findsOneWidget);
+        expect(find.text('Toko · Anyostore Metro'), findsOneWidget);
         // Kartu toko: nilai terpilih harus putih di atas pil terang, bukan
         // teks gelap bawaan DropdownButton di atas denim.
         final scopeCard = tester.widget<Container>(

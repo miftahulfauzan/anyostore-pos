@@ -116,6 +116,8 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
   final List<int> _visitedTabs = [0];
   final _search = TextEditingController();
   final List<CartItem> _cart = [];
+  // Dibaca pemilih toko di sidebar untuk konfirmasi sebelum pindah cabang.
+  int _pendingCartCount() => cartTotalPcs(_cart);
   Timer? _previewTimer;
   // Versi keranjang vs preview: total tampil dari preview hanya kalau masih
   // FRESH (mengikuti perubahan qty/isi keranjang terakhir).
@@ -187,6 +189,7 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _transactionDate = todayWib();
     _api = context.read<AuthStore>().api;
+    BranchScope.pendingCartCount = _pendingCartCount;
     if (_isOwner) {
       final branch = BranchScope.active.value ?? _branchId;
       _posBranchId = branch > 0 ? branch : null;
@@ -247,6 +250,9 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     categoryCatalogRevision.removeListener(_onCategoryCatalogChanged);
     if (_listeningToBranchScope) {
       BranchScope.active.removeListener(_onBranchScopeChanged);
+    }
+    if (BranchScope.pendingCartCount == _pendingCartCount) {
+      BranchScope.pendingCartCount = null;
     }
     _search.dispose();
     _discountCtrl.dispose();
