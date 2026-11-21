@@ -58,6 +58,10 @@ if (name === 'git') {
 }
 if (name === 'curl') {
   if (scenario.endpointFailure) process.exit(22);
+  if (args.includes('--write-out')) {
+    output('301 https://anyostore.id/login?domain_migration=1');
+    process.exit(0);
+  }
   output(JSON.stringify({ok: !scenario.notOk, release_sha: scenario.wrongEndpointSha ? '${oldSha}' : '${sha}'}));
   process.exit(0);
 }
