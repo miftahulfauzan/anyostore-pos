@@ -10,7 +10,7 @@ void main() {
 
   test('exposes the six requested scales in order', () {
     expect(FontScaleController.options, <double>[.4, .6, .8, 1.0, 1.2, 1.4]);
-    expect(FontScaleController.defaultScale, 1.0);
+    expect(FontScaleController.defaultScale, .8);
     expect(FontScaleController.label(.4), '40%');
     expect(FontScaleController.label(1.4), '140%');
   });
@@ -20,7 +20,7 @@ void main() {
 
     await FontScaleController.load();
 
-    expect(FontScaleController.scale.value, 1.0);
+    expect(FontScaleController.scale.value, .8);
   });
 
   test('reads a legacy string preference safely', () async {

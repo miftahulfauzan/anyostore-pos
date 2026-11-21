@@ -29,7 +29,7 @@ void main() {
     ));
     await tester.pump();
 
-    expect(_rootMediaQuery(tester).textScaler.scale(10), 10);
+    expect(_rootMediaQuery(tester).textScaler.scale(10), 8);
     final material = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(
         material.theme?.textTheme.bodyMedium?.fontFamily, 'Plus Jakarta Sans');
@@ -62,7 +62,7 @@ void main() {
     ));
     await tester.pump();
 
-    expect(_rootMediaQuery(tester).textScaler.scale(10), 13);
+    expect(_rootMediaQuery(tester).textScaler.scale(10), closeTo(10.4, .001));
 
     FontScaleController.scale.value = 1.4;
     await tester.pumpWidget(MediaQuery(

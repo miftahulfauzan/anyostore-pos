@@ -190,22 +190,23 @@ void main() {
         (tester) async {
       final api = RedesignApi();
       FontScaleController.scale.value = FontScaleController.defaultScale;
-      await showScreen(tester, SettingsPage(api: api, role: 'gudang'), api,
+      await showScreen(tester,
+          SettingsPage(api: api, role: 'gudang', section: 'display'), api,
           size: Size(width, 844));
-      expect(find.text('Tampilan'), findsOneWidget);
-      expect(find.text('Ukuran teks'), findsOneWidget);
+      expect(find.text('Tampilan aplikasi'), findsOneWidget);
+      expect(find.text('UKURAN TEKS'), findsOneWidget);
       for (final label in ['40%', '60%', '80%', '100%', '120%', '140%']) {
-        expect(find.text(label), findsOneWidget);
+        expect(find.text(label), findsWidgets);
       }
-      final chips = find.byType(ChoiceChip);
-      expect(chips, findsNWidgets(6));
-      for (var i = 0; i < 6; i++) {
-        final rect = tester.getRect(chips.at(i));
-        expect(rect.left, greaterThanOrEqualTo(0));
-        expect(rect.right, lessThanOrEqualTo(width));
-        expect(rect.height, greaterThanOrEqualTo(32));
-      }
-      await tester.tap(find.text('120%'));
+      final sliderFinder = find.byType(Slider);
+      expect(sliderFinder, findsOneWidget);
+      final sliderRect = tester.getRect(sliderFinder);
+      expect(sliderRect.left, greaterThanOrEqualTo(0));
+      expect(sliderRect.right, lessThanOrEqualTo(width));
+      final slider = tester.widget<Slider>(sliderFinder);
+      slider.onChanged!(1.2);
+      await tester.pump();
+      slider.onChangeEnd!(1.2);
       await tester.pump();
       expect(FontScaleController.scale.value, 1.2);
       expect(tester.takeException(), isNull);

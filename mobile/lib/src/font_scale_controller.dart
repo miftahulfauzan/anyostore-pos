@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Local font-size preference shared by every mobile page.
 class FontScaleController {
   static const _preferenceKey = 'pos_font_scale';
-  static const double defaultScale = 1.0;
+  static const double defaultScale = .8;
   static const List<double> options = [.4, .6, .8, 1.0, 1.2, 1.4];
   static final ValueNotifier<double> scale = ValueNotifier(defaultScale);
 

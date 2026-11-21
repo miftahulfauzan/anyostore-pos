@@ -49,6 +49,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Map<String, dynamic> _settings = {};
   bool _loading = true;
   bool _saving = false;
+  double? _draftScale;
   bool _uploadingLogo = false;
   String _printerLabel = '';
   String? _error;
@@ -619,53 +620,327 @@ class _SettingsPageState extends State<SettingsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          _displaySectionLabel('TEMA', Theme.of(context).colorScheme.primary),
+          const SizedBox(height: 8),
           ValueListenableBuilder<ThemeMode>(
             valueListenable: ThemeController.mode,
-            builder: (context, mode, _) => SegmentedButton<ThemeMode>(
-              segments: const [
-                ButtonSegment(
-                    value: ThemeMode.light,
-                    icon: Icon(Icons.light_mode_outlined),
-                    label: Text('Terang')),
-                ButtonSegment(
-                    value: ThemeMode.dark,
-                    icon: Icon(Icons.dark_mode_outlined),
-                    label: Text('Gelap')),
-                ButtonSegment(
-                    value: ThemeMode.system,
-                    icon: Icon(Icons.brightness_auto_outlined),
-                    label: Text('Sistem')),
+            builder: (context, mode, _) => Row(
+              children: [
+                _themeCard(mode, ThemeMode.light, 'Terang'),
+                const SizedBox(width: 8),
+                _themeCard(mode, ThemeMode.dark, 'Gelap'),
+                const SizedBox(width: 8),
+                _themeCard(mode, ThemeMode.system, 'Sistem'),
               ],
-              selected: {mode},
-              onSelectionChanged: (s) => _setTheme(s.first),
             ),
           ),
-          const SizedBox(height: 16),
-          const Text('Ukuran teks',
-              style: TextStyle(
-                  fontWeight: FontWeight.w700, fontSize: TaskTypography.label)),
-          const SizedBox(height: 8),
+          const SizedBox(height: 18),
           ValueListenableBuilder<double>(
             valueListenable: FontScaleController.scale,
-            builder: (context, selected, _) => Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final value in FontScaleController.options)
-                  ChoiceChip(
-                    label: Text(FontScaleController.label(value)),
-                    selected: (selected - value).abs() < .001,
-                    onSelected: (_) =>
-                        unawaited(FontScaleController.set(value)),
+            builder: (context, saved, _) {
+              final value = _draftScale ?? saved;
+              final primary = Theme.of(context).colorScheme.primary;
+              const options = FontScaleController.options;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      _displaySectionLabel('UKURAN TEKS', kTaskTeal),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: primary.withValues(alpha: .1),
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        child: Text(FontScaleController.label(value),
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: primary)),
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 2),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 4,
+                      activeTrackColor: primary,
+                      inactiveTrackColor: taskBorder(context),
+                      thumbColor: Colors.white,
+                      overlayColor: primary.withValues(alpha: .12),
+                      thumbShape: const RoundSliderThumbShape(
+                          enabledThumbRadius: 8, elevation: 2),
+                      overlayShape:
+                          const RoundSliderOverlayShape(overlayRadius: 16),
+                      tickMarkShape:
+                          const RoundSliderTickMarkShape(tickMarkRadius: 0),
+                    ),
+                    child: Slider(
+                      value: value.clamp(options.first, options.last),
+                      min: options.first,
+                      max: options.last,
+                      divisions: options.length - 1,
+                      onChanged: (v) => setState(() => _draftScale = v),
+                      onChangeEnd: (v) async {
+                        await FontScaleController.set(v);
+                        if (mounted) setState(() => _draftScale = null);
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Row(
+                      children: [
+                        Text('A',
+                            style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                color: taskMuted(context))),
+                        for (final option in options)
+                          Expanded(
+                            child: Text(FontScaleController.label(option),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w700,
+                                    color: (option - value).abs() < .001
+                                        ? primary
+                                        : taskMuted(context))),
+                          ),
+                        Text('A',
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: taskMuted(context))),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _textPreview(value),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 10),
+          Text('Berlaku ke seluruh halaman aplikasi.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: TaskTypography.micro, color: taskMuted(context))),
+        ],
+      ),
+    );
+  }
+
+  Widget _displaySectionLabel(String text, Color dotColor) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+                color: dotColor, borderRadius: BorderRadius.circular(2)),
+          ),
+          const SizedBox(width: 6),
+          Text(text,
+              style: TextStyle(
+                  fontSize: 9,
+                  letterSpacing: 1,
+                  fontWeight: FontWeight.w800,
+                  color: taskMuted(context))),
+        ],
+      );
+
+  Widget _themeCard(ThemeMode mode, ThemeMode value, String label) {
+    final selected = mode == value;
+    final primary = Theme.of(context).colorScheme.primary;
+    return Expanded(
+      child: InkWell(
+        onTap: () => _setTheme(value),
+        borderRadius: BorderRadius.circular(13),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.all(7),
+          decoration: BoxDecoration(
+            color: taskSurface(context),
+            borderRadius: BorderRadius.circular(13),
+            border: Border.all(
+                color: selected ? primary : taskBorder(context),
+                width: selected ? 1.5 : 1),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                        color: primary.withValues(alpha: .12),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3)),
+                  ]
+                : null,
+          ),
+          child: Stack(
+            children: [
+              Column(
+                children: [
+                  _themePreview(value),
+                  const SizedBox(height: 6),
+                  Text(label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: ink(context))),
+                ],
+              ),
+              if (selected)
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: Container(
+                    width: 16,
+                    height: 16,
+                    decoration:
+                        BoxDecoration(color: primary, shape: BoxShape.circle),
+                    child: const Icon(Icons.check_rounded,
+                        size: 10, color: Colors.white),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _themePreview(ThemeMode mode) {
+    if (mode == ThemeMode.system) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(9),
+        child: SizedBox(
+          height: 50,
+          child: Row(
+            children: [
+              Expanded(child: _miniPreview(dark: false)),
+              Expanded(child: _miniPreview(dark: true)),
+            ],
+          ),
+        ),
+      );
+    }
+    return _miniPreview(dark: mode == ThemeMode.dark);
+  }
+
+  Widget _miniPreview({required bool dark}) => Container(
+        height: 50,
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: dark ? const Color(0xFF101A2B) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(
+              color: dark ? const Color(0xFF243B53) : const Color(0xFFE2E8F0)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: 6,
+              decoration: BoxDecoration(
+                  color: dark ? const Color(0xFF2E5D8F) : kTaskDark,
+                  borderRadius: BorderRadius.circular(3)),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              height: 4,
+              decoration: BoxDecoration(
+                  color:
+                      dark ? const Color(0xFF334155) : const Color(0xFFDBE3EE),
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(height: 3),
+            FractionallySizedBox(
+              widthFactor: .6,
+              child: Container(
+                height: 4,
+                decoration: BoxDecoration(
+                    color: dark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFDBE3EE),
+                    borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _textPreview(double scale) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return Container(
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: taskSurface(context),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: taskBorder(context)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('PRATINJAU',
+              style: TextStyle(
+                  fontSize: 8,
+                  letterSpacing: .9,
+                  fontWeight: FontWeight.w800,
+                  color: taskMuted(context))),
+          const SizedBox(height: 8),
+          MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: TextScaler.linear(scale)),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                      color: primary.withValues(alpha: .1),
+                      borderRadius: BorderRadius.circular(9)),
+                  child: Icon(Icons.receipt_long_outlined,
+                      size: 16, color: primary),
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Kemeja Denim A100',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                              color: ink(context))),
+                      const SizedBox(height: 1),
+                      Text('Selesai · Tunai',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 9, color: taskMuted(context))),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text('Rp130.000',
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                        color: ink(context))),
               ],
             ),
           ),
           const SizedBox(height: 6),
-          Text('Berlaku ke seluruh halaman aplikasi',
+          Text('Contoh tampilan mengikuti ukuran teks yang dipilih.',
               style: TextStyle(
-                  fontSize: TaskTypography.secondary,
-                  color: taskMuted(context))),
+                  fontSize: TaskTypography.micro, color: taskMuted(context))),
         ],
       ),
     );
