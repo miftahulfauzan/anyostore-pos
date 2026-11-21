@@ -1,6 +1,6 @@
-# anyostore.my.id         = homepage gateway (pilih grosir / reseller) + aplikasi staf
-# grosir.anyostore.my.id  = landing katalog grosir
-# reseller.anyostore.my.id= landing reseller
+# anyostore.id         = homepage gateway (pilih grosir / reseller) + aplikasi staf
+# grosir.anyostore.id  = landing katalog grosir
+# reseller.anyostore.id= landing reseller
 # www                     = dialihkan ke domain utama oleh middleware
 {$APP_DOMAIN}, www.{$APP_DOMAIN}, grosir.{$APP_DOMAIN}, reseller.{$APP_DOMAIN} {
 	encode zstd gzip
@@ -40,4 +40,41 @@
 	header @app {
 		Content-Security-Policy "default-src 'self'; base-uri 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self'"
 	}
+}
+
+# Pertahankan API dan unggahan pada domain lama untuk instalasi Android yang
+# belum diperbarui. Halaman web lama dialihkan ke domain baru dengan path/query.
+anyostore.my.id, www.anyostore.my.id {
+	@uploads path /uploads/*
+	handle @uploads {
+		reverse_proxy 127.0.0.1:3001
+		header {
+			Content-Security-Policy "default-src 'none'; img-src 'self'; media-src 'self'; script-src 'none'; style-src 'none'; frame-ancestors 'none'; sandbox"
+			Cross-Origin-Resource-Policy "cross-origin"
+		}
+	}
+
+	handle /api/* {
+		reverse_proxy 127.0.0.1:3001
+	}
+
+	handle {
+		redir https://anyostore.id{uri} permanent
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "SAMEORIGIN"
+		-Server
+	}
+}
+
+grosir.anyostore.my.id {
+	redir https://grosir.anyostore.id{uri} permanent
+}
+
+reseller.anyostore.my.id {
+	redir https://reseller.anyostore.id{uri} permanent
 }

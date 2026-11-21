@@ -666,7 +666,7 @@ class InvoiceImage extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 11.5, fontWeight: FontWeight.w800, color: denim)),
             SizedBox(height: 6),
-            Text('cek produk kami lainnya grosir.anyostore.my.id · v8',
+            Text('cek produk kami lainnya grosir.anyostore.id · v8',
                 style: TextStyle(
                     fontSize: 10,
                     letterSpacing: .3,

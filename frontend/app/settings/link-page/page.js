@@ -141,7 +141,7 @@ export default function LinkPageSettings() {
   const mediaUrl = (value) => (value ? api.replace('/api', '') + value : '');
   const pageUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/${pageSlug || `toko-${branch || '1'}`}`
-    : `https://anyostore.my.id/${pageSlug || `toko-${branch || '1'}`}`;
+    : `https://anyostore.id/${pageSlug || `toko-${branch || '1'}`}`;
   const hasUnsavedChanges = Boolean(savedFingerprint) && savedFingerprint !== JSON.stringify({ form, pageName, pageSlug, isPublished, isDefault });
 
   const previewConfig = useMemo(() => ({

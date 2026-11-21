@@ -51,8 +51,8 @@ jobs:
         env:
           DEPLOY_SHA: ${{ steps.ci.outputs.sha }}
           DEPLOY_MODE: ${{ steps.ci.outputs.mode }}
-          # Use the production hostname as the SSH target so the server being
-          # deployed is always the same server verified by the public endpoint.
+          # Keep SSH on the legacy hostname, which still resolves to this VPS.
+          # Public application traffic and checks use anyostore.id.
           VPS_HOST: anyostore.my.id
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
@@ -83,11 +83,11 @@ jobs:
             echo "::error title=Production SSH target mismatch::SSH host $VPS_HOST resolved to [$expected_ips], but the connected server reports public IP $remote_ip"
             exit 1
           fi
-          app_ips=$(getent ahostsv4 anyostore.my.id | awk '{print $1}' | sort -u | paste -sd, -)
+          app_ips=$(getent ahostsv4 anyostore.id | awk '{print $1}' | sort -u | paste -sd, -)
           echo "::notice title=Production target::SSH target $VPS_HOST -> $remote_ip; app DNS IPv4 [$app_ips]"
           set +e
           ssh "${ssh_opts[@]}" \
-              "$VPS_USER@$VPS_HOST" "EXPECTED_APP_DOMAIN=anyostore.my.id EXPECTED_GROSIR_DOMAIN=grosir.anyostore.my.id DEPLOY_DIR=/home/ubuntu/anyostore-pos bash -s -- $DEPLOY_SHA $DEPLOY_MODE" < scripts/deploy/release.sh 2>&1 | tee "$deploy_log"
+              "$VPS_USER@$VPS_HOST" "APP_DOMAIN=anyostore.id APP_ORIGIN=https://anyostore.id EXPECTED_APP_DOMAIN=anyostore.id DEPLOY_DIR=/home/ubuntu/anyostore-pos bash -s -- $DEPLOY_SHA $DEPLOY_MODE" < scripts/deploy/release.sh 2>&1 | tee "$deploy_log"
           status=${PIPESTATUS[0]}
           set -e
           if [ "$status" -ne 0 ]; then
@@ -134,10 +134,10 @@ jobs:
             echo "Public https://${host}${endpoint} did not serve ${DEPLOY_SHA}" >&2
             exit 1
           }
-          verify_public_endpoint anyostore.my.id /api/health
-          verify_public_endpoint anyostore.my.id /version
-          # Katalog grosir memakai hostname sendiri sejak katalog dipisah.
-          verify_public_endpoint grosir.anyostore.my.id /version
+          verify_public_endpoint anyostore.id /api/health
+          verify_public_endpoint anyostore.id /version
+          verify_public_endpoint grosir.anyostore.id /version
+          verify_public_endpoint reseller.anyostore.id /version
       - name: Record verified release in the run summary
         env:
           DEPLOY_SHA: ${{ steps.ci.outputs.sha }}

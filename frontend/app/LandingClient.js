@@ -131,7 +131,7 @@ function ProductCard({ product, onWa, onAdd, inCart, marketplace }) {
   );
 }
 
-export default function LandingPage({ branchMatch = '', branchSlug = '', wholesaleCopy = true, basePath = '/', orderMode = 'whatsapp', resellerHref = 'https://reseller.anyostore.my.id' } = {}) {
+export default function LandingPage({ branchMatch = '', branchSlug = '', wholesaleCopy = true, basePath = '/', orderMode = 'whatsapp', resellerHref = 'https://reseller.anyostore.id' } = {}) {
   // Landing utama tetap memakai alur WhatsApp saja. Landing reseller
   // (orderMode="reseller") menambahkan akun pembeli, info pembayaran QRIS/
   // rekening, dan tombol "Kirim Pesanan ke Sistem".

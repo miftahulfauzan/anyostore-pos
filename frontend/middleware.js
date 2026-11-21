@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 
 // Tiga host dengan peran berbeda:
-//   anyostore.my.id           -> homepage gateway + aplikasi staf (login/POS/…)
-//   grosir.anyostore.my.id    -> katalog grosir (rewrite ke /grosir)
-//   reseller.anyostore.my.id  -> katalog reseller (rewrite ke /reseller)
-// www.anyostore.my.id dialihkan ke domain utama.
-export const APP_HOST = 'anyostore.my.id';
-export const GROSIR_HOST = 'grosir.anyostore.my.id';
-export const RESELLER_HOST = 'reseller.anyostore.my.id';
+//   anyostore.id           -> homepage gateway + aplikasi staf (login/POS/…)
+//   grosir.anyostore.id    -> katalog grosir (rewrite ke /grosir)
+//   reseller.anyostore.id  -> katalog reseller (rewrite ke /reseller)
+// www.anyostore.id dialihkan ke domain utama.
+export const APP_HOST = 'anyostore.id';
+export const GROSIR_HOST = 'grosir.anyostore.id';
+export const RESELLER_HOST = 'reseller.anyostore.id';
 
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],

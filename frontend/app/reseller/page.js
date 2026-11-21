@@ -7,19 +7,19 @@ export const metadata = {
   description: 'Katalog reseller Anyostore (Blok B): pakaian denim wanita siap jual, pengiriman ke seluruh Indonesia, dan konsultasi via WhatsApp.',
   // Sejak katalog dipisah per subdomain, canonical menunjuk ke subdomain
   // reseller (satu-satunya URL katalog reseller).
-  alternates: { canonical: 'https://reseller.anyostore.my.id' },
+  alternates: { canonical: 'https://reseller.anyostore.id' },
   openGraph: {
     type: 'website',
     title: 'Anyostore Reseller - Pakaian Denim Wanita',
     description: 'Katalog reseller Anyostore (Blok B). Minimal 4 pcs per model, pengiriman ke seluruh Indonesia.',
-    url: 'https://reseller.anyostore.my.id',
+    url: 'https://reseller.anyostore.id',
     siteName: 'Anyostore',
-    images: [{ url: 'https://reseller.anyostore.my.id/og-image.png', width: 1200, height: 630, alt: 'Anyostore Reseller' }],
+    images: [{ url: 'https://reseller.anyostore.id/og-image.png', width: 1200, height: 630, alt: 'Anyostore Reseller' }],
   },
 };
 
 // Domain khusus reseller dilayani lewat rewrite di middleware.js
-// (reseller.anyostore.my.id -> /reseller).
+// (reseller.anyostore.id -> /reseller).
 export default function ResellerLandingPage() {
   // basePath "/" karena di subdomain reseller root adalah landing reseller
   // (rewrite middleware). Di domain utama /reseller tetap halaman ini.

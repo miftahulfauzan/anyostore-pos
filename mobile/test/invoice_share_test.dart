@@ -88,7 +88,7 @@ void main() {
     expect(find.textContaining('Simpan invoice'), findsNothing);
     // Catatan bawah sesuai permintaan.
     expect(
-        find.textContaining('cek produk kami lainnya grosir.anyostore.my.id'),
+        find.textContaining('cek produk kami lainnya grosir.anyostore.id'),
         findsOneWidget);
     // Header: dua nomor HP + Instagram khusus BASIK.
     expect(find.text('LANTAI 6 blok B no 116'), findsOneWidget);

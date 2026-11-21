@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 
 // Robots per host: katalog boleh diindeks, panel staf di domain utama tidak.
-const APP_ORIGIN = 'https://anyostore.my.id';
+const APP_ORIGIN = 'https://anyostore.id';
 
 const STAFF_PATHS = [
   '/login',
@@ -26,9 +26,9 @@ const STAFF_PATHS = [
 async function currentHost() {
   try {
     const h = await headers();
-    return (h.get('x-forwarded-host') || h.get('host') || 'anyostore.my.id').split(':')[0].toLowerCase();
+    return (h.get('x-forwarded-host') || h.get('host') || 'anyostore.id').split(':')[0].toLowerCase();
   } catch {
-    return 'anyostore.my.id';
+    return 'anyostore.id';
   }
 }
 
@@ -37,15 +37,15 @@ export default async function robots() {
   if (host.startsWith('grosir.')) {
     return {
       rules: [{ userAgent: '*', allow: '/' }],
-      sitemap: 'https://grosir.anyostore.my.id/sitemap.xml',
-      host: 'https://grosir.anyostore.my.id',
+      sitemap: 'https://grosir.anyostore.id/sitemap.xml',
+      host: 'https://grosir.anyostore.id',
     };
   }
   if (host.startsWith('reseller.')) {
     return {
       rules: [{ userAgent: '*', allow: '/', disallow: ['/masuk', '/daftar', '/akun', '/lacak', '/pesanan'] }],
-      sitemap: 'https://reseller.anyostore.my.id/sitemap.xml',
-      host: 'https://reseller.anyostore.my.id',
+      sitemap: 'https://reseller.anyostore.id/sitemap.xml',
+      host: 'https://reseller.anyostore.id',
     };
   }
   // Domain utama = homepage gateway + aplikasi staf (staf tidak diindeks).

@@ -31,7 +31,7 @@ class PrinterService {
   })  : _httpClient = httpClient ?? http.Client(),
         _baseUrl = baseUrl ??
             const String.fromEnvironment('API_URL',
-                defaultValue: 'https://anyostore.my.id/api'),
+                defaultValue: 'https://anyostore.id/api'),
         _logoLoader = logoLoader;
 
   final http.Client _httpClient;

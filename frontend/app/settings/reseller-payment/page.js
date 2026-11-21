@@ -130,7 +130,7 @@ export default function ResellerPaymentSettingsPage() {
     <AppShell title="Pembayaran Reseller" eyebrow="ADMINISTRASI">
       <section className="panel">
         <p style={{ marginTop: 0, fontSize: 'var(--fs-md)', color: '#475569' }}>
-          Informasi ini tampil di halaman checkout reseller (reseller.anyostore.my.id) setelah pembeli mengisi alamat.
+          Informasi ini tampil di halaman checkout reseller (reseller.anyostore.id) setelah pembeli mengisi alamat.
         </p>
 
         {isOwner && stores.length > 0 && (

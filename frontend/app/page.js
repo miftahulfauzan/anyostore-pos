@@ -1,13 +1,13 @@
 import { headers } from 'next/headers';
 
-// Homepage gateway: anyostore.my.id adalah pintu masuk ke dua katalog
+// Homepage gateway: anyostore.id adalah pintu masuk ke dua katalog
 // (grosir & reseller) sekaligus pintu aplikasi staf.
-// Katalog grosir: grosir.anyostore.my.id · katalog reseller: reseller.anyostore.my.id
+// Katalog grosir: grosir.anyostore.id · katalog reseller: reseller.anyostore.id
 export const dynamic = 'force-dynamic';
 
-const APP_ORIGIN = 'https://anyostore.my.id';
-const GROSIR_ORIGIN = 'https://grosir.anyostore.my.id';
-const RESELLER_ORIGIN = 'https://reseller.anyostore.my.id';
+const APP_ORIGIN = 'https://anyostore.id';
+const GROSIR_ORIGIN = 'https://grosir.anyostore.id';
+const RESELLER_ORIGIN = 'https://reseller.anyostore.id';
 
 export const metadata = {
   title: { absolute: 'Anyostore - Grosir & Reseller Pakaian Denim Wanita' },
@@ -27,7 +27,7 @@ export const metadata = {
 
 async function currentOrigin() {
   const h = await headers();
-  const host = h.get('x-forwarded-host') || h.get('host') || 'anyostore.my.id';
+  const host = h.get('x-forwarded-host') || h.get('host') || 'anyostore.id';
   const proto = h.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
   return `${proto}://${host}`;
 }

@@ -2,7 +2,9 @@
 
 Sistem **Point of Sale + katalog grosir/reseller** untuk toko pakaian denim wanita multi-cabang. Satu backend melayani aplikasi kasir (web dan Android), katalog publik grosir, dan toko online reseller.
 
-**Live:** [`anyostore.my.id`](https://anyostore.my.id) (homepage + aplikasi staf) · [`grosir.anyostore.my.id`](https://grosir.anyostore.my.id) (katalog grosir) · [`reseller.anyostore.my.id`](https://reseller.anyostore.my.id) (katalog reseller)
+**Live:** [`anyostore.id`](https://anyostore.id) (homepage + aplikasi staf) · [`grosir.anyostore.id`](https://grosir.anyostore.id) (katalog grosir) · [`reseller.anyostore.id`](https://reseller.anyostore.id) (katalog reseller)
+
+Domain `.my.id` lama mengalihkan halaman ke alamat baru. Host utama lama tetap melayani `/api` dan `/uploads` agar instalasi Android lama tetap terhubung.
 
 ## Fitur utama
 

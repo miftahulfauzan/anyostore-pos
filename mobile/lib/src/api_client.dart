@@ -21,7 +21,7 @@ class ApiClient {
   ApiClient({String? baseUrl, http.Client? httpClient})
       : baseUrl = baseUrl ??
             const String.fromEnvironment('API_URL',
-                defaultValue: 'https://anyostore.my.id/api'),
+                defaultValue: 'https://anyostore.id/api'),
         _httpClient = httpClient ?? http.Client();
 
   final String baseUrl;

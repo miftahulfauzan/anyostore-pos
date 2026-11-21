@@ -4,7 +4,7 @@ Konteks proyek ini otomatis dibaca semua AI agent di awal sesi. Baca sebelum men
 
 ## Ringkasan
 
-Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https://anyostore.my.id` (Tencent Cloud Lighthouse, Ubuntu, Docker, Caddy auto-HTTPS). Repo: `https://github.com/miftahulfauzan/anyostore-pos`. Lokasi lokal aktif (workspace Codex): `/Users/anyo/Library/CloudStorage/OneDrive-Personal/pos-pakaian` (satu-satunya repo dengan commit terbaru). `~/Documents/POS_ANYOSTORE` adalah salinan lama yang tertinggal — jangan dipakai untuk kerja baru.
+Sistem POS + katalog grosir pakaian denim wanita (multi-cabang). Live di `https://anyostore.id` (Tencent Cloud Lighthouse, Ubuntu, Docker, Caddy auto-HTTPS). `grosir.anyostore.id` dan `reseller.anyostore.id` melayani katalog publik. Domain lama `.my.id` mengalihkan halaman ke domain baru; `anyostore.my.id/api` dan `/uploads` tetap dilayani untuk aplikasi mobile lama. Repo: `https://github.com/miftahulfauzan/anyostore-pos`. Lokasi lokal aktif (workspace Codex): `/Users/anyo/Library/CloudStorage/OneDrive-Personal/pos-pakaian` (satu-satunya repo dengan commit terbaru). `~/Documents/POS_ANYOSTORE` adalah salinan lama yang tertinggal — jangan dipakai untuk kerja baru.
 
 - **Backend**: Express (Node 20), MySQL 8.4, `backend/src/`
 - **Frontend**: Next.js 16 App Router (`output: 'standalone'`), React 18, `frontend/app/`

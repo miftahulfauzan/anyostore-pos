@@ -35,9 +35,9 @@ void main() {
   test('logo invoice opsional dan default kosong', () {
     expect(_payload().storeLogoUrl, isNull);
     expect(
-        _payload(logoUrl: 'https://anyostore.my.id/uploads/logo.png')
+        _payload(logoUrl: 'https://anyostore.id/uploads/logo.png')
             .storeLogoUrl,
-        'https://anyostore.my.id/uploads/logo.png');
+        'https://anyostore.id/uploads/logo.png');
   });
 
   testWidgets('tanpa logo, kepala invoice memakai inisial nama toko',
@@ -52,7 +52,7 @@ void main() {
       'logo gagal dimuat tetap menampilkan inisial, invoice tidak rusak',
       (tester) async {
     await _pump(tester,
-        _payload(logoUrl: 'https://anyostore.my.id/uploads/tidak-ada.png'));
+        _payload(logoUrl: 'https://anyostore.id/uploads/tidak-ada.png'));
     // flutter_test menolak request jaringan; errorBuilder harus jatuh ke inisial.
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));

@@ -43,7 +43,7 @@ test('rasio sudut logo sama di web dan cetak thermal', () => {
 });
 
 test('URL logo diambil dari setelan cabang, bukan ditebak', () => {
-  assert.equal(storeLogoUrl({ invoice_logo: '/uploads/a.png' }, 'https://anyostore.my.id/api'), 'https://anyostore.my.id/uploads/a.png');
+  assert.equal(storeLogoUrl({ invoice_logo: '/uploads/a.png' }, 'https://anyostore.id/api'), 'https://anyostore.id/uploads/a.png');
   assert.equal(storeLogoUrl({ store_logo: 'uploads/b.png' }, '/api'), '/uploads/b.png');
   // invoice_logo menang atas store_logo (logo kepala invoice).
   assert.equal(storeLogoUrl({ invoice_logo: '/uploads/inv.png', store_logo: '/uploads/app.png' }), '/uploads/inv.png');

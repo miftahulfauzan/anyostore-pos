@@ -28,7 +28,7 @@ function waLink(phone, text) {
 }
 
 export default function ProdukDetail() {
-  // Di reseller.anyostore.my.id, "/" adalah landing reseller (rewrite
+  // Di reseller.anyostore.id, "/" adalah landing reseller (rewrite
   // middleware). Di domain utama, katalog buyer ada di /reseller.
   const catalogHref =
     typeof window !== 'undefined' && window.location.hostname.startsWith('reseller.')

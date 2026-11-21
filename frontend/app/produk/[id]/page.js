@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 async function apiBase() {
   const h = await headers();
-  const host = h.get('x-forwarded-host') || h.get('host') || 'anyostore.my.id';
+  const host = h.get('x-forwarded-host') || h.get('host') || 'anyostore.id';
   const proto = h.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
   return `${proto}://${host}/api`;
 }
@@ -31,7 +31,7 @@ export async function generateMetadata({ params }) {
   const description = String(product.description || `Beli ${product.name} grosir denim wanita. Chat admin untuk harga grosir, stok, dan warna ready.`).slice(0, 160);
   const media = Array.isArray(product.media) ? product.media : [];
   const photo = media.find((m) => m.path)?.path || null;
-  // Canonical absolut dari host permintaan: katalog ada di grosir.anyostore.my.id,
+  // Canonical absolut dari host permintaan: katalog ada di grosir.anyostore.id,
   // jadi canonical tidak boleh selalu menunjuk domain utama.
   const origin = (await apiBase()).replace(/\/api$/, '');
   return {

@@ -4,16 +4,16 @@ import { headers } from 'next/headers';
 // reseller punya URL masing-masing sejak katalog dipisah ke subdomain.
 export const revalidate = 86400;
 
-const APP_ORIGIN = 'https://anyostore.my.id';
-const GROSIR_ORIGIN = 'https://grosir.anyostore.my.id';
-const RESELLER_ORIGIN = 'https://reseller.anyostore.my.id';
+const APP_ORIGIN = 'https://anyostore.id';
+const GROSIR_ORIGIN = 'https://grosir.anyostore.id';
+const RESELLER_ORIGIN = 'https://reseller.anyostore.id';
 
 async function currentHost() {
   try {
     const h = await headers();
-    return (h.get('x-forwarded-host') || h.get('host') || 'anyostore.my.id').split(':')[0].toLowerCase();
+    return (h.get('x-forwarded-host') || h.get('host') || 'anyostore.id').split(':')[0].toLowerCase();
   } catch {
-    return 'anyostore.my.id';
+    return 'anyostore.id';
   }
 }
 

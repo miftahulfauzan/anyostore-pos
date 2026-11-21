@@ -317,7 +317,7 @@ export default function SettingsPage() {
               <label>Telepon<input value={newBranch.phone} onChange={(e) => setNewBranch({ ...newBranch, phone: e.target.value })} /></label>
             </div>
             <div className="two-fields">
-              <label>Email<input type="email" value={newBranch.email} onChange={(e) => setNewBranch({ ...newBranch, email: e.target.value })} placeholder="metro@anyostore.my.id" /></label>
+              <label>Email<input type="email" value={newBranch.email} onChange={(e) => setNewBranch({ ...newBranch, email: e.target.value })} placeholder="metro@anyostore.id" /></label>
               <label>Pengali harga (1 = sama, 1.2 = 20% mahal)<input type="number" step="0.01" min="0.1" value={newBranch.price_multiplier} onChange={(e) => setNewBranch({ ...newBranch, price_multiplier: e.target.value })} /></label>
             </div>
             <div className="branch-clone-options">

@@ -9,6 +9,8 @@ DEPLOY_MODE=${2:-}
 [[ "$DEPLOY_MODE" = automatic || "$DEPLOY_MODE" = manual ]] || fail 'Expected automatic or manual deploy mode'
 export RELEASE_SHA
 DEPLOY_DIR=${DEPLOY_DIR:-/home/ubuntu/anyostore-pos}
+APP_DOMAIN=${APP_DOMAIN:-anyostore.id}
+APP_ORIGIN=${APP_ORIGIN:-https://anyostore.id}
 HEALTH_ATTEMPTS=${HEALTH_ATTEMPTS:-60}
 HEALTH_INTERVAL=${HEALTH_INTERVAL:-3}
 ENDPOINT_ATTEMPTS=${ENDPOINT_ATTEMPTS:-6}
@@ -63,7 +65,7 @@ fi
 
 # Pass RELEASE_SHA explicitly through sudo (sudo commonly drops exported variables).
 compose() {
-  sudo env RELEASE_SHA="$RELEASE_SHA" docker compose -f docker-compose.production.yml --env-file .env.production "$@"
+  sudo env RELEASE_SHA="$RELEASE_SHA" APP_DOMAIN="$APP_DOMAIN" APP_ORIGIN="$APP_ORIGIN" docker compose -f docker-compose.production.yml --env-file .env.production "$@"
 }
 
 assert_built_images() {
@@ -239,6 +241,7 @@ domain=$(compose exec -T caddy printenv APP_DOMAIN)
 if [[ -n "${EXPECTED_APP_DOMAIN:-}" && "$domain" != "$EXPECTED_APP_DOMAIN" ]]; then
   fail "APP_DOMAIN mismatch: expected $EXPECTED_APP_DOMAIN, got $domain"
 fi
+[[ "$APP_ORIGIN" = "https://$domain" ]] || fail "APP_ORIGIN must match the HTTPS app domain: https://$domain"
 verify_endpoint() {
   local endpoint=$1 attempt body
   for ((attempt=1; attempt<=ENDPOINT_ATTEMPTS; attempt++)); do
@@ -316,6 +319,29 @@ except (ValueError, TypeError):
   fail "Grosir endpoint verification failed: $endpoint (expected $RELEASE_SHA)"
 }
 verify_grosir_endpoint /version
+
+# Legacy Android builds still call the old hostname for API and media files.
+legacy_health=$(curl --fail --silent --show-error --proto '=https' --connect-timeout 3 --max-time 5 \
+  -H 'Cache-Control: no-cache' "https://anyostore.my.id/api/health?release=$RELEASE_SHA") \
+  || fail 'Legacy API hostname is unavailable'
+printf '%s' "$legacy_health" | python3 -c '
+import json, sys
+try:
+    body = json.load(sys.stdin)
+    sys.exit(0 if isinstance(body, dict) and body.get("ok") is True and body.get("release_sha") == sys.argv[1] else 1)
+except (ValueError, TypeError):
+    sys.exit(1)
+' "$RELEASE_SHA" || fail 'Legacy API hostname served the wrong release'
+printf 'Verified legacy API hostname at %s\n' "$RELEASE_SHA"
+
+legacy_redirect=$(curl --silent --show-error --proto '=https' --connect-timeout 3 --max-time 5 \
+  --output /dev/null --write-out '%{http_code} %{redirect_url}' \
+  'https://anyostore.my.id/login?domain_migration=1') \
+  || fail 'Legacy website hostname is unavailable'
+[[ "$legacy_redirect" = '301 https://anyostore.id/login?domain_migration=1' ]] \
+  || fail "Legacy website did not redirect to the new domain: $legacy_redirect"
+printf 'Verified legacy website redirect\n'
+
 # Re-check both together after the public probes so a regression cannot be recorded as success.
 wait_healthy backend frontend
 if [[ -n "$last_release" && "$last_release" != "$RELEASE_SHA" ]]; then

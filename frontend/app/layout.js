@@ -6,7 +6,7 @@ import PwaRegister from './components/PwaRegister';
 import OfflineBanner from './components/OfflineBanner';
 import { preferencesScript } from './components/app-state.cjs';
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://anyostore.my.id';
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://anyostore.id';
 const siteName = 'Anyostore - Grosir Pakaian Denim Wanita';
 const siteDescription = 'Grosir pakaian denim wanita langsung dari supplier. Katalog lengkap, minimal 4 pcs per model, pengiriman ke seluruh Indonesia, dan konsultasi harga via WhatsApp.';
 
