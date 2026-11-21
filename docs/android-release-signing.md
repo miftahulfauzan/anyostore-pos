@@ -28,6 +28,10 @@ workflow decodes the keystore into the runner's temporary directory, signs the
 APK, then discards the runner. It fails with a clear message if either secret
 is missing.
 
+If the workflow reports `ANDROID_KEYSTORE_BASE64 is not valid base64`, the stored
+secret is corrupted or was written from the wrong file. Re-run the script — it
+overwrites both secrets — then dispatch the Mobile workflow again.
+
 ## Updating the app
 
 Increase the build number after `+` in `mobile/pubspec.yaml` for every release.
