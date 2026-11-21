@@ -5,6 +5,8 @@ import 'dart:math' as math;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+
+import 'app_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
@@ -2377,6 +2379,9 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
           mainAxisSize: MainAxisSize.min,
           children: [
             DropdownButtonFormField<int?>(
+              dropdownColor: appDropdownColor(context),
+              borderRadius: BorderRadius.circular(14),
+              menuMaxHeight: 320,
               initialValue: widget.posBranchId,
               isExpanded: true,
               style: TextStyle(fontSize: 14, color: ink(context)),
@@ -2403,6 +2408,9 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
             if (widget.warehouses.length > 1) ...[
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
+                dropdownColor: appDropdownColor(context),
+                borderRadius: BorderRadius.circular(14),
+                menuMaxHeight: 320,
                 initialValue:
                     widget.warehouseId.isEmpty ? null : widget.warehouseId,
                 isExpanded: true,
@@ -2900,6 +2908,10 @@ class _CartSheetState extends State<_CartSheet> {
                         children: [
                           if (widget.customers.isNotEmpty)
                             DropdownButtonFormField<int?>(
+                              dropdownColor: appDropdownColor(context),
+                              borderRadius: BorderRadius.circular(14),
+                              menuMaxHeight: 320,
+                              isExpanded: true,
                               initialValue: widget.customerId,
                               decoration: const InputDecoration(
                                   isDense: true,

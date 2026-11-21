@@ -275,6 +275,9 @@ class _ProductsPageState extends State<ProductsPage> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
                   child: DropdownButtonFormField<int?>(
+                    dropdownColor: appDropdownColor(context),
+                    borderRadius: BorderRadius.circular(14),
+                    menuMaxHeight: 320,
                     initialValue: _effectiveBranch,
                     isExpanded: true,
                     decoration: appFieldDecoration(context,

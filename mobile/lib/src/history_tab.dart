@@ -341,8 +341,9 @@ class _HistoryTabState extends State<HistoryTab> {
     final id = int.tryParse('${row['id']}');
     if (id == null) return;
     Map<String, dynamic> detail;
+    final branchId = int.tryParse('${row['branch_id']}');
     try {
-      detail = await widget.api.transactionDetail(id);
+      detail = await widget.api.transactionDetail(id, branchId: branchId);
       if (detail['payment_method'] == 'split') {
         try {
           final receipt = await widget.api.receipt(id);
@@ -606,7 +607,9 @@ class _HistoryTabState extends State<HistoryTab> {
                           OutlinedButton.icon(
                             onPressed: () {
                               Navigator.pop(ctx);
-                              _cancelFlow(id, detail, items);
+                              _cancelFlow(id, detail, items,
+                                  branchId:
+                                      int.tryParse('${detail['branch_id']}'));
                             },
                             icon: const Icon(Icons.remove_circle_outline,
                                 size: 16),
@@ -621,7 +624,9 @@ class _HistoryTabState extends State<HistoryTab> {
                           OutlinedButton.icon(
                             onPressed: () {
                               Navigator.pop(ctx);
-                              _returnFlow(id, items);
+                              _returnFlow(id, items,
+                                  branchId:
+                                      int.tryParse('${detail['branch_id']}'));
                             },
                             icon: const Icon(Icons.assignment_return_outlined,
                                 size: 16),
@@ -776,8 +781,9 @@ class _HistoryTabState extends State<HistoryTab> {
     }
   }
 
-  Future<void> _cancelFlow(int id, Map<String, dynamic> detail,
-      List<Map<String, dynamic>> items) async {
+  Future<void> _cancelFlow(
+      int id, Map<String, dynamic> detail, List<Map<String, dynamic>> items,
+      {int? branchId}) async {
     final controllers = <int, TextEditingController>{};
     final reasons = <int, TextEditingController>{};
     for (final item in items) {
@@ -867,8 +873,8 @@ class _HistoryTabState extends State<HistoryTab> {
     }
     if (cancelItems.isEmpty) return;
     try {
-      await widget.api
-          .cancelTransaction(id, cancelItems, reasonTop.text.trim());
+      await widget.api.cancelTransaction(id, cancelItems, reasonTop.text.trim(),
+          branchId: branchId);
       if (!mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Pembatalan diproses')));
@@ -881,7 +887,8 @@ class _HistoryTabState extends State<HistoryTab> {
     }
   }
 
-  Future<void> _returnFlow(int id, List<Map<String, dynamic>> items) async {
+  Future<void> _returnFlow(int id, List<Map<String, dynamic>> items,
+      {int? branchId}) async {
     final controllers = <int, TextEditingController>{};
     final reasons = <int, TextEditingController>{};
     for (final item in items) {
@@ -909,6 +916,10 @@ class _HistoryTabState extends State<HistoryTab> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String>(
+                  dropdownColor: appDropdownColor(context),
+                  borderRadius: BorderRadius.circular(14),
+                  menuMaxHeight: 320,
+                  isExpanded: true,
                   initialValue: refundMethod,
                   decoration: const InputDecoration(
                       labelText: 'Metode refund', border: OutlineInputBorder()),
@@ -984,6 +995,7 @@ class _HistoryTabState extends State<HistoryTab> {
         'transaction_id': id,
         'items': returnItems,
         'refund_method': refundMethod,
+        if (branchId != null) 'branch_id': branchId,
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(

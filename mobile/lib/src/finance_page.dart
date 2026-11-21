@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import 'app_ui.dart';
+
 import 'api_client.dart';
 import 'branch_scope.dart';
 import 'format.dart';
@@ -321,6 +323,10 @@ class _FinancePageState extends State<FinancePage> {
                                 TextStyle(fontSize: TaskTypography.secondary)),
                       )
                     : DropdownButtonFormField<int?>(
+                        dropdownColor: appDropdownColor(context),
+                        borderRadius: BorderRadius.circular(14),
+                        menuMaxHeight: 320,
+                        isExpanded: true,
                         initialValue: categoryId,
                         decoration: const InputDecoration(
                             labelText: 'Kategori',
@@ -356,6 +362,10 @@ class _FinancePageState extends State<FinancePage> {
                         border: OutlineInputBorder())),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
+                  dropdownColor: appDropdownColor(context),
+                  borderRadius: BorderRadius.circular(14),
+                  menuMaxHeight: 320,
+                  isExpanded: true,
                   initialValue: method,
                   decoration: const InputDecoration(
                       labelText: 'Metode', border: OutlineInputBorder()),

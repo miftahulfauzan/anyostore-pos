@@ -6,6 +6,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
+import 'app_ui.dart';
 import 'branch_scope.dart';
 import 'format.dart';
 import 'offline_status.dart';
@@ -495,9 +496,12 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
           Expanded(
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
+                dropdownColor: appDropdownColor(context),
+                borderRadius: BorderRadius.circular(14),
+                menuMaxHeight: 320,
                 value: _preset,
                 isExpanded: true,
-                icon: const Icon(Icons.keyboard_arrow_down),
+                icon: const Icon(Icons.keyboard_arrow_down_rounded),
                 items: [
                   for (final option in kMobileDateFilterOptions)
                     DropdownMenuItem<String>(

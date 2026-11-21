@@ -863,56 +863,58 @@ class _StockSectionState extends State<_StockSection> {
                                                 style: TextStyle(
                                                     fontSize: 12,
                                                     color: taskMuted(context))),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Flexible(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.end,
-                                          children: [
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
+                                            const SizedBox(height: 5),
+                                            Row(
+                                              children: [
+                                                Container(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
                                                       horizontal: 8,
-                                                      vertical: 5),
-                                              decoration: BoxDecoration(
-                                                color: stockSurface,
-                                                borderRadius:
-                                                    BorderRadius.circular(10),
-                                              ),
-                                              child: Text(
-                                                  '${switch (stockLevel) {
-                                                    InventoryStockLevel.good =>
-                                                      'Tersedia',
-                                                    InventoryStockLevel.low =>
-                                                      'Menipis',
-                                                    InventoryStockLevel.empty =>
-                                                      'Habis',
-                                                  }} · ${r['total_stock'] ?? 0}',
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.w800,
-                                                      fontSize: 12,
-                                                      color: stockColor)),
+                                                      vertical: 4),
+                                                  decoration: BoxDecoration(
+                                                    color: stockSurface,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            9),
+                                                  ),
+                                                  child: Text(
+                                                      '${switch (stockLevel) {
+                                                        InventoryStockLevel
+                                                              .good =>
+                                                          'Tersedia',
+                                                        InventoryStockLevel
+                                                              .low =>
+                                                          'Menipis',
+                                                        InventoryStockLevel
+                                                              .empty =>
+                                                          'Habis',
+                                                      }} · ${r['total_stock'] ?? 0}',
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.w800,
+                                                          fontSize: 11.5,
+                                                          color: stockColor)),
+                                                ),
+                                                if (stockLevel ==
+                                                    InventoryStockLevel
+                                                        .low) ...[
+                                                  const SizedBox(width: 5),
+                                                  Text(
+                                                      'min ${r['min_stock'] ?? 0}',
+                                                      style: TextStyle(
+                                                          fontSize: 9.5,
+                                                          color: taskMuted(
+                                                              context))),
+                                                ],
+                                              ],
                                             ),
-                                            if (stockLevel ==
-                                                InventoryStockLevel.low) ...[
-                                              const SizedBox(height: 3),
-                                              Text('min ${r['min_stock'] ?? 0}',
-                                                  style: TextStyle(
-                                                      fontSize: 9.5,
-                                                      color:
-                                                          taskMuted(context))),
-                                            ],
                                           ],
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
+                                      const SizedBox(width: 6),
                                       const Padding(
                                         padding: EdgeInsets.only(top: 1),
                                         child: _StockEditBadge(),
@@ -1136,6 +1138,10 @@ class _MutasiSectionState extends State<_MutasiSection> {
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
           child: DropdownButtonFormField<String>(
+            dropdownColor: appDropdownColor(context),
+            borderRadius: BorderRadius.circular(14),
+            menuMaxHeight: 320,
+            isExpanded: true,
             initialValue: _filter,
             decoration: const InputDecoration(
                 isDense: true,
@@ -1863,6 +1869,10 @@ class _InOutFormState extends State<_InOutForm> {
                             ),
                             const SizedBox(height: 8),
                             DropdownButtonFormField<String>(
+                              dropdownColor: appDropdownColor(context),
+                              borderRadius: BorderRadius.circular(14),
+                              menuMaxHeight: 320,
+                              isExpanded: true,
                               initialValue:
                                   _warehouseId.isEmpty ? null : _warehouseId,
                               decoration: const InputDecoration(
@@ -1883,6 +1893,10 @@ class _InOutFormState extends State<_InOutForm> {
                             if (widget.kind == 'outgoing') ...[
                               const SizedBox(height: 8),
                               DropdownButtonFormField<String>(
+                                dropdownColor: appDropdownColor(context),
+                                borderRadius: BorderRadius.circular(14),
+                                menuMaxHeight: 320,
+                                isExpanded: true,
                                 initialValue: _channel,
                                 decoration: InputDecoration(
                                     labelText: 'Saluran',
@@ -2286,7 +2300,7 @@ class _CatalogPickerState extends State<_CatalogPicker> {
                 ),
                 IconButton(
                   onPressed: () => setState(() => _cartExpanded = false),
-                  icon: const Icon(Icons.keyboard_arrow_down),
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded),
                   tooltip: 'Tutup keranjang',
                   visualDensity: VisualDensity.compact,
                 ),
@@ -2690,6 +2704,9 @@ class _TransferSectionState extends State<_TransferSection> {
       ),
       children: [
         DropdownButtonFormField<String>(
+          dropdownColor: appDropdownColor(context),
+          borderRadius: BorderRadius.circular(14),
+          menuMaxHeight: 320,
           initialValue: _from.isEmpty ? null : _from,
           isExpanded: true,
           decoration: appFieldDecoration(context,
@@ -2710,6 +2727,9 @@ class _TransferSectionState extends State<_TransferSection> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
+          dropdownColor: appDropdownColor(context),
+          borderRadius: BorderRadius.circular(14),
+          menuMaxHeight: 320,
           initialValue: _to.isEmpty ? null : _to,
           isExpanded: true,
           decoration: appFieldDecoration(context,
@@ -3043,6 +3063,9 @@ class _OpnameSectionState extends State<_OpnameSection> {
       ),
       children: [
         DropdownButtonFormField<String>(
+          dropdownColor: appDropdownColor(context),
+          borderRadius: BorderRadius.circular(14),
+          menuMaxHeight: 320,
           initialValue: _warehouseId.isEmpty ? null : _warehouseId,
           isExpanded: true,
           decoration: appFieldDecoration(context,

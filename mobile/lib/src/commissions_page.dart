@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'app_ui.dart';
+
 import 'api_client.dart';
 import 'branch_scope.dart';
 import 'format.dart';
@@ -306,6 +308,9 @@ class _CommissionsPageState extends State<CommissionsPage> {
               children: [
                 if (_isOwner && _branches.isNotEmpty && _tab == 'report')
                   DropdownButtonFormField<int?>(
+                    dropdownColor: appDropdownColor(context),
+                    borderRadius: BorderRadius.circular(14),
+                    menuMaxHeight: 320,
                     initialValue: _branchId ?? widget.branchId,
                     isExpanded: true,
                     decoration: const InputDecoration(
@@ -330,6 +335,9 @@ class _CommissionsPageState extends State<CommissionsPage> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
+                        dropdownColor: appDropdownColor(context),
+                        borderRadius: BorderRadius.circular(14),
+                        menuMaxHeight: 320,
                         initialValue: _preset,
                         isExpanded: true,
                         decoration: const InputDecoration(

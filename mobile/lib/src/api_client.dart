@@ -397,9 +397,14 @@ class ApiClient {
   Future<Map<String, dynamic>> cancelTransaction(
     int id,
     List<Map<String, dynamic>> items,
-    String reason,
-  ) =>
-      put('/transactions/$id/cancel', {'items': items, 'reason': reason});
+    String reason, {
+    int? branchId,
+  }) =>
+      put('/transactions/$id/cancel', {
+        'items': items,
+        'reason': reason,
+        if (branchId != null) 'branch_id': branchId,
+      });
 
   Future<(List<dynamic>, int)> transactionsPage({
     int page = 1,
@@ -423,8 +428,10 @@ class ApiClient {
     return ((res['data'] as List?) ?? [], totalPages);
   }
 
-  Future<Map<String, dynamic>> transactionDetail(int id) async {
-    final res = await get('/transactions/$id');
+  Future<Map<String, dynamic>> transactionDetail(int id,
+      {int? branchId}) async {
+    final res = await get(
+        '/transactions/$id', {if (branchId != null) 'branch_id': '$branchId'});
     return (res['data'] as Map<String, dynamic>?) ?? {};
   }
 

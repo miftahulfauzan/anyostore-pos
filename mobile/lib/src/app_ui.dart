@@ -6,6 +6,12 @@ import 'package:flutter/services.dart';
 import 'task_ui.dart';
 
 /// Dekorasi field standar Batch 1: rounded, filled, ikon abu.
+/// Warna permukaan menu dropdown yang konsisten di mode terang/gelap.
+Color appDropdownColor(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF162132)
+        : Colors.white;
+
 InputDecoration appFieldDecoration(
   BuildContext context, {
   String? label,

@@ -1098,11 +1098,12 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
                     splashColor: const Color(0x2260A5FA),
                   ),
                   child: DropdownButton<int?>(
+                    menuMaxHeight: 320,
                     value: current.id,
                     isExpanded: true,
                     isDense: true,
                     itemHeight: 56,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                     dropdownColor: kDrawerMid,
                     icon: const Icon(Icons.keyboard_arrow_down_rounded,
                         size: 20, color: Color(0xCCFFFFFF)),

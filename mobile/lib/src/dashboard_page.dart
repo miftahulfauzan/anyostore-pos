@@ -5,6 +5,8 @@ import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+
+import 'app_ui.dart';
 import 'package:provider/provider.dart';
 
 import 'api_client.dart';
@@ -475,9 +477,12 @@ class _DashboardPageState extends State<DashboardPage> {
           Expanded(
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
+                dropdownColor: appDropdownColor(context),
+                borderRadius: BorderRadius.circular(14),
+                menuMaxHeight: 320,
                 value: value,
                 isExpanded: true,
-                icon: const Icon(Icons.keyboard_arrow_down),
+                icon: const Icon(Icons.keyboard_arrow_down_rounded),
                 onChanged: (next) {
                   if (next == null || next == 'selected') return;
                   final branchId = next == 'all'
@@ -574,9 +579,12 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
+          dropdownColor: appDropdownColor(context),
+          borderRadius: BorderRadius.circular(14),
+          menuMaxHeight: 320,
           value: _preset,
           isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded),
           selectedItemBuilder: (_) => [
             for (final _ in kMobileDateFilterOptions)
               Align(
@@ -692,6 +700,9 @@ class _DashboardFilterSheetState extends State<_DashboardFilterSheet> {
                 if (widget.isOwner) ...[
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
+                    dropdownColor: appDropdownColor(context),
+                    borderRadius: BorderRadius.circular(14),
+                    menuMaxHeight: 320,
                     initialValue: _branchMode,
                     isExpanded: true,
                     decoration: const InputDecoration(

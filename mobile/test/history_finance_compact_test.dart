@@ -17,30 +17,36 @@ String _shiftDay(String date, int days) {
 }
 
 class _HistoryApi extends ApiClient {
+  int? detailBranchId;
+
   @override
-  Future<Map<String, dynamic>> transactionDetail(int id) async => {
-        'id': id,
-        'invoice_no': 'INV-B1-0001',
-        'transaction_date': todayWib(),
-        'created_at': '${todayWib()}T06:32:19.000Z',
-        'status': 'completed',
-        'subtotal': 400000,
-        'discount': 0,
-        'grand_total': 400000,
-        'amount_paid': 400000,
-        'change': 0,
-        'payment_method': 'cash',
-        'cashier': 'ade',
-        'items': [
-          {
-            'product_name': 'Kemeja Denim',
-            'variant_detail': 'Biru · L',
-            'quantity': 2,
-            'price': 200000,
-            'subtotal': 400000,
-          },
-        ],
-      };
+  Future<Map<String, dynamic>> transactionDetail(int id,
+      {int? branchId}) async {
+    detailBranchId = branchId;
+    return {
+      'id': id,
+      'invoice_no': 'INV-B1-0001',
+      'transaction_date': todayWib(),
+      'created_at': '${todayWib()}T06:32:19.000Z',
+      'status': 'completed',
+      'subtotal': 400000,
+      'discount': 0,
+      'grand_total': 400000,
+      'amount_paid': 400000,
+      'change': 0,
+      'payment_method': 'cash',
+      'cashier': 'ade',
+      'items': [
+        {
+          'product_name': 'Kemeja Denim',
+          'variant_detail': 'Biru · L',
+          'quantity': 2,
+          'price': 200000,
+          'subtotal': 400000,
+        },
+      ],
+    };
+  }
 
   @override
   Future<(List<dynamic>, int)> transactionsPage({
@@ -58,6 +64,7 @@ class _HistoryApi extends ApiClient {
       [
         {
           'id': 1,
+          'branch_id': 4,
           'invoice_no': 'INV-B1-0001',
           'transaction_date': today,
           'created_at': '${today}T06:32:19.000Z',
@@ -294,10 +301,11 @@ void main() {
   });
 
   testWidgets('detail transaksi tampil sebagai sheet ringkas', (tester) async {
+    final api = _HistoryApi();
     await tester.pumpWidget(MaterialApp(
       theme: app.buildAnyostoreTheme(),
       home: Scaffold(
-        body: HistoryTab(api: _HistoryApi(), role: 'kasir'),
+        body: HistoryTab(api: api, role: 'kasir'),
       ),
     ));
     await tester.pump();
@@ -314,6 +322,8 @@ void main() {
     expect(find.text('Cetak Struk'), findsOneWidget);
     expect(find.byTooltip('Tutup'), findsOneWidget);
     expect(find.textContaining('20/'), findsNothing);
+    expect(api.detailBranchId, 4,
+        reason: 'detail transaksi lintas cabang wajib mengirim branch_id');
     expect(tester.takeException(), isNull);
   });
 }

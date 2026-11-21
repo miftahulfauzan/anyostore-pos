@@ -105,7 +105,9 @@ class PosVisualApi extends ApiClient {
         1
       );
   @override
-  Future<Map<String, dynamic>> transactionDetail(int id) async => {
+  Future<Map<String, dynamic>> transactionDetail(int id,
+          {int? branchId}) async =>
+      {
         'id': id,
         'invoice_no': 'INV-20261103-B4-0008',
         'status': 'completed',

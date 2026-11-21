@@ -1,6 +1,8 @@
 // ignore_for_file: prefer_const_constructors
 
 import 'package:flutter/material.dart';
+
+import 'app_ui.dart';
 import 'package:provider/provider.dart';
 
 import 'api_client.dart';
@@ -502,9 +504,12 @@ class _MutationReportPageState extends State<MutationReportPage> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
+          dropdownColor: appDropdownColor(context),
+          borderRadius: BorderRadius.circular(14),
+          menuMaxHeight: 320,
           value: _preset,
           isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded),
           selectedItemBuilder: (_) => [
             for (final _ in kMobileDateFilterOptions)
               Align(
@@ -1041,6 +1046,9 @@ class _MutationFilterSheetState extends State<_MutationFilterSheet> {
             const SizedBox(height: 8),
             if (widget.isOwner) ...[
               DropdownButtonFormField<String>(
+                dropdownColor: appDropdownColor(context),
+                borderRadius: BorderRadius.circular(14),
+                menuMaxHeight: 320,
                 initialValue: _branchMode,
                 isExpanded: true,
                 decoration: const InputDecoration(

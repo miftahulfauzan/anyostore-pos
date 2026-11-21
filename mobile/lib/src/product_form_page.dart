@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+
+import 'app_ui.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'api_client.dart';
@@ -358,6 +360,9 @@ class _ProductFormPageState extends State<ProductFormPage> {
                     TextField(controller: _name, decoration: _dec('Nama *')),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
+                      dropdownColor: appDropdownColor(context),
+                      borderRadius: BorderRadius.circular(14),
+                      menuMaxHeight: 320,
                       isExpanded: true,
                       initialValue: _categoryId,
                       decoration: _dec('Kategori *'),
@@ -411,6 +416,9 @@ class _ProductFormPageState extends State<ProductFormPage> {
                         const SizedBox(width: 10),
                         Expanded(
                             child: DropdownButtonFormField<String>(
+                          dropdownColor: appDropdownColor(context),
+                          borderRadius: BorderRadius.circular(14),
+                          menuMaxHeight: 320,
                           isExpanded: true,
                           initialValue: _gender,
                           decoration: _dec('Gender'),

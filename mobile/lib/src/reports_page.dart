@@ -6,6 +6,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
+import 'app_ui.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
@@ -732,9 +734,12 @@ class _ReportsPageState extends State<ReportsPage> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
+          dropdownColor: appDropdownColor(context),
+          borderRadius: BorderRadius.circular(14),
+          menuMaxHeight: 320,
           value: _preset,
           isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded),
           selectedItemBuilder: (_) => [
             for (final _ in kMobileDateFilterOptions)
               Align(
@@ -2627,6 +2632,9 @@ class _ReportFilterSheetState extends State<_ReportFilterSheet> {
                 if (widget.isOwner) ...[
                   const SizedBox(height: 8),
                   DropdownButtonFormField<int?>(
+                    dropdownColor: appDropdownColor(context),
+                    borderRadius: BorderRadius.circular(14),
+                    menuMaxHeight: 320,
                     initialValue: _branchId,
                     isExpanded: true,
                     decoration: const InputDecoration(

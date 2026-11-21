@@ -146,6 +146,9 @@ class _UsersPageState extends State<UsersPage> {
                   ],
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
+                    dropdownColor: appDropdownColor(context),
+                    borderRadius: BorderRadius.circular(14),
+                    menuMaxHeight: 320,
                     initialValue: role,
                     isExpanded: true,
                     decoration: appFieldDecoration(ctx,
@@ -161,6 +164,9 @@ class _UsersPageState extends State<UsersPage> {
                   if (widget.isOwner) ...[
                     const SizedBox(height: 8),
                     DropdownButtonFormField<int?>(
+                      dropdownColor: appDropdownColor(context),
+                      borderRadius: BorderRadius.circular(14),
+                      menuMaxHeight: 320,
                       initialValue: branchId,
                       isExpanded: true,
                       decoration: appFieldDecoration(ctx,
@@ -408,6 +414,9 @@ class _UsersPageState extends State<UsersPage> {
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
             child: DropdownButtonFormField<int?>(
+              dropdownColor: appDropdownColor(context),
+              borderRadius: BorderRadius.circular(14),
+              menuMaxHeight: 320,
               initialValue: _selectedBranchId ?? widget.branchId,
               isExpanded: true,
               decoration: appFieldDecoration(context,
