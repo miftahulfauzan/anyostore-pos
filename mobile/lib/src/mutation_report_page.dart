@@ -959,7 +959,7 @@ class _MutationProductThumbnail extends StatelessWidget {
         path: path,
         baseUrl: '',
         width: 34,
-        height: 42,
+        height: 34,
         fit: BoxFit.cover,
       ),
     );

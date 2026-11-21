@@ -708,7 +708,7 @@ class _StockSectionState extends State<_StockSection> {
                                 maxCrossAxisExtent: 260,
                                 mainAxisSpacing: 10,
                                 crossAxisSpacing: 10,
-                                childAspectRatio: 0.8,
+                                childAspectRatio: 0.64,
                               ),
                               itemBuilder: (_, i) {
                                 final r = _sorted[i];
@@ -727,7 +727,8 @@ class _StockSectionState extends State<_StockSection> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.stretch,
                                     children: [
-                                      Expanded(
+                                      AspectRatio(
+                                        aspectRatio: 1,
                                         child: Stack(
                                           fit: StackFit.expand,
                                           children: [
@@ -827,7 +828,7 @@ class _StockSectionState extends State<_StockSection> {
                                         borderRadius: BorderRadius.circular(12),
                                         child: SizedBox(
                                           width: 58,
-                                          height: 72,
+                                          height: 58,
                                           child: UiProductPhoto(
                                             path: stockProductPhotoPath(r),
                                             baseUrl: widget.api.baseUrl,
@@ -1521,7 +1522,7 @@ class _InOutFormState extends State<_InOutForm> {
                           children: [
                             _InventoryThumbnail(
                                 path: _mediaUrl(stockProductPhotoPath(item)),
-                                size: const Size(38, 46)),
+                                size: const Size(38, 38)),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Column(
@@ -1965,7 +1966,7 @@ class _InOutFormState extends State<_InOutForm> {
                           crossAxisCount: 3,
                           mainAxisSpacing: 10,
                           crossAxisSpacing: 10,
-                          childAspectRatio: .68,
+                          childAspectRatio: .60,
                         ),
                         itemBuilder: (_, index) {
                           final product = _filteredCatalog[index];
@@ -1976,7 +1977,8 @@ class _InOutFormState extends State<_InOutForm> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                Expanded(
+                                AspectRatio(
+                                  aspectRatio: 1,
                                   child: ClipRRect(
                                     borderRadius: const BorderRadius.vertical(
                                         top: Radius.circular(14)),
@@ -2044,7 +2046,7 @@ class _InOutFormState extends State<_InOutForm> {
 
 class _InventoryThumbnail extends StatelessWidget {
   const _InventoryThumbnail(
-      {required this.path, this.size = const Size(48, 56)});
+      {required this.path, this.size = const Size(48, 48)});
   final String path;
   final Size size;
 
@@ -2409,7 +2411,7 @@ class _CatalogPickerState extends State<_CatalogPicker> {
                           crossAxisCount: 3,
                           mainAxisSpacing: 10,
                           crossAxisSpacing: 10,
-                          childAspectRatio: 0.72,
+                          childAspectRatio: 0.66,
                         ),
                         itemBuilder: (_, i) {
                           final p = _filtered[i];
@@ -2420,7 +2422,8 @@ class _CatalogPickerState extends State<_CatalogPicker> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                Expanded(
+                                AspectRatio(
+                                  aspectRatio: 1,
                                   child: UiProductPhoto(
                                     path: widget
                                         .mediaUrl(stockProductPhotoPath(p)),
@@ -2742,7 +2745,7 @@ class _TransferSectionState extends State<_TransferSection> {
               leading: _InventoryThumbnail(
                   path: stockProductMediaUrl(stockProductPhotoPath(item),
                       baseUrl: widget.api.baseUrl),
-                  size: const Size(42, 56)),
+                  size: const Size(42, 42)),
               onTap: () => _editItem(item, withCost: false),
               title: Text(item['name']?.toString() ?? ''),
               subtitle: Text(
@@ -2971,7 +2974,7 @@ class _OpnameSectionState extends State<_OpnameSection> {
                   stockProductPhotoPath(item),
                   baseUrl: widget.api.baseUrl,
                 ),
-                size: const Size(42, 52),
+                size: const Size(42, 42),
               ),
               onTap: () => _editItem(item),
               title: Text(item['name']?.toString() ?? ''),

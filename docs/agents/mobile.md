@@ -19,6 +19,7 @@ Aplikasi Android (Flutter, folder mobile/) sudah melalui banyak perubahan. Dokum
 
 ### Design system (file kunci: mobile/lib/src/task_ui.dart)
 - Warna: latar krem #F5F1EA, biru denim #1E3A5F (aksen utama), #2E5D8F / #5A8BBF / #7FA8CF (variasi denim), abu #8A857C, border #E7E0D6. JANGAN pakai oranye/hijau tua/ink #1c1c1c sebagai aksen.
+- Foto produk SELALU frame 1:1 di POS, daftar produk, stok, opname, transfer, dan laporan mutasi (`AspectRatio(1)` atau thumbnail persegi). Grid boleh memakai rasio kartu yang menyisakan ruang teks, tetapi area fotonya tetap persegi.
 - Liquid glass: komponen GlassCard (gradien putih transparan + border tipis; **default `frosted: false` = TANPA BackdropFilter** karena blur per kartu mahal di device lama — efek kaca tetap via gradien+border; `frosted: true` hanya untuk kartu hero tunggal seperti Login). Kartu utama di semua halaman memakai GlassCard, bukan Card polos.
 - PillTabs - tab pil: 2 menu -> satu baris dibagi 2, 3 menu -> dibagi 3, 4+ -> bisa di-slide samping (otomatis: tabs.length <= 3 pakai Row Expanded); konten ikon+label SELALU Center eksplisit (Row mainAxisSize.min di dalam Center, ellipsis kalau label kepanjangan).
 - GlassNavBar adalah komponen legacy dan tidak dipasang oleh `PosPage`. `PosPage.requestTab` tetap tersedia untuk perpindahan dari halaman lain. Widget test komponen legacy: `test/glass_nav_bar_test.dart`.
