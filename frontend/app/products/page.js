@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { Barcode, Copy, History, Pencil, Trash2 } from 'lucide-react';
 import AppShell from '../components/AppShell';
 import BarcodeLabel from '../components/BarcodeLabel';
+import CategoryManager from '../components/CategoryManager';
 import { getBarcodeValue, printBarcodeItems } from '../components/barcode-print.cjs';
 import { getProductSelectionPlacement } from './view-utils.cjs';
 import { productsQuery, productBranchQuery, bulkDeleteProducts } from './catalog-state.cjs';
@@ -42,6 +43,8 @@ export default function ProductsPage() {
   const [barcodeProduct, setBarcodeProduct] = useState(null);
   const [barcodeCopies, setBarcodeCopies] = useState(1);
   const [barcodePortalTarget, setBarcodePortalTarget] = useState(null);
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const [categoryPortalTarget, setCategoryPortalTarget] = useState(null);
   const [selected, setSelected] = useState(new Set());
   const loadSeq = useRef(0);
   const [reload, setReload] = useState(0);
@@ -53,7 +56,15 @@ export default function ProductsPage() {
 
   useEffect(() => {
     setBarcodePortalTarget(document.body);
+    setCategoryPortalTarget(document.body);
   }, []);
+
+  useEffect(() => {
+    if (!categoryOpen) return undefined;
+    const onKeyDown = (event) => { if (event.key === 'Escape') setCategoryOpen(false); };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [categoryOpen]);
 
   function changeFilter(key, value) {
     ++loadSeq.current;
@@ -200,7 +211,7 @@ export default function ProductsPage() {
   const selectionPlacement = getProductSelectionPlacement(view);
   const deletableProducts = products.filter((product) => product.capabilities?.delete);
 
-  return <AppShell title="Produk & Inventori" eyebrow="KATALOG PRODUK" actions={<><a className="button-link" href="/inventory/barcodes">Cetak Barcode</a><a className="button-link" href="/products/photos">Upload Foto Massal</a><a className="button-link" href="/products/excel">Excel Massal</a><a className="button-link" href="/products/new">Tambah Produk</a></>}>
+  return <AppShell title="Produk & Inventori" eyebrow="KATALOG PRODUK" actions={<><button type="button" className="button-link" onClick={() => setCategoryOpen(true)}>Kelola Kategori</button><a className="button-link" href="/inventory/barcodes">Cetak Barcode</a><a className="button-link" href="/products/photos">Upload Foto Massal</a><a className="button-link" href="/products/excel">Excel Massal</a><a className="button-link" href="/products/new">Tambah Produk</a></>}>
     <section className="panel catalog-panel">
       <div className="section-heading" style={{ alignItems: 'center', marginBottom: 14 }}>
         <div><h2>Daftar Produk</h2><p>Cari nama, SKU, atau barcode. Kelola foto, video, varian, dan cetak barcode dari daftar ini.</p></div>
@@ -294,5 +305,32 @@ export default function ProductsPage() {
         </div>
       </div>
     ), barcodePortalTarget)}
+
+    {categoryOpen && categoryPortalTarget && createPortal((
+      <div className="modal-backdrop" role="presentation" onClick={() => setCategoryOpen(false)}>
+        <section
+          className="panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="category-manager-title"
+          onClick={(event) => event.stopPropagation()}
+          style={{ width: '100%', maxWidth: 760, maxHeight: '90vh', overflowY: 'auto', margin: 0 }}
+        >
+          <div className="section-heading" style={{ alignItems: 'flex-start', marginBottom: 12 }}>
+            <div>
+              <h2 id="category-manager-title" style={{ margin: 0 }}>Kelola Kategori</h2>
+              <p className="muted" style={{ margin: '.25rem 0 0', fontSize: 'var(--fs-sm)' }}>Tambah, ubah, hapus, dan atur urutan kategori. Urutan ini dipakai filter katalog dan landing page.</p>
+            </div>
+            <button type="button" className="icon-action" aria-label="Tutup kelola kategori" onClick={() => setCategoryOpen(false)}>×</button>
+          </div>
+          <CategoryManager
+            api={apiUrl}
+            headers={() => ({ 'Content-Type': 'application/json' })}
+            embedded
+            onChange={() => setReload((value) => value + 1)}
+          />
+        </section>
+      </div>
+    ), categoryPortalTarget)}
   </AppShell>;
 }

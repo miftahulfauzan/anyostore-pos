@@ -13,7 +13,7 @@
 | `/login` | `login/page.js` | Login POS |
 | `/pos` | `pos/page.js` | Kasir |
 | `/history` | `history/page.js` | Riwayat + retur/batal |
-| `/products` | `products/page.js` | Daftar produk |
+| `/products` | `products/page.js` | Daftar produk + tombol **Kelola Kategori** (modal `CategoryManager`: tambah/ubah/hapus/urutan) |
 | `/products/new` | `products/new/page.js` | Tambah produk |
 | `/products/[id]/edit` | `products/[id]/edit/page.js` | Edit produk + media + varian |
 | `/inventory` | `inventory/page.js` + `stock-view.js` | Stok per produk/varian dalam matriks gudang (desktop) atau kartu (mobile), foto produk, total/agregat, filter cabang/kategori, dan edit posisi rak per gudang |
@@ -39,7 +39,7 @@
 - `AppShell.js` — layout sidebar fixed + collapsible (localStorage `pos_sidebar_collapsed`), menu per role
 - `SafeImage.js` — img dengan fallback 404 (tidak infinite loop)
 - `FloatingWA.js` — tombol WA mengambang multi-admin
-- `CategoryManager.js` — CRUD kategori (dipakai di settings)
+- `CategoryManager.js` — CRUD kategori (dipakai di `/settings` dan modal "Kelola Kategori" di `/products`; prop `embedded` melepas panel+judulnya saat di modal, `onChange` memicu muat ulang daftar produk)
 - `NotificationCenter.js`, `BarcodeLabel.js`
 
 Semua pemakaian `SafeImage` wajib mengimpor komponen tersebut secara eksplisit. `stock-view.js` pernah menyebabkan halaman stok gagal render (`ReferenceError: SafeImage is not defined`, yang dapat muncul sebagai React error #418); regression test frontend menjaga import ini tetap ada.

@@ -1004,7 +1004,7 @@ export default function StoreSettingsPage() {
               <a className="button-link" href="/settings/olsera-import">Impor Olsera</a>
             </div>
             <p className="muted" style={{ marginBottom: 0, fontSize: 'var(--fs-sm)' }}>
-              Kategori produk diatur di halaman <a href="/products">Produk</a> (Kelola kategori).
+              Kategori produk diatur di halaman <a href="/products">Produk</a> lewat tombol <strong>Kelola Kategori</strong> (tambah, ubah, hapus, dan urutan yang dipakai landing page).
             </p>
           </section>
         </>

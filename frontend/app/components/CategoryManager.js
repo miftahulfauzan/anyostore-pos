@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from 'react';
 
-export default function CategoryManager({ api, headers }) {
+// `embedded` dipakai saat komponen ditampilkan di dalam modal (halaman Produk):
+// tanpa <section className="panel"> dan <h2> sendiri karena judul disediakan modal.
+// `onChange` dipanggil setelah mutasi berhasil supaya daftar produk bisa dimuat ulang.
+export default function CategoryManager({ api, headers, embedded = false, onChange }) {
   const [categories, setCategories] = useState([]);
   const [message, setMessage] = useState('');
   const [editing, setEditing] = useState(null);
@@ -31,6 +34,7 @@ export default function CategoryManager({ api, headers }) {
       const b = await r.json();
       if (!r.ok) throw new Error(b.message);
       setMessage('Urutan kategori disimpan. Landing page mengikuti urutan ini.');
+      onChange?.();
     } catch (e) { setMessage(e.message); }
   }
 
@@ -61,6 +65,7 @@ export default function CategoryManager({ api, headers }) {
       setNewName('');
       setMessage('Kategori berhasil ditambahkan.');
       load();
+      onChange?.();
     } catch (e) { setMessage(e.message); }
   }
 
@@ -72,6 +77,7 @@ export default function CategoryManager({ api, headers }) {
       setEditing(null);
       setMessage('Kategori berhasil diperbarui.');
       load();
+      onChange?.();
     } catch (e) { setMessage(e.message); }
   }
 
@@ -83,12 +89,12 @@ export default function CategoryManager({ api, headers }) {
       if (!r.ok) throw new Error(b.message);
       setCategories((current) => current.filter((c) => c.id !== id));
       setMessage('Kategori berhasil dihapus.');
+      onChange?.();
     } catch (e) { setMessage(e.message); }
   }
 
-  return (
-    <section className="panel">
-      <h2>Kategori Produk</h2>
+  const body = (
+    <>
       <p className="muted" style={{ fontSize: 'var(--fs-sm)' }}>Tarik baris untuk mengatur urutan. Urutan ini dipakai di landing page. Kategori baru otomatis berada di urutan terakhir.</p>
 
       <form onSubmit={addCategory} style={{ display: 'flex', gap: '.5rem', marginTop: '.75rem', flexWrap: 'wrap' }}>
@@ -139,6 +145,15 @@ export default function CategoryManager({ api, headers }) {
           </tbody>
         </table>
       </div>
+    </>
+  );
+
+  if (embedded) return body;
+
+  return (
+    <section className="panel">
+      <h2>Kategori Produk</h2>
+      {body}
     </section>
   );
 }
