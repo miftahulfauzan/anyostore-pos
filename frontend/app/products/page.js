@@ -256,8 +256,6 @@ export default function ProductsPage() {
             <strong>{product.name}</strong>
             <span>{product.category_name} · {product.sku || 'Tanpa SKU'}</span>
           </div>
-          <ProductRackLocations product={product} includeBranchName={effectiveBranchId === 'all'} />
-          {Number(product.variant_count) > 0 && <div className="variant-summary"><span>{product.variant_count} varian</span>{String(product.variant_colors || '').split('|').filter(Boolean).slice(0, 4).map((color) => <i key={color} title={color}>{color}</i>)}</div>}
           <div className="product-actions">
             <button type="button" className="icon-action" aria-label={`Salin ${product.name}`} disabled={mutating || !product.capabilities?.copy} title={product.capabilities?.copy ? 'Salin produk' : 'Tidak memiliki izin salin di cabang produk ini'} onClick={() => copyProduct(product)}><Copy size={15} /></button>
             <button type="button" className="icon-action" title="Cetak barcode" aria-label={`Cetak barcode ${product.name}`} onClick={() => { setBarcodeProduct(product); setBarcodeCopies(1); }}><Barcode size={15} /></button>
@@ -265,6 +263,8 @@ export default function ProductsPage() {
             <a className="icon-action" title="Riwayat perubahan stok" aria-label={`Riwayat stok ${product.name}`} href={`/products/${product.id}/history${productBranchQuery(product)}`}><History size={15} /></a>
             <button type="button" className="icon-action danger" aria-label={`Hapus ${product.name}`} disabled={mutating || !product.capabilities?.delete} title={product.capabilities?.delete ? 'Hapus produk' : 'Tidak memiliki izin hapus di cabang produk ini'} onClick={() => deleteProduct(product)}><Trash2 size={15} /></button>
           </div>
+          <ProductRackLocations product={product} includeBranchName={effectiveBranchId === 'all'} />
+          {Number(product.variant_count) > 0 && <div className="variant-summary"><span>{product.variant_count} varian</span>{String(product.variant_colors || '').split('|').filter(Boolean).slice(0, 4).map((color) => <i key={color} title={color}>{color}</i>)}</div>}
           {(!product.capabilities?.edit || !product.capabilities?.copy || !product.capabilities?.delete) && <small className="product-permissions">Aksi yang redup tidak diizinkan untuk akun Anda di cabang produk ini.</small>}
         </div>
         <div className="product-card__inventory"><strong>Rp{Number(product.price).toLocaleString('id-ID')}</strong><span>Stok {product.stock}</span></div>

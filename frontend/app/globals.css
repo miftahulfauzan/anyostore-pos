@@ -3671,7 +3671,8 @@ html.dark body {
 .product-list.grid-view .product-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  align-content: start;
+  grid-template-rows: auto 1fr auto;
+  align-content: stretch;
   align-items: start;
   gap: 8px;
   min-width: 0;
