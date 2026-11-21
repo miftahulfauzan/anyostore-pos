@@ -471,6 +471,12 @@ class ApiClient {
   Future<Map<String, dynamic>> cashDrawerSummary() =>
       get('/cash-drawer/summary');
 
+  /// Status laci + mutasi terbaru; tidak 404 saat laci belum dibuka.
+  Future<Map<String, dynamic>> cashDrawerCurrent() async {
+    final res = await get('/cash-drawer/current');
+    return (res['data'] as Map<String, dynamic>?) ?? {};
+  }
+
   Future<Map<String, dynamic>> cashDrawerClose(
           double actualCash, String notes) =>
       put('/cash-drawer/close', {'actual_cash': actualCash, 'notes': notes});

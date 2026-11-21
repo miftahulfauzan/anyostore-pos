@@ -12,6 +12,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_client.dart';
+import 'app_ui.dart';
 import 'backup_service.dart';
 import 'category_settings_card.dart';
 import 'font_scale_controller.dart';
@@ -1356,26 +1357,52 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _backupDetailCard() {
-    return _detailCard(
+    return AppSectionCard(
+      icon: Icons.cloud_upload_outlined,
+      color: const Color(0xFF1D4ED8),
       title: 'Backup data',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-              'Simpan snapshot seluruh database ke perangkat sebelum perubahan besar.',
-              style: TextStyle(fontSize: TaskTypography.secondary)),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Backup otomatis harian',
-                style: TextStyle(fontSize: TaskTypography.label)),
-            subtitle: const Text(
-                'Berjalan saat app dibuka bila backup terakhir lebih dari 24 jam.',
-                style: TextStyle(fontSize: TaskTypography.secondary)),
-            value: _autoBackup,
-            onChanged: _toggleAutoBackup,
+      hint: 'Snapshot database',
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1D4ED8).withValues(alpha: _dark ? .16 : .07),
+            border: Border.all(
+                color: const Color(0xFF1D4ED8).withValues(alpha: .18)),
+            borderRadius: BorderRadius.circular(10),
           ),
-          const SizedBox(height: 8),
-          FilledButton.icon(
+          child: Row(
+            children: [
+              Icon(Icons.shield_outlined,
+                  size: 18,
+                  color: _dark
+                      ? const Color(0xFF93C5FD)
+                      : const Color(0xFF1D4ED8)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                    'Simpan snapshot seluruh database ke perangkat sebelum perubahan besar.',
+                    style: TextStyle(
+                        fontSize: 10.5, height: 1.45, color: ink(context))),
+              ),
+            ],
+          ),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Backup otomatis harian',
+              style: TextStyle(
+                  fontSize: TaskTypography.label, fontWeight: FontWeight.w700)),
+          subtitle: const Text(
+              'Berjalan saat app dibuka bila backup terakhir lebih dari 24 jam.',
+              style: TextStyle(fontSize: TaskTypography.secondary)),
+          value: _autoBackup,
+          onChanged: _toggleAutoBackup,
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
             onPressed: _backingUp ? null : _backupNow,
             icon: _backingUp
                 ? const SizedBox(
@@ -1384,9 +1411,14 @@ class _SettingsPageState extends State<SettingsPage> {
                     child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.save_alt, size: 18),
             label: Text(_backingUp ? 'Membackup...' : 'Backup Sekarang'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(0, 44),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(11)),
+            ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1723,111 +1755,288 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _printerDetailCard() {
-    return _detailCard(
+    final connected = _printerLabel.isNotEmpty;
+    final teal = _dark ? const Color(0xFF6EE7B7) : const Color(0xFF0F766E);
+    return AppSectionCard(
+      icon: Icons.print_outlined,
+      color: teal,
       title: 'POS & Printer',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (_canManageStore) ...[
-            DropdownButtonFormField<String>(
-              initialValue: _printerSize,
-              decoration: const InputDecoration(
-                  labelText: 'Ukuran printer', border: OutlineInputBorder()),
-              items: const [
-                DropdownMenuItem(value: '58', child: Text('58 mm')),
-                DropdownMenuItem(value: '80', child: Text('80 mm')),
-              ],
-              onChanged: (v) => setState(() => _printerSize = v ?? '80'),
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Auto-print struk setelah bayar',
-                  style: TextStyle(fontSize: TaskTypography.label)),
-              value: _autoPrint,
-              onChanged: (v) => setState(() => _autoPrint = v),
-            ),
-            FilledButton(
-              onPressed: _saving ? null : _saveSettings,
-              child: Text(_saving ? 'Menyimpan...' : 'Simpan Pengaturan POS'),
-            ),
-            const SizedBox(height: 12),
+      hint: '$_printerSize mm',
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: _dark ? const Color(0xFF162132) : const Color(0xFFFBFCFE),
+            border: Border.all(color: taskBorder(context)),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: teal.withValues(alpha: _dark ? .2 : .12),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Icon(Icons.print_outlined, size: 17, color: teal),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(connected ? 'Printer aktif' : 'Belum ada printer',
+                        style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w800,
+                            color: ink(context))),
+                    const SizedBox(height: 1),
+                    Text(
+                        connected
+                            ? _printerLabel
+                            : 'Pilih printer Bluetooth untuk mencetak struk.',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 9.5, color: taskMuted(context))),
+                  ],
+                ),
+              ),
+              AppStatusPill(
+                label: connected ? 'TERHUBUNG' : 'BELUM',
+                fg: connected
+                    ? (_dark
+                        ? const Color(0xFF86EFAC)
+                        : const Color(0xFF137A43))
+                    : (_dark
+                        ? const Color(0xFFCBD5E1)
+                        : const Color(0xFF334155)),
+                bg: connected
+                    ? (_dark
+                        ? const Color(0x2E86EFAC)
+                        : const Color(0xFFDCFCE7))
+                    : (_dark
+                        ? const Color(0x2ECBD5E1)
+                        : const Color(0xFFE2E8F0)),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text('UKURAN KERTAS',
+            style: TextStyle(
+                fontSize: 8.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: .7,
+                color: taskMuted(context))),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            for (final size in const ['58', '80']) ...[
+              if (size != '58') const SizedBox(width: 6),
+              Expanded(
+                child: InkWell(
+                  onTap: () => setState(() => _printerSize = size),
+                  borderRadius: BorderRadius.circular(9),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _printerSize == size
+                          ? Theme.of(context).colorScheme.primary
+                          : taskSurface(context),
+                      border: Border.all(
+                          color: _printerSize == size
+                              ? Theme.of(context).colorScheme.primary
+                              : taskBorder(context)),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Text('$size mm',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: _printerSize == size
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : taskMuted(context))),
+                  ),
+                ),
+              ),
+            ],
           ],
-          Row(
-            children: [
-              Icon(Icons.print, size: 18, color: ink(context)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  _printerLabel.isEmpty
-                      ? 'Belum ada printer tersimpan.'
-                      : 'Printer aktif: $_printerLabel',
-                  style: TextStyle(fontSize: 12, color: taskMuted(context)),
-                ),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Auto-print struk setelah bayar',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+          value: _autoPrint,
+          onChanged: (v) => setState(() => _autoPrint = v),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _choosePrinter,
+                icon: const Icon(Icons.bluetooth, size: 16),
+                label: const Text('Pilih Printer'),
+                style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 42),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10))),
               ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _choosePrinter,
-                  icon: const Icon(Icons.bluetooth, size: 16),
-                  label: const Text('Pilih Printer'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _testPrinter,
-                  icon: const Icon(Icons.print, size: 16),
-                  label: const Text('Uji Cetak'),
-                ),
-              ),
-            ],
-          ),
-          if (_printerLabel.isNotEmpty)
-            TextButton(
-              onPressed: _clearPrinter,
-              child: const Text('Hapus Printer Tersimpan'),
             ),
-          const SizedBox(height: 2),
-          const Text(
-              'Printer yang dipilih tersimpan otomatis dan dipakai untuk struk, barcode, dan penutupan.',
-              style: TextStyle(fontSize: TaskTypography.secondary)),
-        ],
-      ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _testPrinter,
+                icon: const Icon(Icons.print, size: 16),
+                label: const Text('Uji Cetak'),
+                style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 42),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10))),
+              ),
+            ),
+          ],
+        ),
+        if (connected)
+          TextButton(
+            onPressed: _clearPrinter,
+            child: const Text('Hapus printer tersimpan'),
+          ),
+        const SizedBox(height: 6),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: _saving ? null : _saveSettings,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(0, 44),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(11)),
+            ),
+            child: Text(_saving ? 'Menyimpan...' : 'Simpan Pengaturan POS'),
+          ),
+        ),
+      ],
     );
   }
 
   Widget _branchesDetailCard() {
-    return _detailCard(
-      title: 'Cabang & Gudang (${_branches.length})',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: FilledButton.icon(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Text('Cabang & Gudang',
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: ink(context))),
+            const SizedBox(width: 7),
+            AppStatusPill(
+              label: '${_branches.length}',
+              fg: _dark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+              bg: _dark ? const Color(0x2ECBD5E1) : const Color(0xFFE2E8F0),
+            ),
+            const Spacer(),
+            FilledButton.icon(
               onPressed: _createBranch,
-              icon: const Icon(Icons.add),
-              label: const Text('Tambah Cabang'),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Tambah'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 38),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        for (final branch in _branches) _branchRow(branch),
+      ],
+    );
+  }
+
+  Widget _branchRow(Map<String, dynamic> branch) {
+    final isWarehouse = branch['type'] == 'gudang';
+    final active = branch['is_active'] != false;
+    final isCurrent = '${branch['id']}' == '${_settings['branch_id']}';
+    final color = isWarehouse
+        ? (_dark ? const Color(0xFFFCD34D) : const Color(0xFFB45309))
+        : (_dark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8));
+    final activeStyle = active
+        ? (
+            label: 'AKTIF',
+            fg: _dark ? const Color(0xFF86EFAC) : const Color(0xFF137A43),
+            bg: _dark ? const Color(0x2E86EFAC) : const Color(0xFFDCFCE7),
+          )
+        : (
+            label: 'NONAKTIF',
+            fg: _dark ? const Color(0xFFFDA4AF) : const Color(0xFFBE123C),
+            bg: _dark ? const Color(0x2EFDA4AF) : const Color(0xFFFFE4E6),
+          );
+    return AppListCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppAvatar(
+              text: appInitial(branch['name']?.toString() ?? ''),
+              fg: color,
+              bg: color.withValues(alpha: _dark ? .2 : .12)),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(branch['name']?.toString() ?? '-',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: ink(context))),
+                const SizedBox(height: 1),
+                Text(
+                    '${branch['product_count'] ?? 0} produk · ${branch['user_count'] ?? 0} pegawai',
+                    style:
+                        TextStyle(fontSize: 10.5, color: taskMuted(context))),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: [
+                    AppStatusPill(
+                      label: isWarehouse ? 'GUDANG' : 'TOKO',
+                      fg: color,
+                      bg: color.withValues(alpha: _dark ? .2 : .12),
+                    ),
+                    AppStatusPill(
+                        label: activeStyle.label,
+                        fg: activeStyle.fg,
+                        bg: activeStyle.bg),
+                    if (isCurrent)
+                      AppStatusPill(
+                        label: 'CABANG AKTIF',
+                        fg: _dark
+                            ? const Color(0xFFCBD5E1)
+                            : const Color(0xFF334155),
+                        bg: _dark
+                            ? const Color(0x2ECBD5E1)
+                            : const Color(0xFFE2E8F0),
+                      ),
+                  ],
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 4),
-          for (final b in _branches)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(b['name']?.toString() ?? '',
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: Text(
-                  '${b['type'] ?? ''} · ${b['product_count'] ?? 0} produk · ${b['user_count'] ?? 0} pegawai'),
-              trailing: b['id'] == _settings['branch_id']
-                  ? null
-                  : IconButton(
-                      onPressed: () => _deleteBranch(b),
-                      icon: const Icon(Icons.delete_outline),
-                    ),
+          if (!isCurrent)
+            IconButton(
+              onPressed: () => _deleteBranch(branch),
+              icon: const Icon(Icons.delete_outline, size: 19),
+              color: kTaskTerracotta,
+              tooltip: 'Hapus cabang',
             ),
         ],
       ),

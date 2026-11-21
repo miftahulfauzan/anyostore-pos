@@ -864,57 +864,50 @@ class _StockSectionState extends State<_StockSection> {
                                         ),
                                       ),
                                       const SizedBox(width: 8),
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.end,
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 8, vertical: 5),
-                                            decoration: BoxDecoration(
-                                              color: stockSurface,
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
+                                      Flexible(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 5),
+                                              decoration: BoxDecoration(
+                                                color: stockSurface,
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
+                                              child: Text(
+                                                  '${switch (stockLevel) {
+                                                    InventoryStockLevel.good =>
+                                                      'Tersedia',
+                                                    InventoryStockLevel.low =>
+                                                      'Menipis',
+                                                    InventoryStockLevel.empty =>
+                                                      'Habis',
+                                                  }} · ${r['total_stock'] ?? 0}',
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      fontSize: 12,
+                                                      color: stockColor)),
                                             ),
-                                            child: Text(
-                                                'Stok ${r['total_stock'] ?? 0}',
-                                                style: TextStyle(
-                                                    fontWeight: FontWeight.w800,
-                                                    fontSize: 12,
-                                                    color: stockColor)),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                              switch (stockLevel) {
-                                                InventoryStockLevel.good =>
-                                                  'Tersedia',
-                                                InventoryStockLevel.low =>
-                                                  'Menipis',
-                                                InventoryStockLevel.empty =>
-                                                  'Habis',
-                                              },
-                                              style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Theme.of(context)
-                                                              .brightness ==
-                                                          Brightness.dark
-                                                      ? switch (stockLevel) {
-                                                          InventoryStockLevel
-                                                                .good =>
-                                                            const Color(
-                                                                0xff86EFAC),
-                                                          InventoryStockLevel
-                                                                .low =>
-                                                            const Color(
-                                                                0xffFDBA74),
-                                                          InventoryStockLevel
-                                                                .empty =>
-                                                            const Color(
-                                                                0xffFCA5A5),
-                                                        }
-                                                      : stockColor)),
-                                        ],
+                                            if (stockLevel ==
+                                                InventoryStockLevel.low) ...[
+                                              const SizedBox(height: 3),
+                                              Text('min ${r['min_stock'] ?? 0}',
+                                                  style: TextStyle(
+                                                      fontSize: 9.5,
+                                                      color:
+                                                          taskMuted(context))),
+                                            ],
+                                          ],
+                                        ),
                                       ),
                                       const SizedBox(width: 8),
                                       const _StockEditBadge(),

@@ -116,6 +116,33 @@ class _FinanceApi extends ApiClient {
 
 class _CashApi extends ApiClient {
   double? opened;
+  bool open = false;
+
+  @override
+  Future<Map<String, dynamic>> cashDrawerCurrent() async => open
+      ? {
+          'drawer': {
+            'status': 'open',
+            'opening_amount': 100000,
+            'opened_at': '2026-11-21T01:00:00.000Z',
+          },
+          'expected_cash': 250000,
+          'movements': [
+            {
+              'type': 'cash_in',
+              'amount': 50000,
+              'reason': 'Tambahan modal',
+              'created_at': '2026-11-21T02:00:00.000Z',
+            },
+            {
+              'type': 'cash_out',
+              'amount': 20000,
+              'reason': 'Beli plastik',
+              'created_at': '2026-11-21T03:00:00.000Z',
+            },
+          ],
+        }
+      : {'drawer': null, 'expected_cash': 0, 'movements': <dynamic>[]};
 
   @override
   Future<Map<String, dynamic>> cashDrawerSummary() async =>
@@ -214,6 +241,27 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
     expect(api.opened, 100000);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('laci kas terbuka menampilkan saldo dan mutasi', (tester) async {
+    final api = _CashApi()..open = true;
+    await tester.pumpWidget(MaterialApp(
+      theme: app.buildAnyostoreTheme(),
+      home: Scaffold(body: CashDrawerPage(api: api)),
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
+
+    expect(find.text('TERBUKA'), findsOneWidget);
+    expect(find.text('Rp250.000'), findsOneWidget);
+    expect(find.text('Tambahan modal'), findsOneWidget);
+    expect(find.text('Beli plastik'), findsOneWidget);
+    expect(find.text('+Rp50.000'), findsOneWidget);
+    expect(find.text('-Rp20.000'), findsOneWidget);
+    await tester.drag(find.byType(ListView), const Offset(0, -900));
+    await tester.pump();
+    expect(find.text('Tutup Laci Kas'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
