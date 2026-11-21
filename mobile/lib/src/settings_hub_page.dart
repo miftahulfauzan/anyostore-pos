@@ -134,26 +134,55 @@ class SettingsHubPage extends StatelessWidget {
   }
 
   Widget _buildGroup(BuildContext context, _SettingsHubGroup group) {
+    final groupColor = _hubColors(context, group.entries.first.section).fg;
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 5),
-            child: Text(group.title,
-                style: TextStyle(
-                    color: taskMuted(context),
-                    fontSize: TaskTypography.micro,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.1)),
+            padding: const EdgeInsets.fromLTRB(20, 0, 16, 6),
+            child: Row(
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: groupColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(group.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: taskMuted(context),
+                          fontSize: TaskTypography.micro,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.1)),
+                ),
+              ],
+            ),
           ),
           Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            // Kartu membulat per grup supaya tiap kelompok terlihat utuh;
+            // warna tetap lembut dan hanya di ikon + titik label.
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: taskSurface(context),
-              border: Border.symmetric(
-                horizontal: BorderSide(color: taskBorder(context)),
-              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: taskBorder(context)),
+              boxShadow: Theme.of(context).brightness == Brightness.light
+                  ? const [
+                      BoxShadow(
+                          color: Color(0x0A0F172A),
+                          blurRadius: 10,
+                          offset: Offset(0, 3)),
+                    ]
+                  : null,
             ),
             child: Column(
               children: [
@@ -168,8 +197,8 @@ class SettingsHubPage extends StatelessWidget {
                     Divider(
                       height: 1,
                       thickness: 1,
-                      indent: 68,
-                      endIndent: 16,
+                      indent: 60,
+                      endIndent: 12,
                       color: taskBorder(context),
                     ),
                 ],
@@ -190,29 +219,27 @@ class _SettingsHubRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = _hubColors(context, entry.section);
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 68),
+          constraints: const BoxConstraints(minHeight: 64),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
                 Container(
-                  width: 38,
-                  height: 38,
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? const Color(0xff243B53)
-                        : const Color(0xffE8F0FA),
+                    color: colors.bg,
                     borderRadius: BorderRadius.circular(11),
                   ),
-                  child: Icon(entry.icon,
-                      size: 20, color: Theme.of(context).colorScheme.primary),
+                  child: Icon(entry.icon, size: 19, color: colors.fg),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -235,8 +262,8 @@ class _SettingsHubRow extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                Icon(Icons.chevron_right, size: 22, color: taskMuted(context)),
+                const SizedBox(width: 6),
+                Icon(Icons.chevron_right, size: 20, color: taskMuted(context)),
               ],
             ),
           ),
@@ -244,6 +271,46 @@ class _SettingsHubRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Warna ikon per jenis pengaturan. Mode gelap memakai varian lebih terang
+/// dengan latar transparan agar tetap kontras di atas permukaan gelap.
+({Color fg, Color bg}) _hubColors(BuildContext context, String section) {
+  final dark = Theme.of(context).brightness == Brightness.dark;
+  return switch (section) {
+    'store' => (
+        fg: dark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8),
+        bg: dark ? const Color(0x2E93C5FD) : const Color(0xFFDBEAFE),
+      ),
+    'category' => (
+        fg: dark ? const Color(0xFFFCD34D) : const Color(0xFFB45309),
+        bg: dark ? const Color(0x2EFCD34D) : const Color(0xFFFEF3C7),
+      ),
+    'printer' => (
+        fg: dark ? const Color(0xFF6EE7B7) : const Color(0xFF0F766E),
+        bg: dark ? const Color(0x2E6EE7B7) : const Color(0xFFCCFBF1),
+      ),
+    'display' => (
+        fg: dark ? const Color(0xFFC4B5FD) : const Color(0xFF6D28D9),
+        bg: dark ? const Color(0x2EC4B5FD) : const Color(0xFFEDE9FE),
+      ),
+    'data' => (
+        fg: dark ? const Color(0xFFA5B4FC) : const Color(0xFF4338CA),
+        bg: dark ? const Color(0x2EA5B4FC) : const Color(0xFFE0E7FF),
+      ),
+    'notifications' => (
+        fg: dark ? const Color(0xFFFDA4AF) : const Color(0xFFBE123C),
+        bg: dark ? const Color(0x2EFDA4AF) : const Color(0xFFFFE4E6),
+      ),
+    'branches' => (
+        fg: dark ? const Color(0xFF86EFAC) : const Color(0xFF15803D),
+        bg: dark ? const Color(0x2E86EFAC) : const Color(0xFFDCFCE7),
+      ),
+    _ => (
+        fg: dark ? kTaskAccentDark : kTaskAccent,
+        bg: dark ? const Color(0x2E60A5FA) : const Color(0xFFDBEAFE),
+      ),
+  };
 }
 
 class _SettingsHubGroup {

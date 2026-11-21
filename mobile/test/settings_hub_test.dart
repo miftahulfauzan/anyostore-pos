@@ -74,4 +74,29 @@ void main() {
     expect(find.text('POS & Printer'), findsOneWidget);
     expect(find.text('Tampilan'), findsOneWidget);
   });
+
+  testWidgets('ikon pengaturan memakai warna berbeda per jenis',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SettingsHubPage(api: _SettingsHubApi(), role: 'owner'),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    Color? chipColor(IconData icon) {
+      final container = tester.widget<Container>(find
+          .ancestor(of: find.byIcon(icon), matching: find.byType(Container))
+          .first);
+      return (container.decoration as BoxDecoration?)?.color;
+    }
+
+    expect(chipColor(Icons.storefront_outlined), const Color(0xFFDBEAFE));
+    expect(chipColor(Icons.sell_outlined), const Color(0xFFFEF3C7));
+    expect(chipColor(Icons.print_outlined), const Color(0xFFCCFBF1));
+    expect(chipColor(Icons.display_settings_outlined), const Color(0xFFEDE9FE));
+    expect(chipColor(Icons.storage_outlined), const Color(0xFFE0E7FF));
+    expect(chipColor(Icons.account_tree_outlined), const Color(0xFFDCFCE7));
+    expect(tester.takeException(), isNull);
+  });
 }
