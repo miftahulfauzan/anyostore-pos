@@ -33,6 +33,7 @@ class _FinancePageState extends State<FinancePage> {
   String _categoryId = '';
   String _paymentMethod = '';
   final _search = TextEditingController();
+  bool _searchOpen = false;
   int _page = 1;
   int _totalPages = 1;
   int _total = 0;
@@ -516,9 +517,527 @@ class _FinancePageState extends State<FinancePage> {
     }
   }
 
+  bool get _dark => Theme.of(context).brightness == Brightness.dark;
+
+  String get _periodLabel => kMobileDateFilterOptions
+      .firstWhere((option) => option.value == _preset,
+          orElse: () => kMobileDateFilterOptions.last)
+      .label;
+
+  String get _categoryLabel {
+    for (final category in _visibleCategories) {
+      if ('${category['id']}' == _categoryId) {
+        return category['name']?.toString() ?? 'Kategori';
+      }
+    }
+    return 'Kategori';
+  }
+
+  String get _methodLabel => switch (_paymentMethod) {
+        'cash' => 'Tunai',
+        'transfer' => 'Transfer',
+        'debit' => 'Debit',
+        _ => 'Metode',
+      };
+
+  Widget _filterChip(String label, VoidCallback onTap) => Material(
+        color: taskSurface(context),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(999),
+          side: BorderSide(color: taskBorder(context)),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(999),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(label,
+                    style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: ink(context))),
+                const SizedBox(width: 5),
+                Icon(Icons.keyboard_arrow_down_rounded,
+                    size: 14, color: taskMuted(context)),
+              ],
+            ),
+          ),
+        ),
+      );
+
+  Widget _roundIcon(IconData icon,
+          {bool active = false, required VoidCallback onTap}) =>
+      Material(
+        color: active
+            ? Theme.of(context).colorScheme.primary.withValues(alpha: .1)
+            : taskSurface(context),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(999),
+          side: BorderSide(
+              color: active
+                  ? Theme.of(context).colorScheme.primary
+                  : taskBorder(context)),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: SizedBox(
+            width: 34,
+            height: 34,
+            child: Icon(icon,
+                size: 17,
+                color: active
+                    ? Theme.of(context).colorScheme.primary
+                    : taskMuted(context)),
+          ),
+        ),
+      );
+
+  Future<String?> _showChoiceSheet(
+    String title,
+    List<(String, String)> options,
+    String current,
+  ) =>
+      showModalBottomSheet<String>(
+        context: context,
+        showDragHandle: true,
+        backgroundColor: taskSurface(context),
+        builder: (ctx) => SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.only(bottom: 12),
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 2, 20, 8),
+                child: Text(title,
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: ink(ctx))),
+              ),
+              for (final option in options)
+                ListTile(
+                  dense: true,
+                  title: Text(option.$2),
+                  trailing: option.$1 == current
+                      ? Icon(Icons.check_rounded,
+                          color: Theme.of(ctx).colorScheme.primary)
+                      : null,
+                  onTap: () => Navigator.pop(ctx, option.$1),
+                ),
+            ],
+          ),
+        ),
+      );
+
+  Future<void> _choosePeriod() async {
+    final picked = await _showChoiceSheet(
+      'Periode',
+      [
+        for (final option in kMobileDateFilterOptions)
+          (option.value, option.label)
+      ],
+      _preset,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _preset = picked);
+    if (picked == 'custom') {
+      await _pickCustomRange();
+    } else {
+      _page = 1;
+      _load();
+    }
+  }
+
+  Future<void> _chooseCategory() async {
+    final picked = await _showChoiceSheet(
+      'Kategori',
+      [
+        ('', 'Semua kategori'),
+        for (final category in _visibleCategories)
+          ('${category['id']}', category['name']?.toString() ?? ''),
+      ],
+      _categoryId,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _categoryId = picked);
+    _page = 1;
+    _load();
+  }
+
+  Future<void> _chooseMethod() async {
+    final picked = await _showChoiceSheet(
+      'Metode',
+      const [
+        ('', 'Semua metode'),
+        ('cash', 'Tunai'),
+        ('transfer', 'Transfer'),
+        ('debit', 'Debit'),
+      ],
+      _paymentMethod,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _paymentMethod = picked);
+    _page = 1;
+    _load();
+  }
+
+  String _financeDayKey(Map<String, dynamic> row) {
+    final raw = (row['expense_date'] ?? row['income_date'] ?? '').toString();
+    if (raw.length >= 10) return raw.substring(0, 10);
+    final created = DateTime.tryParse((row['created_at'] ?? '').toString());
+    if (created != null) {
+      final wib = created.toUtc().add(const Duration(hours: 7));
+      return '${wib.year.toString().padLeft(4, '0')}-'
+          '${wib.month.toString().padLeft(2, '0')}-'
+          '${wib.day.toString().padLeft(2, '0')}';
+    }
+    return 'unknown';
+  }
+
+  String _financeDayLabel(String key) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des'
+    ];
+    final date = DateTime.tryParse(key);
+    if (date == null) return key;
+    final today = DateTime.tryParse(todayWib());
+    final label = '${date.day} ${months[date.month - 1]} ${date.year}';
+    if (today != null) {
+      final day = DateTime(date.year, date.month, date.day);
+      final now = DateTime(today.year, today.month, today.day);
+      if (day == now) return 'Hari ini · $label';
+      if (day == now.subtract(const Duration(days: 1))) {
+        return 'Kemarin · $label';
+      }
+    }
+    return label;
+  }
+
+  String _financeTime(Object? raw) {
+    final date = DateTime.tryParse((raw ?? '').toString());
+    if (date == null) return '';
+    final wib = date.toUtc().add(const Duration(hours: 7));
+    return '${wib.hour.toString().padLeft(2, '0')}:'
+        '${wib.minute.toString().padLeft(2, '0')}';
+  }
+
+  IconData _expenseIcon(String name) {
+    final value = name.toLowerCase();
+    if (value.contains('gudang')) return Icons.warehouse_outlined;
+    if (value.contains('trip') ||
+        value.contains('transport') ||
+        value.contains('bensin')) {
+      return Icons.local_shipping_outlined;
+    }
+    if (value.contains('makan') || value.contains('minum')) {
+      return Icons.local_cafe_outlined;
+    }
+    if (value.contains('porter') || value.contains('gaji')) {
+      return Icons.person_outline;
+    }
+    if (value.contains('listrik') || value.contains('air')) {
+      return Icons.bolt_outlined;
+    }
+    return Icons.receipt_long_outlined;
+  }
+
+  Color _expenseColor(String name) {
+    final palette = [
+      const Color(0xFFB45309),
+      const Color(0xFF1D4ED8),
+      const Color(0xFF0F766E),
+      const Color(0xFF6D28D9),
+      const Color(0xFFBE123C),
+      const Color(0xFF475569),
+    ];
+    final seed = name.codeUnits.fold<int>(0, (sum, code) => sum + code);
+    return palette[seed % palette.length];
+  }
+
+  Widget _financeSummary() {
+    final total = _rows.fold<num>(0, (sum, row) => sum + asNum(row['amount']));
+    final accent = _tab == 'income'
+        ? (_dark ? const Color(0xFF6EE7B7) : const Color(0xFF137A43))
+        : (_dark ? const Color(0xFFFDBA74) : const Color(0xFFC2410C));
+    return Container(
+      key: const ValueKey('finance-summary'),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: _dark ? .16 : .08),
+        border: Border.all(color: accent.withValues(alpha: .22)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.receipt_long_outlined, size: 14, color: accent),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text('$_total catatan',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: ink(context))),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text('Halaman $_page · ${fmtRp(total)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: taskMuted(context))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _financeDayHeader(String key, List<Map<String, dynamic>> rows) {
+    final total = rows.fold<num>(0, (sum, row) => sum + asNum(row['amount']));
+    final accent = _tab == 'income'
+        ? (_dark ? const Color(0xFF6EE7B7) : const Color(0xFF137A43))
+        : (_dark ? const Color(0xFFFDBA74) : const Color(0xFFC2410C));
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 10, 2, 6),
+      child: Row(
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(
+                color: accent, borderRadius: BorderRadius.circular(3)),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(_financeDayLabel(key),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: ink(context))),
+          ),
+          Flexible(
+            child: Text('${rows.length} catatan · ${fmtRp(total)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: taskMuted(context))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _financeRow(Map<String, dynamic> row) {
+    final isOffline = row['offline'] == true;
+    final name = (row['name'] ?? 'Tanpa keterangan').toString();
+    final category = (row['category'] ?? '').toString().trim();
+    final color = _expenseColor(category.isEmpty ? name : category);
+    final rawMethod = (row['payment_method'] ?? '').toString();
+    final method = switch (rawMethod) {
+      'cash' => 'Tunai',
+      'transfer' => 'Transfer',
+      'debit' => 'Debit',
+      _ => rawMethod.isEmpty ? 'Tunai' : rawMethod,
+    };
+    final meta = [
+      if (isOffline) 'OFFLINE',
+      method,
+      _financeTime(row['created_at']),
+      if ((row['notes'] ?? '').toString().trim().isNotEmpty)
+        (row['notes'] ?? '').toString().trim(),
+    ].where((part) => part.trim().isNotEmpty).join(' · ');
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(9, 8, 6, 8),
+        decoration: BoxDecoration(
+          color: isOffline
+              ? (_dark ? kTaskDarkBg : kTaskSurfaceMuted)
+              : taskSurface(context),
+          border: Border.all(color: taskBorder(context)),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: _dark ? .2 : .12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(_expenseIcon(category.isEmpty ? name : category),
+                  size: 16, color: color),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: ink(context))),
+                  const SizedBox(height: 2),
+                  Text(meta,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          TextStyle(fontSize: 9.5, color: taskMuted(context))),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(fmtRp(asNum(row['amount'])),
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    color: _tab == 'income'
+                        ? (_dark
+                            ? const Color(0xFF6EE7B7)
+                            : const Color(0xFF137A43))
+                        : (_dark
+                            ? const Color(0xFFFDA4AF)
+                            : const Color(0xFFBE123C)))),
+            PopupMenuButton<String>(
+              tooltip: 'Aksi',
+              padding: EdgeInsets.zero,
+              icon: Icon(Icons.more_vert, size: 18, color: taskMuted(context)),
+              onSelected: (value) {
+                if (value == 'edit') {
+                  _form(row);
+                } else if (value == 'delete') {
+                  _delete(row);
+                }
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'edit', child: Text('Edit')),
+                PopupMenuItem(value: 'delete', child: Text('Hapus')),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _financeBody() {
+    if (_loading) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 12),
+            Text('Memuat keuangan…')
+          ],
+        ),
+      );
+    }
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_error!),
+              const SizedBox(height: 12),
+              FilledButton(onPressed: _load, child: const Text('Coba lagi')),
+            ],
+          ),
+        ),
+      );
+    }
+    if (_rows.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(_tab == 'income'
+              ? 'Belum ada pemasukan pada toko ini.'
+              : 'Belum ada pengeluaran pada toko ini.'),
+        ),
+      );
+    }
+    final groups = <String, List<Map<String, dynamic>>>{};
+    for (final row in _rows) {
+      groups.putIfAbsent(_financeDayKey(row), () => []).add(row);
+    }
+    final keys = groups.keys.toList()..sort((a, b) => b.compareTo(a));
+    final items = <Widget>[_financeSummary()];
+    for (final key in keys) {
+      items.add(_financeDayHeader(key, groups[key]!));
+      for (final row in groups[key]!) {
+        items.add(_financeRow(row));
+      }
+    }
+    if (_totalPages > 1) {
+      items.add(
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                onPressed: _page > 1
+                    ? () {
+                        _page--;
+                        _load();
+                      }
+                    : null,
+                icon: const Icon(Icons.chevron_left),
+              ),
+              Text('Halaman $_page dari $_totalPages'),
+              IconButton(
+                onPressed: _page < _totalPages
+                    ? () {
+                        _page++;
+                        _load();
+                      }
+                    : null,
+                icon: const Icon(Icons.chevron_right),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return ListView(
+      padding: EdgeInsets.fromLTRB(
+          12, 10, 12, 16 + MediaQuery.of(context).padding.bottom),
+      children: items,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final visibleCategories = _visibleCategories;
     return Column(
       children: [
         Padding(
@@ -550,277 +1069,98 @@ class _FinancePageState extends State<FinancePage> {
               Row(
                 children: [
                   Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _preset,
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Periode',
-                        border: OutlineInputBorder(),
-                        isDense: true,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _filterChip(_periodLabel, _choosePeriod),
+                          const SizedBox(width: 6),
+                          _filterChip(_categoryLabel, _chooseCategory),
+                          const SizedBox(width: 6),
+                          _filterChip(_methodLabel, _chooseMethod),
+                        ],
                       ),
-                      items: [
-                        for (final option in kMobileDateFilterOptions)
-                          DropdownMenuItem(
-                              value: option.value, child: Text(option.label)),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  _roundIcon(
+                    Icons.search_rounded,
+                    active: _searchOpen,
+                    onTap: () => setState(() => _searchOpen = !_searchOpen),
+                  ),
+                  if (_canManageCategories) ...[
+                    const SizedBox(width: 4),
+                    PopupMenuButton<String>(
+                      tooltip: 'Menu lain',
+                      padding: EdgeInsets.zero,
+                      icon: Icon(Icons.more_vert,
+                          size: 18, color: taskMuted(context)),
+                      onSelected: (value) {
+                        if (value == 'category') _addExpenseCategory();
+                      },
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                            value: 'category', child: Text('Tambah kategori')),
                       ],
-                      onChanged: (value) {
-                        final next = value ?? 'month';
-                        setState(() => _preset = next);
-                        if (next == 'custom') {
-                          _pickCustomRange();
-                        } else {
-                          _page = 1;
-                          _load();
-                        }
-                      },
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: visibleCategories.any(
-                              (category) => '${category['id']}' == _categoryId)
-                          ? _categoryId
-                          : '',
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Kategori',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                      items: [
-                        const DropdownMenuItem(
-                            value: '', child: Text('Semua kategori')),
-                        for (final category in visibleCategories)
-                          DropdownMenuItem(
-                            value: '${category['id']}',
-                            child: Text(category['name']?.toString() ?? ''),
-                          ),
-                      ],
-                      onChanged: (value) {
-                        setState(() => _categoryId = value ?? '');
-                        _page = 1;
-                        _load();
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _paymentMethod,
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Metode',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                            value: '', child: Text('Semua metode')),
-                        DropdownMenuItem(value: 'cash', child: Text('Tunai')),
-                        DropdownMenuItem(
-                            value: 'transfer', child: Text('Transfer')),
-                        DropdownMenuItem(value: 'debit', child: Text('Debit')),
-                      ],
-                      onChanged: (value) {
-                        setState(() => _paymentMethod = value ?? '');
-                        _page = 1;
-                        _load();
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _search,
-                      textInputAction: TextInputAction.search,
-                      decoration: const InputDecoration(
-                        labelText: 'Cari keterangan',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                        prefixIcon: Icon(Icons.search),
-                      ),
-                      onSubmitted: (_) {
-                        _page = 1;
-                        _load();
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-          child: Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              FilledButton.icon(
-                onPressed: _form,
-                icon: const Icon(Icons.add),
-                label: Text(_tab == 'income'
-                    ? 'Tambah Pemasukan'
-                    : 'Tambah Pengeluaran'),
-              ),
-              if (_canManageCategories)
-                OutlinedButton.icon(
-                  onPressed: _addExpenseCategory,
-                  icon: const Icon(Icons.category_outlined),
-                  label: const Text('Kategori'),
-                ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: _loading
-              ? const Center(
-                  child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 12),
-                    Text('Memuat keuangan…')
                   ],
-                ))
-              : _error != null
-                  ? Center(
-                      child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        Text(_error!),
-                        const SizedBox(height: 12),
-                        FilledButton(
-                            onPressed: _load, child: const Text('Coba lagi')),
-                      ]),
-                    ))
-                  : _rows.isEmpty
-                      ? Center(
-                          child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Text(_tab == 'income'
-                              ? 'Belum ada pemasukan pada toko ini.'
-                              : 'Belum ada pengeluaran pada toko ini.'),
-                        ))
-                      : ListView.separated(
-                          padding: EdgeInsets.fromLTRB(12, 12, 12,
-                              16 + MediaQuery.of(context).padding.bottom),
-                          itemCount: _rows.length + (_totalPages > 1 ? 2 : 1),
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 8),
-                          itemBuilder: (_, i) {
-                            if (i == 0) {
-                              return GlassCard(
-                                key: const ValueKey('finance-summary'),
-                                radius: 20,
-                                padding: const EdgeInsets.all(20),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                        _tab == 'income'
-                                            ? 'Catatan pemasukan'
-                                            : 'Catatan pengeluaran',
-                                        style: TextStyle(
-                                            color: taskMuted(context))),
-                                    const SizedBox(height: 6),
-                                    Text('$_total catatan',
-                                        style: const TextStyle(
-                                            fontSize: TaskTypography.display,
-                                            fontWeight: FontWeight.w800,
-                                            color: kTaskPurple)),
-                                  ],
-                                ),
-                              );
-                            }
-                            if (i == _rows.length + 1) {
-                              return Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  IconButton(
-                                    onPressed: _page > 1
-                                        ? () {
-                                            _page--;
-                                            _load();
-                                          }
-                                        : null,
-                                    icon: const Icon(Icons.chevron_left),
-                                  ),
-                                  Text('Halaman $_page dari $_totalPages'),
-                                  IconButton(
-                                    onPressed: _page < _totalPages
-                                        ? () {
-                                            _page++;
-                                            _load();
-                                          }
-                                        : null,
-                                    icon: const Icon(Icons.chevron_right),
-                                  ),
-                                ],
-                              );
-                            }
-                            final row = _rows[i - 1];
-                            final subtitle = [
-                              if (row['offline'] == true) 'OFFLINE',
-                              row['category']?.toString() ?? '',
-                              row['expense_date']?.toString() ?? '',
-                              row['payment_method']?.toString() ?? '',
-                              row['notes']?.toString() ?? '',
-                            ]
-                                .where((value) => value.trim().isNotEmpty)
-                                .join(' · ');
-                            return GlassCard(
-                              padding: EdgeInsets.zero,
-                              child: ListTile(
-                                tileColor: row['offline'] == true
-                                    ? (Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? kTaskDarkBg
-                                        : kTaskSurfaceMuted)
-                                    : null,
-                                title: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(fmtRp(asNum(row['amount'])),
-                                        style: TextStyle(
-                                            fontSize:
-                                                TaskTypography.sectionTitle,
-                                            fontWeight: FontWeight.w800,
-                                            color: ink(context))),
-                                    Text(row['name']?.toString() ?? '',
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w700)),
-                                  ],
-                                ),
-                                subtitle: Text(subtitle),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      onPressed: () => _form(row),
-                                      icon: const Icon(Icons.edit_outlined,
-                                          size: 18),
-                                      tooltip: 'Edit',
-                                    ),
-                                    IconButton(
-                                      onPressed: () => _delete(row),
-                                      icon: const Icon(Icons.delete_outline,
-                                          size: 18, color: kTaskTerracotta),
-                                      tooltip: 'Hapus',
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
+                  const SizedBox(width: 4),
+                  Tooltip(
+                    message: _tab == 'income'
+                        ? 'Tambah Pemasukan'
+                        : 'Tambah Pengeluaran',
+                    child: Material(
+                      color: Theme.of(context).colorScheme.primary,
+                      borderRadius: BorderRadius.circular(10),
+                      child: InkWell(
+                        onTap: _form,
+                        borderRadius: BorderRadius.circular(10),
+                        child: SizedBox(
+                          width: 34,
+                          height: 34,
+                          child: Icon(Icons.add,
+                              size: 18,
+                              color: Theme.of(context).colorScheme.onPrimary),
                         ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (_searchOpen) ...[
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _search,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Cari keterangan',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                    prefixIcon: Icon(Icons.search),
+                  ).copyWith(
+                    suffixIcon: IconButton(
+                      onPressed: () {
+                        setState(() {
+                          _search.clear();
+                          _searchOpen = false;
+                        });
+                        _page = 1;
+                        _load();
+                      },
+                      icon: const Icon(Icons.close),
+                      tooltip: 'Tutup pencarian',
+                    ),
+                  ),
+                  onSubmitted: (_) {
+                    _page = 1;
+                    _load();
+                  },
+                ),
+              ],
+            ],
+          ),
         ),
+        Expanded(child: _financeBody()),
       ],
     );
   }

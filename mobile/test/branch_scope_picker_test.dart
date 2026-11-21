@@ -135,6 +135,9 @@ void main() {
     await _settle(tester);
 
     expect(BranchScope.active.value, 7);
+    // Sidebar menutup otomatis setelah toko dipilih.
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('sidebar-branch-scope')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

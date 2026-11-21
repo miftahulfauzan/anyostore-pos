@@ -304,11 +304,16 @@ void main() {
         expect(find.byKey(const ValueKey('finance-summary')), findsOneWidget);
         expect(find.text('1 catatan'), findsOneWidget);
         expect(find.text('Ongkir denim'), findsWidgets);
-        expect(find.byTooltip('Edit'), findsOneWidget);
-        expect(find.byTooltip('Hapus'), findsOneWidget);
+        // Aksi edit/hapus ada di menu ⋮ agar baris tetap ringkas.
+        await tester.tap(find.byTooltip('Aksi').first);
+        await tester.pumpAndSettle();
+        expect(find.text('Edit'), findsOneWidget);
+        expect(find.text('Hapus'), findsOneWidget);
+        await tester.tapAt(const Offset(8, 8));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Pemasukan'));
         await tester.pumpAndSettle();
-        expect(find.text('Tambah Pemasukan'), findsOneWidget);
+        expect(find.byTooltip('Tambah Pemasukan'), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
     }
@@ -440,7 +445,7 @@ void main() {
     await tester.tap(find.text('Coba lagi'));
     await tester.pumpAndSettle();
     expect(find.text('Belum ada pengeluaran pada toko ini.'), findsOneWidget);
-    expect(find.text('Tambah Pengeluaran'), findsOneWidget);
+    expect(find.byTooltip('Tambah Pengeluaran'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

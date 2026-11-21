@@ -1175,7 +1175,11 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
                           ),
                         ),
                     ],
-                    onChanged: (value) => BranchScope.request(context, value),
+                    onChanged: (value) async {
+                      final changed = await BranchScope.request(context, value);
+                      if (!changed || !context.mounted) return;
+                      Scaffold.maybeOf(context)?.closeDrawer();
+                    },
                   ),
                 ),
               ),

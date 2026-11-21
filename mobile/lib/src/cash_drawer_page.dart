@@ -143,9 +143,13 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
                 TextField(
                     controller: _moveAmount,
                     keyboardType: TextInputType.number,
+                    onChanged: (_) => setState(() {}),
                     decoration: _dec('Nominal', prefix: 'Rp ')),
                 const SizedBox(height: 8),
-                TextField(controller: _moveReason, decoration: _dec('Alasan')),
+                TextField(
+                    controller: _moveReason,
+                    onChanged: (_) => setState(() {}),
+                    decoration: _dec('Alasan')),
                 const SizedBox(height: 10),
                 FilledButton(
                   onPressed: _saving ||
@@ -159,7 +163,9 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
                       foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14))),
-                  child: const Text('Simpan Kas Masuk'),
+                  child: Text(_moveType == 'cash-in'
+                      ? 'Simpan Kas Masuk'
+                      : 'Simpan Kas Keluar'),
                 ),
               ],
             ),
@@ -170,6 +176,7 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
                 TextField(
                     controller: _closeAmount,
                     keyboardType: TextInputType.number,
+                    onChanged: (_) => setState(() {}),
                     decoration: _dec('Kas aktual', prefix: 'Rp ')),
                 const SizedBox(height: 8),
                 TextField(
@@ -199,6 +206,7 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
                 TextField(
                     controller: _openAmount,
                     keyboardType: TextInputType.number,
+                    onChanged: (_) => setState(() {}),
                     decoration: _dec('Modal awal', prefix: 'Rp ')),
                 const SizedBox(height: 10),
                 FilledButton(

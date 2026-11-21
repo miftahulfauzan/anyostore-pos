@@ -37,11 +37,13 @@ class _HistoryTabState extends State<HistoryTab> {
   DateTime? _customStart;
   DateTime? _customEnd;
   String _status = '';
+  bool _searchOpen = false;
   int _loadGeneration = 0;
   int? _scopeBranchId;
   final _search = TextEditingController();
 
   bool get _canCancel => ['owner', 'manager', 'admin'].contains(widget.role);
+  bool get _dark => Theme.of(context).brightness == Brightness.dark;
   bool get _isOwner => widget.role == 'owner';
 
   @override
@@ -884,96 +886,62 @@ class _HistoryTabState extends State<HistoryTab> {
               ),
               if (_section == 'transaksi')
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
                   child: Column(
                     children: [
+                      const SizedBox(height: 4),
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
-                              initialValue: _preset,
-                              isExpanded: true,
-                              decoration: _dec('Rentang'),
-                              items: const [
-                                DropdownMenuItem(
-                                    value: 'today', child: Text('Hari ini')),
-                                DropdownMenuItem(
-                                    value: 'yesterday', child: Text('Kemarin')),
-                                DropdownMenuItem(
-                                    value: 'last7', child: Text('7 hari')),
-                                DropdownMenuItem(
-                                    value: 'last30', child: Text('30 hari')),
-                                DropdownMenuItem(
-                                    value: 'thisMonth',
-                                    child: Text('Bulan ini')),
-                                DropdownMenuItem(
-                                    value: 'previousMonth',
-                                    child: Text('Bulan lalu')),
-                                DropdownMenuItem(
-                                    value: 'custom', child: Text('Kustom')),
-                                DropdownMenuItem(
-                                    value: 'all', child: Text('Semua')),
-                              ],
-                              onChanged: (v) {
-                                final next = v ?? 'thisMonth';
-                                setState(() => _preset = next);
-                                if (next == 'custom') {
-                                  _pickCustomRange();
-                                } else {
-                                  _page = 1;
-                                  _load();
-                                }
-                              },
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  _filterChip(_presetLabel, _choosePreset),
+                                  const SizedBox(width: 6),
+                                  _filterChip(_statusLabel, _chooseStatus),
+                                ],
+                              ),
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              initialValue: _status,
-                              isExpanded: true,
-                              decoration: _dec('Status'),
-                              items: const [
-                                DropdownMenuItem(
-                                    value: '', child: Text('Semua status')),
-                                DropdownMenuItem(
-                                    value: 'completed',
-                                    child: Text('Completed')),
-                                DropdownMenuItem(
-                                    value: 'partially_cancelled',
-                                    child: Text('Sebagian dibatalkan')),
-                                DropdownMenuItem(
-                                    value: 'cancelled',
-                                    child: Text('Dibatalkan')),
-                                DropdownMenuItem(
-                                    value: 'refunded', child: Text('Refunded')),
-                                DropdownMenuItem(
-                                    value: 'partially_refunded',
-                                    child: Text('Retur sebagian')),
-                              ],
-                              onChanged: (v) {
-                                setState(() => _status = v ?? '');
-                                _load();
-                              },
-                            ),
+                          const SizedBox(width: 6),
+                          _roundIcon(
+                            Icons.search_rounded,
+                            active: _searchOpen,
+                            onTap: () =>
+                                setState(() => _searchOpen = !_searchOpen),
                           ),
+                          const SizedBox(width: 6),
+                          _roundIcon(Icons.qr_code_scanner_rounded,
+                              onTap: _openScanner),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _search,
-                        decoration:
-                            _dec('Cari invoice / nama', hint: true).copyWith(
-                          suffixIcon: IconButton(
-                            onPressed: _openScanner,
-                            icon: const Icon(Icons.qr_code_scanner),
-                            tooltip: 'Scan barcode invoice',
+                      if (_searchOpen) ...[
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _search,
+                          autofocus: true,
+                          decoration:
+                              _dec('Cari invoice / nama', hint: true).copyWith(
+                            suffixIcon: IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  _search.clear();
+                                  _searchOpen = false;
+                                });
+                                _page = 1;
+                                _load();
+                              },
+                              icon: const Icon(Icons.close),
+                              tooltip: 'Tutup pencarian',
+                            ),
                           ),
+                          onSubmitted: (_) {
+                            _page = 1;
+                            _load();
+                          },
                         ),
-                        onSubmitted: (_) {
-                          _page = 1;
-                          _load();
-                        },
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -981,6 +949,400 @@ class _HistoryTabState extends State<HistoryTab> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  String get _presetLabel => switch (_preset) {
+        'today' => 'Hari ini',
+        'yesterday' => 'Kemarin',
+        'last7' || '7d' => '7 hari',
+        'last30' || '30d' => '30 hari',
+        'previousMonth' || 'bulan_lalu' => 'Bulan lalu',
+        'custom' => 'Kustom',
+        'all' => 'Semua',
+        _ => 'Bulan ini',
+      };
+
+  String get _statusLabel => switch (_status) {
+        'completed' => 'Selesai',
+        'partially_cancelled' => 'Sebagian dibatalkan',
+        'cancelled' => 'Dibatalkan',
+        'refunded' => 'Retur penuh',
+        'partially_refunded' => 'Retur sebagian',
+        _ => 'Semua status',
+      };
+
+  Widget _filterChip(String label, VoidCallback onTap) => Material(
+        color: taskSurface(context),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(999),
+          side: BorderSide(color: taskBorder(context)),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(999),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(label,
+                    style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: ink(context))),
+                const SizedBox(width: 5),
+                Icon(Icons.keyboard_arrow_down_rounded,
+                    size: 14, color: taskMuted(context)),
+              ],
+            ),
+          ),
+        ),
+      );
+
+  Widget _roundIcon(IconData icon,
+          {bool active = false, required VoidCallback onTap}) =>
+      Material(
+        color: active
+            ? Theme.of(context).colorScheme.primary.withValues(alpha: .1)
+            : taskSurface(context),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(999),
+          side: BorderSide(
+              color: active
+                  ? Theme.of(context).colorScheme.primary
+                  : taskBorder(context)),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: SizedBox(
+            width: 34,
+            height: 34,
+            child: Icon(icon,
+                size: 17,
+                color: active
+                    ? Theme.of(context).colorScheme.primary
+                    : taskMuted(context)),
+          ),
+        ),
+      );
+
+  Future<String?> _showChoiceSheet(
+    String title,
+    List<(String, String)> options,
+    String current,
+  ) =>
+      showModalBottomSheet<String>(
+        context: context,
+        showDragHandle: true,
+        backgroundColor: taskSurface(context),
+        builder: (ctx) => SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.only(bottom: 12),
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 2, 20, 8),
+                child: Text(title,
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: ink(ctx))),
+              ),
+              for (final option in options)
+                ListTile(
+                  dense: true,
+                  title: Text(option.$2),
+                  trailing: option.$1 == current
+                      ? Icon(Icons.check_rounded,
+                          color: Theme.of(ctx).colorScheme.primary)
+                      : null,
+                  onTap: () => Navigator.pop(ctx, option.$1),
+                ),
+            ],
+          ),
+        ),
+      );
+
+  Future<void> _choosePreset() async {
+    final picked = await _showChoiceSheet(
+      'Rentang transaksi',
+      const [
+        ('today', 'Hari ini'),
+        ('yesterday', 'Kemarin'),
+        ('last7', '7 hari'),
+        ('last30', '30 hari'),
+        ('thisMonth', 'Bulan ini'),
+        ('previousMonth', 'Bulan lalu'),
+        ('custom', 'Kustom'),
+        ('all', 'Semua'),
+      ],
+      _preset,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _preset = picked);
+    if (picked == 'custom') {
+      await _pickCustomRange();
+    } else {
+      _page = 1;
+      _load();
+    }
+  }
+
+  Future<void> _chooseStatus() async {
+    final picked = await _showChoiceSheet(
+      'Status transaksi',
+      const [
+        ('', 'Semua status'),
+        ('completed', 'Selesai'),
+        ('partially_cancelled', 'Sebagian dibatalkan'),
+        ('cancelled', 'Dibatalkan'),
+        ('refunded', 'Retur penuh'),
+        ('partially_refunded', 'Retur sebagian'),
+      ],
+      _status,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _status = picked);
+    _page = 1;
+    _load();
+  }
+
+  String _historyDayKey(Map<String, dynamic> row) {
+    final raw = (row['transaction_date'] ?? '').toString();
+    if (raw.length >= 10) return raw.substring(0, 10);
+    final created = DateTime.tryParse((row['created_at'] ?? '').toString());
+    if (created != null) {
+      final wib = created.toUtc().add(const Duration(hours: 7));
+      return '${wib.year.toString().padLeft(4, '0')}-'
+          '${wib.month.toString().padLeft(2, '0')}-'
+          '${wib.day.toString().padLeft(2, '0')}';
+    }
+    return 'unknown';
+  }
+
+  String _historyDayLabel(String key) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des'
+    ];
+    final date = DateTime.tryParse(key);
+    if (date == null) return key;
+    final today = DateTime.tryParse(todayWib());
+    final label = '${date.day} ${months[date.month - 1]} ${date.year}';
+    if (today != null) {
+      final day = DateTime(date.year, date.month, date.day);
+      final now = DateTime(today.year, today.month, today.day);
+      if (day == now) return 'Hari ini · $label';
+      if (day == now.subtract(const Duration(days: 1))) {
+        return 'Kemarin · $label';
+      }
+    }
+    return label;
+  }
+
+  String _historyTime(Object? raw) {
+    final date = DateTime.tryParse((raw ?? '').toString());
+    if (date == null) return '';
+    final wib = date.toUtc().add(const Duration(hours: 7));
+    return '${wib.hour.toString().padLeft(2, '0')}:'
+        '${wib.minute.toString().padLeft(2, '0')}';
+  }
+
+  Widget _historySummary() {
+    final total =
+        _rows.fold<num>(0, (sum, row) => sum + asNum(row['grand_total']));
+    final accent = _dark ? kTaskAccentDark : kTaskAccent;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: _dark ? .16 : .08),
+        border: Border.all(color: accent.withValues(alpha: .22)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.bar_chart_rounded, size: 14, color: accent),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text('Halaman $_page · ${_rows.length} transaksi',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: ink(context))),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(fmtRp(total),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: taskMuted(context))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dayHeader(String key, List<Map<String, dynamic>> rows) {
+    final total =
+        rows.fold<num>(0, (sum, row) => sum + asNum(row['grand_total']));
+    final accent = _dark ? kTaskAccentDark : kTaskAccent;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 10, 2, 6),
+      child: Row(
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(
+                color: accent, borderRadius: BorderRadius.circular(3)),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(_historyDayLabel(key),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: ink(context))),
+          ),
+          Flexible(
+            child: Text('${rows.length} trx · ${fmtRp(total)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: taskMuted(context))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _historyRow(Map<String, dynamic> row) {
+    final isOffline = row['offline'] == true;
+    final status = isOffline ? 'offline' : (row['status'] ?? '').toString();
+    final dark = _dark;
+    final (iconBg, iconFg) = switch (status) {
+      'completed' => (
+          dark ? const Color(0x332563EB) : kTaskBlueLight,
+          dark ? kTaskAccentDark : kTaskDark
+        ),
+      'cancelled' => (
+          dark ? const Color(0x33EA580C) : const Color(0xFFF8E9E4),
+          dark ? const Color(0xFFF2B8A5) : kTaskTerracotta
+        ),
+      'partially_refunded' || 'refunded' => (
+          dark ? const Color(0x337C3AED) : kTaskPurpleLight,
+          dark ? const Color(0xFFC4B5FD) : kTaskPurple
+        ),
+      'offline' => (
+          dark ? const Color(0x33F59E0B) : kTaskStockLowSurface,
+          dark ? const Color(0xFFFCD34D) : kTaskStockLow
+        ),
+      _ => (
+          dark ? const Color(0x33F59E0B) : kTaskStockLowSurface,
+          dark ? const Color(0xFFFCD34D) : kTaskStockLow
+        ),
+    };
+    final meta = [
+      _historyTime(row['created_at']),
+      (row['payment_method'] ?? '').toString().toUpperCase(),
+      if ((row['cashier'] ?? '').toString().trim().isNotEmpty)
+        'Kasir: ${row['cashier']}',
+      if (isOffline) 'Belum tersinkron',
+    ].where((part) => part.trim().isNotEmpty).join(' · ');
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Material(
+        color: taskSurface(context),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: isOffline
+              ? () {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text(
+                          'Transaksi offline belum tersinkron. Data lengkap tampil setelah internet kembali.')));
+                }
+              : () => _openDetail(row),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(9, 8, 9, 8),
+            decoration: BoxDecoration(
+              border: Border.all(color: taskBorder(context)),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: iconBg,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(isOffline ? Icons.cloud_off : Icons.receipt,
+                      size: 16, color: iconFg),
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(row['invoice_no']?.toString() ?? '-',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                              color: ink(context))),
+                      const SizedBox(height: 2),
+                      Text(meta,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 9.5, color: taskMuted(context))),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(fmtRp(asNum(row['grand_total'])),
+                        style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w800,
+                            color: ink(context))),
+                    const SizedBox(height: 3),
+                    _StatusChip(isOffline ? 'offline' : status),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1032,63 +1394,53 @@ class _HistoryTabState extends State<HistoryTab> {
     if (_rows.isEmpty) {
       return const Center(child: Text('Tidak ada transaksi'));
     }
+    final groups = <String, List<Map<String, dynamic>>>{};
+    for (final row in _rows) {
+      groups.putIfAbsent(_historyDayKey(row), () => []).add(row);
+    }
+    final keys = groups.keys.toList()..sort((a, b) => b.compareTo(a));
+    final items = <Widget>[_historySummary()];
+    for (final key in keys) {
+      items.add(_dayHeader(key, groups[key]!));
+      for (final row in groups[key]!) {
+        items.add(_historyRow(row));
+      }
+    }
+    items.add(
+      Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              onPressed: _page > 1
+                  ? () {
+                      _page--;
+                      _load();
+                    }
+                  : null,
+              icon: const Icon(Icons.chevron_left),
+            ),
+            Text('Halaman $_page'),
+            IconButton(
+              onPressed: _page < _totalPages
+                  ? () {
+                      _page++;
+                      _load();
+                    }
+                  : null,
+              icon: const Icon(Icons.chevron_right),
+            ),
+          ],
+        ),
+      ),
+    );
     return RefreshIndicator(
       onRefresh: _load,
-      child: ListView.separated(
+      child: ListView(
         padding: EdgeInsets.fromLTRB(
             12, 12, 12, 16 + MediaQuery.of(context).padding.bottom),
-        itemCount: _rows.length + 1,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (_, i) {
-          if (i == _rows.length) {
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  onPressed: _page > 1
-                      ? () {
-                          _page--;
-                          _load();
-                        }
-                      : null,
-                  icon: const Icon(Icons.chevron_left),
-                ),
-                Text('Halaman $_page'),
-                IconButton(
-                  onPressed: _page < _totalPages
-                      ? () {
-                          _page++;
-                          _load();
-                        }
-                      : null,
-                  icon: const Icon(Icons.chevron_right),
-                ),
-              ],
-            );
-          }
-          final row = _rows[i];
-          final isOffline = row['offline'] == true;
-          final status = (row['status'] ?? '').toString();
-          return _TxCard(
-            icon: isOffline ? Icons.cloud_off : Icons.receipt,
-            iconBg: isOffline ? kTaskStockLowSurface : kTaskBlueLight,
-            iconFg: isOffline ? kTaskTerracotta : kTaskDark,
-            title: row['invoice_no']?.toString() ?? '-',
-            subtitle:
-                'Tgl ${_dateLabel(row['transaction_date']?.toString())} · ${row['created_at'] ?? ''} · ${isOffline ? 'Belum tersinkron' : (row['payment_method'] ?? '').toString().toUpperCase()}'
-                '${row['cashier'] != null && (row['cashier'] as String).isNotEmpty ? ' · Kasir: ${row['cashier']}' : ''}',
-            trailing: fmtRp(asNum(row['grand_total'])),
-            status: isOffline ? 'offline' : status,
-            offline: isOffline,
-            onTap: isOffline
-                ? () {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text(
-                            'Transaksi offline belum tersinkron. Data lengkap tampil setelah internet kembali.')));
-                  }
-                : () => _openDetail(row),
-          );
-        },
+        children: items,
       ),
     );
   }
@@ -1104,8 +1456,7 @@ class _TxCard extends StatelessWidget {
       required this.trailing,
       this.status,
       this.extra,
-      this.onTap,
-      this.offline = false});
+      this.onTap});
   final IconData icon;
   final Color iconBg;
   final Color iconFg;
@@ -1115,7 +1466,6 @@ class _TxCard extends StatelessWidget {
   final String? status;
   final Widget? extra;
   final VoidCallback? onTap;
-  final bool offline;
 
   @override
   Widget build(BuildContext context) {

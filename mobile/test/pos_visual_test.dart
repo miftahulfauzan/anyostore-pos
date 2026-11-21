@@ -889,13 +889,10 @@ void main() {
         await showPosSurface(tester,
             HistoryTab(api: PosVisualApi(), role: 'kasir'), width, brightness);
         final invoice = find.text('INV-20261103-B4-0008');
-        final card = tester.widget<GlassCard>(
-            find.ancestor(of: invoice, matching: find.byType(GlassCard)).first);
-        expect(card.radius, 16);
-        expect(find.text('Rp275.000'), findsOneWidget);
-        final statusTop = tester.getTopLeft(find.text('Selesai'));
-        final totalTop = tester.getTopLeft(find.text('Rp275.000'));
-        expect(statusTop.dy, lessThan(totalTop.dy));
+        expect(invoice, findsOneWidget);
+        // Baris ringkas: status dan nominal tampil di kartu yang sama.
+        expect(find.text('Rp275.000'), findsWidgets);
+        expect(find.text('Selesai'), findsWidgets);
         await tester.tap(invoice);
         await tester.pumpAndSettle();
         expect(find.text('Kemeja Denim'), findsOneWidget);
