@@ -325,7 +325,7 @@ class _CommissionsPageState extends State<CommissionsPage> {
                     ],
                     onChanged: (v) {
                       if (v != null && BranchScope.active.value != v) {
-                        unawaited(BranchScope.set(v));
+                        unawaited(BranchScope.request(context, v));
                       }
                     },
                   ),

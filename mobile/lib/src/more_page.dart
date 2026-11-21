@@ -994,33 +994,6 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
     return options;
   }
 
-  Future<void> _choose(int? value) async {
-    if (value == BranchScope.active.value) return;
-    final pending = BranchScope.pendingItems;
-    if (pending > 0) {
-      final proceed = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Pindah toko?'),
-          content: Text(
-              'Keranjang POS berisi $pending pcs. Draft akan disimpan dan keranjang dikosongkan.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Batal'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Simpan & pindah'),
-            ),
-          ],
-        ),
-      );
-      if (proceed != true) return;
-    }
-    await BranchScope.set(value);
-  }
-
   @override
   void dispose() {
     BranchScope.active.removeListener(_onBranchScopeChanged);
@@ -1202,7 +1175,7 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
                           ),
                         ),
                     ],
-                    onChanged: _choose,
+                    onChanged: (value) => BranchScope.request(context, value),
                   ),
                 ),
               ),

@@ -2033,7 +2033,8 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
                       isOwner: context.read<AuthStore>().role == 'owner',
                       branches: _branches,
                       posBranchId: _posBranchId,
-                      onBranchChanged: (v) => unawaited(BranchScope.set(v)),
+                      onBranchChanged: (v) =>
+                          unawaited(BranchScope.request(context, v)),
                       warehouses: _warehouses,
                       warehouseId: _warehouseId,
                       onWarehouseChanged: (v) =>

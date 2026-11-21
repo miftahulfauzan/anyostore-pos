@@ -485,7 +485,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       : next == 'own'
                           ? context.read<AuthStore>().branchId
                           : int.tryParse(next.replaceFirst('branch-', ''));
-                  unawaited(BranchScope.set(branchId));
+                  unawaited(BranchScope.request(context, branchId));
                 },
                 selectedItemBuilder: (_) => [
                   for (final item in branchItems)
@@ -621,7 +621,7 @@ class _DashboardPageState extends State<DashboardPage> {
               : branchMode == 'own'
                   ? context.read<AuthStore>().branchId
                   : int.tryParse(branchMode.replaceFirst('branch-', ''));
-          unawaited(BranchScope.set(selectedBranch));
+          unawaited(BranchScope.request(context, selectedBranch));
         },
       ),
     );
