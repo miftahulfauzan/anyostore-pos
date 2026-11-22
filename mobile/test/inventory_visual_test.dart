@@ -102,7 +102,7 @@ void main() {
   for (final width in [320.0, 390.0]) {
     for (final brightness in Brightness.values) {
       final variant = '$width ${brightness.name}';
-      testWidgets('stock cards, grid, search and warehouse controls $variant',
+      testWidgets('stock hero, filter, search and warehouse controls $variant',
           (tester) async {
         final api = VisualInventoryApi()..missingStockPhoto = true;
         await mountInventory(
@@ -112,15 +112,15 @@ void main() {
             width,
             brightness);
         expect(find.text('Denim'), findsOneWidget);
+        expect(find.text('TOTAL STOK'), findsOneWidget);
         expectSolidCards(tester, brightness);
         await tester.tap(find.byTooltip('Pilih gudang'));
         await tester.pumpAndSettle();
         expect(find.text('Gudang B'), findsWidgets);
         await tester.tap(find.text('Gudang B').last);
         await tester.pumpAndSettle();
-        await tester.tap(find.byIcon(Icons.grid_view_outlined));
-        await tester.pumpAndSettle();
         expect(find.text('Denim'), findsOneWidget);
+        expect(find.text('AMAN'), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
 

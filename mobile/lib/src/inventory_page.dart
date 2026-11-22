@@ -10,7 +10,9 @@ import 'branch_scope.dart';
 import 'format.dart';
 import 'printer_service.dart';
 import 'product_form_page.dart';
+import 'stock_status_donut.dart';
 import 'task_ui.dart';
+import 'transfer_history_page.dart';
 import 'media_helpers.dart';
 import 'ui_kit.dart';
 
@@ -191,7 +193,8 @@ class _InventoryPageState extends State<InventoryPage> {
                       api: widget.api,
                       branchId: _activeBranchId,
                       isOwner: widget.isOwner,
-                      canViewAllWarehouses: widget.role == 'gudang'),
+                      canViewAllWarehouses: widget.role == 'gudang',
+                      role: widget.role),
                   'mutasi' => _MutasiSection(
                       key: ValueKey(_activeBranchId),
                       api: widget.api,
@@ -243,11 +246,13 @@ class _StockSection extends StatefulWidget {
       required this.api,
       required this.branchId,
       this.isOwner = false,
-      this.canViewAllWarehouses = false});
+      this.canViewAllWarehouses = false,
+      this.role});
   final ApiClient api;
   final int branchId;
   final bool isOwner;
   final bool canViewAllWarehouses;
+  final String? role;
 
   @override
   State<_StockSection> createState() => _StockSectionState();
@@ -255,7 +260,6 @@ class _StockSection extends StatefulWidget {
 
 class _StockSectionState extends State<_StockSection> {
   final _search = TextEditingController();
-  final _searchFocus = FocusNode();
   String _branchMode = 'this'; // this | all
   List<Map<String, dynamic>> _branches = [];
   List<Map<String, dynamic>> _warehouses = [];
@@ -265,14 +269,21 @@ class _StockSectionState extends State<_StockSection> {
   Map<String, dynamic> _summary = {};
   bool _loading = true;
   String? _error;
-  bool _grid = false; // false = card (list), true = grid
+  _StockFilter _filter = _StockFilter.semua;
   String _sort = 'nama'; // nama | nama_desc | stok_asc | stok_desc
-  bool _searchOpen = false; // accordion Cari (owner)
+
+  int get _activeBranchId => _branchId ?? widget.branchId;
+
+  int get _totalProducts => asNum(_summary['total_products']).toInt();
+  int get _totalStock => asNum(_summary['total_stock']).toInt();
+  int get _lowStock => asNum(_summary['low_stock']).toInt();
+  int get _outOfStock => asNum(_summary['out_of_stock']).toInt();
+  int get _goodStock =>
+      (_totalProducts - _lowStock - _outOfStock).clamp(0, _totalProducts);
 
   @override
   void dispose() {
     _search.dispose();
-    _searchFocus.dispose();
     super.dispose();
   }
 
@@ -294,66 +305,54 @@ class _StockSectionState extends State<_StockSection> {
     return branch == null || branch.isEmpty ? name : '$branch · $name';
   }
 
-  void _openSearch() {
-    setState(() => _searchOpen = true);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _searchFocus.requestFocus();
-    });
-  }
-
-  void _closeSearch() {
-    _searchFocus.unfocus();
-    setState(() => _searchOpen = false);
-  }
-
-  Widget _searchField({
-    required bool showWarehouseChip,
-    bool autofocus = false,
-    bool allowClose = false,
-  }) {
-    // Satu gaya field dengan halaman lain (appFieldDecoration: radius 12,
-    // ikon 18) — sebelumnya OutlineInputBorder() default radius 4.
+  Widget _searchField() {
+    // Satu gaya field dengan halaman lain (appFieldDecoration: radius 12).
     return TextField(
       key: const ValueKey('inventory-stock-search-field'),
       controller: _search,
-      focusNode: _searchFocus,
-      autofocus: autofocus,
       maxLines: 1,
       textInputAction: TextInputAction.search,
       style: TextStyle(fontSize: TaskTypography.label, color: ink(context)),
-      decoration:
-          appFieldDecoration(context, hint: 'Cari produk / SKU').copyWith(
-        prefix: showWarehouseChip && _warehouses.isNotEmpty
-            ? Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: kTaskDark.withValues(alpha: .10),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(_selectedWarehouseName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: TaskTypography.secondary,
-                          fontWeight: FontWeight.w700,
-                          color: ink(context))),
-                ),
-              )
-            : null,
-        suffixIcon: allowClose
-            ? IconButton(
-                key: const ValueKey('inventory-stock-search-close'),
-                icon: const Icon(Icons.close, size: 18),
-                tooltip: 'Tutup pencarian',
-                onPressed: _closeSearch,
-              )
-            : null,
-      ),
+      decoration: appFieldDecoration(context, hint: 'Cari produk / SKU'),
       onSubmitted: (_) => _load(),
     );
+  }
+
+  /// Pemilih gudang bottom sheet — dipanggil dari subteks hero.
+  Future<void> _pickWarehouse() async {
+    final v = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text('Pilih Gudang',
+                  style: TextStyle(
+                      fontSize: TaskTypography.body,
+                      fontWeight: FontWeight.w800,
+                      color: ink(ctx))),
+            ),
+            if (widget.canViewAllWarehouses)
+              ListTile(
+                leading: const Icon(Icons.all_inclusive, size: 18),
+                title: const Text('Semua gudang'),
+                onTap: () => Navigator.pop(ctx, ''),
+              ),
+            for (final w in _warehouses)
+              ListTile(
+                leading: const Icon(Icons.warehouse_outlined, size: 18),
+                title: Text(_warehouseLabel(w)),
+                onTap: () => Navigator.pop(ctx, '${w['id']}'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (v == null || !mounted) return;
+    setState(() => _warehouseId = v);
+    _load();
   }
 
   /// Pilih toko/gudang yang ingin dilihat lewat bottom sheet.
@@ -567,37 +566,182 @@ class _StockSectionState extends State<_StockSection> {
     if (mounted) _load();
   }
 
+  List<Map<String, dynamic>> get _visibleRows {
+    final rows = _sorted;
+    switch (_filter) {
+      case _StockFilter.menipis:
+        return rows.where((row) {
+          final stock = asNum(row['total_stock']);
+          final minStock = asNum(row['min_stock']);
+          return stock > 0 && stock <= minStock;
+        }).toList();
+      case _StockFilter.habis:
+        return rows.where((row) => asNum(row['total_stock']) <= 0).toList();
+      case _StockFilter.semua:
+        return rows;
+    }
+  }
+
+  Future<void> _openTool(String tool) async {
+    switch (tool) {
+      case 'mutasi':
+        await Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => Scaffold(
+                  backgroundColor: pageBg(context),
+                  appBar: AppBar(title: const Text('Mutasi Stok')),
+                  body: _MutasiSection(
+                      api: widget.api, branchId: _activeBranchId),
+                )));
+        break;
+      case 'barcode':
+        await Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => Scaffold(
+                  backgroundColor: pageBg(context),
+                  appBar: AppBar(title: const Text('Cetak Barcode')),
+                  body: _BarcodeSection(api: widget.api),
+                )));
+        break;
+      case 'transfer':
+        await Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => Scaffold(
+                  backgroundColor: pageBg(context),
+                  appBar: AppBar(title: const Text('Transfer stok')),
+                  body: _TransferSection(
+                      api: widget.api,
+                      branchId: _activeBranchId,
+                      isOwner: widget.isOwner),
+                )));
+        break;
+      case 'opname':
+        await Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => Scaffold(
+                  backgroundColor: pageBg(context),
+                  appBar: AppBar(title: const Text('Opname')),
+                  body: _OpnameSection(
+                      api: widget.api, branchId: _activeBranchId),
+                )));
+        break;
+      case 'transfer-history':
+        await Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => TransferHistoryPage(
+                api: widget.api, role: widget.role)));
+        break;
+      case 'incoming':
+      case 'outgoing':
+        await Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => InventoryPage(
+                  api: widget.api,
+                  branchId: _activeBranchId,
+                  role: widget.role,
+                  initialSection: tool,
+                )));
+        break;
+      default:
+        return;
+    }
+    if (mounted) _load();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final ownerScope = widget.isOwner;
-    final warehouseScope = _warehouses.isNotEmpty;
     return Column(
       children: [
         Padding(
           key: const ValueKey('inventory-stock-controls'),
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-          child: _searchOpen
-              ? _searchField(
-                  showWarehouseChip: warehouseScope,
-                  autofocus: true,
-                  allowClose: true,
-                )
-              : _stockToolbar(
-                  ownerScope: ownerScope, warehouseScope: warehouseScope),
+          child: _StockSummaryHero(
+            totalStock: _totalStock,
+            totalProducts: _totalProducts,
+            lowStock: _lowStock,
+            outOfStock: _outOfStock,
+            goodStock: _goodStock,
+            scopeLabel: _selectedWarehouseName,
+            role: widget.role,
+            canManage: canManageStockMutations(widget.role),
+            onPickScope: () {
+              if (widget.isOwner) {
+                _pickBranch();
+              } else if (_warehouses.isNotEmpty) {
+                _pickWarehouse();
+              }
+            },
+            onOpenTool: _openTool,
+          ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
           child: Row(
             children: [
-              _StatCell('Produk', '${_summary['total_products'] ?? 0}'),
+              if (canManageStockMutations(widget.role)) ...[
+                Expanded(
+                  child: _StockActionChip(
+                      label: 'Masuk',
+                      icon: Icons.move_to_inbox_outlined,
+                      color: const Color(0xff2E7E4F),
+                      onTap: () => _openTool('incoming')),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _StockActionChip(
+                      label: 'Keluar',
+                      icon: Icons.outbox_outlined,
+                      color: const Color(0xffC2410C),
+                      onTap: () => _openTool('outgoing')),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: _StockActionChip(
+                    label: 'Transfer',
+                    icon: Icons.swap_horiz,
+                    color: kTaskDark,
+                    onTap: () => _openTool('transfer')),
+              ),
               const SizedBox(width: 8),
-              _StatCell('Stok', '${_summary['total_stock'] ?? 0}'),
-              const SizedBox(width: 8),
-              _StatCell('Stok rendah', '${_summary['low_stock'] ?? 0}',
-                  color: kTaskStockLow),
-              const SizedBox(width: 8),
-              _StatCell('Habis', '${_summary['out_of_stock'] ?? 0}',
-                  color: kTaskStockEmpty),
+              Expanded(
+                child: _StockActionChip(
+                    label: 'Opname',
+                    icon: Icons.fact_check_outlined,
+                    color: kTaskDark,
+                    onTap: () => _openTool('opname')),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+          // Wrap mengikuti pola pill repo: tidak meluber di layar sempit.
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              _FilterChip(
+                  label: 'Semua · $_totalProducts',
+                  active: _filter == _StockFilter.semua,
+                  onTap: () =>
+                      setState(() => _filter = _StockFilter.semua)),
+              _FilterChip(
+                  label: 'Menipis · $_lowStock',
+                  active: _filter == _StockFilter.menipis,
+                  onTap: () =>
+                      setState(() => _filter = _StockFilter.menipis)),
+              _FilterChip(
+                  label: 'Habis · $_outOfStock',
+                  active: _filter == _StockFilter.habis,
+                  onTap: () => setState(() => _filter = _StockFilter.habis)),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          child: Row(
+            children: [
+              Expanded(child: _searchField()),
+              const SizedBox(width: 6),
+              _SortMenuButton(
+                sort: _sort,
+                onChanged: (v) => setState(() => _sort = v),
+              ),
             ],
           ),
         ),
@@ -606,321 +750,492 @@ class _StockSectionState extends State<_StockSection> {
               ? const UiLoadingState(label: 'Memuat stok…')
               : _error != null
                   ? UiErrorState(message: _error!, onRetry: _load)
-                  : _rows.isEmpty
-                      ? const AppEmptyState(
+                  : _visibleRows.isEmpty
+                      ? AppEmptyState(
                           icon: Icons.inventory_2_outlined,
                           title: 'Belum ada produk',
-                          message: 'Coba ganti gudang atau kata pencarian.')
-                      : _grid
-                          ? GridView.builder(
-                              padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
-                              itemCount: _sorted.length,
-                              gridDelegate:
-                                  const SliverGridDelegateWithMaxCrossAxisExtent(
-                                maxCrossAxisExtent: 260,
-                                mainAxisSpacing: 10,
-                                crossAxisSpacing: 10,
-                                childAspectRatio: 0.64,
-                              ),
-                              itemBuilder: (_, i) {
-                                final r = _sorted[i];
-                                final stock = asNum(r['total_stock']);
-                                final minStock = asNum(r['min_stock']);
-                                final status =
-                                    appStockStyle(context, stock, minStock);
-                                final isLow = stock > 0 && stock <= minStock;
-                                return GlassCard(
-                                  padding: EdgeInsets.zero,
-                                  radius: 12,
-                                  onTap: () => _openProductEditor(r),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      AspectRatio(
-                                        aspectRatio: 1,
-                                        child: Stack(
-                                          fit: StackFit.expand,
-                                          children: [
-                                            UiProductPhoto(
-                                              path: stockProductPhotoPath(r),
-                                              baseUrl: widget.api.baseUrl,
-                                              fit: BoxFit.cover,
-                                              label:
-                                                  'Foto ${productDisplayName(r)}',
-                                            ),
-                                            const Positioned(
-                                              top: 8,
-                                              right: 8,
-                                              child: _StockEditBadge(),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.all(10),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(productDisplayName(r),
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(
-                                                    fontSize: TaskTypography
-                                                        .secondary,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: ink(context))),
-                                            const SizedBox(height: 4),
-                                            Wrap(
-                                              spacing: 6,
-                                              runSpacing: 2,
-                                              crossAxisAlignment:
-                                                  WrapCrossAlignment.center,
-                                              children: [
-                                                AppStatusPill(
-                                                    label:
-                                                        '${status.label} · ${r['total_stock'] ?? 0}',
-                                                    fg: status.fg,
-                                                    bg: status.bg),
-                                                if (isLow)
-                                                  Text(
-                                                      'min ${r['min_stock'] ?? 0}',
-                                                      style: TextStyle(
-                                                          fontSize:
-                                                              TaskTypography
-                                                                  .micro,
-                                                          color: taskMuted(
-                                                              context))),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            )
-                          : ListView.separated(
-                              padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
-                              itemCount: _sorted.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 8),
-                              itemBuilder: (_, i) {
-                                final r = _sorted[i];
-                                final stock = asNum(r['total_stock']);
-                                final minStock = asNum(r['min_stock']);
-                                final status =
-                                    appStockStyle(context, stock, minStock);
-                                final isLow = stock > 0 && stock <= minStock;
-                                return GlassCard(
-                                  padding: const EdgeInsets.all(10),
-                                  radius: 12,
-                                  onTap: () => _openProductEditor(r),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(12),
-                                        child: SizedBox(
-                                          width: 56,
-                                          height: 56,
-                                          child: UiProductPhoto(
-                                            path: stockProductPhotoPath(r),
-                                            baseUrl: widget.api.baseUrl,
-                                            width: 56,
-                                            height: 56,
-                                            fit: BoxFit.cover,
-                                            label:
-                                                'Foto ${productDisplayName(r)}',
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(productDisplayName(r),
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(
-                                                    fontWeight: FontWeight.w700,
-                                                    fontSize:
-                                                        TaskTypography.body,
-                                                    color: ink(context))),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                                '${r['sku'] ?? ''}${productSecondaryLabel(r).isNotEmpty ? ' · ${productSecondaryLabel(r)}' : ''}${(r['branch_name'] ?? '').toString().isNotEmpty ? ' · ${r['branch_name']}' : ''}',
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(
-                                                    fontSize: TaskTypography
-                                                        .secondary,
-                                                    color: taskMuted(context))),
-                                            const SizedBox(height: 5),
-                                            Wrap(
-                                              spacing: 6,
-                                              runSpacing: 2,
-                                              crossAxisAlignment:
-                                                  WrapCrossAlignment.center,
-                                              children: [
-                                                AppStatusPill(
-                                                    label:
-                                                        '${status.label} · ${r['total_stock'] ?? 0}',
-                                                    fg: status.fg,
-                                                    bg: status.bg),
-                                                if (isLow)
-                                                  Text(
-                                                      'min ${r['min_stock'] ?? 0}',
-                                                      style: TextStyle(
-                                                          fontSize:
-                                                              TaskTypography
-                                                                  .micro,
-                                                          color: taskMuted(
-                                                              context))),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      const _StockEditBadge(),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
+                          message: _filter == _StockFilter.semua
+                              ? 'Coba ganti gudang atau kata pencarian.'
+                              : 'Tidak ada produk dengan filter ini.')
+                      : _buildFlatList(),
         ),
       ],
     );
   }
 
-  Widget _stockToolbar(
-      {required bool ownerScope, required bool warehouseScope}) {
-    final searchControl = _InvHeaderSegment(
-      icon: Icons.search,
-      label: 'Cari produk',
-      active: false,
-      onTap: _openSearch,
+  Widget _buildFlatList() {
+    final rows = _visibleRows;
+    return GlassCard(
+      radius: 12,
+      padding: EdgeInsets.zero,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        itemCount: rows.length,
+        itemBuilder: (_, i) {
+          final row = rows[i];
+          final stock = asNum(row['total_stock']);
+          final minStock = asNum(row['min_stock']);
+          final level = inventoryStockLevel(stock, minStock);
+          final statusLabel = switch (level) {
+            InventoryStockLevel.good => 'AMAN',
+            InventoryStockLevel.low => 'MENIPIS',
+            InventoryStockLevel.empty => 'HABIS',
+          };
+          final meta = [
+            row['sku']?.toString() ?? '',
+            productSecondaryLabel(row),
+            row['branch_name']?.toString() ?? '',
+          ].where((part) => part.isNotEmpty).join(' · ');
+          final child = Row(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 0, 8),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(9),
+                  child: SizedBox(
+                    width: 42,
+                    height: 42,
+                    child: UiProductPhoto(
+                      path: stockProductPhotoPath(row),
+                      baseUrl: widget.api.baseUrl,
+                      width: 42,
+                      height: 42,
+                      fit: BoxFit.cover,
+                      label: 'Foto ${productDisplayName(row)}',
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(productDisplayName(row),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: TaskTypography.label,
+                              fontWeight: FontWeight.w700,
+                              color: ink(context))),
+                      if (meta.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(meta,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: TaskTypography.micro,
+                                color: taskMuted(context))),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(6, 8, 12, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text('${stock.toInt()}',
+                        style: TextStyle(
+                            fontSize: TaskTypography.cardTitle,
+                            fontWeight: FontWeight.w800,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                            color: ink(context))),
+                    const SizedBox(height: 2),
+                    Text(statusLabel,
+                        style: TextStyle(
+                            fontSize: TaskTypography.micro,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: .04,
+                            color: inventoryStockInk(context, level))),
+                  ],
+                ),
+              ),
+            ],
+          );
+          final tile = InkWell(
+            onTap: () => _openProductEditor(row),
+            child: child,
+          );
+          if (i == 0) return tile;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Divider(
+                  height: 1,
+                  indent: 64,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? kTaskDarkBorder
+                      : kTaskBorder),
+              tile,
+            ],
+          );
+        },
+      ),
     );
-    final searchField = _searchField(showWarehouseChip: false);
-    final warehouseControl = _WarehouseMenuButton(
-      warehouses: _warehouses,
-      selectedId: _warehouseId,
-      onChanged: (value) {
-        setState(() => _warehouseId = value);
-        _load();
-      },
-    );
+  }
+}
 
+/// Filter status stok di daftar.
+enum _StockFilter { semua, menipis, habis }
+
+/// Hero ringkasan stok: total pcs + donut komposisi status, menyatu dengan
+/// warna AppBar denim sehingga terlihat satu blok header.
+class _StockSummaryHero extends StatelessWidget {
+  const _StockSummaryHero({
+    required this.totalStock,
+    required this.totalProducts,
+    required this.lowStock,
+    required this.outOfStock,
+    required this.goodStock,
+    required this.scopeLabel,
+    required this.role,
+    required this.canManage,
+    required this.onPickScope,
+    required this.onOpenTool,
+  });
+
+  final int totalStock;
+  final int totalProducts;
+  final int lowStock;
+  final int outOfStock;
+  final int goodStock;
+  final String scopeLabel;
+  final String? role;
+  final bool canManage;
+  final VoidCallback onPickScope;
+  final ValueChanged<String> onOpenTool;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final heroTop = dark ? const Color(0xff1B3556) : kTaskDark;
+    const heroBottom = Color(0xff2E5D8F);
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomRight,
+          colors: [heroTop, heroBottom],
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Stack(
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Padding(
+                      // Ruang kebab di kanan atas.
+                      padding: const EdgeInsets.only(right: 40),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('TOTAL STOK',
+                              style: TextStyle(
+                                  fontSize: TaskTypography.micro,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: .12,
+                                  color: Colors.white.withValues(alpha: .7))),
+                          const SizedBox(height: 2),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                Text(fmtNum(totalStock),
+                                    style: const TextStyle(
+                                        fontSize: TaskTypography.displayCompact,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: -.02,
+                                        color: Colors.white)),
+                                const SizedBox(width: 4),
+                                Text('pcs',
+                                    style: TextStyle(
+                                        fontSize: TaskTypography.micro,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white
+                                            .withValues(alpha: .7))),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(8),
+                              onTap: onPickScope,
+                              child: Tooltip(
+                                message: 'Pilih gudang',
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 2, horizontal: 2),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          '${fmtNum(totalProducts)} produk · $scopeLabel',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                              fontSize:
+                                                  TaskTypography.secondary,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.white
+                                                  .withValues(alpha: .66)),
+                                        ),
+                                      ),
+                                      Icon(Icons.expand_more,
+                                          size: 15,
+                                          color: Colors.white
+                                              .withValues(alpha: .6)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 84,
+                    height: 84,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        StockStatusDonut(
+                            good: goodStock, low: lowStock, empty: outOfStock),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(fmtNum(totalProducts),
+                                style: const TextStyle(
+                                    fontSize: TaskTypography.label,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white)),
+                            Text('PRODUK',
+                                style: TextStyle(
+                                    fontSize: TaskTypography.micro,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: .06,
+                                    color:
+                                        Colors.white.withValues(alpha: .6))),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              Positioned(
+                top: 0,
+                right: 0,
+                child: _HeroToolMenu(
+                    role: role, canManage: canManage, onOpenTool: onOpenTool),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 12,
+            runSpacing: 4,
+            children: [
+              _HeroLegendDot(
+                  color: StockStatusDonut.goodColor, label: 'Aman $goodStock'),
+              _HeroLegendDot(
+                  color: StockStatusDonut.lowColor, label: 'Menipis $lowStock'),
+              _HeroLegendDot(
+                  color: StockStatusDonut.emptyColor,
+                  label: 'Habis $outOfStock'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroLegendDot extends StatelessWidget {
+  const _HeroLegendDot({required this.color, required this.label});
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        if (ownerScope) ...[
-          _BranchIconButton(onTap: _pickBranch),
-          const SizedBox(width: 8),
-        ],
-        if (warehouseScope) ...[
-          Expanded(child: warehouseControl),
-          const SizedBox(width: 8),
-        ],
-        Expanded(child: warehouseScope ? searchControl : searchField),
-        const SizedBox(width: 6),
-        _SortMenuButton(
-          sort: _sort,
-          onChanged: (v) => setState(() => _sort = v),
-        ),
-        const SizedBox(width: 6),
-        _ViewModeButton(
-          grid: _grid,
-          onChanged: (g) => setState(() => _grid = g),
-        ),
+        Container(
+            width: 7, height: 7, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
+        const SizedBox(width: 5),
+        Text(label,
+            style: TextStyle(
+                fontSize: TaskTypography.micro,
+                fontWeight: FontWeight.w600,
+                color: Colors.white.withValues(alpha: .8))),
       ],
     );
   }
 }
 
-/// Affordance visual untuk kartu stok yang seluruh areanya membuka editor.
-/// Badge tidak mengambil alih gesture kartu agar ketuk di foto maupun teks
-/// tetap membuka halaman edit produk.
-class _StockEditBadge extends StatelessWidget {
-  const _StockEditBadge();
+/// Menu ⋮ di hero: pintu ke Mutasi, Cetak Barcode, dan Riwayat Transfer.
+class _HeroToolMenu extends StatelessWidget {
+  const _HeroToolMenu({
+    required this.role,
+    required this.canManage,
+    required this.onOpenTool,
+  });
+
+  final String? role;
+  final bool canManage;
+  final ValueChanged<String> onOpenTool;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      tooltip: 'Opsi inventori',
+      color: Colors.white,
+      offset: const Offset(0, 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      onSelected: onOpenTool,
+      itemBuilder: (context) => [
+        if (canManage)
+          const PopupMenuItem<String>(
+              value: 'mutasi',
+              child: Row(children: [
+                Icon(Icons.swap_vert, size: 18, color: kTaskDark),
+                SizedBox(width: 10),
+                Text('Mutasi'),
+              ])),
+        const PopupMenuItem<String>(
+            value: 'barcode',
+            child: Row(children: [
+              Icon(Icons.qr_code_scanner, size: 18, color: kTaskDark),
+              SizedBox(width: 10),
+              Text('Cetak Barcode'),
+            ])),
+        if (role != 'kasir')
+          const PopupMenuItem<String>(
+              value: 'transfer-history',
+              child: Row(children: [
+                Icon(Icons.history, size: 18, color: kTaskDark),
+                SizedBox(width: 10),
+                Text('Riwayat Transfer'),
+              ])),
+      ],
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: Icon(Icons.more_vert,
+            size: 20, color: Colors.white.withValues(alpha: .8)),
+      ),
+    );
+  }
+}
+
+/// Chip aksi gudang 48px: Masuk/Keluar/Transfer/Opname.
+class _StockActionChip extends StatelessWidget {
+  const _StockActionChip({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    return Semantics(
-      label: 'Edit produk',
-      child: IgnorePointer(
+    return Material(
+      color: dark ? kTaskDarkSurface : kTaskSurface,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
         child: Container(
-          width: 32,
-          height: 32,
+          height: 48,
           decoration: BoxDecoration(
-            color: dark ? kTaskDarkSurface : kTaskSurface,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: dark ? kTaskDarkBorder : kTaskBorder),
-            boxShadow: const [
-              BoxShadow(
-                  color: Color(0x180F172A), blurRadius: 5, offset: Offset(0, 2))
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 17, color: color),
+              const SizedBox(height: 2),
+              Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: TaskTypography.micro,
+                      fontWeight: FontWeight.w800,
+                      color: color)),
             ],
           ),
-          child: Icon(Icons.edit_outlined,
-              size: 16, color: dark ? Colors.white : kTaskDark),
         ),
       ),
     );
   }
 }
 
-/// Statistik stok padat: 1 baris dibagi 4, font kecil seragam supaya muat.
-class _StatCell extends StatelessWidget {
-  const _StatCell(this.label, this.value, {this.color});
+/// Chip pill filter status: aktif denim solid, nonaktif permukaan netral.
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
   final String label;
-  final String value;
-  final Color? color;
+  final bool active;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final valueColor = color == null
-        ? ink(context)
-        : !dark
-            ? color!
-            : color == kTaskStockLow
-                ? const Color(0xffFDBA74)
-                : const Color(0xffFCA5A5);
-    return Expanded(
-      child: GlassCard(
-        radius: 12,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        child: Column(
-          children: [
-            Text(label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: TaskTypography.micro,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: .02,
-                    color: taskMuted(context))),
-            const SizedBox(height: 2),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(value,
-                      style: TextStyle(
-                          fontSize: TaskTypography.largeBody,
-                          fontWeight: FontWeight.w800,
-                          color: valueColor)),
-                ],
-              ),
-            ),
-          ],
+    return Material(
+      color: active
+          ? kTaskDark
+          : (dark ? kTaskDarkSurface : kTaskSurface),
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+                color: active
+                    ? kTaskDark
+                    : (dark ? kTaskDarkBorder : kTaskBorder)),
+          ),
+          child: Text(label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontSize: TaskTypography.secondary,
+                  fontWeight: FontWeight.w700,
+                  color: active
+                      ? Colors.white
+                      : ink(context))),
         ),
       ),
     );
@@ -3386,181 +3701,6 @@ class _BarcodeSectionState extends State<_BarcodeSection> {
   }
 }
 
-/// Segmen header ringkas untuk scope dan pencarian stok.
-class _InvHeaderSegment extends StatelessWidget {
-  const _InvHeaderSegment({
-    required this.icon,
-    required this.label,
-    required this.active,
-    this.onTap,
-    this.showChevron = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool active;
-  final VoidCallback? onTap;
-  final bool showChevron;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final fg = Theme.of(context).colorScheme.primary;
-    final content = Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        border: Border.all(
-            color: active ? fg : (dark ? kTaskDarkBorder : kTaskBorder),
-            width: active ? 1.5 : 1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 17, color: fg),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: TaskTypography.cardTitle,
-                    fontWeight: FontWeight.w700,
-                    color: fg)),
-          ),
-          if (showChevron)
-            Icon(Icons.expand_more, size: 18, color: taskMuted(context)),
-        ],
-      ),
-    );
-    return Material(
-      color: dark ? kTaskDarkSurface : kTaskSurface,
-      borderRadius: BorderRadius.circular(12),
-      child: onTap == null
-          ? content
-          : InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: onTap,
-              child: content,
-            ),
-    );
-  }
-}
-
-/// Pemilih cabang owner tetap tersedia tanpa mengambil lebar dari kontrol
-/// gudang dan pencarian. Nama lengkapnya dibaca dari tooltip/semantics.
-class _BranchIconButton extends StatelessWidget {
-  const _BranchIconButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return Semantics(
-      button: true,
-      label: 'Pilih Toko / Gudang',
-      child: Tooltip(
-        message: 'Pilih Toko / Gudang',
-        child: Material(
-          color: dark ? kTaskDarkSurface : kTaskSurface,
-          borderRadius: BorderRadius.circular(12),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: onTap,
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: dark ? kTaskDarkBorder : kTaskBorder),
-              ),
-              child: Icon(Icons.store_outlined,
-                  size: 20, color: Theme.of(context).colorScheme.primary),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Dropdown gudang langsung di titik yang ditekan. Menu melayang sehingga
-/// tidak menambah baris maupun menggeser daftar stok.
-class _WarehouseMenuButton extends StatelessWidget {
-  const _WarehouseMenuButton({
-    required this.warehouses,
-    required this.selectedId,
-    required this.onChanged,
-  });
-
-  final List<Map<String, dynamic>> warehouses;
-  final String selectedId;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      key: const ValueKey('inventory-warehouse-menu'),
-      tooltip: 'Pilih gudang',
-      padding: EdgeInsets.zero,
-      offset: const Offset(0, 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      onSelected: onChanged,
-      itemBuilder: (context) => [
-        if (warehouses.isNotEmpty)
-          const PopupMenuItem<String>(
-            value: '',
-            child: Row(
-              children: [
-                Icon(Icons.all_inclusive, size: 18),
-                SizedBox(width: 10),
-                Text('Semua gudang'),
-              ],
-            ),
-          ),
-        for (final warehouse in warehouses)
-          PopupMenuItem<String>(
-            value: '${warehouse['id']}',
-            child: Row(
-              children: [
-                const Icon(Icons.warehouse_outlined, size: 18),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(_warehouseLabel(warehouse)),
-                ),
-                if ('${warehouse['id']}' == selectedId)
-                  const Icon(Icons.check, size: 18, color: kTaskStockGood),
-              ],
-            ),
-          ),
-      ],
-      child: _InvHeaderSegment(
-        icon: Icons.warehouse_outlined,
-        label: _selectedName,
-        active: false,
-        showChevron: true,
-      ),
-    );
-  }
-
-  String get _selectedName {
-    if (selectedId.isEmpty && warehouses.isNotEmpty) return 'Semua gudang';
-    for (final warehouse in warehouses) {
-      if ('${warehouse['id']}' == selectedId) {
-        return _warehouseLabel(warehouse);
-      }
-    }
-    return 'Gudang';
-  }
-
-  String _warehouseLabel(Map<String, dynamic> warehouse) {
-    final name = warehouse['name']?.toString() ?? 'Gudang';
-    final branch = warehouse['branch_name']?.toString();
-    return branch == null || branch.isEmpty ? name : '$branch · $name';
-  }
-}
-
 /// Menu ikon untuk urutan. Label lengkap tersedia setelah menu dibuka, tetapi
 /// halaman utama hanya memakai satu tombol kecil agar ruang stok tetap lega.
 class _SortMenuButton extends StatelessWidget {
@@ -3616,43 +3756,3 @@ class _SortMenuButton extends StatelessWidget {
   }
 }
 
-/// Toggle Card/Grid berbentuk ikon tunggal agar seluruh toolbar tetap satu
-/// baris. Ikon menunjukkan mode yang akan dipilih saat tombol ditekan.
-class _ViewModeButton extends StatelessWidget {
-  const _ViewModeButton({required this.grid, required this.onChanged});
-  final bool grid;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return Tooltip(
-      key: const ValueKey('inventory-view-mode-button'),
-      message: grid ? 'Beralih ke tampilan kartu' : 'Beralih ke tampilan grid',
-      child: Semantics(
-        button: true,
-        label: grid ? 'Tampilan grid aktif' : 'Tampilan kartu aktif',
-        child: Material(
-          color: dark ? kTaskDarkSurface : kTaskSurface,
-          borderRadius: BorderRadius.circular(12),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () => onChanged(!grid),
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: dark ? kTaskDarkBorder : kTaskBorder),
-              ),
-              child: Icon(
-                  grid ? Icons.view_agenda_outlined : Icons.grid_view_outlined,
-                  size: 20,
-                  color: taskMuted(context)),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

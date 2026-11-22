@@ -148,9 +148,9 @@ void main() {
           brightness: brightness);
       expect(tester.takeException(), isNull);
       expect(find.text('A100 Kemeja Denim'), findsOneWidget);
-      expect(find.textContaining('Tersedia ·'), findsOneWidget);
-      expect(find.textContaining('Menipis ·'), findsOneWidget);
-      expect(find.textContaining('Habis ·'), findsWidgets);
+      expect(find.text('AMAN'), findsOneWidget);
+      expect(find.text('MENIPIS'), findsOneWidget);
+      expect(find.text('HABIS'), findsOneWidget);
       if (Platform.environment['CAPTURE_MOBILE_UI'] == '1') {
         await expectLater(find.byKey(const ValueKey('preview')),
             matchesGoldenFile('goldens/stock-${brightness.name}.png'));

@@ -184,11 +184,12 @@ void main() {
             body: InventoryPage(api: api, branchId: 4, role: 'gudang'))));
     await tester.pumpAndSettle();
 
-    // Semua seksi tersedia sebagai chip PillTabs (bisa digeser).
+    // PillTabs seksi masih tampil di task ini; label Transfer/Opname juga
+    // muncul sebagai chip aksi baru di halaman Stok.
     expect(find.text('Stok'), findsWidgets);
     expect(find.text('Mutasi'), findsWidgets);
     for (final label in ['Transfer', 'Opname', 'Barcode']) {
-      expect(find.text(label), findsOneWidget);
+      expect(find.text(label), findsWidgets);
     }
 
     await tester.tap(find.text('Transfer').first);
@@ -332,7 +333,7 @@ void main() {
         findsOneWidget);
   });
 
-  testWidgets('kartu stok menampilkan ikon pensil sebagai affordance edit',
+  testWidgets('baris stok dapat diketuk untuk membuka editor produk',
       (tester) async {
     final api = InventoryApi();
     tester.view.physicalSize = const Size(900, 1800);
@@ -344,16 +345,19 @@ void main() {
             body: InventoryPage(api: api, branchId: 4, role: 'admin'))));
     await tester.pumpAndSettle();
 
-    expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+    // Daftar flat: seluruh baris adalah affordance edit (tanpa badge pensil).
+    expect(find.byIcon(Icons.edit_outlined), findsNothing);
+    expect(find.text('Denim'), findsOneWidget);
   });
 
   testWidgets('stok dapat difilter berdasarkan gudang aktif', (tester) async {
     final api = InventoryApi();
     await openSection(tester, api, 'Stok');
 
-    expect(find.text('Gudang A'), findsOneWidget);
-    await tester.tap(find.text('Gudang A'));
+    // Pemilihan gudang kini lewat subteks hero (tooltip "Pilih gudang").
+    await tester.tap(find.byTooltip('Pilih gudang'));
     await tester.pumpAndSettle();
+    expect(find.text('Gudang B'), findsWidgets);
     await tester.tap(find.text('Gudang B').last);
     await tester.pumpAndSettle();
 
@@ -362,33 +366,22 @@ void main() {
     expect(request.$2['warehouse_id'], '2');
   });
 
-  testWidgets('kontrol gudang dan cari tetap satu baris saat pencarian aktif',
+  testWidgets('kontrol stok: hero, cari, dan urut tampil bersamaan',
       (tester) async {
     final api = InventoryApi();
     await openSection(tester, api, 'Stok');
 
     expect(
         find.byKey(const ValueKey('inventory-stock-controls')), findsOneWidget);
-    expect(
-        find.byKey(const ValueKey('inventory-warehouse-menu')), findsOneWidget);
-    expect(find.byKey(const ValueKey('inventory-view-mode-button')),
-        findsOneWidget);
-    expect(find.text('Cari produk'), findsOneWidget);
-
-    await tester.tap(find.text('Cari produk'));
-    await tester.pumpAndSettle();
-
     expect(find.byKey(const ValueKey('inventory-stock-search-field')),
         findsOneWidget);
     expect(
+        find.byKey(const ValueKey('inventory-sort-button')), findsOneWidget);
+    expect(
         find.byKey(const ValueKey('inventory-warehouse-menu')), findsNothing);
-    expect(find.text('Cari produk / SKU'), findsOneWidget);
-
-    await tester.tap(find.byIcon(Icons.close));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Gudang A'));
-    await tester.pumpAndSettle();
-    expect(find.text('Gudang B'), findsOneWidget);
+    expect(find.byKey(const ValueKey('inventory-view-mode-button')),
+        findsNothing);
+    expect(find.text('TOTAL STOK'), findsOneWidget);
   });
 
   testWidgets('urut memakai tombol ikon dan pilihan tetap tersedia di menu',
@@ -420,10 +413,10 @@ void main() {
       ];
     await openSection(tester, api, 'Stok');
 
+    // Daftar flat: foto fallback katalog tetap dipakai tanpa mode grid.
     expect(find.byType(CachedNetworkImage), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.grid_view_outlined));
-    await tester.pumpAndSettle();
-    expect(find.byType(CachedNetworkImage), findsOneWidget);
+    expect(find.byKey(const ValueKey('inventory-view-mode-button')),
+        findsNothing);
   });
 
   testWidgets('opname sends only counted item with unchanged stock snapshot',
