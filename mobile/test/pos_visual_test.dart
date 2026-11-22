@@ -783,19 +783,23 @@ void main() {
         expect(find.text('Nama'), findsOneWidget);
         expect(find.text('Qty'), findsOneWidget);
         expect(find.text('Total'), findsOneWidget);
-        expect(find.text('Diskon'), findsNothing);
-        expect(find.text('Catatan'), findsNothing);
-        expect(find.text('Tahan'), findsNothing);
+        // Desain B: baris tombol opsi (diskon/catatan/tahan/opsi) selalu tampil,
+        // ringkasan opsi aktif muncul di atasnya.
+        expect(find.text('Diskon'), findsOneWidget);
+        expect(find.text('Catatan'), findsOneWidget);
+        expect(find.text('Tahan'), findsOneWidget);
+        // Label 'Opsi' muncul di tombol header dan di baris aksi.
+        expect(find.text('Opsi'), findsNWidgets(2));
         expect(find.text('Lainnya'), findsNothing);
         expect(find.text('4 pcs'), findsOneWidget);
         expect(find.text('Total'), findsOneWidget);
         expect(find.text('Pelanggan Umum'), findsNothing);
         expect(find.text('Ambil Draft'), findsNothing);
         expect(find.text('Ambil transaksi ditahan'), findsNothing);
-        expect(find.byTooltip('Tampilkan menu aksi'), findsOneWidget);
+        expect(find.byTooltip('Opsi transaksi'), findsOneWidget);
         expect(
             find.descendant(
-                of: cartHeader, matching: find.byIcon(Icons.expand_more)),
+                of: cartHeader, matching: find.byIcon(Icons.tune)),
             findsOneWidget);
         final lineMenu =
             find.byTooltip('Opsi Kemeja Denim: ubah harga atau hapus');
@@ -810,15 +814,13 @@ void main() {
         expect(find.text('Hapus item'), findsOneWidget);
         await tester.sendKeyEvent(LogicalKeyboardKey.escape);
         await tester.pumpAndSettle();
-        await tester.tap(find.byTooltip('Tampilkan menu aksi'));
+        // Tombol header membuka sheet "Opsi transaksi".
+        await tester.tap(find.byTooltip('Opsi transaksi'));
         await tester.pumpAndSettle();
-        expect(find.text('Diskon'), findsOneWidget);
-        expect(find.text('Catatan'), findsOneWidget);
-        expect(find.text('Tahan'), findsOneWidget);
-        expect(find.text('Lainnya'), findsOneWidget);
-        expect(find.byTooltip('Sembunyikan menu aksi'), findsOneWidget);
-        expect(find.byIcon(Icons.expand_less), findsOneWidget);
-        await tester.tap(find.byTooltip('Sembunyikan menu aksi'));
+        expect(find.text('Opsi transaksi'), findsOneWidget);
+        expect(find.text('Tahan transaksi'), findsOneWidget);
+        expect(find.text('Selesai'), findsOneWidget);
+        await tester.tap(find.text('Selesai'));
         await tester.pumpAndSettle();
         expect(find.text('Bayar · Rp275.000').hitTestable(), findsOneWidget);
         expect(tester.takeException(), isNull);
@@ -905,4 +907,36 @@ void main() {
       });
     }
   }
+
+  testWidgets('opsi keranjang: chip diskon mengisi field dan tag aktif muncul',
+      (tester) async {
+    final api = PosVisualApi();
+    final auth = AuthStore(api)
+      ..role = 'owner'
+      ..branchId = 4;
+    await showPosSurface(tester, const PosPage(), 390, Brightness.light,
+        auth: auth);
+    await tester.tap(find.text('Kemeja Denim'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bayar'));
+    await tester.pumpAndSettle();
+
+    // Belum ada opsi aktif.
+    expect(find.text('OPSI AKTIF'), findsNothing);
+
+    // Baris aksi membuka sheet; chip 10rb mengisi field diskon.
+    await tester.tap(find.text('Diskon'));
+    await tester.pumpAndSettle();
+    expect(find.text('Opsi transaksi'), findsOneWidget);
+    await tester.tap(find.text('10rb'));
+    await tester.pumpAndSettle();
+    expect(find.text('10000'), findsOneWidget);
+
+    await tester.tap(find.text('Selesai'));
+    await tester.pumpAndSettle();
+    // Ringkasan opsi aktif tampil dengan tag yang bisa dihapus.
+    expect(find.text('OPSI AKTIF'), findsOneWidget);
+    expect(find.text('Diskon Rp10.000'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

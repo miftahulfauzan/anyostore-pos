@@ -2649,8 +2649,392 @@ class _CartSheet extends StatefulWidget {
 }
 
 class _CartSheetState extends State<_CartSheet> {
-  bool _showOptions = false;
-  bool _showActions = false;
+  double get _discount => _parseDiscount();
+
+  String get _notes => widget.notesController.text.trim();
+
+  bool get _hasActiveOptions =>
+      _discount > 0 || _notes.isNotEmpty || _customerName().isNotEmpty;
+
+  /// Lembar "Opsi transaksi": pelanggan, diskon, catatan, dan tahan dalam satu
+  /// bottom sheet — menggantikan panel opsi lama + dialog Catatan terpisah.
+  Future<void> _openOptions({
+    bool focusDiscount = false,
+    bool focusNotes = false,
+  }) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: taskSurface(context),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          // Nilai pada sheet dihitung ulang dari controller induk, jadi
+          // perubahan langsung tercermin di ringkasan di bawah.
+          void refresh(VoidCallback change) {
+            change();
+            setSheetState(() {});
+            setState(() {});
+          }
+
+          return Padding(
+            padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 38,
+                      height: 4,
+                      decoration: BoxDecoration(
+                          color: const Color(0xFFCBD5E1),
+                          borderRadius: BorderRadius.circular(999)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Opsi transaksi',
+                      style:
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 2),
+                  Text('Perubahan langsung tersimpan.',
+                      style: TextStyle(
+                          fontSize: TaskTypography.micro,
+                          color: taskMuted(context))),
+                  const SizedBox(height: 8),
+                  if (widget.customers.isNotEmpty)
+                    _optionField(
+                      icon: Icons.person_outline,
+                      tint: kTaskBlueLight,
+                      tintInk: kTaskAccent,
+                      title: 'Pelanggan',
+                      subtitle: 'Untuk komisi dan riwayat pembeli',
+                      child: AppSelectField<int?>(
+                        value: widget.customerId,
+                        decoration: const InputDecoration(
+                            isDense: true, border: OutlineInputBorder()),
+                        items: [
+                          const DropdownMenuItem<int?>(
+                              value: null, child: Text('Tanpa pelanggan')),
+                          for (final c in widget.customers)
+                            DropdownMenuItem<int?>(
+                                value: int.tryParse('${c['id']}'),
+                                child: Text('${c['name']}')),
+                        ],
+                        onChanged: (value) =>
+                            refresh(() => widget.onCustomerChanged(value)),
+                      ),
+                    ),
+                  _optionField(
+                    icon: Icons.local_offer_outlined,
+                    tint: kTaskOrangeLight,
+                    tintInk: kTaskTerracotta,
+                    title: 'Diskon',
+                    subtitle: 'Potongan dari subtotal',
+                    trailing: _discount > 0 ? 'Hapus' : null,
+                    onTrailing: _discount > 0
+                        ? () => refresh(() {
+                              widget.discountController.clear();
+                              widget.onDiscountChanged('');
+                            })
+                        : null,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        TextField(
+                          controller: widget.discountController,
+                          autofocus: focusDiscount,
+                          keyboardType: TextInputType.number,
+                          onChanged: (value) =>
+                              refresh(() => widget.onDiscountChanged(value)),
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            prefixText: 'Rp ',
+                            hintText: '0',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            for (final amount in const [
+                              5000,
+                              10000,
+                              20000,
+                              50000
+                            ])
+                              ChoiceChip(
+                                label: Text('${amount ~/ 1000}rb'),
+                                selected: _discount == amount,
+                                onSelected: (_) => refresh(() {
+                                  widget.discountController.text = '$amount';
+                                  widget.onDiscountChanged('$amount');
+                                }),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  _optionField(
+                    icon: Icons.notes_outlined,
+                    tint: kTaskStockGoodSurface,
+                    tintInk: kTaskStockGood,
+                    title: 'Catatan',
+                    subtitle: 'Langsung di sini, tanpa dialog',
+                    child: TextField(
+                      controller: widget.notesController,
+                      autofocus: focusNotes,
+                      maxLines: 2,
+                      textInputAction: TextInputAction.newline,
+                      onChanged: (value) =>
+                          refresh(() => widget.onNotesChanged(value)),
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        hintText: 'Contoh: kirim ke toko cabang',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  _optionField(
+                    icon: Icons.pause_circle_outline,
+                    tint: kTaskPurpleLight,
+                    tintInk: kTaskPurple,
+                    title: 'Tahan transaksi',
+                    subtitle: 'Simpan keranjang, lanjutkan nanti',
+                    trailing: widget.cart.isEmpty ? null : 'Tahan',
+                    onTrailing: widget.cart.isEmpty
+                        ? null
+                        : () {
+                            Navigator.of(sheetContext).pop();
+                            widget.onHold();
+                          },
+                  ),
+                  const SizedBox(height: 8),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48)),
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                    child: const Text('Selesai'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _optionField({
+    required IconData icon,
+    required Color tint,
+    required Color tintInk,
+    required String title,
+    String? subtitle,
+    String? trailing,
+    VoidCallback? onTrailing,
+    Widget? child,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                    color: tint, borderRadius: BorderRadius.circular(9)),
+                child: Icon(icon, size: 16, color: tintInk),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w700)),
+                    if (subtitle != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 1),
+                        child: Text(subtitle,
+                            style: TextStyle(
+                                fontSize: TaskTypography.micro,
+                                color: taskMuted(context))),
+                      ),
+                  ],
+                ),
+              ),
+              if (trailing != null)
+                TextButton(
+                  onPressed: onTrailing,
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(0, 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  child: Text(trailing,
+                      style: const TextStyle(
+                          fontSize: TaskTypography.secondary,
+                          fontWeight: FontWeight.w800)),
+                ),
+            ],
+          ),
+          if (child != null) ...[
+            const SizedBox(height: 8),
+            child,
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _optionAction({
+    required IconData icon,
+    required String label,
+    required bool active,
+    required VoidCallback? onTap,
+  }) {
+    final enabled = onTap != null;
+    final ink = enabled ? kTaskDark : taskMuted(context);
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+          child: Column(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: active ? kTaskDark : taskSurface(context),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                          color: active ? kTaskDark : taskBorder(context)),
+                    ),
+                    child: Icon(icon,
+                        size: 19, color: active ? Colors.white : ink),
+                  ),
+                  if (active)
+                    Positioned(
+                      right: -1,
+                      top: -1,
+                      child: Container(
+                        width: 11,
+                        height: 11,
+                        decoration: BoxDecoration(
+                          color: kTaskStockGood,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: taskSurface(context), width: 2),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(label,
+                    maxLines: 1,
+                    style: TextStyle(
+                        fontSize: TaskTypography.micro,
+                        fontWeight: FontWeight.w700,
+                        color: ink)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _optionTag(String label, VoidCallback onClear) {
+    return Container(
+      height: 30,
+      padding: const EdgeInsets.only(left: 11, right: 4),
+      decoration: BoxDecoration(
+          color: const Color(0xFFEEF3FB),
+          borderRadius: BorderRadius.circular(999)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label,
+              style: const TextStyle(
+                  fontSize: TaskTypography.micro,
+                  fontWeight: FontWeight.w700,
+                  color: kTaskDark)),
+          const SizedBox(width: 2),
+          InkWell(
+            onTap: onClear,
+            borderRadius: BorderRadius.circular(999),
+            child: const Padding(
+              padding: EdgeInsets.all(4),
+              child: Icon(Icons.close, size: 13, color: kTaskDark),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _activeOptionsCard() {
+    final tags = <Widget>[
+      if (_discount > 0)
+        _optionTag('Diskon ${fmtRp(_discount)}', () {
+          widget.discountController.clear();
+          widget.onDiscountChanged('');
+          setState(() {});
+        }),
+      if (_notes.isNotEmpty)
+        _optionTag('Catatan', () {
+          widget.notesController.clear();
+          widget.onNotesChanged('');
+          setState(() {});
+        }),
+      if (_customerName().isNotEmpty)
+        _optionTag(_customerName(), () {
+          widget.onCustomerChanged(null);
+          setState(() {});
+        }),
+    ];
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: taskSurface(context),
+        border: Border.all(color: taskBorder(context)),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('OPSI AKTIF',
+              style: TextStyle(
+                  fontSize: TaskTypography.micro,
+                  letterSpacing: .8,
+                  fontWeight: FontWeight.w800,
+                  color: taskMuted(context))),
+          const SizedBox(height: 8),
+          Wrap(spacing: 6, runSpacing: 6, children: tags),
+        ],
+      ),
+    );
+  }
 
   double _parseDiscount() =>
       asNum(widget.discountController.text.replaceAll(RegExp(r'[^0-9]'), ''));
@@ -2683,76 +3067,6 @@ class _CartSheetState extends State<_CartSheet> {
       }
     }
     return '';
-  }
-
-  Future<void> _editNotes() async {
-    final controller = TextEditingController(text: widget.notesController.text);
-    final value = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Catatan transaksi'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLines: 3,
-          textInputAction: TextInputAction.newline,
-          decoration: const InputDecoration(
-            hintText: 'Contoh: kirim ke toko cabang',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(controller.text),
-            child: const Text('Simpan'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-    if (value == null || !mounted) return;
-    widget.notesController.text = value.trim();
-    widget.onNotesChanged(widget.notesController.text);
-    setState(() {});
-  }
-
-  Widget _actionButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback? onPressed,
-  }) {
-    final color = onPressed == null ? taskMuted(context) : kTaskDark;
-    return Expanded(
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: color,
-          side: BorderSide(
-              color: onPressed == null ? taskBorder(context) : kTaskDark),
-          minimumSize: const Size(0, 60),
-          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 5),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 19),
-            const SizedBox(height: 3),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(label,
-                  maxLines: 1,
-                  style: const TextStyle(fontSize: TaskTypography.secondary)),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   @override
@@ -2807,18 +3121,21 @@ class _CartSheetState extends State<_CartSheet> {
                               fontWeight: FontWeight.w800)),
                     ),
                   ),
-                  IconButton(
-                    tooltip: _showActions
-                        ? 'Sembunyikan menu aksi'
-                        : 'Tampilkan menu aksi',
-                    onPressed: () =>
-                        setState(() => _showActions = !_showActions),
-                    padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints.tightFor(width: 40, height: 48),
-                    icon: Icon(
-                        _showActions ? Icons.expand_less : Icons.expand_more,
-                        color: Colors.white),
+                  Tooltip(
+                    message: 'Opsi transaksi',
+                    child: TextButton.icon(
+                      onPressed: () => _openOptions(),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: const Size(0, 44),
+                      ),
+                      icon: const Icon(Icons.tune, color: Colors.white, size: 19),
+                      label: const Text('Opsi',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700)),
+                    ),
                   ),
                 ],
               ),
@@ -2839,7 +3156,7 @@ class _CartSheetState extends State<_CartSheet> {
                         borderRadius: BorderRadius.circular(14),
                         onTap: widget.customers.isEmpty
                             ? null
-                            : () => setState(() => _showOptions = true),
+                            : () => _openOptions(),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 12),
@@ -2911,84 +3228,41 @@ class _CartSheetState extends State<_CartSheet> {
                           'Tanggal transaksi: ${_dateLabel(widget.transactionDate)}'),
                     ),
                   ],
-                  if (_showOptions) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: taskSurface(context),
-                        border: Border.all(color: taskBorder(context)),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (widget.customers.isNotEmpty)
-                            AppSelectField<int?>(
-                              value: widget.customerId,
-                              decoration: const InputDecoration(
-                                  isDense: true,
-                                  labelText: 'Pelanggan (opsional)',
-                                  border: OutlineInputBorder()),
-                              items: [
-                                const DropdownMenuItem<int?>(
-                                    value: null,
-                                    child: Text('Tanpa pelanggan')),
-                                for (final c in widget.customers)
-                                  DropdownMenuItem<int?>(
-                                      value: int.tryParse('${c['id']}'),
-                                      child: Text('${c['name']}')),
-                              ],
-                              onChanged: widget.onCustomerChanged,
-                            ),
-                          if (widget.customers.isNotEmpty)
-                            const SizedBox(height: 8),
-                          TextField(
-                            controller: widget.discountController,
-                            keyboardType: TextInputType.number,
-                            onChanged: widget.onDiscountChanged,
-                            decoration: const InputDecoration(
-                              isDense: true,
-                              labelText: 'Diskon (Rp)',
-                              prefixText: 'Rp ',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
-            if (_showActions)
+            if (_hasActiveOptions)
               Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                child: Row(
-                  children: [
-                    _actionButton(
-                        icon: Icons.local_offer_outlined,
-                        label: 'Diskon',
-                        onPressed: () => setState(() => _showOptions = true)),
-                    const SizedBox(width: 4),
-                    _actionButton(
-                        icon: Icons.notes_outlined,
-                        label: 'Catatan',
-                        onPressed: _editNotes),
-                    const SizedBox(width: 4),
-                    _actionButton(
-                        icon: Icons.pause_circle_outline,
-                        label: 'Tahan',
-                        onPressed: cart.isEmpty ? null : widget.onHold),
-                    const SizedBox(width: 4),
-                    _actionButton(
-                        icon: Icons.more_horiz,
-                        label: 'Lainnya',
-                        onPressed: () =>
-                            setState(() => _showOptions = !_showOptions)),
-                  ],
-                ),
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                child: _activeOptionsCard(),
               ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 2),
+              child: Row(
+                children: [
+                  _optionAction(
+                      icon: Icons.local_offer_outlined,
+                      label: 'Diskon',
+                      active: _discount > 0,
+                      onTap: () => _openOptions(focusDiscount: true)),
+                  _optionAction(
+                      icon: Icons.notes_outlined,
+                      label: 'Catatan',
+                      active: _notes.isNotEmpty,
+                      onTap: () => _openOptions(focusNotes: true)),
+                  _optionAction(
+                      icon: Icons.pause_circle_outline,
+                      label: 'Tahan',
+                      active: false,
+                      onTap: cart.isEmpty ? null : widget.onHold),
+                  _optionAction(
+                      icon: Icons.tune,
+                      label: 'Opsi',
+                      active: customerName.isNotEmpty,
+                      onTap: () => _openOptions()),
+                ],
+              ),
+            ),
             Container(
               key: const ValueKey('cart-summary-footer'),
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
