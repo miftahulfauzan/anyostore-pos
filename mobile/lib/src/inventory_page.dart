@@ -212,10 +212,25 @@ class _StockSectionState extends State<_StockSection> {
 
   int get _totalProducts => asNum(_summary['total_products']).toInt();
   int get _totalStock => asNum(_summary['total_stock']).toInt();
-  int get _lowStock => asNum(_summary['low_stock']).toInt();
-  int get _outOfStock => asNum(_summary['out_of_stock']).toInt();
+
+  // Hitungan status diturunkan dari baris yang benar-benar ditampilkan,
+  // bukan dari summary backend: `low_stock` backend memakai
+  // total_stock <= min_stock (termasuk produk habis) sehingga tidak cocok
+  // dengan filter "Menipis" di daftar (0 < stok <= min).
+  int get _lowStock => _rows
+      .where((row) =>
+          inventoryStockLevel(
+              asNum(row['total_stock']), asNum(row['min_stock'])) ==
+          InventoryStockLevel.low)
+      .length;
+  int get _outOfStock => _rows
+      .where((row) =>
+          inventoryStockLevel(
+              asNum(row['total_stock']), asNum(row['min_stock'])) ==
+          InventoryStockLevel.empty)
+      .length;
   int get _goodStock =>
-      (_totalProducts - _lowStock - _outOfStock).clamp(0, _totalProducts);
+      _rows.length - _lowStock - _outOfStock;
 
   @override
   void dispose() {
@@ -224,6 +239,11 @@ class _StockSectionState extends State<_StockSection> {
   }
 
   String get _selectedWarehouseName {
+    // Mode "Semua" (owner: semua toko/gudang, gudang: semua gudang) harus
+    // berlabel jelas — angka hero menunjukkan scope itu.
+    if (_branchMode == 'all') {
+      return widget.canViewAllWarehouses ? 'Semua gudang' : 'Semua toko/gudang';
+    }
     if (_warehouseId.isEmpty && widget.canViewAllWarehouses) {
       return 'Semua gudang';
     }
@@ -234,6 +254,9 @@ class _StockSectionState extends State<_StockSection> {
     }
     return 'Gudang';
   }
+
+  /// Subteks scope hanya bisa diketuk bila ada pemilih yang tersedia.
+  bool get _scopePickable => widget.isOwner || _warehouses.isNotEmpty;
 
   String _warehouseLabel(Map<String, dynamic> warehouse) {
     final name = warehouse['name']?.toString() ?? 'Gudang';
@@ -506,13 +529,19 @@ class _StockSectionState extends State<_StockSection> {
     final rows = _sorted;
     switch (_filter) {
       case _StockFilter.menipis:
-        return rows.where((row) {
-          final stock = asNum(row['total_stock']);
-          final minStock = asNum(row['min_stock']);
-          return stock > 0 && stock <= minStock;
-        }).toList();
+        return rows
+            .where((row) =>
+                inventoryStockLevel(asNum(row['total_stock']),
+                    asNum(row['min_stock'])) ==
+                InventoryStockLevel.low)
+            .toList();
       case _StockFilter.habis:
-        return rows.where((row) => asNum(row['total_stock']) <= 0).toList();
+        return rows
+            .where((row) =>
+                inventoryStockLevel(asNum(row['total_stock']),
+                    asNum(row['min_stock'])) ==
+                InventoryStockLevel.empty)
+            .toList();
       case _StockFilter.semua:
         return rows;
     }
@@ -592,6 +621,7 @@ class _StockSectionState extends State<_StockSection> {
             outOfStock: _outOfStock,
             goodStock: _goodStock,
             scopeLabel: _selectedWarehouseName,
+            scopePickable: _scopePickable,
             role: widget.role,
             canManage: canManageStockMutations(widget.role),
             onPickScope: () {
@@ -828,6 +858,7 @@ class _StockSummaryHero extends StatelessWidget {
     required this.outOfStock,
     required this.goodStock,
     required this.scopeLabel,
+    required this.scopePickable,
     required this.role,
     required this.canManage,
     required this.onPickScope,
@@ -840,6 +871,7 @@ class _StockSummaryHero extends StatelessWidget {
   final int outOfStock;
   final int goodStock;
   final String scopeLabel;
+  final bool scopePickable;
   final String? role;
   final bool canManage;
   final VoidCallback onPickScope;
@@ -906,42 +938,57 @@ class _StockSummaryHero extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 6),
-                          Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(8),
-                              onTap: onPickScope,
-                              child: Tooltip(
-                                message: 'Pilih gudang',
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 2, horizontal: 2),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Flexible(
-                                        child: Text(
-                                          '${fmtNum(totalProducts)} produk · $scopeLabel',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                              fontSize:
-                                                  TaskTypography.secondary,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.white
-                                                  .withValues(alpha: .66)),
+                          if (scopePickable)
+                            Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(8),
+                                onTap: onPickScope,
+                                child: Tooltip(
+                                  message: 'Pilih gudang',
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 2, horizontal: 2),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            '${fmtNum(totalProducts)} produk · $scopeLabel',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                                fontSize:
+                                                    TaskTypography.secondary,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.white
+                                                    .withValues(alpha: .66)),
+                                          ),
                                         ),
-                                      ),
-                                      Icon(Icons.expand_more,
-                                          size: 15,
-                                          color: Colors.white
-                                              .withValues(alpha: .6)),
-                                    ],
+                                        Icon(Icons.expand_more,
+                                            size: 15,
+                                            color: Colors.white
+                                                .withValues(alpha: .6)),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
+                            )
+                          else
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Text(
+                                '${fmtNum(totalProducts)} produk · $scopeLabel',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: TaskTypography.secondary,
+                                    fontWeight: FontWeight.w600,
+                                    color:
+                                        Colors.white.withValues(alpha: .66)),
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ),
@@ -1042,35 +1089,37 @@ class _HeroToolMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final iconColor = dark ? kTaskDarkInk : kTaskDark;
     return PopupMenuButton<String>(
       tooltip: 'Opsi inventori',
-      color: Colors.white,
+      color: appDropdownColor(context),
       offset: const Offset(0, 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       onSelected: onOpenTool,
       itemBuilder: (context) => [
         if (canManage)
-          const PopupMenuItem<String>(
+          PopupMenuItem<String>(
               value: 'mutasi',
               child: Row(children: [
-                Icon(Icons.swap_vert, size: 18, color: kTaskDark),
-                SizedBox(width: 10),
-                Text('Mutasi'),
+                Icon(Icons.swap_vert, size: 18, color: iconColor),
+                const SizedBox(width: 10),
+                const Text('Mutasi'),
               ])),
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
             value: 'barcode',
             child: Row(children: [
-              Icon(Icons.qr_code_scanner, size: 18, color: kTaskDark),
-              SizedBox(width: 10),
-              Text('Cetak Barcode'),
+              Icon(Icons.qr_code_scanner, size: 18, color: iconColor),
+              const SizedBox(width: 10),
+              const Text('Cetak Barcode'),
             ])),
         if (role != 'kasir')
-          const PopupMenuItem<String>(
+          PopupMenuItem<String>(
               value: 'transfer-history',
               child: Row(children: [
-                Icon(Icons.history, size: 18, color: kTaskDark),
-                SizedBox(width: 10),
-                Text('Riwayat Transfer'),
+                Icon(Icons.history, size: 18, color: iconColor),
+                const SizedBox(width: 10),
+                const Text('Riwayat Transfer'),
               ])),
       ],
       child: Padding(

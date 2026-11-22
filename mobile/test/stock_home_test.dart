@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pos_pakaian_mobile/main.dart' as app;
 import 'package:pos_pakaian_mobile/src/api_client.dart';
 import 'package:pos_pakaian_mobile/src/inventory_page.dart';
 import 'package:pos_pakaian_mobile/src/stock_status_donut.dart';
@@ -8,6 +9,7 @@ import 'package:pos_pakaian_mobile/src/stock_status_donut.dart';
 class StockHomeApi extends ApiClient {
   int stockTotalCalls = 0;
   bool emptyStock = false;
+  bool noWarehouses = false;
 
   Map<String, dynamic> get _stockData {
     if (emptyStock) {
@@ -52,10 +54,13 @@ class StockHomeApi extends ApiClient {
           'min_stock': 15,
         },
       ],
+      // Semantik backend riil (backend/src/routes/inventory.js): low_stock
+      // memakai total_stock <= min_stock — termasuk produk habis. UI harus
+      // tetap konsisten dengan baris yang benar-benar ditampilkan.
       'summary': <String, dynamic>{
         'total_products': 4,
         'total_stock': 77,
-        'low_stock': 1,
+        'low_stock': 2,
         'out_of_stock': 1,
       },
     };
@@ -67,10 +72,12 @@ class StockHomeApi extends ApiClient {
     if (path == '/inventory/stock-total') stockTotalCalls++;
     final Object data = switch (path) {
       '/inventory/stock-total' => _stockData,
-      '/inventory/warehouses' || '/inventory/warehouses/all' => [
-          {'id': 1, 'name': 'Gudang A'},
-          {'id': 2, 'name': 'Gudang B'},
-        ],
+      '/inventory/warehouses' || '/inventory/warehouses/all' => noWarehouses
+          ? <Object>[]
+          : [
+              {'id': 1, 'name': 'Gudang A'},
+              {'id': 2, 'name': 'Gudang B'},
+            ],
       '/inventory/incoming/targets' => <Object>[],
       '/inventory/channels' => <Object>[],
       '/inventory/incoming/products' => <Object>[],
@@ -180,6 +187,42 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('jumlah chip & donut konsisten dengan baris (semantik backend)',
+      (tester) async {
+    // Backend menghitung low_stock termasuk produk habis (low_stock: 2 di
+    // fake). Chip dan legenda donut harus mengikuti baris yang tampil:
+    // 2 aman, 1 menipis, 1 habis.
+    final api = StockHomeApi();
+    await pumpHome(tester, api);
+    expect(find.text('Menipis · 1'), findsOneWidget);
+    expect(find.text('Habis · 1'), findsOneWidget);
+    expect(find.text('Menipis 1'), findsOneWidget);
+    expect(find.text('Aman 2'), findsOneWidget);
+    expect(find.text('Habis 1'), findsOneWidget);
+  });
+
+  testWidgets('owner memilih semua toko/gudang: label scope ikut berubah',
+      (tester) async {
+    final api = StockHomeApi();
+    await pumpHome(tester, api, role: 'owner');
+    await tester.tap(find.byTooltip('Pilih gudang'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Semua toko/gudang'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Semua toko/gudang'), findsOneWidget);
+    expect(find.textContaining(' · Gudang'), findsNothing);
+  });
+
+  testWidgets('subteks scope tanpa pilihan tersedia tidak menawarkan ketukan',
+      (tester) async {
+    final api = StockHomeApi()..noWarehouses = true;
+    await pumpHome(tester, api, role: 'kasir');
+    expect(find.byTooltip('Pilih gudang'), findsNothing);
+    expect(find.byIcon(Icons.expand_more), findsNothing);
+    expect(find.text('TOTAL STOK'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('kasir: tanpa chip Masuk/Keluar dan tanpa item terlarang di ⋮',
       (tester) async {
     final api = StockHomeApi();
@@ -195,5 +238,26 @@ void main() {
     expect(find.text('Mutasi'), findsNothing);
     expect(find.text('Riwayat Transfer'), findsNothing);
     expect(find.text('Cetak Barcode'), findsOneWidget);
+  });
+
+  testWidgets('menu ⋮ hero memakai warna dropdown tema di mode gelap',
+      (tester) async {
+    final api = StockHomeApi();
+    await tester.pumpWidget(MaterialApp(
+        theme: app.buildAnyostoreTheme(brightness: Brightness.dark),
+        home: Scaffold(
+            body: InventoryPage(
+                api: api, branchId: 4, role: 'gudang'))));
+    await tester.pumpAndSettle();
+    // Menu tidak boleh hardcode putih — di mode gelap teks item (terang)
+    // jadi tak terbaca di permukaan putih.
+    for (final button in tester.widgetList<PopupMenuButton<String>>(
+        find.byType(PopupMenuButton<String>))) {
+      expect(button.color, isNot(Colors.white));
+    }
+    await tester.tap(find.byTooltip('Opsi inventori'));
+    await tester.pumpAndSettle();
+    expect(find.text('Cetak Barcode'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }
