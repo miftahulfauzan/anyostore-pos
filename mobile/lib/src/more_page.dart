@@ -55,8 +55,37 @@ class MorePage extends StatelessWidget {
         body: child,
       );
 
-  Widget _group(BuildContext context, String title, List<Widget> rows) {
-    return _MoreMenuGroup(
+  /// Label mini + baris indent bergaris kiri — paritas subgroup sidebar web
+  /// (Mutasi Stok / Riwayat) tanpa akordeon bersarang di drawer.
+  Widget _subSection(BuildContext context, String label, List<Widget> rows) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(10, 10, 10, 4),
+          child: Text(label,
+              style: TextStyle(
+                  fontSize: TaskTypography.micro,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: .8,
+                  color: kDrawerLabel)),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: Container(
+            decoration: BoxDecoration(
+              border:
+                  Border(left: BorderSide(color: kDrawerBorder, width: 1.5)),
+            ),
+            padding: const EdgeInsets.only(left: 6),
+            child: Column(children: rows),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _group(BuildContext context, String title, List<Widget> rows) {    return _MoreMenuGroup(
       key: ValueKey('more-menu-$title'),
       title: _groupTitle(title),
       icon: _groupIcon(title),
@@ -368,7 +397,7 @@ class MorePage extends StatelessWidget {
             ],
           ]),
           _group(context, 'PRODUK & INVENTORI', [
-            if (auth.role != 'gudang' && permissions.viewActivity) ...[
+            if (auth.role != 'gudang' && permissions.viewActivity)
               _row(
                   context,
                   Icons.dashboard_customize_outlined,
@@ -377,8 +406,6 @@ class MorePage extends StatelessWidget {
                   _kInk,
                   () => _open(
                       context, 'Dashboard Stok', DashboardPage(api: api))),
-              _divider(context),
-            ],
             _row(
                 context,
                 Icons.inventory_2_outlined,
@@ -387,22 +414,6 @@ class MorePage extends StatelessWidget {
                 kTaskDark,
                 () => _open(context, 'Daftar Produk',
                     ProductsPage(api: api, branchId: activeBranch()))),
-            _divider(context),
-            _row(
-                context,
-                Icons.qr_code_scanner,
-                'Cetak Barcode',
-                kTaskSand,
-                kTaskDark,
-                () => _open(
-                    context,
-                    'Cetak Barcode',
-                    InventoryPage(
-                        api: api,
-                        branchId: activeBranch(),
-                        role: auth.role,
-                        initialSection: 'barcode'))),
-            _divider(context),
             _row(context, Icons.warehouse_outlined, 'Stok Produk', kTaskSand,
                 kTaskDark, () {
               if (auth.role == 'gudang') {
@@ -418,99 +429,109 @@ class MorePage extends StatelessWidget {
                       role: auth.role,
                       initialSection: 'stok'));
             }, selected: auth.role == 'gudang' && currentTab == 1),
-            if (canManageStockMutations(auth.role)) ...[
-              _divider(context),
-              _row(
-                  context,
-                  Icons.move_to_inbox_outlined,
-                  'Stok Masuk',
-                  kTaskSand,
-                  kTaskDark,
-                  () => _open(
-                      context,
-                      'Stok Masuk',
-                      InventoryPage(
-                          api: api,
-                          branchId: activeBranch(),
-                          role: auth.role,
-                          initialSection: 'incoming'),
-                      showPageHeader: false)),
-              _divider(context),
-              _row(
-                  context,
-                  Icons.outbox_outlined,
-                  'Stok Keluar',
-                  kTaskSand,
-                  kTaskDark,
-                  () => _open(
-                      context,
-                      'Stok Keluar',
-                      InventoryPage(
-                          api: api,
-                          branchId: activeBranch(),
-                          role: auth.role,
-                          initialSection: 'outgoing'),
-                      showPageHeader: false)),
-            ],
-            _divider(context),
             _row(
                 context,
-                Icons.swap_horiz,
-                'Transfer Stok',
+                Icons.qr_code_scanner,
+                'Cetak Barcode',
                 kTaskSand,
                 kTaskDark,
                 () => _open(
                     context,
-                    'Transfer Stok',
+                    'Cetak Barcode',
                     InventoryPage(
                         api: api,
                         branchId: activeBranch(),
                         role: auth.role,
-                        initialSection: 'transfer'))),
-            _divider(context),
-            if (auth.role != 'kasir') ...[
+                        initialSection: 'barcode'))),
+            _subSection(context, 'MUTASI STOK', [
+              if (canManageStockMutations(auth.role)) ...[
+                _row(
+                    context,
+                    Icons.move_to_inbox_outlined,
+                    'Stok Masuk',
+                    kTaskSand,
+                    kTaskDark,
+                    () => _open(
+                        context,
+                        'Stok Masuk',
+                        InventoryPage(
+                            api: api,
+                            branchId: activeBranch(),
+                            role: auth.role,
+                            initialSection: 'incoming'),
+                        showPageHeader: false)),
+                _row(
+                    context,
+                    Icons.outbox_outlined,
+                    'Stok Keluar',
+                    kTaskSand,
+                    kTaskDark,
+                    () => _open(
+                        context,
+                        'Stok Keluar',
+                        InventoryPage(
+                            api: api,
+                            branchId: activeBranch(),
+                            role: auth.role,
+                            initialSection: 'outgoing'),
+                        showPageHeader: false)),
+              ],
+              _row(
+                  context,
+                  Icons.swap_horiz,
+                  'Transfer Stok',
+                  kTaskSand,
+                  kTaskDark,
+                  () => _open(
+                      context,
+                      'Transfer Stok',
+                      InventoryPage(
+                          api: api,
+                          branchId: activeBranch(),
+                          role: auth.role,
+                          initialSection: 'transfer'))),
+              _row(
+                  context,
+                  Icons.fact_check_outlined,
+                  'Stok Opname',
+                  kTaskSand,
+                  kTaskDark,
+                  () => _open(
+                      context,
+                      'Stok Opname',
+                      InventoryPage(
+                          api: api,
+                          branchId: activeBranch(),
+                          role: auth.role,
+                          initialSection: 'opname'))),
+            ]),
+            _subSection(context, 'RIWAYAT', [
+              if (auth.role != 'kasir')
+                _row(
+                    context,
+                    Icons.history,
+                    'Riwayat Transfer',
+                    kTaskSand,
+                    kTaskDark,
+                    () => _open(context, 'Riwayat Transfer',
+                        TransferHistoryPage(api: api, role: auth.role))),
               _row(
                   context,
                   Icons.history,
-                  'Riwayat Transfer',
+                  'Pergerakan Stok',
                   kTaskSand,
                   kTaskDark,
-                  () => _open(context, 'Riwayat Transfer',
-                      TransferHistoryPage(api: api, role: auth.role))),
-              _divider(context),
-            ],
-            _row(
-                context,
-                Icons.fact_check_outlined,
-                'Stok Opname',
-                kTaskSand,
-                kTaskDark,
-                () => _open(
-                    context,
-                    'Stok Opname',
-                    InventoryPage(
-                        api: api,
-                        branchId: activeBranch(),
-                        role: auth.role,
-                        initialSection: 'opname'))),
-            _divider(context),
-            _row(
-                context,
-                Icons.history,
-                'Kartu Stok',
-                kTaskSand,
-                kTaskDark,
-                () => _open(context, 'Kartu Stok',
-                    StockMovementsPage(api: api, branchId: activeBranch()))),
-            _divider(context),
-            _row(
-                context,
-                Icons.swap_vert,
-                'Riwayat Mutasi',
-                kTaskSand,
-                kTaskDark,
-                () => _open(context, 'Riwayat Mutasi',
-                    MutationReportPage(api: api, showPageTitle: false))),
+                  () => _open(context, 'Pergerakan Stok',
+                      StockMovementsPage(api: api, branchId: activeBranch()))),
+              _row(
+                  context,
+                  Icons.swap_vert,
+                  'Riwayat Mutasi',
+                  kTaskSand,
+                  kTaskDark,
+                  () => _open(context, 'Riwayat Mutasi',
+                      MutationReportPage(api: api, showPageTitle: false))),
+            ]),
           ]),
           if (permissions.viewActivity ||
               permissions.finance ||
