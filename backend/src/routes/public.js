@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const { serializeWhatsAppCatalogCsv } = require('../whatsapp-catalog-feed');
 
 const router = express.Router();
 
@@ -173,6 +174,49 @@ router.get('/products', async (req, res, next) => {
   } catch (e) {
     console.error('[public/products]', e);
     next(e);
+  }
+});
+
+// GET /api/public/whatsapp-catalog.csv – full live product feed for Meta.
+router.get('/whatsapp-catalog.csv', async (_req, res, next) => {
+  try {
+    let effectiveBranchId = null;
+    const [gudang] = await db.execute("SELECT id FROM branches WHERE LOWER(TRIM(name)) = 'gudang utama' AND is_active=TRUE ORDER BY id LIMIT 1");
+    effectiveBranchId = gudang[0]?.id || null;
+    if (!effectiveBranchId) {
+      const [gudangLike] = await db.execute("SELECT id FROM branches WHERE name LIKE '%gudang%utama%' AND is_active=TRUE ORDER BY id LIMIT 1");
+      effectiveBranchId = gudangLike[0]?.id || null;
+      if (!effectiveBranchId) {
+        const [first] = await db.execute('SELECT id FROM branches WHERE is_active=TRUE ORDER BY id LIMIT 1');
+        effectiveBranchId = first[0]?.id || null;
+      }
+    }
+
+    if (!effectiveBranchId) return res.status(503).type('text/plain').send('WhatsApp catalog feed is unavailable: default branch not found.');
+
+    const [rows] = await db.execute(
+      `SELECT p.id, p.name, p.description, p.price, c.name AS category_name,
+              (SELECT COALESCE(SUM(GREATEST(ws.quantity-COALESCE(ws.reserved_quantity,0),0)),0)
+                 FROM warehouse_stocks ws JOIN warehouses w ON w.id=ws.warehouse_id
+                WHERE ws.product_id=p.id AND w.branch_id=p.branch_id AND w.is_active=TRUE AND COALESCE(w.type,'utama')<>'reject'
+                  AND ws.variant_id IS NULL) AS available_stock,
+              (SELECT GROUP_CONCAT(pp.path ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC SEPARATOR '||')
+                 FROM product_photos pp
+                WHERE pp.product_id=p.id AND pp.variant_id IS NULL AND pp.media_type='image') AS photo_paths
+         FROM products p JOIN categories c ON c.id=p.category_id
+        WHERE p.branch_id=? AND p.is_active=TRUE
+        ORDER BY p.id ASC`,
+      [effectiveBranchId]
+    );
+
+    if (!rows.length) return res.status(503).type('text/plain').send('WhatsApp catalog feed is unavailable: no active products were found.');
+
+    const csv = serializeWhatsAppCatalogCsv(rows);
+    res.set('Content-Type', 'text/csv; charset=utf-8');
+    res.set('Cache-Control', 'no-store');
+    res.send(csv);
+  } catch (error) {
+    next(error);
   }
 });
 
