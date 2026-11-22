@@ -373,10 +373,10 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                     Container(
                         width: 9,
                         height: 9,
-                        decoration: const BoxDecoration(
-                            color: kTaskAccent,
+                        decoration: BoxDecoration(
+                            color: _dark ? kTaskAccentDark : kTaskAccent,
                             borderRadius:
-                                BorderRadius.all(Radius.circular(2)))),
+                                const BorderRadius.all(Radius.circular(2)))),
                     const SizedBox(width: 6),
                     Text('Penjualan',
                         style: TextStyle(
@@ -496,7 +496,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             ),
           ),
           const SizedBox(width: 8),
-          Text('$start s.d. $end',
+          Text('${formatWibDate(start)} s.d. ${formatWibDate(end)}',
               style: TextStyle(
                   fontSize: TaskTypography.micro, color: taskMuted(context))),
           IconButton(
@@ -579,7 +579,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
         children: [
           Text(label.toUpperCase(),
               style: const TextStyle(
-                  fontSize: 9,
+                  fontSize: TaskTypography.micro,
                   letterSpacing: .7,
                   fontWeight: FontWeight.w800,
                   color: Color(0xB8FFFFFF))),
@@ -635,7 +635,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  fontSize: 8,
+                  fontSize: TaskTypography.micro,
                   fontWeight: FontWeight.w800,
                   letterSpacing: .5,
                   color: taskMuted(context))),
@@ -685,7 +685,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style:
-              TextStyle(fontSize: 8.5, fontWeight: FontWeight.w800, color: fg)),
+              TextStyle(fontSize: TaskTypography.micro, fontWeight: FontWeight.w800, color: fg)),
     );
   }
 
@@ -777,7 +777,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             ),
             child: Text('${index + 1}',
                 style: TextStyle(
-                    fontSize: 10, fontWeight: FontWeight.w800, color: tone.fg)),
+                    fontSize: TaskTypography.micro, fontWeight: FontWeight.w800, color: tone.fg)),
           ),
           const SizedBox(width: 9),
           Expanded(
@@ -800,7 +800,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                     const SizedBox(width: 6),
                     Text('${value.toInt()} pcs',
                         style: TextStyle(
-                            fontSize: 10.5,
+                            fontSize: TaskTypography.micro,
                             fontWeight: FontWeight.w800,
                             color: ink(context))),
                   ],
@@ -811,7 +811,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          fontSize: 9,
+                          fontSize: TaskTypography.micro,
                           fontWeight: FontWeight.w600,
                           color: taskMuted(context))),
                 ],
@@ -898,7 +898,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          fontSize: 9,
+                          fontSize: TaskTypography.micro,
                           fontWeight: FontWeight.w600,
                           color: taskMuted(context))),
                 ],
@@ -917,7 +917,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 ),
                 child: Text(status,
                     style: TextStyle(
-                        fontSize: 8.5,
+                        fontSize: TaskTypography.micro,
                         fontWeight: FontWeight.w800,
                         letterSpacing: .3,
                         color: color)),
@@ -925,7 +925,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
               const SizedBox(height: 3),
               Text('$stock / min $minStock',
                   style: TextStyle(
-                      fontSize: 8.5,
+                      fontSize: TaskTypography.micro,
                       fontWeight: FontWeight.w600,
                       color: taskMuted(context))),
             ],
@@ -949,7 +949,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     ];
     final labels = [for (final row in rows) _shortDay(row['date'])];
     final dark = Theme.of(context).brightness == Brightness.dark;
-    if (values.length < 2) {
+    if (values.isEmpty) {
       return Container(
         key: const ValueKey('dashboard-sparkline'),
         height: 88,
@@ -996,7 +996,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             child: CustomPaint(
               painter: _SparkPainter(
                 values: values,
-                color: kTaskAccent,
+                color: dark ? kTaskAccentDark : kTaskAccent,
                 gridColor: taskBorder(context),
               ),
               size: Size.infinite,
@@ -1007,22 +1007,24 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             children: [
               Text(labels.first,
                   style: TextStyle(
-                      fontSize: 8.5,
+                      fontSize: TaskTypography.micro,
                       fontWeight: FontWeight.w600,
                       color: taskMuted(context))),
               const Spacer(),
               if (labels.length > 2)
                 Text(labels[labels.length ~/ 2],
                     style: TextStyle(
-                        fontSize: 8.5,
+                        fontSize: TaskTypography.micro,
                         fontWeight: FontWeight.w600,
                         color: taskMuted(context))),
-              const Spacer(),
-              Text(labels.last,
-                  style: TextStyle(
-                      fontSize: 8.5,
-                      fontWeight: FontWeight.w600,
-                      color: taskMuted(context))),
+              if (labels.length > 1) ...[
+                const Spacer(),
+                Text(labels.last,
+                    style: TextStyle(
+                        fontSize: TaskTypography.micro,
+                        fontWeight: FontWeight.w600,
+                        color: taskMuted(context))),
+              ],
             ],
           ),
         ],
@@ -1063,7 +1065,7 @@ class _SparkPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (values.length < 2 || size.width <= 0 || size.height <= 0) return;
+    if (values.isEmpty || size.width <= 0 || size.height <= 0) return;
 
     // Grid halus: tiga garis horizontal, bukan kotak penuh.
     final grid = Paint()
@@ -1072,6 +1074,33 @@ class _SparkPainter extends CustomPainter {
     for (var i = 1; i <= 3; i++) {
       final y = size.height * i / 4;
       canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
+    }
+
+    // Periode satu hari (mis. filter "Hari ini"): tetap tampilkan garis datar
+    // + satu titik supaya jelas ada penjualan, bukan terlihat seperti kosong.
+    if (values.length == 1) {
+      final y = size.height / 2;
+      canvas.drawLine(
+        Offset(4, y),
+        Offset(size.width - 4, y),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.4
+          ..strokeCap = StrokeCap.round
+          ..color = color,
+      );
+      final point = Offset(14, y);
+      canvas.drawCircle(point, 8, Paint()..color = color.withValues(alpha: .12));
+      canvas.drawCircle(point, 4, Paint()..color = Colors.white);
+      canvas.drawCircle(
+        point,
+        4,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.2
+          ..color = color,
+      );
+      return;
     }
 
     final maxValue = values.reduce(math.max);

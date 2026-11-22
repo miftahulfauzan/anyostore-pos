@@ -8,19 +8,19 @@ void main() {
     FontScaleController.scale.value = FontScaleController.defaultScale;
   });
 
-  test('exposes the six requested scales in order', () {
-    expect(FontScaleController.options, <double>[.4, .6, .8, 1.0, 1.2, 1.4]);
-    expect(FontScaleController.defaultScale, .8);
-    expect(FontScaleController.label(.4), '40%');
-    expect(FontScaleController.label(1.4), '140%');
+  test('exposes the four readable scales in order', () {
+    expect(FontScaleController.options, <double>[.85, 1.0, 1.15, 1.3]);
+    expect(FontScaleController.defaultScale, .85);
+    expect(FontScaleController.label(.85), '85%');
+    expect(FontScaleController.label(1.3), '130%');
   });
 
-  test('falls back to normal when the stored scale is invalid', () async {
+  test('mengangkat skala lama yang terlalu kecil ke opsi terdekat', () async {
     SharedPreferences.setMockInitialValues({'pos_font_scale': .7});
 
     await FontScaleController.load();
 
-    expect(FontScaleController.scale.value, .8);
+    expect(FontScaleController.scale.value, .85);
   });
 
   test('reads a legacy string preference safely', () async {
@@ -28,26 +28,26 @@ void main() {
 
     await FontScaleController.load();
 
-    expect(FontScaleController.scale.value, 1.2);
+    expect(FontScaleController.scale.value, 1.15);
   });
 
   test('loads and persists a valid scale', () async {
-    SharedPreferences.setMockInitialValues({'pos_font_scale': 1.2});
+    SharedPreferences.setMockInitialValues({'pos_font_scale': 1.15});
     await FontScaleController.load();
-    expect(FontScaleController.scale.value, 1.2);
+    expect(FontScaleController.scale.value, 1.15);
 
-    await FontScaleController.set(.6);
+    await FontScaleController.set(1.0);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getDouble('pos_font_scale'), .6);
-    expect(FontScaleController.scale.value, .6);
+    expect(prefs.getDouble('pos_font_scale'), 1.0);
+    expect(FontScaleController.scale.value, 1.0);
   });
 
   test('caps only oversized text on a narrow phone', () {
-    expect(FontScaleController.effectiveScale(1.4, 320), 1.2);
-    expect(FontScaleController.effectiveScale(1.2, 320), 1.2);
-    expect(FontScaleController.effectiveScale(1.4, 390), 1.4);
-    expect(FontScaleController.effectiveScale(.4, 320), .4);
-    expect(FontScaleController.effectiveScale(1.8, 390), 1.4);
+    expect(FontScaleController.effectiveScale(1.3, 320), 1.15);
+    expect(FontScaleController.effectiveScale(1.15, 320), 1.15);
+    expect(FontScaleController.effectiveScale(1.3, 390), 1.3);
+    expect(FontScaleController.effectiveScale(.85, 320), .85);
+    expect(FontScaleController.effectiveScale(1.8, 390), 1.3);
   });
 
   test('nilai slider yang meleset sedikit tetap tersimpan', () async {

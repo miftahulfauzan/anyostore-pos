@@ -214,14 +214,14 @@ class _ProfilePageState extends State<ProfilePage> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        fontSize: 10.5, color: Color(0xC7FFFFFF))),
+                        fontSize: TaskTypography.micro, color: Color(0xC7FFFFFF))),
                 if (username.isNotEmpty) ...[
                   const SizedBox(height: 1),
                   Text('@$username',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                          fontSize: 9.5, color: Color(0x99FFFFFF))),
+                          fontSize: TaskTypography.micro, color: Color(0x99FFFFFF))),
                 ],
               ],
             ),
@@ -235,7 +235,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             child: Text(_roleLabel(auth.role).toUpperCase(),
                 style: const TextStyle(
-                    fontSize: 8.5,
+                    fontSize: TaskTypography.micro,
                     fontWeight: FontWeight.w800,
                     letterSpacing: .3,
                     color: Color(0xE6FFFFFF))),

@@ -41,13 +41,9 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('inventory-section-selector')));
-    await tester.pumpAndSettle();
-    expect(
-        find.descendant(
-            of: find.byType(PopupMenuItem<String>),
-            matching: find.text('Mutasi')),
-        findsNothing);
+    // Selector sekarang berupa baris PillTabs: chip "Mutasi" tidak boleh
+    // tampil untuk role yang tidak boleh mencatat mutasi.
+    expect(find.text('Mutasi'), findsNothing);
   });
 
   testWidgets('owner and gudang retain the mutasi selector', (tester) async {
@@ -57,15 +53,8 @@ void main() {
         home: Scaffold(body: InventoryPage(api: api, branchId: 4, role: role)),
       ));
       await tester.pumpAndSettle();
-      await tester
-          .tap(find.byKey(const ValueKey('inventory-section-selector')));
-      await tester.pumpAndSettle();
-      expect(
-          find.descendant(
-              of: find.byType(PopupMenuItem<String>),
-              matching: find.text('Mutasi')),
-          findsOneWidget);
-      await tester.tap(find.text('Mutasi').last);
+      expect(find.text('Mutasi'), findsOneWidget);
+      await tester.tap(find.text('Mutasi').first);
       await tester.pumpAndSettle();
     }
   });

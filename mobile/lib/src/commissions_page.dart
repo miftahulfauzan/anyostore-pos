@@ -457,7 +457,7 @@ class _CommissionsPageState extends State<CommissionsPage> {
       _dark ? const Color(0xFFC4B5FD) : const Color(0xFF6D28D9);
 
   TextStyle get _capStyle => TextStyle(
-        fontSize: 8.5,
+        fontSize: TaskTypography.micro,
         fontWeight: FontWeight.w800,
         letterSpacing: .9,
         color: taskMuted(context),
@@ -496,7 +496,7 @@ class _CommissionsPageState extends State<CommissionsPage> {
         ),
         child: Text(text,
             style: TextStyle(
-                fontSize: 9,
+                fontSize: TaskTypography.micro,
                 fontWeight: FontWeight.w800,
                 letterSpacing: .3,
                 color: color)),
@@ -521,7 +521,7 @@ class _CommissionsPageState extends State<CommissionsPage> {
           children: [
             Text(caption.toUpperCase(),
                 style: const TextStyle(
-                    fontSize: 8.5,
+                    fontSize: TaskTypography.micro,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.4,
                     color: Color(0xB8FFFFFF))),
@@ -543,7 +543,7 @@ class _CommissionsPageState extends State<CommissionsPage> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                    fontSize: 10,
+                    fontSize: TaskTypography.micro,
                     fontWeight: FontWeight.w600,
                     color: Color(0xBEFFFFFF))),
           ],
@@ -596,7 +596,7 @@ class _CommissionsPageState extends State<CommissionsPage> {
             const SizedBox(width: 3),
             Text('pcs',
                 style: TextStyle(
-                    fontSize: 10,
+                    fontSize: TaskTypography.micro,
                     fontWeight: FontWeight.w600,
                     color: taskMuted(context))),
           ],
@@ -842,7 +842,7 @@ class _CommissionsPageState extends State<CommissionsPage> {
                             '${_ruleTypeLabel(rule['calculation_type'])} · '
                             '${rule['branch_id'] == null ? 'Global' : 'Toko ${rule['branch_id']}'}',
                             style: TextStyle(
-                                fontSize: 10.5, color: taskMuted(context))),
+                                fontSize: TaskTypography.micro, color: taskMuted(context))),
                         if ('${rule['calculation_type']}' ==
                             'per_pcs_customer_tier') ...[
                           const SizedBox(height: 4),

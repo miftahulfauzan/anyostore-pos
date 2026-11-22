@@ -41,7 +41,8 @@ String? _offlineBusinessDate(Map<String, dynamic> payload, dynamic createdAt,
   return '${wib.year.toString().padLeft(4, '0')}-${wib.month.toString().padLeft(2, '0')}-${wib.day.toString().padLeft(2, '0')}';
 }
 
-String _fmtPercent(dynamic value) => '${asNum(value).toStringAsFixed(2)}%';
+String _fmtPercent(dynamic value) =>
+    '${asNum(value).toStringAsFixed(2).replaceAll('.', ',')}%';
 
 Map<String, dynamic> _previousSummary(Map<String, dynamic>? data) {
   final direct = data?['previous_summary'];
@@ -60,7 +61,7 @@ String? _changePercent(dynamic current, dynamic previous) {
   if (before == 0) return now == 0 ? '0%' : null;
   final change = (now - before) * 100 / before.abs();
   final arrow = change >= 0 ? '↑ +' : '↓ ';
-  return '$arrow${change.abs().toStringAsFixed(1)}%';
+  return '$arrow${change.abs().toStringAsFixed(1).replaceAll('.', ',')}%';
 }
 
 class ReportsPage extends StatefulWidget {
@@ -732,7 +733,7 @@ class _ReportsPageState extends State<ReportsPage> {
         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 15),
       ),
       fieldChild: Text(
-          '${_presetLabel(_preset)} · ${_range.$1} s.d. ${_range.$2}',
+          '${_presetLabel(_preset)} · ${formatWibDate(_range.$1)} s.d. ${formatWibDate(_range.$2)}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
@@ -2226,16 +2227,21 @@ class _DashboardKpiGrid extends StatelessWidget {
                                 : kTaskTeal.withValues(alpha: .12),
                             borderRadius: BorderRadius.circular(99),
                           ),
-                          child: Text(item.change!,
-                              key: ValueKey('reports-kpi-change-${item.label}'),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                  fontSize: TaskTypography.badge,
-                                  fontWeight: FontWeight.w800,
-                                  color: item.change!.startsWith('↓')
-                                      ? kTaskTerracotta
-                                      : kTaskTeal)),
+                          // Shrink, bukan elipsis, supaya "%" tidak hilang.
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(item.change!,
+                                key: ValueKey(
+                                    'reports-kpi-change-${item.label}'),
+                                maxLines: 1,
+                                softWrap: false,
+                                style: TextStyle(
+                                    fontSize: TaskTypography.badge,
+                                    fontWeight: FontWeight.w800,
+                                    color: item.change!.startsWith('↓')
+                                        ? kTaskTerracotta
+                                        : kTaskTeal)),
+                          ),
                         ),
                       ),
                   ],

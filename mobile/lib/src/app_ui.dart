@@ -46,7 +46,7 @@ InputDecoration appFieldDecoration(
     labelStyle: TextStyle(fontSize: 12, color: taskMuted(context)),
     hintStyle: TextStyle(
         fontSize: 12, color: taskMuted(context).withValues(alpha: .72)),
-    helperStyle: TextStyle(fontSize: 10, color: taskMuted(context)),
+    helperStyle: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context)),
   );
 }
 
@@ -192,7 +192,7 @@ class AppSectionCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                              fontSize: 9,
+                              fontSize: TaskTypography.micro,
                               fontWeight: FontWeight.w600,
                               color: taskMuted(context))),
                     ),
@@ -588,12 +588,18 @@ class AppStatusPill extends StatelessWidget {
               Icon(icon, size: 10, color: fg),
               const SizedBox(width: 3),
             ],
-            Text(label,
-                style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: .02,
-                    color: fg)),
+            // Label dipagari: pill dipakai di ruang sempit (kartu grid stok)
+            // dan teks panjang tidak boleh meluber keluar kartu.
+            Flexible(
+              child: Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: TaskTypography.micro,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: .02,
+                      color: fg)),
+            ),
           ],
         ),
       );
@@ -636,7 +642,7 @@ class AppListCard extends StatelessWidget {
     required this.child,
     this.onTap,
     this.tint,
-    this.margin = const EdgeInsets.only(bottom: 6),
+    this.margin = const EdgeInsets.only(bottom: 8),
   });
 
   final Widget child;

@@ -340,7 +340,7 @@ class _UsersPageState extends State<UsersPage> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style:
-                          TextStyle(fontSize: 10.5, color: taskMuted(context))),
+                          TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
                 ],
                 const SizedBox(height: 4),
                 Wrap(
@@ -425,11 +425,15 @@ class _UsersPageState extends State<UsersPage> {
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
           child: Row(
             children: [
-              Text('Pegawai',
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: ink(context))),
+              Flexible(
+                child: Text('Pegawai',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: ink(context))),
+              ),
               const SizedBox(width: 7),
               AppStatusPill(
                 label: '${_rows.length}',
@@ -437,15 +441,21 @@ class _UsersPageState extends State<UsersPage> {
                 bg: _isDark ? const Color(0x2ECBD5E1) : const Color(0xFFE2E8F0),
               ),
               const Spacer(),
-              FilledButton.icon(
-                onPressed: _form,
-                icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
-                label: const Text('Tambah'),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(0, 38),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.icon(
+                    onPressed: _form,
+                    icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
+                    label: const Text('Tambah'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 38),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
                 ),
               ),
             ],

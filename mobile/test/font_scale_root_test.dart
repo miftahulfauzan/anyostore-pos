@@ -29,15 +29,15 @@ void main() {
     ));
     await tester.pump();
 
-    expect(_rootMediaQuery(tester).textScaler.scale(10), 8);
+    expect(_rootMediaQuery(tester).textScaler.scale(10), 8.5);
     final material = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(
         material.theme?.textTheme.bodyMedium?.fontFamily, 'Plus Jakarta Sans');
 
-    FontScaleController.scale.value = 1.4;
+    FontScaleController.scale.value = 1.3;
     await tester.pump();
 
-    expect(_rootMediaQuery(tester).textScaler.scale(10), 14);
+    expect(_rootMediaQuery(tester).textScaler.scale(10), 13);
     expect(tester.takeException(), isNull);
   });
 
@@ -62,9 +62,9 @@ void main() {
     ));
     await tester.pump();
 
-    expect(_rootMediaQuery(tester).textScaler.scale(10), closeTo(10.4, .001));
+    expect(_rootMediaQuery(tester).textScaler.scale(10), closeTo(11.05, .001));
 
-    FontScaleController.scale.value = 1.4;
+    FontScaleController.scale.value = 1.3;
     await tester.pumpWidget(MediaQuery(
       data: const MediaQueryData(
         size: Size(320, 844),
@@ -76,6 +76,6 @@ void main() {
       ),
     ));
     await tester.pump();
-    expect(_rootMediaQuery(tester).textScaler.scale(10), 12);
+    expect(_rootMediaQuery(tester).textScaler.scale(10), 11.5);
   });
 }

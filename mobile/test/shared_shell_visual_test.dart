@@ -89,7 +89,9 @@ void main() {
         final scopeCard = tester.widget<Container>(
             find.byKey(const ValueKey('sidebar-branch-scope')));
         final scopeDecoration = scopeCard.decoration as BoxDecoration;
-        expect(scopeDecoration.color, const Color(0x13FFFFFF));
+        // Warna kartu memakai konstanta drawer (bukan hex manual) —
+        // Batch 9: 0x13FFFFFF manual diganti kDrawerDivider.
+        expect(scopeDecoration.color, kDrawerDivider);
         expect(scopeDecoration.borderRadius, BorderRadius.circular(12));
         final branchDropdown = tester.widget<AppSelectField<int?>>(
             find.byType(AppSelectField<int?>).first);
@@ -97,7 +99,7 @@ void main() {
         expect(branchDropdown.darkMenu, isTrue);
         expect(branchDropdown.transparentField, isTrue);
         expect(find.text('AKSES CEPAT'), findsNothing);
-        expect(find.text('Operasional'), findsOneWidget);
+        expect(find.text('Utama'), findsOneWidget);
         final posIcon = find.byIcon(Icons.point_of_sale).last;
         // Gaya baru (sama dengan sidebar web): item aktif = tint putih dengan
         // garis kiri biru muda, tanpa kotak ikon.
@@ -117,7 +119,7 @@ void main() {
             find.byKey(const ValueKey('mobile-more-menu-list')));
         expect(sidebarList.padding, const EdgeInsets.fromLTRB(16, 8, 16, 12));
         final operationalCard = tester
-            .getRect(find.byKey(const ValueKey('more-menu-card-Operasional')));
+            .getRect(find.byKey(const ValueKey('more-menu-card-Utama')));
         final productsCard = tester.getRect(
             find.byKey(const ValueKey('more-menu-card-Produk & Inventori')));
         expect(productsCard.top - operationalCard.bottom, 10);
@@ -131,7 +133,7 @@ void main() {
         );
         final groupHeader = find
             .ancestor(
-                of: find.text('Operasional'), matching: find.byType(InkWell))
+                of: find.text('Utama'), matching: find.byType(InkWell))
             .first;
         expect(tester.getRect(groupHeader).height, greaterThanOrEqualTo(28));
         final sidebarListFinder =

@@ -147,7 +147,7 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
               const Expanded(
                 child: Text('LACI KAS',
                     style: TextStyle(
-                        fontSize: 9,
+                        fontSize: TaskTypography.micro,
                         letterSpacing: 1,
                         fontWeight: FontWeight.w800,
                         color: Color(0xB8FFFFFF))),
@@ -161,7 +161,7 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
                 ),
                 child: Text(open ? 'TERBUKA' : 'BELUM DIBUKA',
                     style: TextStyle(
-                        fontSize: 8.5,
+                        fontSize: TaskTypography.micro,
                         fontWeight: FontWeight.w800,
                         color: open
                             ? const Color(0xFF86EFAC)
@@ -182,7 +182,7 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
                   ? 'Kas yang diharapkan · modal ${fmtRp(asNum(_drawer?['opening_amount']))}'
                   : 'Buka laci untuk mulai mencatat kas masuk/keluar.',
               style: const TextStyle(
-                  fontSize: 10, height: 1.4, color: Color(0xC7FFFFFF))),
+                  fontSize: TaskTypography.micro, height: 1.4, color: Color(0xC7FFFFFF))),
         ],
       ),
     );
@@ -209,7 +209,7 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
                 const SizedBox(width: 5),
                 Text(label.toUpperCase(),
                     style: TextStyle(
-                        fontSize: 8.5,
+                        fontSize: TaskTypography.micro,
                         fontWeight: FontWeight.w800,
                         letterSpacing: .5,
                         color: taskMuted(context))),
@@ -259,7 +259,7 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
         ),
         const SizedBox(height: 6),
         Text('Kas awal dihitung sebagai saldo pembuka laci.',
-            style: TextStyle(fontSize: 9.5, color: taskMuted(context))),
+            style: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
       ],
     );
   }
@@ -296,7 +296,7 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
                     child: Text(option.$2,
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            fontSize: 10,
+                            fontSize: TaskTypography.micro,
                             fontWeight: FontWeight.w800,
                             color: _moveType == option.$1
                                 ? Theme.of(context).colorScheme.onPrimary
@@ -399,7 +399,7 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
                       fontWeight: FontWeight.w700,
                       color: ink(context))),
               Text(_timeLabel(row['created_at']),
-                  style: TextStyle(fontSize: 9, color: taskMuted(context))),
+                  style: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
             ],
           ),
         ),
@@ -439,7 +439,7 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
           Row(
             children: [
               Text('Selisih',
-                  style: TextStyle(fontSize: 10, color: taskMuted(context))),
+                  style: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
               const Spacer(),
               Text(
                   difference == 0

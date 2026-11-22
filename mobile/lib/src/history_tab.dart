@@ -437,7 +437,7 @@ class _HistoryTabState extends State<HistoryTab> {
                           Text(
                               '${formatWibDate(detail['transaction_date'])} · ${_historyTime(detail['created_at'])} WIB',
                               style: TextStyle(
-                                  fontSize: 10, color: taskMuted(ctx))),
+                                  fontSize: TaskTypography.micro, color: taskMuted(ctx))),
                         ],
                       ),
                     ),
@@ -533,7 +533,7 @@ class _HistoryTabState extends State<HistoryTab> {
                                 child: Text(
                                     (item['variant_detail'] ?? '').toString(),
                                     style: TextStyle(
-                                        fontSize: 10.5, color: taskMuted(ctx))),
+                                        fontSize: TaskTypography.micro, color: taskMuted(ctx))),
                               ),
                             const SizedBox(height: 3),
                             Text(
@@ -541,7 +541,7 @@ class _HistoryTabState extends State<HistoryTab> {
                               '${asNum(item['cancelled_qty']) > 0 ? '  · batal ${item['cancelled_qty']}' : ''}'
                               '${asNum(item['returned_qty']) > 0 ? '  · retur ${item['returned_qty']}' : ''}',
                               style: TextStyle(
-                                  fontSize: 10, color: taskMuted(ctx)),
+                                  fontSize: TaskTypography.micro, color: taskMuted(ctx)),
                             ),
                           ],
                         ),
@@ -1160,7 +1160,7 @@ class _HistoryTabState extends State<HistoryTab> {
               children: [
                 Text(label,
                     style: TextStyle(
-                        fontSize: 10.5,
+                        fontSize: TaskTypography.micro,
                         fontWeight: FontWeight.w700,
                         color: ink(context))),
                 const SizedBox(width: 5),
@@ -1353,7 +1353,7 @@ class _HistoryTabState extends State<HistoryTab> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    fontSize: 10.5,
+                    fontSize: TaskTypography.micro,
                     fontWeight: FontWeight.w800,
                     color: ink(context))),
           ),
@@ -1364,7 +1364,7 @@ class _HistoryTabState extends State<HistoryTab> {
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.right,
                 style: TextStyle(
-                    fontSize: 10,
+                    fontSize: TaskTypography.micro,
                     fontWeight: FontWeight.w700,
                     color: taskMuted(context))),
           ),
@@ -1393,7 +1393,7 @@ class _HistoryTabState extends State<HistoryTab> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    fontSize: 10.5,
+                    fontSize: TaskTypography.micro,
                     fontWeight: FontWeight.w800,
                     color: ink(context))),
           ),
@@ -1402,7 +1402,7 @@ class _HistoryTabState extends State<HistoryTab> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    fontSize: 9.5,
+                    fontSize: TaskTypography.micro,
                     fontWeight: FontWeight.w700,
                     color: taskMuted(context))),
           ),
@@ -1493,7 +1493,7 @@ class _HistoryTabState extends State<HistoryTab> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                              fontSize: 9.5, color: taskMuted(context))),
+                              fontSize: TaskTypography.micro, color: taskMuted(context))),
                     ],
                   ),
                 ),
@@ -1829,7 +1829,7 @@ class _DetailFact extends StatelessWidget {
         children: [
           Text(label,
               style: TextStyle(
-                  fontSize: 8.5,
+                  fontSize: TaskTypography.micro,
                   fontWeight: FontWeight.w800,
                   letterSpacing: .4,
                   color: taskMuted(context))),
@@ -1838,7 +1838,7 @@ class _DetailFact extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  fontSize: 10.5,
+                  fontSize: TaskTypography.micro,
                   fontWeight: FontWeight.w700,
                   color: ink(context))),
         ],

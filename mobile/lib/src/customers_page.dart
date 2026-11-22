@@ -142,7 +142,7 @@ class _CustomersPageState extends State<CustomersPage> {
                   const SizedBox(height: 12),
                   Text('Tipe harga',
                       style: TextStyle(
-                          fontSize: 10,
+                          fontSize: TaskTypography.micro,
                           fontWeight: FontWeight.w800,
                           letterSpacing: .5,
                           color: taskMuted(ctx))),
@@ -293,7 +293,7 @@ class _CustomersPageState extends State<CustomersPage> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style:
-                          TextStyle(fontSize: 10.5, color: taskMuted(context))),
+                          TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
                 ],
                 const SizedBox(height: 4),
                 Wrap(
@@ -385,16 +385,25 @@ class _CustomersPageState extends State<CustomersPage> {
               children: [
                 Icon(Icons.people_outline, size: 14, color: taskMuted(context)),
                 const SizedBox(width: 6),
-                Text('${_rows.length} pelanggan',
-                    style: TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                        color: ink(context))),
+                Flexible(
+                  child: Text('${_rows.length} pelanggan',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: TaskTypography.micro,
+                          fontWeight: FontWeight.w800,
+                          color: ink(context))),
+                ),
                 if (wholesale > 0) ...[
                   const SizedBox(width: 6),
-                  Text('· $wholesale grosir/semi',
-                      style:
-                          TextStyle(fontSize: 10, color: taskMuted(context))),
+                  Flexible(
+                    child: Text('· $wholesale grosir/semi',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: TaskTypography.micro,
+                            color: taskMuted(context))),
+                  ),
                 ],
               ],
             ),

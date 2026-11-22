@@ -686,7 +686,7 @@ void main() {
         expect(find.text('Gudang'), findsOneWidget);
         await tester.tap(find.byType(AppSelectField<int?>).first);
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Anyostore Metro').last);
+        await tester.tap(find.text('Toko · Anyostore Metro').last);
         await tester.pumpAndSettle();
         await tester.ensureVisible(find.text('Denim'));
         await tester.pumpAndSettle();

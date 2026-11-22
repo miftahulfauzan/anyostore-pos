@@ -112,7 +112,7 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                     ].join(' · '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 9.5, color: taskMuted(context))),
+                    style: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
               ],
             ),
           ),

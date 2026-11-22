@@ -153,9 +153,8 @@ Future<void> openSection(
       home:
           Scaffold(body: InventoryPage(api: api, branchId: 4, role: 'admin'))));
   await tester.pumpAndSettle();
-  await tester.tap(find.byKey(const ValueKey('inventory-section-selector')));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text(section).last);
+  // Selector seksi kini baris PillTabs: chip cukup diketuk langsung.
+  await tester.tap(find.text(section).first);
   await tester.pumpAndSettle();
 }
 
@@ -173,7 +172,7 @@ Future<void> addOpname(WidgetTester tester, {String count = '0'}) async {
 }
 
 void main() {
-  testWidgets('inventory title selector opens every stock operation',
+  testWidgets('inventory section tabs open every stock operation',
       (tester) async {
     final api = InventoryApi();
     tester.view.physicalSize = const Size(900, 1800);
@@ -185,19 +184,14 @@ void main() {
             body: InventoryPage(api: api, branchId: 4, role: 'gudang'))));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('inventory-section-selector')));
-    await tester.pumpAndSettle();
+    // Semua seksi tersedia sebagai chip PillTabs (bisa digeser).
     expect(find.text('Stok'), findsWidgets);
     expect(find.text('Mutasi'), findsWidgets);
     for (final label in ['Transfer', 'Opname', 'Barcode']) {
-      expect(
-          find.descendant(
-              of: find.byType(PopupMenuItem<String>),
-              matching: find.text(label)),
-          findsOneWidget);
+      expect(find.text(label), findsOneWidget);
     }
 
-    await tester.tap(find.text('Transfer').last);
+    await tester.tap(find.text('Transfer').first);
     await tester.pumpAndSettle();
     expect(find.text('Dari lokasi'), findsOneWidget);
   });
@@ -215,9 +209,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Stok'), findsWidgets);
-    await tester.tap(find.byKey(const ValueKey('inventory-section-selector')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Mutasi').last);
+    await tester.tap(find.text('Mutasi').first);
     await tester.pumpAndSettle();
     expect(find.text('Stok masuk'), findsOneWidget);
     expect(find.text('Stok keluar'), findsOneWidget);
@@ -244,16 +236,14 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('inventory-section-selector')));
+    await tester.tap(find.text('Transfer').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Transfer').last);
     await tester.pumpAndSettle();
     expect(find.text('Transfer stok'), findsOneWidget);
     await tester.pageBack();
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('inventory-section-selector')));
+    await tester.tap(find.text('Opname').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Opname').last);
     await tester.pumpAndSettle();
     expect(find.text('Opname'), findsOneWidget);
     expect(find.byKey(const ValueKey('opname-save-button')), findsOneWidget);
@@ -334,9 +324,8 @@ void main() {
             body: InventoryPage(api: api, branchId: 4, role: 'admin'))));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('inventory-section-selector')));
+    await tester.tap(find.text('Opname').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Opname').last);
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('opname-save-button')).hitTestable(),

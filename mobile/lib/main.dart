@@ -214,8 +214,10 @@ ThemeData buildAnyostoreTheme({Brightness brightness = Brightness.light}) {
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        backgroundColor: scheme.primary,
-        foregroundColor: scheme.onPrimary,
+        // Mode gelap: tombol utama tetap denim (#2E5D8F + teks putih),
+        // bukan biru aksen terang.
+        backgroundColor: dark ? const Color(0xFF2E5D8F) : scheme.primary,
+        foregroundColor: dark ? Colors.white : scheme.onPrimary,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         minimumSize: const Size(0, 50),
         textStyle: const TextStyle(

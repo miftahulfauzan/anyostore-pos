@@ -39,7 +39,7 @@ void main() {
     ThemeController.mode.value = ThemeMode.light;
   });
 
-  testWidgets('tampilan memakai kartu tema, slider 80%, dan pratinjau',
+  testWidgets('tampilan memakai kartu tema, slider 85%, dan pratinjau',
       (tester) async {
     await _pump(tester);
 
@@ -47,7 +47,7 @@ void main() {
     expect(find.text('Gelap'), findsOneWidget);
     expect(find.text('Sistem'), findsOneWidget);
     expect(find.text('UKURAN TEKS'), findsOneWidget);
-    expect(find.text('80%'), findsNWidgets(2));
+    expect(find.text('85%'), findsNWidgets(2));
     expect(find.byType(Slider), findsOneWidget);
     expect(find.text('PRATINJAU'), findsOneWidget);
     expect(find.text('Kemeja Denim A100'), findsOneWidget);

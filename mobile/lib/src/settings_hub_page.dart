@@ -113,20 +113,9 @@ class SettingsHubPage extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Pengaturan',
-                  style: TextStyle(
-                      color: ink(context),
-                      fontSize: 27,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -.5)),
-              const SizedBox(height: 4),
-              Text('Kelola toko, POS, dan aplikasi Anda.',
-                  style: TextStyle(color: taskMuted(context), fontSize: 13)),
-            ],
-          ),
+          // Judul besar dihapus: AppBar sudah menampilkan "Pengaturan".
+          child: Text('Kelola toko, POS, dan aplikasi Anda.',
+              style: TextStyle(color: taskMuted(context), fontSize: 13)),
         ),
         for (final group in groups) _buildGroup(context, group),
       ],
@@ -168,21 +157,13 @@ class SettingsHubPage extends StatelessWidget {
           ),
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
-            // Kartu membulat per grup supaya tiap kelompok terlihat utuh;
-            // warna tetap lembut dan hanya di ikon + titik label.
+            // Kartu membulat per grup; pemisahan tonal via border saja
+            // (tanpa shadow), sesuai arah desain.
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: taskSurface(context),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: taskBorder(context)),
-              boxShadow: Theme.of(context).brightness == Brightness.light
-                  ? const [
-                      BoxShadow(
-                          color: Color(0x0A0F172A),
-                          blurRadius: 10,
-                          offset: Offset(0, 3)),
-                    ]
-                  : null,
             ),
             child: Column(
               children: [
@@ -276,41 +257,13 @@ class _SettingsHubRow extends StatelessWidget {
 /// Warna ikon per jenis pengaturan. Mode gelap memakai varian lebih terang
 /// dengan latar transparan agar tetap kontras di atas permukaan gelap.
 ({Color fg, Color bg}) _hubColors(BuildContext context, String section) {
+  // Satu warna denim untuk semua section (identitas brand), bukan palet
+  // warna-warni per section.
   final dark = Theme.of(context).brightness == Brightness.dark;
-  return switch (section) {
-    'store' => (
-        fg: dark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8),
-        bg: dark ? const Color(0x2E93C5FD) : const Color(0xFFDBEAFE),
-      ),
-    'category' => (
-        fg: dark ? const Color(0xFFFCD34D) : const Color(0xFFB45309),
-        bg: dark ? const Color(0x2EFCD34D) : const Color(0xFFFEF3C7),
-      ),
-    'printer' => (
-        fg: dark ? const Color(0xFF6EE7B7) : const Color(0xFF0F766E),
-        bg: dark ? const Color(0x2E6EE7B7) : const Color(0xFFCCFBF1),
-      ),
-    'display' => (
-        fg: dark ? const Color(0xFFC4B5FD) : const Color(0xFF6D28D9),
-        bg: dark ? const Color(0x2EC4B5FD) : const Color(0xFFEDE9FE),
-      ),
-    'data' => (
-        fg: dark ? const Color(0xFFA5B4FC) : const Color(0xFF4338CA),
-        bg: dark ? const Color(0x2EA5B4FC) : const Color(0xFFE0E7FF),
-      ),
-    'notifications' => (
-        fg: dark ? const Color(0xFFFDA4AF) : const Color(0xFFBE123C),
-        bg: dark ? const Color(0x2EFDA4AF) : const Color(0xFFFFE4E6),
-      ),
-    'branches' => (
-        fg: dark ? const Color(0xFF86EFAC) : const Color(0xFF15803D),
-        bg: dark ? const Color(0x2E86EFAC) : const Color(0xFFDCFCE7),
-      ),
-    _ => (
-        fg: dark ? kTaskAccentDark : kTaskAccent,
-        bg: dark ? const Color(0x2E60A5FA) : const Color(0xFFDBEAFE),
-      ),
-  };
+  return (
+    fg: dark ? kTaskAccentDark : kTaskDark,
+    bg: dark ? const Color(0x2E60A5FA) : const Color(0xFFE3EBF5),
+  );
 }
 
 class _SettingsHubGroup {

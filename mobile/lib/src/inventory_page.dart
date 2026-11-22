@@ -153,7 +153,7 @@ class _InventoryPageState extends State<InventoryPage> {
                       textAlign: TextAlign.center,
                       style: TextStyle(
                           color: ink(context),
-                          fontSize: 18,
+                          fontSize: TaskTypography.sectionTitle,
                           fontWeight: FontWeight.w800)),
                   const SizedBox(height: 6),
                   Text(
@@ -225,103 +225,16 @@ class _InventorySectionSelector extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final List<({String value, IconData icon, String label})> sections;
 
+  // Satu baris PillTabs (bisa digeser) menggantikan dua header bertumpuk
+  // (judul popup + baris chip) — sama seperti tab di finance/reports.
   @override
   Widget build(BuildContext context) {
-    final item = sections.firstWhere(
-      (entry) => entry.value == selected,
-      orElse: () => sections.first,
+    return PillTabs(
+      tabs: sections,
+      selected: selected,
+      onChanged: onChanged,
     );
-    return Column(children: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-        child: PopupMenuButton<String>(
-          key: const ValueKey('inventory-section-selector'),
-          tooltip: 'Pilih halaman stok',
-          offset: const Offset(0, 8),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          onSelected: onChanged,
-          itemBuilder: (context) => [
-            for (final entry in sections)
-              PopupMenuItem<String>(
-                value: entry.value,
-                child: Row(
-                  children: [
-                    Icon(entry.icon, size: 20, color: _sectionColor(entry)),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text(entry.label)),
-                    if (entry.value == selected)
-                      const Icon(Icons.check, size: 18, color: kTaskTeal),
-                  ],
-                ),
-              ),
-          ],
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 48),
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(item.label,
-                          style: TextStyle(
-                              color: ink(context),
-                              fontSize: 20,
-                              height: 1.05,
-                              fontWeight: FontWeight.w800)),
-                    ],
-                  ),
-                ),
-                Icon(Icons.keyboard_arrow_down,
-                    size: 24, color: taskMuted(context)),
-              ],
-            ),
-          ),
-        ),
-      ),
-      Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(children: [
-            for (final entry in sections)
-              Expanded(
-                  child: Semantics(
-                      selected: entry.value == selected,
-                      button: true,
-                      child: InkWell(
-                        onTap: () => onChanged(entry.value),
-                        borderRadius: BorderRadius.circular(10),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(
-                              color: entry.value == selected
-                                  ? Theme.of(context)
-                                      .colorScheme
-                                      .primaryContainer
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(10)),
-                          child: Column(children: [
-                            Icon(entry.icon, size: 18, color: ink(context)),
-                            const SizedBox(height: 4),
-                            Text(entry.label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                    fontSize: TaskTypography.secondary,
-                                    color: ink(context)))
-                          ]),
-                        ),
-                      ))),
-          ])),
-      const SizedBox(height: 4)
-    ]);
   }
-
-  Color _sectionColor(({String value, IconData icon, String label}) entry) =>
-      entry.value == 'mutasi' ? kTaskTeal : kTaskDark;
 }
 
 class _StockSection extends StatefulWidget {
@@ -398,6 +311,8 @@ class _StockSectionState extends State<_StockSection> {
     bool autofocus = false,
     bool allowClose = false,
   }) {
+    // Satu gaya field dengan halaman lain (appFieldDecoration: radius 12,
+    // ikon 18) — sebelumnya OutlineInputBorder() default radius 4.
     return TextField(
       key: const ValueKey('inventory-stock-search-field'),
       controller: _search,
@@ -405,8 +320,8 @@ class _StockSectionState extends State<_StockSection> {
       autofocus: autofocus,
       maxLines: 1,
       textInputAction: TextInputAction.search,
-      decoration: InputDecoration(
-        prefixIcon: const Icon(Icons.search),
+      style: TextStyle(fontSize: TaskTypography.label, color: ink(context)),
+      decoration: appFieldDecoration(context, hint: 'Cari produk / SKU').copyWith(
         prefix: showWarehouseChip && _warehouses.isNotEmpty
             ? Padding(
                 padding: const EdgeInsets.only(right: 8),
@@ -435,9 +350,6 @@ class _StockSectionState extends State<_StockSection> {
                 onPressed: _closeSearch,
               )
             : null,
-        isDense: true,
-        hintText: 'Cari produk / SKU',
-        border: const OutlineInputBorder(),
       ),
       onSubmitted: (_) => _load(),
     );
@@ -455,7 +367,7 @@ class _StockSectionState extends State<_StockSection> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Text('Pilih Toko/Gudang',
                   style: TextStyle(
-                      fontSize: 14,
+                      fontSize: TaskTypography.body,
                       fontWeight: FontWeight.w800,
                       color: ink(ctx))),
             ),
@@ -676,17 +588,15 @@ class _StockSectionState extends State<_StockSection> {
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
           child: Row(
             children: [
-              _StatCell('Produk', '${_summary['total_products'] ?? 0}',
-                  icon: Icons.inventory_2),
+              _StatCell('Produk', '${_summary['total_products'] ?? 0}'),
               const SizedBox(width: 8),
-              _StatCell('Stok', '${_summary['total_stock'] ?? 0}',
-                  icon: Icons.storage),
+              _StatCell('Stok', '${_summary['total_stock'] ?? 0}'),
               const SizedBox(width: 8),
               _StatCell('Stok rendah', '${_summary['low_stock'] ?? 0}',
-                  icon: Icons.warning_amber_rounded, color: kTaskStockLow),
+                  color: kTaskStockLow),
               const SizedBox(width: 8),
               _StatCell('Habis', '${_summary['out_of_stock'] ?? 0}',
-                  icon: Icons.block, color: kTaskStockEmpty),
+                  color: kTaskStockEmpty),
             ],
           ),
         ),
@@ -696,13 +606,14 @@ class _StockSectionState extends State<_StockSection> {
               : _error != null
                   ? UiErrorState(message: _error!, onRetry: _load)
                   : _rows.isEmpty
-                      ? const UiEmptyState(
+                      ? const AppEmptyState(
+                          icon: Icons.inventory_2_outlined,
                           title: 'Belum ada produk',
                           message: 'Coba ganti gudang atau kata pencarian.')
                       : _grid
                           ? GridView.builder(
                               padding:
-                                  const EdgeInsets.fromLTRB(12, 0, 12, 104),
+                                  const EdgeInsets.fromLTRB(12, 0, 12, 16),
                               itemCount: _sorted.length,
                               gridDelegate:
                                   const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -713,13 +624,11 @@ class _StockSectionState extends State<_StockSection> {
                               ),
                               itemBuilder: (_, i) {
                                 final r = _sorted[i];
-                                final stockLevel = inventoryStockLevel(
-                                    asNum(r['total_stock']),
-                                    asNum(r['min_stock']));
-                                final stockColor =
-                                    inventoryStockInk(context, stockLevel);
-                                final stockSurface =
-                                    inventoryStockSurface(context, stockLevel);
+                                final stock = asNum(r['total_stock']);
+                                final minStock = asNum(r['min_stock']);
+                                final status =
+                                    appStockStyle(context, stock, minStock);
+                                final isLow = stock > 0 && stock <= minStock;
                                 return GlassCard(
                                   padding: EdgeInsets.zero,
                                   radius: 12,
@@ -757,43 +666,33 @@ class _StockSectionState extends State<_StockSection> {
                                             Text(productDisplayName(r),
                                                 maxLines: 2,
                                                 overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                    fontSize: 12,
+                                                style: TextStyle(
+                                                    fontSize: TaskTypography
+                                                        .secondary,
                                                     fontWeight:
-                                                        FontWeight.w700)),
+                                                        FontWeight.w700,
+                                                    color: ink(context))),
                                             const SizedBox(height: 4),
-                                            Row(
+                                            Wrap(
+                                              spacing: 6,
+                                              runSpacing: 2,
+                                              crossAxisAlignment:
+                                                  WrapCrossAlignment.center,
                                               children: [
-                                                Expanded(
-                                                  child: Container(
-                                                    padding: const EdgeInsets
-                                                        .symmetric(
-                                                        horizontal: 8,
-                                                        vertical: 5),
-                                                    decoration: BoxDecoration(
-                                                      color: stockSurface,
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              10),
-                                                    ),
-                                                    child: Text(
-                                                        'Stok ${r['total_stock'] ?? 0}',
-                                                        style: TextStyle(
-                                                            fontWeight:
-                                                                FontWeight.w800,
-                                                            fontSize: 12,
-                                                            color: stockColor)),
-                                                  ),
-                                                ),
-                                                if (stockLevel ==
-                                                    InventoryStockLevel.low)
+                                                AppStatusPill(
+                                                    label:
+                                                        '${status.label} · ${r['total_stock'] ?? 0}',
+                                                    fg: status.fg,
+                                                    bg: status.bg),
+                                                if (isLow)
                                                   Text(
                                                       'min ${r['min_stock'] ?? 0}',
                                                       style: TextStyle(
                                                           fontSize:
                                                               TaskTypography
                                                                   .micro,
-                                                          color: stockColor)),
+                                                          color: taskMuted(
+                                                              context))),
                                               ],
                                             ),
                                           ],
@@ -806,19 +705,17 @@ class _StockSectionState extends State<_StockSection> {
                             )
                           : ListView.separated(
                               padding:
-                                  const EdgeInsets.fromLTRB(12, 0, 12, 104),
+                                  const EdgeInsets.fromLTRB(12, 0, 12, 16),
                               itemCount: _sorted.length,
                               separatorBuilder: (_, __) =>
                                   const SizedBox(height: 8),
                               itemBuilder: (_, i) {
                                 final r = _sorted[i];
-                                final stockLevel = inventoryStockLevel(
-                                    asNum(r['total_stock']),
-                                    asNum(r['min_stock']));
-                                final stockColor =
-                                    inventoryStockInk(context, stockLevel);
-                                final stockSurface =
-                                    inventoryStockSurface(context, stockLevel);
+                                final stock = asNum(r['total_stock']);
+                                final minStock = asNum(r['min_stock']);
+                                final status =
+                                    appStockStyle(context, stock, minStock);
+                                final isLow = stock > 0 && stock <= minStock;
                                 return GlassCard(
                                   padding: const EdgeInsets.all(10),
                                   radius: 12,
@@ -830,20 +727,20 @@ class _StockSectionState extends State<_StockSection> {
                                       ClipRRect(
                                         borderRadius: BorderRadius.circular(12),
                                         child: SizedBox(
-                                          width: 58,
-                                          height: 58,
+                                          width: 56,
+                                          height: 56,
                                           child: UiProductPhoto(
                                             path: stockProductPhotoPath(r),
                                             baseUrl: widget.api.baseUrl,
-                                            width: 58,
-                                            height: 72,
+                                            width: 56,
+                                            height: 56,
                                             fit: BoxFit.cover,
                                             label:
                                                 'Foto ${productDisplayName(r)}',
                                           ),
                                         ),
                                       ),
-                                      const SizedBox(width: 12),
+                                      const SizedBox(width: 10),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment:
@@ -852,73 +749,48 @@ class _StockSectionState extends State<_StockSection> {
                                             Text(productDisplayName(r),
                                                 maxLines: 2,
                                                 overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                    fontWeight: FontWeight.w700,
-                                                    fontSize: 14)),
+                                                style: TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.w700,
+                                                    fontSize:
+                                                        TaskTypography.body,
+                                                    color: ink(context))),
                                             const SizedBox(height: 2),
                                             Text(
                                                 '${r['sku'] ?? ''}${productSecondaryLabel(r).isNotEmpty ? ' · ${productSecondaryLabel(r)}' : ''}${(r['branch_name'] ?? '').toString().isNotEmpty ? ' · ${r['branch_name']}' : ''}',
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: TextStyle(
-                                                    fontSize: 12,
+                                                    fontSize: TaskTypography
+                                                        .secondary,
                                                     color: taskMuted(context))),
                                             const SizedBox(height: 5),
-                                            Row(
+                                            Wrap(
+                                              spacing: 6,
+                                              runSpacing: 2,
+                                              crossAxisAlignment:
+                                                  WrapCrossAlignment.center,
                                               children: [
-                                                Container(
-                                                  padding: const EdgeInsets
-                                                      .symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 4),
-                                                  decoration: BoxDecoration(
-                                                    color: stockSurface,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            9),
-                                                  ),
-                                                  child: Text(
-                                                      '${switch (stockLevel) {
-                                                        InventoryStockLevel
-                                                              .good =>
-                                                          'Tersedia',
-                                                        InventoryStockLevel
-                                                              .low =>
-                                                          'Menipis',
-                                                        InventoryStockLevel
-                                                              .empty =>
-                                                          'Habis',
-                                                      }} · ${r['total_stock'] ?? 0}',
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      style: TextStyle(
-                                                          fontWeight:
-                                                              FontWeight.w800,
-                                                          fontSize: 11.5,
-                                                          color: stockColor)),
-                                                ),
-                                                if (stockLevel ==
-                                                    InventoryStockLevel
-                                                        .low) ...[
-                                                  const SizedBox(width: 5),
+                                                AppStatusPill(
+                                                    label:
+                                                        '${status.label} · ${r['total_stock'] ?? 0}',
+                                                    fg: status.fg,
+                                                    bg: status.bg),
+                                                if (isLow)
                                                   Text(
                                                       'min ${r['min_stock'] ?? 0}',
                                                       style: TextStyle(
-                                                          fontSize: 9.5,
+                                                          fontSize:
+                                                              TaskTypography.micro,
                                                           color: taskMuted(
                                                               context))),
-                                                ],
                                               ],
                                             ),
                                           ],
                                         ),
                                       ),
                                       const SizedBox(width: 6),
-                                      const Padding(
-                                        padding: EdgeInsets.only(top: 1),
-                                        child: _StockEditBadge(),
-                                      ),
+                                      const _StockEditBadge(),
                                     ],
                                   ),
                                 );
@@ -986,8 +858,8 @@ class _StockEditBadge extends StatelessWidget {
       label: 'Edit produk',
       child: IgnorePointer(
         child: Container(
-          width: 30,
-          height: 30,
+          width: 32,
+          height: 32,
           decoration: BoxDecoration(
             color: dark ? kTaskDarkSurface : kTaskSurface,
             borderRadius: BorderRadius.circular(10),
@@ -1007,11 +879,9 @@ class _StockEditBadge extends StatelessWidget {
 
 /// Statistik stok padat: 1 baris dibagi 4, font kecil seragam supaya muat.
 class _StatCell extends StatelessWidget {
-  const _StatCell(this.label, this.value,
-      {this.icon = Icons.circle, this.color});
+  const _StatCell(this.label, this.value, {this.color});
   final String label;
   final String value;
-  final IconData icon;
   final Color? color;
 
   @override
@@ -1026,16 +896,17 @@ class _StatCell extends StatelessWidget {
                 : const Color(0xffFCA5A5);
     return Expanded(
       child: GlassCard(
-        radius: 14,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
+        radius: 12,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         child: Column(
           children: [
             Text(label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    fontSize: TaskTypography.secondary,
-                    fontWeight: FontWeight.w600,
+                    fontSize: TaskTypography.micro,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: .02,
                     color: taskMuted(context))),
             const SizedBox(height: 2),
             FittedBox(
@@ -1045,7 +916,7 @@ class _StatCell extends StatelessWidget {
                 children: [
                   Text(value,
                       style: TextStyle(
-                          fontSize: 17,
+                          fontSize: TaskTypography.largeBody,
                           fontWeight: FontWeight.w800,
                           color: valueColor)),
                 ],
@@ -1139,10 +1010,7 @@ class _MutasiSectionState extends State<_MutasiSection> {
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
           child: AppSelectField<String>(
             value: _filter,
-            decoration: const InputDecoration(
-                isDense: true,
-                labelText: 'Jenis mutasi',
-                border: OutlineInputBorder()),
+            decoration: appFieldDecoration(context, label: 'Jenis mutasi'),
             items: const [
               DropdownMenuItem(value: '', child: Text('Semua')),
               DropdownMenuItem(
@@ -1170,46 +1038,80 @@ class _MutasiSectionState extends State<_MutasiSection> {
               : _error != null
                   ? UiErrorState(message: _error!, onRetry: _load)
                   : _rows.isEmpty
-                      ? const UiEmptyState(
+                      ? const AppEmptyState(
+                          icon: Icons.swap_vert,
                           title: 'Belum ada mutasi hari ini',
                           message:
-                              'Mutasi yang dicatat hari ini akan tampil di sini.',
-                          icon: Icons.swap_vert)
+                              'Mutasi yang dicatat hari ini akan tampil di sini.')
                       : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 104),
+                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
                           itemCount: _rows.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 8),
                           itemBuilder: (_, i) {
                             final r = _rows[i];
                             final positive = asNum(r['qty']) >= 0;
-                            return GlassCard(
-                              padding: EdgeInsets.zero,
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  child: Text(() {
-                                    final t = (r['type'] ?? '').toString();
-                                    return t.isEmpty
-                                        ? '?'
-                                        : t
-                                            .split('_')
-                                            .first
-                                            .toUpperCase()
-                                            .substring(0, 1);
-                                  }()),
-                                ),
-                                title:
-                                    Text(r['product_name']?.toString() ?? ''),
-                                subtitle: Text(
-                                    '${r['type'] ?? ''} · ${r['warehouse_name'] ?? ''} · ${r['created_at'] ?? ''}'),
-                                trailing: Text(
-                                  '${positive ? '+' : ''}${r['qty']}',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      color: positive
-                                          ? kTaskTeal
-                                          : kTaskTerracotta),
-                                ),
+                            final accent =
+                                positive ? kTaskTeal : kTaskTerracotta;
+                            final t = (r['type'] ?? '').toString();
+                            final initial = t.isEmpty
+                                ? '?'
+                                : t.split('_').first.toUpperCase()[0];
+                            return AppListCard(
+                              onTap: null,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: accent.withValues(alpha: .12),
+                                      borderRadius:
+                                          BorderRadius.circular(10),
+                                    ),
+                                    child: Text(initial,
+                                        style: TextStyle(
+                                            fontSize: TaskTypography.label,
+                                            fontWeight: FontWeight.w800,
+                                            color: accent)),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(r['product_name']?.toString() ?? '',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                                fontSize:
+                                                    TaskTypography.secondary,
+                                                fontWeight: FontWeight.w800,
+                                                color: ink(context))),
+                                        const SizedBox(height: 1),
+                                        Text(
+                                            '${r['type'] ?? ''} · ${r['warehouse_name'] ?? ''} · ${r['created_at'] ?? ''}',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                                fontSize:
+                                                    TaskTypography.micro,
+                                                color: taskMuted(context))),
+                                      ],
+                                    ),
+                                  ),
+                                  Text(
+                                      '${positive ? '+' : ''}${r['qty']}',
+                                      style: TextStyle(
+                                          fontSize: TaskTypography.secondary,
+                                          fontWeight: FontWeight.w800,
+                                          fontFeatures: const [
+                                            FontFeature.tabularFigures()
+                                          ],
+                                          color: accent)),
+                                ],
                               ),
                             );
                           },
@@ -1372,18 +1274,16 @@ class _InOutFormState extends State<_InOutForm> {
               TextField(
                 controller: qty,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                    labelText: 'Jumlah', border: OutlineInputBorder()),
+                decoration: appFieldDecoration(context, label: 'Jumlah'),
               ),
               if (widget.kind == 'incoming') ...[
                 const SizedBox(height: 8),
                 TextField(
                   controller: cost,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                      labelText: 'Harga beli (opsional)',
-                      border: OutlineInputBorder(),
-                      prefixText: 'Rp '),
+                  decoration: appFieldDecoration(
+                    context, label: 'Harga beli (opsional)')
+                .copyWith(prefixText: 'Rp '),
                 ),
               ],
             ],
@@ -1445,7 +1345,7 @@ class _InOutFormState extends State<_InOutForm> {
                 Text('Keranjang · ${_items.length} produk',
                     style: TextStyle(
                         color: accent,
-                        fontSize: 12.5,
+                        fontSize: TaskTypography.secondary,
                         fontWeight: FontWeight.w800)),
                 Text(
                     _items.isEmpty
@@ -1495,7 +1395,7 @@ class _InOutFormState extends State<_InOutForm> {
                         child: Text('Keranjang · ${_items.length} produk',
                             style: TextStyle(
                                 color: accent,
-                                fontSize: 16,
+                                fontSize: TaskTypography.largeBody,
                                 fontWeight: FontWeight.w800)),
                       ),
                       Text('$_totalQuantity pcs',
@@ -1523,8 +1423,8 @@ class _InOutFormState extends State<_InOutForm> {
                           children: [
                             _InventoryThumbnail(
                                 path: _mediaUrl(stockProductPhotoPath(item)),
-                                size: const Size(38, 38)),
-                            const SizedBox(width: 8),
+                                size: const Size(40, 40)),
+                            const SizedBox(width: 10),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1533,7 +1433,7 @@ class _InOutFormState extends State<_InOutForm> {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
-                                          fontSize: 12,
+                                          fontSize: TaskTypography.secondary,
                                           fontWeight: FontWeight.w700)),
                                   Text(
                                       '${variant.isEmpty ? '' : '$variant · '}${item['quantity']} pcs',
@@ -1656,23 +1556,21 @@ class _InOutFormState extends State<_InOutForm> {
             children: [
               if ((item['variant_label'] ?? '').toString().isNotEmpty)
                 Text((item['variant_label'] ?? '').toString(),
-                    style: TextStyle(fontSize: 12, color: taskMuted(context))),
+                    style: TextStyle(fontSize: TaskTypography.secondary, color: taskMuted(context))),
               const SizedBox(height: 10),
               TextField(
                 controller: qty,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                    labelText: 'Jumlah *', border: OutlineInputBorder()),
+                decoration: appFieldDecoration(context, label: 'Jumlah *'),
               ),
               if (withCost) ...[
                 const SizedBox(height: 8),
                 TextField(
                   controller: cost,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                      labelText: 'Harga beli (opsional)',
-                      border: OutlineInputBorder(),
-                      prefixText: 'Rp '),
+                  decoration: appFieldDecoration(
+                    context, label: 'Harga beli (opsional)')
+                .copyWith(prefixText: 'Rp '),
                 ),
               ],
             ],
@@ -1757,7 +1655,9 @@ class _InOutFormState extends State<_InOutForm> {
         foregroundColor: Colors.white,
         // Judul dijamin putih (theme global memakai denim).
         titleTextStyle: const TextStyle(
-            color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+            color: Colors.white,
+            fontSize: TaskTypography.appBarTitle,
+            fontWeight: FontWeight.w700),
         flexibleSpace: Container(color: kTaskDark),
         title: Row(
           children: [
@@ -1768,7 +1668,7 @@ class _InOutFormState extends State<_InOutForm> {
             Text('${_items.length} item',
                 style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 12,
+                    fontSize: TaskTypography.secondary,
                     fontWeight: FontWeight.w700)),
           ],
         ),
@@ -1819,12 +1719,12 @@ class _InOutFormState extends State<_InOutForm> {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
-                                        fontSize: 13,
+                                        fontSize: TaskTypography.label,
                                         fontWeight: FontWeight.w800)),
                               ),
                               Text(_displayDate(_transactionDate),
                                   style: const TextStyle(
-                                      fontSize: 12,
+                                      fontSize: TaskTypography.secondary,
                                       fontWeight: FontWeight.w700)),
                             ],
                           ),
@@ -1857,18 +1757,17 @@ class _InOutFormState extends State<_InOutForm> {
                                     '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}');
                               },
                               child: InputDecorator(
-                                  decoration: const InputDecoration(
-                                      labelText: 'Tanggal',
-                                      suffixIcon:
-                                          Icon(Icons.calendar_today_outlined)),
+                                  decoration: appFieldDecoration(
+                                      context,
+                                      label: 'Tanggal',
+                                      suffix: const Icon(
+                                          Icons.calendar_today_outlined)),
                                   child: Text(_transactionDate)),
                             ),
                             const SizedBox(height: 8),
                             AppSelectField<String>(
                               value: _warehouseId.isEmpty ? null : _warehouseId,
-                              decoration: const InputDecoration(
-                                  labelText: 'Gudang',
-                                  border: OutlineInputBorder()),
+                              decoration: appFieldDecoration(context, label: 'Gudang'),
                               items: [
                                 for (final w in _warehouses)
                                   DropdownMenuItem(
@@ -1885,9 +1784,7 @@ class _InOutFormState extends State<_InOutForm> {
                               const SizedBox(height: 8),
                               AppSelectField<String>(
                                 value: _channel,
-                                decoration: InputDecoration(
-                                    labelText: 'Saluran',
-                                    border: const OutlineInputBorder(),
+                                decoration: appFieldDecoration(context, label: 'Saluran').copyWith(
                                     suffixIcon: IconButton(
                                       onPressed: _addChannel,
                                       icon: const Icon(Icons.add_circle_outline,
@@ -1910,16 +1807,13 @@ class _InOutFormState extends State<_InOutForm> {
                             ],
                             const SizedBox(height: 8),
                             TextField(
-                              decoration: const InputDecoration(
-                                  labelText: 'Nomor batch / nota (opsional)',
-                                  border: OutlineInputBorder()),
+                              decoration: appFieldDecoration(
+                                  context, label: 'Nomor batch / nota (opsional)'),
                               onChanged: (v) => _batch = v,
                             ),
                             const SizedBox(height: 8),
                             TextField(
-                              decoration: const InputDecoration(
-                                  labelText: 'Keterangan',
-                                  border: OutlineInputBorder()),
+                              decoration: appFieldDecoration(context, label: 'Keterangan'),
                               onChanged: (v) => _notes = v,
                             ),
                           ],
@@ -1930,11 +1824,8 @@ class _InOutFormState extends State<_InOutForm> {
                     TextField(
                       onChanged: (value) =>
                           setState(() => _catalogQuery = value),
-                      decoration: const InputDecoration(
-                          prefixIcon: Icon(Icons.search),
-                          isDense: true,
-                          hintText: 'Cari produk',
-                          border: OutlineInputBorder()),
+                      decoration: appFieldDecoration(
+                          context, hint: 'Cari produk', icon: Icons.search_rounded),
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: 8),
@@ -1966,13 +1857,17 @@ class _InOutFormState extends State<_InOutForm> {
                           crossAxisCount: 3,
                           mainAxisSpacing: 10,
                           crossAxisSpacing: 10,
-                          childAspectRatio: .60,
+                          // Kartu katalog in-out punya konten tetap (nama +
+                          // stok + tombol tambah) sehingga butuh sel lebih
+                          // tinggi daripada grid stok (0.64): 0.60 supaya
+                          // tidak meluber di layar 320.
+                          childAspectRatio: 0.60,
                         ),
                         itemBuilder: (_, index) {
                           final product = _filteredCatalog[index];
                           return GlassCard(
                             padding: EdgeInsets.zero,
-                            radius: 14,
+                            radius: 12,
                             onTap: () => _addCatalogProduct(product),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1981,7 +1876,7 @@ class _InOutFormState extends State<_InOutForm> {
                                   aspectRatio: 1,
                                   child: ClipRRect(
                                     borderRadius: const BorderRadius.vertical(
-                                        top: Radius.circular(14)),
+                                        top: Radius.circular(12)),
                                     child: UiProductPhoto(
                                       path: _mediaUrl(
                                           stockProductPhotoPath(product)),
@@ -2046,7 +1941,7 @@ class _InOutFormState extends State<_InOutForm> {
 
 class _InventoryThumbnail extends StatelessWidget {
   const _InventoryThumbnail(
-      {required this.path, this.size = const Size(48, 48)});
+      {required this.path, this.size = const Size(40, 40)});
   final String path;
   final Size size;
 
@@ -2112,18 +2007,16 @@ class _CatalogPickerState extends State<_CatalogPicker> {
               TextField(
                 controller: qty,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                    labelText: 'Jumlah', border: OutlineInputBorder()),
+                decoration: appFieldDecoration(context, label: 'Jumlah'),
               ),
               if (widget.withCost) ...[
                 const SizedBox(height: 8),
                 TextField(
                   controller: cost,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                      labelText: 'Harga beli (opsional)',
-                      border: OutlineInputBorder(),
-                      prefixText: 'Rp '),
+                  decoration: appFieldDecoration(
+                    context, label: 'Harga beli (opsional)')
+                .copyWith(prefixText: 'Rp '),
                 ),
               ],
             ],
@@ -2170,23 +2063,21 @@ class _CatalogPickerState extends State<_CatalogPicker> {
           children: [
             if ((item['variant_label'] ?? '').toString().isNotEmpty)
               Text((item['variant_label'] ?? '').toString(),
-                  style: TextStyle(fontSize: 12, color: taskMuted(context))),
+                  style: TextStyle(fontSize: TaskTypography.secondary, color: taskMuted(context))),
             const SizedBox(height: 10),
             TextField(
               controller: qty,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                  labelText: 'Jumlah *', border: OutlineInputBorder()),
+              decoration: appFieldDecoration(context, label: 'Jumlah *'),
             ),
             if (widget.withCost) ...[
               const SizedBox(height: 8),
               TextField(
                 controller: cost,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                    labelText: 'Harga beli (opsional)',
-                    border: OutlineInputBorder(),
-                    prefixText: 'Rp '),
+                decoration: appFieldDecoration(
+                    context, label: 'Harga beli (opsional)')
+                .copyWith(prefixText: 'Rp '),
               ),
             ],
           ],
@@ -2219,7 +2110,7 @@ class _CatalogPickerState extends State<_CatalogPicker> {
     return GlassCard(
       key: const ValueKey('inventory-picker-cart-bar'),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-      radius: 18,
+      radius: 16,
       onTap: _added.isEmpty ? null : () => setState(() => _cartExpanded = true),
       child: Row(
         children: [
@@ -2241,7 +2132,7 @@ class _CatalogPickerState extends State<_CatalogPicker> {
                 Text('Keranjang',
                     style: TextStyle(
                         color: widget.accent,
-                        fontSize: 12.5,
+                        fontSize: TaskTypography.secondary,
                         fontWeight: FontWeight.w800)),
                 Text(
                     _added.isEmpty
@@ -2267,7 +2158,7 @@ class _CatalogPickerState extends State<_CatalogPicker> {
     return GlassCard(
       key: const ValueKey('inventory-picker-cart-panel'),
       padding: const EdgeInsets.fromLTRB(12, 10, 8, 8),
-      radius: 18,
+      radius: 16,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxHeight: maxHeight.clamp(220, 340)),
         child: Column(
@@ -2282,7 +2173,7 @@ class _CatalogPickerState extends State<_CatalogPicker> {
                   child: Text('Keranjang · ${_added.length} produk',
                       style: TextStyle(
                           color: widget.accent,
-                          fontSize: 13,
+                          fontSize: TaskTypography.label,
                           fontWeight: FontWeight.w800)),
                 ),
                 IconButton(
@@ -2324,7 +2215,7 @@ class _CatalogPickerState extends State<_CatalogPicker> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                    fontSize: 12, fontWeight: FontWeight.w700)),
+                                    fontSize: TaskTypography.secondary, fontWeight: FontWeight.w700)),
                             Text(
                                 '${variant.isEmpty ? '' : '$variant · '}${item['quantity']} pcs',
                                 maxLines: 1,
@@ -2368,7 +2259,9 @@ class _CatalogPickerState extends State<_CatalogPicker> {
         systemOverlayStyle: SystemUiOverlayStyle.light,
         foregroundColor: Colors.white,
         titleTextStyle: const TextStyle(
-            color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+            color: Colors.white,
+            fontSize: TaskTypography.appBarTitle,
+            fontWeight: FontWeight.w700),
         flexibleSpace: Container(color: kTaskDark),
         title: Text(widget.title),
         actions: [
@@ -2392,11 +2285,8 @@ class _CatalogPickerState extends State<_CatalogPicker> {
                     0),
                 child: TextField(
                   onChanged: (v) => setState(() => _q = v),
-                  decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.search),
-                      isDense: true,
-                      hintText: 'Cari produk',
-                      border: OutlineInputBorder()),
+                  decoration: appFieldDecoration(
+                      context, hint: 'Cari produk', icon: Icons.search_rounded),
                 ),
               ),
               Expanded(
@@ -2411,13 +2301,13 @@ class _CatalogPickerState extends State<_CatalogPicker> {
                           crossAxisCount: 3,
                           mainAxisSpacing: 10,
                           crossAxisSpacing: 10,
-                          childAspectRatio: 0.66,
+                          childAspectRatio: 0.64,
                         ),
                         itemBuilder: (_, i) {
                           final p = _filtered[i];
                           return GlassCard(
                             padding: EdgeInsets.zero,
-                            radius: 18,
+                            radius: 16,
                             onTap: () => _add(p),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2442,7 +2332,7 @@ class _CatalogPickerState extends State<_CatalogPicker> {
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
-                                              fontSize: 12,
+                                              fontSize: TaskTypography.secondary,
                                               fontWeight: FontWeight.w700)),
                                       const SizedBox(height: 2),
                                       Text(
@@ -2579,23 +2469,21 @@ class _TransferSectionState extends State<_TransferSection> {
             children: [
               if ((item['variant_label'] ?? '').toString().isNotEmpty)
                 Text((item['variant_label'] ?? '').toString(),
-                    style: TextStyle(fontSize: 12, color: taskMuted(context))),
+                    style: TextStyle(fontSize: TaskTypography.secondary, color: taskMuted(context))),
               const SizedBox(height: 10),
               TextField(
                 controller: qty,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                    labelText: 'Jumlah *', border: OutlineInputBorder()),
+                decoration: appFieldDecoration(context, label: 'Jumlah *'),
               ),
               if (withCost) ...[
                 const SizedBox(height: 8),
                 TextField(
                   controller: cost,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                      labelText: 'Harga beli (opsional)',
-                      border: OutlineInputBorder(),
-                      prefixText: 'Rp '),
+                  decoration: appFieldDecoration(
+                    context, label: 'Harga beli (opsional)')
+                .copyWith(prefixText: 'Rp '),
                 ),
               ],
             ],
@@ -2747,7 +2635,7 @@ class _TransferSectionState extends State<_TransferSection> {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text('Belum ada produk. Ketuk Tambah Produk untuk memilih.',
-                style: TextStyle(fontSize: 10.5, color: taskMuted(context))),
+                style: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
           ),
         for (final item in _items)
           AppListCard(
@@ -2757,8 +2645,8 @@ class _TransferSectionState extends State<_TransferSection> {
                 _InventoryThumbnail(
                     path: stockProductMediaUrl(stockProductPhotoPath(item),
                         baseUrl: widget.api.baseUrl),
-                    size: const Size(42, 42)),
-                const SizedBox(width: 9),
+                    size: const Size(40, 40)),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -2767,7 +2655,7 @@ class _TransferSectionState extends State<_TransferSection> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                              fontSize: 12,
+                              fontSize: TaskTypography.secondary,
                               fontWeight: FontWeight.w800,
                               color: ink(context))),
                       const SizedBox(height: 1),
@@ -2776,7 +2664,7 @@ class _TransferSectionState extends State<_TransferSection> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                              fontSize: 10, color: taskMuted(context))),
+                              fontSize: TaskTypography.micro, color: taskMuted(context))),
                     ],
                   ),
                 ),
@@ -2883,8 +2771,8 @@ class _OpnameSectionState extends State<_OpnameSection> {
           controller: ctrl,
           autofocus: true,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-              labelText: 'Stok fisik (dihitung)', border: OutlineInputBorder()),
+          decoration:
+              appFieldDecoration(context, label: 'Stok fisik (dihitung)'),
         ),
         actions: [
           TextButton(
@@ -2947,12 +2835,11 @@ class _OpnameSectionState extends State<_OpnameSection> {
     final physical = asNum(item['physical_stock']);
     final difference = physical - expected;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final diffFg = difference == 0
-        ? (isDark ? const Color(0xFF86EFAC) : const Color(0xFF137A43))
-        : (isDark ? const Color(0xFFFDA4AF) : const Color(0xFFBE123C));
-    final diffBg = difference == 0
-        ? (isDark ? const Color(0x2E86EFAC) : const Color(0xFFDCFCE7))
-        : (isDark ? const Color(0x2EFDA4AF) : const Color(0xFFFFE4E6));
+    // Warna selisih memakai palet status stok yang sama (appStockStyle),
+    // bukan salinan hex manual.
+    final diffStyle = difference == 0
+        ? appStockStyle(context, 1, 0)
+        : appStockStyle(context, 0, 0);
     return AppListCard(
       onTap: () => _editItem(item),
       child: Row(
@@ -2961,9 +2848,9 @@ class _OpnameSectionState extends State<_OpnameSection> {
           _InventoryThumbnail(
             path: stockProductMediaUrl(stockProductPhotoPath(item),
                 baseUrl: widget.api.baseUrl),
-            size: const Size(42, 42),
+            size: const Size(40, 40),
           ),
-          const SizedBox(width: 9),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2972,7 +2859,7 @@ class _OpnameSectionState extends State<_OpnameSection> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                        fontSize: 12,
+                        fontSize: TaskTypography.secondary,
                         fontWeight: FontWeight.w800,
                         color: ink(context))),
                 const SizedBox(height: 4),
@@ -3001,8 +2888,8 @@ class _OpnameSectionState extends State<_OpnameSection> {
                     AppStatusPill(
                       label:
                           'SELISIH ${difference > 0 ? '+' : ''}${difference.toInt()}',
-                      fg: diffFg,
-                      bg: diffBg,
+                      fg: diffStyle.fg,
+                      bg: diffStyle.bg,
                     ),
                   ],
                 ),
@@ -3108,8 +2995,7 @@ class _AddChannelDialogState extends State<_AddChannelDialog> {
         textInputAction: TextInputAction.done,
         onChanged: (_) => setState(() {}),
         onSubmitted: (_) => _submit(),
-        decoration: const InputDecoration(
-            hintText: 'Nama saluran', border: OutlineInputBorder()),
+        decoration: appFieldDecoration(context, hint: 'Nama saluran'),
       ),
       actions: [
         TextButton(
@@ -3167,9 +3053,8 @@ class _OpnamePickerState extends State<_OpnamePicker> {
               TextField(
                 controller: physical,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                    labelText: 'Stok fisik (dihitung)',
-                    border: OutlineInputBorder()),
+                decoration:
+                    appFieldDecoration(context, label: 'Stok fisik (dihitung)'),
               ),
             ],
           ),
@@ -3246,11 +3131,8 @@ class _OpnamePickerState extends State<_OpnamePicker> {
             padding: const EdgeInsets.all(12),
             child: TextField(
               onChanged: (v) => setState(() => _q = v),
-              decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search),
-                  isDense: true,
-                  hintText: 'Cari produk',
-                  border: OutlineInputBorder()),
+              decoration: appFieldDecoration(
+                  context, hint: 'Cari produk', icon: Icons.search_rounded),
             ),
           ),
           Expanded(
@@ -3262,15 +3144,51 @@ class _OpnamePickerState extends State<_OpnamePicker> {
                 final p = filtered[i];
                 final photo = stockProductMediaUrl(stockProductPhotoPath(p),
                     baseUrl: widget.baseUrl);
-                return GlassCard(
-                  padding: EdgeInsets.zero,
-                  child: ListTile(
-                    leading: _InventoryThumbnail(path: photo),
-                    title: Text(productDisplayName(p)),
-                    subtitle: Text(
-                        'SKU ${p['sku'] ?? ''} · stok sistem ${p['quantity'] ?? p['stock'] ?? 0}'),
-                    trailing: const Icon(Icons.add_circle_outline),
-                    onTap: () => _add(p),
+                return AppListCard(
+                  onTap: () => _add(p),
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: SizedBox(
+                          width: 40,
+                          height: 40,
+                          child: UiProductPhoto(
+                            path: photo,
+                            baseUrl: '',
+                            width: 40,
+                            height: 40,
+                            fit: BoxFit.cover,
+                            label: 'Foto ${productDisplayName(p)}',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(productDisplayName(p),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: TaskTypography.secondary,
+                                    fontWeight: FontWeight.w800,
+                                    color: ink(context))),
+                            const SizedBox(height: 1),
+                            Text(
+                                'SKU ${p['sku'] ?? ''} · stok sistem ${p['quantity'] ?? p['stock'] ?? 0}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: TaskTypography.micro,
+                                    color: taskMuted(context))),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.add_circle_outline,
+                          size: 20, color: kTaskDark),
+                    ],
                   ),
                 );
               },
@@ -3374,13 +3292,9 @@ class _BarcodeSectionState extends State<_BarcodeSection> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-          child: TextField(
+          child: AppSearchField(
             controller: _search,
-            decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                isDense: true,
-                hintText: 'Cari produk / SKU / barcode',
-                border: OutlineInputBorder()),
+            hint: 'Cari produk / SKU / barcode',
             onSubmitted: (_) => _load(),
           ),
         ),
@@ -3390,33 +3304,71 @@ class _BarcodeSectionState extends State<_BarcodeSection> {
               : _error != null
                   ? UiErrorState(message: _error!, onRetry: _load)
                   : _rows.isEmpty
-                      ? const UiEmptyState(
+                      ? const AppEmptyState(
+                          icon: Icons.qr_code_2,
                           title: 'Belum ada barcode',
-                          message: 'Produk dengan barcode akan tampil di sini.',
-                          icon: Icons.qr_code_2)
+                          message: 'Produk dengan barcode akan tampil di sini.')
                       : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 104),
+                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
                           itemCount: _rows.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 8),
                           itemBuilder: (_, i) {
                             final r = _rows[i];
-                            return GlassCard(
-                              padding: EdgeInsets.zero,
-                              child: ListTile(
-                                title: Text(r['name']?.toString() ?? ''),
-                                subtitle: Text(
-                                    '${r['product_sku'] ?? ''} · ${r['variant_color'] ?? ''}'),
-                                trailing: _printing
-                                    ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                            strokeWidth: 2))
-                                    : IconButton(
-                                        onPressed: () => _print(r),
-                                        icon: const Icon(Icons.print),
-                                        tooltip: 'Cetak barcode'),
+                            return AppListCard(
+                              onTap: null,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: kTaskDark.withValues(alpha: .10),
+                                      borderRadius:
+                                          BorderRadius.circular(10),
+                                    ),
+                                    child: const Icon(Icons.qr_code_2,
+                                        size: 18, color: kTaskDark),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(r['name']?.toString() ?? '',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                                fontSize:
+                                                    TaskTypography.secondary,
+                                                fontWeight: FontWeight.w800,
+                                                color: ink(context))),
+                                        const SizedBox(height: 1),
+                                        Text(
+                                            '${r['product_sku'] ?? ''} · ${r['variant_color'] ?? ''}',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                                fontSize:
+                                                    TaskTypography.micro,
+                                                color: taskMuted(context))),
+                                      ],
+                                    ),
+                                  ),
+                                  _printing
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2))
+                                      : IconButton(
+                                          onPressed: () => _print(r),
+                                          icon: const Icon(Icons.print,
+                                              size: 18),
+                                          tooltip: 'Cetak barcode'),
+                                ],
                               ),
                             );
                           },
@@ -3546,7 +3498,7 @@ class _WarehouseMenuButton extends StatelessWidget {
       tooltip: 'Pilih gudang',
       padding: EdgeInsets.zero,
       offset: const Offset(0, 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       onSelected: onChanged,
       itemBuilder: (context) => [
         if (warehouses.isNotEmpty)
@@ -3625,7 +3577,7 @@ class _SortMenuButton extends StatelessWidget {
       tooltip: 'Urutkan stok',
       padding: EdgeInsets.zero,
       offset: const Offset(0, 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       onSelected: onChanged,
       itemBuilder: (context) => [
         for (final item in _items)
@@ -3645,13 +3597,13 @@ class _SortMenuButton extends StatelessWidget {
       ],
       child: Container(
         width: 48,
-        height: 46,
+        height: 48,
         decoration: BoxDecoration(
           color: dark ? kTaskDarkSurface : kTaskSurface,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: dark ? kTaskDarkBorder : kTaskBorder),
         ),
-        child: Icon(Icons.sort, size: 21, color: taskMuted(context)),
+        child: Icon(Icons.sort, size: 20, color: taskMuted(context)),
       ),
     );
   }
@@ -3675,15 +3627,15 @@ class _ViewModeButton extends StatelessWidget {
         label: grid ? 'Tampilan grid aktif' : 'Tampilan kartu aktif',
         child: Material(
           color: dark ? kTaskDarkSurface : kTaskSurface,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           child: InkWell(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             onTap: () => onChanged(!grid),
             child: Container(
               width: 48,
-              height: 46,
+              height: 48,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: dark ? kTaskDarkBorder : kTaskBorder),
               ),
               child: Icon(

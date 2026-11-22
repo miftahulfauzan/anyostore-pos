@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pos_pakaian_mobile/main.dart' as app;
 import 'package:pos_pakaian_mobile/src/api_client.dart';
 import 'package:pos_pakaian_mobile/src/settings_hub_page.dart';
 import 'package:pos_pakaian_mobile/src/task_ui.dart';
@@ -75,9 +76,9 @@ void main() {
     expect(find.text('Tampilan'), findsOneWidget);
   });
 
-  testWidgets('ikon pengaturan memakai warna berbeda per jenis',
-      (tester) async {
+  testWidgets('ikon pengaturan memakai warna denim seragam', (tester) async {
     await tester.pumpWidget(MaterialApp(
+      theme: app.buildAnyostoreTheme(),
       home: Scaffold(
         body: SettingsHubPage(api: _SettingsHubApi(), role: 'owner'),
       ),
@@ -91,12 +92,18 @@ void main() {
       return (container.decoration as BoxDecoration?)?.color;
     }
 
-    expect(chipColor(Icons.storefront_outlined), const Color(0xFFDBEAFE));
-    expect(chipColor(Icons.sell_outlined), const Color(0xFFFEF3C7));
-    expect(chipColor(Icons.print_outlined), const Color(0xFFCCFBF1));
-    expect(chipColor(Icons.display_settings_outlined), const Color(0xFFEDE9FE));
-    expect(chipColor(Icons.storage_outlined), const Color(0xFFE0E7FF));
-    expect(chipColor(Icons.account_tree_outlined), const Color(0xFFDCFCE7));
+    // Semua ikon section memakai satu tint denim (bukan warna-warni).
+    const denimBg = Color(0xFFE3EBF5);
+    for (final icon in [
+      Icons.storefront_outlined,
+      Icons.sell_outlined,
+      Icons.print_outlined,
+      Icons.display_settings_outlined,
+      Icons.storage_outlined,
+      Icons.account_tree_outlined,
+    ]) {
+      expect(chipColor(icon), denimBg, reason: 'ikon $icon harus tint denim');
+    }
     expect(tester.takeException(), isNull);
   });
 }

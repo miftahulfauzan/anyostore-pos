@@ -558,7 +558,7 @@ class _FinancePageState extends State<FinancePage> {
               children: [
                 Text(label,
                     style: TextStyle(
-                        fontSize: 10.5,
+                        fontSize: TaskTypography.micro,
                         fontWeight: FontWeight.w700,
                         color: ink(context))),
                 const SizedBox(width: 5),
@@ -799,7 +799,7 @@ class _FinancePageState extends State<FinancePage> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    fontSize: 10.5,
+                    fontSize: TaskTypography.micro,
                     fontWeight: FontWeight.w800,
                     color: ink(context))),
           ),
@@ -810,7 +810,7 @@ class _FinancePageState extends State<FinancePage> {
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.right,
                 style: TextStyle(
-                    fontSize: 10,
+                    fontSize: TaskTypography.micro,
                     fontWeight: FontWeight.w700,
                     color: taskMuted(context))),
           ),
@@ -838,7 +838,7 @@ class _FinancePageState extends State<FinancePage> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    fontSize: 10.5,
+                    fontSize: TaskTypography.micro,
                     fontWeight: FontWeight.w800,
                     color: ink(context))),
           ),
@@ -847,7 +847,7 @@ class _FinancePageState extends State<FinancePage> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    fontSize: 9.5,
+                    fontSize: TaskTypography.micro,
                     fontWeight: FontWeight.w700,
                     color: taskMuted(context))),
           ),
@@ -917,7 +917,7 @@ class _FinancePageState extends State<FinancePage> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style:
-                          TextStyle(fontSize: 9.5, color: taskMuted(context))),
+                          TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
                 ],
               ),
             ),

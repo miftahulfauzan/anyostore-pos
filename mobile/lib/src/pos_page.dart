@@ -2286,15 +2286,29 @@ class _ProductCard extends StatelessWidget {
               height: 4,
               color: categoryAccent,
             ),
-            AspectRatio(
-              aspectRatio: 1,
-              child: UiProductPhoto(
-                path: photo,
-                baseUrl: '',
-                fit: BoxFit.cover,
-                label: 'Foto $name',
-              ),
-            ),
+            // Mode gelap: foto berlatar putih di-inset supaya tidak jadi
+            // blok putih yang menempel penuh ke tepi kartu.
+            Builder(builder: (context) {
+              final isDark =
+                  Theme.of(context).brightness == Brightness.dark;
+              final photoWidget = AspectRatio(
+                aspectRatio: 1,
+                child: UiProductPhoto(
+                  path: photo,
+                  baseUrl: '',
+                  fit: BoxFit.cover,
+                  label: 'Foto $name',
+                ),
+              );
+              if (!isDark) return photoWidget;
+              return Padding(
+                padding: const EdgeInsets.all(6),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: photoWidget,
+                ),
+              );
+            }),
             Padding(
               padding: const EdgeInsets.all(8),
               child: Column(
@@ -2420,7 +2434,8 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
                 for (final b in widget.branches)
                   DropdownMenuItem<int?>(
                       value: int.tryParse('${b['id']}'),
-                      child: Text(b['name']?.toString() ?? '')),
+                      child: Text(
+                          '${b['type'] == 'gudang' ? 'Gudang' : 'Toko'} · ${b['name']}')),
               ],
               onChanged: (v) {
                 widget.onBranchChanged(v);
@@ -2483,29 +2498,65 @@ class _PosHeaderRowState extends State<_PosHeaderRow> {
         );
       }
 
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (_hasBranch) ...[
-            branchArea,
-            const SizedBox(height: 12),
+      // Accordion satu baris: default = pill cabang + field cari berbagi satu
+      // baris; ketuk salah satu memanjang penuh menutup yang lain.
+      if (_active == 'branch') {
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: branchArea),
+            const SizedBox(width: 4),
+            IconButton(
+              onPressed: () => setState(() => _active = null),
+              icon: const Icon(Icons.close_rounded),
+              tooltip: 'Tutup pemilih cabang',
+            ),
           ],
-          TextField(
-            controller: widget.searchController,
-            focusNode: _searchFocus,
-            onChanged: widget.onSearchChanged,
-            onTap: () => setState(() => _active = 'search'),
-            decoration: InputDecoration(
-              labelText: 'Cari produk',
-              hintText: 'Nama / SKU / barcode',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: IconButton(
+        );
+      }
+
+      final searchField = TextField(
+        controller: widget.searchController,
+        focusNode: _searchFocus,
+        onChanged: widget.onSearchChanged,
+        onTap: () => setState(() => _active = 'search'),
+        decoration: InputDecoration(
+          labelText: 'Cari produk',
+          hintText: _active == 'search' ? 'Nama / SKU / barcode' : null,
+          prefixIcon: _active == 'search' ? const Icon(Icons.search) : null,
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_active == 'search')
+                IconButton(
+                  onPressed: () {
+                    widget.searchController.clear();
+                    widget.onSearchChanged('');
+                    _searchFocus.unfocus();
+                    setState(() => _active = null);
+                  },
+                  icon: const Icon(Icons.close_rounded),
+                  tooltip: 'Tutup pencarian',
+                ),
+              IconButton(
                 onPressed: widget.onScan,
                 icon: const Icon(Icons.qr_code_scanner),
                 tooltip: 'Scan barcode',
               ),
-            ),
+            ],
           ),
+        ),
+      );
+
+      if (_active == 'search' || !_hasBranch) {
+        return searchField;
+      }
+
+      return Row(
+        children: [
+          Expanded(child: branchArea),
+          const SizedBox(width: 8),
+          Expanded(child: searchField),
         ],
       );
     });
@@ -3039,11 +3090,7 @@ class _CartSheetState extends State<_CartSheet> {
   double _parseDiscount() =>
       asNum(widget.discountController.text.replaceAll(RegExp(r'[^0-9]'), ''));
 
-  String _dateLabel(String value) {
-    final date = DateTime.tryParse(value);
-    if (date == null) return value;
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-  }
+  String _dateLabel(String value) => formatWibDate(value);
 
   Future<void> _pickTransactionDate() async {
     final today = DateTime.parse(todayWib());
@@ -3133,7 +3180,7 @@ class _CartSheetState extends State<_CartSheet> {
                       icon: const Icon(Icons.tune, color: Colors.white, size: 19),
                       label: const Text('Opsi',
                           style: TextStyle(
-                              fontSize: 12,
+                              fontSize: TaskTypography.secondary,
                               fontWeight: FontWeight.w700)),
                     ),
                   ),
@@ -3280,9 +3327,12 @@ class _CartSheetState extends State<_CartSheet> {
                               fontSize: 15, fontWeight: FontWeight.w800)),
                     ],
                   ),
-                  if (discount > 0)
+                  if (discount > 0) ...[
+                    Text('Subtotal ${fmtRp(subtotal)}',
+                        style: TextStyle(color: taskMuted(context))),
                     Text('Diskon: -${fmtRp(discount)}',
                         style: TextStyle(color: taskMuted(context))),
+                  ],
                   if (invalidDiscount)
                     Text('Diskon melebihi subtotal',
                         style: TextStyle(
@@ -3338,7 +3388,7 @@ class _CartSheetState extends State<_CartSheet> {
                               SizedBox(height: 2),
                               Text('Bagikan',
                                   style: TextStyle(
-                                      fontSize: 8.5,
+                                      fontSize: TaskTypography.micro,
                                       fontWeight: FontWeight.w800)),
                             ],
                           ),

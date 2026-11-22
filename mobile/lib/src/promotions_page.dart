@@ -103,7 +103,7 @@ class _PromotionsPageState extends State<PromotionsPage> {
                   const SizedBox(height: 12),
                   Text('Jenis diskon',
                       style: TextStyle(
-                          fontSize: 10,
+                          fontSize: TaskTypography.micro,
                           fontWeight: FontWeight.w800,
                           letterSpacing: .5,
                           color: taskMuted(ctx))),
@@ -277,25 +277,36 @@ class _PromotionsPageState extends State<PromotionsPage> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style:
-                        TextStyle(fontSize: 10.5, color: taskMuted(context))),
+                        TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    AppStatusPill(
-                        label: status.label.toUpperCase(),
-                        fg: status.fg,
-                        bg: status.bg),
-                    const SizedBox(width: 4),
-                    AppStatusPill(
-                      label: limit > 0 ? '$used / $limit' : '$used dipakai',
-                      fg: _isDark
-                          ? const Color(0xFFCBD5E1)
-                          : const Color(0xFF334155),
-                      bg: _isDark
-                          ? const Color(0x2ECBD5E1)
-                          : const Color(0xFFE2E8F0),
+                    Expanded(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AppStatusPill(
+                                label: status.label.toUpperCase(),
+                                fg: status.fg,
+                                bg: status.bg),
+                            const SizedBox(width: 4),
+                            AppStatusPill(
+                              label:
+                                  limit > 0 ? '$used / $limit' : '$used dipakai',
+                              fg: _isDark
+                                  ? const Color(0xFFCBD5E1)
+                                  : const Color(0xFF334155),
+                              bg: _isDark
+                                  ? const Color(0x2ECBD5E1)
+                                  : const Color(0xFFE2E8F0),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    const Spacer(),
                     Switch.adaptive(
                       value: active,
                       onChanged: (_) => _toggle(row),
@@ -320,11 +331,15 @@ class _PromotionsPageState extends State<PromotionsPage> {
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
           child: Row(
             children: [
-              Text('Promo',
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: ink(context))),
+              Flexible(
+                child: Text('Promo',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: ink(context))),
+              ),
               const SizedBox(width: 7),
               AppStatusPill(
                 label: '${_rows.length}',
@@ -332,15 +347,21 @@ class _PromotionsPageState extends State<PromotionsPage> {
                 bg: _isDark ? const Color(0x2ECBD5E1) : const Color(0xFFE2E8F0),
               ),
               const Spacer(),
-              FilledButton.icon(
-                onPressed: _form,
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Tambah'),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(0, 38),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.icon(
+                    onPressed: _form,
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Tambah'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 38),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
                 ),
               ),
             ],

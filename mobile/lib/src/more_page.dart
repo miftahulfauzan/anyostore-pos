@@ -66,24 +66,26 @@ class MorePage extends StatelessWidget {
   }
 
   String _groupTitle(String title) => switch (title) {
-        'UTAMA' => 'Operasional',
+        'UTAMA' => 'Utama',
         'TRANSAKSI' => 'Transaksi & Stok',
         'GUDANG' => 'Gudang',
-        'LAINNYA' => 'Laporan',
-        'AKUN' => 'Pengaturan',
+        'LAINNYA' => 'Lainnya',
+        'AKUN' => 'Akun',
         'PRODUK & INVENTORI' => 'Produk & Inventori',
-        'BISNIS' => 'Laporan',
-        'ADMINISTRASI' => 'Pengaturan',
+        'BISNIS' => 'Bisnis',
+        'ADMINISTRASI' => 'Administrasi',
         _ => title,
       };
 
   IconData _groupIcon(String title) => switch (title) {
-        'UTAMA' => Icons.assignment_outlined,
+        'UTAMA' => Icons.home_outlined,
         'TRANSAKSI' => Icons.inventory_2_outlined,
         'GUDANG' => Icons.warehouse_outlined,
-        'LAINNYA' || 'BISNIS' => Icons.bar_chart_outlined,
-        'AKUN' || 'ADMINISTRASI' => Icons.settings_outlined,
+        'LAINNYA' => Icons.more_horiz,
+        'AKUN' => Icons.person_outline,
         'PRODUK & INVENTORI' => Icons.inventory_2_outlined,
+        'BISNIS' => Icons.payments_outlined,
+        'ADMINISTRASI' => Icons.admin_panel_settings_outlined,
         _ => Icons.folder_outlined,
       };
 
@@ -146,7 +148,7 @@ class MorePage extends StatelessWidget {
                   children: [
                     Text(name,
                         style: const TextStyle(
-                            fontSize: 15,
+                            fontSize: TaskTypography.cardTitle,
                             fontWeight: FontWeight.w800,
                             color: Colors.white)),
                     const SizedBox(height: 3),
@@ -159,12 +161,12 @@ class MorePage extends StatelessWidget {
                           _ => 'Kasir',
                         },
                         style:
-                            const TextStyle(color: kDrawerLabel, fontSize: 11)),
+                            const TextStyle(color: kDrawerLabel, fontSize: TaskTypography.micro)),
                     if (email.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(email,
                           style: const TextStyle(
-                              fontSize: 11, color: kDrawerIcon)),
+                              fontSize: TaskTypography.micro, color: kDrawerIcon)),
                     ],
                   ],
                 ),
@@ -493,10 +495,10 @@ class MorePage extends StatelessWidget {
             _row(
                 context,
                 Icons.history,
-                'Riwayat Stok',
+                'Kartu Stok',
                 kTaskSand,
                 kTaskDark,
-                () => _open(context, 'Riwayat Stok',
+                () => _open(context, 'Kartu Stok',
                     StockMovementsPage(api: api, branchId: activeBranch()))),
             _divider(context),
             _row(
@@ -639,15 +641,15 @@ class MorePage extends StatelessWidget {
           margin: const EdgeInsets.only(top: 12),
           decoration: BoxDecoration(
             border: Border.all(color: kDrawerBorder),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
               onTap: () => _confirmLogout(context, auth),
               child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -655,7 +657,7 @@ class MorePage extends StatelessWidget {
                     SizedBox(width: 8),
                     Text('Keluar',
                         style: TextStyle(
-                            fontSize: 13,
+                            fontSize: TaskTypography.label,
                             fontWeight: FontWeight.w700,
                             color: Colors.white)),
                   ],
@@ -668,7 +670,7 @@ class MorePage extends StatelessWidget {
           padding: EdgeInsets.only(top: 12, bottom: 8),
           child: Text('Anyostore App v0.2.0',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 10, color: kDrawerLabel)),
+              style: const TextStyle(fontSize: TaskTypography.micro, color: kDrawerLabel)),
         ),
       ],
     );
@@ -678,24 +680,25 @@ class MorePage extends StatelessWidget {
   Widget _divider(BuildContext context) => const SizedBox.shrink();
 
   // Gaya sama dengan sidebar web: ikon polos, item aktif = tint putih 14%
-  // dengan garis kiri 3px biru muda; tanpa kotak ikon.
+  // dengan garis kiri 3px biru muda; tanpa kotak ikon. Tinggi sentuh 44 dan
+  // radius 10 supaya sejajar dengan header grup.
   Widget _row(BuildContext context, IconData icon, String title, Color chipBg,
       Color chipFg, VoidCallback onTap,
       {bool selected = false}) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         onTap: onTap,
         child: Container(
-          constraints: const BoxConstraints(minHeight: 40),
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+          constraints: const BoxConstraints(minHeight: 44),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: selected
               ? const BoxDecoration(
                   color: kDrawerActiveBg,
                   borderRadius: BorderRadius.only(
-                    topRight: Radius.circular(8),
-                    bottomRight: Radius.circular(8),
+                    topRight: Radius.circular(10),
+                    bottomRight: Radius.circular(10),
                   ),
                   border: Border(
                     left: BorderSide(color: kDrawerActiveBar, width: 3),
@@ -705,7 +708,7 @@ class MorePage extends StatelessWidget {
           child: Row(
             children: [
               Icon(icon,
-                  size: 19, color: selected ? kDrawerActiveIcon : kDrawerIcon),
+                  size: 20, color: selected ? kDrawerActiveIcon : kDrawerIcon),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -713,7 +716,7 @@ class MorePage extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: TaskTypography.label,
                     fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                     color: selected ? Colors.white : kDrawerText,
                   ),
@@ -787,9 +790,9 @@ class _MoreMenuGroupState extends State<_MoreMenuGroup> {
                         child: Text(
                           widget.title,
                           style: const TextStyle(
-                            fontSize: 10,
+                            fontSize: TaskTypography.micro,
                             fontWeight: FontWeight.w800,
-                            letterSpacing: 1.2,
+                            letterSpacing: .8,
                             color: kDrawerLabel,
                           ),
                         ),
@@ -851,14 +854,14 @@ class _OfflineTileState extends State<_OfflineTile> {
     return Container(
       key: const ValueKey('sidebar-offline'),
       decoration: BoxDecoration(
-        color: const Color(0x12FFFFFF),
+        color: kDrawerDivider,
         border: Border.all(color: kDrawerBorder),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           onTap: () async {
             final navigator = Navigator.of(context);
             Scaffold.maybeOf(context)?.closeDrawer();
@@ -878,13 +881,13 @@ class _OfflineTileState extends State<_OfflineTile> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child:
-                      const Icon(Icons.cloud_off, size: 17, color: kDrawerIcon),
+                      const Icon(Icons.cloud_off, size: 18, color: kDrawerIcon),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
                   child: Text('Antrean Offline',
                       style: TextStyle(
-                          fontSize: 12,
+                          fontSize: TaskTypography.secondary,
                           fontWeight: FontWeight.w600,
                           color: kDrawerText)),
                 ),
@@ -898,9 +901,9 @@ class _OfflineTileState extends State<_OfflineTile> {
                     ),
                     child: Text('$_count',
                         style: const TextStyle(
-                            fontSize: 11,
+                            fontSize: TaskTypography.micro,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F2540))),
+                            color: kTaskDark)),
                   )
                 else
                   const Icon(Icons.chevron_right, size: 18, color: kDrawerIcon),
@@ -1012,8 +1015,8 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
       key: const ValueKey('sidebar-branch-scope'),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0x13FFFFFF),
-        border: Border.all(color: const Color(0x21FFFFFF)),
+        color: kDrawerDivider,
+        border: Border.all(color: kDrawerBorder),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -1040,7 +1043,7 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 9,
+                      fontSize: TaskTypography.micro,
                       fontWeight: FontWeight.w800,
                       letterSpacing: .9,
                       color: Color(0x9EFFFFFF),
@@ -1074,7 +1077,7 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 12.5,
+                        fontSize: TaskTypography.secondary,
                         fontWeight: FontWeight.w600,
                         color: Color(0xB3FFFFFF),
                       ),
@@ -1106,7 +1109,7 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                      fontSize: 13.5,
+                      fontSize: TaskTypography.label,
                       fontWeight: FontWeight.w800,
                       color: Colors.white),
                 ),
@@ -1137,7 +1140,7 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    fontSize: 12.5,
+                                    fontSize: TaskTypography.secondary,
                                     fontWeight: FontWeight.w700,
                                     color: Colors.white,
                                   ),
@@ -1148,7 +1151,7 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
-                                      fontSize: 10.5,
+                                      fontSize: TaskTypography.micro,
                                       fontWeight: FontWeight.w500,
                                       color: Color(0x8FFFFFFF),
                                     ),
@@ -1179,7 +1182,9 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
                     'Gagal memuat daftar toko',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11, color: Color(0xCCFFFFFF)),
+                    style: TextStyle(
+                        fontSize: TaskTypography.micro,
+                        color: Color(0xCCFFFFFF)),
                   ),
                 ),
                 TextButton(
@@ -1192,7 +1197,7 @@ class _BranchScopeCardState extends State<_BranchScopeCard> {
                   child: const Text(
                     'Coba lagi',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: TaskTypography.micro,
                       fontWeight: FontWeight.w800,
                       color: Color(0xFF93C5FD),
                     ),

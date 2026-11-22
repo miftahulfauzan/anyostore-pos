@@ -139,7 +139,7 @@ void main() {
     expect(find.text('Filter'), findsNothing);
     expect(find.text('Toko/Gudang'), findsNothing);
     expect(find.text('Persentase keuntungan'), findsOneWidget);
-    expect(find.text('50.00%'), findsOneWidget);
+    expect(find.text('50,00%'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('reports-period-selector')));
     await tester.pumpAndSettle();
     expect(find.text('Kemarin'), findsOneWidget);

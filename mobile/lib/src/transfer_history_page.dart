@@ -346,7 +346,7 @@ class _TransferHistoryPageState extends State<TransferHistoryPage> {
                     const SizedBox(height: 1),
                     Text(transferDateLabel(transfer['created_at']),
                         style: TextStyle(
-                            fontSize: 9.5, color: taskMuted(context))),
+                            fontSize: TaskTypography.micro, color: taskMuted(context))),
                   ],
                 ),
               ),
@@ -372,7 +372,7 @@ class _TransferHistoryPageState extends State<TransferHistoryPage> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: TaskTypography.micro,
                           fontWeight: FontWeight.w700,
                           color: ink(context))),
                 ),
@@ -387,7 +387,7 @@ class _TransferHistoryPageState extends State<TransferHistoryPage> {
                       textAlign: TextAlign.right,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: TaskTypography.micro,
                           fontWeight: FontWeight.w700,
                           color: ink(context))),
                 ),
@@ -401,13 +401,13 @@ class _TransferHistoryPageState extends State<TransferHistoryPage> {
                 child: Text(meta,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 9.5, color: taskMuted(context))),
+                    style: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
               ),
               Text('${transfer['admin'] ?? 'Sistem'}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      fontSize: 9.5,
+                      fontSize: TaskTypography.micro,
                       fontWeight: FontWeight.w600,
                       color: taskMuted(context))),
             ],
@@ -418,7 +418,7 @@ class _TransferHistoryPageState extends State<TransferHistoryPage> {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    fontSize: 9.5,
+                    fontSize: TaskTypography.micro,
                     fontStyle: FontStyle.italic,
                     color: taskMuted(context))),
           ],
@@ -435,12 +435,12 @@ class _TransferHistoryPageState extends State<TransferHistoryPage> {
                         '${line['variant_color'] == null ? '' : ' · ${line['variant_color']}'}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 10, color: ink(context)),
+                        style: TextStyle(fontSize: TaskTypography.micro, color: ink(context)),
                       ),
                     ),
                     Text('${line['qty'] ?? 0} pcs',
                         style: TextStyle(
-                            fontSize: 10,
+                            fontSize: TaskTypography.micro,
                             fontWeight: FontWeight.w700,
                             color: ink(context))),
                   ],
@@ -459,7 +459,7 @@ class _TransferHistoryPageState extends State<TransferHistoryPage> {
                       Text('+${lines.length - 5} produk lain',
                           style: TextStyle(
                               color: accent,
-                              fontSize: 9.5,
+                              fontSize: TaskTypography.micro,
                               fontWeight: FontWeight.w800)),
                       const SizedBox(width: 2),
                       Icon(Icons.chevron_right, size: 14, color: accent),
@@ -478,7 +478,7 @@ class _TransferHistoryPageState extends State<TransferHistoryPage> {
               ),
               child: Text('Alasan pembatalan: $reason',
                   style: TextStyle(
-                      fontSize: 9.5,
+                      fontSize: TaskTypography.micro,
                       color: dark ? const Color(0xFFF2B8A5) : kTaskTerracotta)),
             ),
           ],
@@ -603,7 +603,7 @@ class TransferDetailSheet extends StatelessWidget {
                             '${transfer['number'] ?? 'Transfer'} · $statusLabel',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: muted, fontSize: 10)),
+                            style: TextStyle(color: muted, fontSize: TaskTypography.micro)),
                       ],
                     ),
                   ),
@@ -684,7 +684,7 @@ class TransferDetailSheet extends StatelessWidget {
                           const SizedBox(height: 8),
                           Text('Catatan: $notes',
                               style: TextStyle(
-                                  fontSize: 10.5, height: 1.4, color: muted)),
+                                  fontSize: TaskTypography.micro, height: 1.4, color: muted)),
                         ],
                         if (status == 'cancelled' && reason.isNotEmpty) ...[
                           const SizedBox(height: 7),
@@ -698,7 +698,7 @@ class TransferDetailSheet extends StatelessWidget {
                             ),
                             child: Text('Alasan pembatalan: $reason',
                                 style: TextStyle(
-                                    fontSize: 10,
+                                    fontSize: TaskTypography.micro,
                                     color: dark
                                         ? const Color(0xFFF2B8A5)
                                         : kTaskTerracotta)),
@@ -741,7 +741,7 @@ class TransferDetailSheet extends StatelessWidget {
                               ),
                               child: Text('${index + 1}',
                                   style: TextStyle(
-                                      fontSize: 9.5,
+                                      fontSize: TaskTypography.micro,
                                       fontWeight: FontWeight.w800,
                                       color: accent)),
                             ),
@@ -801,7 +801,7 @@ class _SheetMeta extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      fontSize: 9,
+                      fontSize: TaskTypography.micro,
                       fontWeight: FontWeight.w600,
                       color: taskMuted(context))),
             ),

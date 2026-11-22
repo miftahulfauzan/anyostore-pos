@@ -1,5 +1,6 @@
 // ignore_for_file: prefer_const_constructors
 
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -186,21 +187,21 @@ class _ProductsPageState extends State<ProductsPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
             child: SizedBox(
-              width: 52,
-              height: 52,
+              width: 56,
+              height: 56,
               child: UiProductPhoto(
                 path: photo,
                 baseUrl: '',
-                width: 52,
-                height: 52,
+                width: 56,
+                height: 56,
                 fit: BoxFit.cover,
                 label: 'Foto $name',
               ),
             ),
           ),
-          const SizedBox(width: 9),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,16 +213,25 @@ class _ProductsPageState extends State<ProductsPage> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                              fontSize: 13,
+                              fontSize: TaskTypography.label,
                               fontWeight: FontWeight.w800,
                               color: ink(context))),
                     ),
                     const SizedBox(width: 6),
-                    Text(fmtRp(asNum(row['price'])),
-                        style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w800,
-                            color: ink(context))),
+                    // Harga panjang mengecil (scaleDown), bukan mendesak nama.
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(fmtRp(asNum(row['price'])),
+                          maxLines: 1,
+                          style: TextStyle(
+                              fontSize: TaskTypography.label,
+                              fontWeight: FontWeight.w800,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures()
+                              ],
+                              color: ink(context))),
+                    ),
                   ],
                 ),
                 if (subtitle.isNotEmpty) ...[
@@ -230,7 +240,7 @@ class _ProductsPageState extends State<ProductsPage> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style:
-                          TextStyle(fontSize: 10.5, color: taskMuted(context))),
+                          TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
                 ],
                 const SizedBox(height: 5),
                 AppStatusPill(
@@ -293,25 +303,11 @@ class _ProductsPageState extends State<ProductsPage> {
                 ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-                child: TextField(
+                child: AppSearchField(
                   controller: _search,
-                  decoration: InputDecoration(
-                    hintText: 'Cari nama / SKU / barcode',
-                    prefixIcon: const Icon(Icons.search, size: 20),
-                    filled: true,
-                    fillColor: taskSurface(context),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
-                    enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(color: taskBorder(context))),
-                    focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(
-                            color: Theme.of(context).colorScheme.primary,
-                            width: 2)),
-                  ),
+                  hint: 'Cari nama / SKU / barcode',
                   onSubmitted: (_) => _load(),
+                  onClear: _load,
                 ),
               ),
               if (!_loading && _error == null && _rows.isNotEmpty)
@@ -324,16 +320,22 @@ class _ProductsPageState extends State<ProductsPage> {
                       const SizedBox(width: 6),
                       Text('${_rows.length} produk',
                           style: TextStyle(
-                              fontSize: 10.5,
+                              fontSize: TaskTypography.micro,
                               fontWeight: FontWeight.w800,
                               color: ink(context))),
                       if (_lowStockCount > 0) ...[
                         const SizedBox(width: 6),
-                        Text('· $_lowStockCount perlu restock',
-                            style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFFB45309))),
+                        // Warna "perlu restock" memakai palet status stok yang
+                        // sama dengan pill di kartu (appStockStyle), bukan hex
+                        // duplikat.
+                        Builder(builder: (chipContext) {
+                          final warn = appStockStyle(chipContext, 1, 5);
+                          return AppStatusPill(
+                            label: '$_lowStockCount perlu restock',
+                            fg: warn.fg,
+                            bg: warn.bg,
+                          );
+                        }),
                       ],
                     ],
                   ),

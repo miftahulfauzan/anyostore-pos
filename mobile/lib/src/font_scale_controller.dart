@@ -4,8 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Local font-size preference shared by every mobile page.
 class FontScaleController {
   static const _preferenceKey = 'pos_font_scale';
-  static const double defaultScale = .8;
-  static const List<double> options = [.4, .6, .8, 1.0, 1.2, 1.4];
+  static const double defaultScale = .85;
+  static const List<double> options = [.85, 1.0, 1.15, 1.3];
   static final ValueNotifier<double> scale = ValueNotifier(defaultScale);
 
   static Future<void> load() async {
@@ -25,19 +25,27 @@ class FontScaleController {
   static String label(double value) => '${(value * 100).round()}%';
 
   /// Caps the combined app/system text scale so compact layouts remain usable.
-  /// The requested .4/.6 compact modes remain available; only oversized modes
-  /// are capped, with a stricter limit on very narrow phones.
+  /// Only oversized modes are capped, with a stricter limit on very narrow
+  /// phones; nilai di bawah opsi minimum dinaikkan ke 85%.
   static double effectiveScale(double value, double width) {
-    final maxScale = width > 0 && width <= 340 ? 1.2 : 1.4;
+    final maxScale = width > 0 && width <= 340 ? 1.15 : 1.3;
     return value.clamp(options.first, maxScale).toDouble();
   }
 
   static double _normalize(double? value) {
     if (value == null || !value.isFinite) return defaultScale;
-    // Slider bisa menghasilkan 0.999999... untuk 100%; snap ke opsi terdekat.
+    // Snap ke opsi terdekat (slider bisa menghasilkan 0.999999... untuk 100%;
+    // nilai lama seperti .8/.6/1.4 dari versi sebelumnya ikut terangkat ke
+    // opsi terdekat, bukan dilempar ke default).
+    var best = options.first;
+    var bestDistance = double.infinity;
     for (final option in options) {
-      if ((option - value).abs() < .001) return option;
+      final distance = (option - value).abs();
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = option;
+      }
     }
-    return defaultScale;
+    return best;
   }
 }

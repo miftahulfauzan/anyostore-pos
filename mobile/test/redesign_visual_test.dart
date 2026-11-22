@@ -186,7 +186,7 @@ void main() {
   });
 
   for (final width in [320.0, 390.0]) {
-    testWidgets('settings expose six font sizes at ${width.toInt()} px',
+    testWidgets('settings expose four readable font sizes at ${width.toInt()} px',
         (tester) async {
       final api = RedesignApi();
       FontScaleController.scale.value = FontScaleController.defaultScale;
@@ -195,7 +195,7 @@ void main() {
           size: Size(width, 844));
       expect(find.text('Tampilan aplikasi'), findsOneWidget);
       expect(find.text('UKURAN TEKS'), findsOneWidget);
-      for (final label in ['40%', '60%', '80%', '100%', '120%', '140%']) {
+      for (final label in ['85%', '100%', '115%', '130%']) {
         expect(find.text(label), findsWidgets);
       }
       final sliderFinder = find.byType(Slider);
@@ -208,7 +208,7 @@ void main() {
       await tester.pump();
       slider.onChangeEnd!(1.2);
       await tester.pump();
-      expect(FontScaleController.scale.value, 1.2);
+      expect(FontScaleController.scale.value, 1.15);
       expect(tester.takeException(), isNull);
     });
   }

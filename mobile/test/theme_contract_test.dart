@@ -42,6 +42,11 @@ void main() {
     expect(theme.scaffoldBackgroundColor, kTaskDarkBg);
     expect(theme.colorScheme.surface, kTaskDarkSurface);
     expect(theme.colorScheme.primary, kTaskAccentDark);
+    final button = theme.filledButtonTheme.style!;
+    final foreground = button.foregroundColor!.resolve({})!;
+    final background = button.backgroundColor!.resolve({})!;
+    expect(background, const Color(0xFF2E5D8F));
+    expect(contrast(foreground, background), greaterThanOrEqualTo(4.5));
     expect(kTaskDarkBg, isNot(kTaskDarkSurface));
   });
 }
