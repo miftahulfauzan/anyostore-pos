@@ -28,10 +28,14 @@ function waLink(phone, text) {
 }
 
 export default function ProdukDetail() {
-  // Di reseller.anyostore.id, "/" adalah landing reseller (rewrite
-  // middleware). Di domain utama, katalog buyer ada di /reseller.
+  // Di subdomain grosir/reseller, "/" adalah katalog host tersebut (rewrite
+  // middleware). Di domain utama, katalog buyer ada di /reseller. Jangan arahkan
+  // host grosir ke /reseller — middleware me-redirect path itu ke subdomain
+  // reseller sehingga pengguna "pindah katalog" tanpa sengaja.
   const catalogHref =
-    typeof window !== 'undefined' && window.location.hostname.startsWith('reseller.')
+    typeof window !== 'undefined' &&
+    (window.location.hostname.startsWith('reseller.') ||
+      window.location.hostname.startsWith('grosir.'))
       ? '/'
       : '/reseller';
   const params = useParams();

@@ -41,6 +41,10 @@ test('logo landing mengikuti jalur, bukan selalu ke root', () => {
 test('detail produk kembali ke katalog sesuai domain', () => {
   assert.match(detail, /catalogHref/);
   assert.match(detail, /hostname\.startsWith\('reseller\.'\)/);
+  // Host grosir: katalognya ada di root host itu sendiri. Tautan kembali
+  // TIDAK boleh ke /reseller karena middleware mengalihkan path itu ke
+  // subdomain reseller (bug: grosir.anyostore.id/produk/1006 -> reseller).
+  assert.match(detail, /hostname\.startsWith\('grosir\.'\)/);
 });
 
 test('deploy memverifikasi subdomain reseller', () => {
