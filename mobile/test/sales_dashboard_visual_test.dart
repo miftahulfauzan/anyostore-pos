@@ -113,7 +113,9 @@ void main() {
 
     // Ringkasan toko: penjualan jadi kartu utama, sisanya tiga tile sejajar.
     expect(find.text('PENJUALAN'), findsOneWidget);
-    expect(find.text('Rp44.415.000'), findsWidgets);
+    // Angka penjualan tidak diulang di kartu Penjualan: nominal besar hanya
+    // ada di kartu Ringkasan toko (baris Pembayaran boleh bernilai sama).
+    expect(find.text('Total penjualan'), findsNothing);
     expect(find.text('PESANAN'), findsOneWidget);
     expect(find.text('PRODUK'), findsOneWidget);
     expect(find.text('LABA BERSIH'), findsOneWidget);

@@ -14,9 +14,10 @@ import 'report_filter.dart';
 import 'task_ui.dart';
 
 /// Dasbor penjualan dengan susunan yang sama seperti PWA:
-/// KPI (label kecil + angka + badge perbandingan), kartu Penjualan (angka
-/// utama + grafik + pembayaran/pengeluaran/pengembalian), lalu daftar
-/// Terlaris dan Stok rendah satu baris per item.
+/// KPI (label kecil + angka + badge perbandingan), kartu Penjualan (grafik +
+/// pembayaran/pengeluaran/pengembalian), lalu daftar Terlaris dan Stok rendah
+/// satu baris per item. Angka penjualan hanya muncul sekali, di kartu
+/// Ringkasan toko, supaya tidak ada dua nominal besar yang sama.
 class SalesDashboardPage extends StatefulWidget {
   const SalesDashboardPage({super.key, required this.api, this.role});
 
@@ -365,22 +366,6 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                     icon: Icons.show_chart_rounded,
                     iconColor: kTaskAccent),
                 const SizedBox(height: 10),
-                Text('Total penjualan',
-                    style: TextStyle(
-                        fontSize: TaskTypography.micro,
-                        color: taskMuted(context),
-                        fontWeight: FontWeight.w600)),
-                Text(fmtRp(grossSales),
-                    style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -.4,
-                        color: kTaskAccent)),
-                Text('${transactions.toInt()} pesanan',
-                    style: TextStyle(
-                        fontSize: TaskTypography.micro,
-                        color: taskMuted(context))),
-                const SizedBox(height: 8),
                 _sparkline(context),
                 const SizedBox(height: 6),
                 Row(

@@ -271,6 +271,51 @@ export default function AppShell({ title, eyebrow, actions, children }) {
     };
   }, [mobileNavOpen]);
 
+  useEffect(() => {
+    // Geser dari tepi kiri layar membuka sidebar di HP, geser ke kiri saat
+    // sidebar terbuka menutupnya. Zona mulai 24 px (bukan 0) karena tepi kiri
+    // dipakai gesture Back Chrome/Android; ambang 56 px memisahkan dari ketukan.
+    const edgeZone = 24;
+    const threshold = 56;
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+    const onTouchStart = (event) => {
+      tracking = false;
+      if (event.touches.length !== 1 || !window.matchMedia('(max-width: 820px)').matches) return;
+      const touch = event.touches[0];
+      // Saat terbuka, geseran hanya dilacak bila dimulai di dalam sidebar agar
+      // daftar isi (tabel, chip) tetap bisa digeser seperti biasa.
+      if (mobileNavOpen) tracking = Boolean(sidebarRef.current?.contains(event.target));
+      else tracking = touch.clientX <= edgeZone;
+      startX = touch.clientX;
+      startY = touch.clientY;
+    };
+    const onTouchMove = (event) => {
+      if (!tracking || event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      if (Math.abs(dy) > Math.abs(dx)) { tracking = false; return; }
+      if (mobileNavOpen) {
+        if (dx <= -threshold) { tracking = false; setMobileNavOpen(false); }
+        return;
+      }
+      if (dx >= threshold) { tracking = false; setMobileNavOpen(true); }
+    };
+    const onTouchEnd = () => { tracking = false; };
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    window.addEventListener('touchend', onTouchEnd, { passive: true });
+    window.addEventListener('touchcancel', onTouchEnd, { passive: true });
+    return () => {
+      window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+      window.removeEventListener('touchcancel', onTouchEnd);
+    };
+  }, [mobileNavOpen]);
+
   function logout() {
     if (hasUnsavedWork() && !window.confirm('Ada input atau keranjang stok yang belum disimpan. Jika keluar, data tersebut akan hilang. Tetap keluar?')) return;
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -145,6 +146,79 @@ void main() {
       });
     }
   }
+
+  testWidgets('drawer opens with a swipe from the left screen edge',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    BranchScope.active.value = 4;
+    final api = _ShellApi();
+    final auth = AuthStore(api)
+      ..role = 'owner'
+      ..branchId = 4
+      ..userName = 'Pemilik Toko';
+    await tester.pumpWidget(ChangeNotifierProvider.value(
+      value: auth,
+      child: MaterialApp(
+        theme: app.buildAnyostoreTheme(),
+        home: const PosPage(runStartupBackgroundTasks: false),
+      ),
+    ));
+    await tester.pump();
+    // Mulai 30 px dari tepi: di luar zona bawaan Flutter (20 px) yang bentrok
+    // dengan gesture Back Android, tetapi masih di dalam zona 40 px kita.
+    final gesture = await tester.startGesture(const Offset(30, 400));
+    await gesture.moveBy(const Offset(180, 0));
+    await gesture.up();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(Drawer), findsOneWidget);
+    expect(find.text('Pemilik Toko'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('event Back membuka dan menutup sidebar, bukan keluar aplikasi',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    BranchScope.active.value = 4;
+    final api = _ShellApi();
+    final auth = AuthStore(api)
+      ..role = 'owner'
+      ..branchId = 4
+      ..userName = 'Pemilik Toko';
+    await tester.pumpWidget(ChangeNotifierProvider.value(
+      value: auth,
+      child: MaterialApp(
+        theme: app.buildAnyostoreTheme(),
+        home: const PosPage(runStartupBackgroundTasks: false),
+      ),
+    ));
+    await tester.pump();
+    final scaffold = tester.state<ScaffoldState>(find.byType(Scaffold).first);
+    expect(scaffold.isDrawerOpen, isFalse);
+
+    Future<void> pressBack() async {
+      await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+        SystemChannels.navigation.name,
+        const JSONMethodCodec().encodeMethodCall(const MethodCall('popRoute')),
+        (_) {},
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
+    // Gesture Back dari tepi layar = event Back sistem.
+    await pressBack();
+    expect(scaffold.isDrawerOpen, isTrue);
+    await pressBack();
+    expect(scaffold.isDrawerOpen, isFalse);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('login hero uses the approved 20 px radius', (tester) async {
     final api = _ShellApi();

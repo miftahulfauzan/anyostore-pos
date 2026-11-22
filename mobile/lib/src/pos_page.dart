@@ -113,6 +113,7 @@ class PosPage extends StatefulWidget {
 }
 
 class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late final ApiClient _api;
   int _tab = 0;
   final List<int> _visitedTabs = [0];
@@ -1872,7 +1873,8 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
             else
               const SizedBox.shrink(),
           ];
-    return Scaffold(
+    final scaffold = Scaffold(
+      key: _scaffoldKey,
       appBar: AppBar(
         title: Text(_pageTitle(auth.role),
             style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -1895,6 +1897,11 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
             ),
         ],
       ),
+      // Sidebar juga bisa dibuka dengan geser dari tepi kiri layar. Zona geser
+      // dilebarkan dari 20 px bawaan Flutter karena 20 px pertama di Android
+      // dipakai gesture Back sistem, sehingga geseran justru keluar aplikasi.
+      drawerEnableOpenDragGesture: true,
+      drawerEdgeDragWidth: 40,
       drawer: Drawer(
         width: math.min(MediaQuery.sizeOf(context).width * .84, 340.0),
         // Drawer selalu memakai permukaan denim seperti sidebar web.
@@ -1971,6 +1978,25 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
           ],
         ),
       ),
+    );
+    // Di Android 16 (targetSdk 36) predictive back aktif default: event Back
+    // hanya sampai ke Flutter bila ada PopScope di pohon widget. Halaman root
+    // ini memakai Back untuk membuka/menutup sidebar, supaya geser dari tepi
+    // kiri layar membuka menu dan tidak menutup aplikasi. (Alternatif
+    // systemGestureExclusionRects tidak bisa: Android hanya 200dp per sisi.)
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        final state = _scaffoldKey.currentState;
+        if (state == null) return;
+        if (state.isDrawerOpen) {
+          state.closeDrawer();
+        } else {
+          state.openDrawer();
+        }
+      },
+      child: scaffold,
     );
   }
 
