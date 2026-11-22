@@ -70,7 +70,7 @@ const navigation = [
         icon: History,
         children: [
           { href: '/inventory/transfers?view=history', label: 'Riwayat Transfer', icon: History, roles: ['owner', 'manager', 'admin'] },
-          { href: '/inventory/movements', label: 'Riwayat Stok', icon: History },
+          { href: '/inventory/movements', label: 'Pergerakan Stok', icon: History },
           { href: '/inventory/mutation-report', label: 'Riwayat Mutasi', icon: History, roles: ['owner', 'manager', 'admin', 'gudang'] },
         ],
       },

@@ -30,7 +30,7 @@ export default function StockMovementsPage() {
       const response = await fetch(api + '/inventory/mutations?' + query, { headers: headers() });
       const body = await response.json();
       if (seq !== loadSeq.current) return;
-      if (!response.ok) throw new Error(body.message || 'Riwayat stok tidak dapat dimuat');
+      if (!response.ok) throw new Error(body.message || 'Pergerakan stok tidak dapat dimuat');
       setRows(body.data || []);
     } catch (error) { if (seq === loadSeq.current) setMessage(error.message); }
     finally { if (seq === loadSeq.current) setLoading(false); }
