@@ -38,6 +38,14 @@ test('aturan isi invoice sama dengan Android', () => {
   assert.doesNotMatch(invoice, /LUNAS/);
 });
 
+test('harga per pcs dan qty invoice berwarna hitam seperti nama barang', () => {
+  // Nilai harga/pcs dan qty memakai INK (sama dengan nama barang dan jumlah),
+  // bukan abu-abu, supaya terbaca saat invoice dibagikan.
+  const rows = invoice.slice(invoice.indexOf('const rows = Array.isArray(payload.items)'));
+  assert.match(rows, /ctx\.fillStyle = INK;\s*\n\s*ctx\.font = font\(20, 600\);/);
+  assert.match(rows, /ctx\.fillStyle = INK;\s*\n\s*ctx\.font = font\(24, 600\);/);
+});
+
 test('tombol bagikan ada di POS dan halaman struk', () => {
   assert.match(pos, /shareInvoiceDraft/);
   assert.match(pos, /transactions\/invoice-preview/);

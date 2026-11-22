@@ -452,14 +452,14 @@ class InvoiceImage extends StatelessWidget {
                         item.price > 0
                             ? '${invoiceMoney(item.price)}/pcs'
                             : '-',
-                        style: const TextStyle(fontSize: 10, color: muted))),
+                        style: const TextStyle(fontSize: 10, color: inkColor))),
                 const SizedBox(width: 10),
                 SizedBox(
                     width: 34,
                     child: Text('${item.qty}',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
-                            fontSize: 12.5, color: Color(0xFF475569)))),
+                            fontSize: 12.5, color: inkColor))),
                 const SizedBox(width: 10),
                 SizedBox(
                     width: 104,

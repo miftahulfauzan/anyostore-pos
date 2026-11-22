@@ -80,6 +80,10 @@ void main() {
     expect(find.text('JUMLAH'), findsOneWidget);
     // Harga per pcs ikut tampil di baris barang dengan format "Rp 185.000/pcs".
     expect(find.text('Rp 185.000/pcs'), findsOneWidget);
+    // Harga/pcs dan qty memakai warna tinta (hitam), bukan abu-abu redup.
+    const ink = Color(0xFF0F172A);
+    expect(tester.widget<Text>(find.text('Rp 185.000/pcs')).style?.color, ink);
+    expect(tester.widget<Text>(find.text('2')).style?.color, ink);
     // Muncul di baris barang dan di ringkasan subtotal.
     expect(find.text('Rp 370.000'), findsNWidgets(2));
     // Invoice penagihan: metode bayar & kembalian tidak ditampilkan.

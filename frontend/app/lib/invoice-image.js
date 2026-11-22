@@ -375,13 +375,13 @@ export function renderInvoiceCanvas(payload) {
     ctx.fillStyle = INK;
     ctx.fillText(nameText, pad, y);
 
-    // HARGA/PCS (kolom tetap, rata kiri)
-    ctx.fillStyle = MUTED;
+    // HARGA/PCS (kolom tetap, rata kiri) — hitam agar terbaca seperti nama barang.
+    ctx.fillStyle = INK;
     ctx.font = font(20, 600);
     ctx.fillText(Number(item.price) > 0 ? `${money(item.price)}/pcs` : '-', colPrice, y);
 
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#475569';
+    ctx.fillStyle = INK;
     ctx.font = font(24, 600);
     ctx.fillText(String(item.qty ?? 0), colQty, y);
 
