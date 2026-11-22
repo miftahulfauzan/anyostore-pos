@@ -317,7 +317,8 @@ void main() {
     expect(find.text('Produk (1)'), findsOneWidget);
     expect(find.text('Kemeja Denim'), findsOneWidget);
     expect(find.text('Biru · L'), findsOneWidget);
-    expect(find.textContaining('21'), findsWidgets);
+    // Tanggal terformat WIB (mis. "23 Nov 2026 · 13:32") — bukan ISO mentah.
+    expect(find.textContaining('Nov 2026'), findsWidgets);
     expect(find.text('Total'), findsOneWidget);
     expect(find.text('Cetak Struk'), findsOneWidget);
     expect(find.byTooltip('Tutup'), findsOneWidget);

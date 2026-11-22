@@ -179,4 +179,21 @@ void main() {
     expect(find.text('Belum ada produk'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('kasir: tanpa chip Masuk/Keluar dan tanpa item terlarang di ⋮',
+      (tester) async {
+    final api = StockHomeApi();
+    await pumpHome(tester, api, role: 'kasir');
+    expect(find.text('Masuk'), findsNothing);
+    expect(find.text('Keluar'), findsNothing);
+    // Transfer & Opname tetap tersedia (paritas tab lama).
+    expect(find.text('Transfer'), findsOneWidget);
+    expect(find.text('Opname'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Opsi inventori'));
+    await tester.pumpAndSettle();
+    expect(find.text('Mutasi'), findsNothing);
+    expect(find.text('Riwayat Transfer'), findsNothing);
+    expect(find.text('Cetak Barcode'), findsOneWidget);
+  });
 }

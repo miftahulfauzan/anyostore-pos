@@ -41,9 +41,12 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    // Selector sekarang berupa baris PillTabs: chip "Mutasi" tidak boleh
-    // tampil untuk role yang tidak boleh mencatat mutasi.
+    // Item "Mutasi" tidak boleh muncul di menu ⋮ untuk role yang tidak boleh
+    // mencatat mutasi stok.
+    await tester.tap(find.byTooltip('Opsi inventori'));
+    await tester.pumpAndSettle();
     expect(find.text('Mutasi'), findsNothing);
+    expect(find.text('Cetak Barcode'), findsOneWidget);
   });
 
   testWidgets('owner and gudang retain the mutasi selector', (tester) async {
@@ -53,8 +56,13 @@ void main() {
         home: Scaffold(body: InventoryPage(api: api, branchId: 4, role: role)),
       ));
       await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Opsi inventori'));
+      await tester.pumpAndSettle();
       expect(find.text('Mutasi'), findsOneWidget);
-      await tester.tap(find.text('Mutasi').first);
+      await tester.tap(find.text('Mutasi'));
+      await tester.pumpAndSettle();
+      expect(find.text('Mutasi Stok'), findsOneWidget);
+      await tester.pageBack();
       await tester.pumpAndSettle();
     }
   });

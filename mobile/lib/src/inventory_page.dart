@@ -18,21 +18,6 @@ import 'ui_kit.dart';
 
 export 'media_helpers.dart';
 
-const _inventorySections = <({String value, IconData icon, String label})>[
-  (value: 'stok', icon: Icons.inventory_2, label: 'Stok'),
-  (value: 'mutasi', icon: Icons.swap_vert, label: 'Mutasi'),
-  (value: 'transfer', icon: Icons.swap_horiz, label: 'Transfer'),
-  (value: 'opname', icon: Icons.fact_check, label: 'Opname'),
-  (value: 'barcode', icon: Icons.qr_code_scanner, label: 'Barcode'),
-];
-
-List<({String value, IconData icon, String label})> _inventorySectionsForRole(
-        String? role) =>
-    _inventorySections
-        .where(
-            (entry) => entry.value != 'mutasi' || canManageStockMutations(role))
-        .toList(growable: false);
-
 enum InventoryStockLevel { good, low, empty }
 
 InventoryStockLevel inventoryStockLevel(num stock, num minStock) {
@@ -87,14 +72,9 @@ class InventoryPage extends StatefulWidget {
 }
 
 class _InventoryPageState extends State<InventoryPage> {
-  String _section = 'stok';
-
   @override
   void initState() {
     super.initState();
-    _section = widget.initialSection == 'mutasi' && !widget.canManageMutations
-        ? 'stok'
-        : widget.initialSection;
     if (widget.isOwner) BranchScope.active.addListener(_onBranchScopeChanged);
   }
 
@@ -112,28 +92,6 @@ class _InventoryPageState extends State<InventoryPage> {
       BranchScope.active.removeListener(_onBranchScopeChanged);
     }
     super.dispose();
-  }
-
-  void _selectSection(String value) {
-    if (value == 'mutasi' && !widget.canManageMutations) return;
-    if (value == 'transfer' || value == 'opname') {
-      Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => Scaffold(
-                backgroundColor: pageBg(context),
-                appBar: AppBar(
-                    title:
-                        Text(value == 'transfer' ? 'Transfer stok' : 'Opname')),
-                body: value == 'transfer'
-                    ? _TransferSection(
-                        api: widget.api,
-                        branchId: _activeBranchId,
-                        isOwner: widget.isOwner)
-                    : _OpnameSection(
-                        api: widget.api, branchId: _activeBranchId),
-              )));
-      return;
-    }
-    setState(() => _section = value);
   }
 
   @override
@@ -174,6 +132,34 @@ class _InventoryPageState extends State<InventoryPage> {
         kind: widget.initialSection,
       );
     }
+    // Seksi dirender langsung dari initialSection — tanpa selector PillTabs.
+    // Mutasi tetap dijaga role (paritas perilaku lama).
+    final section = widget.initialSection == 'mutasi' && !widget.canManageMutations
+        ? 'stok'
+        : widget.initialSection;
+    Widget body = switch (section) {
+      'mutasi' => _MutasiSection(
+          key: ValueKey(_activeBranchId),
+          api: widget.api,
+          branchId: _activeBranchId),
+      'transfer' => _TransferSection(
+          key: ValueKey(_activeBranchId),
+          api: widget.api,
+          branchId: _activeBranchId,
+          isOwner: widget.isOwner),
+      'opname' => _OpnameSection(
+          key: ValueKey(_activeBranchId),
+          api: widget.api,
+          branchId: _activeBranchId),
+      'barcode' => _BarcodeSection(api: widget.api),
+      _ => _StockSection(
+          key: ValueKey(_activeBranchId),
+          api: widget.api,
+          branchId: _activeBranchId,
+          isOwner: widget.isOwner,
+          canViewAllWarehouses: widget.role == 'gudang',
+          role: widget.role),
+    };
     return ColoredBox(
       color: pageBg(context),
       child: Stack(
@@ -181,61 +167,11 @@ class _InventoryPageState extends State<InventoryPage> {
           const Positioned.fill(child: SoftBlobs()),
           Column(
             children: [
-              _InventorySectionSelector(
-                selected: _section,
-                onChanged: _selectSection,
-                sections: _inventorySectionsForRole(widget.role),
-              ),
-              Expanded(
-                child: switch (_section) {
-                  'stok' => _StockSection(
-                      key: ValueKey(_activeBranchId),
-                      api: widget.api,
-                      branchId: _activeBranchId,
-                      isOwner: widget.isOwner,
-                      canViewAllWarehouses: widget.role == 'gudang',
-                      role: widget.role),
-                  'mutasi' => _MutasiSection(
-                      key: ValueKey(_activeBranchId),
-                      api: widget.api,
-                      branchId: _activeBranchId),
-                  'transfer' => _TransferSection(
-                      key: ValueKey(_activeBranchId),
-                      api: widget.api,
-                      branchId: _activeBranchId,
-                      isOwner: widget.isOwner),
-                  'opname' => _OpnameSection(
-                      key: ValueKey(_activeBranchId),
-                      api: widget.api,
-                      branchId: _activeBranchId),
-                  _ => _BarcodeSection(api: widget.api),
-                },
-              ),
+              Expanded(child: body),
             ],
           ),
         ],
       ),
-    );
-  }
-}
-
-class _InventorySectionSelector extends StatelessWidget {
-  const _InventorySectionSelector(
-      {required this.selected,
-      required this.onChanged,
-      required this.sections});
-  final String selected;
-  final ValueChanged<String> onChanged;
-  final List<({String value, IconData icon, String label})> sections;
-
-  // Satu baris PillTabs (bisa digeser) menggantikan dua header bertumpuk
-  // (judul popup + baris chip) — sama seperti tab di finance/reports.
-  @override
-  Widget build(BuildContext context) {
-    return PillTabs(
-      tabs: sections,
-      selected: selected,
-      onChanged: onChanged,
     );
   }
 }

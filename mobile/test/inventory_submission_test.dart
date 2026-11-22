@@ -153,9 +153,24 @@ Future<void> openSection(
       home:
           Scaffold(body: InventoryPage(api: api, branchId: 4, role: 'admin'))));
   await tester.pumpAndSettle();
-  // Selector seksi kini baris PillTabs: chip cukup diketuk langsung.
-  await tester.tap(find.text(section).first);
-  await tester.pumpAndSettle();
+  // Seksi kini dibuka lewat chip aksi (Transfer/Opname) atau menu ⋮ hero
+  // (Mutasi/Cetak Barcode); halaman default adalah Stok Produk.
+  switch (section) {
+    case 'Transfer':
+    case 'Opname':
+      await tester.tap(find.text(section).first);
+      await tester.pumpAndSettle();
+      break;
+    case 'Mutasi':
+    case 'Barcode':
+      await tester.tap(find.byTooltip('Opsi inventori'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(section == 'Mutasi' ? 'Mutasi' : 'Cetak Barcode'));
+      await tester.pumpAndSettle();
+      break;
+    default:
+      break;
+  }
 }
 
 Future<void> addOpname(WidgetTester tester, {String count = '0'}) async {
@@ -172,7 +187,7 @@ Future<void> addOpname(WidgetTester tester, {String count = '0'}) async {
 }
 
 void main() {
-  testWidgets('inventory section tabs open every stock operation',
+  testWidgets('stock page actions and tools open every stock operation',
       (tester) async {
     final api = InventoryApi();
     tester.view.physicalSize = const Size(900, 1800);
@@ -184,17 +199,47 @@ void main() {
             body: InventoryPage(api: api, branchId: 4, role: 'gudang'))));
     await tester.pumpAndSettle();
 
-    // PillTabs seksi masih tampil di task ini; label Transfer/Opname juga
-    // muncul sebagai chip aksi baru di halaman Stok.
-    expect(find.text('Stok'), findsWidgets);
-    expect(find.text('Mutasi'), findsWidgets);
-    for (final label in ['Transfer', 'Opname', 'Barcode']) {
-      expect(find.text(label), findsWidgets);
-    }
+    // Halaman fokus: tanpa selector seksi, chip aksi gudang langsung tampil.
+    expect(find.text('Stok'), findsNothing);
+    expect(find.text('Mutasi'), findsNothing);
+    expect(find.text('Masuk'), findsOneWidget);
+    expect(find.text('Keluar'), findsOneWidget);
+    expect(find.text('Transfer'), findsOneWidget);
+    expect(find.text('Opname'), findsOneWidget);
 
-    await tester.tap(find.text('Transfer').first);
+    await tester.tap(find.text('Transfer'));
     await tester.pumpAndSettle();
     expect(find.text('Dari lokasi'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    // Mutasi & Cetak Barcode tinggal di menu ⋮ hero.
+    await tester.tap(find.byTooltip('Opsi inventori'));
+    await tester.pumpAndSettle();
+    expect(find.text('Mutasi'), findsOneWidget);
+    expect(find.text('Cetak Barcode'), findsOneWidget);
+    expect(find.text('Riwayat Transfer'), findsOneWidget);
+  });
+
+  testWidgets('mutasi section renders directly via initialSection',
+      (tester) async {
+    final api = InventoryApi();
+    tester.view.physicalSize = const Size(900, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: InventoryPage(
+                api: api,
+                branchId: 4,
+                role: 'gudang',
+                initialSection: 'mutasi'))));
+    await tester.pumpAndSettle();
+
+    // Tab gudang "Stok Masuk/Mutasi" tetap hidup tanpa selector seksi.
+    expect(find.text('Stok masuk'), findsOneWidget);
+    expect(find.text('Stok keluar'), findsOneWidget);
   });
 
   testWidgets('inventory tasks open separately and back preserves stock access',
@@ -209,12 +254,14 @@ void main() {
             body: InventoryPage(api: api, branchId: 4, role: 'gudang'))));
     await tester.pumpAndSettle();
 
-    expect(find.text('Stok'), findsWidgets);
-    await tester.tap(find.text('Mutasi').first);
+    expect(find.text('Masuk'), findsOneWidget);
+    await tester.tap(find.byTooltip('Opsi inventori'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Mutasi'));
     await tester.pumpAndSettle();
     expect(find.text('Stok masuk'), findsOneWidget);
     expect(find.text('Stok keluar'), findsOneWidget);
-    expect(find.text('Mutasi Stok'), findsNothing);
+    expect(find.text('Mutasi Stok'), findsOneWidget);
 
     await tester.tap(find.text('Stok masuk'));
     await tester.pumpAndSettle();
@@ -234,6 +281,9 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('inventory-inout-details')));
     await tester.pumpAndSettle();
     expect(find.text('Saluran'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    // Kembali dari Mutasi ke halaman Stok sebelum membuka tool lain.
     await tester.pageBack();
     await tester.pumpAndSettle();
 
