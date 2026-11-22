@@ -8550,3 +8550,360 @@ html[data-motion="off"] .mutation-chart-line {
   .opname-toolbar .opname-search-meta { order: 2; flex: 1 1 100%; }
   .opname-toolbar button { order: 1; flex: 1 1 100%; }
 }
+
+/* ========================================================================
+   Dasbor web/PWA meniru desain dashboard APK (2026-11-22).
+   Acuan: kartu Ringkasan toko (hero Penjualan + 3 tile), Penjualan
+   (grafik + rincian), Produk terlaris berperingkat, dan Stok rendah
+   berstatus. Semua aturan di-scope ke .dashboard-apk-dashboard supaya
+   halaman laporan lain tidak ikut berubah.
+   ======================================================================== */
+.dashboard-apk-dashboard.dashboard-report-layout { gap: 14px; }
+.dashboard-apk-dashboard .dashboard-apk-card {
+  padding: 18px;
+  border: 1px solid #e2e8f0;
+  border-top: 1px solid #e2e8f0 !important;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 12px 30px rgba(30, 58, 95, .055);
+}
+.dashboard-apk-dashboard .dashboard-report-heading {
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.dashboard-apk-heading-main { display: flex; min-width: 0; align-items: center; gap: 10px; }
+.dashboard-apk-heading-icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 10px;
+  background: #eef3f8;
+  color: #1e3a5f;
+}
+.dashboard-apk-heading-icon.is-blue { background: #e8f0ff; color: #2563eb; }
+.dashboard-apk-heading-icon.is-teal { background: #e2f6ed; color: #16856a; }
+.dashboard-apk-heading-icon.is-terracotta { background: #fff0e4; color: #c2410c; }
+.dashboard-apk-dashboard .dashboard-report-heading h2 {
+  margin: 0;
+  color: #0f2239;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -.015em;
+}
+.dashboard-apk-pill {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  padding: 4px 9px;
+  border-radius: 99px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.dashboard-apk-pill strong { color: #334155; font-size: var(--fs-xs); }
+.dashboard-apk-pill small { color: #64748b; font-size: var(--fs-2xs); }
+
+/* Ringkasan toko: hero penjualan + tiga tile, persis susunan APK. */
+.dashboard-apk-dashboard .dashboard-kpi-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.dashboard-apk-hero {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 15px 17px 16px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #1e3a5f 0%, #2b5688 100%);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(30, 58, 95, .18);
+}
+.dashboard-apk-hero-label {
+  color: rgba(255, 255, 255, .72);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.dashboard-apk-hero strong {
+  overflow-wrap: anywhere;
+  color: #fff;
+  font-size: clamp(24px, 3.4vw, 34px);
+  font-weight: 800;
+  letter-spacing: -.035em;
+  line-height: 1.1;
+}
+.dashboard-apk-hero .dashboard-kpi-change {
+  justify-self: start;
+  margin-top: 5px;
+  padding: 3px 8px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .2);
+  color: #d8f5e3;
+  font-size: var(--fs-xs);
+}
+.dashboard-apk-hero .dashboard-kpi-change.is-down { background: rgba(255, 255, 255, .2); color: #ffd9b3; }
+.dashboard-apk-hero .dashboard-kpi-change.is-empty { color: rgba(255, 255, 255, .8); }
+.dashboard-apk-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.dashboard-apk-dashboard .dashboard-kpi-tile {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  gap: 4px;
+  align-content: start;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: none;
+}
+.dashboard-apk-tile { --kpi-tone: #2563eb; }
+.dashboard-apk-tile-order { --kpi-tone: #2563eb; }
+.dashboard-apk-tile-product { --kpi-tone: #16856a; }
+.dashboard-apk-tile-profit { --kpi-tone: #b45309; }
+.dashboard-apk-tile-spend { --kpi-tone: #b45309; }
+.dashboard-apk-tile-icon {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--kpi-tone) 12%, #fff);
+  color: var(--kpi-tone);
+}
+.dashboard-apk-dashboard .dashboard-kpi-label {
+  margin-top: 3px;
+  overflow: hidden;
+  color: #64748b;
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.dashboard-apk-dashboard .dashboard-kpi-tile strong {
+  display: block;
+  margin: 0;
+  overflow: hidden;
+  color: #0f2239;
+  font-size: clamp(12px, 1.25vw, 18px);
+  font-weight: 800;
+  letter-spacing: -.01em;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dashboard-apk-dashboard .dashboard-kpi-change {
+  justify-self: start;
+  margin-top: 3px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: var(--fs-2xs);
+  line-height: 1.3;
+}
+.dashboard-apk-dashboard .dashboard-kpi-change.is-empty {
+  background: #f1f5f9;
+  color: #64748b;
+}
+.dashboard-apk-dashboard .dashboard-overview-footline {
+  margin-top: 14px;
+  padding-top: 11px;
+  border-top: 1px solid #eef2f7;
+  color: #64748b;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.dashboard-apk-dashboard .dashboard-overview-footline strong { color: #0f2239; font-size: var(--fs-md); font-weight: 800; }
+
+/* Penjualan: grafik + legenda + baris rincian polos. */
+.dashboard-apk-dashboard .dashboard-report-chart {
+  min-height: 0;
+  padding: 10px 12px 8px;
+  border: 1px solid #eef2f7;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+.dashboard-apk-dashboard .dashboard-report-chart-max { margin-bottom: 5px; text-align: right; }
+.dashboard-apk-dashboard .dashboard-report-chart-plot { height: 150px; }
+.dashboard-apk-dashboard .dashboard-report-legend { margin: 8px 0 2px; gap: 7px; color: #475569; font-size: var(--fs-xs); }
+.dashboard-apk-dashboard .dashboard-report-legend i { width: 9px; height: 9px; border-radius: 2px; }
+.dashboard-apk-dashboard .dashboard-sales-metrics { margin-top: 8px; }
+.dashboard-apk-dashboard .dashboard-finance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+  padding: 9px 0;
+  border-bottom: 1px solid #eef2f7;
+  color: #475569;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+.dashboard-apk-dashboard .dashboard-finance-row:last-child { border-bottom: 0; }
+.dashboard-apk-dashboard .dashboard-finance-row strong { color: #0f2239; font-size: var(--fs-sm); font-weight: 800; }
+.dashboard-apk-dashboard a.dashboard-finance-row:hover strong { color: #1e3a5f; }
+.dashboard-apk-dashboard .dashboard-finance-payment,
+.dashboard-apk-dashboard .dashboard-finance-expense,
+.dashboard-apk-dashboard .dashboard-finance-return { color: #475569; }
+
+/* Produk terlaris & stok rendah: satu baris per item, bar di bawah nama. */
+.dashboard-apk-dashboard .dashboard-secondary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 14px; }
+.dashboard-apk-dashboard .dashboard-list-card { min-width: 0; }
+.dashboard-apk-dashboard .dashboard-list-item { display: block; padding: 0; border-bottom: 1px solid #eef2f7; }
+.dashboard-apk-dashboard .dashboard-list-item:last-child { border-bottom: 0; }
+.dashboard-apk-dashboard .dashboard-apk-product-row,
+.dashboard-apk-dashboard .dashboard-apk-lowstock-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+  min-width: 0;
+}
+.dashboard-apk-rank {
+  display: grid;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--rank-tone) 14%, #fff);
+  color: var(--rank-tone);
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  line-height: 1;
+}
+.dashboard-apk-product-main { display: grid; flex: 1 1 auto; min-width: 0; gap: 2px; }
+.dashboard-apk-product-line { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; min-width: 0; }
+.dashboard-apk-dashboard .dashboard-apk-product-name {
+  min-width: 0;
+  overflow: hidden;
+  color: #1f2937;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dashboard-apk-product-value {
+  flex: 0 0 auto;
+  color: #0f2239;
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.dashboard-apk-dashboard .dashboard-apk-product-sub {
+  overflow: hidden;
+  color: #64748b;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dashboard-apk-dashboard .dashboard-apk-track {
+  display: block;
+  width: 100%;
+  height: 6px;
+  margin-top: 4px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: #eef2f7;
+}
+.dashboard-apk-dashboard .dashboard-apk-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--rank-tone), color-mix(in srgb, var(--rank-tone) 55%, #fff));
+}
+.dashboard-apk-stock-dot {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+}
+.dashboard-apk-stock-dot.is-out { background: #be123c; }
+.dashboard-apk-stock-dot.is-low { background: #b45309; }
+.dashboard-apk-lowstock-side { display: grid; flex: 0 0 auto; justify-items: end; gap: 3px; }
+.dashboard-apk-stock-pill {
+  padding: 2px 7px;
+  border-radius: 99px;
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: .03em;
+}
+.dashboard-apk-stock-pill.is-out { background: rgba(190, 18, 60, .1); color: #be123c; }
+.dashboard-apk-stock-pill.is-low { background: rgba(180, 83, 9, .1); color: #b45309; }
+.dashboard-apk-dashboard .dashboard-list-stock { color: #64748b; font-size: var(--fs-2xs); font-weight: 600; white-space: nowrap; }
+.dashboard-apk-dashboard .dashboard-apk-empty { min-height: 84px; padding: 14px; font-size: var(--fs-sm); }
+.dashboard-apk-dashboard .dashboard-summary-footnote { padding: 0 4px 4px; color: #64748b; font-size: var(--fs-xs); }
+
+/* Kartu periode mengikuti bentuk kartu dasbor APK. */
+.dashboard-report-toolbar {
+  border: 1px solid #e2e8f0;
+  border-top: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 10px 24px rgba(30, 58, 95, .05);
+}
+.dashboard-recent,
+.store-summary { border-radius: 16px; }
+
+.dark .dashboard-apk-dashboard .dashboard-apk-card { border-color: rgba(148, 163, 184, .18); background: #1e293b; box-shadow: none; }
+.dark .dashboard-apk-dashboard .dashboard-report-heading h2 { color: #f1f5f9; }
+.dark .dashboard-apk-heading-icon { background: rgba(148, 163, 184, .14); color: #bfdbfe; }
+.dark .dashboard-apk-heading-icon.is-blue { background: rgba(37, 99, 235, .22); color: #93c5fd; }
+.dark .dashboard-apk-heading-icon.is-teal { background: rgba(22, 133, 106, .24); color: #6ee7b7; }
+.dark .dashboard-apk-heading-icon.is-terracotta { background: rgba(194, 65, 12, .26); color: #fdba74; }
+.dark .dashboard-apk-pill { background: #182135; color: #cbd5e1; }
+.dark .dashboard-apk-pill strong { color: #e2e8f0; }
+.dark .dashboard-apk-dashboard .dashboard-kpi-tile { border-color: rgba(148, 163, 184, .2); background: #182135; }
+.dark .dashboard-apk-dashboard .dashboard-kpi-label { color: #94a3b8; }
+.dark .dashboard-apk-dashboard .dashboard-kpi-tile strong { color: #f1f5f9; }
+.dark .dashboard-apk-tile-icon { background: color-mix(in srgb, var(--kpi-tone) 24%, #0f172a); color: color-mix(in srgb, var(--kpi-tone) 65%, #fff); }
+.dark .dashboard-apk-dashboard .dashboard-kpi-change.is-empty { background: #22304b; color: #94a3b8; }
+.dark .dashboard-apk-dashboard .dashboard-overview-footline { border-top-color: rgba(148, 163, 184, .16); color: #94a3b8; }
+.dark .dashboard-apk-dashboard .dashboard-overview-footline strong { color: #f1f5f9; }
+.dark .dashboard-apk-dashboard .dashboard-report-chart { border-color: rgba(148, 163, 184, .14); background: #182135; }
+.dark .dashboard-apk-dashboard .dashboard-finance-row { border-bottom-color: rgba(148, 163, 184, .16); color: #cbd5e1; }
+.dark .dashboard-apk-dashboard .dashboard-finance-row strong { color: #f1f5f9; }
+.dark .dashboard-apk-dashboard .dashboard-list-item { border-bottom-color: rgba(148, 163, 184, .16); }
+.dark .dashboard-apk-dashboard .dashboard-apk-product-name { color: #e2e8f0; }
+.dark .dashboard-apk-dashboard .dashboard-apk-product-value { color: #f1f5f9; }
+.dark .dashboard-apk-dashboard .dashboard-apk-product-sub,
+.dark .dashboard-apk-dashboard .dashboard-list-stock { color: #94a3b8; }
+.dark .dashboard-apk-dashboard .dashboard-apk-track { background: #334155; }
+.dark .dashboard-apk-rank { background: color-mix(in srgb, var(--rank-tone) 26%, #0f172a); color: color-mix(in srgb, var(--rank-tone) 70%, #fff); }
+.dark .dashboard-apk-dashboard .dashboard-apk-track i { background: linear-gradient(90deg, var(--rank-tone), color-mix(in srgb, var(--rank-tone) 55%, #0f172a)); }
+.dark .dashboard-apk-stock-pill.is-out { background: rgba(190, 18, 60, .24); color: #fda4af; }
+.dark .dashboard-apk-stock-pill.is-low { background: rgba(180, 83, 9, .26); color: #fcd34d; }
+.dark .dashboard-apk-stock-dot.is-out { background: #fda4af; }
+.dark .dashboard-apk-stock-dot.is-low { background: #fcd34d; }
+.dark .dashboard-apk-dashboard .dashboard-apk-empty { background: #182135; color: #94a3b8; }
+.dark .dashboard-report-toolbar { border-color: rgba(148, 163, 184, .18); }
+
+@media (min-width: 701px) {
+  .dashboard-apk-dashboard .dashboard-report-chart-plot { height: 190px; }
+}
+@media (max-width: 820px) {
+  .dashboard-apk-dashboard.dashboard-report-layout { gap: 12px; }
+  .dashboard-apk-dashboard .dashboard-apk-card { padding: 13px 14px; border-radius: 14px; }
+  .dashboard-apk-dashboard .dashboard-apk-heading-icon { width: 30px; height: 30px; border-radius: 9px; }
+  .dashboard-apk-dashboard .dashboard-report-heading h2 { font-size: 15px; }
+  .dashboard-apk-dashboard .dashboard-secondary-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .dashboard-apk-dashboard .dashboard-report-chart-plot { height: 128px; }
+}
+@media (max-width: 420px) {
+  .dashboard-apk-dashboard .dashboard-apk-card { padding: 12px; }
+  .dashboard-apk-tiles { gap: 7px; }
+  .dashboard-apk-dashboard .dashboard-kpi-tile { padding: 8px 7px; border-radius: 10px; }
+  .dashboard-apk-tile-icon { width: 22px; height: 22px; border-radius: 7px; }
+  .dashboard-apk-dashboard .dashboard-kpi-label { font-size: 9px; letter-spacing: .02em; }
+  .dashboard-apk-dashboard .dashboard-kpi-tile strong { font-size: 11.5px; }
+  .dashboard-apk-dashboard .dashboard-kpi-change { padding: 1px 4px; font-size: 8.5px; }
+  .dashboard-apk-hero { padding: 13px 14px 14px; }
+  .dashboard-apk-hero strong { font-size: 24px; }
+}

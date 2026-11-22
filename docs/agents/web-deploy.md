@@ -29,7 +29,7 @@
 | `/settings` | `settings/page.js` | Pengaturan + cabang + kategori |
 | `/commissions` | `commissions/page.js` | Komisi staf (owner) |
 | `/users` | `users/page.js` | Pegawai (owner) |
-| `/dashboard` | `dashboard/page.js` | Dasbor penjualan; role gudang tetap melihat dashboard operasional gudang |
+| `/dashboard` | `dashboard/page.js` + `dashboard/OlseraDashboardSections.js` | Dasbor penjualan mengikuti desain dashboard APK (2026-11-22): kartu Ringkasan toko dengan hero Penjualan + tile Pesanan/Produk/Laba, grafik Penjualan + rincian, Produk terlaris berperingkat, Stok rendah berstatus. Web/PWA meniru APK, bukan sebaliknya; role gudang tetap melihat dashboard operasional gudang |
 | `/profile` | `profile/page.js` | Akun |
 | `/receipt/[id]` | `receipt/[id]/page.js` | Resi |
 | `/operations`, `/customers`, `/promotions` | ... | Operasional, pelanggan (termasuk ekspedisi), promo |

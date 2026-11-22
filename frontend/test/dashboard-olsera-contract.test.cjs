@@ -157,3 +157,25 @@ test('grafik dasbor tidak menembus keluar kartu (label sumbu Y)', () => {
   assert.match(styles, /\.dashboard-merged \.dashboard-report-chart-ylabels \{ display: none; \}/);
   assert.match(sections, /dashboard-report-chart-max/);
 });
+
+test('web/PWA mengikuti susunan kartu dashboard APK', () => {
+  const styles = fs.readFileSync(new URL('../app/globals.css', `file://${__dirname}/`), 'utf8');
+  // Ringkasan toko: hero Penjualan + tiga tile (Pesanan, Produk, Laba/Pengeluaran).
+  assert.match(sections, /dashboard-apk-dashboard/);
+  assert.match(sections, /dashboard-apk-hero/);
+  assert.match(sections, /dashboard-apk-tiles/);
+  assert.match(sections, /dashboard-apk-tile-icon/);
+  assert.match(sections, /vs periode lalu/);
+  // Produk terlaris berperingkat dan stok rendah berstatus.
+  assert.match(sections, /dashboard-apk-rank/);
+  assert.match(sections, /dashboard-apk-track/);
+  assert.match(sections, /dashboard-apk-stock-pill/);
+  assert.match(sections, /MINUS/);
+  assert.match(sections, /HABIS/);
+  assert.match(sections, /MENIPIS/);
+  // Kartu APK tidak memakai garis warna di tepi atas; aturan lama memakai
+  // !important sehingga override baru juga wajib !important.
+  assert.match(styles, /\.dashboard-apk-dashboard \.dashboard-apk-card \{[^}]*border-top: 1px solid #e2e8f0 !important;/);
+  // Di HP kartu Produk terlaris dan Stok rendah ditumpuk seperti APK.
+  assert.match(styles, /@media \(max-width: 820px\)[\s\S]*?\.dashboard-apk-dashboard \.dashboard-secondary-grid \{ grid-template-columns: minmax\(0, 1fr\);[^}]*\}/);
+});
