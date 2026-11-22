@@ -2289,8 +2289,7 @@ class _ProductCard extends StatelessWidget {
             // Mode gelap: foto berlatar putih di-inset supaya tidak jadi
             // blok putih yang menempel penuh ke tepi kartu.
             Builder(builder: (context) {
-              final isDark =
-                  Theme.of(context).brightness == Brightness.dark;
+              final isDark = Theme.of(context).brightness == Brightness.dark;
               final photoWidget = AspectRatio(
                 aspectRatio: 1,
                 child: UiProductPhoto(
@@ -2991,8 +2990,8 @@ class _CartSheetState extends State<_CartSheet> {
                         decoration: BoxDecoration(
                           color: kTaskStockGood,
                           shape: BoxShape.circle,
-                          border: Border.all(
-                              color: taskSurface(context), width: 2),
+                          border:
+                              Border.all(color: taskSurface(context), width: 2),
                         ),
                       ),
                     ),
@@ -3177,7 +3176,8 @@ class _CartSheetState extends State<_CartSheet> {
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         minimumSize: const Size(0, 44),
                       ),
-                      icon: const Icon(Icons.tune, color: Colors.white, size: 19),
+                      icon:
+                          const Icon(Icons.tune, color: Colors.white, size: 19),
                       label: const Text('Opsi',
                           style: TextStyle(
                               fontSize: TaskTypography.secondary,

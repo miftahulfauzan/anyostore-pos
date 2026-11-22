@@ -1,6 +1,5 @@
 // ignore_for_file: prefer_const_constructors
 
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -239,8 +238,9 @@ class _ProductsPageState extends State<ProductsPage> {
                   Text(subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style:
-                          TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
+                      style: TextStyle(
+                          fontSize: TaskTypography.micro,
+                          color: taskMuted(context))),
                 ],
                 const SizedBox(height: 5),
                 AppStatusPill(

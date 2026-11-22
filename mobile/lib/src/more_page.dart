@@ -160,13 +160,15 @@ class MorePage extends StatelessWidget {
                           'admin' => 'Admin',
                           _ => 'Kasir',
                         },
-                        style:
-                            const TextStyle(color: kDrawerLabel, fontSize: TaskTypography.micro)),
+                        style: const TextStyle(
+                            color: kDrawerLabel,
+                            fontSize: TaskTypography.micro)),
                     if (email.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(email,
                           style: const TextStyle(
-                              fontSize: TaskTypography.micro, color: kDrawerIcon)),
+                              fontSize: TaskTypography.micro,
+                              color: kDrawerIcon)),
                     ],
                   ],
                 ),
@@ -670,7 +672,8 @@ class MorePage extends StatelessWidget {
           padding: EdgeInsets.only(top: 12, bottom: 8),
           child: Text('Anyostore App v0.2.0',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: TaskTypography.micro, color: kDrawerLabel)),
+              style: const TextStyle(
+                  fontSize: TaskTypography.micro, color: kDrawerLabel)),
         ),
       ],
     );

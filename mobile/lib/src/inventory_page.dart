@@ -321,7 +321,8 @@ class _StockSectionState extends State<_StockSection> {
       maxLines: 1,
       textInputAction: TextInputAction.search,
       style: TextStyle(fontSize: TaskTypography.label, color: ink(context)),
-      decoration: appFieldDecoration(context, hint: 'Cari produk / SKU').copyWith(
+      decoration:
+          appFieldDecoration(context, hint: 'Cari produk / SKU').copyWith(
         prefix: showWarehouseChip && _warehouses.isNotEmpty
             ? Padding(
                 padding: const EdgeInsets.only(right: 8),
@@ -612,8 +613,7 @@ class _StockSectionState extends State<_StockSection> {
                           message: 'Coba ganti gudang atau kata pencarian.')
                       : _grid
                           ? GridView.builder(
-                              padding:
-                                  const EdgeInsets.fromLTRB(12, 0, 12, 16),
+                              padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
                               itemCount: _sorted.length,
                               gridDelegate:
                                   const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -669,8 +669,7 @@ class _StockSectionState extends State<_StockSection> {
                                                 style: TextStyle(
                                                     fontSize: TaskTypography
                                                         .secondary,
-                                                    fontWeight:
-                                                        FontWeight.w700,
+                                                    fontWeight: FontWeight.w700,
                                                     color: ink(context))),
                                             const SizedBox(height: 4),
                                             Wrap(
@@ -704,8 +703,7 @@ class _StockSectionState extends State<_StockSection> {
                               },
                             )
                           : ListView.separated(
-                              padding:
-                                  const EdgeInsets.fromLTRB(12, 0, 12, 16),
+                              padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
                               itemCount: _sorted.length,
                               separatorBuilder: (_, __) =>
                                   const SizedBox(height: 8),
@@ -750,8 +748,7 @@ class _StockSectionState extends State<_StockSection> {
                                                 maxLines: 2,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: TextStyle(
-                                                    fontWeight:
-                                                        FontWeight.w700,
+                                                    fontWeight: FontWeight.w700,
                                                     fontSize:
                                                         TaskTypography.body,
                                                     color: ink(context))),
@@ -781,7 +778,8 @@ class _StockSectionState extends State<_StockSection> {
                                                       'min ${r['min_stock'] ?? 0}',
                                                       style: TextStyle(
                                                           fontSize:
-                                                              TaskTypography.micro,
+                                                              TaskTypography
+                                                                  .micro,
                                                           color: taskMuted(
                                                               context))),
                                               ],
@@ -1067,8 +1065,7 @@ class _MutasiSectionState extends State<_MutasiSection> {
                                     alignment: Alignment.center,
                                     decoration: BoxDecoration(
                                       color: accent.withValues(alpha: .12),
-                                      borderRadius:
-                                          BorderRadius.circular(10),
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Text(initial,
                                         style: TextStyle(
@@ -1082,7 +1079,8 @@ class _MutasiSectionState extends State<_MutasiSection> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        Text(r['product_name']?.toString() ?? '',
+                                        Text(
+                                            r['product_name']?.toString() ?? '',
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
@@ -1096,14 +1094,12 @@ class _MutasiSectionState extends State<_MutasiSection> {
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
-                                                fontSize:
-                                                    TaskTypography.micro,
+                                                fontSize: TaskTypography.micro,
                                                 color: taskMuted(context))),
                                       ],
                                     ),
                                   ),
-                                  Text(
-                                      '${positive ? '+' : ''}${r['qty']}',
+                                  Text('${positive ? '+' : ''}${r['qty']}',
                                       style: TextStyle(
                                           fontSize: TaskTypography.secondary,
                                           fontWeight: FontWeight.w800,
@@ -1281,9 +1277,9 @@ class _InOutFormState extends State<_InOutForm> {
                 TextField(
                   controller: cost,
                   keyboardType: TextInputType.number,
-                  decoration: appFieldDecoration(
-                    context, label: 'Harga beli (opsional)')
-                .copyWith(prefixText: 'Rp '),
+                  decoration: appFieldDecoration(context,
+                          label: 'Harga beli (opsional)')
+                      .copyWith(prefixText: 'Rp '),
                 ),
               ],
             ],
@@ -1556,7 +1552,9 @@ class _InOutFormState extends State<_InOutForm> {
             children: [
               if ((item['variant_label'] ?? '').toString().isNotEmpty)
                 Text((item['variant_label'] ?? '').toString(),
-                    style: TextStyle(fontSize: TaskTypography.secondary, color: taskMuted(context))),
+                    style: TextStyle(
+                        fontSize: TaskTypography.secondary,
+                        color: taskMuted(context))),
               const SizedBox(height: 10),
               TextField(
                 controller: qty,
@@ -1568,9 +1566,9 @@ class _InOutFormState extends State<_InOutForm> {
                 TextField(
                   controller: cost,
                   keyboardType: TextInputType.number,
-                  decoration: appFieldDecoration(
-                    context, label: 'Harga beli (opsional)')
-                .copyWith(prefixText: 'Rp '),
+                  decoration: appFieldDecoration(context,
+                          label: 'Harga beli (opsional)')
+                      .copyWith(prefixText: 'Rp '),
                 ),
               ],
             ],
@@ -1757,8 +1755,7 @@ class _InOutFormState extends State<_InOutForm> {
                                     '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}');
                               },
                               child: InputDecorator(
-                                  decoration: appFieldDecoration(
-                                      context,
+                                  decoration: appFieldDecoration(context,
                                       label: 'Tanggal',
                                       suffix: const Icon(
                                           Icons.calendar_today_outlined)),
@@ -1767,7 +1764,8 @@ class _InOutFormState extends State<_InOutForm> {
                             const SizedBox(height: 8),
                             AppSelectField<String>(
                               value: _warehouseId.isEmpty ? null : _warehouseId,
-                              decoration: appFieldDecoration(context, label: 'Gudang'),
+                              decoration:
+                                  appFieldDecoration(context, label: 'Gudang'),
                               items: [
                                 for (final w in _warehouses)
                                   DropdownMenuItem(
@@ -1784,13 +1782,15 @@ class _InOutFormState extends State<_InOutForm> {
                               const SizedBox(height: 8),
                               AppSelectField<String>(
                                 value: _channel,
-                                decoration: appFieldDecoration(context, label: 'Saluran').copyWith(
-                                    suffixIcon: IconButton(
-                                      onPressed: _addChannel,
-                                      icon: const Icon(Icons.add_circle_outline,
-                                          size: 20, color: kTaskTerracotta),
-                                      tooltip: 'Tambah saluran',
-                                    )),
+                                decoration: appFieldDecoration(context,
+                                        label: 'Saluran')
+                                    .copyWith(
+                                        suffixIcon: IconButton(
+                                  onPressed: _addChannel,
+                                  icon: const Icon(Icons.add_circle_outline,
+                                      size: 20, color: kTaskTerracotta),
+                                  tooltip: 'Tambah saluran',
+                                )),
                                 items: [
                                   for (final c in _channels)
                                     DropdownMenuItem(
@@ -1807,13 +1807,14 @@ class _InOutFormState extends State<_InOutForm> {
                             ],
                             const SizedBox(height: 8),
                             TextField(
-                              decoration: appFieldDecoration(
-                                  context, label: 'Nomor batch / nota (opsional)'),
+                              decoration: appFieldDecoration(context,
+                                  label: 'Nomor batch / nota (opsional)'),
                               onChanged: (v) => _batch = v,
                             ),
                             const SizedBox(height: 8),
                             TextField(
-                              decoration: appFieldDecoration(context, label: 'Keterangan'),
+                              decoration: appFieldDecoration(context,
+                                  label: 'Keterangan'),
                               onChanged: (v) => _notes = v,
                             ),
                           ],
@@ -1824,8 +1825,8 @@ class _InOutFormState extends State<_InOutForm> {
                     TextField(
                       onChanged: (value) =>
                           setState(() => _catalogQuery = value),
-                      decoration: appFieldDecoration(
-                          context, hint: 'Cari produk', icon: Icons.search_rounded),
+                      decoration: appFieldDecoration(context,
+                          hint: 'Cari produk', icon: Icons.search_rounded),
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: 8),
@@ -2014,9 +2015,9 @@ class _CatalogPickerState extends State<_CatalogPicker> {
                 TextField(
                   controller: cost,
                   keyboardType: TextInputType.number,
-                  decoration: appFieldDecoration(
-                    context, label: 'Harga beli (opsional)')
-                .copyWith(prefixText: 'Rp '),
+                  decoration: appFieldDecoration(context,
+                          label: 'Harga beli (opsional)')
+                      .copyWith(prefixText: 'Rp '),
                 ),
               ],
             ],
@@ -2063,7 +2064,9 @@ class _CatalogPickerState extends State<_CatalogPicker> {
           children: [
             if ((item['variant_label'] ?? '').toString().isNotEmpty)
               Text((item['variant_label'] ?? '').toString(),
-                  style: TextStyle(fontSize: TaskTypography.secondary, color: taskMuted(context))),
+                  style: TextStyle(
+                      fontSize: TaskTypography.secondary,
+                      color: taskMuted(context))),
             const SizedBox(height: 10),
             TextField(
               controller: qty,
@@ -2075,9 +2078,9 @@ class _CatalogPickerState extends State<_CatalogPicker> {
               TextField(
                 controller: cost,
                 keyboardType: TextInputType.number,
-                decoration: appFieldDecoration(
-                    context, label: 'Harga beli (opsional)')
-                .copyWith(prefixText: 'Rp '),
+                decoration:
+                    appFieldDecoration(context, label: 'Harga beli (opsional)')
+                        .copyWith(prefixText: 'Rp '),
               ),
             ],
           ],
@@ -2215,7 +2218,8 @@ class _CatalogPickerState extends State<_CatalogPicker> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                    fontSize: TaskTypography.secondary, fontWeight: FontWeight.w700)),
+                                    fontSize: TaskTypography.secondary,
+                                    fontWeight: FontWeight.w700)),
                             Text(
                                 '${variant.isEmpty ? '' : '$variant · '}${item['quantity']} pcs',
                                 maxLines: 1,
@@ -2285,8 +2289,8 @@ class _CatalogPickerState extends State<_CatalogPicker> {
                     0),
                 child: TextField(
                   onChanged: (v) => setState(() => _q = v),
-                  decoration: appFieldDecoration(
-                      context, hint: 'Cari produk', icon: Icons.search_rounded),
+                  decoration: appFieldDecoration(context,
+                      hint: 'Cari produk', icon: Icons.search_rounded),
                 ),
               ),
               Expanded(
@@ -2332,7 +2336,8 @@ class _CatalogPickerState extends State<_CatalogPicker> {
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
-                                              fontSize: TaskTypography.secondary,
+                                              fontSize:
+                                                  TaskTypography.secondary,
                                               fontWeight: FontWeight.w700)),
                                       const SizedBox(height: 2),
                                       Text(
@@ -2469,7 +2474,9 @@ class _TransferSectionState extends State<_TransferSection> {
             children: [
               if ((item['variant_label'] ?? '').toString().isNotEmpty)
                 Text((item['variant_label'] ?? '').toString(),
-                    style: TextStyle(fontSize: TaskTypography.secondary, color: taskMuted(context))),
+                    style: TextStyle(
+                        fontSize: TaskTypography.secondary,
+                        color: taskMuted(context))),
               const SizedBox(height: 10),
               TextField(
                 controller: qty,
@@ -2481,9 +2488,9 @@ class _TransferSectionState extends State<_TransferSection> {
                 TextField(
                   controller: cost,
                   keyboardType: TextInputType.number,
-                  decoration: appFieldDecoration(
-                    context, label: 'Harga beli (opsional)')
-                .copyWith(prefixText: 'Rp '),
+                  decoration: appFieldDecoration(context,
+                          label: 'Harga beli (opsional)')
+                      .copyWith(prefixText: 'Rp '),
                 ),
               ],
             ],
@@ -2635,7 +2642,8 @@ class _TransferSectionState extends State<_TransferSection> {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text('Belum ada produk. Ketuk Tambah Produk untuk memilih.',
-                style: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
+                style: TextStyle(
+                    fontSize: TaskTypography.micro, color: taskMuted(context))),
           ),
         for (final item in _items)
           AppListCard(
@@ -2664,7 +2672,8 @@ class _TransferSectionState extends State<_TransferSection> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                              fontSize: TaskTypography.micro, color: taskMuted(context))),
+                              fontSize: TaskTypography.micro,
+                              color: taskMuted(context))),
                     ],
                   ),
                 ),
@@ -3131,8 +3140,8 @@ class _OpnamePickerState extends State<_OpnamePicker> {
             padding: const EdgeInsets.all(12),
             child: TextField(
               onChanged: (v) => setState(() => _q = v),
-              decoration: appFieldDecoration(
-                  context, hint: 'Cari produk', icon: Icons.search_rounded),
+              decoration: appFieldDecoration(context,
+                  hint: 'Cari produk', icon: Icons.search_rounded),
             ),
           ),
           Expanded(
@@ -3325,8 +3334,7 @@ class _BarcodeSectionState extends State<_BarcodeSection> {
                                     alignment: Alignment.center,
                                     decoration: BoxDecoration(
                                       color: kTaskDark.withValues(alpha: .10),
-                                      borderRadius:
-                                          BorderRadius.circular(10),
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: const Icon(Icons.qr_code_2,
                                         size: 18, color: kTaskDark),
@@ -3351,8 +3359,7 @@ class _BarcodeSectionState extends State<_BarcodeSection> {
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
-                                                fontSize:
-                                                    TaskTypography.micro,
+                                                fontSize: TaskTypography.micro,
                                                 color: taskMuted(context))),
                                       ],
                                     ),
@@ -3365,8 +3372,8 @@ class _BarcodeSectionState extends State<_BarcodeSection> {
                                               strokeWidth: 2))
                                       : IconButton(
                                           onPressed: () => _print(r),
-                                          icon: const Icon(Icons.print,
-                                              size: 18),
+                                          icon:
+                                              const Icon(Icons.print, size: 18),
                                           tooltip: 'Cetak barcode'),
                                 ],
                               ),

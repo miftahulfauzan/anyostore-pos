@@ -458,8 +458,8 @@ class InvoiceImage extends StatelessWidget {
                     width: 34,
                     child: Text('${item.qty}',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                            fontSize: 12.5, color: inkColor))),
+                        style:
+                            const TextStyle(fontSize: 12.5, color: inkColor))),
                 const SizedBox(width: 10),
                 SizedBox(
                     width: 104,

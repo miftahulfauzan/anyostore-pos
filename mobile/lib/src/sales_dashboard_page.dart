@@ -684,8 +684,10 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
       child: Text('${change ?? '-'}${has ? suffix : ''}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style:
-              TextStyle(fontSize: TaskTypography.micro, fontWeight: FontWeight.w800, color: fg)),
+          style: TextStyle(
+              fontSize: TaskTypography.micro,
+              fontWeight: FontWeight.w800,
+              color: fg)),
     );
   }
 
@@ -777,7 +779,9 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             ),
             child: Text('${index + 1}',
                 style: TextStyle(
-                    fontSize: TaskTypography.micro, fontWeight: FontWeight.w800, color: tone.fg)),
+                    fontSize: TaskTypography.micro,
+                    fontWeight: FontWeight.w800,
+                    color: tone.fg)),
           ),
           const SizedBox(width: 9),
           Expanded(
@@ -1090,7 +1094,8 @@ class _SparkPainter extends CustomPainter {
           ..color = color,
       );
       final point = Offset(14, y);
-      canvas.drawCircle(point, 8, Paint()..color = color.withValues(alpha: .12));
+      canvas.drawCircle(
+          point, 8, Paint()..color = color.withValues(alpha: .12));
       canvas.drawCircle(point, 4, Paint()..color = Colors.white);
       canvas.drawCircle(
         point,

@@ -276,8 +276,9 @@ class _PromotionsPageState extends State<PromotionsPage> {
                 Text('${code.isEmpty ? '-' : code} · $discountLabel',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style:
-                        TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
+                    style: TextStyle(
+                        fontSize: TaskTypography.micro,
+                        color: taskMuted(context))),
                 const SizedBox(height: 4),
                 Row(
                   children: [
@@ -294,8 +295,9 @@ class _PromotionsPageState extends State<PromotionsPage> {
                                 bg: status.bg),
                             const SizedBox(width: 4),
                             AppStatusPill(
-                              label:
-                                  limit > 0 ? '$used / $limit' : '$used dipakai',
+                              label: limit > 0
+                                  ? '$used / $limit'
+                                  : '$used dipakai',
                               fg: _isDark
                                   ? const Color(0xFFCBD5E1)
                                   : const Color(0xFF334155),

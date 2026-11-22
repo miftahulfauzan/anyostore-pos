@@ -653,7 +653,8 @@ class _SettingsPageState extends State<SettingsPage> {
         labelStyle: TextStyle(fontSize: 11.5, color: taskMuted(context)),
         hintStyle: TextStyle(
             fontSize: 11.5, color: taskMuted(context).withValues(alpha: .72)),
-        helperStyle: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context)),
+        helperStyle: TextStyle(
+            fontSize: TaskTypography.micro, color: taskMuted(context)),
       ),
     );
   }
@@ -978,12 +979,14 @@ class _SettingsPageState extends State<SettingsPage> {
                         textAlign: TextAlign.center,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                            fontSize: TaskTypography.micro, color: taskMuted(context))),
+                            fontSize: TaskTypography.micro,
+                            color: taskMuted(context))),
                   ],
                   const SizedBox(height: 7),
                   Text('Kemeja Denim A100',
-                      style:
-                          TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
+                      style: TextStyle(
+                          fontSize: TaskTypography.micro,
+                          color: taskMuted(context))),
                   const SizedBox(height: 1),
                   Text('Rp130.000',
                       style: TextStyle(
@@ -1335,7 +1338,8 @@ class _SettingsPageState extends State<SettingsPage> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                              fontSize: TaskTypography.micro, color: taskMuted(context))),
+                              fontSize: TaskTypography.micro,
+                              color: taskMuted(context))),
                     ],
                   ),
                 ),
@@ -1384,7 +1388,9 @@ class _SettingsPageState extends State<SettingsPage> {
                 child: Text(
                     'Simpan snapshot seluruh database ke perangkat sebelum perubahan besar.',
                     style: TextStyle(
-                        fontSize: TaskTypography.micro, height: 1.45, color: ink(context))),
+                        fontSize: TaskTypography.micro,
+                        height: 1.45,
+                        color: ink(context))),
               ),
             ],
           ),
@@ -1599,8 +1605,10 @@ class _SettingsPageState extends State<SettingsPage> {
               borderRadius: BorderRadius.circular(9),
             ),
             child: Text(settings.summary,
-                style:
-                    TextStyle(fontSize: TaskTypography.micro, height: 1.45, color: ink(context))),
+                style: TextStyle(
+                    fontSize: TaskTypography.micro,
+                    height: 1.45,
+                    color: ink(context))),
           ),
           const SizedBox(height: 9),
           SizedBox(
@@ -1619,7 +1627,8 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 5),
           Text('Notifikasi muncul di HP walau aplikasi ditutup.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
+              style: TextStyle(
+                  fontSize: TaskTypography.micro, color: taskMuted(context))),
         ],
       ),
     );
@@ -1681,7 +1690,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 const SizedBox(height: 3),
                 Text(
                     'Pilih satu atau beberapa tanggal. Pengingat berulang setiap bulan.',
-                    style: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(ctx))),
+                    style: TextStyle(
+                        fontSize: TaskTypography.micro, color: taskMuted(ctx))),
                 const SizedBox(height: 10),
                 ConstrainedBox(
                   constraints: BoxConstraints(
@@ -1800,7 +1810,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                            fontSize: TaskTypography.micro, color: taskMuted(context))),
+                            fontSize: TaskTypography.micro,
+                            color: taskMuted(context))),
                   ],
                 ),
               ),
@@ -2001,8 +2012,9 @@ class _SettingsPageState extends State<SettingsPage> {
                 const SizedBox(height: 1),
                 Text(
                     '${branch['product_count'] ?? 0} produk · ${branch['user_count'] ?? 0} pegawai',
-                    style:
-                        TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
+                    style: TextStyle(
+                        fontSize: TaskTypography.micro,
+                        color: taskMuted(context))),
                 const SizedBox(height: 4),
                 Wrap(
                   spacing: 4,

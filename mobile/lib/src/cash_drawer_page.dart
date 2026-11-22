@@ -182,7 +182,9 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
                   ? 'Kas yang diharapkan · modal ${fmtRp(asNum(_drawer?['opening_amount']))}'
                   : 'Buka laci untuk mulai mencatat kas masuk/keluar.',
               style: const TextStyle(
-                  fontSize: TaskTypography.micro, height: 1.4, color: Color(0xC7FFFFFF))),
+                  fontSize: TaskTypography.micro,
+                  height: 1.4,
+                  color: Color(0xC7FFFFFF))),
         ],
       ),
     );
@@ -259,7 +261,8 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
         ),
         const SizedBox(height: 6),
         Text('Kas awal dihitung sebagai saldo pembuka laci.',
-            style: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
+            style: TextStyle(
+                fontSize: TaskTypography.micro, color: taskMuted(context))),
       ],
     );
   }
@@ -399,7 +402,9 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
                       fontWeight: FontWeight.w700,
                       color: ink(context))),
               Text(_timeLabel(row['created_at']),
-                  style: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
+                  style: TextStyle(
+                      fontSize: TaskTypography.micro,
+                      color: taskMuted(context))),
             ],
           ),
         ),
@@ -439,7 +444,9 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
           Row(
             children: [
               Text('Selisih',
-                  style: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
+                  style: TextStyle(
+                      fontSize: TaskTypography.micro,
+                      color: taskMuted(context))),
               const Spacer(),
               Text(
                   difference == 0

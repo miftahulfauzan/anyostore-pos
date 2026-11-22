@@ -437,7 +437,8 @@ class _HistoryTabState extends State<HistoryTab> {
                           Text(
                               '${formatWibDate(detail['transaction_date'])} · ${_historyTime(detail['created_at'])} WIB',
                               style: TextStyle(
-                                  fontSize: TaskTypography.micro, color: taskMuted(ctx))),
+                                  fontSize: TaskTypography.micro,
+                                  color: taskMuted(ctx))),
                         ],
                       ),
                     ),
@@ -533,7 +534,8 @@ class _HistoryTabState extends State<HistoryTab> {
                                 child: Text(
                                     (item['variant_detail'] ?? '').toString(),
                                     style: TextStyle(
-                                        fontSize: TaskTypography.micro, color: taskMuted(ctx))),
+                                        fontSize: TaskTypography.micro,
+                                        color: taskMuted(ctx))),
                               ),
                             const SizedBox(height: 3),
                             Text(
@@ -541,7 +543,8 @@ class _HistoryTabState extends State<HistoryTab> {
                               '${asNum(item['cancelled_qty']) > 0 ? '  · batal ${item['cancelled_qty']}' : ''}'
                               '${asNum(item['returned_qty']) > 0 ? '  · retur ${item['returned_qty']}' : ''}',
                               style: TextStyle(
-                                  fontSize: TaskTypography.micro, color: taskMuted(ctx)),
+                                  fontSize: TaskTypography.micro,
+                                  color: taskMuted(ctx)),
                             ),
                           ],
                         ),
@@ -1493,7 +1496,8 @@ class _HistoryTabState extends State<HistoryTab> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                              fontSize: TaskTypography.micro, color: taskMuted(context))),
+                              fontSize: TaskTypography.micro,
+                              color: taskMuted(context))),
                     ],
                   ),
                 ),

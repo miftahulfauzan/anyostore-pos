@@ -230,7 +230,9 @@ class _AccountTile extends StatelessWidget {
                   email.isEmpty ? roleLabel : '$roleLabel · $email',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context)),
+                  style: TextStyle(
+                      fontSize: TaskTypography.micro,
+                      color: taskMuted(context)),
                 ),
               ],
             ),

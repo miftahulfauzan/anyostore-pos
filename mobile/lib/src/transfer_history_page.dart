@@ -346,7 +346,8 @@ class _TransferHistoryPageState extends State<TransferHistoryPage> {
                     const SizedBox(height: 1),
                     Text(transferDateLabel(transfer['created_at']),
                         style: TextStyle(
-                            fontSize: TaskTypography.micro, color: taskMuted(context))),
+                            fontSize: TaskTypography.micro,
+                            color: taskMuted(context))),
                   ],
                 ),
               ),
@@ -401,7 +402,9 @@ class _TransferHistoryPageState extends State<TransferHistoryPage> {
                 child: Text(meta,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
+                    style: TextStyle(
+                        fontSize: TaskTypography.micro,
+                        color: taskMuted(context))),
               ),
               Text('${transfer['admin'] ?? 'Sistem'}',
                   maxLines: 1,
@@ -435,7 +438,9 @@ class _TransferHistoryPageState extends State<TransferHistoryPage> {
                         '${line['variant_color'] == null ? '' : ' · ${line['variant_color']}'}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: TaskTypography.micro, color: ink(context)),
+                        style: TextStyle(
+                            fontSize: TaskTypography.micro,
+                            color: ink(context)),
                       ),
                     ),
                     Text('${line['qty'] ?? 0} pcs',
@@ -603,7 +608,8 @@ class TransferDetailSheet extends StatelessWidget {
                             '${transfer['number'] ?? 'Transfer'} · $statusLabel',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: muted, fontSize: TaskTypography.micro)),
+                            style: TextStyle(
+                                color: muted, fontSize: TaskTypography.micro)),
                       ],
                     ),
                   ),
@@ -684,7 +690,9 @@ class TransferDetailSheet extends StatelessWidget {
                           const SizedBox(height: 8),
                           Text('Catatan: $notes',
                               style: TextStyle(
-                                  fontSize: TaskTypography.micro, height: 1.4, color: muted)),
+                                  fontSize: TaskTypography.micro,
+                                  height: 1.4,
+                                  color: muted)),
                         ],
                         if (status == 'cancelled' && reason.isNotEmpty) ...[
                           const SizedBox(height: 7),

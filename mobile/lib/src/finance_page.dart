@@ -916,8 +916,9 @@ class _FinancePageState extends State<FinancePage> {
                   Text(meta,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style:
-                          TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
+                      style: TextStyle(
+                          fontSize: TaskTypography.micro,
+                          color: taskMuted(context))),
                 ],
               ),
             ),

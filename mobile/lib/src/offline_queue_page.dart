@@ -201,7 +201,8 @@ class _OfflineQueuePageState extends State<OfflineQueuePage> {
                         ),
                         Text(formatWibDateTime(created),
                             style: TextStyle(
-                                fontSize: TaskTypography.micro, color: taskMuted(context))),
+                                fontSize: TaskTypography.micro,
+                                color: taskMuted(context))),
                       ],
                     ),
                   ],

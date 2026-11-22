@@ -339,8 +339,9 @@ class _UsersPageState extends State<UsersPage> {
                   Text(detail,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style:
-                          TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context))),
+                      style: TextStyle(
+                          fontSize: TaskTypography.micro,
+                          color: taskMuted(context))),
                 ],
                 const SizedBox(height: 4),
                 Wrap(

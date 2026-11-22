@@ -46,7 +46,8 @@ InputDecoration appFieldDecoration(
     labelStyle: TextStyle(fontSize: 12, color: taskMuted(context)),
     hintStyle: TextStyle(
         fontSize: 12, color: taskMuted(context).withValues(alpha: .72)),
-    helperStyle: TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context)),
+    helperStyle:
+        TextStyle(fontSize: TaskTypography.micro, color: taskMuted(context)),
   );
 }
 

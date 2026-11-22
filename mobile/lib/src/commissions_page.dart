@@ -842,7 +842,8 @@ class _CommissionsPageState extends State<CommissionsPage> {
                             '${_ruleTypeLabel(rule['calculation_type'])} · '
                             '${rule['branch_id'] == null ? 'Global' : 'Toko ${rule['branch_id']}'}',
                             style: TextStyle(
-                                fontSize: TaskTypography.micro, color: taskMuted(context))),
+                                fontSize: TaskTypography.micro,
+                                color: taskMuted(context))),
                         if ('${rule['calculation_type']}' ==
                             'per_pcs_customer_tier') ...[
                           const SizedBox(height: 4),
