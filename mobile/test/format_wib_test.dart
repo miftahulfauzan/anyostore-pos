@@ -20,4 +20,11 @@ void main() {
     expect(formatWibDateTime(null), '-');
     expect(formatWibDateTime('bukan tanggal'), 'bukan tanggal');
   });
+
+  test('fmtNum memisah ribuan dengan titik', () {
+    expect(fmtNum(1248), '1.248');
+    expect(fmtNum(0), '0');
+    expect(fmtNum(999), '999');
+    expect(fmtNum(1000000), '1.000.000');
+  });
 }
