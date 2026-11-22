@@ -3473,7 +3473,10 @@ textarea:focus-visible {
   .app-main:not(.sidebar-collapsed),
   .app-main.sidebar-collapsed {
     margin-left: 0 !important;
-    padding: 16px 12px calc(34px + env(safe-area-inset-bottom)) !important;
+    /* Judul header HARUS turun di bawah status bar iOS (PWA black-translucent):
+       `env(safe-area-inset-top)` + jeda 10px. Tanpa ini header digambar di
+       belakang status bar dan ikut ter-blur/tertutup material iOS. */
+    padding: max(16px, calc(env(safe-area-inset-top, 0px) + 10px)) 12px calc(34px + env(safe-area-inset-bottom)) !important;
   }
 
   .app-header {

@@ -68,6 +68,22 @@ test('web app exposes an installable iOS-compatible PWA shell', () => {
   assert.match(serviceWorker, /cache\.put\(request, fresh\.clone\(\)\)/);
 });
 
+test('mobile header clears the iOS status bar safe area in standalone PWA', () => {
+  // `appleWebApp.statusBarStyle: 'black-translucent'` + `viewportFit: 'cover'`
+  // membuat halaman digambar sampai ke bawah status bar iOS. Jarak atas
+  // .app-main WAJIB menghormati env(safe-area-inset-top), kalau tidak judul
+  // header tertutup/ter-blur material status bar (screenshot 2026-11-22).
+  assert.match(layout, /statusBarStyle:\s*'black-translucent'/);
+  const mainRule = css.match(/\.app-main,\s*\.app-main:not\(\.sidebar-collapsed\),\s*\.app-main\.sidebar-collapsed\s*\{[^}]*\}/s);
+  assert.ok(mainRule, '.app-main mobile rule must exist');
+  assert.match(mainRule[0], /margin-left:\s*0\s*!important/);
+  assert.match(mainRule[0], /padding:\s*max\(16px,\s*calc\(env\(safe-area-inset-top,\s*0px\)\s*\+\s*\d+px\)\)\s+12px\s+calc\(34px\s*\+\s*env\(safe-area-inset-bottom\)\)\s*!important/);
+  // Sidebar drawer, POS standalone header, dan login sudah memakai safe area;
+  // pastikan aturan itu tetap ada.
+  assert.match(css, /\.sidebar\.collapsed\s*\{[^}]*padding:\s*max\(16px,\s*env\(safe-area-inset-top\)\)/s);
+  assert.match(css, /\.pos-standalone-header\s*\{[^}]*padding:\s*max\(10px,\s*env\(safe-area-inset-top\)\)/s);
+});
+
 test('mobile sidebar backdrop stays translucent and closes on outside tap', () => {
   const finalMobileLayoutStart = css.lastIndexOf('/* Final mobile dashboard layout */');
   const finalMobileLayout = css.slice(finalMobileLayoutStart);
