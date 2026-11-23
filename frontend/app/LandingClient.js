@@ -844,8 +844,8 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
                   {!isResellerOrder && (
                     <>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <input value={voucherCode} onChange={(e) => { setVoucherCode(e.target.value.toUpperCase()); setVoucherMessage(''); }} placeholder="Kode voucher (opsional)" aria-label="Kode voucher" style={{ flex: 1, minHeight: 38, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13, textTransform: 'uppercase' }} />
-                        <button type="button" onClick={applyVoucher} disabled={!voucherCode.trim() || voucherChecking || !cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', padding: '0 14px' }}>{voucherChecking ? 'Cek…' : 'Pakai'}</button>
+                        <input value={voucherCode} onChange={(e) => { setVoucherCode(e.target.value.toUpperCase()); setVoucherMessage(''); }} placeholder="Kode voucher (opsional)" aria-label="Kode voucher" style={{ flex: 1, minWidth: 0, minHeight: 38, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13, textTransform: 'uppercase' }} />
+                        <button type="button" onClick={applyVoucher} disabled={!voucherCode.trim() || voucherChecking || !cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', width: 'auto', padding: '0 14px' }}>{voucherChecking ? 'Cek…' : 'Pakai'}</button>
                       </div>
                       {voucherMessage && <p style={{ margin: 0, fontSize: 11.5, color: voucher ? '#15803d' : '#b45309' }}>{voucherMessage}</p>}
                       {voucher && <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, color: '#15803d', fontWeight: 700 }}><span>Voucher {voucher.code}</span><span style={{ whiteSpace: 'nowrap' }}>-{fmtRp(voucherDiscount)}</span></div>}
@@ -903,8 +903,8 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
               {isResellerOrder && cartStep === 'review' && (
                 <div style={{ display: 'grid', gap: 10 }}>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <input value={voucherCode} onChange={(e) => { setVoucherCode(e.target.value.toUpperCase()); setVoucherMessage(''); }} placeholder="Kode voucher" aria-label="Kode voucher" style={{ flex: 1, minHeight: 38, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13, textTransform: 'uppercase' }} />
-                    <button type="button" onClick={applyVoucher} disabled={!voucherCode.trim() || voucherChecking || !cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', padding: '0 14px' }}>{voucherChecking ? 'Cek…' : 'Pakai'}</button>
+                    <input value={voucherCode} onChange={(e) => { setVoucherCode(e.target.value.toUpperCase()); setVoucherMessage(''); }} placeholder="Kode voucher" aria-label="Kode voucher" style={{ flex: 1, minWidth: 0, minHeight: 38, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13, textTransform: 'uppercase' }} />
+                    <button type="button" onClick={applyVoucher} disabled={!voucherCode.trim() || voucherChecking || !cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', width: 'auto', padding: '0 14px' }}>{voucherChecking ? 'Cek…' : 'Pakai'}</button>
                   </div>
                   {voucherMessage && <p style={{ margin: 0, fontSize: 11.5, color: voucher ? '#15803d' : '#b45309' }}>{voucherMessage}</p>}
 
@@ -962,34 +962,34 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
             <div style={{ flex: '0 0 auto', borderTop: `1px solid ${T.border}`, padding: '12px 18px 16px', display: 'flex', gap: 10 }}>
               {cartStep === 'cart' && !isResellerOrder && (
                 <>
-                  <button type="button" onClick={clearCart} disabled={!cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', minWidth: 108 }}>Kosongkan</button>
-                  <button type="button" onClick={sendOrder} disabled={!cart.length || hasMinimumWarning || orderChecking} className="pcard-btn primary" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44 }}><I.chat style={{ width: 15, height: 15 }} /> {orderChecking ? 'Memeriksa stok…' : 'Pesan via WhatsApp'}</button>
+                  <button type="button" onClick={clearCart} disabled={!cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', width: 'auto', minWidth: 108 }}>Kosongkan</button>
+                  <button type="button" onClick={sendOrder} disabled={!cart.length || hasMinimumWarning || orderChecking} className="pcard-btn primary" style={{ flex: 1, width: 'auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44 }}><I.chat style={{ width: 15, height: 15 }} /> {orderChecking ? 'Memeriksa stok…' : 'Pesan via WhatsApp'}</button>
                 </>
               )}
               {cartStep === 'cart' && isResellerOrder && (
                 <>
-                  <button type="button" onClick={clearCart} disabled={!cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', minWidth: 108 }}>Kosongkan</button>
-                  <button type="button" onClick={() => setCartStep('address')} disabled={!cart.length || hasMinimumWarning} className="pcard-btn primary" style={{ flex: 1, minHeight: 44 }}>Lanjut ke alamat</button>
+                  <button type="button" onClick={clearCart} disabled={!cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', width: 'auto', minWidth: 108 }}>Kosongkan</button>
+                  <button type="button" onClick={() => setCartStep('address')} disabled={!cart.length || hasMinimumWarning} className="pcard-btn primary" style={{ flex: 1, width: 'auto', minHeight: 44 }}>Lanjut ke alamat</button>
                 </>
               )}
               {cartStep === 'address' && isResellerOrder && (
                 <>
-                  <button type="button" onClick={() => setCartStep('cart')} className="pcard-btn secondary" style={{ flex: '0 0 auto', minWidth: 96 }}>Kembali</button>
-                  <button type="button" onClick={() => setCartStep('review')} disabled={!buyerReady || (usesCourierApi && shippingOptions.length > 0 && !selectedShipping)} className="pcard-btn primary" style={{ flex: 1, minHeight: 44 }}>Lanjut ke review</button>
+                  <button type="button" onClick={() => setCartStep('cart')} className="pcard-btn secondary" style={{ flex: '0 0 auto', width: 'auto', minWidth: 96 }}>Kembali</button>
+                  <button type="button" onClick={() => setCartStep('review')} disabled={!buyerReady || (usesCourierApi && shippingOptions.length > 0 && !selectedShipping)} className="pcard-btn primary" style={{ flex: 1, width: 'auto', minHeight: 44 }}>Lanjut ke review</button>
                 </>
               )}
               {cartStep === 'review' && isResellerOrder && (
                 <>
-                  <button type="button" onClick={() => setCartStep('address')} className="pcard-btn secondary" style={{ flex: '0 0 auto', minWidth: 96 }}>Kembali</button>
+                  <button type="button" onClick={() => setCartStep('address')} className="pcard-btn secondary" style={{ flex: '0 0 auto', width: 'auto', minWidth: 96 }}>Kembali</button>
                   {isResellerOrder ? (
                     <>
-                      <button type="button" onClick={sendOrder} disabled={!cart.length || orderChecking} className="pcard-btn secondary" style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 44 }}><I.chat style={{ width: 15, height: 15 }} /> WhatsApp</button>
-                      <button type="button" onClick={sendOrderToSystem} disabled={!cart.length || systemBusy} className="pcard-btn primary" style={{ flex: 1, minHeight: 44 }}>
+                      <button type="button" onClick={sendOrder} disabled={!cart.length || orderChecking} className="pcard-btn secondary" style={{ flex: '0 0 auto', width: 'auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 44 }}><I.chat style={{ width: 15, height: 15 }} /> WhatsApp</button>
+                      <button type="button" onClick={sendOrderToSystem} disabled={!cart.length || systemBusy} className="pcard-btn primary" style={{ flex: 1, width: 'auto', minHeight: 44 }}>
                         {systemBusy ? 'Mengirim…' : 'Kirim Pesanan ke Sistem'}
                       </button>
                     </>
                   ) : (
-                    <button type="button" onClick={sendOrder} disabled={!cart.length || hasMinimumWarning || orderChecking} className="pcard-btn primary" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44 }}><I.chat style={{ width: 15, height: 15 }} /> {orderChecking ? 'Memeriksa stok…' : 'Chat Pesanan via WhatsApp'}</button>
+                    <button type="button" onClick={sendOrder} disabled={!cart.length || hasMinimumWarning || orderChecking} className="pcard-btn primary" style={{ flex: 1, width: 'auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44 }}><I.chat style={{ width: 15, height: 15 }} /> {orderChecking ? 'Memeriksa stok…' : 'Chat Pesanan via WhatsApp'}</button>
                   )}
                 </>
               )}
