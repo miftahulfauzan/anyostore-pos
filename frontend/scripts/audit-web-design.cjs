@@ -20,7 +20,7 @@ const AUDIT = () => {
   if (document.documentElement.scrollWidth > vw + 1)
     issues.push(`horizontal-overflow: scrollWidth ${document.documentElement.scrollWidth} > ${vw}`);
 
-  const tiny = [], small = [], smallButtons = [], zeroGap = [];
+  const tiny = [], small = [], smallButtons = [];
   document.querySelectorAll('body *').forEach((el) => {
     if (!el.offsetParent) return;
     const cs = getComputedStyle(el);
