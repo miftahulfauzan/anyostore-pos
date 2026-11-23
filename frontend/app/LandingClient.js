@@ -483,13 +483,14 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
       const detail = g.items.map((it) => `    ${it.variantLabel ? `${it.variantLabel}: ` : ''}${it.qty} pcs × ${fmtRp(it.price)} = ${fmtRp(it.qty * it.price)}`).join('\n');
       return `${gi + 1}. ${g.name}\n${detail}`;
     });
-    const buyerBlock = [
+    // Grosir langsung ke WhatsApp: tanpa form alamat/ongkir.
+    const buyerBlock = isResellerOrder ? [
       buyer.name.trim() ? `Nama: ${buyer.name.trim()}` : null,
       buyer.phone.trim() ? `No HP: ${buyer.phone.trim()}` : null,
       (usesCourierApi ? destination?.label : shippingArea) ? `Tujuan: ${usesCourierApi ? destination?.label : shippingArea}` : null,
       buyer.address.trim() ? `Alamat: ${buyer.address.trim()}` : null,
       buyer.note.trim() ? `Catatan: ${buyer.note.trim()}` : null,
-    ].filter(Boolean).join('\n');
+    ].filter(Boolean).join('\n') : '';
     const costBlock = [
       `Subtotal: ${fmtRp(cartTotal)}`,
       voucher ? `Voucher ${voucher.code}: -${fmtRp(voucherDiscount)}` : null,
@@ -794,7 +795,7 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
         </button>
       )}
 
-      {/* Keranjang: 3 langkah (produk -> alamat -> review) */}
+      {/* Keranjang: grosir langsung WhatsApp; reseller 3 langkah (produk -> alamat -> review) */}
       {cartOpen && (
         <div onClick={() => setCartOpen(false)} role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'grid', placeItems: 'center', zIndex: 120, padding: 12, backdropFilter: 'blur(4px)' }}>
           <div onClick={(e) => e.stopPropagation()} className="wa-modal-in" style={{ background: T.card, borderRadius: 14, maxWidth: 480, width: '100%', maxHeight: 'min(860px, 94vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 48px rgba(0,0,0,.18)' }}>
@@ -803,11 +804,11 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
               <button type="button" onClick={() => setCartOpen(false)} aria-label="Tutup" style={{ width: 34, height: 34, padding: 0, borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, cursor: 'pointer', color: T.muted, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}><I.close style={{ width: 16, height: 16, display: 'block' }} /></button>
             </div>
 
-            <div style={{ display: 'flex', gap: 6, padding: '0 18px 10px' }}>
+            {isResellerOrder && <div style={{ display: 'flex', gap: 6, padding: '0 18px 10px' }}>
               {[['cart', '1. Keranjang'], ['address', '2. Alamat'], ['review', '3. Review']].map(([key, label]) => (
                 <button key={key} type="button" onClick={() => setCartStep(key)} disabled={key !== 'cart' && !cart.length} style={{ flex: 1, minHeight: 30, padding: '4px 6px', borderRadius: 99, border: `1px solid ${cartStep === key ? T.blue : T.border}`, background: cartStep === key ? T.blue : T.card, color: cartStep === key ? '#fff' : T.muted, fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>{label}</button>
               ))}
-            </div>
+            </div>}
 
             <div style={{ flex: '1 1 auto', minHeight: 200, overflowY: 'auto', padding: '0 18px 6px', display: 'grid', gap: 8, alignContent: 'start' }}>
               {cartStep === 'cart' && (
@@ -840,10 +841,22 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
                   )}
                   <p style={{ margin: 0, fontSize: 11.5, color: T.muted }}>{hasMinimumOrder ? `Minimal pembelian ${minOrderQty} pcs per model.` : 'Tanpa minimum pembelian.'} Varian boleh dicampur.</p>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: T.muted }}><span>Subtotal</span><strong style={{ color: T.black }}>{fmtRp(cartTotal)}</strong></div>
+                  {!isResellerOrder && (
+                    <>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <input value={voucherCode} onChange={(e) => { setVoucherCode(e.target.value.toUpperCase()); setVoucherMessage(''); }} placeholder="Kode voucher (opsional)" aria-label="Kode voucher" style={{ flex: 1, minHeight: 38, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13, textTransform: 'uppercase' }} />
+                        <button type="button" onClick={applyVoucher} disabled={!voucherCode.trim() || voucherChecking || !cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', padding: '0 14px' }}>{voucherChecking ? 'Cek…' : 'Pakai'}</button>
+                      </div>
+                      {voucherMessage && <p style={{ margin: 0, fontSize: 11.5, color: voucher ? '#15803d' : '#b45309' }}>{voucherMessage}</p>}
+                      {voucher && <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, color: '#15803d', fontWeight: 700 }}><span>Voucher {voucher.code}</span><span style={{ whiteSpace: 'nowrap' }}>-{fmtRp(voucherDiscount)}</span></div>}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 700, fontSize: 15, color: T.black, paddingTop: 4, borderTop: `1px solid ${T.border}` }}><span>Total</span><span>{fmtRp(grandTotal)}</span></div>
+                      <p style={{ margin: 0, fontSize: 11.5, color: T.muted }}>Langsung ke WhatsApp admin, tanpa isi alamat. Ongkir & pembayaran dikonfirmasi di chat.</p>
+                    </>
+                  )}
                 </>
               )}
 
-              {cartStep === 'address' && (
+              {isResellerOrder && cartStep === 'address' && (
                 <div style={{ display: 'grid', gap: 8 }}>
                   <span style={{ fontSize: 12, fontWeight: 700, color: T.black }}>Alamat pengiriman</span>
                   <input value={buyer.name} onChange={(e) => setBuyer({ ...buyer, name: e.target.value })} placeholder="Nama penerima" aria-label="Nama penerima" style={{ minHeight: 40, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13 }} />
@@ -887,7 +900,7 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
                 </div>
               )}
 
-              {cartStep === 'review' && (
+              {isResellerOrder && cartStep === 'review' && (
                 <div style={{ display: 'grid', gap: 10 }}>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <input value={voucherCode} onChange={(e) => { setVoucherCode(e.target.value.toUpperCase()); setVoucherMessage(''); }} placeholder="Kode voucher" aria-label="Kode voucher" style={{ flex: 1, minHeight: 38, padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.border}`, font: 'inherit', fontSize: 13, textTransform: 'uppercase' }} />
@@ -947,19 +960,25 @@ export default function LandingPage({ branchMatch = '', branchSlug = '', wholesa
             </div>
 
             <div style={{ flex: '0 0 auto', borderTop: `1px solid ${T.border}`, padding: '12px 18px 16px', display: 'flex', gap: 10 }}>
-              {cartStep === 'cart' && (
+              {cartStep === 'cart' && !isResellerOrder && (
+                <>
+                  <button type="button" onClick={clearCart} disabled={!cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', minWidth: 108 }}>Kosongkan</button>
+                  <button type="button" onClick={sendOrder} disabled={!cart.length || hasMinimumWarning || orderChecking} className="pcard-btn primary" style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44 }}><I.chat style={{ width: 15, height: 15 }} /> {orderChecking ? 'Memeriksa stok…' : 'Pesan via WhatsApp'}</button>
+                </>
+              )}
+              {cartStep === 'cart' && isResellerOrder && (
                 <>
                   <button type="button" onClick={clearCart} disabled={!cart.length} className="pcard-btn secondary" style={{ flex: '0 0 auto', minWidth: 108 }}>Kosongkan</button>
                   <button type="button" onClick={() => setCartStep('address')} disabled={!cart.length || hasMinimumWarning} className="pcard-btn primary" style={{ flex: 1, minHeight: 44 }}>Lanjut ke alamat</button>
                 </>
               )}
-              {cartStep === 'address' && (
+              {cartStep === 'address' && isResellerOrder && (
                 <>
                   <button type="button" onClick={() => setCartStep('cart')} className="pcard-btn secondary" style={{ flex: '0 0 auto', minWidth: 96 }}>Kembali</button>
                   <button type="button" onClick={() => setCartStep('review')} disabled={!buyerReady || (usesCourierApi && shippingOptions.length > 0 && !selectedShipping)} className="pcard-btn primary" style={{ flex: 1, minHeight: 44 }}>Lanjut ke review</button>
                 </>
               )}
-              {cartStep === 'review' && (
+              {cartStep === 'review' && isResellerOrder && (
                 <>
                   <button type="button" onClick={() => setCartStep('address')} className="pcard-btn secondary" style={{ flex: '0 0 auto', minWidth: 96 }}>Kembali</button>
                   {isResellerOrder ? (

@@ -175,7 +175,7 @@ export default function MyAccount() {
             <label>Password lama<input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} required /></label>
             <label>Password baru<input type="password" value={newPass} onChange={(e) => setNewPass(e.target.value)} required minLength={8} /></label>
             <label>Konfirmasi<input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required /></label>
-            <button type="submit" disabled={loading}>{loading ? 'Menyimpan…' : 'Simpan Password'}</button>
+            <button type="submit" className="secondary" disabled={loading}>{loading ? 'Menyimpan…' : 'Simpan Password'}</button>
           </form>
         </section>
 
@@ -190,7 +190,7 @@ export default function MyAccount() {
             )}
             <label>PIN baru<input type="password" inputMode="numeric" autoComplete="new-password" value={newPin} onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 6))} required pattern="[0-9]{6}" maxLength={6} /></label>
             <label>Konfirmasi PIN baru<input type="password" inputMode="numeric" autoComplete="new-password" value={confirmPin} onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 6))} required pattern="[0-9]{6}" maxLength={6} /></label>
-            <button type="submit" disabled={savingPin}>{savingPin ? 'Menyimpan…' : 'Simpan PIN'}</button>
+            <button type="submit" className="secondary" disabled={savingPin}>{savingPin ? 'Menyimpan…' : 'Simpan PIN'}</button>
           </form>
         </section>
 

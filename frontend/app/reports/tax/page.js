@@ -125,17 +125,17 @@ export default function TaxReportPage() {
                 <div className="panel tax-report-summary-card" style={{ padding: 16 }}>
                   <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: '#64748b' }}>PPN Keluaran (dari Penjualan)</p>
                   <strong style={{ fontSize: 22, color: '#1e3a5f' }}>Rp{money(ppn.ppn_keluaran.ppn_amount)}</strong>
-                  <p style={{ margin: '4px 0 0', fontSize: 'var(--fs-xs)', color: '#94a3b8' }}>Dasar PPN: Rp{money(ppn.ppn_keluaran.ppn_base)} · {ppn.ppn_keluaran.transactions} transaksi</p>
+                  <p style={{ margin: '4px 0 0', fontSize: 'var(--fs-xs)', color: '#64748b' }}>Dasar PPN: Rp{money(ppn.ppn_keluaran.ppn_base)} · {ppn.ppn_keluaran.transactions} transaksi</p>
                 </div>
                 <div className="panel tax-report-summary-card" style={{ padding: 16 }}>
                   <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: '#64748b' }}>PPN Masukan (dari Pembelian)</p>
                   <strong style={{ fontSize: 22, color: '#16a34a' }}>Rp{money(ppn.ppn_masukan.ppn_amount)}</strong>
-                  <p style={{ margin: '4px 0 0', fontSize: 'var(--fs-xs)', color: '#94a3b8' }}>Dasar PPN: Rp{money(ppn.ppn_masukan.total_purchase)} · {ppn.ppn_masukan.orders} order</p>
+                  <p style={{ margin: '4px 0 0', fontSize: 'var(--fs-xs)', color: '#64748b' }}>Dasar PPN: Rp{money(ppn.ppn_masukan.total_purchase)} · {ppn.ppn_masukan.orders} order</p>
                 </div>
                 <div className="panel tax-report-summary-card" style={{ padding: 16, background: ppn.net_ppn > 0 ? '#fef2f2' : '#f0fdf4' }}>
                   <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: '#64748b' }}>PPN Net (terutang)</p>
                   <strong style={{ fontSize: 22, color: ppn.net_ppn > 0 ? '#dc2626' : '#16a34a' }}>Rp{money(ppn.net_ppn)}</strong>
-                  <p style={{ margin: '4px 0 0', fontSize: 'var(--fs-xs)', color: '#94a3b8' }}>PPN Keluaran − PPN Masukan</p>
+                  <p style={{ margin: '4px 0 0', fontSize: 'var(--fs-xs)', color: '#64748b' }}>PPN Keluaran − PPN Masukan</p>
                 </div>
               </div>
 
@@ -161,11 +161,11 @@ export default function TaxReportPage() {
                         <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: '#1e3a5f' }}>Rp{money(r.ppn_keluaran)}</td>
                       </tr>
                     ))}
-                    {!ppn.monthly.length && <tr><td colSpan={5} style={{ padding: 16, textAlign: 'center', color: '#94a3b8' }}>Tidak ada data</td></tr>}
+                    {!ppn.monthly.length && <tr><td colSpan={5} style={{ padding: 16, textAlign: 'center', color: '#64748b' }}>Tidak ada data</td></tr>}
                   </tbody>
                 </table>
               </div>
-              <p style={{ marginTop: 12, fontSize: 'var(--fs-xs)', color: '#94a3b8' }}>Tarif PPN: {ppn.tax_rate}% · Harga {ppn.prices_include_tax ? 'sudah termasuk' : 'belum termasuk'} PPN</p>
+              <p style={{ marginTop: 12, fontSize: 'var(--fs-xs)', color: '#64748b' }}>Tarif PPN: {ppn.tax_rate}% · Harga {ppn.prices_include_tax ? 'sudah termasuk' : 'belum termasuk'} PPN</p>
             </div>
           )}
 
@@ -184,7 +184,7 @@ export default function TaxReportPage() {
                 <div className="panel tax-report-summary-card" style={{ padding: 16 }}>
                   <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: '#64748b' }}>Toko</p>
                   <strong style={{ fontSize: 14 }}>{faktur.store?.name || '-'}</strong>
-                  <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-xs)', color: '#94a3b8' }}>NPWP: {faktur.store?.npwp || '-'}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-xs)', color: '#64748b' }}>NPWP: {faktur.store?.npwp || '-'}</p>
                 </div>
               </div>
 
@@ -213,7 +213,7 @@ export default function TaxReportPage() {
                         <td style={{ padding: '6px 8px' }}><span className={`status ${f.status === 'completed' ? 'paid' : 'pending'}`}>{labelFor(statusLabels, f.status)}</span></td>
                       </tr>
                     ))}
-                    {!faktur.faktur.length && <tr><td colSpan={7} style={{ padding: 16, textAlign: 'center', color: '#94a3b8' }}>Tidak ada faktur</td></tr>}
+                    {!faktur.faktur.length && <tr><td colSpan={7} style={{ padding: 16, textAlign: 'center', color: '#64748b' }}>Tidak ada faktur</td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -255,7 +255,7 @@ export default function TaxReportPage() {
                         <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, color: '#dc2626' }}>Rp{money(i.pph23_amount)}</td>
                       </tr>
                     ))}
-                    {!pph23.items.length && <tr><td colSpan={5} style={{ padding: 16, textAlign: 'center', color: '#94a3b8' }}>Tidak ada pengeluaran</td></tr>}
+                    {!pph23.items.length && <tr><td colSpan={5} style={{ padding: 16, textAlign: 'center', color: '#64748b' }}>Tidak ada pengeluaran</td></tr>}
                   </tbody>
                 </table>
               </div>

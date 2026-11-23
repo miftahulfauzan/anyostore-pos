@@ -238,7 +238,7 @@ export default function ProductsPage() {
       </div>
       <div className={selected.size > 0 ? 'selection-toolbar active' : 'selection-toolbar'}>
         <label style={{ display: 'inline-flex', gap: '.5rem', alignItems: 'center', fontSize: 'var(--fs-sm)', fontWeight: 600, cursor: 'pointer', minHeight: 36 }}>
-          <input type="checkbox" disabled={loading || mutating || !deletableProducts.length} checked={deletableProducts.length > 0 && deletableProducts.every((row) => selected.has(row.id))} onChange={toggleSelectAll} style={{ width: 16, height: 16, accentColor: 'var(--primary)', cursor: 'pointer' }} />
+          <input type="checkbox" disabled={loading || mutating || !deletableProducts.length} checked={deletableProducts.length > 0 && deletableProducts.every((row) => selected.has(row.id))} onChange={toggleSelectAll} style={{ width: 20, height: 20, accentColor: 'var(--primary)', cursor: 'pointer' }} />
           Pilih semua di halaman ini ({deletableProducts.length})
         </label>
         <span className="spacer" />

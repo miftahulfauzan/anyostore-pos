@@ -335,13 +335,13 @@ a, .photo-upload { color:var(--expressive-secondary); }
   .cart-close { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; border: none; background: #1e3a5f; color: #fff; font-size: 16px; line-height: 1; cursor: pointer; }
   .mutasi-cart { position: fixed; right: 14px; bottom: 72px; z-index: 60; width: min(360px, calc(100vw - 24px)); max-height: min(70vh, 620px); overflow: auto; border-radius: 14px; transform: translateY(calc(100% + 24px)); transition: transform .25s ease; box-shadow: 0 12px 30px rgba(15,23,42,.22); }
   .mutasi-cart.open { transform: translateY(0); }
-  .stock-picker-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+  .stock-picker-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 }
 @media (max-width: 600px) {
   .stock-picker-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .stock-picker-card > div:last-child { padding: 8px !important; }
   .stock-picker-card > div:last-child strong { font-size: 12px !important; }
-  .stock-picker-card > div:last-child span { font-size: 10px !important; }
+  .stock-picker-card > div:last-child span { font-size: 11px !important; }
 }
 
 @container (min-width: 940px) {
@@ -7173,7 +7173,7 @@ html[data-theme] .app-main .tabs button:not(.active):hover {
 .dashboard-report-focal small { font-size: 10px; }
 .dashboard-report-chart { min-height: 0; padding: 9px 9px 7px 40px; }
 .dashboard-report-chart-plot { height: 96px; }
-.dashboard-report-axis-labels { font-size: 9px; }
+.dashboard-report-axis-labels { font-size: 10px; }
 .dashboard-report-legend { margin: 5px 0 2px; font-size: 10px; }
 .dashboard-report-values-toggle,
 .dashboard-report-chart-total { display: none; }
@@ -7293,7 +7293,7 @@ html[data-theme] .app-main .tabs button:not(.active):hover {
   border-radius: 6px;
   background: #e4f7ea;
   color: #137a43;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
   line-height: 1.35;
   white-space: nowrap;
@@ -8901,9 +8901,78 @@ html[data-motion="off"] .mutation-chart-line {
   .dashboard-apk-tiles { gap: 7px; }
   .dashboard-apk-dashboard .dashboard-kpi-tile { padding: 8px 7px; border-radius: 10px; }
   .dashboard-apk-tile-icon { width: 22px; height: 22px; border-radius: 7px; }
-  .dashboard-apk-dashboard .dashboard-kpi-label { font-size: 9px; letter-spacing: .02em; }
+  .dashboard-apk-dashboard .dashboard-kpi-label { font-size: 10px; letter-spacing: .02em; }
   .dashboard-apk-dashboard .dashboard-kpi-tile strong { font-size: 11.5px; }
   .dashboard-apk-dashboard .dashboard-kpi-change { padding: 1px 4px; font-size: 8.5px; }
   .dashboard-apk-hero { padding: 13px 14px 14px; }
   .dashboard-apk-hero strong { font-size: 24px; }
 }
+
+
+
+/* Tombol sekunder/utilitas konsisten (pale blue), bukan hijau lama. */
+.app-main .secondary,
+.app-main .button-link.secondary {
+  background: #eef4fb;
+  border: 1px solid #c7d8ea;
+  color: #1e3a5f !important;
+}
+html[data-theme] .app-main button.secondary {
+  background: #eef4fb;
+  border-color: #c7d8ea;
+  color: #1e3a5f !important;
+}
+.app-main .secondary:hover,
+.app-main .button-link.secondary:hover {
+  background: #e2ecf9;
+}
+.dark .app-main .secondary,
+.dark .app-main .button-link.secondary,
+html[data-theme] .dark .app-main button.secondary {
+  background: #182135;
+  border-color: #475569;
+  color: #bfdbfe !important;
+}
+
+/* ========================================================================
+   Audit desain web 2026-11-23 — perbaikan lintas halaman.
+   ======================================================================== */
+
+/* Toast tidak menutupi judul header di layar sempit. */
+.notification-layer { padding-top: max(88px, calc(env(safe-area-inset-top) + 68px)); }
+
+/* Chip hitungan (.tag) tetap pil kecil walau .section-heading jadi kolom. */
+.section-heading > .tag { align-self: flex-start; }
+
+/* Laporan Pajak: tanggal boleh menyusut; status pindah baris (tidak terpotong). */
+.tax-report-date-fields { grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr); }
+.tax-report-date-fields input[type="date"] { min-width: 0; width: 100%; }
+.tax-report-date-fields .period-filter-loading { grid-column: 1 / -1; white-space: normal; font-weight: 600; }
+
+/* Kartu dashboard gudang tidak saling memanjangkan tinggi. */
+.warehouse-lower-grid { align-items: start; }
+
+/* Tombol hapus keras: merah, bukan denim (paritas dengan halaman Pegawai). */
+button.danger, .button-link.danger {
+  background: #fff1f2;
+  border-color: #fca5a5;
+  color: #b91c1c !important;
+}
+button.danger:hover { background: #ffe4e6; }
+.dark button.danger { background: #2a1418; border-color: #7f1d1d; color: #fca5a5 !important; }
+
+/* Tautan kecil di kepala panel: minimum 32px agar mudah disentuh. */
+.warehouse-panel-heading > a,
+.dashboard-panel-head > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+/* Tombol pensil rak: target sentuh 32px. */
+.rack-edit-button { min-width: 32px; min-height: 32px; }
+
+/* Checkbox: sedikit lebih besar dari bawaan. */
+.app-main input[type="checkbox"] { width: 20px; height: 20px; }

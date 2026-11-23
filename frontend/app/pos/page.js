@@ -640,11 +640,11 @@ export default function PosPage() {
               </span>
             </div>
             <div className="pos-catalog-search">
-              <input aria-label="Cari nama, SKU, atau barcode" placeholder="Cari nama / SKU / barcode" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <input aria-label="Cari nama, SKU, atau barcode" placeholder="Cari nama/SKU/barcode" value={search} onChange={(e) => setSearch(e.target.value)} />
               {search && <button type="button" className="pos-pos-catalog-search-clear" onClick={() => setSearch('')} aria-label="Hapus pencarian">×</button>}
             </div>
           </div>
-          <div className="catalog-grid">{filteredProducts.map((product) => { const availableStock = Number(product.stock || 0); return <button type="button" className="product-tile" key={product.id} onClick={() => addToCart(product)} disabled={loadingStore} aria-label={`${product.name}, ${rupiah(product.price)}, stok ${availableStock}`}>{product.photo_path ? <img src={mediaUrl(product.photo_path)} alt="" loading="lazy" /> : <span className="pos-photo-placeholder">Tanpa foto</span>}<strong>{product.name}</strong><span>{rupiah(product.price)}</span><small>Stok: {availableStock}</small></button>; })}{!filteredProducts.length && <p className="muted">Tidak ada produk cocok "{search}"</p>}</div>
+          <div className="catalog-grid">{filteredProducts.map((product) => { const availableStock = Number(product.stock || 0); return <button type="button" className="product-tile" key={product.id} onClick={() => addToCart(product)} disabled={loadingStore} aria-label={`${product.name}, ${rupiah(product.price)}, stok ${availableStock}`}>{product.photo_path ? <img src={mediaUrl(product.photo_path)} alt="" loading="lazy" /> : <span className="pos-photo-placeholder">Tanpa foto</span>}<strong>{product.name}</strong><span>{rupiah(product.price)}</span><small>Stok: {availableStock}</small></button>; })}{!filteredProducts.length && <p className="muted">{search.trim() ? `Tidak ada produk cocok "${search}"` : 'Belum ada produk'}</p>}</div>
         </section>
         <aside className={`panel cart ${mobileCartOpen ? 'mobile-cart-open' : ''}`}>
           <div className="cart-mobile-header">

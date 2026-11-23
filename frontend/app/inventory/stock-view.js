@@ -31,6 +31,7 @@ export default function StockReportSection() {
   const [editingRack, setEditingRack] = useState(null);
   const [rackDraft, setRackDraft] = useState('');
   const [savingRack, setSavingRack] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(40);
   const loadSeq = useRef(0);
 
   const headers = () => ({ 'Content-Type': 'application/json'});
@@ -71,6 +72,7 @@ export default function StockReportSection() {
         if (seq !== loadSeq.current) return;
         if (!b.success) throw new Error(b.message);
         setWarehouseRows(b.data || []);
+        setVisibleCount(40);
       })
       .catch((e) => { if (seq === loadSeq.current) setMessage(e.message); })
       .finally(() => { if (seq === loadSeq.current) setLoading(false); });
@@ -112,6 +114,8 @@ export default function StockReportSection() {
     return Array.from(map.values()).sort((a, b) => String(a.name).localeCompare(String(b.name)));
   }, [warehouseRows]);
 
+
+  const visibleGroups = Array.isArray(grouped) ? grouped.slice(0, visibleCount) : [];
   const summary = useMemo(() => {
     const rows = grouped;
     return {
@@ -278,7 +282,7 @@ export default function StockReportSection() {
             </thead>
             <tbody>
               {loading && <tr><td colSpan={colSpan} style={{ padding: 10, color: 'var(--muted-foreground)' }}>Memuat…</td></tr>}
-              {!loading && grouped.map((g) => (
+              {!loading && visibleGroups.map((g) => (
                 <tr key={g.key} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td style={{ padding: '8px 10px', fontWeight: 600 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 150 }}>
@@ -301,7 +305,7 @@ export default function StockReportSection() {
 
         <div className="stock-cards-mobile">
           {loading && <p className="muted">Memuat…</p>}
-          {!loading && grouped.map((g) => (
+          {!loading && visibleGroups.map((g) => (
             <article key={g.key} className="stock-card" style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 12, background: '#fff' }}>
               <div className="stock-card-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                 <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -329,6 +333,13 @@ export default function StockReportSection() {
           ))}
           {!loading && !grouped.length && <p className="muted">Belum ada stok tercatat.</p>}
         </div>
+        {!loading && grouped.length > visibleCount && (
+          <div style={{ display: 'flex', justifyContent: 'center', margin: '12px 0 4px' }}>
+            <button type="button" className="secondary" onClick={() => setVisibleCount((n) => n + 40)}>
+              Tampilkan {Math.min(40, grouped.length - visibleCount)} produk lagi ({visibleCount}/{grouped.length})
+            </button>
+          </div>
+        )}
       </div>
       <style>{`
         .report-print-header { display: none; }

@@ -113,7 +113,7 @@ export default function Finance() {
             <h2>Riwayat keuangan</h2>
             <p className="muted">Gunakan filter periode, jenis, kategori, metode pembayaran, dan pencarian agar data lebih mudah ditelusuri.</p>
           </div>
-          <a className="button-link" href="/expenses">Buka riwayat</a>
+          <a className="button-link secondary" href="/expenses">Buka riwayat</a>
         </div>
       </section>
     </AppShell>

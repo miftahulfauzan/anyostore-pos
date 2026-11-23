@@ -95,7 +95,7 @@ export default function PromotionsPage() {
       </form>
       <section className="panel">
         <h2>Daftar voucher</h2>
-        <p className="muted" style={{ marginTop: 0 }}>Kode ini bisa dipakai pembeli di keranjang landing page toko yang dipilih.</p>
+        {rows.length > 0 && <p className="muted" style={{ marginTop: 0 }}>Kode ini bisa dipakai pembeli di keranjang landing page toko yang dipilih.</p>}
         <div className="product-list">
           {rows.map((p) => (
             <article key={p.id}>

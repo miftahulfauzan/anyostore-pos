@@ -36,6 +36,17 @@ const statCard = (label, value, { tone = false, money = false, suffix = '' } = {
   </div>
 );
 
+const fmtIsoDate = (value) => (value ? String(value).split('-').reverse().join('/') : '-');
+
+const RULE_TYPE_LABEL = {
+  per_pcs_customer_tier: 'Per pcs / tier customer',
+  per_pcs: 'Per pcs',
+  percentage: 'Persentase',
+  percentage_of_sales: 'Persentase penjualan',
+  flat: 'Nominal tetap',
+};
+const ruleTypeLabel = (type) => RULE_TYPE_LABEL[type] || type || '-';
+
 export default function CommissionsPage() {
   const [rules, setRules] = useState([]);
   const [report, setReport] = useState(null);
@@ -245,7 +256,7 @@ export default function CommissionsPage() {
       <label style={{ minWidth: 150 }}>Dari<input type="date" value={reportPeriod.start} onChange={(e) => { setReportPreset('custom'); setReportPeriod({ ...reportPeriod, start: e.target.value }); }} /></label>
       <label style={{ minWidth: 150 }}>Sampai<input type="date" value={reportPeriod.end} onChange={(e) => { setReportPreset('custom'); setReportPeriod({ ...reportPeriod, end: e.target.value }); }} /></label>
       <span className="muted" style={{ fontSize: 'var(--fs-sm)', alignSelf: 'center' }}>
-        {(reportLoading || mineLoading) ? 'Menghitung…' : `${reportPeriod.start} → ${reportPeriod.end}`}
+        {(reportLoading || mineLoading) ? 'Menghitung…' : `${fmtIsoDate(reportPeriod.start)} – ${fmtIsoDate(reportPeriod.end)}`}
       </span>
     </>
   );
@@ -309,7 +320,7 @@ export default function CommissionsPage() {
                           <tr key={r.rule_id} className={r.rule_id === topRuleId ? 'is-top-rule' : ''}>
                             <td><strong>{r.name}</strong></td>
                             <td>{SCOPE_LABEL[r.scope] || 'Sendiri'}</td>
-                            <td><span className="tag" style={{ fontSize: 'var(--fs-xs)' }}>{r.type}</span></td>
+                            <td><span className="tag" style={{ fontSize: 'var(--fs-xs)' }}>{ruleTypeLabel(r.type)}</span></td>
                             <td style={{ fontSize: 'var(--fs-sm)' }}>
                               {r.type === 'per_pcs_customer_tier'
                                 ? `Reg ${rupiah(r.commission_reguler_per_pcs)}/pcs • Grosir ${rupiah(r.commission_grosir_seri_per_pcs)}/pcs (Reg ${r.qty_breakdown?.reguler || 0} • Grosir ${r.qty_breakdown?.grosir_seri || 0} pcs)`
@@ -486,7 +497,7 @@ export default function CommissionsPage() {
                         <td><strong>{r.name}</strong><br /><small className="muted">{r.staff_name || r.role || 'semua'}</small></td>
                         <td>{r.applies_to}{r.role ? `:${r.role}` : ''}</td>
                         <td>{SCOPE_LABEL[r.scope] || 'Sendiri'}</td>
-                        <td>{r.calculation_type}</td>
+                        <td>{ruleTypeLabel(r.calculation_type)}</td>
                         <td style={{ fontSize: 'var(--fs-sm)' }}>
                           {r.calculation_type === 'per_pcs_customer_tier'
                             ? `Reg ${rupiah(r.commission_reguler_per_pcs)}/pcs • Grosir ${rupiah(r.commission_grosir_seri_per_pcs)}/pcs`

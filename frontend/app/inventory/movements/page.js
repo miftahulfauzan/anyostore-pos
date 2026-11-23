@@ -17,6 +17,7 @@ export default function StockMovementsPage() {
   const [filters, setFilters] = useState({ date_from: '', date_to: '', type: '' });
   const [preset, setPreset] = useState('');
   const [selected, setSelected] = useState(null);
+  const [visible, setVisible] = useState(30);
   const loadSeq = useRef(0);
   const headers = () => ({});
 
@@ -32,6 +33,7 @@ export default function StockMovementsPage() {
       if (seq !== loadSeq.current) return;
       if (!response.ok) throw new Error(body.message || 'Pergerakan stok tidak dapat dimuat');
       setRows(body.data || []);
+      setVisible(30);
     } catch (error) { if (seq === loadSeq.current) setMessage(error.message); }
     finally { if (seq === loadSeq.current) setLoading(false); }
   }
@@ -54,7 +56,7 @@ export default function StockMovementsPage() {
     load().catch(() => {});
   }
 
-  return <AppShell title="Riwayat Pergerakan Stok" eyebrow="PRODUK & INVENTORI" actions={<a className="button-link" href="/inventory">Lihat Stok</a>}>
+  return <AppShell title="Pergerakan Stok" eyebrow="INVENTORI" actions={<a className="button-link" href="/inventory">Lihat Stok</a>}>
     <div className="movement-page">
     <section className="panel movement-filter">
       <div className="movement-intro"><h2>Jejak audit stok</h2><p className="muted">Setiap stok masuk, keluar, transaksi, retur, transfer, dan opname tercatat bersama petugas serta saldo sebelum/sesudah.</p></div>
@@ -84,7 +86,7 @@ export default function StockMovementsPage() {
 
     <div style={{ display: 'grid', gap: '.75rem' }}>
       {loading && Array.from({ length: 5 }).map((_, i) => <div key={i} className="panel" style={{ height: 80, borderRadius: 10, background: '#f1f5f9' }} />)}
-      {!loading && rows.map((row) => (
+      {!loading && rows.slice(0, visible).map((row) => (
         <article key={row.id} className="panel movement-card" onClick={() => setSelected(selected?.id === row.id ? null : row)} style={{ cursor: 'pointer', borderRadius: 10, padding: '14px 16px', display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', alignItems: 'start', borderLeft: row.qty >= 0 ? '3px solid #16a34a' : '3px solid #dc2626' }}>
           <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -105,6 +107,13 @@ export default function StockMovementsPage() {
         </article>
       ))}
       {!loading && !rows.length && <div className="panel" style={{ padding: 24, textAlign: 'center', color: '#94a3b8' }}>Belum ada riwayat stok untuk filter ini.</div>}
+      {!loading && rows.length > visible && (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0' }}>
+          <button type="button" className="secondary" onClick={() => setVisible((n) => n + 30)}>
+            Tampilkan {Math.min(30, rows.length - visible)} lagi ({visible}/{rows.length})
+          </button>
+        </div>
+      )}
     </div>
     </div>
   </AppShell>;

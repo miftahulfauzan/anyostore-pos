@@ -186,7 +186,7 @@ export default function ResellerPaymentSettingsPage() {
         ) : (
           <p style={{ fontSize: 'var(--fs-sm)', color: '#475569' }}>Belum ada gambar QRIS.</p>
         )}
-        <label className="button-link" style={{ cursor: 'pointer' }}>
+        <label className="button-link secondary" style={{ cursor: 'pointer' }}>
           {uploading ? 'Mengunggah…' : qris ? 'Ganti gambar QRIS' : 'Unggah gambar QRIS'}
           <input
             type="file"
