@@ -31,6 +31,7 @@
 | `/users` | `users/page.js` | Pegawai (owner) |
 | `/dashboard` | `dashboard/page.js` + `dashboard/OlseraDashboardSections.js` | Dasbor penjualan mengikuti desain dashboard APK (2026-11-22): kartu Ringkasan toko dengan hero Penjualan + tile Pesanan/Produk/Laba, grafik Penjualan + rincian, Produk terlaris berperingkat, Stok rendah berstatus. Web/PWA meniru APK, bukan sebaliknya; role gudang tetap melihat dashboard operasional gudang |
 | `/profile` | `profile/page.js` | Akun |
+| `/account-switcher` | `account-switcher/page.js` | **Ganti Akun** (2026-11-24): akun aktif + sampai 8 akun tersimpan, pindah akun, simpan akun aktif, hapus akun. Semua role (termasuk gudang). Saat menambah akun dari akun yang belum diingat muncul dialog tiga pilihan: **Simpan & lanjut** / **Lanjut tanpa menyimpan** / **Batal**. Menghapus akun aktif mengakhiri sesi lalu kembali ke `/login`. Hanya metadata akun yang dikirim server; token tetap di cookie HttpOnly. |
 | `/receipt/[id]` | `receipt/[id]/page.js` | Resi |
 | `/operations`, `/customers`, `/promotions` | ... | Operasional, pelanggan (termasuk ekspedisi), promo |
 
@@ -41,6 +42,13 @@
 - `FloatingWA.js` — tombol WA mengambang multi-admin
 - `CategoryManager.js` — CRUD kategori (dipakai di `/settings` dan modal "Kelola Kategori" di `/products`; prop `embedded` melepas panel+judulnya saat di modal, `onChange` memicu muat ulang daftar produk)
 - `NotificationCenter.js`, `BarcodeLabel.js`
+
+### Login & sesi web (2026-11-24)
+
+- `/login` memeriksa `GET /api/auth/me` sebelum menampilkan form: sesi yang masih sah langsung diarahkan ke `/dashboard` (owner & gudang) atau `/pos` (role lain). Form tetap tersedia saat 401 atau jaringan gagal — jangan blokir login karena pengecekan gagal.
+- Checkbox **Ingat akun ini** default **tidak** dicentang dan mengirim `remember_account` pada mode password maupun PIN. Bila batas 8 akun tercapai, login tetap berhasil dan pengguna diberi tahu `account_saved: false`.
+- Tombol **Keluar** di sidebar membuka dialog dua pilihan: **Keluar saja (akun tersimpan)** (`preserve_saved`) atau **Keluar & hapus akun ini** (`remove_saved`), setelah peringatan pekerjaan belum tersimpan.
+- `AppStateProvider` hanya mengosongkan sesi di root publik `/`, bukan di `/login`, supaya deteksi sesi bisa bekerja.
 
 Semua pemakaian `SafeImage` wajib mengimpor komponen tersebut secara eksplisit. `stock-view.js` pernah menyebabkan halaman stok gagal render (`ReferenceError: SafeImage is not defined`, yang dapat muncul sebagai React error #418); regression test frontend menjaga import ini tetap ada.
 
