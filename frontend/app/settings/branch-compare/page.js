@@ -13,7 +13,7 @@ const GROUPS = [
   { label: 'Printer & dokumen', match: (key) => ['printer_size', 'auto_print', 'invoice_prefix', 'order_prefix'].includes(key) },
   { label: 'Landing & ongkir', match: (key) => key.startsWith('landing_') || key.startsWith('min_order') || key.startsWith('ongkir_') || key.startsWith('rajaongkir_') },
   { label: 'WhatsApp', match: (key) => key.startsWith('whatsapp') },
-  { label: 'Pajak & harga', match: (key) => ['tax_rate', 'prices_include_tax', 'loyalty_enabled', 'loyalty_points_rate', 'loyalty_points_value'].includes(key) },
+  { label: 'Pajak & harga', match: (key) => ['tax_rate', 'prices_include_tax'].includes(key) },
   { label: 'Notifikasi & email', match: (key) => key.startsWith('low_stock') || key.startsWith('daily_email_') },
   { label: 'Identitas toko', match: (key, row) => row?.identity },
 ];
@@ -30,7 +30,7 @@ const CHOICES = {
 };
 const BOOLEAN_KEYS = new Set([
   'show_logo', 'show_qr', 'show_cashier', 'show_barcode', 'auto_print',
-  'prices_include_tax', 'loyalty_enabled', 'low_stock_alert',
+  'prices_include_tax', 'low_stock_alert',
   'daily_email_enabled',
   'receipt_show_logo', 'receipt_show_address', 'receipt_show_wa', 'receipt_show_npwp',
   'receipt_show_cashier', 'receipt_show_customer', 'receipt_show_payment',

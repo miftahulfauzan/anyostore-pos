@@ -34,7 +34,7 @@ test('form pelanggan punya kolom alamat dan API mengembalikannya', () => {
   // Ekspedisi ikut di form dan SELECT pelanggan (dipakai blok PENGIRIMAN invoice).
   assert.match(customers, /expedition: ''/);
   assert.match(customers, /customer-expedition-options/);
-  assert.match(backendCustomers, /SELECT id, name, phone, email, address, expedition, loyalty_points/);
+  assert.match(backendCustomers, /SELECT id, name, phone, email, address, expedition, membership_tier/);
 });
 
 test('halaman laporan tanpa keterangan periode otomatis dan tertutup untuk gudang', () => {

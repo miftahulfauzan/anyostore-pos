@@ -11,7 +11,6 @@ const defaults = {
   store_name: '', store_address: '', store_phone: '', store_email: '', store_tax_id: '', store_logo: '',
   receipt_header: '', receipt_footer: '', receipt_note: '', printer_size: '80', auto_print: 'false',
   theme: 'green', tax_rate: '0', prices_include_tax: 'false',
-  loyalty_enabled: 'false', loyalty_points_rate: '1', loyalty_points_value: '0',
   show_logo: 'true', show_qr: 'false', show_cashier: 'true', show_barcode: 'true',
   low_stock_alert: 'true', low_stock_email: '', order_prefix: '', invoice_prefix: 'INV', landing_page_size: '24',
   daily_email_enabled: 'false', daily_email_to: '', daily_email_from: '', daily_email_time: '19:00',
@@ -483,11 +482,6 @@ export default function SettingsPage() {
         <div className="two-fields">
           {input('tax_rate', 'Pajak %', 'number')}
           {select('prices_include_tax', 'Termasuk pajak', [['true', 'Ya'], ['false', 'Tidak']])}
-        </div>
-        {select('loyalty_enabled', 'Loyalitas', [['true', 'Ya'], ['false', 'Tidak']])}
-        <div className="two-fields">
-          {input('loyalty_points_rate', 'Poin / 10k', 'number')}
-          {input('loyalty_points_value', 'Nilai poin', 'number')}
         </div>
         {select('low_stock_alert', 'Alert stok rendah', [['true', 'Ya'], ['false', 'Tidak']])}
         {input('low_stock_email', 'Email alert', 'email')}

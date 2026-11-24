@@ -125,7 +125,6 @@ CREATE TABLE customers (
     gender ENUM('male','female'),
     referral_code VARCHAR(20) UNIQUE,
     referred_by INT DEFAULT NULL,
-    loyalty_points INT DEFAULT 0,
     membership_tier ENUM('bronze','silver','gold') DEFAULT 'bronze',
     total_purchases INT DEFAULT 0,
     total_spent DECIMAL(14,2) DEFAULT 0,
@@ -571,21 +570,6 @@ CREATE TABLE shifts (
 );
 
 -- ============================================
--- 30. loyalty_points (Poin Loyalitas)
--- ============================================
-CREATE TABLE loyalty_points (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    customer_id INT NOT NULL,
-    points INT NOT NULL,
-    type ENUM('earn','redeem') NOT NULL,
-    reference_type VARCHAR(50),
-    reference_id INT,
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (customer_id) REFERENCES customers(id)
-);
-
--- ============================================
 -- 31. returns (Retur Penjualan)
 -- ============================================
 CREATE TABLE returns (
@@ -948,8 +932,6 @@ INSERT INTO store_settings (branch_id, `key`, `value`) VALUES
 (1, 'auto_print', 'true'),
 (1, 'currency', 'IDR'),
 (1, 'tax_rate', '0'),
-(1, 'loyalty_points_rate', '1'),
-(1, 'loyalty_points_value', '100'),
 (1, 'show_logo', 'true'),
 (1, 'show_qr', 'true'),
 (1, 'show_cashier', 'true'),

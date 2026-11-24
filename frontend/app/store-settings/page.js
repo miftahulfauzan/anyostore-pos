@@ -267,9 +267,6 @@ export default function StoreSettingsPage() {
     save({
       tax_rate: form.tax_rate ?? '',
       prices_include_tax: form.prices_include_tax || 'false',
-      loyalty_enabled: form.loyalty_enabled || 'false',
-      loyalty_points_rate: form.loyalty_points_rate ?? '',
-      loyalty_points_value: form.loyalty_points_value ?? '',
     }, 'Setelan pajak & harga tersimpan.');
   }
 
@@ -896,15 +893,6 @@ export default function StoreSettingsPage() {
                 {BOOL.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
             </label>
-          </div>
-          <label>Program loyalitas
-            <select value={form.loyalty_enabled || 'false'} onChange={(event) => set('loyalty_enabled', event.target.value)}>
-              {BOOL.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </label>
-          <div className="two-fields">
-            <label>Poin per Rp10.000<input type="number" min="0" value={form.loyalty_points_rate ?? ''} onChange={(event) => set('loyalty_points_rate', event.target.value)} placeholder="0" /></label>
-            <label>Nilai tukar poin (Rp)<input type="number" min="0" value={form.loyalty_points_value ?? ''} onChange={(event) => set('loyalty_points_value', event.target.value)} placeholder="0" /></label>
           </div>
           <p className="muted" style={{ margin: 0, fontSize: 'var(--fs-sm)' }}>
             Aturan harga grosir seri/semi grosir &amp; komisi diatur di <a href="/promotions">Promo &amp; Diskon</a> dan <a href="/commissions">Komisi Staf</a>.

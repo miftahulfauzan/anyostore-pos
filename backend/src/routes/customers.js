@@ -19,7 +19,7 @@ router.get('/', async (req, res, next) => {
     }
     const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 100));
     const [rows] = await db.execute(
-      `SELECT id, name, phone, email, address, expedition, loyalty_points, membership_tier, price_tier, total_spent
+      `SELECT id, name, phone, email, address, expedition, membership_tier, price_tier, total_spent
        FROM customers WHERE branch_id = ? AND is_active = TRUE
        AND (name LIKE ? OR phone LIKE ?) ORDER BY name LIMIT ${limit}`,
       [branchId, `%${term}%`, `%${term}%`]
