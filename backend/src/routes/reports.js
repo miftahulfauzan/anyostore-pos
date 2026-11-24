@@ -224,8 +224,15 @@ router.get('/overview', async (req, res, next) => {
       db.execute(`SELECT p.id, p.name, p.sku, p.stock, p.min_stock, b.name AS branch_name FROM products p JOIN branches b ON b.id = p.branch_id WHERE p.branch_id ${scope} AND p.is_active = TRUE AND p.stock <= p.min_stock ORDER BY p.stock ASC, p.name LIMIT 100`, branchParams),
       db.execute(`SELECT DATE_FORMAT(transaction_date, '%Y-%m-%d') AS date, COUNT(*) AS transactions, COALESCE(SUM(GREATEST(grand_total - cancelled_amount - refunded_amount - COALESCE(shipping_cost, 0), 0)), 0) AS revenue FROM transactions WHERE branch_id ${scope} AND status IN (${SALES_STATUSES_SQL}) AND transaction_date BETWEEN ? AND ? GROUP BY transaction_date ORDER BY date`, periodParams),
       db.execute(`SELECT DATE_FORMAT(CONVERT_TZ(created_at, @@session.time_zone, '+07:00'), '%H:00') AS hour, COUNT(*) AS transactions, COALESCE(SUM(GREATEST(grand_total - cancelled_amount - refunded_amount - COALESCE(shipping_cost, 0), 0)), 0) AS revenue FROM transactions WHERE branch_id ${scope} AND status IN (${SALES_STATUSES_SQL}) AND transaction_date BETWEEN ? AND ? GROUP BY hour ORDER BY hour`, periodParams),
-      db.execute(`SELECT t.price_tier, COUNT(DISTINCT t.id) AS transactions, COALESCE(SUM(ti.quantity - ti.cancelled_qty - ti.returned_qty), 0) AS products_sold, COALESCE(SUM(ti.subtotal * (ti.quantity - ti.cancelled_qty - ti.returned_qty) / NULLIF(ti.quantity, 0)), 0) AS revenue FROM transactions t JOIN transaction_items ti ON ti.transaction_id = t.id WHERE t.branch_id ${scope} AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ? GROUP BY t.price_tier`, periodParams),
-      db.execute(`SELECT t.id, t.invoice_no, t.offline_invoice_no, t.source_system, t.grand_total, t.cancelled_amount, t.refunded_amount, t.discount, t.status, t.payment_method, t.price_tier, t.created_at, DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS transaction_date, COALESCE(NULLIF(t.source_cashier, ''), u.name) AS cashier, b.name AS branch_name FROM transactions t JOIN users u ON u.id = t.user_id JOIN branches b ON b.id = t.branch_id WHERE t.branch_id ${scope} AND t.transaction_date BETWEEN ? AND ? ORDER BY t.transaction_date DESC, t.created_at DESC LIMIT 200`, periodParams),
+      db.execute(`SELECT t.price_tier, COUNT(DISTINCT t.id) AS transactions,
+        COALESCE(SUM(ti.quantity - ti.cancelled_qty - ti.returned_qty), 0) AS products_sold,
+        COALESCE(SUM(ti.subtotal * (ti.quantity - ti.cancelled_qty - ti.returned_qty) / NULLIF(ti.quantity, 0) * (t.grand_total - COALESCE(t.shipping_cost, 0)) / NULLIF(t.subtotal, 0)), 0) AS revenue,
+        COALESCE(SUM(ti.cost * (ti.quantity - ti.cancelled_qty - ti.returned_qty)), 0) AS cost_of_goods,
+        COALESCE(SUM(ti.subtotal * (ti.quantity - ti.cancelled_qty - ti.returned_qty) / NULLIF(ti.quantity, 0) * (t.grand_total - COALESCE(t.shipping_cost, 0)) / NULLIF(t.subtotal, 0) - ti.cost * (ti.quantity - ti.cancelled_qty - ti.returned_qty)), 0) AS profit
+        FROM transactions t JOIN transaction_items ti ON ti.transaction_id = t.id
+        WHERE t.branch_id ${scope} AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?
+        GROUP BY t.price_tier`, periodParams),
+      db.execute(`SELECT t.id, t.invoice_no, t.offline_invoice_no, t.source_system, t.grand_total, t.cancelled_amount, t.refunded_amount, COALESCE(t.shipping_cost, 0) AS shipping_cost, t.discount, t.status, t.payment_method, t.price_tier, t.created_at, DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS transaction_date, COALESCE(NULLIF(t.source_cashier, ''), u.name) AS cashier, b.name AS branch_name FROM transactions t JOIN users u ON u.id = t.user_id JOIN branches b ON b.id = t.branch_id WHERE t.branch_id ${scope} AND t.transaction_date BETWEEN ? AND ? ORDER BY t.transaction_date DESC, t.created_at DESC LIMIT 200`, periodParams),
       db.execute(`SELECT COALESCE(SUM(t.discount), 0) AS transaction_discount, COALESCE((SELECT SUM(ti.discount * (ti.quantity - ti.cancelled_qty - ti.returned_qty) / NULLIF(ti.quantity, 0)) FROM transaction_items ti JOIN transactions tx ON tx.id = ti.transaction_id WHERE tx.branch_id ${scope} AND tx.status IN (${SALES_STATUSES_SQL}) AND tx.transaction_date BETWEEN ? AND ?), 0) AS item_discount FROM transactions t WHERE t.branch_id ${scope} AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date BETWEEN ? AND ?`, [...periodParams, ...periodParams]),
       db.execute(`SELECT COUNT(*) AS transactions, COALESCE(SUM(cancelled_amount), 0) AS amount FROM transactions WHERE branch_id ${scope} AND transaction_date BETWEEN ? AND ? AND cancelled_amount > 0`, periodParams),
       db.execute(`SELECT t.id, t.invoice_no, t.cancelled_amount, t.cancel_reason, t.status, t.created_at, DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS transaction_date, COALESCE(NULLIF(t.source_cashier, ''), u.name) AS cashier, COALESCE(items.cancelled_qty, 0) AS cancelled_qty FROM transactions t JOIN users u ON u.id = t.user_id LEFT JOIN (SELECT transaction_id, SUM(cancelled_qty) AS cancelled_qty FROM transaction_items GROUP BY transaction_id) items ON items.transaction_id = t.id WHERE t.branch_id ${scope} AND t.transaction_date BETWEEN ? AND ? AND t.cancelled_amount > 0 ORDER BY t.transaction_date DESC, t.created_at DESC LIMIT 200`, periodParams),
@@ -327,6 +334,319 @@ router.get('/overview', async (req, res, next) => {
       previous_summary: previousSummary,
       payment_methods: payments[0], products: products[0], categories: categories[0], cashiers: cashiers[0], customers: customers[0], low_stock: lowStock[0], daily_sales: dailySales[0], daily_expenses: dailyExpenses, daily_income: dailyIncome, daily_returns: dailyReturns, sales_sources: normalizedSalesSources, hourly_sales: hourlySales[0], price_tiers: priceTiers[0], transactions: transactions[0], cancellations: cancellationRows[0], return_summary: returnSummary[0], returns: returns[0], branch_comparison: branchRows
     } });
+  } catch (error) { next(error); }
+});
+
+router.get('/insights', async (req, res, next) => {
+  try {
+    const { start, end } = dateRange(req.query);
+    const today = localDateString();
+    const view = String(req.query.view || '');
+    if (!['inventory', 'channels', 'customers', 'suppliers'].includes(view)) {
+      return res.status(400).json({ success: false, message: 'Jenis laporan tidak valid.' });
+    }
+
+    const owner = req.user.role === 'owner';
+    const selectedBranchId = owner ? parseOwnerBranchId(req.query.branch_id) : Number(req.user.branch_id);
+    if (owner && selectedBranchId !== null) {
+      const [activeBranches] = await db.execute('SELECT id FROM branches WHERE id = ? AND is_active = TRUE LIMIT 1', [selectedBranchId]);
+      if (!activeBranches.length) return res.status(404).json({ success: false, message: 'Toko tidak ditemukan atau sudah tidak aktif.' });
+    }
+    const scope = owner && selectedBranchId === null
+      ? 'IN (SELECT id FROM branches WHERE is_active = TRUE)'
+      : '= ?';
+    const branchParams = owner && selectedBranchId === null ? [] : [selectedBranchId];
+    const branch_id = owner && selectedBranchId === null ? 'all' : selectedBranchId;
+    const numeric = (value) => Number(value || 0);
+
+    let data;
+    if (view === 'inventory') {
+      const thirtyDayStart = shiftBusinessDate(end, -29);
+      const windowStart = thirtyDayStart < start ? thirtyDayStart : start;
+      const saleableStockSql = `
+        SELECT w.branch_id, ws.product_id,
+               SUM(GREATEST(COALESCE(ws.quantity, 0), 0)) AS saleable_units,
+               SUM(GREATEST(COALESCE(ws.reserved_quantity, 0), 0)) AS reserved_units,
+               SUM(GREATEST(COALESCE(ws.quantity, 0) - COALESCE(ws.reserved_quantity, 0), 0)) AS available_units
+        FROM warehouse_stocks ws JOIN warehouses w ON w.id = ws.warehouse_id
+        WHERE ws.variant_id IS NULL AND w.is_active = TRUE AND COALESCE(w.type, 'utama') <> 'reject'
+          AND w.branch_id ${scope}
+        GROUP BY w.branch_id, ws.product_id`;
+      const [[summaryRows], [slowRows], [products], [slowProducts]] = await Promise.all([
+        db.execute(
+          `SELECT COUNT(*) AS products,
+                  COALESCE(SUM(COALESCE(stock_balance.saleable_units, 0)), 0) AS units_on_hand,
+                  COALESCE(SUM(COALESCE(stock_balance.saleable_units, 0) * GREATEST(COALESCE(p.cost, 0), 0)), 0) AS stock_value,
+                  COALESCE(SUM(COALESCE(stock_balance.available_units, 0)), 0) AS available_units,
+                  COALESCE(SUM(COALESCE(stock_balance.reserved_units, 0)), 0) AS reserved_units,
+                  COALESCE(SUM(CASE WHEN COALESCE(stock_balance.available_units, 0) <= p.min_stock THEN 1 ELSE 0 END), 0) AS low_stock_products,
+                  COALESCE(SUM(CASE WHEN COALESCE(stock_balance.available_units, 0) <= 0 THEN 1 ELSE 0 END), 0) AS empty_products
+           FROM products p LEFT JOIN (${saleableStockSql}) stock_balance
+             ON stock_balance.branch_id = p.branch_id AND stock_balance.product_id = p.id
+           WHERE p.branch_id ${scope} AND p.is_active = TRUE`,
+          [...branchParams, ...branchParams]
+        ),
+        db.execute(
+          `SELECT COUNT(*) AS slow_products,
+                  COALESCE(SUM(COALESCE(stock_balance.saleable_units, 0) * GREATEST(COALESCE(p.cost, 0), 0)), 0) AS slow_stock_value
+           FROM products p LEFT JOIN (
+             SELECT t.branch_id, ti.product_id, MAX(t.transaction_date) AS last_sale_date
+             FROM transactions t JOIN transaction_items ti ON ti.transaction_id = t.id
+             WHERE t.status IN (${SALES_STATUSES_SQL}) AND GREATEST(ti.quantity - ti.cancelled_qty - ti.returned_qty, 0) > 0
+               AND t.transaction_date <= ? AND t.branch_id ${scope}
+             GROUP BY t.branch_id, ti.product_id
+           ) last_sale ON last_sale.branch_id = p.branch_id AND last_sale.product_id = p.id
+           LEFT JOIN (${saleableStockSql}) stock_balance
+             ON stock_balance.branch_id = p.branch_id AND stock_balance.product_id = p.id
+           WHERE p.branch_id ${scope} AND p.is_active = TRUE AND COALESCE(stock_balance.saleable_units, 0) > 0
+             AND (last_sale.last_sale_date IS NULL OR last_sale.last_sale_date <= DATE_SUB(?, INTERVAL 60 DAY))`,
+          [end, ...branchParams, ...branchParams, ...branchParams, end]
+        ),
+        db.execute(
+          `SELECT p.id, p.name, p.sku, COALESCE(c.name, 'Tanpa kategori') AS category_name,
+                  p.stock AS total_stock, COALESCE(stock_balance.saleable_units, 0) AS stock,
+                  p.min_stock, COALESCE(p.cost, 0) AS unit_cost,
+                  COALESCE(stock_balance.reserved_units, 0) AS reserved_units,
+                  COALESCE(stock_balance.available_units, 0) AS available_stock,
+                  COALESCE(sold.units_period, 0) AS units_sold,
+                  COALESCE(sold.units_30d, 0) AS units_sold_30d,
+                  COALESCE(open_po.pending_units, 0) AS incoming_units,
+                  GREATEST(ROUND(COALESCE(sold.units_30d, 0) - COALESCE(stock_balance.available_units, 0) - COALESCE(open_po.pending_units, 0)), 0) AS suggested_reorder,
+                  last_sale.last_sale_date,
+                  DATEDIFF(?, last_sale.last_sale_date) AS days_since_last_sale
+           FROM products p LEFT JOIN categories c ON c.id = p.category_id
+           LEFT JOIN (
+             SELECT t.branch_id, ti.product_id,
+                    SUM(CASE WHEN t.transaction_date BETWEEN ? AND ? THEN GREATEST(ti.quantity - ti.cancelled_qty - ti.returned_qty, 0) ELSE 0 END) AS units_period,
+                    SUM(CASE WHEN t.transaction_date BETWEEN DATE_SUB(?, INTERVAL 29 DAY) AND ? THEN GREATEST(ti.quantity - ti.cancelled_qty - ti.returned_qty, 0) ELSE 0 END) AS units_30d
+             FROM transactions t JOIN transaction_items ti ON ti.transaction_id = t.id
+             WHERE t.status IN (${SALES_STATUSES_SQL}) AND t.branch_id ${scope} AND t.transaction_date BETWEEN ? AND ?
+             GROUP BY t.branch_id, ti.product_id
+           ) sold ON sold.branch_id = p.branch_id AND sold.product_id = p.id
+           LEFT JOIN (
+             SELECT t.branch_id, ti.product_id, MAX(t.transaction_date) AS last_sale_date
+             FROM transactions t JOIN transaction_items ti ON ti.transaction_id = t.id
+             WHERE t.status IN (${SALES_STATUSES_SQL}) AND GREATEST(ti.quantity - ti.cancelled_qty - ti.returned_qty, 0) > 0
+               AND t.branch_id ${scope} AND t.transaction_date <= ?
+             GROUP BY t.branch_id, ti.product_id
+           ) last_sale ON last_sale.branch_id = p.branch_id AND last_sale.product_id = p.id
+           LEFT JOIN (
+             SELECT po.branch_id, poi.product_id, SUM(GREATEST(poi.quantity - poi.received_qty, 0)) AS pending_units
+             FROM purchase_orders po JOIN purchase_order_items poi ON poi.po_id = po.id
+             WHERE po.status IN ('approved', 'ordered', 'received') AND po.branch_id ${scope}
+             GROUP BY po.branch_id, poi.product_id
+           ) open_po ON open_po.branch_id = p.branch_id AND open_po.product_id = p.id
+           LEFT JOIN (${saleableStockSql}) stock_balance
+             ON stock_balance.branch_id = p.branch_id AND stock_balance.product_id = p.id
+           WHERE p.branch_id ${scope} AND p.is_active = TRUE
+           ORDER BY suggested_reorder DESC,
+             (COALESCE(stock_balance.available_units, 0) <= p.min_stock) DESC,
+             units_sold DESC, p.name ASC LIMIT 200`,
+          [end, start, end, end, end, ...branchParams, windowStart, end, ...branchParams, end, ...branchParams, ...branchParams, ...branchParams]
+        ),
+        db.execute(
+          `SELECT p.id, p.name, p.sku, p.stock AS total_stock,
+                  COALESCE(stock_balance.saleable_units, 0) AS stock, p.min_stock,
+                  COALESCE(p.cost, 0) AS unit_cost,
+                  DATE_FORMAT(last_sale.last_sale_date, '%Y-%m-%d') AS last_sale_date,
+                  DATEDIFF(?, last_sale.last_sale_date) AS days_since_last_sale
+           FROM products p LEFT JOIN (
+             SELECT t.branch_id, ti.product_id, MAX(t.transaction_date) AS last_sale_date
+             FROM transactions t JOIN transaction_items ti ON ti.transaction_id = t.id
+             WHERE t.status IN (${SALES_STATUSES_SQL}) AND GREATEST(ti.quantity - ti.cancelled_qty - ti.returned_qty, 0) > 0
+               AND t.transaction_date <= ? AND t.branch_id ${scope}
+             GROUP BY t.branch_id, ti.product_id
+           ) last_sale ON last_sale.branch_id = p.branch_id AND last_sale.product_id = p.id
+           LEFT JOIN (${saleableStockSql}) stock_balance
+             ON stock_balance.branch_id = p.branch_id AND stock_balance.product_id = p.id
+           WHERE p.branch_id ${scope} AND p.is_active = TRUE AND COALESCE(stock_balance.saleable_units, 0) > 0
+             AND (last_sale.last_sale_date IS NULL OR DATEDIFF(?, last_sale.last_sale_date) >= 60)
+           ORDER BY days_since_last_sale DESC, stock_balance.saleable_units DESC, p.name ASC LIMIT 200`,
+          [end, end, ...branchParams, ...branchParams, ...branchParams, end]
+        ),
+      ]);
+      data = {
+        summary: {
+          products: numeric(summaryRows[0].products),
+          units_on_hand: numeric(summaryRows[0].units_on_hand),
+          available_units: numeric(summaryRows[0].available_units),
+          reserved_units: numeric(summaryRows[0].reserved_units),
+          stock_value: numeric(summaryRows[0].stock_value),
+          low_stock_products: numeric(summaryRows[0].low_stock_products),
+          empty_products: numeric(summaryRows[0].empty_products),
+          slow_products: numeric(slowRows[0].slow_products),
+          slow_stock_value: numeric(slowRows[0].slow_stock_value),
+        },
+        products: products.map((row) => ({
+          ...row,
+          total_stock: numeric(row.total_stock),
+          stock: numeric(row.stock),
+          min_stock: numeric(row.min_stock),
+          unit_cost: numeric(row.unit_cost),
+          reserved_units: numeric(row.reserved_units),
+          available_stock: numeric(row.available_stock),
+          units_sold: numeric(row.units_sold),
+          units_sold_30d: numeric(row.units_sold_30d),
+          incoming_units: numeric(row.incoming_units),
+          suggested_reorder: numeric(row.suggested_reorder),
+          days_since_last_sale: row.days_since_last_sale == null ? null : numeric(row.days_since_last_sale),
+        })),
+        slow_products: slowProducts.map((row) => ({
+          ...row,
+          total_stock: numeric(row.total_stock),
+          stock: numeric(row.stock),
+          min_stock: numeric(row.min_stock),
+          unit_cost: numeric(row.unit_cost),
+          days_since_last_sale: row.days_since_last_sale == null ? null : numeric(row.days_since_last_sale),
+        })),
+        note: 'Nilai stok memakai biaya produk saat ini dan jumlah barang di gudang aktif non-reject. Stok tersedia mengurangi cadangan reseller. Saran restok memakai penjualan 30 hari sampai akhir periode dikurangi stok tersedia dan PO terbuka; angka ini merupakan perkiraan.'
+      };
+    } else if (view === 'channels') {
+      const [channels] = await db.execute(
+        `SELECT COALESCE(NULLIF(TRIM(sc.name), ''), NULLIF(TRIM(sm.channel), ''), 'Lainnya') AS channel_name,
+                COUNT(DISTINCT COALESCE(NULLIF(sm.batch_number, ''), CONCAT('mutation-', sm.id))) AS batches,
+                COUNT(DISTINCT sm.product_id) AS products,
+                COALESCE(SUM(ABS(sm.qty)), 0) AS units
+         FROM stock_mutations sm LEFT JOIN sales_channels sc
+           ON CONVERT(LOWER(REPLACE(TRIM(sm.channel), ' ', '_')) USING utf8mb4) COLLATE utf8mb4_unicode_ci = sc.value
+         WHERE sm.branch_id ${scope} AND sm.type = 'adjustment' AND sm.reference_type = 'manual_outgoing' AND sm.qty < 0
+           AND DATE(CONVERT_TZ(sm.created_at, @@session.time_zone, '+07:00')) BETWEEN ? AND ?
+         GROUP BY channel_name ORDER BY units DESC, channel_name ASC`,
+        [...branchParams, start, end]
+      );
+      data = {
+        summary: {
+          channels: channels.length,
+          units: channels.reduce((sum, row) => sum + numeric(row.units), 0),
+          batches: channels.reduce((sum, row) => sum + numeric(row.batches), 0),
+        },
+        channels: channels.map((row) => ({ ...row, batches: numeric(row.batches), products: numeric(row.products), units: numeric(row.units) })),
+        note: 'Laporan ini menghitung jumlah barang keluar yang dicatat lewat mutasi stok per kanal. Nilai omzet dan laba tidak tersedia untuk catatan tersebut.'
+      };
+    } else if (view === 'customers') {
+      const [summaryRows] = await db.execute(
+        `WITH customer_stats AS (
+           SELECT t.customer_id, MIN(t.transaction_date) AS first_purchase,
+                  MAX(t.transaction_date) AS last_purchase,
+                  SUM(CASE WHEN t.transaction_date BETWEEN ? AND ? THEN 1 ELSE 0 END) AS period_transactions,
+                  SUM(CASE WHEN t.transaction_date BETWEEN ? AND ? THEN GREATEST(t.grand_total - t.cancelled_amount - t.refunded_amount - COALESCE(t.shipping_cost, 0), 0) ELSE 0 END) AS period_revenue,
+                  SUM(CASE WHEN t.transaction_date < ? THEN 1 ELSE 0 END) AS prior_transactions
+           FROM transactions t
+           WHERE t.customer_id IS NOT NULL AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date <= ? AND t.branch_id ${scope}
+           GROUP BY t.customer_id
+         )
+         SELECT COUNT(CASE WHEN period_transactions > 0 THEN 1 END) AS active_customers,
+                COALESCE(SUM(CASE WHEN period_transactions > 0 AND first_purchase BETWEEN ? AND ? THEN 1 ELSE 0 END), 0) AS new_customers,
+                COALESCE(SUM(CASE WHEN period_transactions > 0 AND prior_transactions > 0 THEN 1 ELSE 0 END), 0) AS repeat_customers,
+                COALESCE(SUM(CASE WHEN period_transactions = 0 AND last_purchase < DATE_SUB(?, INTERVAL 90 DAY) THEN 1 ELSE 0 END), 0) AS lapsed_customers,
+                COALESCE(SUM(CASE WHEN period_transactions > 0 THEN period_revenue ELSE 0 END), 0) AS customer_revenue
+         FROM customer_stats`,
+        [start, end, start, end, start, end, ...branchParams, start, end, end]
+      );
+      const [customers] = await db.execute(
+        `WITH customer_stats AS (
+           SELECT t.customer_id, MIN(t.transaction_date) AS first_purchase,
+                  MAX(t.transaction_date) AS last_purchase,
+                  SUM(CASE WHEN t.transaction_date BETWEEN ? AND ? THEN 1 ELSE 0 END) AS period_transactions,
+                  SUM(CASE WHEN t.transaction_date BETWEEN ? AND ? THEN GREATEST(t.grand_total - t.cancelled_amount - t.refunded_amount - COALESCE(t.shipping_cost, 0), 0) ELSE 0 END) AS period_revenue,
+                  SUM(CASE WHEN t.transaction_date < ? THEN 1 ELSE 0 END) AS prior_transactions
+           FROM transactions t
+           WHERE t.customer_id IS NOT NULL AND t.status IN (${SALES_STATUSES_SQL}) AND t.transaction_date <= ? AND t.branch_id ${scope}
+           GROUP BY t.customer_id
+         )
+         SELECT c.id AS customer_id, c.name, c.phone, s.period_transactions AS transactions,
+                s.period_revenue AS revenue, s.first_purchase, s.last_purchase,
+                CASE WHEN s.first_purchase BETWEEN ? AND ? THEN TRUE ELSE FALSE END AS is_new
+         FROM customer_stats s JOIN customers c ON c.id = s.customer_id
+         WHERE s.period_transactions > 0
+         ORDER BY s.period_revenue DESC, s.period_transactions DESC, c.name ASC LIMIT 100`,
+        [start, end, start, end, start, end, ...branchParams, start, end]
+      );
+      data = {
+        summary: Object.fromEntries(Object.entries(summaryRows[0]).map(([key, value]) => [key, numeric(value)])),
+        customers: customers.map((row) => ({
+          ...row,
+          transactions: numeric(row.transactions),
+          revenue: numeric(row.revenue),
+          is_new: Boolean(row.is_new),
+        })),
+        note: 'Pelanggan baru dihitung dari transaksi valid pertama dalam cakupan toko. Pelanggan tanpa ID tidak masuk ke hitungan pelanggan berulang.'
+      };
+    } else {
+      const openStatuses = "'pending_approval','approved','ordered','received'";
+      const orderWhere = `((po.order_date BETWEEN ? AND ?) OR (po.expected_date < ? AND po.status IN (${openStatuses}) AND COALESCE(items.pending_units, 0) > 0)) AND po.status NOT IN ('draft','cancelled') AND po.branch_id ${scope}`;
+      const [summaryRows] = await db.execute(
+        `SELECT COUNT(DISTINCT po.id) AS orders,
+                COUNT(DISTINCT CASE WHEN po.status IN (${openStatuses}) AND COALESCE(items.pending_units, 0) > 0 THEN po.id END) AS open_orders,
+                COUNT(DISTINCT CASE WHEN po.expected_date < ? AND po.status IN (${openStatuses}) AND COALESCE(items.pending_units, 0) > 0 THEN po.id END) AS overdue_orders,
+                COALESCE(SUM(po.total_amount), 0) AS order_value,
+                COALESCE(SUM(items.pending_value), 0) AS pending_value,
+                AVG(CASE WHEN po.received_at IS NOT NULL THEN DATEDIFF(DATE(po.received_at), po.order_date) END) AS avg_first_receipt_days
+         FROM purchase_orders po JOIN suppliers s ON s.id = po.supplier_id
+         LEFT JOIN (SELECT po_id, SUM(GREATEST(quantity - received_qty, 0)) AS pending_units,
+                           SUM(GREATEST(quantity - received_qty, 0) * unit_cost) AS pending_value
+                    FROM purchase_order_items GROUP BY po_id) items ON items.po_id = po.id
+         WHERE ${orderWhere}`,
+        [today, start, end, today, ...branchParams]
+      );
+      const [suppliers] = await db.execute(
+        `SELECT s.id AS supplier_id, s.name AS supplier_name, COUNT(DISTINCT po.id) AS orders,
+                COALESCE(SUM(po.total_amount), 0) AS order_value,
+                COALESCE(SUM(items.pending_units), 0) AS pending_units,
+                COALESCE(SUM(items.pending_value), 0) AS pending_value,
+                COUNT(DISTINCT CASE WHEN po.expected_date < ? AND po.status IN (${openStatuses}) AND COALESCE(items.pending_units, 0) > 0 THEN po.id END) AS overdue_orders,
+                AVG(CASE WHEN po.received_at IS NOT NULL THEN DATEDIFF(DATE(po.received_at), po.order_date) END) AS avg_first_receipt_days
+         FROM purchase_orders po JOIN suppliers s ON s.id = po.supplier_id
+         LEFT JOIN (SELECT po_id, SUM(GREATEST(quantity - received_qty, 0)) AS pending_units,
+                           SUM(GREATEST(quantity - received_qty, 0) * unit_cost) AS pending_value
+                    FROM purchase_order_items GROUP BY po_id) items ON items.po_id = po.id
+         WHERE ${orderWhere}
+         GROUP BY s.id, s.name ORDER BY overdue_orders DESC, pending_value DESC, order_value DESC LIMIT 100`,
+        [today, start, end, today, ...branchParams]
+      );
+      const [orders] = await db.execute(
+        `SELECT po.id, po.po_number, s.name AS supplier_name, po.order_date, po.expected_date, po.received_at,
+                po.status, po.total_amount,
+                COALESCE(items.ordered_units, 0) AS ordered_units,
+                COALESCE(items.received_units, 0) AS received_units,
+                COALESCE(items.pending_units, 0) AS pending_units,
+                COALESCE(items.pending_value, 0) AS pending_value,
+                DATEDIFF(DATE(po.received_at), po.order_date) AS first_receipt_days,
+                CASE WHEN po.expected_date < ? AND po.status IN (${openStatuses}) AND COALESCE(items.pending_units, 0) > 0 THEN TRUE ELSE FALSE END AS overdue
+         FROM purchase_orders po JOIN suppliers s ON s.id = po.supplier_id
+         LEFT JOIN (SELECT po_id, SUM(quantity) AS ordered_units, SUM(received_qty) AS received_units,
+                           SUM(GREATEST(quantity - received_qty, 0)) AS pending_units,
+                           SUM(GREATEST(quantity - received_qty, 0) * unit_cost) AS pending_value
+                    FROM purchase_order_items GROUP BY po_id) items ON items.po_id = po.id
+         WHERE ${orderWhere}
+         ORDER BY overdue DESC, po.expected_date ASC, po.order_date DESC LIMIT 200`,
+        [today, start, end, today, ...branchParams]
+      );
+      data = {
+        summary: {
+          orders: numeric(summaryRows[0].orders),
+          open_orders: numeric(summaryRows[0].open_orders),
+          overdue_orders: numeric(summaryRows[0].overdue_orders),
+          order_value: numeric(summaryRows[0].order_value),
+          pending_value: numeric(summaryRows[0].pending_value),
+          avg_first_receipt_days: summaryRows[0].avg_first_receipt_days == null ? null : numeric(summaryRows[0].avg_first_receipt_days),
+        },
+        suppliers: suppliers.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [key, key === 'supplier_name' ? value : numeric(value)]))),
+        orders: orders.map((row) => ({
+          ...row,
+          total_amount: numeric(row.total_amount),
+          ordered_units: numeric(row.ordered_units),
+          received_units: numeric(row.received_units),
+          pending_units: numeric(row.pending_units),
+          pending_value: numeric(row.pending_value),
+          first_receipt_days: row.first_receipt_days == null ? null : numeric(row.first_receipt_days),
+          overdue: Boolean(row.overdue),
+        })),
+        note: 'Daftar memuat PO dalam rentang dan PO yang masih terbuka serta sudah lewat tanggal perkiraan. Lama penerimaan dihitung sampai penerimaan pertama yang tercatat.'
+      };
+    }
+
+    res.json({ success: true, data: { view, start, end, branch_id, ...data } });
   } catch (error) { next(error); }
 });
 

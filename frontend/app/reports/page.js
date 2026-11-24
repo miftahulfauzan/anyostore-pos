@@ -8,9 +8,7 @@ import DateRangePresets from "../components/DateRangePresets";
 import { getWarehousePeriodRange, WAREHOUSE_PERIOD_OPTIONS } from "../dashboard/warehouse-periods.mjs";
 import { useAppSession } from "../components/AppStateProvider";
 import { createRequestSequence } from "../components/app-state.cjs";
-import OlseraDashboardSections from "../dashboard/OlseraDashboardSections";
-import ReportDetailAccordions from "./ReportDetailAccordions";
-import ReportClosingPanel from "./ReportClosingPanel";
+import ReportAnalyticsWorkspace from "./ReportAnalyticsWorkspace";
 import { openPrintView } from "../lib/print-utils";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
@@ -33,6 +31,7 @@ export default function ReportsPage() {
   const [preset, setPreset] = useState("today");
   const [filterOpen, setFilterOpen] = useState(true);
   const [report, setReport] = useState(null);
+  const [reportView, setReportView] = useState("sales");
   const [storeContext, setStoreContext] = useState(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -48,7 +47,7 @@ export default function ReportsPage() {
     try {
       const qs = new URLSearchParams({ start: nextPeriod.start, end: nextPeriod.end });
       if (user?.role === 'owner' && activeBranchId) qs.set('branch_id', activeBranchId);
-      const response = await fetch(`${apiUrl}/reports/overview?${qs}`, { headers: {} });
+      const response = await fetch(`${apiUrl}/reports/overview?${qs}`, { credentials: "include" });
       const body = await response.json();
       if (!reportLoadSequence.current.isCurrent(requestId)) return;
       if (!response.ok) throw new Error(body.message || "Laporan tidak dapat dimuat");
@@ -74,7 +73,7 @@ export default function ReportsPage() {
     const query = new URLSearchParams();
     if (user?.role === 'owner') query.set('branch_id', activeBranchId);
     const search = query.toString();
-    fetch(`${apiUrl}/settings${search ? `?${search}` : ''}`, { headers: {} })
+    fetch(`${apiUrl}/settings${search ? `?${search}` : ''}`, { credentials: "include" })
       .then((response) => response.ok ? response.json() : null)
       .then((body) => {
         if (current) setStoreContext({ branchId: activeBranchId, data: body?.data || null });
@@ -144,18 +143,10 @@ export default function ReportsPage() {
         <>
           <a className="button-link" href="/reports/tax">Laporan Pajak</a>
           <a className="button-link" href="/finance">Keuangan</a>
-          <button type="button" onClick={() => openPrintView({ selector: ".app-content", title: "Laporan Penjualan" })}>Cetak / Simpan PDF</button>
+          <button type="button" onClick={() => openPrintView({ selector: ".reports-print-scope", title: "Laporan Anyostore" })}>Cetak / Simpan PDF</button>
         </>
       }
     >
-      <div className="report-brand report-brand-print-only">
-        {logo && String(store?.show_logo) !== "false" && <img src={logo} alt={`Logo ${storeName}`} />}
-        <div>
-          <strong>{storeName}</strong>
-          <span>{store?.store_address || ""}</span>
-        </div>
-        <h1 className="report-title">Laporan Penjualan</h1>
-      </div>
       <section className={`report-filter panel period-filter${filterOpen ? "" : " period-filter-collapsed"}`}>
         <button type="button" className="period-filter-toggle" onClick={toggleFilter} aria-expanded={filterOpen}>
           <span className="period-filter-label">Periode</span>
@@ -198,16 +189,18 @@ export default function ReportsPage() {
       ) : (
         <section className="panel"><p>Memuat laporan…</p></section>
       )) : (
-        <>
-          {/* Ringkasan toko + Penjualan sengaja hanya untuk cetak/PDF. Di layar
-              keduanya sudah menjadi isi Dashboard (komponen & endpoint sama),
-              jadi Laporan dimulai langsung dari "Laporan detail". */}
-          <div className="reports-android-summary reports-summary-print-only">
-            <OlseraDashboardSections reportData={report} fallbackData={null} activeBranchId={activeBranchId} period={period} role={user?.role} />
-          </div>
-          <ReportDetailAccordions report={report} user={user} activeBranchId={activeBranchId} />
-          <ReportClosingPanel date={period.end} branchId={activeBranchId} role={user?.role} />
-        </>
+        <ReportAnalyticsWorkspace
+          report={report}
+          user={user}
+          activeBranchId={activeBranchId}
+          period={period}
+          apiUrl={apiUrl}
+          store={store}
+          storeName={storeName}
+          logo={logo}
+          selectedView={reportView}
+          onSelectedViewChange={setReportView}
+        />
       )}
     </AppShell>
   );

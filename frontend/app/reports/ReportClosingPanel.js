@@ -29,7 +29,7 @@ export default function ReportClosingPanel({ date, branchId, role }) {
     setMessage('');
     setData(null);
     const controller = new AbortController();
-    fetch(`${api}/reports/daily-closing?${query.toString()}`, { cache: 'no-store', signal: controller.signal })
+    fetch(`${api}/reports/daily-closing?${query.toString()}`, { cache: 'no-store', credentials: 'include', signal: controller.signal })
       .then(async (response) => {
         const body = await response.json();
         if (!response.ok) throw new Error(body.message || 'Penutupan tidak dapat dimuat.');
