@@ -2,6 +2,7 @@
 // (cache) dengan jumlah warehouse_stocks (sumber kebenaran). Dipakai saat
 // boot + harian 03.00 WIB supaya selisih tidak menumpuk (lihat AGENTS.md).
 const db = require('./db');
+const { releaseStaleReservations } = require('./stock-reservation');
 
 async function auditStock({ fix = false } = {}) {
   const [products] = await db.execute(
@@ -52,6 +53,24 @@ function startStockAudit() {
   if (started) return;
   started = true;
   const log = (msg) => console.log(`[stock-audit] ${msg}`);
+  // Reservasi pesanan reseller yang ditinggalkan tidak boleh menahan stok
+  // selamanya; ikut dibersihkan pada jadwal yang sama dengan audit stok.
+  const releaseReservations = async () => {
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
+      const released = await releaseStaleReservations(connection);
+      await connection.commit();
+      if (released) log(`reservasi kedaluwarsa dilepas: ${released} baris`);
+      return released;
+    } catch (e) {
+      await connection.rollback().catch(() => {});
+      log(`gagal melepas reservasi: ${e.message}`);
+      return 0;
+    } finally {
+      connection.release();
+    }
+  };
   const run = (fix) =>
     auditStock({ fix })
       .then((r) =>
@@ -59,7 +78,8 @@ function startStockAudit() {
           `produk ${r.products} · varian ${r.variants} · selisih produk ${r.productMismatch} · selisih varian ${r.variantMismatch}${fix ? ' (diperbaiki)' : ''}`
         )
       )
-      .catch((e) => log(`gagal: ${e.message}`));
+      .catch((e) => log(`gagal: ${e.message}`))
+      .then(() => releaseReservations());
   // Sekali saat boot (perbaiki selisih supaya laporan akurat).
   run(true);
   // Harian 03.00 WIB.

@@ -4,6 +4,7 @@ const rateLimit = require('express-rate-limit');
 const db = require('../db');
 const { localDateString } = require('../local-date');
 const { money } = require('../money');
+const { reserveStock } = require('../stock-reservation');
 const {
   currentAccount,
   requireBuyer,
@@ -510,6 +511,15 @@ router.post('/orders', orderLimiter, async (req, res, next) => {
         [order.insertId, line.productId, line.variantId, line.product.name, line.product.sku, line.variantLabel, line.price, line.quantity, line.lineSubtotal],
       );
     }
+
+    // Tahan stok agar pesanan ini tidak bisa direbut pembeli lain. Bila stok
+    // tidak cukup, transaksi dibatalkan seluruhnya (tidak ada pesanan setengah
+    // jadi) dan pembeli menerima 409 berisi produk yang kurang.
+    await reserveStock(connection, {
+      orderId: order.insertId,
+      branchId: branch.id,
+      items: lines.map((line) => ({ product_id: line.productId, quantity: line.quantity })),
+    });
 
     await connection.commit();
     res.status(201).json({

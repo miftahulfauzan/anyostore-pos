@@ -5,6 +5,7 @@ const { authenticate, authorize } = require('../auth');
 const { localDateString } = require('../local-date');
 const { money } = require('../money');
 const { adjustStock } = require('../stock');
+const { releaseOrderReservations } = require('../stock-reservation');
 const { hashPassword } = require('../reseller-auth');
 
 const router = express.Router();
@@ -142,6 +143,8 @@ async function transition(req, id, { from, to, fields = [], params = [] }) {
       `UPDATE reseller_orders SET ${sets.join(', ')} WHERE id = ?`,
       [to, ...params, id],
     );
+    // Pesanan yang ditolak melepas stok yang sempat ditahan.
+    if (to === 'rejected') await releaseOrderReservations(connection, id);
     await connection.commit();
     return order;
   } catch (error) {
@@ -317,6 +320,10 @@ router.post('/orders/:id/convert', authorize('owner', 'manager', 'admin'), async
       ],
     );
 
+    // Reservasi pesanan ini dilepas tepat sebelum stok benar-benar dikurangi:
+    // sesudah ini barang berpindah dari "ditahan" menjadi "terjual".
+    await releaseOrderReservations(connection, id);
+
     for (const item of items) {
       const lineSubtotal = money(Number(item.subtotal));
       const quantity = Number(item.quantity);
@@ -338,6 +345,16 @@ router.post('/orders/:id/convert', authorize('owner', 'manager', 'admin'), async
         ],
       );
       if (item.product_id) {
+        // Reservasi bisa saja sudah dilepas otomatis (TTL) atau barangnya
+        // terjual lewat kanal lain. Convert tidak boleh membuat stok minus,
+        // jadi kecukupan stok dicek ulang tepat sebelum pengurangan.
+        const [stocks] = await connection.execute(
+          'SELECT COALESCE(quantity, 0) AS quantity FROM warehouse_stocks WHERE warehouse_id = ? AND product_id = ? AND variant_id IS NULL FOR UPDATE',
+          [warehouseId, item.product_id]
+        );
+        if (Number(stocks[0]?.quantity || 0) < quantity) {
+          throw httpError(409, `Stok ${item.product_name || item.sku || `#${item.product_id}`} di gudang terpilih tidak cukup (tersisa ${Number(stocks[0]?.quantity || 0)}, butuh ${quantity}).`);
+        }
         await adjustStock(connection, {
           branchId: order.branch_id,
           warehouseId,

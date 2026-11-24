@@ -41,6 +41,13 @@ async function baseExecute(sql, params = []) {
   if (/FROM customers/i.test(compact)) return [[]];
   if (/FROM transactions/i.test(compact)) return [[]];
   if (/FROM warehouses/i.test(compact)) return [[{ id: 3 }]];
+  // Ketersediaan gudang untuk reservasi/convert: saldo nyata di gudang.
+  if (/FROM warehouse_stocks/i.test(compact) && /reserved/i.test(compact)) {
+    return [[
+      { stock_id: 1, warehouse_id: 3, quantity: 25, reserved: 0 },
+    ]];
+  }
+  if (/FROM warehouse_stocks/i.test(compact)) return [[{ quantity: 25 }]];
   if (/FROM invoice_sequences/i.test(compact)) return [[{ last_number: 12 }]];
   if (/FROM store_settings/i.test(compact)) return [[{ value: 'INV' }]];
   if (/^INSERT INTO transactions/i.test(compact)) return [{ insertId: 900 }];
@@ -265,6 +272,75 @@ test('konversi ditolak sebelum pesanan ditandai dibayar', async () => {
   assert.equal(error?.status, 409);
 });
 
+test('checkout menolak pesanan melebihi stok yang tersedia (tidak oversell)', async () => {
+  reset();
+  // Stok tercatat 25 tetapi seluruhnya sudah ditahan pesanan lain.
+  connection.execute = async (sql, params = []) => {
+    const compact = sql.replace(/\s+/g, ' ').trim();
+    if (/FROM warehouse_stocks/i.test(compact)) {
+      return [[{ stock_id: 1, warehouse_id: 3, quantity: 25, reserved: 25 }]];
+    }
+    return baseExecute(sql, params);
+  };
+
+  const res = fakeRes();
+  let error;
+  try {
+    await handlerFor(resellerRouter, '/orders', 'post')(
+      { body: { ...buyerBody, branch_id: 3 }, cookies: {} },
+      res,
+      (cause) => { error = cause; },
+    );
+  } finally {
+    reset();
+  }
+
+  assert.ok(error, 'pesanan harus ditolak, bukan dibuat');
+  assert.equal(error.status, 409);
+  assert.equal(error.code, 'STOCK_UNAVAILABLE');
+  assert.match(error.message, /tidak cukup/);
+  assert.equal(res.statusCode, 200, 'respons 201 sukses tidak boleh terkirim');
+});
+
+test('checkout berhasil menahan stok miliknya sendiri', async () => {
+  reset();
+  const reserveCalls = [];
+  connection.execute = async (sql, params = []) => {
+    const compact = sql.replace(/\s+/g, ' ').trim();
+    if (/FROM warehouse_stocks/i.test(compact) && /AS stock_id/i.test(compact)) {
+      return [[{ stock_id: 1, warehouse_id: 3, quantity: 25, reserved: 0 }]];
+    }
+    if (/^INSERT INTO reseller_stock_reservations/i.test(compact)) {
+      reserveCalls.push(params);
+      return [{ insertId: reserveCalls.length }];
+    }
+    if (/^UPDATE warehouse_stocks SET reserved_quantity = COALESCE/i.test(compact)) {
+      return [{ affectedRows: 1 }];
+    }
+    return baseExecute(sql, params);
+  };
+
+  const res = fakeRes();
+  let error;
+  try {
+    await handlerFor(resellerRouter, '/orders', 'post')(
+      { body: { ...buyerBody, branch_id: 3 }, cookies: {} },
+      res,
+      (cause) => { error = cause; },
+    );
+  } finally {
+    reset();
+  }
+
+  assert.equal(error, undefined);
+  assert.equal(res.statusCode, 201);
+  assert.equal(reserveCalls.length, 1, 'satu alokasi reservasi tercatat');
+  // [order_id, branch_id, warehouse_id, product_id, quantity]
+  assert.equal(reserveCalls[0][1], 3, 'branch_id pesanan');
+  assert.equal(reserveCalls[0][3], 10, 'product_id item');
+  assert.equal(reserveCalls[0][4], 1, 'quantity item');
+});
+
 test('konversi pesanan yang sudah dibayar membuat transaksi dengan ongkir dan memotong stok', async () => {
   reset();
   stockCalls.length = 0;
@@ -282,6 +358,11 @@ test('konversi pesanan yang sudah dibayar membuat transaksi dengan ongkir dan me
       return [[{ id: 1, product_id: 10, variant_id: null, product_name: 'Kaos Denim', sku: 'B3-K10', variant_label: null, price: 95000, quantity: 1, subtotal: 95000 }]];
     }
     if (/FROM warehouses/i.test(compact)) return [[{ id: 3 }]];
+    // Stok gudang terpilih saat convert: harus cukup untuk qty pesanan.
+    if (/FROM warehouse_stocks/i.test(compact) && /reserved/i.test(compact)) {
+      return [[{ stock_id: 1, warehouse_id: 3, quantity: 25, reserved: 0 }]];
+    }
+    if (/FROM warehouse_stocks/i.test(compact)) return [[{ quantity: 25 }]];
     if (/FROM products/i.test(compact)) return [[{ id: 10, cost: 60000 }]];
     if (/FROM invoice_sequences/i.test(compact)) return [[{ last_number: 12 }]];
     if (/FROM store_settings/i.test(compact)) return [[{ value: 'INV' }]];
