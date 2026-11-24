@@ -435,6 +435,55 @@ test('switch akun tersimpan memutar sesi tujuan dan mencabut sesi asal yang tida
   assert.equal((await mobileRefreshResult(rotatedSaved)).res.statusCode, 200);
 });
 
+test('setelah switch, sesi aktif dan akun tersimpan memakai family berbeda', async () => {
+  const source = await login(7, false);
+  const target = await loginRemembered(8, true);
+  const result = await authed(auth.switchAccount, {
+    accessToken: source.accessToken,
+    body: { user_id: 8 },
+    cookies: { [savedCookie(8)]: target.savedToken },
+  });
+  assert.equal(result.res.statusCode, 200);
+  const activeRefresh = cookieValue(result.res, 'pos_refresh');
+  const savedRefresh = savedTokenOf(result.res, 8);
+  assert.ok(activeRefresh && savedRefresh);
+  // Invarian: cookie tersimpan tidak boleh berupa token sesi aktif.
+  assert.notEqual(savedRefresh, activeRefresh, 'token tersimpan harus berbeda dari token aktif');
+  assert.notEqual(jwt.decode(savedRefresh).sid, jwt.decode(activeRefresh).sid, 'family harus berbeda');
+
+  // Rotasi sesi aktif tidak boleh membunuh akun tersimpan.
+  const refreshed = await call(auth.refresh, { cookies: { pos_refresh: activeRefresh } });
+  assert.equal(refreshed.res.statusCode, 200);
+  assert.equal(
+    (await mobileRefreshResult(savedRefresh)).res.statusCode, 200,
+    'akun tersimpan harus tetap bisa dipakai setelah sesi aktif dirotasi',
+  );
+});
+
+test('setelah switch, "Keluar saja" tetap mempertahankan akun tersimpan', async () => {
+  const source = await login(7, false);
+  const target = await loginRemembered(8, true);
+  const switched = await authed(auth.switchAccount, {
+    accessToken: source.accessToken,
+    body: { user_id: 8 },
+    cookies: { [savedCookie(8)]: target.savedToken },
+  });
+  assert.equal(switched.res.statusCode, 200);
+  const savedRefresh = savedTokenOf(switched.res, 8);
+  const activeRefresh = cookieValue(switched.res, 'pos_refresh');
+  const access = cookieValue(switched.res, 'pos_access');
+  const out = await call(auth.logout, {
+    body: { preserve_saved: true },
+    cookies: { pos_refresh: activeRefresh, [savedCookie(8)]: savedRefresh },
+    headers: { authorization: `Bearer ${access}` },
+  });
+  assert.equal(out.res.statusCode, 200);
+  assert.equal(
+    (await mobileRefreshResult(savedRefresh)).res.statusCode, 200,
+    'akun tersimpan harus selamat dari "Keluar saja"',
+  );
+});
+
 test('switch akun tersimpan mempertahankan akun asal yang diingat', async () => {
   const source = await loginRemembered(7, true);
   const target = await loginRemembered(8, true);

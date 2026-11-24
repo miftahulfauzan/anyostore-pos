@@ -464,8 +464,13 @@ async function switchAccount(req, res, next) {
     const sourceSaved = await readSavedSession(req, req.user.id);
     if (sourceSaved) res.cookie(savedCookieName(req.user.id), sourceSaved.token, savedCookieOptions());
     else await revokeActiveSession(req);
+    // Family tersimpan untuk akun tujuan harus TERPISAH dari sesi aktif yang
+    // baru dibuat: kalau cookie tersimpan memakai token aktif, satu kali
+    // refresh atau "Keluar saja" akan ikut mematikan akun tersimpan itu.
+    const savedTokens = issueTokens(users[0]);
+    await persistRefreshToken(targetId, savedTokens.refreshToken);
     setAuthCookies(res, nextTokens);
-    res.cookie(savedCookieName(targetId), nextTokens.refreshToken, savedCookieOptions());
+    res.cookie(savedCookieName(targetId), savedTokens.refreshToken, savedCookieOptions());
     return res.json({ success: true, data: { user: safeUser(users[0]) } });
   } catch (error) { return authError(error, res, next); }
 }
