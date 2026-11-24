@@ -372,10 +372,15 @@ async function listAccounts(req, res, next) {
       const saved = await readSavedSession(req, id);
       if (!saved) { clearSavedCookie(res, id); continue; }
       const [rows] = await db.execute(
-        'SELECT id, name, username, email, role, branch_id FROM users WHERE id = ? AND is_active = TRUE LIMIT 1', [id]
+        'SELECT id, name, username, email, role, branch_id, is_active, token_version FROM users WHERE id = ? AND is_active = TRUE LIMIT 1', [id]
       );
-      // Akun yang dinonaktifkan/dihapus tidak boleh tetap terdaftar.
-      if (!rows[0]) { clearSavedCookie(res, id); continue; }
+      // Akun yang dinonaktifkan/dihapus atau token-nya sudah kedaluwarsa karena
+      // perubahan kredensial (token_version naik) tidak boleh tetap terdaftar.
+      if (!rows[0] || !versionMatches(saved.payload, rows[0], true)) {
+        clearSavedCookie(res, id);
+        if (rows[0]) await revokeSessionFamily(id, saved.row.session_id);
+        continue;
+      }
       if (id === req.user.id) activeSaved = true;
       accounts.push(safeUser(rows[0]));
     }
@@ -426,11 +431,17 @@ async function switchAccount(req, res, next) {
       });
     }
     const [users] = await db.execute(
-      'SELECT id, name, username, email, role, branch_id FROM users WHERE id = ? AND is_active = TRUE LIMIT 1', [targetId]
+      'SELECT id, name, username, email, role, branch_id, is_active, token_version FROM users WHERE id = ? AND is_active = TRUE LIMIT 1', [targetId]
     );
-    if (!users[0]) {
+    // versionMatches menolak akun yang token_version-nya bergeser (reset
+    // password/role): token tersimpan lama tidak boleh menghasilkan sesi baru.
+    if (!users[0] || !versionMatches(saved.payload, users[0], true)) {
       clearSavedCookie(res, targetId);
-      return res.status(404).json({ success: false, message: 'Akun tidak aktif. Pilih akun lain atau masuk ulang.' });
+      if (saved.row) await revokeSessionFamily(targetId, saved.row.session_id);
+      return res.status(404).json({
+        success: false,
+        message: 'Akun tersimpan sudah tidak berlaku (kredensial berubah). Masuk ulang dengan password baru.',
+      });
     }
     // putaran rotasi keluarga akun tujuan (token lama langsung hangus)
     const nextTokens = await inAuthTransaction(async (connection) => {

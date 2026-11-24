@@ -465,6 +465,37 @@ test('switch menolak cookie tersimpan yang dicabut', async () => {
   assert.ok(result.res.cookies.some(c => c.name === savedCookie(8) && c.clear));
 });
 
+test('switch menolak akun tersimpan yang token_version-nya berubah (reset password)', async () => {
+  const source = await login(7, false);
+  const target = await loginRemembered(8, true);
+  // Reset password / ubah role menaikkan token_version: token lama tidak boleh
+  // dipakai lagi, termasuk untuk berpindah akun.
+  db.state.users.get(8).token_version += 1;
+  const result = await authed(auth.switchAccount, {
+    accessToken: source.accessToken,
+    body: { user_id: 8 },
+    cookies: { [savedCookie(8)]: target.savedToken },
+  });
+  assert.ok([401, 404].includes(result.res.statusCode), `harus ditolak, dapat ${result.res.statusCode}`);
+  assert.equal(result.res.body.data, undefined);
+  assert.ok(result.res.cookies.some(c => c.name === savedCookie(8) && c.clear), 'cookie basi harus dibersihkan');
+});
+
+test('daftar akun membuang akun tersimpan yang token_version-nya berubah', async () => {
+  // Aktif sebagai user 7; akun tersimpan user 8 kredensialnya berubah.
+  const active = await loginRemembered(7, true);
+  const other = await loginRemembered(8, true);
+  db.state.users.get(8).token_version += 1;
+  const result = await authed(auth.listAccounts, {
+    accessToken: active.accessToken,
+    cookies: { [savedCookie(7)]: active.savedToken, [savedCookie(8)]: other.savedToken },
+  });
+  assert.equal(result.res.statusCode, 200);
+  const ids = result.res.body.data.accounts.map(a => a.id);
+  assert.deepEqual(ids, [7], 'hanya akun yang token-nya masih sah yang terdaftar');
+  assert.ok(result.res.cookies.some(c => c.name === savedCookie(8) && c.clear), 'cookie basi dibersihkan');
+});
+
 test('switch menolak akun tersimpan yang dinonaktifkan', async () => {
   const source = await login(7, false);
   const target = await loginRemembered(8, true);
