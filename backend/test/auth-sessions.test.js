@@ -484,6 +484,41 @@ test('setelah switch, "Keluar saja" tetap mempertahankan akun tersimpan', async 
   );
 });
 
+test('switch ke akun yang sama bersifat idempoten dan tidak merusak sesi', async () => {
+  const session = await loginRemembered(7, true);
+  const result = await authed(auth.switchAccount, {
+    accessToken: session.accessToken,
+    body: { user_id: 7 },
+    cookies: { [savedCookie(7)]: session.savedToken },
+  });
+  assert.equal(result.res.statusCode, 200);
+  assert.equal(result.res.body.data.user.id, 7);
+  assert.equal((await access(session.accessToken)).res.nextCalled, true, 'sesi aktif tetap sah');
+  assert.equal((await mobileRefreshResult(session.savedToken)).res.statusCode, 200, 'akun tersimpan tetap sah');
+});
+
+test('switch bersamaan menghasilkan tepat satu sesi sah untuk akun tujuan', async () => {
+  const source = await login(7, false);
+  const target = await loginRemembered(8, true);
+  const results = await Promise.all([1, 2].map(() => authed(auth.switchAccount, {
+    accessToken: source.accessToken,
+    body: { user_id: 8 },
+    cookies: { [savedCookie(8)]: target.savedToken },
+  })));
+  // Satu berhasil memutar token; yang lain melihat token sudah hangus (404).
+  const codes = results.map(r => r.res.statusCode).sort();
+  assert.deepEqual(codes, [200, 404], `dapat ${codes}`);
+  const winner = results.find(r => r.res.statusCode === 200);
+  const savedTokens = [target.savedToken];
+  const rotated = savedTokenOf(winner.res, 8);
+  if (rotated) savedTokens.push(rotated);
+  const alive = [];
+  for (const token of new Set(savedTokens)) {
+    if ((await mobileRefreshResult(token)).res.statusCode === 200) alive.push(token);
+  }
+  assert.equal(alive.length, 1, 'tepat satu token tersimpan yang masih sah');
+});
+
 test('switch akun tersimpan mempertahankan akun asal yang diingat', async () => {
   const source = await loginRemembered(7, true);
   const target = await loginRemembered(8, true);
@@ -512,6 +547,30 @@ test('switch menolak cookie tersimpan yang dicabut', async () => {
   assert.ok([401, 404].includes(result.res.statusCode));
   assert.equal(result.res.body.data, undefined);
   assert.ok(result.res.cookies.some(c => c.name === savedCookie(8) && c.clear));
+});
+
+test('remember akun dengan token_version > 0 menerbitkan token versi yang benar', async () => {
+  // Token_version naik setiap reset password/role. Token tersimpan yang
+  // bercap versi 0 akan langsung ditolak saat dipakai berpindah.
+  const user = db.state.users.get(7);
+  user.token_version = 1;
+  const { res } = await call(auth.loginWithPassword, {
+    body: { email: 'user7@test.local', password, remember_account: false }, query: {},
+  });
+  assert.equal(res.statusCode, 200);
+  const accessToken = cookieValue(res, 'pos_access');
+  const remembered = await authed(auth.rememberAccount, { accessToken });
+  assert.equal(remembered.res.statusCode, 200);
+  assert.equal(remembered.res.body.data.account_saved, true);
+
+  const saved = savedTokenOf(remembered.res, 7);
+  assert.ok(saved);
+  assert.equal(jwt.decode(saved).token_version, 1, 'token tersimpan harus memakai token_version user saat ini');
+  // Dan benar-benar bisa dipakai berpindah.
+  const switched = await authed(auth.switchAccount, {
+    accessToken, body: { user_id: 7 }, cookies: { [savedCookie(7)]: saved },
+  });
+  assert.equal(switched.res.statusCode, 200);
 });
 
 test('switch menolak akun tersimpan yang token_version-nya berubah (reset password)', async () => {

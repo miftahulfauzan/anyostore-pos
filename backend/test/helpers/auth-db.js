@@ -16,7 +16,24 @@ function createAuthDb() {
       else if (/username\s*=\s*\?/.test(sql)) users = users.filter(u => u.username === params[0] && u.id !== Number(params[1]));
       else users = users.filter(u => u.id === Number(params[0]));
       if (sql.includes('is_active = TRUE')) users = users.filter(u => u.is_active);
-      return rows(users);
+      // Hormati daftar kolom seperti MySQL: mengembalikan seluruh kolom membuat
+      // query yang lupa SELECT token_version tetap terlihat benar padahal di
+      // produksi nilainya undefined (bug token_version=0).
+      const projection = sql.match(/SELECT (.+?) FROM users WHERE/)?.[1];
+      if (!projection || projection.trim() === '*') return rows(users);
+      const aliases = new Map();
+      const requested = projection.split(',').map((part) => {
+        const match = part.trim().match(/^(\w+)(?:\s+AS\s+(\w+))?$/i);
+        return match ? { source: match[1], as: match[2] || match[1] } : null;
+      }).filter(Boolean);
+      for (const item of requested) aliases.set(item.as, item.source);
+      return rows(users.map((user) => {
+        const row = {};
+        for (const [as, source] of aliases) {
+          if (source in user) row[as] = user[source];
+        }
+        return row;
+      }));
     }
     if (sql.startsWith('SELECT') && sql.includes('FROM refresh_tokens') && !sql.includes('AS cnt')) {
       let tokens = state.tokens;

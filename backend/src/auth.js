@@ -391,8 +391,11 @@ async function listAccounts(req, res, next) {
 // POST /api/auth/accounts/remember — ingat akun yang sedang aktif.
 async function rememberAccount(req, res, next) {
   try {
+    // token_version WAJIB ikut: token tersimpan diterbitkan dari baris ini, dan
+    // nilai yang hilang akan dianggap 0 sehingga token-nya langsung ditolak
+    // untuk akun yang pernah reset password / ganti role.
     const [rows] = await db.execute(
-      'SELECT id, name, username, email, role, branch_id FROM users WHERE id = ? AND is_active = TRUE LIMIT 1', [req.user.id]
+      'SELECT id, name, username, email, role, branch_id, token_version FROM users WHERE id = ? AND is_active = TRUE LIMIT 1', [req.user.id]
     );
     if (!rows[0]) return unauthorized(res);
     const saved = await ensureSavedAccount(req, res, rows[0]);
