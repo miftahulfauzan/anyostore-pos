@@ -85,7 +85,8 @@ class MorePage extends StatelessWidget {
     );
   }
 
-  Widget _group(BuildContext context, String title, List<Widget> rows) {    return _MoreMenuGroup(
+  Widget _group(BuildContext context, String title, List<Widget> rows) {
+    return _MoreMenuGroup(
       key: ValueKey('more-menu-$title'),
       title: _groupTitle(title),
       icon: _groupIcon(title),
@@ -585,8 +586,14 @@ class MorePage extends StatelessWidget {
               ],
               if (permissions.finance) ...[
                 _divider(context),
-                _row(context, Icons.payments, 'Laci Kas', kTaskSand, kTaskDark,
-                    () => _open(context, 'Laci Kas', CashDrawerPage(api: api))),
+                _row(
+                    context,
+                    Icons.payments,
+                    'Laci Kas',
+                    kTaskSand,
+                    kTaskDark,
+                    () => _open(context, 'Laci Kas',
+                        CashDrawerPage(api: api, isOwner: isOwner))),
               ],
             ]),
           if (permissions.manageUsers ||

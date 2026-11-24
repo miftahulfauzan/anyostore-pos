@@ -177,7 +177,13 @@ class _DashboardPageState extends State<DashboardPage> {
 
   String get _activeLabel {
     final (start, end) = _rangeDates;
-    return start == end ? start : '$start s/d $end';
+    if (start == end) return formatWibDate(start);
+    final from = DateTime.parse(start);
+    final to = DateTime.parse(end);
+    if (from.year == to.year && from.month == to.month) {
+      return '${from.day}–${to.day} ${_months[to.month - 1]} ${to.year}';
+    }
+    return '${formatWibDate(start)}–${formatWibDate(end)}';
   }
 
   Future<void> _load() async {
@@ -389,29 +395,18 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (_isOwner) _buildOwnerBranchSelector(),
-          if (_isOwner) const SizedBox(height: 10),
-          const SizedBox(height: 10),
+          if (_isOwner) ...[
+            _buildOwnerBranchSelector(),
+            const SizedBox(height: 10),
+          ],
           Row(
             children: [
-              Expanded(
-                child: _buildPeriodSelector(context),
-              ),
+              Expanded(child: _buildPeriodSelector(context)),
               const SizedBox(width: 8),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: taskSurface(context),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: taskBorder(context)),
-                ),
-                child: IconButton(
-                  key: const ValueKey('dashboard-filter-button'),
-                  onPressed: _openFilterSheet,
-                  icon: const Icon(Icons.tune_outlined),
-                  tooltip: 'Buka filter',
-                  color: ink(context),
-                ),
-              ),
+              // Refresh manual: desain header ringkas menghapus baris tombol
+              // lama, tapi halaman lain (Laporan, Dashboard penjualan) tetap
+              // menyediakan "Muat ulang". Tanpa ini dasbor gudang tidak punya
+              // cara memuat ulang data selain keluar-masuk halaman.
               IconButton(
                 onPressed: _load,
                 icon: const Icon(Icons.refresh),
@@ -419,14 +414,8 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text('Periode: $_presetLabel · $_activeLabel',
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: taskMuted(context))),
           if (_branchError != null) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(child: Text(_branchError!)),
@@ -578,154 +567,6 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Future<void> _openFilterSheet() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
-      builder: (_) => _DashboardFilterSheet(
-        isOwner: _isOwner,
-        initialBranchMode: _branchMode,
-        branches: _branches,
-        branchError: _branchError,
-        onRetryBranches: _loadBranches,
-        onApply: (branchMode) {
-          final selectedBranch = branchMode == 'all'
-              ? null
-              : branchMode == 'own'
-                  ? context.read<AuthStore>().branchId
-                  : int.tryParse(branchMode.replaceFirst('branch-', ''));
-          unawaited(BranchScope.request(context, selectedBranch));
-        },
-      ),
-    );
-  }
-}
-
-typedef _DashboardFilterApply = void Function(String branchMode);
-
-class _DashboardFilterSheet extends StatefulWidget {
-  const _DashboardFilterSheet({
-    required this.isOwner,
-    required this.initialBranchMode,
-    required this.branches,
-    required this.branchError,
-    required this.onRetryBranches,
-    required this.onApply,
-  });
-
-  final bool isOwner;
-  final String initialBranchMode;
-  final List<Map<String, dynamic>> branches;
-  final String? branchError;
-  final Future<void> Function() onRetryBranches;
-  final _DashboardFilterApply onApply;
-
-  @override
-  State<_DashboardFilterSheet> createState() => _DashboardFilterSheetState();
-}
-
-class _DashboardFilterSheetState extends State<_DashboardFilterSheet> {
-  late String _branchMode;
-
-  @override
-  void initState() {
-    super.initState();
-    _branchMode = widget.initialBranchMode;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-            16, 4, 16, MediaQuery.viewInsetsOf(context).bottom + 16),
-        child: ConstrainedBox(
-          constraints:
-              BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * .9),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text('Filter dashboard',
-                          style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: ink(context))),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
-                      tooltip: 'Tutup',
-                    ),
-                  ],
-                ),
-                if (widget.isOwner) ...[
-                  const SizedBox(height: 12),
-                  AppSelectField<String>(
-                    value: _branchMode,
-                    decoration: const InputDecoration(
-                      labelText: 'Toko / Gudang',
-                      prefixIcon: Icon(Icons.store_outlined),
-                    ),
-                    items: [
-                      const DropdownMenuItem(
-                          value: 'own', child: Text('Toko saya (default)')),
-                      const DropdownMenuItem(
-                          value: 'all', child: Text('Semua toko/gudang')),
-                      for (final branch in widget.branches)
-                        DropdownMenuItem(
-                          value: 'branch-${branch['id']}',
-                          child: Text(branch['name']?.toString() ?? ''),
-                        ),
-                    ],
-                    onChanged: (value) =>
-                        setState(() => _branchMode = value ?? 'own'),
-                  ),
-                  if (widget.branchError != null)
-                    Row(
-                      children: [
-                        Expanded(child: Text(widget.branchError!)),
-                        TextButton(
-                          onPressed: widget.onRetryBranches,
-                          child: const Text('Muat ulang'),
-                        ),
-                      ],
-                    ),
-                ],
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => setState(() => _branchMode = 'own'),
-                        child: const Text('Reset'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      flex: 2,
-                      child: FilledButton(
-                        onPressed: () {
-                          widget.onApply(_branchMode);
-                          Navigator.pop(context);
-                        },
-                        child: const Text('Terapkan Filter'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _DashboardLoading extends StatelessWidget {

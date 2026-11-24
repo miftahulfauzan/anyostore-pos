@@ -207,9 +207,11 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.text('Kemarin'));
         await tester.pumpAndSettle();
-        await tester.tap(find.byTooltip('Buka filter'));
-        await tester.pumpAndSettle();
-        expect(find.text('Toko / Gudang'), findsOneWidget);
+        // Dasbor stok memakai pemilih Toko/Gudang inline di header; sheet
+        // "Buka filter" sudah tidak ada.
+        expect(find.byKey(const ValueKey('dashboard-branch-selector')),
+            findsOneWidget);
+        expect(find.byTooltip('Buka filter'), findsNothing);
         expect(tester.takeException(), isNull);
       });
 

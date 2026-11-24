@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
@@ -196,6 +197,16 @@ class _StockSection extends StatefulWidget {
 
 class _StockSectionState extends State<_StockSection> {
   final _search = TextEditingController();
+  final _searchFocus = FocusNode();
+  bool _searchFocused = false;
+
+  /// Lebar minimum kolom cari (ikon + teks) yang dijaga di layar sempit —
+  /// grup chip menyesuaikan sisanya via FittedBox.
+  static const double _searchMinWidth = 72;
+
+  /// Gap 6 + tombol sort 40 di ujung kanan baris kontrol.
+  static const double _sortBlockWidth = 46;
+
   String _branchMode = 'this'; // this | all
   List<Map<String, dynamic>> _branches = [];
   List<Map<String, dynamic>> _warehouses = [];
@@ -232,9 +243,13 @@ class _StockSectionState extends State<_StockSection> {
   int get _goodStock =>
       _rows.length - _lowStock - _outOfStock;
 
+  bool get _searchExpanded =>
+      _searchFocused || _search.text.trim().isNotEmpty;
+
   @override
   void dispose() {
     _search.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
@@ -265,15 +280,81 @@ class _StockSectionState extends State<_StockSection> {
   }
 
   Widget _searchField() {
-    // Satu gaya field dengan halaman lain (appFieldDecoration: radius 12).
-    return TextField(
-      key: const ValueKey('inventory-stock-search-field'),
-      controller: _search,
-      maxLines: 1,
-      textInputAction: TextInputAction.search,
-      style: TextStyle(fontSize: TaskTypography.label, color: ink(context)),
-      decoration: appFieldDecoration(context, hint: 'Cari produk / SKU'),
-      onSubmitted: (_) => _load(),
+    // Pill 40px digambar sendiri (pola sama dengan _FilterChip dan
+    // _SortMenuButton) supaya tinggi & warna persis senada — TextField-nya
+    // transparan di dalam. Teks memakai tinggi natural sehingga Row yang
+    // menengahkan secara vertikal (decoration collapsed tidak menegangkan
+    // teks ke tinggi kotak). Background tetap natural saat fokus/memanjang;
+    // hanya garis yang berubah ke warna primary.
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final expanded = _searchExpanded;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      // Ketukan di mana pun pada pill memanggil keyboard.
+      onTap: () => _searchFocus.requestFocus(),
+      child: Container(
+        height: 40,
+        decoration: BoxDecoration(
+          color: dark ? kTaskDarkSurface : kTaskSurface,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: _searchFocused
+                ? Theme.of(context).colorScheme.primary
+                : (dark ? kTaskDarkBorder : kTaskBorder),
+            width: _searchFocused ? 1.6 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 40,
+              child: Icon(Icons.search_rounded,
+                  size: 18, color: taskMuted(context)),
+            ),
+            Expanded(
+              child: TextField(
+                key: const ValueKey('inventory-stock-search-field'),
+                controller: _search,
+                focusNode: _searchFocus,
+                maxLines: 1,
+                textInputAction: TextInputAction.search,
+                style: TextStyle(
+                    fontSize: TaskTypography.label, color: ink(context)),
+                textAlignVertical: TextAlignVertical.center,
+                decoration: InputDecoration(
+                  isCollapsed: true,
+                  filled: false,
+                  contentPadding: EdgeInsets.zero,
+                  hintText: expanded ? 'Cari produk / SKU' : 'Cari',
+                  hintStyle: TextStyle(
+                      fontSize: 12,
+                      color: taskMuted(context).withValues(alpha: .72)),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                ),
+                onChanged: (_) => setState(() {}),
+                onSubmitted: (_) => _load(),
+              ),
+            ),
+            if (expanded)
+              InkWell(
+                key: const ValueKey('inventory-search-clear'),
+                borderRadius: BorderRadius.circular(999),
+                onTap: _clearSearch,
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Icon(Icons.close_rounded,
+                      size: 18, color: taskMuted(context)),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -368,8 +449,20 @@ class _StockSectionState extends State<_StockSection> {
     if (widget.isOwner) {
       _branchId = BranchScope.active.value ?? widget.branchId;
     }
+    // Kolom cari yang fokus memanjang menutupi chip filter & sort.
+    _searchFocus.addListener(() {
+      if (mounted) setState(() => _searchFocused = _searchFocus.hasFocus);
+    });
     _loadBranches();
     _initializeStockScope();
+  }
+
+  /// Bersihkan kata kunci lalu kembalikan baris ke keadaan normal.
+  void _clearSearch() {
+    final hadQuery = _search.text.trim().isNotEmpty;
+    _search.clear();
+    _searchFocus.unfocus();
+    if (hadQuery) _load();
   }
 
   Future<void> _initializeStockScope() async {
@@ -635,81 +728,72 @@ class _StockSectionState extends State<_StockSection> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-          child: Row(
-            children: [
-              if (canManageStockMutations(widget.role)) ...[
-                Expanded(
-                  child: _StockActionChip(
-                      label: 'Masuk',
-                      icon: Icons.move_to_inbox_outlined,
-                      color: const Color(0xff2E7E4F),
-                      onTap: () => _openTool('incoming')),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _StockActionChip(
-                      label: 'Keluar',
-                      icon: Icons.outbox_outlined,
-                      color: const Color(0xffC2410C),
-                      onTap: () => _openTool('outgoing')),
-                ),
-                const SizedBox(width: 8),
-              ],
-              Expanded(
-                child: _StockActionChip(
-                    label: 'Transfer',
-                    icon: Icons.swap_horiz,
-                    color: kTaskDark,
-                    onTap: () => _openTool('transfer')),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _StockActionChip(
-                    label: 'Opname',
-                    icon: Icons.fact_check_outlined,
-                    color: kTaskDark,
-                    onTap: () => _openTool('opname')),
-              ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-          // Wrap mengikuti pola pill repo: tidak meluber di layar sempit.
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              _FilterChip(
-                  label: 'Semua · $_totalProducts',
-                  active: _filter == _StockFilter.semua,
-                  onTap: () =>
-                      setState(() => _filter = _StockFilter.semua)),
-              _FilterChip(
-                  label: 'Menipis · $_lowStock',
-                  active: _filter == _StockFilter.menipis,
-                  onTap: () =>
-                      setState(() => _filter = _StockFilter.menipis)),
-              _FilterChip(
-                  label: 'Habis · $_outOfStock',
-                  active: _filter == _StockFilter.habis,
-                  onTap: () => setState(() => _filter = _StockFilter.habis)),
-            ],
-          ),
-        ),
-        Padding(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-          child: Row(
-            children: [
-              Expanded(child: _searchField()),
-              const SizedBox(width: 6),
-              _SortMenuButton(
-                sort: _sort,
-                onChanged: (v) => setState(() => _sort = v),
-              ),
-            ],
-          ),
+          // Satu baris seragam 40px: chip filter + kolom cari + sort (urutan
+          // mockup). Chip & sort mengambil lebar natural — bukan share flex —
+          // supaya ukurannya tidak disusutkan dan kolom cari tidak melar
+          // berlebihan. Saat kolom cari fokus, chip & sort menyusut tertutup
+          // lewat AnimatedSize dan kolom cari memanjang penuh (hanya lebar
+          // yang bergerak — warna field tetap natural). Di layar sempit grup
+          // chip menyusut proporsional via FittedBox dengan batas sisa lebar
+          // minimum kolom cari, jadi baris tetap satu tanpa overflow.
+          child: LayoutBuilder(builder: (context, constraints) {
+            final chipsMax = math.max(0.0, constraints.maxWidth - _searchMinWidth - _sortBlockWidth);
+            return Row(
+              children: [
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.centerLeft,
+                  child: _searchExpanded
+                      ? const SizedBox(width: 0, height: 40)
+                      : ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: chipsMax),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _FilterChip(
+                                    label: 'Semua',
+                                    active: _filter == _StockFilter.semua,
+                                    onTap: () => setState(
+                                        () => _filter = _StockFilter.semua)),
+                                const SizedBox(width: 6),
+                                _FilterChip(
+                                    label: 'Menipis',
+                                    active: _filter == _StockFilter.menipis,
+                                    onTap: () => setState(
+                                        () => _filter = _StockFilter.menipis)),
+                                const SizedBox(width: 6),
+                                _FilterChip(
+                                    label: 'Habis',
+                                    active: _filter == _StockFilter.habis,
+                                    onTap: () => setState(
+                                        () => _filter = _StockFilter.habis)),
+                              ],
+                            ),
+                          ),
+                        ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(child: _searchField()),
+                const SizedBox(width: 6),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.centerRight,
+                  child: _searchExpanded
+                      ? const SizedBox(width: 0, height: 40)
+                      : _SortMenuButton(
+                          sort: _sort,
+                          onChanged: (v) => setState(() => _sort = v),
+                        ),
+                ),
+              ],
+            );
+          }),
         ),
         Expanded(
           child: _loading
@@ -1131,56 +1215,9 @@ class _HeroToolMenu extends StatelessWidget {
   }
 }
 
-/// Chip aksi gudang 48px: Masuk/Keluar/Transfer/Opname.
-class _StockActionChip extends StatelessWidget {
-  const _StockActionChip({
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return Material(
-      color: dark ? kTaskDarkSurface : kTaskSurface,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Container(
-          height: 48,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: dark ? kTaskDarkBorder : kTaskBorder),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 17, color: color),
-              const SizedBox(height: 2),
-              Text(label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: TaskTypography.micro,
-                      fontWeight: FontWeight.w800,
-                      color: color)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// Chip pill filter status: aktif denim solid, nonaktif permukaan netral.
+/// Tinggi tetap 40px supaya setara dengan kolom cari & tombol sort dalam
+/// satu baris.
 class _FilterChip extends StatelessWidget {
   const _FilterChip({
     required this.label,
@@ -1204,7 +1241,9 @@ class _FilterChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
@@ -3704,38 +3743,35 @@ class _SortMenuButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    return PopupMenuButton<String>(
-      key: const ValueKey('inventory-sort-button'),
-      tooltip: 'Urutkan stok',
-      padding: EdgeInsets.zero,
-      offset: const Offset(0, 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      onSelected: onChanged,
-      itemBuilder: (context) => [
-        for (final item in _items)
-          PopupMenuItem<String>(
-            value: item.value,
-            child: Row(
-              children: [
-                const Icon(Icons.sort, size: 18),
-                const SizedBox(width: 10),
-                Expanded(child: Text(item.label)),
-                if (item.value == sort)
-                  Icon(Icons.check,
-                      size: 18, color: Theme.of(context).colorScheme.primary),
-              ],
+    return Tooltip(
+      message: 'Urutkan stok',
+      child: SizedBox(
+        width: 40,
+        height: 40,
+        child: AppSelectField<String>(
+          key: const ValueKey('inventory-sort-button'),
+          value: sort,
+          transparentField: true,
+          showChevron: false,
+          fieldChild: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: dark ? kTaskDarkSurface : kTaskSurface,
+              shape: BoxShape.circle,
+              border: Border.all(color: dark ? kTaskDarkBorder : kTaskBorder),
             ),
+            child: Icon(Icons.sort, size: 20, color: taskMuted(context)),
           ),
-      ],
-      child: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: dark ? kTaskDarkSurface : kTaskSurface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: dark ? kTaskDarkBorder : kTaskBorder),
+          items: [
+            for (final item in _items)
+              DropdownMenuItem<String>(
+                  value: item.value, child: Text(item.label)),
+          ],
+          onChanged: (value) {
+            if (value != null) onChanged(value);
+          },
         ),
-        child: Icon(Icons.sort, size: 20, color: taskMuted(context)),
       ),
     );
   }

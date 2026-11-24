@@ -254,7 +254,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('tombol Buka Laci aktif setelah modal awal diketik',
+  testWidgets('tombol Buka kas aktif setelah modal awal diketik',
       (tester) async {
     final api = _CashApi();
     await tester.pumpWidget(MaterialApp(
@@ -265,14 +265,14 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     FilledButton tombol() => tester
-        .widget<FilledButton>(find.widgetWithText(FilledButton, 'Buka Laci'));
+        .widget<FilledButton>(find.widgetWithText(FilledButton, 'Buka kas'));
     expect(tombol().onPressed, isNull);
 
     await tester.enterText(find.byType(TextField).first, '100000');
     await tester.pump();
     expect(tombol().onPressed, isNotNull);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Buka Laci'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Buka kas'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
     expect(api.opened, 100000);
@@ -288,7 +288,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 150));
 
-    expect(find.text('TERBUKA'), findsOneWidget);
+    expect(find.text('Kas terbuka'), findsOneWidget);
     expect(find.text('Rp250.000'), findsOneWidget);
     expect(find.text('Tambahan modal'), findsOneWidget);
     expect(find.text('Beli plastik'), findsOneWidget);
@@ -296,7 +296,9 @@ void main() {
     expect(find.text('-Rp20.000'), findsOneWidget);
     await tester.drag(find.byType(ListView), const Offset(0, -900));
     await tester.pump();
-    expect(find.text('Tutup Laci Kas'), findsOneWidget);
+    // Judul kartu "Tutup kas" dan tombolnya sama-sama berlabel demikian,
+    // jadi cari tombolnya secara eksplisit.
+    expect(find.widgetWithText(FilledButton, 'Tutup kas'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

@@ -220,6 +220,7 @@ class AppSelectField<T> extends StatefulWidget {
     this.itemBuilder,
     this.darkMenu = false,
     this.transparentField = false,
+    this.showChevron = true,
     this.maxMenuHeight = 340,
     this.style,
     this.labelBuilder,
@@ -234,6 +235,7 @@ class AppSelectField<T> extends StatefulWidget {
   final Widget Function(BuildContext, DropdownMenuItem<T>, bool)? itemBuilder;
   final bool darkMenu;
   final bool transparentField;
+  final bool showChevron;
   final double maxMenuHeight;
   final TextStyle? style;
   final String Function(DropdownMenuItem<T>)? labelBuilder;
@@ -336,12 +338,14 @@ class _AppSelectFieldState<T> extends State<AppSelectField<T>> {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (base?.suffixIcon != null) base!.suffixIcon!,
-          Icon(Icons.keyboard_arrow_down_rounded,
-              size: 20,
-              color: disabled
-                  ? taskMuted(context).withValues(alpha: .5)
-                  : taskMuted(context)),
-          const SizedBox(width: 6),
+          if (widget.showChevron) ...[
+            Icon(Icons.keyboard_arrow_down_rounded,
+                size: 20,
+                color: disabled
+                    ? taskMuted(context).withValues(alpha: .5)
+                    : taskMuted(context)),
+            const SizedBox(width: 6),
+          ],
         ],
       ),
       suffixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
@@ -370,11 +374,12 @@ class _AppSelectFieldState<T> extends State<AppSelectField<T>> {
       field = Row(
         children: [
           Expanded(child: widget.fieldChild ?? field),
-          Icon(Icons.keyboard_arrow_down_rounded,
-              size: 20,
-              color: disabled
-                  ? taskMuted(context).withValues(alpha: .5)
-                  : taskMuted(context)),
+          if (widget.showChevron)
+            Icon(Icons.keyboard_arrow_down_rounded,
+                size: 20,
+                color: disabled
+                    ? taskMuted(context).withValues(alpha: .5)
+                    : taskMuted(context)),
         ],
       );
     }

@@ -9,8 +9,14 @@ import 'task_ui.dart';
 import 'ui_kit.dart';
 
 class CashDrawerPage extends StatefulWidget {
-  const CashDrawerPage({super.key, required this.api});
+  const CashDrawerPage({
+    super.key,
+    required this.api,
+    this.isOwner = false,
+  });
+
   final ApiClient api;
+  final bool isOwner;
 
   @override
   State<CashDrawerPage> createState() => _CashDrawerPageState();
@@ -31,6 +37,11 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
   final _closeNotes = TextEditingController();
   bool _saving = false;
 
+  bool get _needsBranchSelection =>
+      widget.isOwner && widget.api.activeBranchId == null;
+
+  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
+
   @override
   void initState() {
     super.initState();
@@ -48,6 +59,17 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
   }
 
   Future<void> _load() async {
+    if (_needsBranchSelection) {
+      setState(() {
+        _loading = false;
+        _error = null;
+        _drawer = null;
+        _expected = 0;
+        _movements = [];
+      });
+      return;
+    }
+
     setState(() {
       _loading = true;
       _error = null;
@@ -70,17 +92,18 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
     }
   }
 
-  Future<void> _run(Future<Map<String, dynamic>> Function() action) async {
+  Future<void> _run(
+    Future<Map<String, dynamic>> Function() action, {
+    required String successMessage,
+    required VoidCallback onSaved,
+  }) async {
     setState(() => _saving = true);
     try {
       await action();
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Berhasil disimpan')));
-      _moveAmount.clear();
-      _moveReason.clear();
-      _closeAmount.clear();
-      _closeNotes.clear();
+          .showSnackBar(SnackBar(content: Text(successMessage)));
+      onSaved();
       await _load();
     } on ApiException catch (e) {
       if (mounted) {
@@ -92,223 +115,205 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
     }
   }
 
-  double _num(TextEditingController c) =>
-      double.tryParse(c.text.replaceAll('.', '')) ?? 0;
-
-  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
+  double _num(TextEditingController controller) =>
+      double.tryParse(controller.text.replaceAll('.', '')) ?? 0;
 
   String _timeLabel(Object? raw) {
     final date = DateTime.tryParse((raw ?? '').toString());
     if (date == null) return '';
     final wib = date.toUtc().add(const Duration(hours: 7));
-    return '${wib.hour.toString().padLeft(2, '0')}:'
-        '${wib.minute.toString().padLeft(2, '0')}';
+    return '${wib.hour.toString().padLeft(2, '0')}:${wib.minute.toString().padLeft(2, '0')}';
   }
 
-  double get _cashIn => _movements
-      .where((row) => row['type'] == 'cash_in')
-      .fold(0, (sum, row) => sum + asNum(row['amount']));
-
-  double get _cashOut => _movements
-      .where((row) => row['type'] == 'cash_out')
-      .fold(0, (sum, row) => sum + asNum(row['amount']));
-
-  Widget _hero({required bool open}) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(15, 14, 15, 15),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1E3A5F), Color(0xFF2B5688)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-              color: Color(0x261E3A5F), blurRadius: 16, offset: Offset(0, 6)),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: const Color(0x24FFFFFF),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.point_of_sale_outlined,
-                    size: 18, color: Colors.white),
-              ),
-              const SizedBox(width: 9),
-              const Expanded(
-                child: Text('LACI KAS',
-                    style: TextStyle(
-                        fontSize: TaskTypography.micro,
-                        letterSpacing: 1,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xB8FFFFFF))),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color:
-                      open ? const Color(0x3316A34A) : const Color(0x24FFFFFF),
-                  borderRadius: BorderRadius.circular(99),
-                ),
-                child: Text(open ? 'TERBUKA' : 'BELUM DIBUKA',
-                    style: TextStyle(
-                        fontSize: TaskTypography.micro,
-                        fontWeight: FontWeight.w800,
-                        color: open
-                            ? const Color(0xFF86EFAC)
-                            : const Color(0xE6FFFFFF))),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(open ? fmtRp(_expected) : 'Belum dibuka',
-              style: TextStyle(
-                  fontSize: open ? 25 : 18,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -.3,
-                  color: Colors.white)),
-          const SizedBox(height: 3),
-          Text(
-              open
-                  ? 'Kas yang diharapkan · modal ${fmtRp(asNum(_drawer?['opening_amount']))}'
-                  : 'Buka laci untuk mulai mencatat kas masuk/keluar.',
-              style: const TextStyle(
-                  fontSize: TaskTypography.micro,
-                  height: 1.4,
-                  color: Color(0xC7FFFFFF))),
-        ],
-      ),
-    );
-  }
-
-  Widget _statTile(String label, String value, Color color) => Container(
-        padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
+  Widget _cashFigure(String label, String value) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
         decoration: BoxDecoration(
-          color: taskSurface(context),
+          color: _isDark ? const Color(0xFF182135) : const Color(0xFFF8FAFC),
           border: Border.all(color: taskBorder(context)),
-          borderRadius: BorderRadius.circular(11),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 7,
-                  height: 7,
-                  decoration: BoxDecoration(
-                      color: color, borderRadius: BorderRadius.circular(3)),
-                ),
-                const SizedBox(width: 5),
-                Text(label.toUpperCase(),
-                    style: TextStyle(
-                        fontSize: TaskTypography.micro,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: .5,
-                        color: taskMuted(context))),
-              ],
-            ),
-            const SizedBox(height: 3),
-            Text(value,
+            Text(label,
                 style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: ink(context))),
+                    fontSize: TaskTypography.micro,
+                    fontWeight: FontWeight.w700,
+                    color: taskMuted(context))),
+            const SizedBox(height: 2),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(value,
+                  maxLines: 1,
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                      color: ink(context))),
+            ),
           ],
         ),
       );
 
-  Widget _openCard() {
-    return AppSectionCard(
-      icon: Icons.lock_open_outlined,
-      color: const Color(0xFF0F766E),
-      title: 'Buka Laci Kas',
-      hint: 'Modal awal',
-      children: [
-        AppField(
-          controller: _openAmount,
-          label: 'Modal awal',
-          hint: '0',
-          icon: Icons.payments_outlined,
-          keyboard: TextInputType.number,
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: _saving || _openAmount.text.isEmpty
-                ? null
-                : () =>
-                    _run(() => widget.api.cashDrawerOpen(_num(_openAmount))),
-            icon: const Icon(Icons.lock_open_outlined, size: 18),
-            label: const Text('Buka Laci'),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(0, 44),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(11)),
+  Widget _openCard() => AppSectionCard(
+        icon: Icons.point_of_sale_outlined,
+        color: const Color(0xFF1E3A5F),
+        title: 'Buka kas',
+        children: [
+          Text(
+            'Belum ada laci kas terbuka untuk akun/toko ini. Masukkan modal awal untuk mulai mencatat penjualan tunai.',
+            style: TextStyle(
+                fontSize: TaskTypography.micro,
+                height: 1.45,
+                color: taskMuted(context)),
+          ),
+          const SizedBox(height: 10),
+          AppField(
+            controller: _openAmount,
+            label: 'Modal awal',
+            hint: '0',
+            icon: Icons.payments_outlined,
+            keyboard: TextInputType.number,
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _saving || _openAmount.text.isEmpty
+                  ? null
+                  : () => _run(
+                        () => widget.api.cashDrawerOpen(_num(_openAmount)),
+                        successMessage: 'Kas berhasil dibuka.',
+                        onSaved: _openAmount.clear,
+                      ),
+              icon: const Icon(Icons.lock_open_outlined, size: 18),
+              label: const Text('Buka kas'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 44),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(11)),
+              ),
+            ),
+          ),
+        ],
+      );
+
+  Widget _moveTypeButton({required String type, required String label}) {
+    final selected = _moveType == type;
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => setState(() => _moveType = type),
+          borderRadius: BorderRadius.circular(9),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 38),
+            padding: const EdgeInsets.symmetric(horizontal: 11),
+            decoration: BoxDecoration(
+              color: selected
+                  ? Theme.of(context).colorScheme.primary
+                  : taskSurface(context),
+              border: Border.all(
+                  color: selected
+                      ? Theme.of(context).colorScheme.primary
+                      : taskBorder(context)),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  type == 'cash-in'
+                      ? Icons.arrow_downward_rounded
+                      : Icons.arrow_upward_rounded,
+                  size: 16,
+                  color: selected
+                      ? Theme.of(context).colorScheme.onPrimary
+                      : taskMuted(context),
+                ),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: TaskTypography.micro,
+                          fontWeight: FontWeight.w800,
+                          color: selected
+                              ? Theme.of(context).colorScheme.onPrimary
+                              : taskMuted(context))),
+                ),
+              ],
             ),
           ),
         ),
-        const SizedBox(height: 6),
-        Text('Kas awal dihitung sebagai saldo pembuka laci.',
-            style: TextStyle(
-                fontSize: TaskTypography.micro, color: taskMuted(context))),
-      ],
+      ),
     );
   }
 
-  Widget _movementCard() {
+  Widget _movementRow(Map<String, dynamic> row) {
+    final isIn = row['type'] == 'cash_in';
+    final color = isIn
+        ? (_isDark ? const Color(0xFF86EFAC) : const Color(0xFF137A43))
+        : (_isDark ? const Color(0xFFFDA4AF) : const Color(0xFFBE123C));
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 42,
+            child: Text(_timeLabel(row['created_at']),
+                style: TextStyle(
+                    fontSize: TaskTypography.micro,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                    color: taskMuted(context))),
+          ),
+          Expanded(
+            child: Text(row['reason']?.toString() ?? '-',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: TaskTypography.micro,
+                    fontWeight: FontWeight.w700,
+                    color: ink(context))),
+          ),
+          const SizedBox(width: 8),
+          Text('${isIn ? '+' : '-'}${fmtRp(asNum(row['amount']))}',
+              style: TextStyle(
+                  fontSize: TaskTypography.micro,
+                  fontWeight: FontWeight.w800,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                  color: color)),
+        ],
+      ),
+    );
+  }
+
+  Widget _openDrawerCard() {
+    final openedAt = _timeLabel(_drawer?['opened_at']);
     return AppSectionCard(
-      icon: Icons.swap_vert_rounded,
-      color: const Color(0xFF1D4ED8),
-      title: 'Kas Masuk / Keluar',
-      hint: 'Catatan manual',
+      icon: Icons.point_of_sale_outlined,
+      color: const Color(0xFF1E3A5F),
+      title: 'Kas terbuka',
+      hint: openedAt.isEmpty ? null : 'sejak $openedAt',
       children: [
         Row(
           children: [
-            for (final option in const [
-              ('cash-in', 'Kas masuk'),
-              ('cash-out', 'Kas keluar'),
-            ]) ...[
-              Expanded(
-                child: InkWell(
-                  onTap: () => setState(() => _moveType = option.$1),
-                  borderRadius: BorderRadius.circular(9),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: _moveType == option.$1
-                          ? Theme.of(context).colorScheme.primary
-                          : taskSurface(context),
-                      border: Border.all(
-                          color: _moveType == option.$1
-                              ? Theme.of(context).colorScheme.primary
-                              : taskBorder(context)),
-                      borderRadius: BorderRadius.circular(9),
-                    ),
-                    child: Text(option.$2,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            fontSize: TaskTypography.micro,
-                            fontWeight: FontWeight.w800,
-                            color: _moveType == option.$1
-                                ? Theme.of(context).colorScheme.onPrimary
-                                : taskMuted(context))),
-                  ),
-                ),
-              ),
-              if (option.$1 == 'cash-in') const SizedBox(width: 6),
-            ],
+            Expanded(
+                child: _cashFigure(
+                    'Modal awal', fmtRp(asNum(_drawer?['opening_amount'])))),
+            const SizedBox(width: 8),
+            Expanded(child: _cashFigure('Kas seharusnya', fmtRp(_expected))),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            _moveTypeButton(type: 'cash-in', label: 'Kas masuk'),
+            const SizedBox(width: 6),
+            _moveTypeButton(type: 'cash-out', label: 'Kas keluar'),
           ],
         ),
         const SizedBox(height: 8),
@@ -324,6 +329,9 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
         AppField(
           controller: _moveReason,
           label: 'Alasan',
+          hint: _moveType == 'cash-in'
+              ? 'Setoran / tambah modal'
+              : 'Ambil untuk belanja',
           icon: Icons.edit_note_outlined,
           onChanged: (_) => setState(() {}),
         ),
@@ -331,86 +339,53 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
         SizedBox(
           width: double.infinity,
           child: FilledButton(
-            onPressed: _saving ||
-                    _moveAmount.text.isEmpty ||
-                    _moveReason.text.trim().isEmpty
+            onPressed: _saving
                 ? null
-                : () => _run(() => widget.api.cashDrawerInOut(
-                    _moveType, _num(_moveAmount), _moveReason.text.trim())),
+                : () {
+                    if (_num(_moveAmount) <= 0 ||
+                        _moveReason.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Nominal dan alasan wajib diisi.')),
+                      );
+                      return;
+                    }
+                    _run(
+                      () => widget.api.cashDrawerInOut(_moveType,
+                          _num(_moveAmount), _moveReason.text.trim()),
+                      successMessage: _moveType == 'cash-in'
+                          ? 'Kas masuk dicatat.'
+                          : 'Kas keluar dicatat.',
+                      onSaved: () {
+                        _moveAmount.clear();
+                        _moveReason.clear();
+                      },
+                    );
+                  },
             style: FilledButton.styleFrom(
               minimumSize: const Size(0, 44),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(11)),
             ),
-            child: Text(_moveType == 'cash-in'
-                ? 'Simpan Kas Masuk'
-                : 'Simpan Kas Keluar'),
+            child: const Text('Catat'),
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _historyCard() {
-    return AppSectionCard(
-      icon: Icons.history_rounded,
-      color: const Color(0xFF6D28D9),
-      title: 'Riwayat Mutasi',
-      hint: '${_movements.length} catatan',
-      children: [
-        if (_movements.isEmpty)
-          Text('Belum ada kas masuk/keluar.',
-              style: TextStyle(fontSize: 11, color: taskMuted(context)))
-        else
+        if (_movements.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Divider(height: 1, color: taskBorder(context)),
+          const SizedBox(height: 8),
+          Text('RIWAYAT KAS',
+              style: TextStyle(
+                  fontSize: TaskTypography.micro,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: .5,
+                  color: taskMuted(context))),
+          const SizedBox(height: 4),
           for (var i = 0; i < _movements.length; i++) ...[
-            if (i > 0) Divider(height: 12, color: taskBorder(context)),
+            if (i > 0) Divider(height: 1, color: taskBorder(context)),
             _movementRow(_movements[i]),
           ],
-      ],
-    );
-  }
-
-  Widget _movementRow(Map<String, dynamic> row) {
-    final isIn = row['type'] == 'cash_in';
-    final color = isIn
-        ? (_isDark ? const Color(0xFF86EFAC) : const Color(0xFF137A43))
-        : (_isDark ? const Color(0xFFFDA4AF) : const Color(0xFFBE123C));
-    return Row(
-      children: [
-        Container(
-          width: 26,
-          height: 26,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: _isDark ? .2 : .1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-              isIn ? Icons.south_west_rounded : Icons.north_east_rounded,
-              size: 14,
-              color: color),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(row['reason']?.toString() ?? '-',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: ink(context))),
-              Text(_timeLabel(row['created_at']),
-                  style: TextStyle(
-                      fontSize: TaskTypography.micro,
-                      color: taskMuted(context))),
-            ],
-          ),
-        ),
-        Text('${isIn ? '+' : '-'}${fmtRp(asNum(row['amount']))}',
-            style: TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w800, color: color)),
+        ],
       ],
     );
   }
@@ -418,63 +393,84 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
   Widget _closeCard() {
     final actual = _num(_closeAmount);
     final difference = _closeAmount.text.isEmpty ? 0.0 : actual - _expected;
+    final hasDifference = _closeAmount.text.isNotEmpty && difference != 0;
+    final differenceColor = difference == 0
+        ? (_isDark ? const Color(0xFFE7ECF4) : const Color(0xFF0F172A))
+        : (_isDark ? const Color(0xFFFDA4AF) : const Color(0xFFBE123C));
+
     return AppSectionCard(
       icon: Icons.lock_outline_rounded,
       color: const Color(0xFFBE123C),
-      title: 'Tutup Laci',
-      hint: 'Hitung kas aktual',
+      title: 'Tutup kas',
       children: [
         AppField(
           controller: _closeAmount,
-          label: 'Kas aktual',
+          label: 'Kas aktual (dihitung)',
           hint: '0',
           icon: Icons.payments_outlined,
           keyboard: TextInputType.number,
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 8),
-        AppField(
-          controller: _closeNotes,
-          label: 'Catatan (wajib jika ada selisih)',
-          icon: Icons.edit_note_outlined,
-          onChanged: (_) => setState(() {}),
-        ),
-        if (_closeAmount.text.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Row(
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+          decoration: BoxDecoration(
+            color: _isDark ? const Color(0xFF182135) : const Color(0xFFF8FAFC),
+            border: Border.all(color: taskBorder(context)),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
             children: [
               Text('Selisih',
                   style: TextStyle(
                       fontSize: TaskTypography.micro,
+                      fontWeight: FontWeight.w700,
                       color: taskMuted(context))),
               const Spacer(),
-              Text(
-                  difference == 0
-                      ? 'Pas'
-                      : '${difference > 0 ? '+' : '-'}${fmtRp(difference.abs())}',
+              Text(fmtRp(difference),
                   style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 14,
                       fontWeight: FontWeight.w800,
-                      color: difference == 0
-                          ? (_isDark
-                              ? const Color(0xFF86EFAC)
-                              : const Color(0xFF137A43))
-                          : (_isDark
-                              ? const Color(0xFFFDA4AF)
-                              : const Color(0xFFBE123C)))),
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                      color: differenceColor)),
             ],
           ),
-        ],
+        ),
+        const SizedBox(height: 8),
+        AppField(
+          controller: _closeNotes,
+          label: 'Catatan${hasDifference ? ' (wajib)' : ''}',
+          hint: hasDifference ? 'Alasan selisih kas' : 'Opsional',
+          icon: Icons.edit_note_outlined,
+          maxLines: 2,
+          onChanged: (_) => setState(() {}),
+        ),
         const SizedBox(height: 10),
         SizedBox(
           width: double.infinity,
           child: FilledButton.icon(
             onPressed: _saving || _closeAmount.text.isEmpty
                 ? null
-                : () => _run(() => widget.api
-                    .cashDrawerClose(actual, _closeNotes.text.trim())),
+                : () {
+                    if (difference != 0 && _closeNotes.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Selisih kas wajib diberi alasan.')),
+                      );
+                      return;
+                    }
+                    _run(
+                      () => widget.api
+                          .cashDrawerClose(actual, _closeNotes.text.trim()),
+                      successMessage: 'Kas ditutup.',
+                      onSaved: () {
+                        _closeAmount.clear();
+                        _closeNotes.clear();
+                      },
+                    );
+                  },
             icon: const Icon(Icons.lock_outline_rounded, size: 18),
-            label: const Text('Tutup Laci Kas'),
+            label: const Text('Tutup kas'),
             style: FilledButton.styleFrom(
               minimumSize: const Size(0, 44),
               backgroundColor: kTaskTerracotta,
@@ -487,12 +483,27 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
     );
   }
 
+  Widget _branchPrompt() => AppSectionCard(
+        icon: Icons.storefront_outlined,
+        color: const Color(0xFF1E3A5F),
+        title: 'Pilih toko/gudang',
+        children: [
+          Text(
+            'Pilih satu toko/gudang di menu Lainnya untuk membuka laci kas. Mode “Semua” tidak memiliki laci kas.',
+            style: TextStyle(
+                fontSize: TaskTypography.micro,
+                height: 1.45,
+                color: taskMuted(context)),
+          ),
+        ],
+      );
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const ColoredBox(
-        color: Color(0xFFF5F7FA),
-        child: UiLoadingState(label: 'Memuat laci kas…'),
+      return ColoredBox(
+        color: pageBg(context),
+        child: const UiLoadingState(label: 'Memuat laci kas…'),
       );
     }
     if (_error != null) {
@@ -501,32 +512,19 @@ class _CashDrawerPageState extends State<CashDrawerPage> {
         child: UiErrorState(message: _error!, onRetry: _load),
       );
     }
+
     final open = _drawer?['status'] == 'open';
     return ColoredBox(
       color: pageBg(context),
       child: ListView(
         padding: const EdgeInsets.all(12),
         children: [
-          _hero(open: open),
-          const SizedBox(height: 10),
-          if (!open)
+          if (_needsBranchSelection)
+            _branchPrompt()
+          else if (!open)
             _openCard()
           else ...[
-            Row(
-              children: [
-                Expanded(
-                    child: _statTile(
-                        'Kas masuk', fmtRp(_cashIn), const Color(0xFF137A43))),
-                const SizedBox(width: 7),
-                Expanded(
-                    child: _statTile('Kas keluar', fmtRp(_cashOut),
-                        const Color(0xFFBE123C))),
-              ],
-            ),
-            const SizedBox(height: 10),
-            _movementCard(),
-            const SizedBox(height: 10),
-            _historyCard(),
+            _openDrawerCard(),
             const SizedBox(height: 10),
             _closeCard(),
           ],

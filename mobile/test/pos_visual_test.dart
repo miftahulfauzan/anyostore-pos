@@ -783,13 +783,12 @@ void main() {
         expect(find.text('Nama'), findsOneWidget);
         expect(find.text('Qty'), findsOneWidget);
         expect(find.text('Total'), findsOneWidget);
-        // Desain B: baris tombol opsi (diskon/catatan/tahan/opsi) selalu tampil,
-        // ringkasan opsi aktif muncul di atasnya.
-        expect(find.text('Diskon'), findsOneWidget);
-        expect(find.text('Catatan'), findsOneWidget);
-        expect(find.text('Tahan'), findsOneWidget);
-        // Label 'Opsi' muncul di tombol header dan di baris aksi.
-        expect(find.text('Opsi'), findsNWidgets(2));
+        // Semua opsi transaksi (diskon/catatan/tahan) hanya lewat tombol
+        // header "Opsi" — baris aksi lama di bawah keranjang sudah dihapus.
+        expect(find.text('Diskon'), findsNothing);
+        expect(find.text('Catatan'), findsNothing);
+        expect(find.text('Tahan'), findsNothing);
+        expect(find.text('Opsi'), findsOneWidget);
         expect(find.text('Lainnya'), findsNothing);
         expect(find.text('4 pcs'), findsOneWidget);
         expect(find.text('Total'), findsOneWidget);
@@ -924,8 +923,8 @@ void main() {
     // Belum ada opsi aktif.
     expect(find.text('OPSI AKTIF'), findsNothing);
 
-    // Baris aksi membuka sheet; chip 10rb mengisi field diskon.
-    await tester.tap(find.text('Diskon'));
+    // Tombol header "Opsi" membuka sheet; chip 10rb mengisi field diskon.
+    await tester.tap(find.byTooltip('Opsi transaksi'));
     await tester.pumpAndSettle();
     expect(find.text('Opsi transaksi'), findsOneWidget);
     await tester.tap(find.text('10rb'));

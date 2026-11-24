@@ -144,33 +144,28 @@ class ChannelInventoryApi extends InventoryApi {
 }
 
 Future<void> openSection(
-    WidgetTester tester, InventoryApi api, String section) async {
+    WidgetTester tester, InventoryApi api, String section_) async {
   tester.view.physicalSize = const Size(900, 1800);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
+  // Seksi dirender langsung dari initialSection (paritas dengan pintu di
+  // menu Lainnya); halaman default adalah Stok Produk.
+  final String? section = switch (section_) {
+    'Transfer' => 'transfer',
+    'Opname' => 'opname',
+    'Mutasi' => 'mutasi',
+    'Barcode' => 'barcode',
+    _ => null,
+  };
   await tester.pumpWidget(MaterialApp(
-      home:
-          Scaffold(body: InventoryPage(api: api, branchId: 4, role: 'admin'))));
+      home: Scaffold(
+          body: InventoryPage(
+              api: api,
+              branchId: 4,
+              role: 'admin',
+              initialSection: section ?? 'stok'))));
   await tester.pumpAndSettle();
-  // Seksi kini dibuka lewat chip aksi (Transfer/Opname) atau menu ⋮ hero
-  // (Mutasi/Cetak Barcode); halaman default adalah Stok Produk.
-  switch (section) {
-    case 'Transfer':
-    case 'Opname':
-      await tester.tap(find.text(section).first);
-      await tester.pumpAndSettle();
-      break;
-    case 'Mutasi':
-    case 'Barcode':
-      await tester.tap(find.byTooltip('Opsi inventori'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(section == 'Mutasi' ? 'Mutasi' : 'Cetak Barcode'));
-      await tester.pumpAndSettle();
-      break;
-    default:
-      break;
-  }
 }
 
 Future<void> addOpname(WidgetTester tester, {String count = '0'}) async {
@@ -187,7 +182,7 @@ Future<void> addOpname(WidgetTester tester, {String count = '0'}) async {
 }
 
 void main() {
-  testWidgets('stock page actions and tools open every stock operation',
+  testWidgets('stock page opens without the action chips row',
       (tester) async {
     final api = InventoryApi();
     tester.view.physicalSize = const Size(900, 1800);
@@ -199,21 +194,24 @@ void main() {
             body: InventoryPage(api: api, branchId: 4, role: 'gudang'))));
     await tester.pumpAndSettle();
 
-    // Halaman fokus: tanpa selector seksi, chip aksi gudang langsung tampil.
+    // Halaman fokus tanpa selector seksi; baris chip aksi dihapus — pintu
+    // Mutasi/Masuk/Keluar/Transfer/Opname hidup di menu Lainnya (sidebar).
     expect(find.text('Stok'), findsNothing);
     expect(find.text('Mutasi'), findsNothing);
-    expect(find.text('Masuk'), findsOneWidget);
-    expect(find.text('Keluar'), findsOneWidget);
-    expect(find.text('Transfer'), findsOneWidget);
-    expect(find.text('Opname'), findsOneWidget);
+    expect(find.text('Masuk'), findsNothing);
+    expect(find.text('Keluar'), findsNothing);
+    expect(find.text('Transfer'), findsNothing);
+    expect(find.text('Opname'), findsNothing);
+    expect(find.text('Semua'), findsOneWidget);
+    expect(find.text('Menipis'), findsOneWidget);
+    expect(find.text('Habis'), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('inventory-stock-search-field')),
+        findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('inventory-sort-button')), findsOneWidget);
 
-    await tester.tap(find.text('Transfer'));
-    await tester.pumpAndSettle();
-    expect(find.text('Dari lokasi'), findsOneWidget);
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-
-    // Mutasi & Cetak Barcode tinggal di menu ⋮ hero.
+    // Mutasi & Cetak Barcode tetap di menu ⋮ hero.
     await tester.tap(find.byTooltip('Opsi inventori'));
     await tester.pumpAndSettle();
     expect(find.text('Mutasi'), findsOneWidget);
@@ -242,7 +240,7 @@ void main() {
     expect(find.text('Stok keluar'), findsOneWidget);
   });
 
-  testWidgets('inventory tasks open separately and back preserves stock access',
+  testWidgets('mutasi via hero menu and back preserves stock access',
       (tester) async {
     final api = InventoryApi();
     tester.view.physicalSize = const Size(900, 1800);
@@ -254,7 +252,9 @@ void main() {
             body: InventoryPage(api: api, branchId: 4, role: 'gudang'))));
     await tester.pumpAndSettle();
 
-    expect(find.text('Masuk'), findsOneWidget);
+    // Baris chip aksi sudah dihapus; halaman tetap membuka Mutasi via ⋮.
+    expect(find.byKey(const ValueKey('inventory-stock-search-field')),
+        findsOneWidget);
     await tester.tap(find.byTooltip('Opsi inventori'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Mutasi'));
@@ -283,21 +283,11 @@ void main() {
     expect(find.text('Saluran'), findsOneWidget);
     await tester.pageBack();
     await tester.pumpAndSettle();
-    // Kembali dari Mutasi ke halaman Stok sebelum membuka tool lain.
+    // Kembali dari Mutasi ke halaman Stok dengan baris kontrol utuh.
     await tester.pageBack();
     await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Transfer').first);
-    await tester.pumpAndSettle();
-    await tester.pumpAndSettle();
-    expect(find.text('Transfer stok'), findsOneWidget);
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Opname').first);
-    await tester.pumpAndSettle();
-    await tester.pumpAndSettle();
-    expect(find.text('Opname'), findsOneWidget);
-    expect(find.byKey(const ValueKey('opname-save-button')), findsOneWidget);
+    expect(find.byKey(const ValueKey('inventory-stock-search-field')),
+        findsOneWidget);
   });
 
   testWidgets('outgoing form adds and selects a new channel', (tester) async {
@@ -372,11 +362,11 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(MaterialApp(
         home: Scaffold(
-            body: InventoryPage(api: api, branchId: 4, role: 'admin'))));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Opname').first);
-    await tester.pumpAndSettle();
+            body: InventoryPage(
+                api: api,
+                branchId: 4,
+                role: 'admin',
+                initialSection: 'opname'))));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('opname-save-button')).hitTestable(),

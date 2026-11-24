@@ -99,7 +99,7 @@ void main() {
     expect(tester.takeException(), isNull);
 
     await _pump(tester, CashDrawerPage(api: api));
-    expect(find.text('TERBUKA'), findsOneWidget);
+    expect(find.text('Kas terbuka'), findsOneWidget);
     expect(find.text('Tambahan modal'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

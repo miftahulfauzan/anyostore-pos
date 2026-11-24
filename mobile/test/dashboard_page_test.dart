@@ -165,7 +165,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('dashboard-period-selector')),
         findsOneWidget);
-    expect(find.byTooltip('Buka filter'), findsOneWidget);
+    // Filter cabang kini inline di header (bukan bottom sheet "Buka filter"):
+    // owner melihat pemilih Toko/Gudang langsung, tanpa label mentah.
+    expect(find.byKey(const ValueKey('dashboard-branch-selector')),
+        findsOneWidget);
+    expect(find.byTooltip('Buka filter'), findsNothing);
     expect(find.text('Filter'), findsNothing);
     expect(find.text('Toko/Gudang'), findsNothing);
     expect(tester.takeException(), isNull);
@@ -175,11 +179,9 @@ void main() {
     expect(find.text('Bulan lalu'), findsOneWidget);
     await tester.tap(find.text('Kemarin'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Buka filter'));
-    await tester.pumpAndSettle();
-    expect(find.text('Filter dashboard'), findsOneWidget);
-    expect(find.text('Toko / Gudang'), findsOneWidget);
-    expect(find.text('Terapkan Filter'), findsOneWidget);
+    // Periode berubah tanpa menutupi data; pemilih cabang tetap terlihat.
+    expect(find.byKey(const ValueKey('dashboard-branch-selector')),
+        findsOneWidget);
   });
 
   testWidgets('empty success clears previous charts and lists', (tester) async {

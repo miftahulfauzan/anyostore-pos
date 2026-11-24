@@ -118,24 +118,38 @@ void main() {
     expect(api.stockTotalCalls, greaterThanOrEqualTo(1));
   });
 
-  testWidgets('chip aksi gudang tersedia dan Masuk membuka form penuh',
+  testWidgets('baris chip aksi dihapus: pintu mutasi lewat sidebar',
       (tester) async {
     final api = StockHomeApi();
     await pumpHome(tester, api);
-    expect(find.text('Masuk'), findsOneWidget);
-    expect(find.text('Keluar'), findsOneWidget);
-    // PillTabs seksi lama masih tampil di task ini; chip aksi ada di bawahnya.
-    expect(find.text('Transfer'), findsWidgets);
-    expect(find.text('Opname'), findsWidgets);
+    // Semua pintu (Masuk/Keluar/Transfer/Opname) kini hanya di menu Lainnya.
+    expect(find.text('Masuk'), findsNothing);
+    expect(find.text('Keluar'), findsNothing);
+    expect(find.text('Transfer'), findsNothing);
+    expect(find.text('Opname'), findsNothing);
+    // Baris kontrol tinggal: chip filter + cari + sort.
+    expect(find.text('Semua'), findsOneWidget);
+    expect(find.text('Menipis'), findsOneWidget);
+    expect(find.text('Habis'), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('inventory-stock-search-field')),
+        findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('inventory-sort-button')), findsOneWidget);
+  });
 
-    final callsBefore = api.stockTotalCalls;
-    await tester.tap(find.text('Masuk'));
+  testWidgets('form stok masuk tetap bisa dibuka via initialSection',
+      (tester) async {
+    final api = StockHomeApi();
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: InventoryPage(
+                api: api,
+                branchId: 4,
+                role: 'gudang',
+                initialSection: 'incoming'))));
     await tester.pumpAndSettle();
     expect(find.text('Simpan stok masuk'), findsOneWidget);
-
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    expect(api.stockTotalCalls, greaterThan(callsBefore));
   });
 
   testWidgets('filter chip menipis menyaring daftar', (tester) async {
@@ -143,13 +157,13 @@ void main() {
     await pumpHome(tester, api);
     expect(find.text('Denim Highwaist Bells'), findsOneWidget);
 
-    await tester.tap(find.text('Menipis · 1'));
+    await tester.tap(find.text('Menipis'));
     await tester.pumpAndSettle();
     expect(find.text('Kulot Denim Premium'), findsOneWidget);
     expect(find.text('Denim Highwaist Bells'), findsNothing);
-    expect(find.text('Menipis · 1'), findsOneWidget);
+    expect(find.text('Menipis'), findsOneWidget);
 
-    await tester.tap(find.text('Semua · 4'));
+    await tester.tap(find.text('Semua'));
     await tester.pumpAndSettle();
     expect(find.text('Denim Highwaist Bells'), findsOneWidget);
   });
@@ -187,15 +201,17 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('jumlah chip & donut konsisten dengan baris (semantik backend)',
+  testWidgets('legend hero & chip filter konsisten dengan baris (semantik backend)',
       (tester) async {
     // Backend menghitung low_stock termasuk produk habis (low_stock: 2 di
-    // fake). Chip dan legenda donut harus mengikuti baris yang tampil:
-    // 2 aman, 1 menipis, 1 habis.
+    // fake). Legenda donut harus mengikuti baris yang tampil: 2 aman,
+    // 1 menipis, 1 habis. Chip filter kini tanpa angka — angka hidup di
+    // legenda hero.
     final api = StockHomeApi();
     await pumpHome(tester, api);
-    expect(find.text('Menipis · 1'), findsOneWidget);
-    expect(find.text('Habis · 1'), findsOneWidget);
+    expect(find.text('Semua'), findsOneWidget);
+    expect(find.text('Menipis'), findsOneWidget);
+    expect(find.text('Habis'), findsOneWidget);
     expect(find.text('Menipis 1'), findsOneWidget);
     expect(find.text('Aman 2'), findsOneWidget);
     expect(find.text('Habis 1'), findsOneWidget);
@@ -223,15 +239,15 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('kasir: tanpa chip Masuk/Keluar dan tanpa item terlarang di ⋮',
+  testWidgets('kasir: tanpa baris chip aksi dan tanpa item terlarang di ⋮',
       (tester) async {
     final api = StockHomeApi();
     await pumpHome(tester, api, role: 'kasir');
+    // Seluruh chip aksi dihapus untuk semua role.
     expect(find.text('Masuk'), findsNothing);
     expect(find.text('Keluar'), findsNothing);
-    // Transfer & Opname tetap tersedia (paritas tab lama).
-    expect(find.text('Transfer'), findsOneWidget);
-    expect(find.text('Opname'), findsOneWidget);
+    expect(find.text('Transfer'), findsNothing);
+    expect(find.text('Opname'), findsNothing);
 
     await tester.tap(find.byTooltip('Opsi inventori'));
     await tester.pumpAndSettle();

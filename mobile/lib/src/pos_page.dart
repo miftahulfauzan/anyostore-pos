@@ -2708,10 +2708,7 @@ class _CartSheetState extends State<_CartSheet> {
 
   /// Lembar "Opsi transaksi": pelanggan, diskon, catatan, dan tahan dalam satu
   /// bottom sheet — menggantikan panel opsi lama + dialog Catatan terpisah.
-  Future<void> _openOptions({
-    bool focusDiscount = false,
-    bool focusNotes = false,
-  }) async {
+  Future<void> _openOptions() async {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -2798,7 +2795,6 @@ class _CartSheetState extends State<_CartSheet> {
                       children: [
                         TextField(
                           controller: widget.discountController,
-                          autofocus: focusDiscount,
                           keyboardType: TextInputType.number,
                           onChanged: (value) =>
                               refresh(() => widget.onDiscountChanged(value)),
@@ -2841,7 +2837,6 @@ class _CartSheetState extends State<_CartSheet> {
                     subtitle: 'Langsung di sini, tanpa dialog',
                     child: TextField(
                       controller: widget.notesController,
-                      autofocus: focusNotes,
                       maxLines: 2,
                       textInputAction: TextInputAction.newline,
                       onChanged: (value) =>
@@ -2945,71 +2940,6 @@ class _CartSheetState extends State<_CartSheet> {
             child,
           ],
         ],
-      ),
-    );
-  }
-
-  Widget _optionAction({
-    required IconData icon,
-    required String label,
-    required bool active,
-    required VoidCallback? onTap,
-  }) {
-    final enabled = onTap != null;
-    final ink = enabled ? kTaskDark : taskMuted(context);
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
-          child: Column(
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: active ? kTaskDark : taskSurface(context),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                          color: active ? kTaskDark : taskBorder(context)),
-                    ),
-                    child: Icon(icon,
-                        size: 19, color: active ? Colors.white : ink),
-                  ),
-                  if (active)
-                    Positioned(
-                      right: -1,
-                      top: -1,
-                      child: Container(
-                        width: 11,
-                        height: 11,
-                        decoration: BoxDecoration(
-                          color: kTaskStockGood,
-                          shape: BoxShape.circle,
-                          border:
-                              Border.all(color: taskSurface(context), width: 2),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(label,
-                    maxLines: 1,
-                    style: TextStyle(
-                        fontSize: TaskTypography.micro,
-                        fontWeight: FontWeight.w700,
-                        color: ink)),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -3280,36 +3210,9 @@ class _CartSheetState extends State<_CartSheet> {
             ),
             if (_hasActiveOptions)
               Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
                 child: _activeOptionsCard(),
               ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 6, 8, 2),
-              child: Row(
-                children: [
-                  _optionAction(
-                      icon: Icons.local_offer_outlined,
-                      label: 'Diskon',
-                      active: _discount > 0,
-                      onTap: () => _openOptions(focusDiscount: true)),
-                  _optionAction(
-                      icon: Icons.notes_outlined,
-                      label: 'Catatan',
-                      active: _notes.isNotEmpty,
-                      onTap: () => _openOptions(focusNotes: true)),
-                  _optionAction(
-                      icon: Icons.pause_circle_outline,
-                      label: 'Tahan',
-                      active: false,
-                      onTap: cart.isEmpty ? null : widget.onHold),
-                  _optionAction(
-                      icon: Icons.tune,
-                      label: 'Opsi',
-                      active: customerName.isNotEmpty,
-                      onTap: () => _openOptions()),
-                ],
-              ),
-            ),
             Container(
               key: const ValueKey('cart-summary-footer'),
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
@@ -3479,46 +3382,45 @@ class _CartLine extends StatelessWidget {
                 key: const ValueKey('cart-line-menu-hit-area'),
                 width: 44,
                 height: 44,
-                child: PopupMenuButton<String>(
-                  tooltip: 'Opsi ${item.name}: ubah harga atau hapus',
-                  padding: EdgeInsets.zero,
-                  iconSize: 22,
-                  icon: Icon(Icons.more_vert, color: ink(context)),
-                  color: taskSurface(context),
-                  onSelected: (value) {
-                    if (value == 'price') onEditPrice(item);
-                    if (value == 'remove') onRemove(item);
-                  },
-                  itemBuilder: (_) => [
-                    PopupMenuItem(
-                      value: 'price',
-                      height: 48,
-                      child: Row(children: [
-                        Icon(Icons.edit_outlined,
-                            size: 19,
-                            color: Theme.of(context).colorScheme.primary),
-                        const SizedBox(width: 10),
-                        Text('Ubah harga',
-                            style: TextStyle(
-                                color: ink(context),
-                                fontWeight: FontWeight.w700)),
-                      ]),
-                    ),
-                    PopupMenuItem(
-                      value: 'remove',
-                      height: 48,
-                      child: Row(children: [
-                        Icon(Icons.delete_outline,
-                            size: 19,
-                            color: Theme.of(context).colorScheme.error),
-                        const SizedBox(width: 10),
-                        Text('Hapus item',
-                            style: TextStyle(
-                                color: Theme.of(context).colorScheme.error,
-                                fontWeight: FontWeight.w700)),
-                      ]),
-                    ),
-                  ],
+                child: Tooltip(
+                  message: 'Opsi ${item.name}: ubah harga atau hapus',
+                  child: AppSelectField<String>(
+                    value: null,
+                    transparentField: true,
+                    showChevron: false,
+                    fieldChild: Icon(Icons.more_vert, color: ink(context)),
+                    items: const [
+                      DropdownMenuItem<String>(
+                          value: 'price', child: Text('Ubah harga')),
+                      DropdownMenuItem<String>(
+                          value: 'remove', child: Text('Hapus item')),
+                    ],
+                    itemBuilder: (context, option, _) {
+                      final remove = option.value == 'remove';
+                      final color = remove
+                          ? Theme.of(context).colorScheme.error
+                          : Theme.of(context).colorScheme.primary;
+                      return Row(
+                        children: [
+                          Icon(
+                              remove
+                                  ? Icons.delete_outline
+                                  : Icons.edit_outlined,
+                              size: 19,
+                              color: color),
+                          const SizedBox(width: 10),
+                          Text((option.child as Text).data ?? '',
+                              style: TextStyle(
+                                  color: remove ? color : ink(context),
+                                  fontWeight: FontWeight.w700)),
+                        ],
+                      );
+                    },
+                    onChanged: (value) {
+                      if (value == 'price') onEditPrice(item);
+                      if (value == 'remove') onRemove(item);
+                    },
+                  ),
                 ),
               ),
             ],
