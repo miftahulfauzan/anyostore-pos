@@ -58,7 +58,12 @@ async function readSavedSession(req, userId, connection = db) {
     );
     if (!rows[0] || !validSessionId(rows[0].session_id)) return null;
     return { token, payload, row: rows[0] };
-  } catch { return null; }
+  } catch (error) {
+    // Token rusak = satu akun dibuang. Error DB BUKAN token rusak: diteruskan
+    // agar permintaan gagal tertutup tanpa menghapus akun tersimpan yang sah.
+    if (error instanceof jwt.JsonWebTokenError || error instanceof jwt.NotBeforeError) return null;
+    throw error;
+  }
 }
 
 async function revokeSessionFamily(userId, sessionId, connection = db) {
@@ -97,10 +102,13 @@ async function revokeActiveSession(req) {
 // dipakai ulang; batas 8 dihitung setelah cookie rusak dibersihkan.
 async function ensureSavedAccount(req, res, user) {
   const existing = await readSavedSession(req, user.id);
-  if (existing) {
+  if (existing && versionMatches(existing.payload, user, true)) {
     res.cookie(savedCookieName(user.id), existing.token, savedCookieOptions());
     return true;
   }
+  // Cookie ada tapi versinya basi (password/role berubah): buang, lalu terbitkan
+  // token baru dari baris user yang sudah diperbarui.
+  if (existing) await revokeSessionFamily(user.id, existing.row.session_id);
   let live = 0;
   for (const id of savedCookieUserIds(req)) {
     if (await readSavedSession(req, id)) live += 1;
@@ -345,7 +353,7 @@ async function logout(req, res, next) {
     if (req.body?.remove_saved === true) {
       const accessToken = accessTokenFrom(req);
       let ownerId = null;
-      try { ownerId = verifyToken(accessToken, jwtSecret).id; }
+      try { ownerId = verifyToken(accessToken, jwtSecret, { ignoreExpiration: true }).id; }
       catch { ownerId = null; }
       if (ownerId) {
         const saved = await readSavedSession(req, ownerId);
@@ -395,7 +403,7 @@ async function rememberAccount(req, res, next) {
     // nilai yang hilang akan dianggap 0 sehingga token-nya langsung ditolak
     // untuk akun yang pernah reset password / ganti role.
     const [rows] = await db.execute(
-      'SELECT id, name, username, email, role, branch_id, token_version FROM users WHERE id = ? AND is_active = TRUE LIMIT 1', [req.user.id]
+      'SELECT id, name, username, email, role, branch_id, is_active, token_version FROM users WHERE id = ? AND is_active = TRUE LIMIT 1', [req.user.id]
     );
     if (!rows[0]) return unauthorized(res);
     const saved = await ensureSavedAccount(req, res, rows[0]);
@@ -427,7 +435,9 @@ async function switchAccount(req, res, next) {
     }
     const saved = await readSavedSession(req, targetId);
     if (!saved) {
-      clearSavedCookie(res, targetId);
+      // Sengaja TIDAK menghapus cookie di sini: pada dua switch bersamaan,
+      // yang kalah bisa menghapus cookie hasil rotasi pemenang. Daftar akun
+      // (GET /accounts) yang membersihkan cookie basi.
       return res.status(404).json({
         success: false,
         message: 'Akun tersimpan tidak lagi berlaku. Pilih akun lain atau masuk ulang.',
@@ -439,7 +449,6 @@ async function switchAccount(req, res, next) {
     // versionMatches menolak akun yang token_version-nya bergeser (reset
     // password/role): token tersimpan lama tidak boleh menghasilkan sesi baru.
     if (!users[0] || !versionMatches(saved.payload, users[0], true)) {
-      clearSavedCookie(res, targetId);
       if (saved.row) await revokeSessionFamily(targetId, saved.row.session_id);
       return res.status(404).json({
         success: false,
@@ -463,10 +472,13 @@ async function switchAccount(req, res, next) {
       clearSavedCookie(res, targetId);
       return res.status(404).json({ success: false, message: 'Sesi akun tersimpan sudah tidak berlaku. Masuk ulang.' });
     }
-    // Sesi asal: kalau akunnya tidak diingat, cabut supaya tidak jadi sesi hantu.
+    // Sesi asal: family AKTIF selalu dicabut. Respons refresh yang terlambat
+    // tidak boleh mengembalikan cookie akun sumber setelah UI pindah ke akun
+    // tujuan (bisa berujung aksi tercatat pada akun yang salah). Akun asal yang
+    // diingat tetap bisa dipilih kembali lewat cookie tersimpan (family lain).
     const sourceSaved = await readSavedSession(req, req.user.id);
     if (sourceSaved) res.cookie(savedCookieName(req.user.id), sourceSaved.token, savedCookieOptions());
-    else await revokeActiveSession(req);
+    await revokeActiveSession(req);
     // Family tersimpan untuk akun tujuan harus TERPISAH dari sesi aktif yang
     // baru dibuat: kalau cookie tersimpan memakai token aktif, satu kali
     // refresh atau "Keluar saja" akan ikut mematikan akun tersimpan itu.
