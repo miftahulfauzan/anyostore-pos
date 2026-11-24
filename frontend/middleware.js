@@ -15,7 +15,7 @@ export const config = {
 
 // Halaman aplikasi staf: hanya boleh dibuka di domain utama.
 function isStaffPath(pathname) {
-  return ['/login', '/pos', '/dashboard', '/products', '/inventory', '/reports', '/finance', '/settings', '/store-settings', '/users', '/commissions', '/customers', '/promotions', '/operations', '/profile', '/history', '/receipt'].some(
+  return ['/login', '/pos', '/dashboard', '/products', '/inventory', '/reports', '/finance', '/settings', '/store-settings', '/users', '/commissions', '/customers', '/promotions', '/operations', '/profile', '/history', '/receipt', '/account-switcher'].some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
 }

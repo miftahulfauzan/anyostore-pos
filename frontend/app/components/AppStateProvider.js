@@ -97,7 +97,10 @@ export default function AppStateProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    if (pathname === '/login' || pathname === '/') clearSession();
+    // Halaman publik root tetap mengosongkan konteks staf. Halaman /login TIDAK
+    // lagi dikosongkan: LoginPage memeriksa /auth/me untuk mengarahkan pengguna
+    // yang sesinya masih sah, dan form login sekaligus menyiapkan sesi baru.
+    if (pathname === '/') clearSession();
   }, [pathname, clearSession]);
 
   const ensureSession = useCallback(async () => {

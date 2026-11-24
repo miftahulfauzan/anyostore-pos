@@ -96,6 +96,7 @@ const navigation = [
       { href: '/settings/reseller-payment', label: 'Pembayaran Reseller', icon: WalletCards, roles: ['owner', 'manager', 'admin'] },
       { href: '/store-settings', label: 'Setelan Toko', icon: Settings, roles: ['owner'] },
       { href: '/profile', label: 'Akun Saya', icon: User },
+      { href: '/account-switcher', label: 'Ganti Akun', icon: Users },
     ],
   },
 ];
@@ -132,6 +133,7 @@ const warehouseNavigation = [
       { href: '/inventory/mutation-report', label: 'Riwayat Mutasi', icon: History, roles: ['gudang'], tone: 'blue' },
       { href: '/inventory/movements', label: 'Laporan Lainnya', icon: ChartNoAxesCombined, roles: ['gudang'], tone: 'pink' },
       { href: '/settings', label: 'Pengaturan', icon: Settings, roles: ['gudang'], tone: 'slate' },
+      { href: '/account-switcher', label: 'Ganti Akun', icon: Users, roles: ['gudang'], tone: 'slate' },
     ],
   },
 ];
@@ -143,6 +145,8 @@ export default function AppShell({ title, eyebrow, actions, children }) {
   const role = user?.role || null;
   const userName = user?.name || '';
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const mainRef = useRef(null);
@@ -317,18 +321,33 @@ export default function AppShell({ title, eyebrow, actions, children }) {
   }, [mobileNavOpen]);
 
   function logout() {
+    // Dialog dua pilihan seperti APK: akun yang diingat tetap tersedia setelah
+    // "Keluar saja", atau ikut dihapus dengan "Keluar & hapus akun ini".
     if (hasUnsavedWork() && !window.confirm('Ada input atau keranjang stok yang belum disimpan. Jika keluar, data tersebut akan hilang. Tetap keluar?')) return;
+    setLogoutOpen(true);
+  }
+
+  async function performLogout(removeSaved) {
+    setLogoutOpen(false);
+    setLoggingOut(true);
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-    fetch(`${baseUrl}/auth/logout`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
-      .catch(() => {})
-      .finally(() => {
-        clearSession();
-        try {
-          localStorage.removeItem('pos_access_token');
-          localStorage.removeItem('pos_refresh_token');
-        } catch { /* Logout also works when storage is blocked. */ }
-        router.replace('/');
+    try {
+      await fetch(`${baseUrl}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(removeSaved ? { remove_saved: true } : { preserve_saved: true }),
       });
+    } catch {
+      // Logout tetap mengosongkan sesi lokal meski jaringan gagal.
+    } finally {
+      clearSession();
+      try {
+        localStorage.removeItem('pos_access_token');
+        localStorage.removeItem('pos_refresh_token');
+      } catch { /* Logout also works when storage is blocked. */ }
+      router.replace('/');
+    }
   }
 
   const sidebarClass = `sidebar${collapsed ? ' collapsed' : ''}${mobileNavOpen ? ' mobile-open' : ''}${role === 'gudang' ? ' sidebar-warehouse' : ''}${roleResolved ? ' role-ready' : ' role-loading'}`;
@@ -416,6 +435,25 @@ export default function AppShell({ title, eyebrow, actions, children }) {
         </div>
         <button type="button" className="logout" onClick={logout} {...tooltipProps('Keluar')}><LogOut aria-hidden="true" size={15} /> <span>Keluar</span></button>
       </aside>
+      {logoutOpen && (
+        <div className="modal-backdrop">
+          <section className="panel modal-card" role="dialog" aria-modal="true" aria-labelledby="logout-dialog-title">
+            <h2 id="logout-dialog-title" style={{ fontSize: 18, marginTop: 0 }}>Keluar dari akun</h2>
+            <p className="muted" style={{ fontSize: 'var(--fs-sm)' }}>
+              Pilih apakah akun ini tetap tersimpan di browser untuk berpindah cepat nanti.
+            </p>
+            <div className="modal-actions" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
+              <button type="button" onClick={() => performLogout(false)} disabled={loggingOut}>
+                {loggingOut ? 'Memproses…' : 'Keluar saja (akun tersimpan)'}
+              </button>
+              <button type="button" className="button-secondary" onClick={() => performLogout(true)} disabled={loggingOut}>
+                Keluar &amp; hapus akun ini
+              </button>
+              <button type="button" className="button-secondary" onClick={() => setLogoutOpen(false)} disabled={loggingOut}>Batal</button>
+            </div>
+          </section>
+        </div>
+      )}
       {tooltip && <div className="sidebar-tooltip" role="tooltip" style={{ left: tooltip.left, top: tooltip.top }}>{tooltip.label}</div>}
 
       <main ref={mainRef} id="main-content" tabIndex={-1} className={`app-main${collapsed ? ' sidebar-collapsed' : ''}`}>
