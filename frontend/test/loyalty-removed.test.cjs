@@ -26,7 +26,16 @@ test('setelan loyalitas tidak bisa lagi disimpan lewat API', () => {
 
 test('pelanggan tidak lagi membawa kolom loyalty_points', () => {
   assert.doesNotMatch(backendCustomers, /loyalty_points/);
-  assert.doesNotMatch(schema, /loyalty_points/);
+  assert.doesNotMatch(schema, /loyalty_points INT DEFAULT 0/);
+});
+
+test('tabel legacy loyalty_points hanya ada di baseline, bukan sebagai fitur', () => {
+  // Baseline tetap mendefinisikan tabelnya karena migrasi lama
+  // 20260804_performance_indexes.sql menambah index pada tabel itu dan migrasi
+  // yang sudah jalan tidak boleh diedit. Migrasi 20261124 yang menghapusnya.
+  assert.match(schema, /CREATE TABLE loyalty_points/);
+  assert.match(migration, /DROP TABLE IF EXISTS loyalty_points/);
+  assert.match(schema, /tabel legacy/);
 });
 
 test('tidak ada UI loyalitas yang tersisa di web', () => {
