@@ -24,18 +24,18 @@ const mediaUrl = (path) => {
 
 function groupStockRows(rows) {
   const map = new Map();
-  for (const row of rows) {
-    const key = String(row.product_id);
+  for (const r of rows) {
+    const key = String(r.product_id);
     let group = map.get(key);
     if (!group) {
-      group = { key, product_id: row.product_id, variant_id: null, name: row.product_name, sku: row.sku, photo_path: row.photo_path || '', min_stock: Number(row.min_stock || 0), qtyByWarehouse: {}, rackByWarehouse: {}, total: 0, reserved: 0 };
+      group = { key, product_id: r.product_id, variant_id: null, name: r.product_name, sku: r.sku, photo_path: r.photo_path || '', min_stock: Number(r.min_stock || 0), qtyByWarehouse: {}, rackByWarehouse: {}, total: 0, reserved: 0 };
       map.set(key, group);
     }
-    if (!group.photo_path && row.photo_path) group.photo_path = row.photo_path;
-    group.qtyByWarehouse[String(row.warehouse_id)] = Number(row.quantity || 0);
-    group.rackByWarehouse[String(row.warehouse_id)] = row.rack_position || '';
-    group.total += Number(row.quantity || 0);
-    group.reserved += Number(row.reserved || 0);
+    if (!group.photo_path && r.photo_path) group.photo_path = r.photo_path;
+    group.qtyByWarehouse[String(r.warehouse_id)] = Number(r.quantity || 0);
+    group.rackByWarehouse[String(r.warehouse_id)] = r.rack_position || '';
+    group.total += Number(r.quantity || 0);
+    group.reserved += Number(r.reserved || 0);
   }
   return Array.from(map.values()).sort((a, b) => String(a.name).localeCompare(String(b.name)) || Number(a.product_id) - Number(b.product_id));
 }
