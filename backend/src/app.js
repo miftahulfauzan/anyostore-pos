@@ -5,7 +5,10 @@ const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
 const db = require('./db');
 const { corsOrigin } = require('./config');
-const { authenticate, loginWithPassword, loginWithPin, refresh, mobileRefresh, logout } = require('./auth');
+const {
+  authenticate, loginWithPassword, loginWithPin, refresh, mobileRefresh, logout,
+  listAccounts, rememberAccount, switchAccount, removeAccount,
+} = require('./auth');
 const productsRouter = require('./routes/products');
 const inventoryRouter = require('./routes/inventory');
 const transactionsRouter = require('./routes/transactions');
@@ -117,6 +120,12 @@ app.post('/api/auth/login-pin', loginLimiter, loginWithPin);
 app.post('/api/auth/refresh', loginLimiter, refresh);
 app.post('/api/auth/mobile-refresh', loginLimiter, mobileRefresh);
 app.post('/api/auth/logout', logout);
+// Akun tersimpan web (Ganti Akun). Semua butuh sesi aktif; token tetap di
+// cookie HttpOnly dan tidak pernah dikirim ke JS.
+app.get('/api/auth/accounts', authenticate, listAccounts);
+app.post('/api/auth/accounts/remember', authenticate, rememberAccount);
+app.post('/api/auth/accounts/switch', authenticate, switchAccount);
+app.delete('/api/auth/accounts/:userId', authenticate, removeAccount);
 app.get('/api/auth/me', authenticate, async (req, res, next) => {
   try {
     const [[user], [branch]] = await Promise.all([

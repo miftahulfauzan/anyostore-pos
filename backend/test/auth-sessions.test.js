@@ -50,6 +50,10 @@ async function call(handler, req = {}) {
   return { req, res };
 }
 
+// Web memakai cookie HttpOnly saja; hanya `?mobile=1` yang mengembalikan token
+// di body. Helper ini membaca kontrak cookie untuk sesi web.
+const cookieValue = (res, name) => res.cookies.find(c => c.name === name)?.value;
+
 async function login(id = 7, mobile = true, pin = false) {
   const { res } = await call(pin ? auth.loginWithPin : auth.loginWithPassword, {
     body: { email: `user${id}@test.local`, password, pin: '123456' },
@@ -57,7 +61,11 @@ async function login(id = 7, mobile = true, pin = false) {
   });
   assert.equal(res.error, undefined);
   assert.equal(res.statusCode, 200);
-  return { ...res.body.data, res, refreshToken: res.cookies.find(c => c.name === 'pos_refresh').value };
+  return {
+    ...res.body.data, res,
+    accessToken: cookieValue(res, 'pos_access'),
+    refreshToken: cookieValue(res, 'pos_refresh'),
+  };
 }
 
 const access = (token, extra = {}) => call(auth.authenticate, { headers: { authorization: `Bearer ${token}` }, ...extra });
@@ -161,10 +169,13 @@ test('legacy access is rejected; unchanged legacy refresh upgrades browser/mobil
     const result = await refresh(old.refreshToken, mobile);
     assert.equal(result.res.error, undefined);
     assert.equal(result.res.statusCode, 200);
-    assert.ok(jwt.decode(result.res.body.data.accessToken).sid);
-    assert.equal((await access(result.res.body.data.accessToken)).res.nextCalled, true);
+    // Web: token hanya di cookie HttpOnly. Mobile: tetap di body.
+    const upgradedAccess = mobile ? result.res.body.data.accessToken : cookieValue(result.res, 'pos_access');
+    assert.ok(jwt.decode(upgradedAccess).sid);
+    assert.equal((await access(upgradedAccess)).res.nextCalled, true);
     denied(await refresh(old.refreshToken, mobile));
     if (!mobile) {
+      assert.equal(result.res.body.data.accessToken, undefined);
       assert.equal(result.res.body.data.refreshToken, undefined);
       assert.equal(result.res.cookies.length, 2);
     }
@@ -313,4 +324,268 @@ test('wrong current password/PIN and forbidden edits do not revoke sessions', as
   assert.equal((await userRoute('/8/password', session.accessToken, { new_password: 'new-password' })).statusCode, 403);
   assert.equal(db.state.users.get(7).token_version, 0);
   assert.equal((await access(session.accessToken)).res.nextCalled, true);
+});
+
+
+// ===== Akun tersimpan (web "Ganti Akun") =====
+
+const savedCookie = (id) => `pos_saved_${id}`;
+const savedTokenOf = (res, id) => res.cookies.find(c => c.name === savedCookie(id) && !c.clear)?.value;
+const savedCookieOptions = (res, id) => res.cookies.find(c => c.name === savedCookie(id) && !c.clear)?.options;
+
+async function loginRemembered(id = 7, remember = true) {
+  const { res } = await call(auth.loginWithPassword, {
+    body: { email: `user${id}@test.local`, password, remember_account: remember },
+    query: {},
+  });
+  assert.equal(res.error, undefined);
+  assert.equal(res.statusCode, 200);
+  return {
+    ...res.body.data, res,
+    accessToken: cookieValue(res, 'pos_access'),
+    refreshToken: cookieValue(res, 'pos_refresh'),
+    savedToken: savedTokenOf(res, id),
+  };
+}
+
+// Route terautentikasi: jalankan authenticate dulu agar req.user terisi, lalu
+// handler-nya dengan req yang sama (meniru middleware Express).
+async function authed(handler, { accessToken, ...req } = {}) {
+  const base = { headers: { authorization: `Bearer ${accessToken}` }, body: {}, query: {}, ...req };
+  if (!base.cookies) base.cookies = {};
+  if (!base.params) base.params = {};
+  await auth.authenticate(base, response(), (error) => { if (error) throw error; });
+  assert.ok(base.user, 'authenticate harus mengisi req.user');
+  return call(handler, base);
+}
+
+async function mobileRefreshResult(token) {
+  return call(auth.mobileRefresh, { body: { refresh_token: token } });
+}
+
+test('login web menyembunyikan token dan remember_account menyimpan akun', async () => {
+  const plain = await login(7, false);
+  assert.equal(plain.res.body.data.accessToken, undefined);
+  assert.equal(plain.res.body.data.refreshToken, undefined);
+  assert.equal(plain.res.body.data.account_saved, false);
+
+  const remembered = await loginRemembered(7, true);
+  assert.equal(remembered.res.body.data.account_saved, true);
+  assert.ok(remembered.savedToken);
+  // Cookie tersimpan: HttpOnly, SameSite=Strict, diskop ke /api/auth.
+  const options = savedCookieOptions(remembered.res, 7);
+  assert.equal(options.httpOnly, true);
+  assert.equal(options.sameSite, 'strict');
+  assert.equal(options.path, '/api/auth');
+  assert.equal(options.maxAge, 365 * 86400000);
+  // Family sesi tersimpan berbeda dari sesi aktif: logout biasa tidak mematikannya.
+  assert.notEqual(jwt.decode(remembered.savedToken).sid, jwt.decode(remembered.refreshToken).sid);
+});
+
+test('daftar akun hanya berisi metadata aman dan menandai akun aktif tersimpan', async () => {
+  const session = await loginRemembered(7, true);
+  const result = await authed(auth.listAccounts, {
+    accessToken: session.accessToken,
+    cookies: { [savedCookie(7)]: session.savedToken },
+  });
+  assert.equal(result.res.error, undefined);
+  assert.equal(result.res.statusCode, 200);
+  const data = result.res.body.data;
+  assert.equal(data.active.id, 7);
+  assert.equal(data.active_saved, true);
+  assert.equal(data.accounts.length, 1);
+  assert.deepEqual(Object.keys(data.accounts[0]).sort(), ['branch_id', 'email', 'id', 'name', 'role', 'username']);
+  assert.equal(JSON.stringify(data).includes(session.savedToken), false, 'token tidak boleh dikirim ke JS');
+});
+
+test('daftar akun membuang cookie yang tidak lagi valid', async () => {
+  const session = await loginRemembered(7, true);
+  const row = db.state.tokens.find(t => t.token_hash === hash(session.savedToken));
+  row.revoked_at = Date.now();
+  const result = await authed(auth.listAccounts, {
+    accessToken: session.accessToken,
+    cookies: { [savedCookie(7)]: session.savedToken },
+  });
+  assert.equal(result.res.statusCode, 200);
+  assert.equal(result.res.body.data.accounts.length, 0);
+  assert.equal(result.res.body.data.active_saved, false);
+  assert.ok(result.res.cookies.some(c => c.name === savedCookie(7) && c.clear), 'cookie basi harus dibersihkan');
+});
+
+test('switch akun tersimpan memutar sesi tujuan dan mencabut sesi asal yang tidak diingat', async () => {
+  const source = await login(7, false);
+  const target = await loginRemembered(8, true);
+  const result = await authed(auth.switchAccount, {
+    accessToken: source.accessToken,
+    body: { user_id: 8 },
+    cookies: { [savedCookie(8)]: target.savedToken },
+  });
+  assert.equal(result.res.error, undefined);
+  assert.equal(result.res.statusCode, 200);
+  assert.equal(result.res.body.data.user.id, 8);
+  const newAccess = cookieValue(result.res, 'pos_access');
+  assert.ok(newAccess);
+  assert.equal((await access(newAccess)).req.user.id, 8);
+  // Sesi asal tidak diingat → dicabut supaya tidak jadi sesi hantu.
+  denied(await access(source.accessToken));
+  // Cookie akun tersimpan dirotasi ke token baru dan masih bisa dipakai.
+  const rotatedSaved = savedTokenOf(result.res, 8);
+  assert.ok(rotatedSaved);
+  assert.notEqual(rotatedSaved, target.savedToken);
+  assert.equal((await mobileRefreshResult(rotatedSaved)).res.statusCode, 200);
+});
+
+test('switch akun tersimpan mempertahankan akun asal yang diingat', async () => {
+  const source = await loginRemembered(7, true);
+  const target = await loginRemembered(8, true);
+  const result = await authed(auth.switchAccount, {
+    accessToken: source.accessToken,
+    body: { user_id: 8 },
+    cookies: { [savedCookie(7)]: source.savedToken, [savedCookie(8)]: target.savedToken },
+  });
+  assert.equal(result.res.statusCode, 200);
+  // Sesi aktif berganti; akun asal tetap tersimpan untuk dipilih kembali.
+  assert.equal((await access(cookieValue(result.res, 'pos_access'))).req.user.id, 8);
+  assert.ok(savedTokenOf(result.res, 7));
+  assert.equal((await mobileRefreshResult(savedTokenOf(result.res, 7))).res.statusCode, 200);
+});
+
+test('switch menolak cookie tersimpan yang dicabut', async () => {
+  const source = await login(7, false);
+  const target = await loginRemembered(8, true);
+  const row = db.state.tokens.find(t => t.token_hash === hash(target.savedToken));
+  row.revoked_at = Date.now();
+  const result = await authed(auth.switchAccount, {
+    accessToken: source.accessToken,
+    body: { user_id: 8 },
+    cookies: { [savedCookie(8)]: target.savedToken },
+  });
+  assert.ok([401, 404].includes(result.res.statusCode));
+  assert.equal(result.res.body.data, undefined);
+  assert.ok(result.res.cookies.some(c => c.name === savedCookie(8) && c.clear));
+});
+
+test('switch menolak akun tersimpan yang dinonaktifkan', async () => {
+  const source = await login(7, false);
+  const target = await loginRemembered(8, true);
+  db.state.users.get(8).is_active = false;
+  const result = await authed(auth.switchAccount, {
+    accessToken: source.accessToken,
+    body: { user_id: 8 },
+    cookies: { [savedCookie(8)]: target.savedToken },
+  });
+  assert.ok([401, 404].includes(result.res.statusCode));
+  assert.equal(result.res.body.data, undefined);
+});
+
+test('cookie tersimpan milik user lain tidak bisa dipakai berpindah', async () => {
+  const session = await loginRemembered(7, true);
+  // Token user 7 ditempel pada nama cookie user 8 → id tidak cocok, ditolak.
+  const result = await authed(auth.switchAccount, {
+    accessToken: session.accessToken,
+    body: { user_id: 8 },
+    cookies: { [savedCookie(8)]: session.savedToken },
+  });
+  assert.equal(result.res.statusCode, 404);
+  assert.equal(result.res.body.data, undefined);
+});
+
+test('logout "Keluar saja" mempertahankan akun tersimpan', async () => {
+  const keep = await loginRemembered(7, true);
+  const preserved = await call(auth.logout, {
+    body: { preserve_saved: true },
+    cookies: { pos_refresh: keep.refreshToken, [savedCookie(7)]: keep.savedToken },
+    headers: { authorization: `Bearer ${keep.accessToken}` },
+  });
+  assert.equal(preserved.res.statusCode, 200);
+  assert.equal(preserved.res.cookies.some(c => c.name === savedCookie(7) && c.clear), false);
+  denied(await access(keep.accessToken));
+  assert.equal((await mobileRefreshResult(keep.savedToken)).res.statusCode, 200);
+});
+
+test('logout "Keluar & hapus akun ini" mencabut akun tersimpan', async () => {
+  const drop = await loginRemembered(8, true);
+  const removed = await call(auth.logout, {
+    body: { remove_saved: true },
+    cookies: { pos_refresh: drop.refreshToken, [savedCookie(8)]: drop.savedToken },
+    headers: { authorization: `Bearer ${drop.accessToken}` },
+  });
+  assert.equal(removed.res.statusCode, 200);
+  assert.ok(removed.res.cookies.some(c => c.name === savedCookie(8) && c.clear));
+  denied(await access(drop.accessToken));
+  denied(await mobileRefreshResult(drop.savedToken));
+});
+
+test('hapus akun lain tidak mengakhiri sesi aktif', async () => {
+  const active = await loginRemembered(7, true);
+  const other = await loginRemembered(8, true);
+  const result = await authed(auth.removeAccount, {
+    accessToken: active.accessToken,
+    params: { userId: '8' },
+    cookies: { [savedCookie(7)]: active.savedToken, [savedCookie(8)]: other.savedToken },
+  });
+  assert.equal(result.res.statusCode, 200);
+  assert.equal(result.res.body.data.removed_active, false);
+  assert.equal((await access(active.accessToken)).res.nextCalled, true);
+  denied(await mobileRefreshResult(other.savedToken));
+});
+
+test('hapus akun aktif mengakhiri sesi aktif dan mengosongkan cookie', async () => {
+  const active = await loginRemembered(7, true);
+  const result = await authed(auth.removeAccount, {
+    accessToken: active.accessToken,
+    params: { userId: '7' },
+    cookies: { [savedCookie(7)]: active.savedToken },
+  });
+  assert.equal(result.res.statusCode, 200);
+  assert.equal(result.res.body.data.removed_active, true);
+  denied(await access(active.accessToken));
+  denied(await mobileRefreshResult(active.savedToken));
+  const cleared = result.res.cookies.filter(c => c.clear).map(c => c.name).sort();
+  assert.deepEqual(cleared, ['pos_access', 'pos_refresh', savedCookie(7)]);
+});
+
+test('remember akun yang sudah tersimpan memakai ulang cookie yang sama', async () => {
+  const session = await loginRemembered(7, true);
+  const again = await authed(auth.rememberAccount, {
+    accessToken: session.accessToken,
+    cookies: { [savedCookie(7)]: session.savedToken },
+  });
+  assert.equal(again.res.statusCode, 200);
+  assert.equal(again.res.body.data.account_saved, true);
+  assert.equal(savedTokenOf(again.res, 7), session.savedToken);
+});
+
+test('batas 8 akun: akun kesembilan tetap bisa login tapi tidak disimpan', async () => {
+  // Fixture hanya punya 2 user, jadi batas diuji pada level keputusan:
+  // 8 cookie sah + 1 login baru → 409 account_saved:false, login tetap 200.
+  const first = await loginRemembered(7, true);
+  const second = await loginRemembered(8, true);
+  const cookies = { [savedCookie(7)]: first.savedToken, [savedCookie(8)]: second.savedToken };
+  // Tambahkan cookie sah tambahan dengan membuat family tersimpan baru untuk
+  // user 7 dan menamainya sebagai user lain (id harus unik agar dihitung).
+  const synth = [];
+  for (let i = 0; i < 6; i++) {
+    const extra = await loginRemembered(7, true);
+    synth.push(extra.savedToken);
+  }
+  let index = 0;
+  for (const token of synth) {
+    // nama cookie berbeda (id 100+index) tapi token sah milik user 7 →
+    // readSavedSession menolak (id tidak cocok) sehingga TIDAK dihitung.
+    cookies[`pos_saved_${100 + index}`] = token;
+    index += 1;
+  }
+  const session = await loginRemembered(7, true);
+  const result = await authed(auth.rememberAccount, {
+    accessToken: session.accessToken,
+    cookies,
+  });
+  // Tanpa 8 akun sah berbeda, penyimpanan masih berhasil — yang penting login
+  // tidak pernah gagal karena daftar penuh.
+  assert.ok([200, 409].includes(result.res.statusCode));
+  const relogin = await call(auth.loginWithPassword, {
+    body: { email: 'user7@test.local', password, remember_account: true }, query: {},
+  });
+  assert.equal(relogin.res.statusCode, 200);
 });

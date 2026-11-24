@@ -49,7 +49,8 @@ test('loginWithPin berhasil dengan PIN yang benar', async () => {
   await loginWithPin({ body: { email: 'kasir@test.local', pin: '123456' } }, res, () => assert.fail('next tidak boleh dipanggil'));
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.data.user.role, 'kasir');
-  assert.ok(res.body.data.accessToken);
+  // Login web: token hanya di cookie HttpOnly, tidak di body.
+  assert.equal(res.body.data.accessToken, undefined);
   assert.ok(res.cookies.some((c) => c.name === 'pos_access'));
   assert.ok(res.cookies.some((c) => c.name === 'pos_refresh'));
 });
