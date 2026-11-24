@@ -8,6 +8,9 @@ import DateRangePresets from "../components/DateRangePresets";
 import { getWarehousePeriodRange, WAREHOUSE_PERIOD_OPTIONS } from "../dashboard/warehouse-periods.mjs";
 import { useAppSession } from "../components/AppStateProvider";
 import { createRequestSequence } from "../components/app-state.cjs";
+import OlseraDashboardSections from "../dashboard/OlseraDashboardSections";
+import ReportDetailAccordions from "./ReportDetailAccordions";
+import ReportClosingPanel from "./ReportClosingPanel";
 import ReportAnalyticsWorkspace from "./ReportAnalyticsWorkspace";
 import { openPrintView } from "../lib/print-utils";
 
@@ -143,7 +146,7 @@ export default function ReportsPage() {
         <>
           <a className="button-link" href="/reports/tax">Laporan Pajak</a>
           <a className="button-link" href="/finance">Keuangan</a>
-          <button type="button" onClick={() => openPrintView({ selector: ".reports-print-scope", title: "Laporan Anyostore" })}>Cetak / Simpan PDF</button>
+          <button type="button" onClick={() => openPrintView({ selector: ".reports-print-scope", title: reportView === "sales" ? "Laporan Penjualan" : "Laporan Anyostore" })}>Cetak / Simpan PDF</button>
         </>
       }
     >
@@ -200,6 +203,15 @@ export default function ReportsPage() {
           logo={logo}
           selectedView={reportView}
           onSelectedViewChange={setReportView}
+          salesContent={
+            <>
+              <div className="reports-android-summary reports-summary-print-only">
+                <OlseraDashboardSections reportData={report} fallbackData={null} activeBranchId={activeBranchId} period={period} role={user?.role} />
+              </div>
+              <ReportDetailAccordions report={report} user={user} activeBranchId={activeBranchId} />
+              <div className="analytics-report-closing"><ReportClosingPanel date={period.end} branchId={activeBranchId} role={user?.role} /></div>
+            </>
+          }
         />
       )}
     </AppShell>

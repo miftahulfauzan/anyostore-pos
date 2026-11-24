@@ -2,9 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Download, Boxes, ChartNoAxesCombined, PackageSearch, ShoppingBag, Store, Users, Truck } from "lucide-react";
-import OlseraDashboardSections from "../dashboard/OlseraDashboardSections";
-import ReportDetailAccordions from "./ReportDetailAccordions";
-import ReportClosingPanel from "./ReportClosingPanel";
 
 const VIEWS = [
   { id: "sales", label: "Penjualan", icon: ChartNoAxesCombined },
@@ -252,7 +249,7 @@ function SupplierView({ data }) {
   );
 }
 
-export default function ReportAnalyticsWorkspace({ report, user, activeBranchId, period, apiUrl, store, storeName, logo, selectedView, onSelectedViewChange }) {
+export default function ReportAnalyticsWorkspace({ report, user, activeBranchId, period, apiUrl, store, storeName, logo, selectedView, onSelectedViewChange, salesContent }) {
   const selected = selectedView || "sales";
   const [payloads, setPayloads] = useState({});
   const [loading, setLoading] = useState(false);
@@ -319,12 +316,8 @@ export default function ReportAnalyticsWorkspace({ report, user, activeBranchId,
         </button>)}
       </nav>
       {selected === "sales" ? <>
-        <div className="reports-android-summary reports-summary-print-only">
-          <OlseraDashboardSections reportData={report} fallbackData={null} activeBranchId={activeBranchId} period={period} role={user?.role} />
-        </div>
         <ReportHeading view={selected} onExport={exportRows}>Tren penjualan, pembayaran, transaksi, dan retur pada periode terpilih.</ReportHeading>
-        <ReportDetailAccordions report={report} user={user} activeBranchId={activeBranchId} />
-        <div className="analytics-report-closing"><ReportClosingPanel date={period.end} branchId={activeBranchId} role={user?.role} /></div>
+        {salesContent}
       </> : selected === "products" ? <>
         <ReportHeading view={selected} title={user?.role === "owner" ? undefined : "Produk"} onExport={exportRows}>{user?.role === "owner" ? "Margin memakai harga dan biaya yang tersimpan pada transaksi." : "Laba produk memakai harga dan biaya yang tersimpan pada transaksi."}</ReportHeading>
         <ProductView data={report} isOwner={user?.role === "owner"} />
