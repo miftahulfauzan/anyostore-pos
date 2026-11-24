@@ -17,6 +17,8 @@ export default function ResellerOrderStatusPage() {
   const [order, setOrder] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [proofBusy, setProofBusy] = useState(false);
+  const [proofNote, setProofNote] = useState('');
 
   useEffect(() => {
     if (!token) return;
@@ -29,6 +31,27 @@ export default function ResellerOrderStatusPage() {
       .catch((cause) => setError(cause.message))
       .finally(() => setLoading(false));
   }, [token]);
+
+  async function uploadProof(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setProofBusy(true);
+    setProofNote('');
+    try {
+      const form = new FormData();
+      form.append('proof', file);
+      const response = await fetch(`${api}/reseller/orders/${token}/proof`, { method: 'POST', body: form });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message || 'Bukti transfer gagal diunggah');
+      setOrder((current) => current ? { ...current, payment_proof_path: body.data?.payment_proof_path || null } : current);
+      setProofNote('Bukti transfer terkirim. Admin akan memverifikasi.');
+    } catch (cause) {
+      setProofNote(cause.message);
+    } finally {
+      setProofBusy(false);
+      event.target.value = '';
+    }
+  }
 
   if (loading) {
     return <main style={pageStyle}><div style={shellStyle}><p>Memuat pesanan…</p></div></main>;
@@ -78,6 +101,38 @@ export default function ResellerOrderStatusPage() {
             ))}
           </ol>
         </div>
+
+        {['new', 'confirmed'].includes(order.status) && order.payment_status !== 'paid' && (
+          <div style={cardStyle}>
+            <h2 style={{ margin: 0, fontSize: 15 }}>Bukti transfer</h2>
+            <p style={{ margin: 0, fontSize: 13, color: T.muted }}>
+              Transfer sesuai total pesanan, lalu unggah bukti di sini (JPG/PNG/WebP, maks 5 MB).
+            </p>
+            {order.payment_proof_path && (
+              <img
+                src={order.payment_proof_path}
+                alt="Bukti transfer yang sudah diunggah"
+                style={{ width: '100%', borderRadius: 10, border: `1px solid ${T.border}`, display: 'block' }}
+              />
+            )}
+            <label style={{ ...linkStyle, display: 'inline-block', cursor: 'pointer' }}>
+              {proofBusy ? 'Mengunggah…' : order.payment_proof_path ? 'Ganti bukti transfer' : 'Unggah bukti transfer'}
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadProof} disabled={proofBusy} style={{ display: 'none' }} />
+            </label>
+            {proofNote && <p style={{ margin: 0, fontSize: 13, color: T.muted }}>{proofNote}</p>}
+          </div>
+        )}
+        {order.payment_proof_path && (order.payment_status === 'paid' || ['shipped', 'done'].includes(order.status)) && (
+          <div style={cardStyle}>
+            <h2 style={{ margin: 0, fontSize: 15 }}>Bukti transfer</h2>
+            <img
+              src={order.payment_proof_path}
+              alt="Bukti transfer"
+              style={{ width: '100%', borderRadius: 10, border: `1px solid ${T.border}`, display: 'block' }}
+            />
+            <p style={{ margin: 0, fontSize: 13, color: T.muted }}>Pembayaran sudah diverifikasi admin.</p>
+          </div>
+        )}
 
         <div style={cardStyle}>
           <h2 style={{ margin: 0, fontSize: 15 }}>Rincian</h2>

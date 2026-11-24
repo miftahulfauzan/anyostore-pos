@@ -5,6 +5,7 @@ const db = require('../db');
 const { localDateString } = require('../local-date');
 const { money } = require('../money');
 const { reserveStock } = require('../stock-reservation');
+const { assertValidUpload, createMediaUpload, persistUploadedFile, removeMedia } = require('../media-storage');
 const {
   currentAccount,
   requireBuyer,
@@ -87,6 +88,8 @@ function publicOrder(row, items = []) {
     paid_at: row.paid_at || null,
     shipped_at: row.shipped_at || null,
     invoice_no: row.invoice_no || null,
+    payment_proof_path: row.payment_proof_path || null,
+    payment_proof_uploaded_at: row.payment_proof_uploaded_at || null,
     reject_reason: row.reject_reason || null,
     items: items.map((item) => ({
       name: item.product_name,
@@ -583,6 +586,51 @@ router.get('/orders/lookup', lookupLimiter, async (req, res, next) => {
     );
     res.json({ success: true, data: { ...publicOrder(order, items), public_token: order.public_token, buyer_name: order.buyer_name, buyer_phone: order.buyer_phone.slice(0, 4) + '••••' + order.buyer_phone.slice(-3) } });
   } catch (error) {
+    next(error);
+  }
+});
+
+// Unggah bukti transfer untuk pesanan tertentu lewat public_token. Token 32 hex
+// hanya diketahui pembeli pemilik tautan, jadi cukup menjadi bukti kepemilikan.
+// Hanya boleh saat pesanan belum dibayar dan belum ditutup.
+const proofUpload = createMediaUpload('payment-proofs', {
+  fileSize: 5 * 1024 * 1024,
+  mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+});
+
+router.post('/orders/:token/proof', proofUpload.single('proof'), async (req, res, next) => {
+  try {
+    const token = String(req.params.token ?? '').trim();
+    if (!/^[0-9a-f]{32}$/i.test(token)) {
+      await assertValidUpload(req.file).catch(() => {});
+      throw httpError(400, 'Tautan pesanan tidak valid');
+    }
+    if (!req.file) throw httpError(400, 'File bukti transfer wajib diunggah');
+    await assertValidUpload(req.file);
+
+    const [rows] = await db.execute(
+      'SELECT id, status, payment_status, payment_proof_path FROM reseller_orders WHERE public_token = ? LIMIT 1',
+      [token],
+    );
+    const order = rows[0];
+    if (!order) throw httpError(404, 'Pesanan tidak ditemukan');
+    if (order.payment_status === 'paid') throw httpError(409, 'Pesanan ini sudah ditandai dibayar');
+    if (['rejected', 'done', 'cancelled'].includes(order.status)) {
+      throw httpError(409, 'Pesanan sudah ditutup, bukti transfer tidak dapat diunggah');
+    }
+
+    const publicPath = await persistUploadedFile(req.file, 'payment-proofs');
+    await db.execute(
+      'UPDATE reseller_orders SET payment_proof_path = ?, payment_proof_uploaded_at = NOW() WHERE id = ?',
+      [publicPath, order.id],
+    );
+    // Bukti lama tidak dipakai lagi — jangan tinggalkan file yatim.
+    if (order.payment_proof_path && order.payment_proof_path !== publicPath) {
+      await removeMedia(order.payment_proof_path);
+    }
+    res.status(201).json({ success: true, data: { payment_proof_path: publicPath } });
+  } catch (error) {
+    if (req.file && !req.file.storedPath && !error.status) await assertValidUpload(req.file).catch(() => {});
     next(error);
   }
 });
