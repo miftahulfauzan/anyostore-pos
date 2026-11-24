@@ -142,13 +142,27 @@ export default function AccountSwitcherPage() {
     leaveForNewAccount();
   }
 
-  function leaveForNewAccount() {
+  async function leaveForNewAccount() {
     setAddChoiceOpen(false);
     if (!guardUnsaved()) return;
-    // "Lanjut tanpa menyimpan": backend mencabut sesi asal saat akun lain
-    // dipilih di halaman login berikutnya, jadi tidak ada sesi yang menggantung.
-    clearSession();
-    router.replace('/login');
+    // Sesi aktif HARUS diakhiri di server dulu: /login mengarahkan balik ke
+    // halaman awal role bila cookie sesi masih sah, sehingga tanpa logout
+    // "Tambah akun" akan memantul dan tidak pernah menampilkan form.
+    setBusy('leave');
+    try {
+      await fetch(`${apiUrl}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'SI_SECRET_SECRET_JS4GJQYJ',
+        // preserve_saved: akun yang diingat tetap tersedia untuk dipilih lagi.
+        body: JSON.stringify({ preserve_saved: true }),
+      });
+    } catch {
+      // Jaringan gagal: sesi lokal tetap dibersihkan agar pengguna bisa masuk.
+    } finally {
+      clearSession();
+      router.replace('/login');
+    }
   }
 
   const active = data?.active || user;
