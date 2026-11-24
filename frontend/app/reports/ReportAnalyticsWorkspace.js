@@ -17,7 +17,7 @@ const number = (value) => Number(value || 0);
 const fmtNumber = (value) => new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(number(value));
 const fmtRp = (value) => `Rp ${fmtNumber(value)}`;
 const fmtPercent = (value) => `${number(value).toLocaleString("id-ID", { maximumFractionDigits: 1 })}%`;
-const fmtDate = (value) => value ? String(value).slice(0, 10).split("-").reverse().join("/") : "—";
+const fmtDate = (value) => value ? String(value).slice(0, 10).split("-").reverse().join("/") : "-";
 
 function downloadCsv(section, headers, rows) {
   const escape = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
@@ -225,7 +225,7 @@ function SupplierView({ data }) {
         <Kpi label="Total PO" value={fmtNumber(summary.orders)} helper={fmtRp(summary.order_value)} />
         <Kpi label="Masih terbuka" value={fmtNumber(summary.open_orders)} helper={fmtRp(summary.pending_value)} tone="blue" />
         <Kpi label="Terlambat" value={fmtNumber(summary.overdue_orders)} helper="PO terbuka melewati tanggal perkiraan" tone="amber" />
-        <Kpi label="Ke penerimaan pertama" value={summary.avg_first_receipt_days == null ? "—" : `${number(summary.avg_first_receipt_days).toLocaleString("id-ID", { maximumFractionDigits: 1 })} hari`} helper="Rata-rata PO yang sudah mulai diterima" tone="green" />
+        <Kpi label="Ke penerimaan pertama" value={summary.avg_first_receipt_days == null ? "-" : `${number(summary.avg_first_receipt_days).toLocaleString("id-ID", { maximumFractionDigits: 1 })} hari`} helper="Rata-rata PO yang sudah mulai diterima" tone="green" />
       </div>
       <Panel title="Ringkasan supplier" hint="Nilai dan jumlah PO">
         {suppliers.length ? <div className="analytics-report-list">
