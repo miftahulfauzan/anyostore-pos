@@ -3,16 +3,52 @@ import { localDateString } from '../lib/local-date';
 import SafeImage from '../components/SafeImage';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppSession } from '../components/AppStateProvider';
-import { openPrintView } from '../lib/print-utils';
+import { createPrintWindow } from '../lib/print-utils';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const STOCK_PAGE_SIZE = 40;
 const money = (v) => Number(v || 0).toLocaleString('id-ID');
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+}[character]));
 const mediaUrl = (path) => {
   if (!path) return '';
   if (/^https?:\/\//i.test(path)) return path;
   const base = api.replace(/\/api\/?$/, '');
   return `${base}/${String(path).replace(/^\/+/, '')}`;
 };
+
+function groupStockRows(rows) {
+  const map = new Map();
+  for (const row of rows) {
+    const key = String(row.product_id);
+    let group = map.get(key);
+    if (!group) {
+      group = { key, product_id: row.product_id, variant_id: null, name: row.product_name, sku: row.sku, photo_path: row.photo_path || '', min_stock: Number(row.min_stock || 0), qtyByWarehouse: {}, rackByWarehouse: {}, total: 0, reserved: 0 };
+      map.set(key, group);
+    }
+    if (!group.photo_path && row.photo_path) group.photo_path = row.photo_path;
+    group.qtyByWarehouse[String(row.warehouse_id)] = Number(row.quantity || 0);
+    group.rackByWarehouse[String(row.warehouse_id)] = row.rack_position || '';
+    group.total += Number(row.quantity || 0);
+    group.reserved += Number(row.reserved || 0);
+  }
+  return Array.from(map.values()).sort((a, b) => String(a.name).localeCompare(String(b.name)) || Number(a.product_id) - Number(b.product_id));
+}
+
+function summarizeStockRows(groups, rows) {
+  return {
+    total_products: groups.length,
+    total_stock: groups.reduce((sum, group) => sum + group.total, 0),
+    total_branches: new Set(rows.map((row) => row.branch_name).filter(Boolean)).size,
+    low_stock: groups.filter((group) => group.total > 0 && group.total <= group.min_stock).length,
+    out_of_stock: groups.filter((group) => group.total === 0).length,
+  };
+}
 
 // Laporan stok matriks: baris produk+warna, kolom per gudang, total di ujung.
 export default function StockReportSection() {
@@ -23,6 +59,7 @@ export default function StockReportSection() {
   const [branches, setBranches] = useState([]);
   const [cat, setCat] = useState('');
   const [q, setQ] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [branchId, setBranchId] = useState('');
   const [isOwner, setIsOwner] = useState(false);
   const [isGudang, setIsGudang] = useState(false);
@@ -31,10 +68,40 @@ export default function StockReportSection() {
   const [editingRack, setEditingRack] = useState(null);
   const [rackDraft, setRackDraft] = useState('');
   const [savingRack, setSavingRack] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(40);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
+  const [stockSummary, setStockSummary] = useState(null);
+  const [pagination, setPagination] = useState({ limit: STOCK_PAGE_SIZE, offset: 0, total: 0, has_more: false });
   const loadSeq = useRef(0);
 
   const headers = () => ({ 'Content-Type': 'application/json'});
+
+  function stockParams(offset = null) {
+    const params = new URLSearchParams();
+    if (cat) params.set('category_id', cat);
+    if (q) params.set('search', q);
+    if (isOwner || isGudang) {
+      if (isOwner) params.set('branch_id', activeBranchId || 'all');
+      else params.set('branch_id', branchId || 'all');
+    }
+    if (offset !== null) {
+      params.set('limit', String(STOCK_PAGE_SIZE));
+      params.set('offset', String(offset));
+    }
+    return params;
+  }
+
+  async function requestStock(params) {
+    const response = await fetch(`${api}/inventory/stock-by-warehouse?${params}`, { headers: headers() });
+    const body = await response.json();
+    if (!response.ok || !body.success) throw new Error(body.message || 'Data stok gagal dimuat');
+    return body;
+  }
+
+  async function fetchAllStockRows() {
+    const body = await requestStock(stockParams());
+    return body.data || [];
+  }
 
   useEffect(() => {
     fetch(`${api}/auth/me`, { headers: headers() })
@@ -56,23 +123,25 @@ export default function StockReportSection() {
   }, []);
 
   useEffect(() => {
+    const timer = window.setTimeout(() => setQ(searchInput.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
     setLoading(true);
+    setLoadingMore(false);
+    setMessage('');
+    setWarehouseRows([]);
+    setStockSummary(null);
+    setPagination({ limit: STOCK_PAGE_SIZE, offset: 0, total: 0, has_more: false });
     const seq = ++loadSeq.current;
-    const params = {};
-    if (cat) params.category_id = cat;
-    if (q) params.search = q;
-    if (isOwner || isGudang) {
-      if (isOwner) params.branch_id = activeBranchId || 'all';
-      else params.branch_id = branchId || 'all';
-    }
-    const qs = new URLSearchParams(params).toString();
-    fetch(`${api}/inventory/stock-by-warehouse?${qs}`, { headers: headers() })
-      .then((r) => r.json())
-      .then((b) => {
+    requestStock(stockParams(0))
+      .then((body) => {
         if (seq !== loadSeq.current) return;
-        if (!b.success) throw new Error(b.message);
-        setWarehouseRows(b.data || []);
-        setVisibleCount(40);
+        const nextRows = body.data || [];
+        setWarehouseRows(nextRows);
+        setStockSummary(body.summary || null);
+        setPagination(body.pagination || { limit: STOCK_PAGE_SIZE, offset: 0, total: nextRows.length, has_more: false });
       })
       .catch((e) => { if (seq === loadSeq.current) setMessage(e.message); })
       .finally(() => { if (seq === loadSeq.current) setLoading(false); });
@@ -96,50 +165,104 @@ export default function StockReportSection() {
   }, [allWarehouses, effectiveBranchId, warehouseRows]);
 
   // Baris: satu per produk (varian = pembeda gambar, bukan stok).
-  const grouped = useMemo(() => {
-    const map = new Map();
-    for (const r of warehouseRows) {
-      const key = String(r.product_id);
-      let g = map.get(key);
-      if (!g) {
-        g = { key, product_id: r.product_id, variant_id: null, name: r.product_name, sku: r.sku, photo_path: r.photo_path || '', min_stock: Number(r.min_stock || 0), qtyByWarehouse: {}, rackByWarehouse: {}, total: 0, reserved: 0 };
-        map.set(key, g);
-      }
-      if (!g.photo_path && r.photo_path) g.photo_path = r.photo_path;
-      g.qtyByWarehouse[String(r.warehouse_id)] = Number(r.quantity || 0);
-      g.rackByWarehouse[String(r.warehouse_id)] = r.rack_position || '';
-      g.total += Number(r.quantity || 0);
-      g.reserved += Number(r.reserved || 0);
-    }
-    return Array.from(map.values()).sort((a, b) => String(a.name).localeCompare(String(b.name)));
-  }, [warehouseRows]);
-
-
-  const visibleGroups = Array.isArray(grouped) ? grouped.slice(0, visibleCount) : [];
-  const summary = useMemo(() => {
-    const rows = grouped;
-    return {
-      total_products: new Set(rows.map((r) => r.product_id)).size,
-      total_stock: rows.reduce((s, r) => s + r.total, 0),
-      total_branches: new Set(warehouseRows.map((r) => r.branch_name).filter(Boolean)).size,
-      low_stock: rows.filter((r) => r.total > 0 && r.total <= r.min_stock).length,
-      out_of_stock: rows.filter((r) => r.total === 0).length,
-    };
-  }, [grouped, warehouseRows]);
+  const grouped = useMemo(() => groupStockRows(warehouseRows), [warehouseRows]);
+  const visibleGroups = grouped;
+  const calculatedSummary = useMemo(() => summarizeStockRows(grouped, warehouseRows), [grouped, warehouseRows]);
+  const summary = stockSummary || calculatedSummary;
 
   const colSpan = 1 + whColumns.length + 1;
 
-  function exportCsv() {
-    if (!grouped.length) return;
-    const header = ['Produk', ...whColumns.map((w) => w.name), 'Total'];
-    const lines = grouped.map((g) => [g.name, ...whColumns.map((w) => g.qtyByWarehouse[String(w.id)] || 0), g.total]);
-    const csv = [header, ...lines].map((row) => row.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `laporan-stok-${localDateString()}.csv`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+  async function loadMore() {
+    if (loadingMore || !pagination.has_more) return;
+    const seq = loadSeq.current;
+    const offset = pagination.offset + pagination.limit;
+    setLoadingMore(true);
+    setMessage('');
+    try {
+      const body = await requestStock(stockParams(offset));
+      if (seq !== loadSeq.current) return;
+      setWarehouseRows((current) => [...current, ...(body.data || [])]);
+      setPagination((current) => ({
+        ...current,
+        ...(body.pagination || {}),
+        total: body.pagination?.total ?? current.total,
+      }));
+    } catch (error) {
+      if (seq === loadSeq.current) setMessage(error.message);
+    } finally {
+      if (seq === loadSeq.current) setLoadingMore(false);
+    }
+  }
+
+  async function exportCsv() {
+    if (exportBusy || !summary.total_products) return;
+    setExportBusy(true);
+    setMessage('');
+    try {
+      const allRows = await fetchAllStockRows();
+      const allGroups = groupStockRows(allRows);
+      const header = ['Produk', ...whColumns.map((w) => w.name), 'Total'];
+      const lines = allGroups.map((group) => [group.name, ...whColumns.map((w) => group.qtyByWarehouse[String(w.id)] || 0), group.total]);
+      const csv = [header, ...lines].map((row) => row.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `laporan-stok-${localDateString()}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
+  async function printPdf() {
+    if (exportBusy || !summary.total_products) return;
+    const printWindow = createPrintWindow();
+    if (!printWindow) return;
+    setExportBusy(true);
+    setMessage('');
+    try {
+      const allRows = await fetchAllStockRows();
+      const allGroups = groupStockRows(allRows);
+      const allSummary = summarizeStockRows(allGroups, allRows);
+      const mode = isOwner
+        ? (activeBranchId === 'all' ? 'Semua Toko/Gudang' : 'Satu Toko/Gudang')
+        : (branchId ? 'Satu Toko' : 'Semua Toko');
+      const tableRows = allGroups.map((group) => `<tr><td><strong>${escapeHtml(group.name)}</strong>${group.sku ? `<br><small>${escapeHtml(group.sku)}</small>` : ''}</td>${whColumns.map((warehouse) => `<td class="number">${money(group.qtyByWarehouse[String(warehouse.id)] || 0)}</td>`).join('')}<td class="number"><strong>${money(group.total)}</strong></td></tr>`).join('');
+      const html = `<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Laporan Stok Produk</title><style>
+        @page { size: A4 landscape; margin: 12mm; }
+        body { margin: 0; color: #111827; font: 11px Arial, sans-serif; }
+        header { margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid #1e3a5f; }
+        header strong { display: block; color: #1e3a5f; font-size: 13px; letter-spacing: 2px; }
+        h1 { margin: 5px 0; font-size: 18px; }
+        .meta { display: flex; flex-wrap: wrap; gap: 4px 18px; color: #475569; }
+        table { width: 100%; border-collapse: collapse; font-size: 10px; }
+        thead { display: table-header-group; }
+        th, td { padding: 6px 7px; border: 1px solid #cbd5e1; text-align: left; }
+        th { background: #eef3f8; color: #1e3a5f; }
+        td.number, th.number { text-align: right; white-space: nowrap; }
+        small { color: #64748b; }
+      </style></head><body><header><strong>ANYOSTORE</strong><h1>Laporan Stok Produk</h1><div class="meta"><span>Dicetak: ${escapeHtml(new Date().toLocaleString('id-ID'))}</span><span>Total Produk: ${money(allSummary.total_products)}</span><span>Total Stok: ${money(allSummary.total_stock)}</span><span>Mode: ${escapeHtml(mode)}</span></div></header><table><thead><tr><th>Produk</th>${whColumns.map((warehouse) => `<th class="number">${escapeHtml(warehouse.name)}</th>`).join('')}<th class="number">Total</th></tr></thead><tbody>${tableRows}</tbody></table></body></html>`;
+      let printed = false;
+      const triggerPrint = () => {
+        if (printed || printWindow.closed) return;
+        printed = true;
+        printWindow.focus();
+        printWindow.print();
+      };
+      printWindow.addEventListener('load', triggerPrint, { once: true });
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+      window.setTimeout(triggerPrint, 500);
+    } catch (error) {
+      printWindow.close();
+      setMessage(error.message);
+    } finally {
+      setExportBusy(false);
+    }
   }
 
   function rackKey(product, warehouse) {
@@ -226,8 +349,8 @@ export default function StockReportSection() {
 
         <div className="no-print" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
           <span style={{ flex: 1 }} />
-          <button type="button" className="button-link" onClick={exportCsv} disabled={!grouped.length}>Unduh Excel</button>
-          <button type="button" className="button-link" onClick={() => openPrintView({ selector: '.form-page', title: 'Laporan Stok Produk' })} disabled={!grouped.length}>Unduh PDF</button>
+          <button type="button" className="button-link" onClick={exportCsv} disabled={exportBusy || loading || !Number(summary.total_products)}>{exportBusy ? 'Menyiapkan…' : 'Unduh Excel'}</button>
+          <button type="button" className="button-link" onClick={printPdf} disabled={exportBusy || loading || !Number(summary.total_products)}>{exportBusy ? 'Menyiapkan…' : 'Unduh PDF'}</button>
         </div>
 
         {summary && (
@@ -255,7 +378,7 @@ export default function StockReportSection() {
         )}
 
         <div className="stock-filter-row no-print" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-          <input aria-label="Cari stok berdasarkan nama atau SKU" placeholder="Cari nama/SKU…" value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: 1, minWidth: 180, minHeight: 40 }} />
+          <input aria-label="Cari stok berdasarkan nama atau SKU" placeholder="Cari nama/SKU…" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ flex: 1, minWidth: 180, minHeight: 40 }} />
           <select aria-label="Filter kategori" value={cat} onChange={(e) => setCat(e.target.value)} style={{ minWidth: 150, minHeight: 40 }}>
             <option value="">Semua kategori</option>
             {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -333,10 +456,10 @@ export default function StockReportSection() {
           ))}
           {!loading && !grouped.length && <p className="muted">Belum ada stok tercatat.</p>}
         </div>
-        {!loading && grouped.length > visibleCount && (
+        {!loading && pagination.has_more && (
           <div style={{ display: 'flex', justifyContent: 'center', margin: '12px 0 4px' }}>
-            <button type="button" className="secondary" onClick={() => setVisibleCount((n) => n + 40)}>
-              Tampilkan {Math.min(40, grouped.length - visibleCount)} produk lagi ({visibleCount}/{grouped.length})
+            <button type="button" className="secondary" disabled={loadingMore} onClick={loadMore}>
+              {loadingMore ? 'Memuat…' : `Tampilkan ${Math.min(STOCK_PAGE_SIZE, pagination.total - grouped.length)} produk lagi (${grouped.length}/${pagination.total})`}
             </button>
           </div>
         )}

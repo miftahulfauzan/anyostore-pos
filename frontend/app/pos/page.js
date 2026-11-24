@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowUpRight, ChevronDown, Edit3, FileText, LayoutDashboard, LogOut, MoreVertical, PauseCircle, Share2, ShoppingCart, StickyNote, Tag, Trash2, UserRound, X } from 'lucide-react';
 import { useAppSession, useUnsavedWork } from '../components/AppStateProvider';
@@ -18,6 +18,9 @@ export default function PosPage() {
   const router = useRouter();
   const { user, activeBranchId, requestActiveBranchChange } = useAppSession();
   const [products, setProducts] = useState([]);
+  const [productsTotal, setProductsTotal] = useState(0);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productPage, setProductPage] = useState(1);
   const [stores, setStores] = useState([]);
   const [storeId, setStoreId] = useState('');
   const [warehouses, setWarehouses] = useState([]);
@@ -48,6 +51,9 @@ export default function PosPage() {
   const [priceEditValue, setPriceEditValue] = useState('');
   const [openItemMenuId, setOpenItemMenuId] = useState(null);
   const [customers, setCustomers] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [customersLoading, setCustomersLoading] = useState(false);
   const [customerId, setCustomerId] = useState('');
   const [sharingInvoice, setSharingInvoice] = useState(false);
   const [priceTier, setPriceTier] = useState('retail');
@@ -57,6 +63,8 @@ export default function PosPage() {
   const mediaUrl = (photoPath) => photoPath ? `${apiUrl.replace('/api', '')}${photoPath}` : '';
   const pendingTransactionId = useRef(null);
   const storeLoadSequence = useRef(createRequestSequence());
+  const productSearchSequence = useRef(createRequestSequence());
+  const customerSearchSequence = useRef(createRequestSequence());
   useUnsavedWork('pos-cart', cart.length > 0 || Boolean(notes.trim()));
   const newClientTransactionId = () => (typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
@@ -95,9 +103,15 @@ export default function PosPage() {
       setTransactionDate(localDateString());
       setStoreId('');
       setProducts([]);
+      setProductsTotal(0);
+      setProductsLoading(false);
+      setProductPage(1);
       setWarehouses([]);
       setWarehouseId('');
       setCustomers([]);
+      setSelectedCustomer(null);
+      setCustomerSearch('');
+      setCustomersLoading(false);
       setCart([]);
       setSelectedPaymentMethods(['cash']);
       setDualPayment(false);
@@ -114,6 +128,7 @@ export default function PosPage() {
       return;
     }
     setCart([]);
+    setSearch('');
     setTransactionDate(localDateString());
     setManualDiscount('');
     setNotes('');
@@ -125,9 +140,14 @@ export default function PosPage() {
     setPaymentAmounts({});
     setPaymentSheetOpen(false);
     setCustomerId('');
+    setSelectedCustomer(null);
+    setCustomerSearch('');
     setPriceTier('retail');
     pendingTransactionId.current = null;
     setStoreId(String(selected.id));
+    setProducts([]);
+    setProductsTotal(0);
+    setProductPage(1);
     try { localStorage.setItem('pos_branch_id', String(selected.id)); } catch { /* Compatibility preference only. */ }
     loadStore(selected.id);
   }, [storesLoaded, stores, activeBranchId]);
@@ -202,32 +222,85 @@ export default function PosPage() {
   }, [cart, storeId, customerId]);
 
   const selectedStore = stores.find((store) => String(store.id) === String(storeId));
-  const filteredProducts = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter((p) => p.name.toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q) || (p.barcode || '').toLowerCase().includes(q));
-  }, [products, search]);
+  const filteredProducts = products;
+  const customerOptions = selectedCustomer && !customers.some((customer) => String(customer.id) === String(selectedCustomer.id))
+    ? [selectedCustomer, ...customers]
+    : customers;
+
+  useEffect(() => {
+    if (!storeId || loadingStore) return undefined;
+    const requestId = productSearchSequence.current.next();
+    const queryText = search.trim();
+    setProductsLoading(true);
+    setProducts([]);
+    setProductsTotal(0);
+    setProductPage(1);
+    const timer = setTimeout(async () => {
+      try {
+        const query = new URLSearchParams({ branch_id: String(storeId), limit: '60', page: '1', include_wholesale: '1' });
+        if (queryText) query.set('search', queryText);
+        const response = await fetch(`${apiUrl}/products?${query}`, { headers: headers() });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.message || 'Produk gagal dimuat');
+        if (!productSearchSequence.current.isCurrent(requestId)) return;
+        setProducts(body.data || []);
+        setProductsTotal(Number(body.total) || 0);
+      } catch (error) {
+        if (productSearchSequence.current.isCurrent(requestId)) setMessage(error.message);
+      } finally {
+        if (productSearchSequence.current.isCurrent(requestId)) setProductsLoading(false);
+      }
+    }, queryText ? 250 : 0);
+    return () => {
+      clearTimeout(timer);
+      productSearchSequence.current.next();
+    };
+  }, [storeId, loadingStore, search]);
+
+  useEffect(() => {
+    if (!storeId || loadingStore) return undefined;
+    const requestId = customerSearchSequence.current.next();
+    const queryText = customerSearch.trim();
+    const controller = new AbortController();
+    setCustomersLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const query = new URLSearchParams({ branch_id: String(storeId), limit: '50' });
+        if (queryText) query.set('search', queryText);
+        const response = await fetch(`${apiUrl}/customers?${query}`, { headers: headers(), signal: controller.signal });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.message || 'Pelanggan gagal dimuat');
+        if (customerSearchSequence.current.isCurrent(requestId)) setCustomers(Array.isArray(body.data) ? body.data : []);
+      } catch (error) {
+        if (customerSearchSequence.current.isCurrent(requestId) && error.name !== 'AbortError') setMessage(error.message);
+      } finally {
+        if (customerSearchSequence.current.isCurrent(requestId)) setCustomersLoading(false);
+      }
+    }, queryText ? 250 : 0);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+      customerSearchSequence.current.next();
+    };
+  }, [storeId, loadingStore, customerSearch]);
 
   async function loadStore(branchId) {
     const requestId = storeLoadSequence.current.next();
     setLoadingStore(true);
+    setProductsLoading(false);
     try {
       const query = new URLSearchParams({ branch_id: String(branchId) });
-      const [productsResponse, warehousesResponse, customersResponse] = await Promise.all([
-        fetch(`${apiUrl}/products?limit=500&include_wholesale=1&${query}`, { headers: headers() }),
-        fetch(`${apiUrl}/inventory/warehouses?${query}`, { headers: headers() }),
-        fetch(`${apiUrl}/customers?limit=500&${query}`, { headers: headers() })
-      ]);
-      const productsBody = await productsResponse.json();
+      setProducts([]);
+      setProductsTotal(0);
+      setProductPage(1);
+      setCustomers([]);
+      setCustomersLoading(false);
+      const warehousesResponse = await fetch(`${apiUrl}/inventory/warehouses?${query}`, { headers: headers() });
       const warehousesBody = await warehousesResponse.json();
-      const customersBody = await customersResponse.json();
-      if (!productsResponse.ok || !warehousesResponse.ok) throw new Error(productsBody.message || warehousesBody.message || 'Gagal memuat data toko');
+      if (!warehousesResponse.ok) throw new Error(warehousesBody.message || 'Gagal memuat data toko');
       if (!storeLoadSequence.current.isCurrent(requestId)) return false;
-      setProducts(productsBody.data || []);
       setWarehouses(warehousesBody.data || []);
       setWarehouseId(warehousesBody.data?.[0] ? String(warehousesBody.data[0].id) : '');
-      const activeCustomers = customersResponse.ok ? (customersBody.data || []) : [];
-      setCustomers(activeCustomers);
       setMessage('');
       return true;
     } catch (error) {
@@ -238,12 +311,38 @@ export default function PosPage() {
     }
   }
 
+  async function loadMoreProducts() {
+    if (productsLoading || loadingStore || products.length >= productsTotal) return;
+    const requestId = productSearchSequence.current.next();
+    const nextPage = productPage + 1;
+    setProductsLoading(true);
+    try {
+      const query = new URLSearchParams({ branch_id: String(storeId), limit: '60', page: String(nextPage), include_wholesale: '1' });
+      if (search.trim()) query.set('search', search.trim());
+      const response = await fetch(`${apiUrl}/products?${query}`, { headers: headers() });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message || 'Produk berikutnya gagal dimuat');
+      if (!productSearchSequence.current.isCurrent(requestId)) return;
+      setProducts((current) => [...current, ...(body.data || [])]);
+      setProductsTotal(Number(body.total) || 0);
+      setProductPage(nextPage);
+    } catch (error) {
+      if (productSearchSequence.current.isCurrent(requestId)) setMessage(error.message);
+    } finally {
+      if (productSearchSequence.current.isCurrent(requestId)) setProductsLoading(false);
+    }
+  }
+
   async function changeStore(event) {
     const nextId = event.target.value;
     if (!nextId || nextId === storeId) return;
     if (user?.role === 'owner') requestActiveBranchChange(nextId);
     else {
       const nextStore = stores.find((store) => String(store.id) === nextId);
+      setCustomerId('');
+      setSelectedCustomer(null);
+      setCustomerSearch('');
+      setPriceTier('retail');
       try {
         const loaded = await loadStore(nextId);
         if (!loaded) return;
@@ -268,7 +367,8 @@ export default function PosPage() {
   function changeCustomer(event) {
     const nextId = event.target.value;
     setCustomerId(nextId);
-    const selected = customers.find((c) => String(c.id) === nextId);
+    const selected = customerOptions.find((c) => String(c.id) === nextId) || null;
+    setSelectedCustomer(selected);
     const tier = selected?.price_tier === 'semi_grosir' ? 'semi_grosir' : selected?.price_tier === 'grosir_seri' ? 'grosir_seri' : 'retail';
     setPriceTier(tiersEnabled ? tier : 'retail');
   }
@@ -468,7 +568,7 @@ export default function PosPage() {
       const settings = settingsResponse.ok ? (settingsBody.data || {}) : {};
       const store = stores.find((item) => String(item.id) === String(storeId)) || {};
       const storeName = String(settings.store_name || store.name || 'Anyostore').trim();
-      let customer = customers.find((item) => String(item.id) === String(customerId));
+      let customer = customerOptions.find((item) => String(item.id) === String(customerId));
       // Ekspedisi/alamat pelanggan bisa baru diubah di CRM. Ambil ulang supaya
       // invoice yang dibagikan memakai data terbaru, bukan salinan saat POS dibuka.
       if (customerId) {
@@ -629,11 +729,11 @@ export default function PosPage() {
         </button>
         <button type="button" className={`pos-mobile-cart-backdrop ${mobileCartOpen ? 'visible' : ''}`} onClick={() => setMobileCartOpen(false)} aria-label="Tutup keranjang" tabIndex={mobileCartOpen ? 0 : -1} />
         <section className="pos-layout">
-        <section className="panel catalog" aria-busy={loadingStore}>
+        <section className="panel catalog" aria-busy={loadingStore || productsLoading}>
           <div className="pos-catalog-toolbar">
             <div className="pos-catalog-title">
               <h2>Pilih Produk</h2>
-              <span className="pos-catalog-count">{filteredProducts.length}/{products.length} produk</span>
+              <span className="pos-catalog-count">{productsLoading ? 'Memuat…' : `${products.length}/${productsTotal} produk`}</span>
               <span className="pos-catalog-warehouse">
                 <span aria-hidden="true">•</span>
                 {loadingStore ? 'Memuat gudang…' : warehouses.find((warehouse) => String(warehouse.id) === String(warehouseId))?.name || 'Gudang belum tersedia'}
@@ -644,7 +744,8 @@ export default function PosPage() {
               {search && <button type="button" className="pos-pos-catalog-search-clear" onClick={() => setSearch('')} aria-label="Hapus pencarian">×</button>}
             </div>
           </div>
-          <div className="catalog-grid">{filteredProducts.map((product) => { const availableStock = Number(product.stock || 0); return <button type="button" className="product-tile" key={product.id} onClick={() => addToCart(product)} disabled={loadingStore} aria-label={`${product.name}, ${rupiah(product.price)}, stok ${availableStock}`}>{product.photo_path ? <img src={mediaUrl(product.photo_path)} alt="" loading="lazy" /> : <span className="pos-photo-placeholder">Tanpa foto</span>}<strong>{product.name}</strong><span>{rupiah(product.price)}</span><small>Stok: {availableStock}</small></button>; })}{!filteredProducts.length && <p className="muted">{search.trim() ? `Tidak ada produk cocok "${search}"` : 'Belum ada produk'}</p>}</div>
+          <div className="catalog-grid">{filteredProducts.map((product) => { const availableStock = Number(product.stock || 0); return <button type="button" className="product-tile" key={product.id} onClick={() => addToCart(product)} disabled={loadingStore} aria-label={`${product.name}, ${rupiah(product.price)}, stok ${availableStock}`}>{product.photo_path ? <img src={mediaUrl(product.photo_path)} alt="" loading="lazy" /> : <span className="pos-photo-placeholder">Tanpa foto</span>}<strong>{product.name}</strong><span>{rupiah(product.price)}</span><small>Stok: {availableStock}</small></button>; })}{!filteredProducts.length && <p className="muted">{productsLoading ? 'Memuat produk…' : search.trim() ? `Tidak ada produk cocok "${search}"` : 'Belum ada produk'}</p>}</div>
+          {products.length < productsTotal && <button type="button" className="pos-load-more secondary" onClick={loadMoreProducts} disabled={productsLoading || loadingStore}>{productsLoading ? 'Memuat produk…' : `Muat produk berikutnya (${productsTotal - products.length} tersisa)`}</button>}
         </section>
         <aside className={`panel cart ${mobileCartOpen ? 'mobile-cart-open' : ''}`}>
           <div className="cart-mobile-header">
@@ -657,9 +758,11 @@ export default function PosPage() {
           <div className="pos-customer-row">
             <label className="pos-customer-select">
               <span><UserRound aria-hidden="true" size={16} /> Pelanggan</span>
-              <select value={customerId} onChange={changeCustomer} disabled={loadingStore}>
-                <option value="">{customers.length ? 'Umum (tanpa pelanggan)' : 'Belum ada pelanggan di toko ini'}</option>
-                {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name} {customer.phone ? `(${customer.phone})` : ''}{tiersEnabled ? ` : ${tierLabel[customer.price_tier || 'retail']}` : ''}</option>)}
+              <input type="search" aria-label="Cari pelanggan berdasarkan nama atau nomor telepon" placeholder="Cari nama / nomor telepon" value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} disabled={loadingStore} />
+              <select value={customerId} onChange={changeCustomer} disabled={loadingStore || customersLoading}>
+                <option value="">{customersLoading ? 'Memuat pelanggan…' : customerOptions.length ? 'Umum (tanpa pelanggan)' : 'Belum ada pelanggan di toko ini'}</option>
+                {customerOptions.map((customer) => <option key={customer.id} value={customer.id}>{customer.name} {customer.phone ? `(${customer.phone})` : ''}{tiersEnabled ? ` : ${tierLabel[customer.price_tier || 'retail']}` : ''}</option>)}
+                {customerId && !customerOptions.some((customer) => String(customer.id) === String(customerId)) && <option value={customerId}>Pelanggan dari draft #{customerId}</option>}
               </select>
             </label>
             {['owner', 'manager', 'admin'].includes(user?.role) && <a className="pos-customer-add" href="/customers">Tambah</a>}

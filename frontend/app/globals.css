@@ -1335,8 +1335,11 @@ a, .photo-upload { color:var(--expressive-secondary); }
   text-decoration: none;
 }
 .pos-customer-add:hover { background: #dbeafe; }
-.pos-customer-select { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 9px; color: #475569; font-size: 10px; font-weight: 700; }
+.pos-customer-select { display: grid; grid-template-columns: 1fr; align-items: center; gap: 6px; color: #475569; font-size: 10px; font-weight: 700; }
+.pos-customer-select > span { display: inline-flex; align-items: center; gap: 5px; }
+.pos-customer-select input,
 .pos-customer-select select { min-height: 40px; margin: 0; border-color: #1e3a5f; background: #fff; color: #111827; font-size: 12px; font-weight: 700; cursor: pointer; }
+.pos-customer-select input { width: 100%; padding: 0 10px; }
 .pos-transaction-date { display: grid; gap: 5px; margin: 0 0 10px; color: #334155; font-size: 12px; font-weight: 700; }
 .pos-transaction-date input { width: 100%; min-height: 40px; margin: 0; }
 .pos-transaction-date small { color: #64748b; font-size: 11px; font-weight: 500; }
@@ -2682,6 +2685,7 @@ html[data-theme="purple"] .sidebar .side-nav a.active { background: #8b5cf6 !imp
 .dark .movement-filter select,
 .dark .pos-store-bar select,
 .dark .pos-customer-select select,
+.dark .pos-customer-select input,
 .dark .pos-transaction-date input,
 .dark .cart-unit-price input {
   background: #1e293b;
@@ -6453,6 +6457,11 @@ html[data-theme] .sidebar .nav-group-toggle:hover {
   font-size: 15px;
   font-weight: 700;
   box-shadow: none !important;
+}
+.pos-load-more {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 10px;
 }
 .dark .pos-catalog-warehouse { color: #94a3b8; }
 .dark .pos-catalog-count { background: #22304b; color: #cbd5e1; }

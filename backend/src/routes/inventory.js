@@ -381,6 +381,12 @@ router.get('/stock-by-warehouse', async (req, res, next) => {
     const branchId = (isOwner || isGudang) && Number.isInteger(Number(req.query.branch_id)) ? Number(req.query.branch_id) : req.user.branch_id;
     const search = (req.query.search || '').trim();
     const categoryId = Number(req.query.category_id) || null;
+    const paginated = req.query.limit !== undefined;
+    const limit = Number(req.query.limit);
+    const offset = Number(req.query.offset ?? 0);
+    if (paginated && (!Number.isInteger(limit) || limit < 1 || limit > 100 || !Number.isSafeInteger(offset) || offset < 0 || offset > 1000000)) {
+      return res.status(400).json({ success: false, message: 'Parameter halaman stok tidak valid.' });
+    }
 
     let where = 'WHERE w.is_active = TRUE AND p.is_active = TRUE';
     const params = [];
@@ -388,26 +394,91 @@ router.get('/stock-by-warehouse', async (req, res, next) => {
     if (search) { where += ' AND (p.name LIKE ? OR p.sku LIKE ?)'; const s = `%${search}%`; params.push(s, s); }
     if (categoryId) { where += ' AND p.category_id = ?'; params.push(categoryId); }
 
-    const [rows] = await db.execute(
-      `SELECT b.name AS branch_name, w.id AS warehouse_id, w.name AS warehouse_name,
-              ws.product_id, p.name AS product_name, p.sku,
-              (SELECT pp.path FROM product_photos pp
-               WHERE pp.product_id = p.id AND pp.media_type = 'image'
-               ORDER BY (pp.variant_id IS NULL) DESC, pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
-              pv.id AS variant_id, pv.color AS variant_color,
-              COALESCE(ws.quantity, 0) AS quantity, COALESCE(ws.reserved_quantity, 0) AS reserved, ws.rack_position,
-              p.min_stock
-       FROM warehouse_stocks ws
+    const stockJoins = `FROM warehouse_stocks ws
        JOIN warehouses w ON w.id = ws.warehouse_id
        JOIN branches b ON b.id = w.branch_id
-       JOIN products p ON p.id = ws.product_id
-       LEFT JOIN product_variants pv ON pv.id = ws.variant_id
-       ${where}
-       ORDER BY b.name, w.name, p.name, pv.color`,
-      params
-    );
+       JOIN products p ON p.id = ws.product_id`;
+    let rows;
+    let summary;
+    let pagination;
+    if (paginated) {
+      const summaryQuery = offset === 0
+        ? db.execute(
+          `WITH filtered_stock AS (
+             SELECT p.id AS product_id, p.min_stock, w.branch_id, b.name AS branch_name, COALESCE(ws.quantity, 0) AS quantity
+             ${stockJoins}
+             ${where}
+           ), product_totals AS (
+             SELECT product_id, min_stock, SUM(quantity) AS total_stock
+             FROM filtered_stock
+             GROUP BY product_id, min_stock
+           )
+           SELECT COUNT(*) AS total_products,
+                  COALESCE(SUM(total_stock), 0) AS total_stock,
+                  COALESCE(SUM(total_stock > 0 AND total_stock <= min_stock), 0) AS low_stock,
+                  COALESCE(SUM(total_stock = 0), 0) AS out_of_stock,
+                  COALESCE((SELECT COUNT(DISTINCT branch_name) FROM filtered_stock), 0) AS total_branches
+           FROM product_totals`,
+          params
+        )
+        : Promise.resolve([[], []]);
+      const pageQuery = db.execute(
+        `WITH page_products AS (
+           SELECT p.id, p.name
+           ${stockJoins}
+           ${where}
+           GROUP BY p.id, p.name
+           ORDER BY p.name, p.id
+           LIMIT ? OFFSET ?
+         ), display_products AS (
+           SELECT id FROM page_products ORDER BY name, id LIMIT ?
+         ), page_info AS (
+           SELECT COUNT(*) > ? AS has_more FROM page_products
+         )
+         SELECT b.name AS branch_name, w.id AS warehouse_id, w.name AS warehouse_name,
+                ws.product_id, p.name AS product_name, p.sku,
+                (SELECT pp.path FROM product_photos pp
+                 WHERE pp.product_id = p.id AND pp.media_type = 'image'
+                 ORDER BY (pp.variant_id IS NULL) DESC, pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
+                pv.id AS variant_id, pv.color AS variant_color,
+                COALESCE(ws.quantity, 0) AS quantity, COALESCE(ws.reserved_quantity, 0) AS reserved, ws.rack_position,
+                p.min_stock, page_info.has_more AS page_has_more
+         ${stockJoins}
+         LEFT JOIN product_variants pv ON pv.id = ws.variant_id
+         JOIN display_products page ON page.id = p.id
+         CROSS JOIN page_info
+         ${where}
+         ORDER BY b.name, w.name, p.name, pv.color`,
+        [...params, limit + 1, offset, limit, limit, ...params]
+      );
+      const [summaryResult, pageResult] = await Promise.all([summaryQuery, pageQuery]);
+      const summaryRow = summaryResult[0][0];
+      const resultRows = pageResult[0];
+      const hasMore = Number(resultRows[0]?.page_has_more || 0) === 1;
+      rows = resultRows.map(({ page_has_more, ...row }) => row);
+      if (summaryRow) {
+        summary = Object.fromEntries(Object.entries(summaryRow).map(([key, value]) => [key, Number(value || 0)]));
+      }
+      pagination = { limit, offset, total: summary?.total_products ?? null, has_more: hasMore };
+    } else {
+      [rows] = await db.execute(
+        `SELECT b.name AS branch_name, w.id AS warehouse_id, w.name AS warehouse_name,
+                ws.product_id, p.name AS product_name, p.sku,
+                (SELECT pp.path FROM product_photos pp
+                 WHERE pp.product_id = p.id AND pp.media_type = 'image'
+                 ORDER BY (pp.variant_id IS NULL) DESC, pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
+                pv.id AS variant_id, pv.color AS variant_color,
+                COALESCE(ws.quantity, 0) AS quantity, COALESCE(ws.reserved_quantity, 0) AS reserved, ws.rack_position,
+                p.min_stock
+         ${stockJoins}
+         LEFT JOIN product_variants pv ON pv.id = ws.variant_id
+         ${where}
+         ORDER BY b.name, w.name, p.name, pv.color`,
+        params
+      );
+    }
 
-    res.json({ success: true, data: rows, branch_mode: showAll ? 'all' : 'single' });
+    res.json({ success: true, data: rows, branch_mode: showAll ? 'all' : 'single', ...(paginated ? { summary, pagination } : {}) });
   } catch (error) { next(error); }
 });
 
@@ -805,8 +876,8 @@ router.post('/mutations', authorize('owner', 'manager', 'admin', 'gudang'), asyn
 });
 
 router.get('/incoming/targets', authorize('owner','manager','admin','gudang'), async (req,res,next)=>{try{let rows;if(['owner','gudang'].includes(req.user.role)){[rows]=await db.execute('SELECT id,name,type FROM branches WHERE is_active=TRUE ORDER BY name');}else{[rows]=await db.execute('SELECT id,name,type FROM branches WHERE id=? AND is_active=TRUE',[req.user.branch_id]);}res.json({success:true,data:rows});}catch(e){next(e);}});
-// Katalog untuk UI grid: produk + foto + stok per gudang terpilih + varian
-// (dengan stok per warna). warehouse_id opsional.
+// Katalog untuk UI stok: satu stok per produk dan gudang. Variasi produk
+// hanya untuk media, jadi picker tidak perlu mengambil saldo per varian.
 router.get('/incoming/products', authorize('owner','manager','admin','gudang'), async (req,res,next)=>{try{
   let requested=Number(req.query.branch_id),branchId=req.user.branch_id;
   if(req.user.role==='owner'&&Number.isInteger(requested)){branchId=requested;}
@@ -815,25 +886,26 @@ router.get('/incoming/products', authorize('owner','manager','admin','gudang'), 
   const[rows]=await db.execute(
         `SELECT p.id,p.name,p.sku,p.cost,
                 (SELECT pp.path FROM product_photos pp WHERE pp.product_id=p.id AND pp.variant_id IS NULL AND pp.media_type='image' ORDER BY pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
-                (SELECT ws.rack_position FROM warehouse_stocks ws WHERE ws.product_id=p.id AND ws.warehouse_id=? AND ws.variant_id IS NULL LIMIT 1) AS rack_position,
-                COALESCE((SELECT SUM(ws.quantity) FROM warehouse_stocks ws WHERE ws.product_id=p.id AND ws.warehouse_id=?),0) AS stock
-         FROM products p WHERE p.branch_id=? AND p.is_active=TRUE ORDER BY p.name,p.id`,
-        [warehouseId, warehouseId, branchId]
+                ws.rack_position,
+                COALESCE(ws.quantity, 0) AS stock
+         FROM products p
+         LEFT JOIN warehouse_stocks ws ON ws.product_id=p.id AND ws.warehouse_id=? AND ws.variant_key=0
+         WHERE p.branch_id=? AND p.is_active=TRUE
+         ORDER BY p.name,p.id`,
+        [warehouseId, branchId]
   );
   let variants=[];
   if(warehouseId){
     [variants]=await db.execute(
-          `SELECT pv.product_id,pv.id,pv.color,
-                  (SELECT ws.rack_position FROM warehouse_stocks ws WHERE ws.product_id=pv.product_id AND ws.variant_id=pv.id AND ws.warehouse_id=? LIMIT 1) AS rack_position,
-                  COALESCE((SELECT SUM(ws.quantity) FROM warehouse_stocks ws WHERE ws.product_id=pv.product_id AND ws.variant_id=pv.id AND ws.warehouse_id=?),0) AS stock
+          `SELECT pv.product_id,pv.id,pv.color,NULL AS rack_position,0 AS stock
            FROM product_variants pv JOIN products p ON p.id=pv.product_id
            WHERE p.branch_id=? AND p.is_active=TRUE AND pv.is_active=TRUE ORDER BY pv.color,pv.id`,
-          [warehouseId, warehouseId, branchId]
+          [branchId]
     );
   }
   const byVariant={};
-      for(const v of variants){if(!byVariant[v.product_id])byVariant[v.product_id]=[];byVariant[v.product_id].push({id:v.id,color:v.color,rack_position:v.rack_position||null,stock:Number(v.stock||0)});}
-      const products=rows.map((r)=>({id:r.id,name:r.name,sku:r.sku,cost:r.cost,photo_path:r.photo_path,rack_position:r.rack_position||null,stock:Number(r.stock||0),variants:byVariant[r.id]||[]}));
+  for(const v of variants){if(!byVariant[v.product_id])byVariant[v.product_id]=[];byVariant[v.product_id].push({id:v.id,color:v.color,rack_position:v.rack_position||null,stock:Number(v.stock||0)});}
+  const products=rows.map((r)=>({id:r.id,name:r.name,sku:r.sku,cost:r.cost,photo_path:r.photo_path,rack_position:r.rack_position||null,stock:Number(r.stock||0),variants:byVariant[r.id]||[]}));
   res.json({success:true,data:products});
 }catch(e){next(e);}});
 router.post('/incoming', authorize('owner', 'gudang'), async (req, res, next) => {

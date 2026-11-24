@@ -105,6 +105,8 @@ export default function DashboardPage() {
     async function loadDashboard() {
       const query = new URLSearchParams({ start: range.start, end: range.end });
       if (user?.role === 'owner' && activeBranchId && activeBranchId !== 'all') query.set('branch_id', activeBranchId);
+      const dashboardQuery = new URLSearchParams(query);
+      dashboardQuery.set('selected_only', '1');
       const fetchWithRefresh = async (path) => {
         let response = await fetch(apiUrl + path, { cache: 'no-store' });
         if (response.status !== 401) return response;
@@ -114,7 +116,7 @@ export default function DashboardPage() {
         }
         return response;
       };
-      const dashboardResponse = await fetchWithRefresh('/dashboard?' + query);
+      const dashboardResponse = await fetchWithRefresh('/dashboard?' + dashboardQuery);
       const dashboardBody = await dashboardResponse.json();
       if (!dashboardResponse.ok) throw new Error(dashboardBody.message);
       if (user?.role === 'gudang' || user?.role === 'kasir') return { data: dashboardBody.data, report: null };
