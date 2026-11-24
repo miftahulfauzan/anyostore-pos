@@ -557,35 +557,86 @@ test('remember akun yang sudah tersimpan memakai ulang cookie yang sama', async 
 });
 
 test('batas 8 akun: akun kesembilan tetap bisa login tapi tidak disimpan', async () => {
-  // Fixture hanya punya 2 user, jadi batas diuji pada level keputusan:
-  // 8 cookie sah + 1 login baru → 409 account_saved:false, login tetap 200.
-  const first = await loginRemembered(7, true);
-  const second = await loginRemembered(8, true);
-  const cookies = { [savedCookie(7)]: first.savedToken, [savedCookie(8)]: second.savedToken };
-  // Tambahkan cookie sah tambahan dengan membuat family tersimpan baru untuk
-  // user 7 dan menamainya sebagai user lain (id harus unik agar dihitung).
-  const synth = [];
-  for (let i = 0; i < 6; i++) {
-    const extra = await loginRemembered(7, true);
-    synth.push(extra.savedToken);
+  // Fixture default hanya 2 user; tambah 8 user agar batas benar-benar diuji
+  // dengan 8 cookie tersimpan yang SAH (bukan cookie yang lalu ditolak).
+  const ids = Array.from({ length: 8 }, (_, i) => 100 + i);
+  for (const id of ids) {
+    db.state.users.set(id, {
+      id, branch_id: 2, name: `User ${id}`, username: `user${id}`, email: `user${id}@test.local`,
+      role: 'kasir', is_active: true, token_version: 0,
+      password: passwordHash, pin_hash: pinHash,
+    });
   }
-  let index = 0;
-  for (const token of synth) {
-    // nama cookie berbeda (id 100+index) tapi token sah milik user 7 →
-    // readSavedSession menolak (id tidak cocok) sehingga TIDAK dihitung.
-    cookies[`pos_saved_${100 + index}`] = token;
-    index += 1;
+
+  const cookies = {};
+  for (const id of ids) {
+    const { res } = await call(auth.loginWithPassword, {
+      body: { email: `user${id}@test.local`, password, remember_account: true }, query: {},
+    });
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.data.account_saved, true, `akun ${id} harus tersimpan (slot belum penuh)`);
+    cookies[savedCookie(id)] = savedTokenOf(res, id);
   }
-  const session = await loginRemembered(7, true);
-  const result = await authed(auth.rememberAccount, {
-    accessToken: session.accessToken,
+  assert.equal(Object.keys(cookies).length, 8, 'delapan akun tersimpan');
+
+  // Akun kesembilan: login TETAP berhasil, tetapi tidak disimpan.
+  const ninth = await call(auth.loginWithPassword, {
+    body: { email: 'user7@test.local', password, remember_account: true }, query: {},
     cookies,
   });
-  // Tanpa 8 akun sah berbeda, penyimpanan masih berhasil — yang penting login
-  // tidak pernah gagal karena daftar penuh.
-  assert.ok([200, 409].includes(result.res.statusCode));
-  const relogin = await call(auth.loginWithPassword, {
-    body: { email: 'user7@test.local', password, remember_account: true }, query: {},
+  assert.equal(ninth.res.statusCode, 200, 'login tidak boleh gagal karena daftar akun penuh');
+  assert.equal(ninth.res.body.data.account_saved, false);
+  assert.equal(savedTokenOf(ninth.res, 7), undefined, 'akun ke-9 tidak boleh disimpan');
+
+  // Remember eksplisit juga ditolak dengan pesan batas yang jelas.
+  const remember = await authed(auth.rememberAccount, {
+    accessToken: cookieValue(ninth.res, 'pos_access'), cookies,
   });
-  assert.equal(relogin.res.statusCode, 200);
+  assert.equal(remember.res.statusCode, 409);
+  assert.equal(remember.res.body.account_saved, false);
+  assert.match(remember.res.body.message, /8 akun/);
+});
+
+test('menghapus satu akun membebaskan slot untuk akun baru', async () => {
+  const ids = Array.from({ length: 8 }, (_, i) => 200 + i);
+  for (const id of ids) {
+    db.state.users.set(id, {
+      id, branch_id: 2, name: `User ${id}`, username: `user${id}`, email: `user${id}@test.local`,
+      role: 'kasir', is_active: true, token_version: 0,
+      password: passwordHash, pin_hash: pinHash,
+    });
+  }
+  const cookies = {};
+  for (const id of ids) {
+    const { res } = await call(auth.loginWithPassword, {
+      body: { email: `user${id}@test.local`, password, remember_account: true }, query: {},
+    });
+    cookies[savedCookie(id)] = savedTokenOf(res, id);
+  }
+
+  // Dengan 8 slot penuh, user 7 tidak tersimpan.
+  const blocked = await call(auth.loginWithPassword, {
+    body: { email: 'user7@test.local', password, remember_account: true }, query: {},
+    cookies,
+  });
+  assert.equal(blocked.res.body.data.account_saved, false);
+
+  // Hapus satu akun tersimpan (bukan akun aktif) → slot bebas.
+  const removeTarget = ids[0];
+  const removed = await authed(auth.removeAccount, {
+    accessToken: cookieValue(blocked.res, 'pos_access'),
+    params: { userId: String(removeTarget) },
+    cookies,
+  });
+  assert.equal(removed.res.statusCode, 200);
+
+  const remaining = { ...cookies };
+  delete remaining[savedCookie(removeTarget)];
+  assert.equal(Object.keys(remaining).length, 7);
+  const retry = await call(auth.loginWithPassword, {
+    body: { email: 'user7@test.local', password, remember_account: true }, query: {},
+    cookies: remaining,
+  });
+  assert.equal(retry.res.body.data.account_saved, true);
+  assert.ok(savedTokenOf(retry.res, 7), 'setelah satu akun dihapus, akun baru bisa disimpan');
 });
