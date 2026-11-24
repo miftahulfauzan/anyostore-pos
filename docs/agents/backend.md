@@ -59,6 +59,7 @@
 - Dipakai oleh: `GET /api/printer/invoice/:id`, `POST /api/transactions` (field `data.receipt`, jadi cetak otomatis tak perlu request tambahan), `POST /api/printer/preview` (pratinjau template di web), dan halaman resi `/receipt/[id]` (render baris apa adanya, bukan HTML kaya lagi).
 - Android: `printer_service.printReceipt` memakai `receipt.lines` bila ada; kalau tidak (offline) menyusun lokal dari setelan cabang yang di-cache (`_receiptSettings`) — termasuk cetak transaksi offline bernomor sementara `OFF-<branch>-<ts>`.
 - Paritas dijaga fixture golden `backend/test/fixtures/receipt-lines/*.json` (dibaca `backend/test/receipt-lines.test.js` DAN `mobile/test/receipt_lines_golden_test.dart`). Ubah aturan → jalankan `node backend/scripts/generate-receipt-fixtures.js`, tinjau diff, lalu sesuaikan kedua sisi.
+- Sejak 2026-11-24 baris produk diberi **nomor urut** (`1. Nama`) dan ringkasan menambah **`Total Qty N pcs`** tepat sebelum Subtotal (dipakai juga oleh `invoice-image.js` dan `invoice_share.dart`). Pemotongan nama panjang hanya boleh dilakukan saat nama melebihi kolom: `substring` Dart melempar `RangeError` bila dipanggil lebih dulu, sedangkan `slice` JS tidak — perbedaan ini pernah membuat cetak struk Android gagal untuk semua produk ber-nama pendek.
 - `receipt_contacts` (field mati) sudah dihapus dari UI Android, Setelan Toko, dan daftar `allowed` settings.
 
 ### Auth & Roles
