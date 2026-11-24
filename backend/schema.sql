@@ -570,6 +570,26 @@ CREATE TABLE shifts (
 );
 
 -- ============================================
+-- 30. loyalty_points (tabel legacy)
+-- ============================================
+-- Fitur loyalitas SUDAH DIHAPUS (migrasi 20261124_remove_loyalty_points.sql).
+-- Tabel tetap didefinisikan di baseline karena migrasi lama
+-- 20260804_performance_indexes.sql menambah index pada tabel ini dan migrasi
+-- yang sudah berjalan tidak boleh diedit. Urutan migrasi: index dibuat, lalu
+-- tabel beserta index-nya dihapus oleh migrasi 20261124.
+CREATE TABLE loyalty_points (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    customer_id INT NOT NULL,
+    points INT NOT NULL,
+    type ENUM('earn','redeem') NOT NULL,
+    reference_type VARCHAR(50),
+    reference_id INT,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES customers(id)
+);
+
+-- ============================================
 -- 31. returns (Retur Penjualan)
 -- ============================================
 CREATE TABLE returns (

@@ -28,6 +28,41 @@ jobs:
       - run: npm test -- --test-concurrency=1
       - run: npm audit --omit=dev
 
+  # Test integrasi terhadap MySQL SUNGGUHAN. Job backend di atas memakai stub
+  # SQL buatan tangan, sehingga query yang salah (kolom hilang, JOIN keliru)
+  # hanya ketahuan di produksi. Ini juga memvalidasi bahwa schema.sql plus
+  # SELURUH migrasi benar-benar dapat dijalankan berurutan.
+  backend-mysql:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: pos_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - name: Run MySQL integration tests
+        env:
+          MYSQL_TEST_URL: mysql://root:root@127.0.0.1:3306/pos_test
+        run: node --test test/mysql-integration.test.js
+
   frontend:
     runs-on: ubuntu-latest
     defaults:

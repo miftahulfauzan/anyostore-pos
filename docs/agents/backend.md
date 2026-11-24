@@ -144,3 +144,11 @@
 - `openAdj` harus load transform yang sudah disimpan (parsing `scale,xPct,yPct`), bukan reset ke `1,0,0`.
 - Pan di-clamp: `maxPanPct = (scale - 1) / 2 * 100` (persen, berlaku X & Y).
 - Grid edit produk: tanpa transform = `contain` (foto utuh); dengan transform = `cover` + transform (WYSIWYG hasil crop). Modal "Atur" punya thumbnail foto utuh di pojok.
+
+### Test integrasi MySQL (2026-11-24)
+
+`backend/test/mysql-integration.test.js` menjalankan query terhadap **MySQL sungguhan** (bukan stub), termasuk menjalankan `schema.sql` lalu **seluruh migrasi** lewat `scripts/migrate.js`. Suite ini dijalankan CI pada job `backend-mysql` (service container mysql:8.4). Tanpa `MYSQL_TEST_URL` semua test di suite ini **skip**, jadi `npm test` lokal tetap jalan tanpa Docker.
+
+- Menjalankan lokal: `docker run -d --name mysql-test -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=pos_test -p 33306:3306 mysql:8.4` lalu `MYSQL_TEST_URL="mysql://root:root@127.0.0.1:33306/pos_test" node --test test/mysql-integration.test.js`.
+- **Temuan yang sudah tercatat**: empat migrasi legacy gagal bila dijalankan di atas `schema.sql` terbaru (`20260815_backfill_returned_qty`, `20260815_barcode_multi_branch`, `20261108_pending_transaction_client_hold_id`, `20261116_marketplace_links`). Kegagalan ini PRE-EXISTING (terjadi juga dengan schema versi lama) dan didaftarkan eksplisit di test sebagai `KNOWN_LEGACY_FAILURES` supaya kegagalan BARU tetap terdeteksi. Perbaikannya harus berupa migrasi baru, bukan mengedit file lama.
+- Urutan penting: `20260804_performance_indexes.sql` menambah index pada `loyalty_points`, jadi tabel itu **tetap ada di baseline `schema.sql`** walau fiturnya sudah dihapus; migrasi `20261124_remove_loyalty_points.sql` yang menghapusnya.
