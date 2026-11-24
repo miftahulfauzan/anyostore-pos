@@ -168,17 +168,22 @@
         "alignment": "left"
       },
       {
-        "text": "      Celana Denim Ba.    12 x 145.000         Rp1.740.000      ",
+        "text": "      1. Celana Denim.    12 x 145.000         Rp1.740.000      ",
         "bold": false,
         "alignment": "left"
       },
       {
-        "text": "      Kemeja Denim Le.     1 x 210.000           Rp210.000      ",
+        "text": "      2. Kemeja Denim.     1 x 210.000           Rp210.000      ",
         "bold": false,
         "alignment": "left"
       },
       {
         "text": "                                                                ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "      Total Qty                                     13 pcs      ",
         "bold": false,
         "alignment": "left"
       },

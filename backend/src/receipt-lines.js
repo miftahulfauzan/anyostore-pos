@@ -271,7 +271,8 @@ function buildReceipt(receipt = {}) {
     const left = Math.max(0, midStart - nameCol);
     const right = Math.max(0, inner - midStart - mid.length - amount.length);
     const body = String(name ?? '');
-    const safeName = body.length <= nameCol ? body : `${body.slice(0, nameCol - 1)}.`;
+    const visible = body.slice(0, nameCol - 1).trimEnd();
+    const safeName = body.length <= nameCol ? body : (visible.endsWith('.') ? visible : `${visible}.`);
     emit(`${safeName.padEnd(nameCol, ' ')}${' '.repeat(left)}${mid}${' '.repeat(right)}${amount}`);
   };
 
@@ -327,12 +328,17 @@ function buildReceipt(receipt = {}) {
   // ===== Produk: nama, qty x harga, jumlah dalam satu baris =====
   emit(text(store, 'receipt_title_products', 'PRODUK'), { bold: true });
   emit('');
-  for (const raw of Array.isArray(data.items) ? data.items : []) {
+  let totalQty = 0;
+  const items = Array.isArray(data.items) ? data.items : [];
+  items.forEach((raw, index) => {
     const row = raw || {};
     const name = row.product_name ?? row.name ?? '';
-    item(ascii(name), Math.trunc(asNum(row.quantity)), moneyNumber(row.price), money(row.subtotal));
-  }
+    const quantity = Math.trunc(asNum(row.quantity));
+    totalQty += quantity;
+    item(`${index + 1}. ${ascii(name)}`, quantity, moneyNumber(row.price), money(row.subtotal));
+  });
   emit('');
+  pair('Total Qty', `${totalQty} pcs`);
   rule();
 
   pair(text(store, 'receipt_label_subtotal', 'Subtotal'), money(data.subtotal));

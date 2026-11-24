@@ -152,8 +152,16 @@ class ReceiptLayout {
       if (midStart < minStart) midStart = minStart;
       final left = math.max(0, midStart - nameCol);
       final right = math.max(0, _inner - midStart - mid.length - amount.length);
-      final safeName =
-          name.length <= nameCol ? name : '${name.substring(0, nameCol - 1)}.';
+      // Potong HANYA kalau nama memang lebih panjang dari kolom: substring(0,
+      // nameCol-1) melempar RangeError bila nama lebih pendek, sementara
+      // String.slice di backend JS tidak (harus tetap paritas & tidak crash).
+      String safeName;
+      if (name.length <= nameCol) {
+        safeName = name;
+      } else {
+        final visible = name.substring(0, nameCol - 1).trimRight();
+        safeName = visible.endsWith('.') ? visible : '$visible.';
+      }
       emit('${safeName.padRight(nameCol)}${' ' * left}$mid'
           '${' ' * right}$amount');
     }
@@ -220,19 +228,24 @@ class ReceiptLayout {
     emit(_text(store, 'receipt_title_products', 'PRODUK'), bold: true);
     emit('');
     final rawItems = (data['items'] as List?) ?? [];
-    for (final raw in rawItems) {
+    var totalQty = 0;
+    for (var index = 0; index < rawItems.length; index++) {
+      final raw = rawItems[index];
       final itemRow = (raw as Map).cast<String, dynamic>();
       final name = itemRow['product_name']?.toString() ??
           itemRow['name']?.toString() ??
           '';
+      final quantity = asNum(itemRow['quantity']).toInt();
+      totalQty += quantity;
       item(
-        _ascii(name),
-        asNum(itemRow['quantity']).toInt(),
+        '${index + 1}. ${_ascii(name)}',
+        quantity,
         _moneyNumber(asNum(itemRow['price'])),
         fmtRp(asNum(itemRow['subtotal'])),
       );
     }
     emit('');
+    pair('Total Qty', '$totalQty pcs');
     rule();
 
     pair(_text(store, 'receipt_label_subtotal', 'Subtotal'),

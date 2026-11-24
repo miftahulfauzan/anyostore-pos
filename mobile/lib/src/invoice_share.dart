@@ -135,6 +135,7 @@ class InvoiceImage extends StatelessWidget {
     const paper = Color(0xFFFFFFFF);
 
     final showBrand = invoiceShowsBrand(payload.storeName);
+    final totalQty = payload.items.fold<int>(0, (sum, item) => sum + item.qty);
     final initial = payload.storeName.trim().isEmpty
         ? 'A'
         : payload.storeName.trim().characters.first.toUpperCase();
@@ -390,6 +391,14 @@ class InvoiceImage extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
         child: Row(
           children: const [
+            SizedBox(
+                width: 32,
+                child: Text('NO.',
+                    style: TextStyle(
+                        fontSize: 9,
+                        letterSpacing: .8,
+                        fontWeight: FontWeight.w800,
+                        color: muted))),
             Expanded(
                 child: Text('BARANG',
                     style: TextStyle(
@@ -432,46 +441,50 @@ class InvoiceImage extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 20),
           height: 1,
           color: line),
-      ...payload.items.map((item) => Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Text(item.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+      ...payload.items.asMap().entries.map((entry) {
+        final item = entry.value;
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(
+                  width: 32,
+                  child: Text('${entry.key + 1}.',
+                      style: const TextStyle(fontSize: 11, color: inkColor))),
+              Expanded(
+                child: Text(item.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: inkColor)),
+              ),
+              SizedBox(
+                  width: 120,
+                  child: Text(
+                      item.price > 0 ? '${invoiceMoney(item.price)}/pcs' : '-',
+                      style: const TextStyle(fontSize: 10, color: inkColor))),
+              const SizedBox(width: 10),
+              SizedBox(
+                  width: 34,
+                  child: Text('${item.qty}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 12.5, color: inkColor))),
+              const SizedBox(width: 10),
+              SizedBox(
+                  width: 104,
+                  child: Text(invoiceMoney(item.subtotal),
+                      textAlign: TextAlign.right,
                       style: const TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,
-                          color: inkColor)),
-                ),
-                SizedBox(
-                    width: 120,
-                    child: Text(
-                        item.price > 0
-                            ? '${invoiceMoney(item.price)}/pcs'
-                            : '-',
-                        style: const TextStyle(fontSize: 10, color: inkColor))),
-                const SizedBox(width: 10),
-                SizedBox(
-                    width: 34,
-                    child: Text('${item.qty}',
-                        textAlign: TextAlign.center,
-                        style:
-                            const TextStyle(fontSize: 12.5, color: inkColor))),
-                const SizedBox(width: 10),
-                SizedBox(
-                    width: 104,
-                    child: Text(invoiceMoney(item.subtotal),
-                        textAlign: TextAlign.right,
-                        style: const TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            color: inkColor))),
-              ],
-            ),
-          )),
+                          color: inkColor))),
+            ],
+          ),
+        );
+      }),
 
       // ===== Ringkasan =====
       Container(
@@ -481,6 +494,7 @@ class InvoiceImage extends StatelessWidget {
             const BoxDecoration(border: Border(top: BorderSide(color: line))),
         child: Column(
           children: [
+            summaryRow('Total Qty', '$totalQty pcs'),
             summaryRow('Subtotal', invoiceMoney(payload.subtotal)),
             if (payload.discount > 0)
               summaryRow('Diskon', '-${invoiceMoney(payload.discount)}'),

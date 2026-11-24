@@ -146,6 +146,7 @@ export function renderInvoiceCanvas(payload) {
   canvas.width = OUTPUT_WIDTH;
   // Item banyak butuh kanvas lebih tinggi; 1440 tetap tinggi minimum (3:4).
   const itemEstimate = Array.isArray(payload.items) ? payload.items.length : 0;
+  const rows = Array.isArray(payload.items) ? payload.items : [];
   const notesText = String(payload.notes || '').trim();
   const noteLinesEstimate = notesText
     ? Math.min(4, Math.max(1, Math.ceil(notesText.length / 52)))
@@ -162,7 +163,7 @@ export function renderInvoiceCanvas(payload) {
     : 0;
   let canvasHeight = Math.max(
     OUTPUT_HEIGHT,
-    1180 + itemEstimate * 52 + (noteLinesEstimate ? 42 + noteLinesEstimate * 28 : 0) + shippingEstimate,
+    1180 + itemEstimate * 52 + 38 + (noteLinesEstimate ? 42 + noteLinesEstimate * 28 : 0) + shippingEstimate,
   );
   canvas.height = canvasHeight;
 
@@ -346,11 +347,14 @@ export function renderInvoiceCanvas(payload) {
   const amountLeft = colAmount - amountWidth;
   const colQty = amountLeft - 56;
   const colPrice = colQty - 250;
+  const numberWidth = Math.max(42, String(rows.length).length * 22 + 12);
+  const productNameX = pad + numberWidth;
   y += 40;
   ctx.textAlign = 'left';
   ctx.fillStyle = MUTED;
   ctx.font = font(17, 800);
-  drawSpacedText(ctx, 'BARANG', pad, y, 1.6);
+  drawSpacedText(ctx, 'NO.', pad, y, 1.6);
+  drawSpacedText(ctx, 'BARANG', productNameX, y, 1.6);
   ctx.textAlign = 'left';
   ctx.fillText('HARGA/PCS', colPrice, y);
   ctx.textAlign = 'center';
@@ -364,16 +368,16 @@ export function renderInvoiceCanvas(payload) {
   ctx.lineTo(OUTPUT_WIDTH - pad, y);
   ctx.stroke();
 
-  const rows = Array.isArray(payload.items) ? payload.items : [];
   // Satu baris per barang: nama (kiri) · harga/pcs + varian (kanan) · qty · jumlah.
   const detailRight = colPrice;
-  rows.forEach((item) => {
+  rows.forEach((item, index) => {
     y += 38;
     ctx.textAlign = 'left';
     ctx.font = font(24, 700);
-    const nameText = fitText(ctx, item.name || '-', font(24, 700), colPrice - pad - 16);
     ctx.fillStyle = INK;
-    ctx.fillText(nameText, pad, y);
+    ctx.fillText(String(index + 1), pad, y);
+    const nameText = fitText(ctx, item.name || '-', font(24, 700), colPrice - productNameX - 16);
+    ctx.fillText(nameText, productNameX, y);
 
     // HARGA/PCS (kolom tetap, rata kiri) — hitam agar terbaca seperti nama barang.
     ctx.fillStyle = INK;
@@ -412,6 +416,8 @@ export function renderInvoiceCanvas(payload) {
     ctx.fillText(value, OUTPUT_WIDTH - pad, y);
     y += 38;
   };
+  const totalQty = rows.reduce((total, item) => total + (Number(item.qty) || 0), 0);
+  summaryRow('Total Qty', `${totalQty} pcs`);
   summaryRow('Subtotal', money(payload.subtotal));
   if (Number(payload.discount) > 0) summaryRow('Diskon', '-' + money(payload.discount));
 

@@ -158,12 +158,17 @@
         "alignment": "left"
       },
       {
-        "text": "    Celana - Baggy .       1 x 145.000             Rp145.000    ",
+        "text": "    1. Celana - Bag.       1 x 145.000             Rp145.000    ",
         "bold": false,
         "alignment": "left"
       },
       {
         "text": "                                                                ",
+        "bold": false,
+        "alignment": "left"
+      },
+      {
+        "text": "    Total Qty                                          1 pcs    ",
         "bold": false,
         "alignment": "left"
       },

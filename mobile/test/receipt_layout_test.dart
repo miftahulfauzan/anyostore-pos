@@ -180,8 +180,13 @@ void main() {
     }));
     int indexOf(String label) =>
         rows.indexWhere((row) => row.startsWith(label));
-    expect(indexOf('Subtotal'), lessThan(indexOf('Total')));
-    expect(indexOf('Total'), lessThan(indexOf('Transfer')));
+    // Baris "Total Qty" muncul sebelum Subtotal, jadi label "Total" harus
+    // dicocokkan tanpa ikut menangkap "Total Qty".
+    int indexOfTotal() =>
+        rows.indexWhere((row) => row.startsWith('Total') && !row.startsWith('Total Qty'));
+    expect(indexOf('Total Qty'), lessThan(indexOf('Subtotal')));
+    expect(indexOf('Subtotal'), lessThan(indexOfTotal()));
+    expect(indexOfTotal(), lessThan(indexOf('Transfer')));
     expect(indexOf('Transfer'), lessThan(indexOf('Dibayar')));
     expect(indexOf('Dibayar'), lessThan(indexOf('Kembalian')));
     expect(indexOf('Kembalian'),
