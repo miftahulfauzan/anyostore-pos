@@ -1196,7 +1196,9 @@ class _ReportsPageState extends State<ReportsPage> {
     final customers = _reportList('customers');
     final transactions = _reportList('transactions');
     return [
-      ..._dashboard(),
+      // Ringkasan toko + Penjualan sengaja TIDAK diulang di sini: keduanya
+      // sudah menjadi isi Dashboard dengan komponen dan endpoint yang sama.
+      // Laporan mulai langsung dari detail agar tidak menduplikasi Dashboard.
       _ReportDetailHeading(key: const ValueKey('reports-detail-heading')),
       _ReportDetailAccordion(
         key: const ValueKey('reports-detail-transactions'),

@@ -65,6 +65,11 @@ menjadi bagian utama dashboard laporan.
   `payment_methods`, `cashiers`, `customers`, `low_stock`, `return_summary`,
   `returns`, `daily_sales`, `hourly_sales`, `branch_comparison`, dan
   `price_tiers` tetap dapat ditemukan pada laporan.
-- Ringkasan toko tetap terlihat sebelum Laporan detail.
+- ~~Ringkasan toko tetap terlihat sebelum Laporan detail.~~ **DIBATALKAN 2026-11-24**:
+  Ringkasan toko + Penjualan di halaman Laporan ternyata merender komponen yang
+  sama (`OlseraDashboardSections`) dengan endpoint yang sama (`/reports/overview`)
+  seperti Dashboard. Mulai 2026-11-24 halaman Laporan dimulai langsung dari
+  "Laporan detail"; ringkasan hanya dicetak (web: `.reports-summary-print-only`,
+  `@media screen` menyembunyikannya) dan tetap menjadi isi Dashboard.
 - Test regression mencakup toggle accordion, dataset coverage, dan action
   export/print.

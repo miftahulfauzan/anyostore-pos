@@ -226,8 +226,16 @@ void main() {
               brightness,
               width);
           await tester.pumpAndSettle();
-          final metric = findLargeText(tester, 'Rp275.000');
-          expect(metric.style!.fontSize, greaterThanOrEqualTo(28));
+          // Metrik penjualan besar hanya ada di Dashboard. Di halaman Laporan
+          // (dashboard=false) ringkasan itu tidak diulang, jadi tidak ada lagi
+          // focal metric; halaman langsung menampilkan Laporan detail.
+          if (dashboard) {
+            final metric = findLargeText(tester, 'Rp275.000');
+            expect(metric.style!.fontSize, greaterThanOrEqualTo(28));
+          } else {
+            expect(find.byKey(const ValueKey('reports-detail-heading')),
+                findsOneWidget);
+          }
           expect(find.byKey(const ValueKey('reports-period-selector')),
               findsOneWidget);
           await tester

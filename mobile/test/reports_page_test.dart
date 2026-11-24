@@ -138,8 +138,9 @@ void main() {
     expect(find.byTooltip('Buka filter'), findsOneWidget);
     expect(find.text('Filter'), findsNothing);
     expect(find.text('Toko/Gudang'), findsNothing);
-    expect(find.text('Persentase keuntungan'), findsOneWidget);
-    expect(find.text('50,00%'), findsOneWidget);
+    // Metrik ringkasan tidak diulang di Laporan (sudah ada di Dashboard).
+    expect(find.text('Persentase keuntungan'), findsNothing);
+    expect(find.text('50,00%'), findsNothing);
     await tester.tap(find.byKey(const ValueKey('reports-period-selector')));
     await tester.pumpAndSettle();
     expect(find.text('Kemarin'), findsOneWidget);
@@ -203,10 +204,13 @@ void main() {
 
     expect(find.text('Penjualan'), findsWidgets);
     expect(find.text('Ringkasan'), findsNothing);
-    expect(find.text('Produk terjual'), findsOneWidget);
-    expect(find.text('Laba kotor'), findsOneWidget);
-    expect(find.text('Persentase keuntungan'), findsOneWidget);
-    expect(find.text('Laba bersih'), findsOneWidget);
+    // Isi ringkasan (Produk terjual/Laba kotor/margin/Laba bersih) hanya di
+    // Dashboard; Laporan mulai dari "Laporan detail".
+    expect(find.text('Produk terjual'), findsNothing);
+    expect(find.text('Laba kotor'), findsNothing);
+    expect(find.text('Persentase keuntungan'), findsNothing);
+    expect(find.text('Laba bersih'), findsNothing);
+    expect(find.text('Laporan detail'), findsOneWidget);
   });
 
   testWidgets('non-owner does not see margin or net profit', (tester) async {
@@ -261,7 +265,11 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('Ringkasan toko'), findsOneWidget);
+    // Laporan TIDAK mengulang ringkasan yang sudah ada di Dashboard: halaman
+    // dimulai dari "Laporan detail", sementara Dashboard tetap memilikinya.
+    expect(find.text('Ringkasan toko'), findsNothing);
+    expect(find.byKey(const ValueKey('reports-merged-summary')), findsNothing);
+    expect(find.byKey(const ValueKey('reports-merged-sales')), findsNothing);
     final detailHeading = find.byKey(const ValueKey('reports-detail-heading'));
     final reportScroll = find.byType(Scrollable).first;
     await tester.scrollUntilVisible(detailHeading, 600,

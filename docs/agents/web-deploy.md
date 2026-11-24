@@ -83,3 +83,7 @@ Semua pemakaian `SafeImage` wajib mengimpor komponen tersebut secara eksplisit. 
 - Backend entrypoint: `node scripts/migrate.js || true; node scripts/fix-clone-paths.js || true; node src/index.js`
 - Frontend build arg: `NEXT_PUBLIC_API_URL=/api`
 - Caddy route: `/api/*` dan `/uploads/*` → `127.0.0.1:3001`, sisanya → `127.0.0.1:3000`; Caddy memakai `network_mode: host`, sedangkan backend/frontend hanya bind ke loopback host.
+
+### Laporan vs Dashboard tidak boleh duplikat (2026-11-24)
+
+Dashboard dan halaman Laporan **memakai komponen dan endpoint yang sama** untuk bagian atas (`OlseraDashboardSections` + `/reports/overview`: Ringkasan toko, Penjualan, Produk terlaris, Stok rendah). Karena itu halaman Laporan **tidak** mengulanginya di layar: `reports/page.js` membungkus ringkasan dengan `.reports-summary-print-only`, dan `globals.css` menyembunyikannya lewat `@media screen` sehingga **cetak/PDF tetap lengkap**. Halaman Laporan dimulai dari `ReportDetailAccordions` ("Laporan detail") lalu `ReportClosingPanel`. Jangan mengembalikan ringkasan ke layar Laporan tanpa alasan baru — itu menduplikasi Dashboard. Regresi: `frontend/test/reports-no-dashboard-duplicate.test.cjs`.

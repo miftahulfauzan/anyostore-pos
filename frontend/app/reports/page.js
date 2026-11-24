@@ -199,7 +199,10 @@ export default function ReportsPage() {
         <section className="panel"><p>Memuat laporan…</p></section>
       )) : (
         <>
-          <div className="reports-android-summary">
+          {/* Ringkasan toko + Penjualan sengaja hanya untuk cetak/PDF. Di layar
+              keduanya sudah menjadi isi Dashboard (komponen & endpoint sama),
+              jadi Laporan dimulai langsung dari "Laporan detail". */}
+          <div className="reports-android-summary reports-summary-print-only">
             <OlseraDashboardSections reportData={report} fallbackData={null} activeBranchId={activeBranchId} period={period} role={user?.role} />
           </div>
           <ReportDetailAccordions report={report} user={user} activeBranchId={activeBranchId} />

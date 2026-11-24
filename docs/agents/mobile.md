@@ -117,3 +117,4 @@ Aplikasi Android (Flutter, folder mobile/) sudah melalui banyak perubahan. Dokum
 
 ### Web
 - Web dan mobile sekarang didokumentasikan/dirilis terpisah: perubahan web mengikuti CI + deploy exact-SHA, sedangkan APK mengikuti workflow mobile. Web tetap memakai desain admin yang sudah ada, tetapi fitur operasional web aktif dipelihara; versi terbaru mencakup tampilan stok per gudang dengan foto serta edit posisi rak. Backend yang sama membuat web otomatis mendukung login username/email dan fitur backend lainnya.
+- Laporan (2026-11-24): seksi Penjualan TIDAK lagi memanggil `_dashboard()` (Ringkasan toko + Penjualan), karena isinya duplikat Dashboard yang memakai `ReportsPage(dashboardMode: true)`. `_sales()` langsung menampilkan `_ReportDetailHeading` + grup detail. Ringkasan tetap tersedia di Dashboard dan tetap ikut di ekspor CSV (`_export()`), jadi tidak ada data hilang. Regresi: `mobile/test/reports_page_test.dart`.

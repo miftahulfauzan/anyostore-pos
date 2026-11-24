@@ -6033,6 +6033,10 @@ html[data-theme] .sidebar .nav-group-toggle:hover {
    ada di chip pemilih toko sehingga tidak perlu diulang. */
 @media screen {
   .report-brand-print-only { display: none !important; }
+  /* Ringkasan toko di halaman Laporan hanya untuk cetak/PDF: di layar isinya
+     duplikat Dashboard (komponen & endpoint sama), jadi Laporan dimulai dari
+     "Laporan detail". */
+  .reports-summary-print-only { display: none !important; }
 }
 
 /* Chip pemilih toko: avatar + nama (dan alamat di layar lebar). */
