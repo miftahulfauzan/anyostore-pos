@@ -1421,9 +1421,12 @@ a, .photo-upload { color:var(--expressive-secondary); }
 /* Laporan detail: five compact, icon-led accordion groups. */
 .report-detail-accordions {
   display: grid;
+  width: 100%;
+  min-width: 0;
   gap: 12px;
-  max-width: 1440px;
-  margin: 16px auto 0;
+  max-width: none;
+  margin: 16px 0 0;
+  box-sizing: border-box;
 }
 .report-details-heading {
   display: flex;
@@ -1431,7 +1434,9 @@ a, .photo-upload { color:var(--expressive-secondary); }
   justify-content: space-between;
   gap: 18px;
   padding: 18px 20px;
+  border: 1px solid #dbe3ee;
   border-top: 3px solid #1e3a5f;
+  border-radius: 12px;
   background: linear-gradient(135deg, #fff 0%, #f8fbff 100%);
 }
 .report-details-heading h2 { margin: 4px 0 0; color: #1e3a5f; font-size: clamp(1.1rem, 2.2vw, 1.45rem); }
@@ -1481,6 +1486,7 @@ a, .photo-upload { color:var(--expressive-secondary); }
 .report-detail-links .button-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .report-detail-links .button-link { display: inline-flex; align-items: center; gap: 7px; }
 .dark .report-details-heading, .dark .report-detail-accordion, .dark .report-detail-accordion-trigger { background: #182135; }
+.dark .report-details-heading { border-color: #334155; }
 .dark .report-detail-accordion { border-color: #334155; }
 .dark .report-detail-accordion-trigger:hover { background: #22304b; }
 .dark .report-detail-accordion-copy strong, .dark .report-detail-table-heading h3, .dark .report-detail-links h3 { color: #dbeafe; }
@@ -8991,7 +8997,7 @@ button.danger:hover { background: #ffe4e6; }
 .app-main input[type="checkbox"] { width: 20px; height: 20px; }
 
 /* Laporan Analitik Denim: navigasi rapat, angka utama tegas, rincian mudah dipindai. */
-.reports-print-scope { display: grid; gap: 12px; min-width: 0; }
+.reports-print-scope { display: grid; width: 100%; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; }
 .analytics-report-nav { display: flex; gap: 6px; min-width: 0; padding: 6px; overflow-x: auto; border: 1px solid #243852; border-radius: 14px; background: #10233b; scrollbar-width: thin; }
 .analytics-report-nav button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 7px; min-height: 42px; padding: 8px 12px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #d7e2f0; font-size: var(--fs-sm); white-space: nowrap; }
 .analytics-report-nav button:hover { background: rgba(255,255,255,.09); }
