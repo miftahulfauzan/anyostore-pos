@@ -129,6 +129,11 @@ export default function ReportsPage() {
   const reportStore = String(report?.branch_id ?? '') === String(activeBranchId) ? report : null;
   const storeName = store?.store_name || reportStore?.branch_name || (activeBranchId === 'all' ? 'Semua Toko/Gudang' : activeBranchId ? 'Memuat toko…' : 'Laporan toko');
   const logo = store?.store_logo ? apiUrl.replace("/api", "") + store.store_logo : "";
+  const reportLabels = {
+    sales: 'Penjualan', closing: 'Penutupan', payments: 'Pembayaran', expenses: 'Pengeluaran',
+    returns: 'Pengembalian', products: user?.role === 'owner' ? 'Produk & margin' : 'Produk',
+    inventory: 'Stok & restok', channels: 'Kanal', customers: 'Pelanggan', suppliers: 'Supplier', tax: 'PPN Masukan',
+  };
 
   if (!reportRoleAllowed) {
     return (
@@ -144,9 +149,8 @@ export default function ReportsPage() {
       eyebrow="ANALISIS TOKO"
       actions={
         <>
-          <a className="button-link" href="/reports/tax">Laporan Pajak</a>
           <a className="button-link" href="/finance">Keuangan</a>
-          <button type="button" onClick={() => openPrintView({ selector: ".reports-print-scope", title: reportView === "sales" ? "Laporan Penjualan" : "Laporan Anyostore" })}>Cetak / Simpan PDF</button>
+          <button type="button" onClick={() => openPrintView({ selector: ".reports-print-scope", title: `Laporan ${reportLabels[reportView] || 'Anyostore'}` })}>Cetak / Simpan PDF</button>
         </>
       }
     >
@@ -209,9 +213,9 @@ export default function ReportsPage() {
                 <OlseraDashboardSections reportData={report} fallbackData={null} activeBranchId={activeBranchId} period={period} role={user?.role} />
               </div>
               <ReportDetailAccordions report={report} user={user} activeBranchId={activeBranchId} />
-              <div className="analytics-report-closing"><ReportClosingPanel date={period.end} branchId={activeBranchId} role={user?.role} /></div>
             </>
           }
+          closingContent={<div className="analytics-report-closing"><ReportClosingPanel date={period.end} branchId={activeBranchId} role={user?.role} /></div>}
         />
       )}
     </AppShell>

@@ -9004,6 +9004,7 @@ button.danger:hover { background: #ffe4e6; }
 .analytics-report-heading p { margin: 0; color: #d7e2f0; font-size: var(--fs-sm); line-height: 1.45; }
 .analytics-report-export { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 8px 11px; border: 1px solid rgba(255,255,255,.3); border-radius: 9px; background: #fff; color: #142b47; font-size: var(--fs-sm); }
 .analytics-report-export:hover { background: #e9f1fa; }
+.analytics-report-section-label { margin-bottom: -6px; color: var(--muted-foreground, #64748b); font-size: var(--fs-xs); font-weight: 800; letter-spacing: .04em; }
 .analytics-report-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
 .analytics-report-kpi { display: flex; min-width: 0; min-height: 96px; flex-direction: column; justify-content: center; gap: 3px; padding: 12px 14px; border: 1px solid var(--border, #dbe3ee); border-left: 3px solid #1e3a5f; border-radius: 12px; background: var(--card, #fff); }
 .analytics-report-kpi > span { color: var(--muted-foreground, #64748b); font-size: var(--fs-xs); font-weight: 700; }

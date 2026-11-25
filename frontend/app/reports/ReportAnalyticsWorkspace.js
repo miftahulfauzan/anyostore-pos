@@ -1,23 +1,73 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Download, Boxes, ChartNoAxesCombined, PackageSearch, ShoppingBag, Store, Users, Truck } from "lucide-react";
+import { Download, Boxes, CalendarDays, ChartNoAxesCombined, CreditCard, FileText, PackageSearch, ReceiptText, RotateCcw, ShoppingBag, Store, Users, Truck } from "lucide-react";
 
 const VIEWS = [
   { id: "sales", label: "Penjualan", icon: ChartNoAxesCombined },
+  { id: "closing", label: "Penutupan", icon: CalendarDays },
+  { id: "payments", label: "Pembayaran", icon: CreditCard },
+  { id: "expenses", label: "Pengeluaran", icon: ReceiptText },
+  { id: "returns", label: "Pengembalian", icon: RotateCcw },
   { id: "products", label: "Produk & margin", icon: ShoppingBag },
   { id: "inventory", label: "Stok & restok", icon: Boxes },
   { id: "channels", label: "Kanal", icon: Store },
   { id: "customers", label: "Pelanggan", icon: Users },
   { id: "suppliers", label: "Supplier", icon: Truck },
+  { id: "tax", label: "PPN Masukan", icon: FileText },
 ];
 
 const insightViews = new Set(["inventory", "channels", "customers", "suppliers"]);
+const supportingViews = new Set(["expenses", "tax"]);
 const number = (value) => Number(value || 0);
 const fmtNumber = (value) => new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(number(value));
 const fmtRp = (value) => `Rp ${fmtNumber(value)}`;
 const fmtPercent = (value) => `${number(value).toLocaleString("id-ID", { maximumFractionDigits: 1 })}%`;
 const fmtDate = (value) => value ? String(value).slice(0, 10).split("-").reverse().join("/") : "-";
+
+async function fetchReportJson(url, signal) {
+  const response = await fetch(url, { credentials: "include", signal });
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.message || "Laporan tidak dapat dimuat");
+  return body;
+}
+
+async function loadTaxReport({ apiUrl, start, end, activeBranchId, user, signal }) {
+  const branchIds = user?.role === "owner" && activeBranchId === "all"
+    ? ((await fetchReportJson(`${apiUrl}/settings/branches`, signal)).data || [])
+      .filter((branch) => branch.is_active)
+      .map((branch) => branch.id)
+    : [user?.role === "owner" ? activeBranchId : null];
+  const reports = await Promise.all(branchIds.map(async (branchId) => {
+    const query = new URLSearchParams({ start, end });
+    if (branchId != null && branchId !== "") query.set("branch_id", branchId);
+    return (await fetchReportJson(`${apiUrl}/tax/report?${query}`, signal)).data;
+  }));
+  if (!(user?.role === "owner" && activeBranchId === "all") && reports.length === 1) return reports[0];
+
+  const sumFields = (source, fields, integerFields = []) => Object.fromEntries(fields.map((field) => [
+    field,
+    reports.reduce((total, report) => total + number(report?.[source]?.[field]), 0),
+  ]).map(([field, value]) => [field, integerFields.includes(field) ? Math.round(value) : value]));
+  const monthly = new Map();
+  for (const report of reports) {
+    for (const row of report.monthly || []) {
+      const target = monthly.get(row.month) || { month: row.month, transactions: 0, gross_sales: 0, ppn_base: 0, ppn_keluaran: 0 };
+      for (const field of ["transactions", "gross_sales", "ppn_base", "ppn_keluaran"]) target[field] += number(row[field]);
+      monthly.set(row.month, target);
+    }
+  }
+  const rates = [...new Set(reports.map((report) => String(report.tax_rate)))];
+  return {
+    store_name: "Semua toko/gudang",
+    all_branches: true,
+    tax_rate: rates.length === 1 ? reports[0]?.tax_rate : "gabungan",
+    ppn_keluaran: sumFields("ppn_keluaran", ["transactions", "gross_sales", "ppn_base", "ppn_amount"], ["transactions"]),
+    ppn_masukan: sumFields("ppn_masukan", ["orders", "total_purchase", "ppn_base", "ppn_amount"], ["orders"]),
+    net_ppn: reports.reduce((total, report) => total + number(report.net_ppn), 0),
+    monthly: [...monthly.values()].sort((a, b) => a.month.localeCompare(b.month)),
+  };
+}
 
 function downloadCsv(section, headers, rows) {
   const escape = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
@@ -56,7 +106,7 @@ function Empty({ children = "Belum ada data pada rentang ini." }) {
   return <p className="analytics-report-empty">{children}</p>;
 }
 
-function ReportHeading({ view, title, onExport, disabled = false, children }) {
+function ReportHeading({ view, title, onExport, disabled = false, hideExport = false, children }) {
   const item = VIEWS.find((entry) => entry.id === view);
   const Icon = item?.icon || PackageSearch;
   return (
@@ -67,9 +117,9 @@ function ReportHeading({ view, title, onExport, disabled = false, children }) {
         <h2>{title || item?.label}</h2>
         <p>{children}</p>
       </div>
-      <button className="analytics-report-export" type="button" onClick={onExport} disabled={disabled}>
+      {!hideExport ? <button className="analytics-report-export" type="button" onClick={onExport} disabled={disabled}>
         <Download size={16} aria-hidden="true" /> <span>CSV</span>
-      </button>
+      </button> : null}
     </header>
   );
 }
@@ -128,6 +178,160 @@ function ProductView({ data, isOwner }) {
           })}
         </div> : <Empty />}
       </Panel>
+    </>
+  );
+}
+
+function SalesSummary({ report }) {
+  const summary = report?.summary || {};
+  return (
+    <>
+      <div className="analytics-report-section-label">Ringkasan penjualan</div>
+      <div className="analytics-report-kpis">
+        <Kpi label="Total penjualan" value={fmtRp(summary.gross_sales ?? summary.revenue)} />
+        <Kpi label="Transaksi" value={fmtNumber(summary.transactions)} tone="blue" />
+        <Kpi label="Produk terjual" value={`${fmtNumber(summary.products_sold)} pcs`} tone="green" />
+        <Kpi label="Diskon" value={fmtRp(summary.discounts)} tone="plum" />
+      </div>
+    </>
+  );
+}
+
+function PaymentsView({ report }) {
+  const summary = report?.summary || {};
+  const methods = Array.isArray(report?.payment_methods) ? report.payment_methods : [];
+  const total = methods.reduce((value, row) => value + number(row.amount), 0);
+  const transactions = number(summary.transactions);
+  return (
+    <>
+      <div className="analytics-report-kpis">
+        <Kpi label="Total pembayaran" value={fmtRp(total)} helper="Setelah pembatalan dan refund" />
+        <Kpi label="Transaksi" value={fmtNumber(transactions)} tone="blue" />
+        <Kpi label="Metode digunakan" value={fmtNumber(methods.length)} tone="green" />
+        <Kpi label="Rata-rata transaksi" value={fmtRp(transactions ? total / transactions : 0)} tone="plum" />
+      </div>
+      <Panel title="Pembayaran per metode" hint={`${methods.length} metode pada periode ini`}>
+        {methods.length ? <div className="analytics-report-list">
+          {methods.map((row) => <article className="analytics-report-row" key={row.payment_method}>
+            <div className="analytics-report-row-main"><strong>{String(row.payment_method || "Lainnya").toUpperCase()}</strong><small>{fmtNumber(row.transactions)} transaksi</small></div>
+            <div className="analytics-report-row-value"><strong>{fmtRp(row.amount)}</strong></div>
+          </article>)}
+        </div> : <Empty />}
+      </Panel>
+    </>
+  );
+}
+
+function ExpensesView({ report, data }) {
+  const summary = report?.summary || {};
+  const daily = Array.isArray(report?.daily_expenses) ? report.daily_expenses : [];
+  const expenses = (Array.isArray(data?.expenses) ? data.expenses : []).filter((row) => row.status === "approved");
+  const total = number(summary.expenses);
+  const days = daily.length;
+  const maxAmount = Math.max(1, ...daily.map((row) => number(row.amount)));
+  return (
+    <>
+      <div className="analytics-report-kpis">
+        <Kpi label="Total pengeluaran" value={fmtRp(total)} />
+        <Kpi label="Tanggal tercatat" value={`${fmtNumber(days)} hari`} tone="blue" />
+        <Kpi label="Rata-rata per tanggal" value={fmtRp(days ? total / days : 0)} tone="plum" />
+      </div>
+      <Panel title="Pengeluaran per tanggal" hint="Catatan yang sudah disetujui">
+        {daily.length ? <div className="analytics-report-bars">
+          {daily.map((row) => <div className="analytics-report-bar-row" key={row.date}>
+            <div className="analytics-report-bar-label"><strong>{fmtDate(row.date)}</strong><span>{fmtRp(row.amount)}</span></div>
+            <div className="analytics-report-bar-track"><i style={{ width: `${Math.max(3, number(row.amount) * 100 / maxAmount)}%` }} /></div>
+          </div>)}
+        </div> : <Empty />}
+      </Panel>
+      <Panel title="Rincian pengeluaran" hint={`${fmtNumber(expenses.length)} data disetujui`}>
+        {expenses.length ? <div className="analytics-report-list">
+          {expenses.map((row) => <article className="analytics-report-row" key={row.id}>
+            <div className="analytics-report-row-main">
+              <strong>{row.name || row.category || "Pengeluaran"}</strong>
+              <small>{fmtDate(row.expense_date)} · {row.category || "Tanpa kategori"} · {String(row.payment_method || "cash").toUpperCase()}{row.branch_name ? ` · ${row.branch_name}` : ""}</small>
+              {row.notes ? <small>{row.notes}</small> : null}
+            </div>
+            <div className="analytics-report-row-value"><strong>{fmtRp(row.amount)}</strong></div>
+          </article>)}
+        </div> : <Empty />}
+        {number(data?.total) > 100 ? <p className="analytics-report-note">Menampilkan maksimal 100 pengeluaran terbaru. Angka ringkasan menghitung seluruh data yang disetujui.</p> : null}
+      </Panel>
+    </>
+  );
+}
+
+function ReturnsView({ report }) {
+  const summary = report?.summary || {};
+  const statusRows = Array.isArray(report?.return_summary) ? report.return_summary : [];
+  const returns = Array.isArray(report?.returns) ? report.returns : [];
+  const count = summary.returns ?? summary.return_count;
+  const refund = summary.return_amount ?? summary.refund_amount;
+  return (
+    <>
+      <div className="analytics-report-kpis">
+        <Kpi label="Total refund disetujui" value={fmtRp(refund)} />
+        <Kpi label="Jumlah retur" value={fmtNumber(count)} tone="blue" />
+        <Kpi label="Barang dikembalikan" value={`${fmtNumber(summary.returned_quantity)} pcs`} tone="green" />
+      </div>
+      <Panel title="Ringkasan pengembalian" hint="Dikelompokkan menurut status">
+        {statusRows.length ? <div className="analytics-report-list">
+          {statusRows.map((row) => <article className="analytics-report-row" key={row.status}>
+            <div className="analytics-report-row-main"><strong>{row.status || "Tidak diketahui"}</strong><small>{fmtNumber(row.returns_count)} retur · {fmtNumber(row.quantity_returned)} pcs</small></div>
+            <div className="analytics-report-row-value"><strong>{fmtRp(row.refund_amount)}</strong><small>Refund disetujui</small></div>
+          </article>)}
+        </div> : <Empty />}
+      </Panel>
+      <Panel title="Daftar pengembalian" hint={`${fmtNumber(returns.length)} data pada periode ini`}>
+        {returns.length ? <div className="analytics-report-list">
+          {returns.map((row) => <article className="analytics-report-row" key={`${row.return_no || row.id}-${row.invoice_no || ""}`}>
+            <div className="analytics-report-row-main"><strong>{row.return_no || "Retur"} · {row.invoice_no || "Tanpa invoice"}</strong><small>{fmtDate(row.created_at)} · {row.created_by_name || "-"} · {row.status || "-"}</small><small>{row.reason || "Tanpa keterangan"}</small></div>
+            <div className="analytics-report-row-value"><strong>{fmtRp(row.refund_amount)}</strong><small>{fmtNumber(row.quantity_returned)} pcs</small></div>
+          </article>)}
+        </div> : <Empty />}
+      </Panel>
+    </>
+  );
+}
+
+function TaxView({ data }) {
+  const output = data?.ppn_keluaran || {};
+  const input = data?.ppn_masukan || {};
+  const monthly = Array.isArray(data?.monthly) ? data.monthly : [];
+  const maxAmount = Math.max(1, ...monthly.map((row) => number(row.ppn_keluaran)));
+  return (
+    <>
+      <div className="analytics-report-kpis">
+        <Kpi label="PPN keluaran" value={fmtRp(output.ppn_amount)} helper={`${fmtNumber(output.transactions)} transaksi`} />
+        <Kpi label="PPN masukan" value={fmtRp(input.ppn_amount)} helper={`${fmtNumber(input.orders)} PO diterima`} tone="green" />
+        <Kpi label="PPN bersih" value={fmtRp(data?.net_ppn)} helper="Keluaran dikurangi masukan" tone={number(data?.net_ppn) > 0 ? "amber" : "blue"} />
+      </div>
+      <div className="analytics-report-columns">
+        <Panel title="PPN keluaran" hint="Dari penjualan">
+          <div className="analytics-report-list">
+            <article className="analytics-report-row"><div className="analytics-report-row-main"><strong>Omzet</strong></div><div className="analytics-report-row-value"><strong>{fmtRp(output.gross_sales)}</strong></div></article>
+            <article className="analytics-report-row"><div className="analytics-report-row-main"><strong>Dasar pengenaan</strong></div><div className="analytics-report-row-value"><strong>{fmtRp(output.ppn_base)}</strong></div></article>
+            <article className="analytics-report-row"><div className="analytics-report-row-main"><strong>PPN keluaran</strong></div><div className="analytics-report-row-value"><strong>{fmtRp(output.ppn_amount)}</strong></div></article>
+          </div>
+        </Panel>
+        <Panel title="PPN masukan" hint="Dari purchase order diterima">
+          <div className="analytics-report-list">
+            <article className="analytics-report-row"><div className="analytics-report-row-main"><strong>Total pembelian</strong></div><div className="analytics-report-row-value"><strong>{fmtRp(input.total_purchase)}</strong></div></article>
+            <article className="analytics-report-row"><div className="analytics-report-row-main"><strong>Dasar pengenaan</strong></div><div className="analytics-report-row-value"><strong>{fmtRp(input.ppn_base)}</strong></div></article>
+            <article className="analytics-report-row"><div className="analytics-report-row-main"><strong>PPN masukan</strong></div><div className="analytics-report-row-value"><strong>{fmtRp(input.ppn_amount)}</strong></div></article>
+          </div>
+        </Panel>
+      </div>
+      <Panel title="Rincian bulanan" hint="PPN keluaran dan omzet">
+        {monthly.length ? <div className="analytics-report-bars">
+          {monthly.map((row) => <div className="analytics-report-bar-row" key={row.month}>
+            <div className="analytics-report-bar-label"><strong>{row.month}</strong><span>{fmtRp(row.ppn_keluaran)}</span></div>
+            <div className="analytics-report-bar-track"><i style={{ width: `${Math.max(3, number(row.ppn_keluaran) * 100 / maxAmount)}%` }} /></div>
+            <small>{fmtNumber(row.transactions)} transaksi · omzet {fmtRp(row.gross_sales)}</small>
+          </div>)}
+        </div> : <Empty />}
+      </Panel>
+      <p className="analytics-report-note">{data?.all_branches ? "Tarif dan dasar pengenaan mengikuti pengaturan masing-masing toko." : `Tarif PPN: ${data?.tax_rate ?? 0}% · Harga ${data?.prices_include_tax ? "sudah termasuk" : "belum termasuk"} PPN.`}</p>
     </>
   );
 }
@@ -249,28 +453,40 @@ function SupplierView({ data }) {
   );
 }
 
-export default function ReportAnalyticsWorkspace({ report, user, activeBranchId, period, apiUrl, store, storeName, logo, selectedView, onSelectedViewChange, salesContent }) {
+export default function ReportAnalyticsWorkspace({ report, user, activeBranchId, period, apiUrl, store, storeName, logo, selectedView, onSelectedViewChange, salesContent, closingContent }) {
   const selected = selectedView || "sales";
   const [payloads, setPayloads] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const key = useMemo(() => `${selected}:${period.start}:${period.end}:${activeBranchId || ""}`, [selected, period.start, period.end, activeBranchId]);
   const insightData = payloads[key];
+  const selectedLabel = selected === "products" && user?.role !== "owner"
+    ? "Produk"
+    : VIEWS.find((entry) => entry.id === selected)?.label || "Laporan";
 
   useEffect(() => {
-    if (!insightViews.has(selected) || !period.start || !period.end || !activeBranchId || payloads[key]) return undefined;
+    if ((!insightViews.has(selected) && !supportingViews.has(selected)) || !period.start || !period.end || !activeBranchId || payloads[key]) {
+      setLoading(false);
+      setError("");
+      return undefined;
+    }
     const controller = new AbortController();
     let current = true;
     setLoading(true);
     setError("");
-    const qs = new URLSearchParams({ view: selected, start: period.start, end: period.end });
-    if (user?.role === "owner") qs.set("branch_id", activeBranchId);
-    fetch(`${apiUrl}/reports/insights?${qs}`, { credentials: "include", signal: controller.signal })
-      .then(async (response) => {
-        const body = await response.json();
-        if (!response.ok) throw new Error(body.message || "Laporan tidak dapat dimuat");
-        return body.data;
-      })
+    const load = async () => {
+      if (selected === "tax") return loadTaxReport({ apiUrl, start: period.start, end: period.end, activeBranchId, user, signal: controller.signal });
+      if (selected === "expenses") {
+        const qs = new URLSearchParams({ type: "expense", date_from: period.start, date_to: period.end, limit: "100" });
+        if (user?.role === "owner") qs.set("branch_id", activeBranchId);
+        const body = await fetchReportJson(`${apiUrl}/finance/expenses?${qs}`, controller.signal);
+        return { expenses: body.data || [], total: body.total || 0 };
+      }
+      const qs = new URLSearchParams({ view: selected, start: period.start, end: period.end });
+      if (user?.role === "owner") qs.set("branch_id", activeBranchId);
+      return (await fetchReportJson(`${apiUrl}/reports/insights?${qs}`, controller.signal)).data;
+    };
+    load()
       .then((data) => { if (current) setPayloads((old) => ({ ...old, [key]: data })); })
       .catch((reason) => {
         if (current && reason.name !== "AbortError") setError(reason.message || "Laporan tidak dapat dimuat");
@@ -292,13 +508,26 @@ export default function ReportAnalyticsWorkspace({ report, user, activeBranchId,
         ]);
     } else if (selected === "products") {
       downloadCsv(selected, ["Produk", "SKU", "Kategori", "Terjual", "Omzet", "HPP", "Laba"], (report?.products || []).map((row) => [row.name, row.sku, row.category_name, row.quantity_sold, row.revenue, row.cost_of_goods, row.profit]));
+    } else if (selected === "payments") {
+      downloadCsv("pembayaran", ["Metode", "Transaksi", "Jumlah"], (report?.payment_methods || []).map((row) => [row.payment_method, row.transactions, row.amount]));
+    } else if (selected === "expenses") {
+      downloadCsv("pengeluaran", ["Tanggal", "Nama", "Kategori", "Metode", "Status", "Jumlah", "Catatan"], (insightData?.expenses || []).filter((row) => row.status === "approved").map((row) => [row.expense_date, row.name, row.category, row.payment_method, row.status, row.amount, row.notes]));
+    } else if (selected === "returns") {
+      downloadCsv("pengembalian", ["Tanggal", "No. retur", "Invoice", "Dibuat oleh", "Status", "Barang (pcs)", "Refund"], (report?.returns || []).map((row) => [row.created_at, row.return_no, row.invoice_no, row.created_by_name, row.status, row.quantity_returned, row.refund_amount]));
+    } else if (selected === "tax") {
+      downloadCsv("ppn-masukan", ["Bagian", "Bulan", "Transaksi", "Omzet / pembelian", "Dasar PPN", "Nilai PPN"], [
+        ["PPN keluaran", "", insightData?.ppn_keluaran?.transactions, insightData?.ppn_keluaran?.gross_sales, insightData?.ppn_keluaran?.ppn_base, insightData?.ppn_keluaran?.ppn_amount],
+        ["PPN masukan", "", insightData?.ppn_masukan?.orders, insightData?.ppn_masukan?.total_purchase, insightData?.ppn_masukan?.ppn_base, insightData?.ppn_masukan?.ppn_amount],
+        ["PPN bersih", "", "", "", "", insightData?.net_ppn],
+        ...(insightData?.monthly || []).map((row) => ["Keluaran bulanan", row.month, row.transactions, row.gross_sales, row.ppn_base, row.ppn_keluaran]),
+      ]);
     } else if (selected === "inventory") {
       downloadCsv(selected, ["Produk", "SKU", "Stok fisik total", "Stok gudang aktif non-reject", "Dicadangkan", "Tersedia", "Minimum", "Terjual 30 hari", "PO masuk", "Saran restok", "Biaya satuan"], (insightData?.products || []).map((row) => [row.name, row.sku, row.total_stock, row.stock, row.reserved_units, row.available_stock, row.min_stock, row.units_sold_30d, row.incoming_units, row.suggested_reorder, row.unit_cost]));
     } else if (selected === "channels") {
       downloadCsv(selected, ["Kanal", "Barang keluar (pcs)", "Batch", "Produk"], (insightData?.channels || []).map((row) => [row.channel_name, row.units, row.batches, row.products]));
     } else if (selected === "customers") {
       downloadCsv(selected, ["Pelanggan", "Telepon", "Transaksi", "Omzet", "Pembelian pertama", "Pembelian terakhir"], (insightData?.customers || []).map((row) => [row.name, row.phone, row.transactions, row.revenue, row.first_purchase, row.last_purchase]));
-    } else {
+    } else if (selected === "suppliers") {
       downloadCsv(selected, ["PO", "Supplier", "Status", "Tanggal", "Target", "Dipesan", "Diterima", "Sisa pcs", "Nilai sisa"], (insightData?.orders || []).map((row) => [row.po_number || row.id, row.supplier_name, row.status, row.order_date, row.expected_date, row.ordered_units, row.received_units, row.pending_units, row.pending_value]));
     }
   };
@@ -308,7 +537,7 @@ export default function ReportAnalyticsWorkspace({ report, user, activeBranchId,
       <div className="report-brand report-brand-print-only">
         {logo && String(store?.show_logo) !== "false" ? <img src={logo} alt={`Logo ${storeName}`} /> : null}
         <div><strong>{storeName}</strong><span>{store?.store_address || ""}</span></div>
-        <h1 className="report-title">Laporan {VIEWS.find((entry) => entry.id === selected)?.label || "Laporan"}</h1>
+        <h1 className="report-title">Laporan {selectedLabel}</h1>
       </div>
       <nav className="analytics-report-nav" aria-label="Kategori laporan">
         {VIEWS.map(({ id, label, icon: Icon }) => <button key={id} type="button" className={selected === id ? "is-active" : ""} aria-current={selected === id ? "page" : undefined} onClick={() => onSelectedViewChange?.(id)}>
@@ -316,8 +545,26 @@ export default function ReportAnalyticsWorkspace({ report, user, activeBranchId,
         </button>)}
       </nav>
       {selected === "sales" ? <>
-        <ReportHeading view={selected} onExport={exportRows}>Tren penjualan, pembayaran, transaksi, dan retur pada periode terpilih.</ReportHeading>
+        <ReportHeading view={selected} onExport={exportRows}>Omzet, jumlah transaksi, produk terjual, diskon, dan tren penjualan pada periode terpilih.</ReportHeading>
+        <SalesSummary report={report} />
         {salesContent}
+      </> : selected === "closing" ? <>
+        <ReportHeading view={selected} hideExport>Ringkasan penjualan, retur, pengeluaran, pemasukan, dan total kas yang diharapkan pada tanggal laporan.</ReportHeading>
+        {closingContent}
+      </> : selected === "payments" ? <>
+        <ReportHeading view={selected} onExport={exportRows}>Total pembayaran dan pembagiannya menurut metode yang digunakan.</ReportHeading>
+        <PaymentsView report={report} />
+      </> : selected === "expenses" || selected === "tax" ? <>
+        <ReportHeading view={selected} onExport={exportRows} disabled={!insightData || loading}>
+          {selected === "expenses" ? "Total pengeluaran yang disetujui, per tanggal, dan rinciannya." : "PPN keluaran, PPN masukan dari pembelian, dan selisih PPN pada periode ini."}
+        </ReportHeading>
+        {loading && !insightData ? <section className="analytics-report-panel" role="status">Memuat laporan…</section> : null}
+        {error ? <section className="analytics-report-error" role="alert"><span>{error}</span><button type="button" onClick={() => setPayloads((old) => { const next = { ...old }; delete next[key]; return next; })}>Coba lagi</button></section> : null}
+        {insightData ? (selected === "expenses" ? <ExpensesView report={report} data={insightData} /> : <TaxView data={insightData} />) : null}
+        {!loading && !error && !insightData ? <section className="analytics-report-panel"><Empty /></section> : null}
+      </> : selected === "returns" ? <>
+        <ReportHeading view={selected} onExport={exportRows}>Jumlah barang kembali, status pengajuan, dan nilai refund yang disetujui.</ReportHeading>
+        <ReturnsView report={report} />
       </> : selected === "products" ? <>
         <ReportHeading view={selected} title={user?.role === "owner" ? undefined : "Produk"} onExport={exportRows}>{user?.role === "owner" ? "Margin memakai harga dan biaya yang tersimpan pada transaksi." : "Laba produk memakai harga dan biaya yang tersimpan pada transaksi."}</ReportHeading>
         <ProductView data={report} isOwner={user?.role === "owner"} />

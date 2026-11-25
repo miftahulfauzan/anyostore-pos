@@ -3,14 +3,11 @@
 import { useEffect, useState } from 'react';
 import {
   BarChart3,
-  Boxes,
   ChevronDown,
-  CreditCard,
   FileDown,
   PackageSearch,
   Printer,
   ReceiptText,
-  RefreshCcw,
   ShoppingBag,
   Tags,
   Users,
@@ -214,12 +211,9 @@ export default function ReportDetailAccordions({ report, user, activeBranchId })
   const cancellations = report?.cancellations || [];
   const products = report?.products || [];
   const categories = report?.categories || [];
-  const paymentMethods = report?.payment_methods || [];
   const cashiers = report?.cashiers || [];
   const customers = report?.customers || [];
   const lowStock = report?.low_stock || [];
-  const returnSummary = report?.return_summary || [];
-  const returns = report?.returns || [];
   const dailySales = report?.daily_sales || [];
   const hourlySales = report?.hourly_sales || [];
   const branchComparison = report?.branch_comparison || [];
@@ -234,28 +228,12 @@ export default function ReportDetailAccordions({ report, user, activeBranchId })
       count: `${countRows(transactions, cancellations)} transaksi`,
     },
     {
-      key: 'products',
-      title: 'Produk',
-      description: 'Produk terjual, kategori, stok rendah, dan tier harga.',
-      icon: Boxes,
-      tone: 'teal',
-      count: `${countRows(products, categories, lowStock, priceTiers)} data`,
-    },
-    {
-      key: 'payments',
-      title: 'Pembayaran',
-      description: 'Metode bayar, kasir, dan pelanggan terbaik.',
-      icon: CreditCard,
+      key: 'performance',
+      title: 'Performa penjualan',
+      description: 'Penjualan per kasir dan pelanggan terbaik.',
+      icon: Users,
       tone: 'blue',
-      count: `${countRows(paymentMethods, cashiers, customers)} data`,
-    },
-    {
-      key: 'returns',
-      title: 'Retur',
-      description: 'Ringkasan dan rincian barang yang dikembalikan.',
-      icon: RefreshCcw,
-      tone: 'purple',
-      count: `${countRows(returnSummary, returns)} data`,
+      count: `${countRows(cashiers, customers)} data`,
     },
     {
       key: 'analysis',
@@ -285,14 +263,13 @@ export default function ReportDetailAccordions({ report, user, activeBranchId })
       return (
         <DetailGroup {...groupProps}>
           <DetailTable
-            title="Diskon, pembatalan, dan retur"
-            subtitle="Nilai ringkasan pada periode yang dipilih."
+            title="Diskon dan pembatalan"
+            subtitle="Nilai diskon dan transaksi yang dibatalkan pada periode ini."
             rows={[
               { key: 'discount-total', label: 'Total diskon', amount: summary.discounts },
               { key: 'discount-item', label: 'Diskon item', amount: summary.item_discounts },
               { key: 'discount-transaction', label: 'Diskon transaksi', amount: summary.transaction_discounts },
               { key: 'cancelled', label: `Pembatalan (${summary.cancelled_transactions || 0} transaksi)`, amount: summary.cancelled_amount },
-              { key: 'refund', label: `Refund retur (${summary.returns || 0} retur)`, amount: summary.refund_amount },
             ]}
             columns={[{ label: 'Rincian', key: 'label' }, { label: 'Nilai', render: (row) => rp(row.amount) }]}
           />
@@ -333,52 +310,9 @@ export default function ReportDetailAccordions({ report, user, activeBranchId })
         </DetailGroup>
       );
     }
-    if (group.key === 'products') {
+    if (group.key === 'performance') {
       return (
         <DetailGroup {...groupProps}>
-          <ProductDetailList rows={products} openAll={groupProps.printActive} />
-          <DetailTable
-            title="Penjualan berdasarkan kategori"
-            subtitle="Kategori mengikuti katalog produk saat ini."
-            rows={categories}
-            columns={[
-              { label: 'Kategori', render: (row) => row.category_name || 'Tanpa kategori' },
-              { label: 'Qty terjual', key: 'quantity_sold' },
-              { label: 'Pendapatan', render: (row) => rp(row.revenue) },
-              { label: 'Modal', render: (row) => rp(row.cost_of_goods) },
-              { label: 'Laba kotor', render: (row) => rp(row.profit) },
-            ]}
-          />
-          <DetailTable
-            title="Stok perlu perhatian"
-            subtitle="Produk yang stoknya sama atau di bawah stok minimum."
-            rows={lowStock}
-            columns={[{ label: 'Produk', key: 'name' }, { label: 'SKU', key: 'sku' }, { label: 'Stok', key: 'stock' }, { label: 'Stok minimum', key: 'min_stock' }]}
-            summaryValue={(row) => <><strong>{row.stock || 0} pcs</strong><small>Min. {row.min_stock || 0} pcs</small></>}
-          />
-          <DetailTable
-            title="Ringkasan tier harga"
-            subtitle="Penjualan berdasarkan tier harga transaksi."
-            rows={priceTiers}
-            columns={[
-              { label: 'Tier', render: (row) => <span className={`tier-badge ${row.price_tier}`}>{({ retail: 'Retail', semi_grosir: 'Semi Grosir', grosir_seri: 'Grosir Seri' })[row.price_tier] || row.price_tier}</span> },
-              { label: 'Transaksi', key: 'transactions' },
-              { label: 'Total Produk Terjual', key: 'products_sold' },
-              { label: 'Penjualan', render: (row) => rp(row.revenue) },
-            ]}
-          />
-        </DetailGroup>
-      );
-    }
-    if (group.key === 'payments') {
-      return (
-        <DetailGroup {...groupProps}>
-          <DetailTable
-            title="Laporan metode pembayaran"
-            subtitle="Nilai per metode; pembayaran gabungan dirinci ke metode yang dipakai."
-            rows={paymentMethods}
-            columns={[{ label: 'Metode', render: (row) => labelFor(paymentLabels, row.payment_method) }, { label: 'Transaksi', key: 'transactions' }, { label: 'Nilai pembayaran', render: (row) => rp(row.amount) }]}
-          />
           <DetailTable
             title="Laporan kasir"
             subtitle="Penjualan per staf."
@@ -402,35 +336,39 @@ export default function ReportDetailAccordions({ report, user, activeBranchId })
         </DetailGroup>
       );
     }
-    if (group.key === 'returns') {
-      return (
-        <DetailGroup {...groupProps}>
-          <DetailTable
-            title="Ringkasan retur"
-            subtitle="Retur dikelompokkan berdasarkan status dan tanggal pencatatan."
-            rows={returnSummary}
-            columns={[{ label: 'Status', render: (row) => labelFor(statusLabels, row.status) }, { label: 'Jumlah retur', key: 'returns_count' }, { label: 'Qty barang', key: 'quantity_returned' }, { label: 'Refund disetujui', render: (row) => rp(row.refund_amount) }]}
-          />
-          <DetailTable
-            title="Daftar retur"
-            subtitle="Retur yang dicatat pada periode ini."
-            rows={returns}
-            columns={[
-              { label: 'Waktu dicatat', render: (row) => formatRecordedAt(row.created_at) },
-              { label: 'No. retur', key: 'return_no' },
-              { label: 'Invoice', key: 'invoice_no' },
-              { label: 'Dibuat oleh', key: 'created_by_name' },
-              { label: 'Keterangan', render: (row) => row.reason || '-' },
-              { label: 'Qty', key: 'quantity_returned' },
-              { label: 'Status', render: (row) => labelFor(statusLabels, row.status) },
-              { label: 'Refund', render: (row) => rp(row.refund_amount) },
-            ]}
-          />
-        </DetailGroup>
-      );
-    }
     return (
       <DetailGroup {...groupProps}>
+        <ProductDetailList rows={products} openAll={groupProps.printActive} />
+        <DetailTable
+          title="Penjualan berdasarkan kategori"
+          subtitle="Kategori mengikuti katalog produk saat ini."
+          rows={categories}
+          columns={[
+            { label: 'Kategori', render: (row) => row.category_name || 'Tanpa kategori' },
+            { label: 'Qty terjual', key: 'quantity_sold' },
+            { label: 'Pendapatan', render: (row) => rp(row.revenue) },
+            { label: 'Modal', render: (row) => rp(row.cost_of_goods) },
+            { label: 'Laba kotor', render: (row) => rp(row.profit) },
+          ]}
+        />
+        <DetailTable
+          title="Stok perlu perhatian"
+          subtitle="Produk yang stoknya sama atau di bawah stok minimum."
+          rows={lowStock}
+          columns={[{ label: 'Produk', key: 'name' }, { label: 'SKU', key: 'sku' }, { label: 'Stok', key: 'stock' }, { label: 'Stok minimum', key: 'min_stock' }]}
+          summaryValue={(row) => <><strong>{row.stock || 0} pcs</strong><small>Min. {row.min_stock || 0} pcs</small></>}
+        />
+        <DetailTable
+          title="Ringkasan tier harga"
+          subtitle="Penjualan berdasarkan tier harga transaksi."
+          rows={priceTiers}
+          columns={[
+            { label: 'Tier', render: (row) => <span className={`tier-badge ${row.price_tier}`}>{({ retail: 'Retail', semi_grosir: 'Semi Grosir', grosir_seri: 'Grosir Seri' })[row.price_tier] || row.price_tier}</span> },
+            { label: 'Transaksi', key: 'transactions' },
+            { label: 'Total Produk Terjual', key: 'products_sold' },
+            { label: 'Penjualan', render: (row) => rp(row.revenue) },
+          ]}
+        />
         <DetailTable
           title="Penjualan harian"
           subtitle="Ringkasan transaksi per hari."
@@ -478,8 +416,8 @@ export default function ReportDetailAccordions({ report, user, activeBranchId })
       <div className="report-details-heading">
         <div>
           <span className="report-detail-eyebrow"><ShoppingBag aria-hidden="true" size={16} /> RINCIAN PERIODE</span>
-          <h2>Laporan detail</h2>
-          <p>Rincian transaksi, produk, pembayaran, retur, dan analisis periode.</p>
+          <h2>Rincian penjualan</h2>
+          <p>Transaksi, performa penjualan, produk terjual, dan analisis periode.</p>
         </div>
         <Users aria-hidden="true" className="report-detail-heading-icon" size={28} />
       </div>
