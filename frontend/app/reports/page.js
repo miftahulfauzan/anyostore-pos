@@ -134,6 +134,7 @@ export default function ReportsPage() {
     returns: 'Pengembalian', products: user?.role === 'owner' ? 'Produk & margin' : 'Produk',
     inventory: 'Stok & restok', channels: 'Kanal', customers: 'Pelanggan', suppliers: 'Supplier', tax: 'PPN Masukan',
   };
+  const reportTitle = reportView === 'sales' ? 'Laporan Penjualan' : `Laporan ${reportLabels[reportView] || 'Anyostore'}`;
 
   if (!reportRoleAllowed) {
     return (
@@ -150,7 +151,7 @@ export default function ReportsPage() {
       actions={
         <>
           <a className="button-link" href="/finance">Keuangan</a>
-          <button type="button" onClick={() => openPrintView({ selector: ".reports-print-scope", title: `Laporan ${reportLabels[reportView] || 'Anyostore'}` })}>Cetak / Simpan PDF</button>
+          <button type="button" onClick={() => openPrintView({ selector: ".reports-print-scope", title: reportTitle })}>Cetak / Simpan PDF</button>
         </>
       }
     >

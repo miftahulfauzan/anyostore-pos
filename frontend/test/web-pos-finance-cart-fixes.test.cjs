@@ -25,7 +25,7 @@ test('web sales report reuses the Android-style visual report sections', () => {
   const sections = read('dashboard/OlseraDashboardSections.js');
   assert.match(page, /OlseraDashboardSections/);
   assert.match(page, /reports-android-summary/);
-  assert.match(detail, /Laporan detail/);
+  assert.match(detail, /Rincian penjualan/);
   assert.match(page, /ReportDetailAccordions/);
   assert.match(page, /Laporan Penjualan/);
   assert.doesNotMatch(page, /Laporan Ringkasan Toko/);
