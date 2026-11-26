@@ -30,6 +30,17 @@ void main() {
     expect(items.single.price, 275000);
   });
 
+  test('POS dibuka dengan keranjang kosong, draft hanya dari aksi Buka Draft',
+      () {
+    final source = File('lib/src/pos_page.dart').readAsStringSync();
+    // Restore otomatis saat katalog dimuat sudah dihapus: keranjang baru harus
+    // kosong, draft terakhir menunggu di daftar Draft.
+    expect(source, isNot(contains('unawaited(_restoreDraft(branch))')));
+    expect(source, isNot(contains('Future<bool> _restoreDraft(')));
+    expect(
+        source, contains('final localDrafts = await _readLocalDrafts(branch);'));
+  });
+
   test('Draft action reads the local auto-saved cart', () {
     final source = File('lib/src/pos_page.dart').readAsStringSync();
     expect(

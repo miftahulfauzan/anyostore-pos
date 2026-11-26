@@ -58,11 +58,24 @@ class CartItem {
   double? priceOverride;
 }
 
+String _draftProductName(
+  int productId,
+  Object? rawName,
+  Map<int, String> productNames,
+) {
+  final name = rawName?.toString().trim() ?? '';
+  if (name.isNotEmpty && name.toLowerCase() != 'produk') return name;
+  return productNames[productId] ?? (name.isNotEmpty ? name : 'Produk');
+}
+
 /// Decode the cart snapshot written to the local draft cache.
 ///
-/// Keep this parser independent from the widget so both automatic restore on
-/// startup and the Draft quick action use exactly the same data rules.
-List<CartItem> cartItemsFromDraft(Map<String, dynamic>? draft) {
+/// Keep this parser independent from the widget; the catalog is optional so
+/// callers that restore a draft can fill in names missing from older drafts.
+List<CartItem> cartItemsFromDraft(
+  Map<String, dynamic>? draft, {
+  Map<int, String> productNames = const <int, String>{},
+}) {
   final rawItems = draft?['items'];
   if (rawItems is! List) return <CartItem>[];
   final items = <CartItem>[];
@@ -77,7 +90,8 @@ List<CartItem> cartItemsFromDraft(Map<String, dynamic>? draft) {
     items.add(CartItem(
       productId: productId,
       variantId: int.tryParse('${row['variant_id']}'),
-      name: row['name']?.toString() ?? 'Produk',
+      name: _draftProductName(
+          productId, row['name'] ?? row['product_name'], productNames),
       price: asNum(row['price']),
       qty: qty,
       priceOverride:
@@ -88,6 +102,58 @@ List<CartItem> cartItemsFromDraft(Map<String, dynamic>? draft) {
     ));
   }
   return items;
+}
+
+/// Gabungkan draft perangkat dengan draft server untuk dialog "Buka Draft".
+///
+/// Draft server yang berasal dari auto-hold snapshot lokal yang sama
+/// (client_hold_id sama) tidak ditampilkan dua kali. Snapshot lokal
+/// didahulukan karena tetap bisa dipakai saat perangkat offline.
+List<Map<String, dynamic>> draftChoices({
+  Map<String, dynamic>? localDraft,
+  List<Map<String, dynamic>> localDrafts = const [],
+  List<dynamic> pending = const [],
+}) {
+  final locals = <Map<String, dynamic>>[
+    ...localDrafts,
+    if (localDraft != null) localDraft,
+  ];
+  final matchedPendingIds = <String>{};
+  final choices = <Map<String, dynamic>>[];
+  for (final local in locals) {
+    final holdId = local['client_hold_id']?.toString().trim();
+    final pendingId = local['pending_transaction_id']?.toString();
+    Map<String, dynamic>? match;
+    for (final raw in pending) {
+      if (raw is! Map) continue;
+      final serverDraft = Map<String, dynamic>.from(raw);
+      final samePending = pendingId != null &&
+          pendingId.isNotEmpty &&
+          serverDraft['id']?.toString() == pendingId;
+      final sameHold = holdId != null &&
+          holdId.isNotEmpty &&
+          serverDraft['client_hold_id']?.toString().trim() == holdId;
+      if (samePending || sameHold) {
+        match = serverDraft;
+        break;
+      }
+    }
+    final draft = <String, dynamic>{
+      ...local,
+      if (local['pending_transaction_id'] == null && match != null)
+        'pending_transaction_id': match['id'],
+    };
+    if (match != null) matchedPendingIds.add('${match['id']}');
+    choices.add({'source': 'local', 'draft': draft});
+  }
+  for (final raw in pending) {
+    if (raw is! Map) continue;
+    final serverDraft = Map<String, dynamic>.from(raw);
+    if (!matchedPendingIds.contains('${serverDraft['id']}')) {
+      choices.add({'source': 'server', 'pending': serverDraft});
+    }
+  }
+  return choices;
 }
 
 /// Satu-satunya sumber hitungan subtotal keranjang (harga satuan x qty,
@@ -169,6 +235,8 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
   bool _saving = false;
   bool _autoPrint = true;
   String? _clientHoldId;
+  String? _localDraftId;
+  int? _pendingDraftId;
   String? _autoHeldClientHoldId;
   Future<void>? _serverHoldInFlight;
   String? _error;
@@ -331,6 +399,8 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
         _notesCtrl.clear();
         _transactionDate = todayWib();
         _clientHoldId = null;
+        _localDraftId = null;
+        _pendingDraftId = null;
         _autoHeldClientHoldId = null;
         _draftBranch = null;
         _category = null;
@@ -344,6 +414,16 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
   String _mediaUrl(String? path) => path == null || path.isEmpty
       ? ''
       : '${_api.baseUrl.replaceAll(RegExp(r'/api$'), '')}$path';
+
+  Map<int, String> _catalogProductNames() {
+    final names = <int, String>{};
+    for (final product in _products) {
+      final id = int.tryParse('${product['id']}');
+      final name = product['name']?.toString().trim() ?? '';
+      if (id != null && name.isNotEmpty) names[id] = name;
+    }
+    return names;
+  }
 
   int get _branchId => context.read<AuthStore>().branchId ?? 0;
   bool get _isOwner => context.read<AuthStore>().role == 'owner';
@@ -540,11 +620,11 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
       _branches = branches;
       _posBranchId ??= _branchId;
     }
+    // POS selalu dibuka dengan keranjang KOSONG. Draft terakhir (lokal maupun
+    // server) tetap tersimpan dan hanya dimuat lewat aksi "Buka Draft" supaya
+    // kasir mulai transaksi baru tanpa keranjang "hantu" dari sesi sebelumnya.
     final branch = _posBranchId ?? _branchId;
-    if (_draftBranch != branch) {
-      _draftBranch = branch;
-      unawaited(_restoreDraft(branch));
-    }
+    if (_draftBranch != branch) _draftBranch = branch;
   }
 
   List<Map<String, dynamic>> _categoryRowsFrom(dynamic raw) =>
@@ -603,7 +683,13 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
   }
 
   String _draftKey(int branch) =>
+      'cart-drafts-v2-${context.read<AuthStore>().userId}-$branch';
+
+  String _legacyDraftKey(int branch) =>
       'cart-draft-${context.read<AuthStore>().userId}-$branch';
+
+  String _legacyDraftId(int branch) =>
+      'legacy-${context.read<AuthStore>().userId}-$branch';
 
   String _newClientHoldId() {
     final random = math.Random();
@@ -629,6 +715,7 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     return {
       'branch_id': _posBranchId ?? _branchId,
       'client_hold_id': clientHoldId,
+      if (_pendingDraftId != null) 'pending_transaction_id': _pendingDraftId,
       if (_customerId != null) 'customer_id': _customerId,
       'items': _serverDraftItems(),
       'subtotal': asNum(preview?['subtotal'] ?? _cartTotal),
@@ -639,31 +726,56 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     };
   }
 
-  Future<void> _clearLocalDraft() {
-    final branch = _posBranchId ?? _branchId;
+  Future<void> _clearLocalDraft({
+    required int branch,
+    String? localDraftId,
+    String? clientHoldId,
+    int? pendingId,
+  }) {
     if (context.read<AuthStore>().userId == null || branch <= 0) {
       return Future<void>.value();
     }
-    final key = _draftKey(branch);
-    final write = _draftWrite.then<void>((_) => OfflineStore.cacheSet(
-        key, jsonEncode({'items': <Map<String, dynamic>>[]})));
+    if (localDraftId == null && clientHoldId == null && pendingId == null) {
+      return Future<void>.value();
+    }
+    final write = _draftWrite.then<void>((_) async {
+      final drafts = await _readLocalDrafts(branch);
+      drafts.removeWhere((draft) =>
+          (localDraftId != null && draft['local_draft_id'] == localDraftId) ||
+          (clientHoldId != null && draft['client_hold_id'] == clientHoldId) ||
+          (pendingId != null &&
+              int.tryParse('${draft['pending_transaction_id']}') == pendingId));
+      await OfflineStore.cacheSet(
+          _draftKey(branch), jsonEncode({'drafts': drafts}));
+      await OfflineStore.cacheSet(_legacyDraftKey(branch),
+          jsonEncode({'items': <Map<String, dynamic>>[]}));
+    });
     _draftWrite = write.catchError((Object _) {});
     return _draftWrite;
   }
 
   Future<void> _saveDraft() {
     final branch = _posBranchId ?? _branchId;
-    if (context.read<AuthStore>().userId == null || branch <= 0) {
+    if (context.read<AuthStore>().userId == null ||
+        branch <= 0 ||
+        _cart.isEmpty) {
       return Future<void>.value();
     }
-    final key = _draftKey(branch);
-    final payload = jsonEncode({
+    _clientHoldId ??= _newClientHoldId();
+    _localDraftId ??= _clientHoldId;
+    final clientHoldId = _clientHoldId!;
+    final localDraftId = _localDraftId!;
+    final payload = <String, dynamic>{
+      'local_draft_id': localDraftId,
+      'pending_transaction_id': _pendingDraftId,
+      'client_hold_id': clientHoldId,
       'warehouse_id': _warehouseId,
       'customer_id': _customerId,
       'manual_discount': _discountCtrl.text,
       'notes': _notesCtrl.text,
       'transaction_date': _transactionDate,
-      'client_hold_id': _clientHoldId,
+      'subtotal': asNum(_preview?['subtotal'] ?? _cartTotal),
+      'saved_at': DateTime.now().toIso8601String(),
       'items': [
         for (final item in _cart)
           {
@@ -678,23 +790,105 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
             'stock_available': item.stockAvailable,
           }
       ],
+    };
+    final write = _draftWrite.then<void>((_) async {
+      final drafts = await _readLocalDrafts(branch);
+      final index = drafts.indexWhere((draft) =>
+          draft['local_draft_id'] == localDraftId ||
+          draft['client_hold_id'] == clientHoldId);
+      if (index < 0) {
+        drafts.add(payload);
+      } else {
+        drafts[index] = payload;
+      }
+      await OfflineStore.cacheSet(
+          _draftKey(branch), jsonEncode({'drafts': drafts}));
+      await OfflineStore.cacheSet(_legacyDraftKey(branch),
+          jsonEncode({'items': <Map<String, dynamic>>[]}));
     });
-    final write =
-        _draftWrite.then<void>((_) => OfflineStore.cacheSet(key, payload));
     _draftWrite = write.catchError((Object _) {});
     return _draftWrite;
   }
 
-  Future<Map<String, dynamic>?> _readLocalDraft(int branch) async {
+  Future<List<Map<String, dynamic>>> _readLocalDrafts(int branch) async {
     try {
+      final drafts = <Map<String, dynamic>>[];
       final saved = await OfflineStore.cacheGet(_draftKey(branch));
-      final draft = saved?['payload'];
-      if (draft is! Map) return null;
-      final normalized = Map<String, dynamic>.from(draft);
-      return cartItemsFromDraft(normalized).isEmpty ? null : normalized;
+      final payload = saved?['payload'];
+      final rawDrafts = payload is Map ? payload['drafts'] : null;
+      if (rawDrafts is List) {
+        for (final raw in rawDrafts) {
+          if (raw is! Map) continue;
+          final draft = Map<String, dynamic>.from(raw);
+          if (cartItemsFromDraft(draft).isEmpty) continue;
+          draft['local_draft_id'] ??=
+              draft['client_hold_id']?.toString() ?? _legacyDraftId(branch);
+          drafts.add(draft);
+        }
+      }
+      final legacy = await OfflineStore.cacheGet(_legacyDraftKey(branch));
+      final legacyPayload = legacy?['payload'];
+      if (legacyPayload is Map) {
+        final draft = Map<String, dynamic>.from(legacyPayload);
+        if (cartItemsFromDraft(draft).isNotEmpty) {
+          draft['local_draft_id'] ??=
+              draft['client_hold_id']?.toString() ?? _legacyDraftId(branch);
+          final id = draft['local_draft_id'];
+          if (!drafts.any((row) => row['local_draft_id'] == id)) {
+            drafts.add(draft);
+          }
+        }
+      }
+      drafts.sort((a, b) => (b['saved_at']?.toString() ?? '')
+          .compareTo(a['saved_at']?.toString() ?? ''));
+      return drafts;
     } catch (_) {
-      return null;
+      return <Map<String, dynamic>>[];
     }
+  }
+
+  Future<void> _reconcileLocalDrafts(int branch, List<dynamic> pending) async {
+    final serverDrafts = pending
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList();
+    final write = _draftWrite.then<void>((_) async {
+      final drafts = await _readLocalDrafts(branch);
+      final kept = <Map<String, dynamic>>[];
+      for (final draft in drafts) {
+        final pendingId = draft['pending_transaction_id']?.toString();
+        final holdId = draft['client_hold_id']?.toString().trim();
+        Map<String, dynamic>? match;
+        for (final serverDraft in serverDrafts) {
+          final samePending = pendingId != null &&
+              pendingId.isNotEmpty &&
+              serverDraft['id']?.toString() == pendingId;
+          final sameHold = holdId != null &&
+              holdId.isNotEmpty &&
+              serverDraft['client_hold_id']?.toString().trim() == holdId;
+          if (samePending || sameHold) {
+            match = serverDraft;
+            break;
+          }
+        }
+        if (match != null) {
+          draft['pending_transaction_id'] = match['id'];
+          kept.add(draft);
+        } else if (pendingId == null || pendingId.isEmpty) {
+          // Draft lokal yang belum pernah tersimpan di server tetap bisa
+          // dipakai saat offline.
+          kept.add(draft);
+        }
+        // Mirror server yang tidak lagi ada sudah dibayar/dihapus dari
+        // perangkat lain, jadi jangan munculkan kembali dari cache lokal.
+      }
+      await OfflineStore.cacheSet(
+          _draftKey(branch), jsonEncode({'drafts': kept}));
+      await OfflineStore.cacheSet(_legacyDraftKey(branch),
+          jsonEncode({'items': <Map<String, dynamic>>[]}));
+    });
+    _draftWrite = write.catchError((Object _) {});
+    await _draftWrite;
   }
 
   Future<bool> _restoreDraftPayload(
@@ -702,11 +896,16 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     if (!mounted || _draftBranch != branch || _cart.isNotEmpty || _saving) {
       return false;
     }
-    final items = cartItemsFromDraft(draft);
+    final items = cartItemsFromDraft(
+      draft,
+      productNames: _catalogProductNames(),
+    );
     if (items.isEmpty) return false;
     setState(() {
       _cart.addAll(items);
       _clientHoldId = draft['client_hold_id']?.toString();
+      _localDraftId = draft['local_draft_id']?.toString() ?? _clientHoldId;
+      _pendingDraftId = int.tryParse('${draft['pending_transaction_id']}');
       _customerId = int.tryParse('${draft['customer_id']}');
       _discountCtrl.text = draft['manual_discount']?.toString() ?? '';
       _notesCtrl.text = draft['notes']?.toString() ?? '';
@@ -723,17 +922,6 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     });
     _schedulePreview();
     return true;
-  }
-
-  Future<bool> _restoreDraft(int branch) async {
-    try {
-      final draft = await _readLocalDraft(branch);
-      if (draft == null) return false;
-      return await _restoreDraftPayload(branch, draft);
-    } catch (_) {
-      // An unreadable draft must not prevent catalogue loading.
-      return false;
-    }
   }
 
   Timer? _searchDebounce;
@@ -869,8 +1057,14 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     _serverHoldInFlight = inFlight;
     try {
       await inFlight;
+      final held = await request;
+      _pendingDraftId =
+          int.tryParse('${held['data']?['id']}') ?? _pendingDraftId;
       _autoHeldClientHoldId = clientHoldId;
-      if (mounted) await _clearLocalDraft();
+      // Simpan id server agar pembayaran draft lokal juga menghapus salinan server.
+      if (mounted) await _saveDraft();
+      // Snapshot lokal tetap tersimpan dan muncul di daftar "Buka Draft".
+      // Draft server ditautkan ke snapshot ini agar tidak muncul dua kali.
     } on ApiException {
       // Keep the local snapshot when the server cannot be reached.
     } finally {
@@ -882,6 +1076,10 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
 
   Future<void> _holdCart() async {
     if (_cart.isEmpty) return;
+    final branch = _posBranchId ?? _branchId;
+    final localDraftId = _localDraftId;
+    final clientHoldId = _clientHoldId;
+    final pendingId = _pendingDraftId;
     try {
       await _client.holdTransaction(_serverDraftPayload());
       if (!mounted) return;
@@ -895,9 +1093,16 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
         _customerId = null;
         _transactionDate = todayWib();
         _clientHoldId = null;
+        _localDraftId = null;
+        _pendingDraftId = null;
         _autoHeldClientHoldId = null;
       });
-      await _saveDraft();
+      await _clearLocalDraft(
+        branch: branch,
+        localDraftId: localDraftId,
+        clientHoldId: clientHoldId,
+        pendingId: pendingId,
+      );
       if (!mounted) return;
       Navigator.of(context).pop();
     } on ApiException catch (e) {
@@ -911,28 +1116,23 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
   Future<void> _resumeCart() async {
     try {
       final branch = _posBranchId ?? _branchId;
-      final localDraft = await _readLocalDraft(branch);
+      final localDrafts = await _readLocalDrafts(branch);
       List<dynamic> pending = const [];
+      var serverDraftsLoaded = false;
       try {
         pending = await _client.pendingTransactions(branchId: branch);
+        await _reconcileLocalDrafts(branch, pending);
+        serverDraftsLoaded = true;
       } on ApiException {
         // A locally saved draft remains usable when the server is offline.
-        if (localDraft == null) rethrow;
+        if (localDrafts.isEmpty) rethrow;
       }
       if (!mounted) return;
-      final choices = <Map<String, dynamic>>[
-        if (localDraft != null)
-          {
-            'source': 'local',
-            'draft': localDraft,
-          },
-        for (final raw in pending)
-          if (raw is Map)
-            {
-              'source': 'server',
-              'pending': Map<String, dynamic>.from(raw),
-            },
-      ];
+      final reconciledDrafts =
+          serverDraftsLoaded ? await _readLocalDrafts(branch) : localDrafts;
+      if (!mounted) return;
+      final choices =
+          draftChoices(localDrafts: reconciledDrafts, pending: pending);
       if (choices.isEmpty) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Tidak ada draft')));
@@ -952,21 +1152,25 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
                 itemBuilder: (_, index) {
                   final choice = choices[index];
                   final isLocal = choice['source'] == 'local';
+                  final localDraft = isLocal
+                      ? choice['draft'] as Map<String, dynamic>
+                      : const <String, dynamic>{};
                   final p = isLocal
                       ? const <String, dynamic>{}
                       : (choice['pending'] as Map<String, dynamic>);
-                  final heldAt =
-                      DateTime.tryParse('${p['held_at']}')?.toLocal();
+                  final heldAt = DateTime.tryParse(
+                          '${isLocal ? localDraft['saved_at'] : p['held_at']}')
+                      ?.toLocal();
                   final heldLabel = heldAt == null
                       ? 'Tanggal draft tidak tersedia'
                       : '${heldAt.day.toString().padLeft(2, '0')}/${heldAt.month.toString().padLeft(2, '0')}/${heldAt.year} · ${heldAt.hour.toString().padLeft(2, '0')}:${heldAt.minute.toString().padLeft(2, '0')}';
                   final itemCount = isLocal
-                      ? cartItemsFromDraft(
-                              choice['draft'] as Map<String, dynamic>)
-                          .length
+                      ? cartItemsFromDraft(localDraft).length
                       : p['items'] is List
                           ? (p['items'] as List).length
                           : 0;
+                  final subtotal =
+                      asNum(isLocal ? localDraft['subtotal'] : p['subtotal']);
                   return Card(
                     margin: EdgeInsets.zero,
                     child: ListTile(
@@ -976,13 +1180,10 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
                         child: Text('$itemCount',
                             style: const TextStyle(fontSize: 12)),
                       ),
-                      title: Text(
-                          isLocal
-                              ? '$itemCount item · Draft perangkat'
-                              : '$itemCount item · ${fmtRp(asNum(p['subtotal']))}',
+                      title: Text('$itemCount item · ${fmtRp(subtotal)}',
                           style: const TextStyle(fontWeight: FontWeight.w700)),
                       subtitle: Text(isLocal
-                          ? 'Tersimpan otomatis saat aplikasi ditutup'
+                          ? 'Draft perangkat · $heldLabel'
                           : 'Draft $heldLabel'),
                       trailing: IconButton(
                         tooltip: 'Hapus draft',
@@ -1028,12 +1229,15 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
       final items =
           ((resumed['items'] as List?) ?? []).cast<Map<String, dynamic>>();
       final cart = <CartItem>[];
+      final productNames = _catalogProductNames();
       for (final it in items) {
         final vidRaw = it['variant_id'];
+        final productId = int.tryParse(it['product_id'].toString()) ?? 0;
         cart.add(CartItem(
-          productId: int.tryParse(it['product_id'].toString()) ?? 0,
+          productId: productId,
           variantId: vidRaw != null ? int.tryParse(vidRaw.toString()) : null,
-          name: it['name']?.toString() ?? 'Produk',
+          name: _draftProductName(
+              productId, it['name'] ?? it['product_name'], productNames),
           variantLabel: it['variant_label']?.toString(),
           photo: it['photo']?.toString(),
           price: asNum(it['price'] ?? it['price_override']),
@@ -1048,6 +1252,8 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
           ..addAll(cart);
         _clientHoldId = serverPending['client_hold_id']?.toString() ??
             resumed['client_hold_id']?.toString();
+        _localDraftId = 'server-$id';
+        _pendingDraftId = id;
         _customerId = int.tryParse(resumed['customer_id']?.toString() ?? '');
         _discountCtrl.text =
             asNum(resumed['discount_value']).toStringAsFixed(0);
@@ -1093,13 +1299,49 @@ class _PosPageState extends State<PosPage> with WidgetsBindingObserver {
     );
     if (confirmed != true || !mounted) return;
     try {
-      if (choice['source'] == 'local') {
-        await _clearLocalDraft();
-      } else {
-        final pending = choice['pending'] as Map<String, dynamic>;
-        final id = int.tryParse('${pending['id']}');
-        if (id == null) throw ApiException('ID draft tidak valid');
-        await _client.deletePendingTransaction(id, branchId: branch);
+      final isLocal = choice['source'] == 'local';
+      final local = isLocal
+          ? choice['draft'] as Map<String, dynamic>
+          : const <String, dynamic>{};
+      final pending = isLocal
+          ? const <String, dynamic>{}
+          : choice['pending'] as Map<String, dynamic>;
+      final pendingId = int.tryParse(
+          '${isLocal ? local['pending_transaction_id'] : pending['id']}');
+      final localDraftId = local['local_draft_id']?.toString();
+      final clientHoldId =
+          (isLocal ? local['client_hold_id'] : pending['client_hold_id'])
+              ?.toString();
+      if (pendingId != null) {
+        try {
+          await _client.deletePendingTransaction(pendingId, branchId: branch);
+        } on ApiException catch (e) {
+          if (e.statusCode != 404) rethrow;
+        }
+      }
+      await _clearLocalDraft(
+        branch: branch,
+        localDraftId: localDraftId,
+        clientHoldId: clientHoldId,
+        pendingId: pendingId,
+      );
+      final deletingCurrent =
+          (localDraftId != null && localDraftId == _localDraftId) ||
+              (clientHoldId != null && clientHoldId == _clientHoldId) ||
+              (pendingId != null && pendingId == _pendingDraftId);
+      if (deletingCurrent && mounted) {
+        _previewTimer?.cancel();
+        setState(() {
+          _cart.clear();
+          _preview = null;
+          _customerId = null;
+          _discountCtrl.clear();
+          _notesCtrl.clear();
+          _localDraftId = null;
+          _clientHoldId = null;
+          _pendingDraftId = null;
+          _autoHeldClientHoldId = null;
+        });
       }
       choices.removeAt(index);
       if (!dialogContext.mounted) return;

@@ -211,10 +211,24 @@ router.post('/hold', authorize('owner', 'manager', 'admin', 'kasir'), async (req
   try {
     const { customer_id: customerId = null, items, subtotal = 0, discount_type: discountType = 'none', discount_value: discountValue = 0, notes } = req.body;
     clientHoldId = req.body.client_hold_id == null ? null : String(req.body.client_hold_id).trim();
+    const requestedPendingId = req.body.pending_transaction_id == null ? null : Number(req.body.pending_transaction_id);
     const requestedBranch = Number(req.body.branch_id);
     const branchId = req.user.role === 'owner' && Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
     if (!Array.isArray(items) || !items.length || !['none', 'percentage', 'nominal'].includes(discountType)) return res.status(400).json({ success: false, message: 'Data hold tidak valid' });
+    if (requestedPendingId != null && (!Number.isSafeInteger(requestedPendingId) || requestedPendingId <= 0)) return res.status(400).json({ success: false, message: 'pending_transaction_id tidak valid' });
     if (clientHoldId && !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(clientHoldId)) return res.status(400).json({ success: false, message: 'client_hold_id tidak valid' });
+    if (requestedPendingId != null) {
+      const [existing] = await db.execute(
+        'SELECT id FROM pending_transactions WHERE id = ? AND branch_id = ? LIMIT 1',
+        [requestedPendingId, branchId]
+      );
+      if (!existing[0]) return res.status(404).json({ success: false, message: 'Draft tidak ditemukan' });
+      await db.execute(
+        'UPDATE pending_transactions SET user_id = ?, customer_id = ?, items_json = ?, subtotal = ?, discount_type = ?, discount_value = ?, notes = ?, client_hold_id = COALESCE(client_hold_id, ?), held_at = CURRENT_TIMESTAMP, resumed_at = NULL WHERE id = ? AND branch_id = ?',
+        [req.user.id, customerId, JSON.stringify(items), money(subtotal), discountType, money(discountValue), notes?.trim() || null, clientHoldId, requestedPendingId, branchId]
+      );
+      return res.json({ success: true, data: { id: requestedPendingId }, updated: true });
+    }
     if (clientHoldId) {
       const [existing] = await db.execute(
         'SELECT id FROM pending_transactions WHERE client_hold_id = ? AND branch_id = ? LIMIT 1',
@@ -257,7 +271,7 @@ router.get('/pending', async (req, res, next) => {
   try {
     const requestedBranch = Number(req.query.branch_id);
     const branchId = req.user.role === 'owner' && Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
-    const [rows] = await db.execute('SELECT id, client_hold_id, customer_id, items_json, subtotal, discount_type, discount_value, notes, held_at FROM pending_transactions WHERE branch_id = ? AND resumed_at IS NULL ORDER BY held_at DESC', [branchId]);
+    const [rows] = await db.execute('SELECT id, client_hold_id, customer_id, items_json, subtotal, discount_type, discount_value, notes, held_at FROM pending_transactions WHERE branch_id = ? ORDER BY held_at DESC', [branchId]);
     res.json({ success: true, data: rows.map((row) => ({ ...row, items: typeof row.items_json === 'string' ? JSON.parse(row.items_json) : row.items_json })) });
   } catch (error) { next(error); }
 });
@@ -267,7 +281,7 @@ router.delete('/pending/:id', authorize('owner', 'manager', 'admin', 'kasir'), a
     const requestedBranch = Number(req.query.branch_id ?? req.body?.branch_id);
     const branchId = req.user.role === 'owner' && Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
     const [result] = await db.execute(
-      'DELETE FROM pending_transactions WHERE id = ? AND branch_id = ? AND resumed_at IS NULL',
+      'DELETE FROM pending_transactions WHERE id = ? AND branch_id = ?',
       [req.params.id, branchId]
     );
     if (!result.affectedRows) return res.status(404).json({ success: false, message: 'Transaksi hold tidak ditemukan' });
@@ -281,9 +295,8 @@ router.post('/pending/:id/resume', authorize('owner', 'manager', 'admin', 'kasir
     // for web clients and older builds.
     const requestedBranch = Number(req.query.branch_id ?? req.body?.branch_id);
     const branchId = req.user.role === 'owner' && Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
-    const [rows] = await db.execute('SELECT id, client_hold_id, customer_id, items_json, subtotal, discount_type, discount_value, notes FROM pending_transactions WHERE id = ? AND branch_id = ? AND resumed_at IS NULL', [req.params.id, branchId]);
+    const [rows] = await db.execute('SELECT id, client_hold_id, customer_id, items_json, subtotal, discount_type, discount_value, notes FROM pending_transactions WHERE id = ? AND branch_id = ?', [req.params.id, branchId]);
     if (!rows[0]) return res.status(404).json({ success: false, message: 'Transaksi hold tidak ditemukan' });
-    await db.execute('UPDATE pending_transactions SET resumed_at = NOW() WHERE id = ?', [rows[0].id]);
     res.json({ success: true, data: { ...rows[0], items: typeof rows[0].items_json === 'string' ? JSON.parse(rows[0].items_json) : rows[0].items_json } });
   } catch (error) { next(error); }
 });
@@ -291,9 +304,10 @@ router.post('/pending/:id/resume', authorize('owner', 'manager', 'admin', 'kasir
 router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, res, next) => {
   const connection = await db.getConnection();
   try {
-    const { warehouse_id: warehouseId, customer_id: customerId = null, items, discount_type: discountType = 'none', discount_value: discountValue = 0, promo_code: promoCode, notes, client_transaction_id: clientTransactionId = null, offline: isOffline = false, offline_invoice_no: offlineInvoiceNo = null } = req.body;
+    const { warehouse_id: warehouseId, customer_id: customerId = null, items, discount_type: discountType = 'none', discount_value: discountValue = 0, promo_code: promoCode, notes, client_transaction_id: clientTransactionId = null, pending_transaction_id: pendingTransactionIdRaw = null, offline: isOffline = false, offline_invoice_no: offlineInvoiceNo = null } = req.body;
     const requestedBranch = Number(req.body.branch_id);
     const branchId = req.user.role === 'owner' && Number.isInteger(requestedBranch) ? requestedBranch : req.user.branch_id;
+    const pendingTransactionId = pendingTransactionIdRaw == null ? null : Number(pendingTransactionIdRaw);
     const transactionDate = req.user.role === 'owner' && req.body.transaction_date != null ? req.body.transaction_date : localDateString();
     if (!isDateOnly(transactionDate) || transactionDate > localDateString()) throw httpError(400, 'Tanggal transaksi harus valid dan tidak boleh setelah hari ini');
     if (!Number.isInteger(Number(warehouseId)) || !Array.isArray(items) || !items.length || !['none', 'percentage', 'nominal'].includes(discountType)) {
@@ -302,12 +316,19 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
     if (clientTransactionId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(clientTransactionId)) {
       throw httpError(400, 'client_transaction_id harus UUID');
     }
+    if (pendingTransactionIdRaw != null && (!Number.isSafeInteger(pendingTransactionId) || pendingTransactionId <= 0)) {
+      throw httpError(400, 'pending_transaction_id tidak valid');
+    }
     await connection.beginTransaction();
     const [branches] = await connection.execute('SELECT id FROM branches WHERE id = ? AND is_active = TRUE FOR UPDATE', [branchId]);
     if (!branches[0]) throw httpError(404, 'Toko tidak ditemukan atau sudah tidak aktif');
     if (clientTransactionId) {
       const [existing] = await connection.execute('SELECT id, invoice_no, grand_total, status FROM transactions WHERE client_transaction_id = ? LIMIT 1', [clientTransactionId]);
-      if (existing[0]) { await connection.commit(); return res.json({ success: true, data: existing[0], idempotent: true }); }
+      if (existing[0]) {
+        if (pendingTransactionId != null) await connection.execute('DELETE FROM pending_transactions WHERE id = ? AND branch_id = ?', [pendingTransactionId, branchId]);
+        await connection.commit();
+        return res.json({ success: true, data: existing[0], idempotent: true });
+      }
     }
     const [warehouses] = await connection.execute('SELECT id FROM warehouses WHERE id = ? AND branch_id = ? AND is_active = TRUE FOR UPDATE', [warehouseId, branchId]);
     if (!warehouses[0]) throw httpError(404, 'Gudang tidak ditemukan');
@@ -459,6 +480,9 @@ router.post('/', authorize('owner', 'manager', 'admin', 'kasir'), async (req, re
     }
     await persistPayments(connection, transactionResult.insertId, payment);
     await connection.execute('INSERT INTO activity_logs (user_id, action, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'transaction_create', `Invoice ${invoiceNo}`, req.ip, req.get('user-agent') || null]);
+    if (pendingTransactionId != null) {
+      await connection.execute('DELETE FROM pending_transactions WHERE id = ? AND branch_id = ?', [pendingTransactionId, branchId]);
+    }
     await connection.commit();
     // Struk ikut dikirim supaya tombol cetak otomatis tidak perlu request
     // tambahan dan hasilnya pasti berasal dari aturan server yang sama.

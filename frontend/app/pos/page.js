@@ -62,6 +62,7 @@ export default function PosPage() {
   const headers = () => ({ 'Content-Type': 'application/json'});
   const mediaUrl = (photoPath) => photoPath ? `${apiUrl.replace('/api', '')}${photoPath}` : '';
   const pendingTransactionId = useRef(null);
+  const pendingDraftId = useRef(null);
   const storeLoadSequence = useRef(createRequestSequence());
   const productSearchSequence = useRef(createRequestSequence());
   const customerSearchSequence = useRef(createRequestSequence());
@@ -124,6 +125,7 @@ export default function PosPage() {
       setShowCartActions(false);
       setShowCartOptions(false);
       setLoadingStore(false);
+      pendingDraftId.current = null;
       setMessage(activeBranchId === 'all' ? 'Pilih satu toko dari pemilih di header untuk memulai transaksi POS.' : 'Toko aktif tidak tersedia untuk POS. Pilih toko, bukan gudang.');
       return;
     }
@@ -144,6 +146,7 @@ export default function PosPage() {
     setCustomerSearch('');
     setPriceTier('retail');
     pendingTransactionId.current = null;
+    pendingDraftId.current = null;
     setStoreId(String(selected.id));
     setProducts([]);
     setProductsTotal(0);
@@ -398,6 +401,7 @@ export default function PosPage() {
       if (!response.ok) throw new Error(body.message || 'Draft tidak dapat dilanjutkan');
       const resumed = body.data || {};
       const resumedItems = Array.isArray(resumed.items) ? resumed.items : [];
+      pendingDraftId.current = Number(resumed.id || draftId);
       setCart(resumedItems.map((raw) => {
         const product = products.find((item) => Number(item.id) === Number(raw.product_id)) || {};
         const variantId = raw.variant_id == null ? null : Number(raw.variant_id);
@@ -428,6 +432,18 @@ export default function PosPage() {
       setDraftsLoading(false);
     }
   }
+  async function deleteDraft(draftId) {
+    if (!window.confirm('Hapus draft ini? Draft yang dihapus tidak dapat dipulihkan.')) return;
+    try {
+      const response = await fetch(`${apiUrl}/transactions/pending/${draftId}?branch_id=${encodeURIComponent(storeId)}`, { method: 'DELETE', headers: headers() });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message || 'Draft tidak dapat dihapus');
+      setDrafts((current) => current.filter((draft) => Number(draft.id) !== Number(draftId)));
+      if (Number(pendingDraftId.current) === Number(draftId)) pendingDraftId.current = null;
+    } catch (error) {
+      setDraftsError(error.message || 'Draft tidak dapat dihapus');
+    }
+  }
   async function holdCart() {
     if (!cart.length || !storeId) return;
     setSubmitting(true);
@@ -452,6 +468,7 @@ export default function PosPage() {
           subtotal,
           discount_type: discount > 0 ? 'nominal' : 'none',
           discount_value: discount,
+          ...(pendingDraftId.current ? { pending_transaction_id: pendingDraftId.current } : {}),
           notes: notes.trim() || undefined,
         }),
       });
@@ -465,6 +482,7 @@ export default function PosPage() {
       setShowCartActions(false);
       setShowCartOptions(false);
       setMobileCartOpen(false);
+      pendingDraftId.current = null;
       setMessage('Draft disimpan. Bisa dilanjutkan kapan saja.');
     } catch (error) {
       setMessage(error.message);
@@ -657,7 +675,7 @@ export default function PosPage() {
         const proceed = window.confirm(`Stok ${label} kurang. Tersedia ${Number(first.stock_available ?? 0)}, diminta ${first.quantity}${extra}. Lanjutkan transaksi?`);
         if (!proceed) return;
       }
-      const bodyPayload = { branch_id: Number(storeId), warehouse_id: Number(warehouseId), items, payment_method: paymentMethod, amount_paid: amountPaid, discount_type: discount > 0 ? 'nominal' : 'none', discount_value: discount, client_transaction_id: pendingTransactionId.current, allow_negative_stock: lowStock.length > 0 };
+      const bodyPayload = { branch_id: Number(storeId), warehouse_id: Number(warehouseId), items, payment_method: paymentMethod, amount_paid: amountPaid, discount_type: discount > 0 ? 'nominal' : 'none', discount_value: discount, client_transaction_id: pendingTransactionId.current, ...(pendingDraftId.current ? { pending_transaction_id: pendingDraftId.current } : {}), allow_negative_stock: lowStock.length > 0 };
       if (isSplitPayment) bodyPayload.payments = selectedPaymentMethods.map((method) => ({ payment_method: method, amount: Number(paymentAmounts[method]) }));
       if (user?.role === 'owner') bodyPayload.transaction_date = transactionDate;
       if (customerId) bodyPayload.customer_id = Number(customerId);
@@ -677,6 +695,7 @@ export default function PosPage() {
       if (!response.ok) throw new Error(body.message || 'Transaksi gagal');
       setCart([]); setCash(''); setManualDiscount(''); setSelectedPaymentMethods(['cash']); setPaymentAmounts({}); setPaymentSheetOpen(false); setMobileCartOpen(false); setCustomerId(''); setNotes(''); setShowCartActions(false); setShowCartOptions(false); setPriceTier('retail'); setTransactionDate(localDateString());
       pendingTransactionId.current = null;
+      pendingDraftId.current = null;
       setPrintPrompt(body.data);
       loadStore(storeId).catch(() => setMessage('Transaksi berhasil, tetapi stok terbaru belum dapat dimuat. Muat ulang halaman untuk memperbarui stok.'));
   } catch (error) { setMessage(error.message); } finally { setSubmitting(false); }
@@ -850,7 +869,7 @@ export default function PosPage() {
         {!draftsLoading && drafts.length > 0 && <div className="pos-drafts-list">{drafts.map((draft) => {
           const itemCount = Array.isArray(draft.items) ? draft.items.length : 0;
           const heldLabel = draft.held_at ? new Date(draft.held_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : 'Waktu tidak tersedia';
-          return <button type="button" className="pos-draft-row" key={draft.id} onClick={() => resumeDraft(draft.id)}><span className="pos-draft-count">{itemCount}</span><span><strong>{itemCount} item · {rupiah(draft.subtotal)}</strong><small>Draft {heldLabel}</small></span><ArrowUpRight aria-hidden="true" size={18} /></button>;
+          return <div className="pos-draft-entry" key={draft.id}><button type="button" className="pos-draft-row" onClick={() => resumeDraft(draft.id)}><span className="pos-draft-count">{itemCount}</span><span><strong>{itemCount} item · {rupiah(draft.subtotal)}</strong><small>Draft {heldLabel}</small></span><ArrowUpRight aria-hidden="true" size={18} /></button><button type="button" className="pos-draft-delete" onClick={() => deleteDraft(draft.id)} aria-label="Hapus draft" title="Hapus draft"><Trash2 aria-hidden="true" size={16} /></button></div>;
         })}</div>}
       </section></div>}
       {priceEditItem && <div className="pos-price-dialog-backdrop" role="presentation" onMouseDown={() => setPriceEditItem(null)}><form className="pos-price-dialog" role="dialog" aria-modal="true" aria-labelledby="pos-price-title" onMouseDown={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); savePriceEditor(); }}><div className="pos-drafts-heading"><div><strong id="pos-price-title">Ubah harga</strong><span>{priceEditItem.name}</span></div><button type="button" onClick={() => setPriceEditItem(null)} aria-label="Tutup ubah harga"><X aria-hidden="true" size={19} /></button></div><label htmlFor="pos-price-editor">Harga satuan<input id="pos-price-editor" type="number" min="0" inputMode="numeric" value={priceEditValue} onChange={(event) => setPriceEditValue(event.target.value)} autoFocus /></label><div className="pos-price-dialog-actions"><button type="button" className="secondary" onClick={() => setPriceEditItem(null)}>Batal</button><button type="submit">Simpan</button></div></form></div>}
