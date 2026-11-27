@@ -31,7 +31,7 @@ test('stock-by-warehouse mengirim posisi rak per gudang', async () => {
   const dbStub = {
     execute: async (sql) => {
       queries.push(sql);
-      if (sql.includes('FROM warehouse_stocks ws')) {
+      if (sql.includes('FROM products p')) {
         return [[{
           branch_name: 'Gudang Utama',
           warehouse_id: 2,
@@ -46,6 +46,34 @@ test('stock-by-warehouse mengirim posisi rak per gudang', async () => {
           reserved: 0,
           rack_position: 'A-01 / Rak 2',
           min_stock: 1,
+        }, {
+          branch_name: 'Gudang Utama',
+          warehouse_id: 2,
+          warehouse_name: 'Gudang Utama',
+          product_id: 11,
+          product_name: 'Celana Denim Baru',
+          sku: 'B4-CELANA',
+          photo_path: null,
+          variant_id: null,
+          variant_color: null,
+          quantity: 0,
+          reserved: 0,
+          rack_position: null,
+          min_stock: 2,
+        }, {
+          branch_name: 'Gudang Terhapus',
+          warehouse_id: null,
+          warehouse_name: null,
+          product_id: 12,
+          product_name: 'Rok Denim Baru',
+          sku: 'B4-ROK',
+          photo_path: null,
+          variant_id: null,
+          variant_color: null,
+          quantity: 0,
+          reserved: 0,
+          rack_position: null,
+          min_stock: 2,
         }], []];
       }
       throw new Error(`Unexpected SQL: ${sql}`);
@@ -65,6 +93,14 @@ test('stock-by-warehouse mengirim posisi rak per gudang', async () => {
 
   assert.equal(nextError, undefined);
   assert.equal(res.body.data[0].rack_position, 'A-01 / Rak 2');
+  assert.equal(res.body.data[1].product_name, 'Celana Denim Baru');
+  assert.equal(res.body.data[1].quantity, 0);
+  assert.equal(res.body.data[2].product_id, 12);
+  assert.equal(res.body.data[2].warehouse_id, null);
+  assert.match(queries[0], /FROM products p/);
+  assert.match(queries[0], /p\.id AS product_id/);
+  assert.match(queries[0], /LEFT JOIN warehouses w ON w\.branch_id = p\.branch_id AND w\.is_active = TRUE/);
+  assert.match(queries[0], /LEFT JOIN warehouse_stocks ws ON ws\.product_id = p\.id AND ws\.warehouse_id = w\.id AND ws\.variant_id IS NULL/);
   assert.match(queries[0], /ws\.rack_position/);
 });
 

@@ -2,8 +2,10 @@
 import { localDateString } from '../lib/local-date';
 import SafeImage from '../components/SafeImage';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useAppSession } from '../components/AppStateProvider';
 import { createPrintWindow } from '../lib/print-utils';
+import { stockStatus } from './stock-status.mjs';
 
 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const STOCK_PAGE_SIZE = 40;
@@ -40,13 +42,30 @@ function groupStockRows(rows) {
   return Array.from(map.values()).sort((a, b) => String(a.name).localeCompare(String(b.name)) || Number(a.product_id) - Number(b.product_id));
 }
 
+function stockStatusLabel(group) {
+  const status = stockStatus(group);
+  return status === 'out' ? 'Habis' : status === 'low' ? 'Menipis' : 'Aman';
+}
+
+function applyStockView(groups, statusFilter, sortBy) {
+  const filtered = groups.filter((group) => (
+    statusFilter === 'all' || stockStatus(group) === statusFilter
+  ));
+  return filtered.sort((a, b) => {
+    if (sortBy === 'stock_asc' && a.total !== b.total) return a.total - b.total;
+    if (sortBy === 'stock_desc' && a.total !== b.total) return b.total - a.total;
+    if (sortBy === 'name_desc') return String(b.name).localeCompare(String(a.name)) || Number(a.product_id) - Number(b.product_id);
+    return String(a.name).localeCompare(String(b.name)) || Number(a.product_id) - Number(b.product_id);
+  });
+}
+
 function summarizeStockRows(groups, rows) {
   return {
     total_products: groups.length,
     total_stock: groups.reduce((sum, group) => sum + group.total, 0),
     total_branches: new Set(rows.map((row) => row.branch_name).filter(Boolean)).size,
-    low_stock: groups.filter((group) => group.total > 0 && group.total <= group.min_stock).length,
-    out_of_stock: groups.filter((group) => group.total === 0).length,
+    low_stock: groups.filter((group) => stockStatus(group) === 'low').length,
+    out_of_stock: groups.filter((group) => stockStatus(group) === 'out').length,
   };
 }
 
@@ -61,10 +80,13 @@ export default function StockReportSection() {
   const [q, setQ] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [branchId, setBranchId] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('name');
   const [isOwner, setIsOwner] = useState(false);
   const [isGudang, setIsGudang] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [printDate, setPrintDate] = useState('');
   const [editingRack, setEditingRack] = useState(null);
   const [rackDraft, setRackDraft] = useState('');
   const [savingRack, setSavingRack] = useState(false);
@@ -73,6 +95,7 @@ export default function StockReportSection() {
   const [stockSummary, setStockSummary] = useState(null);
   const [pagination, setPagination] = useState({ limit: STOCK_PAGE_SIZE, offset: 0, total: 0, has_more: false });
   const loadSeq = useRef(0);
+  const needsFullDataset = statusFilter !== 'all' || sortBy !== 'name';
 
   const headers = () => ({ 'Content-Type': 'application/json'});
 
@@ -102,6 +125,13 @@ export default function StockReportSection() {
     const body = await requestStock(stockParams());
     return body.data || [];
   }
+
+  useEffect(() => {
+    setPrintDate(new Date().toLocaleString('id-ID'));
+    const updatePrintDate = () => flushSync(() => setPrintDate(new Date().toLocaleString('id-ID')));
+    window.addEventListener('beforeprint', updatePrintDate);
+    return () => window.removeEventListener('beforeprint', updatePrintDate);
+  }, []);
 
   useEffect(() => {
     fetch(`${api}/auth/me`, { headers: headers() })
@@ -135,17 +165,19 @@ export default function StockReportSection() {
     setStockSummary(null);
     setPagination({ limit: STOCK_PAGE_SIZE, offset: 0, total: 0, has_more: false });
     const seq = ++loadSeq.current;
-    requestStock(stockParams(0))
+    requestStock(stockParams(needsFullDataset ? null : 0))
       .then((body) => {
         if (seq !== loadSeq.current) return;
         const nextRows = body.data || [];
+        const nextGroups = groupStockRows(nextRows);
+        const nextSummary = body.summary || summarizeStockRows(nextGroups, nextRows);
         setWarehouseRows(nextRows);
-        setStockSummary(body.summary || null);
-        setPagination(body.pagination || { limit: STOCK_PAGE_SIZE, offset: 0, total: nextRows.length, has_more: false });
+        setStockSummary(nextSummary);
+        setPagination(body.pagination || { limit: STOCK_PAGE_SIZE, offset: 0, total: nextSummary.total_products, has_more: false });
       })
       .catch((e) => { if (seq === loadSeq.current) setMessage(e.message); })
       .finally(() => { if (seq === loadSeq.current) setLoading(false); });
-  }, [cat, q, branchId, activeBranchId, isOwner, isGudang]);
+  }, [cat, q, branchId, activeBranchId, isOwner, isGudang, needsFullDataset]);
 
   const effectiveBranchId = isOwner
     ? (activeBranchId === 'all' ? '' : activeBranchId)
@@ -166,11 +198,24 @@ export default function StockReportSection() {
 
   // Baris: satu per produk (varian = pembeda gambar, bukan stok).
   const grouped = useMemo(() => groupStockRows(warehouseRows), [warehouseRows]);
-  const visibleGroups = grouped;
+  const visibleGroups = useMemo(() => applyStockView(grouped, statusFilter, sortBy), [grouped, statusFilter, sortBy]);
   const calculatedSummary = useMemo(() => summarizeStockRows(grouped, warehouseRows), [grouped, warehouseRows]);
   const summary = stockSummary || calculatedSummary;
+  const printSummary = summarizeStockRows(visibleGroups, warehouseRows);
+  const summaryTotal = Number(summary.total_products || 0);
+  const lowCount = Number(summary.low_stock || 0);
+  const outCount = Number(summary.out_of_stock || 0);
+  const safeCount = Math.max(0, summaryTotal - lowCount - outCount);
+  const statusDenominator = Math.max(1, summaryTotal);
+  const safeShare = `${(safeCount / statusDenominator) * 100}%`;
+  const lowShare = `${(lowCount / statusDenominator) * 100}%`;
+  const scopeLabel = isOwner
+    ? (activeBranchId === 'all' ? 'Semua toko & gudang' : 'Toko aktif')
+    : isGudang
+      ? (branchId ? 'Gudang terpilih' : 'Semua gudang')
+      : 'Cabang aktif';
 
-  const colSpan = 1 + whColumns.length + 1;
+  const colSpan = 1 + whColumns.length + 2;
 
   async function loadMore() {
     if (loadingMore || !pagination.has_more) return;
@@ -195,14 +240,14 @@ export default function StockReportSection() {
   }
 
   async function exportCsv() {
-    if (exportBusy || !summary.total_products) return;
+    if (exportBusy || !summary.total_products || !visibleGroups.length) return;
     setExportBusy(true);
     setMessage('');
     try {
       const allRows = await fetchAllStockRows();
-      const allGroups = groupStockRows(allRows);
-      const header = ['Produk', ...whColumns.map((w) => w.name), 'Total'];
-      const lines = allGroups.map((group) => [group.name, ...whColumns.map((w) => group.qtyByWarehouse[String(w.id)] || 0), group.total]);
+      const allGroups = applyStockView(groupStockRows(allRows), statusFilter, sortBy);
+      const header = ['Produk', ...whColumns.map((w) => w.name), 'Total', 'Status'];
+      const lines = allGroups.map((group) => [group.name, ...whColumns.map((w) => group.qtyByWarehouse[String(w.id)] || 0), group.total, stockStatusLabel(group)]);
       const csv = [header, ...lines].map((row) => row.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
       const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
       const a = document.createElement('a');
@@ -218,19 +263,22 @@ export default function StockReportSection() {
   }
 
   async function printPdf() {
-    if (exportBusy || !summary.total_products) return;
+    if (exportBusy || !summary.total_products || !visibleGroups.length) return;
     const printWindow = createPrintWindow();
     if (!printWindow) return;
     setExportBusy(true);
     setMessage('');
     try {
       const allRows = await fetchAllStockRows();
-      const allGroups = groupStockRows(allRows);
+      const allGroups = applyStockView(groupStockRows(allRows), statusFilter, sortBy);
       const allSummary = summarizeStockRows(allGroups, allRows);
       const mode = isOwner
         ? (activeBranchId === 'all' ? 'Semua Toko/Gudang' : 'Satu Toko/Gudang')
         : (branchId ? 'Satu Toko' : 'Semua Toko');
-      const tableRows = allGroups.map((group) => `<tr><td><strong>${escapeHtml(group.name)}</strong>${group.sku ? `<br><small>${escapeHtml(group.sku)}</small>` : ''}</td>${whColumns.map((warehouse) => `<td class="number">${money(group.qtyByWarehouse[String(warehouse.id)] || 0)}</td>`).join('')}<td class="number"><strong>${money(group.total)}</strong></td></tr>`).join('');
+      const tableRows = allGroups.map((group) => {
+        const status = stockStatus(group);
+        return `<tr><td><strong>${escapeHtml(group.name)}</strong>${group.sku ? `<br><small>${escapeHtml(group.sku)}</small>` : ''}</td><td><span class="stock-status ${status}">${stockStatusLabel(group)}</span></td>${whColumns.map((warehouse) => `<td class="number">${money(group.qtyByWarehouse[String(warehouse.id)] || 0)}</td>`).join('')}<td class="number"><strong>${money(group.total)}</strong></td></tr>`;
+      }).join('');
       const html = `<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Laporan Stok Produk</title><style>
         @page { size: A4 landscape; margin: 12mm; }
         body { margin: 0; color: #111827; font: 11px Arial, sans-serif; }
@@ -243,8 +291,12 @@ export default function StockReportSection() {
         th, td { padding: 6px 7px; border: 1px solid #cbd5e1; text-align: left; }
         th { background: #eef3f8; color: #1e3a5f; }
         td.number, th.number { text-align: right; white-space: nowrap; }
+        .stock-status { display: inline-block; padding: 3px 7px; border-radius: 10px; font-size: 9px; font-weight: 700; }
+        .stock-status.safe { background: #e5f5ed; color: #176443; }
+        .stock-status.low { background: #fff1d8; color: #88530d; }
+        .stock-status.out { background: #fde8e7; color: #9f3028; }
         small { color: #64748b; }
-      </style></head><body><header><strong>ANYOSTORE</strong><h1>Laporan Stok Produk</h1><div class="meta"><span>Dicetak: ${escapeHtml(new Date().toLocaleString('id-ID'))}</span><span>Total Produk: ${money(allSummary.total_products)}</span><span>Total Stok: ${money(allSummary.total_stock)}</span><span>Mode: ${escapeHtml(mode)}</span></div></header><table><thead><tr><th>Produk</th>${whColumns.map((warehouse) => `<th class="number">${escapeHtml(warehouse.name)}</th>`).join('')}<th class="number">Total</th></tr></thead><tbody>${tableRows}</tbody></table></body></html>`;
+      </style></head><body><header><strong>ANYOSTORE</strong><h1>Laporan Stok Produk</h1><div class="meta"><span>Dicetak: ${escapeHtml(new Date().toLocaleString('id-ID'))}</span><span>Total Produk: ${money(allSummary.total_products)}</span><span>Total Stok: ${money(allSummary.total_stock)}</span><span>Mode: ${escapeHtml(mode)}</span></div></header><table><thead><tr><th>Produk</th><th>Status</th>${whColumns.map((warehouse) => `<th class="number">${escapeHtml(warehouse.name)}</th>`).join('')}<th class="number">Total</th></tr></thead><tbody>${tableRows}</tbody></table></body></html>`;
       let printed = false;
       const triggerPrint = () => {
         if (printed || printWindow.closed) return;
@@ -312,6 +364,7 @@ export default function StockReportSection() {
   }
 
   function rackControl(product, warehouse, compact = false) {
+    if (!Object.hasOwn(product.qtyByWarehouse, String(warehouse.id))) return null;
     const key = rackKey(product, warehouse);
     const rack = product.rackByWarehouse[String(warehouse.id)] || '';
     if (editingRack === key) {
@@ -340,121 +393,173 @@ export default function StockReportSection() {
             <span>Laporan Stok Produk</span>
           </div>
           <div className="print-meta">
-            <span>Dicetak: {new Date().toLocaleString('id-ID')}</span>
-            <span>Total Produk: {summary.total_products}</span>
-            <span>Total Stok: {money(summary.total_stock)}</span>
+            <span>Dicetak: {printDate}</span>
+            <span>Total Produk: {printSummary.total_products}</span>
+            <span>Total Stok: {money(printSummary.total_stock)}</span>
             <span>Mode: {isOwner ? (activeBranchId === 'all' ? 'Semua Toko/Gudang' : 'Satu Toko/Gudang') : (branchId ? 'Satu Toko' : 'Semua Toko')}</span>
           </div>
         </div>
 
-        <div className="no-print" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ flex: 1 }} />
-          <button type="button" className="button-link" onClick={exportCsv} disabled={exportBusy || loading || !Number(summary.total_products)}>{exportBusy ? 'Menyiapkan…' : 'Unduh Excel'}</button>
-          <button type="button" className="button-link" onClick={printPdf} disabled={exportBusy || loading || !Number(summary.total_products)}>{exportBusy ? 'Menyiapkan…' : 'Unduh PDF'}</button>
-        </div>
-
-        {summary && (
-          <div className="stock-summary-grid">
-            <div className="stock-summary-item">
-              <span className="stock-summary-label">Total Produk</span>
-              <strong className="stock-summary-value">{money(summary.total_products)}</strong>
-              {((isOwner && activeBranchId === 'all') || (isGudang && !branchId)) && (
-                <small className="stock-summary-note">{summary.total_branches} toko/gudang</small>
-              )}
+        <section className="stock-overview-hero no-print" aria-label="Ringkasan stok">
+          <div className="stock-overview-copy">
+            <span className="stock-overview-eyebrow">STOK TERSEDIA · {scopeLabel}</span>
+            <div className="stock-overview-total">
+              <strong>{money(summary.total_stock)}</strong>
+              <span>pcs total stok</span>
             </div>
-            <div className="stock-summary-item is-stock">
-              <span className="stock-summary-label">Total Stok</span>
-              <strong className="stock-summary-value">{money(summary.total_stock)}</strong>
+            <div className="stock-overview-product-count">
+              <strong>{money(summary.total_products)}</strong>
+              <span>produk terpantau</span>
             </div>
-            <div className={`stock-summary-item${Number(summary.low_stock) > 0 ? ' is-alert' : ''}`}>
-              <span className="stock-summary-label">Stok Rendah</span>
-              <strong className="stock-summary-value">{money(summary.low_stock)}</strong>
+            {((isOwner && activeBranchId === 'all') || (isGudang && !branchId)) && (
+              <small className="stock-overview-scope-note">{money(summary.total_branches)} toko/gudang dalam cakupan</small>
+            )}
+          </div>
+          <div className="stock-overview-chart">
+            <div
+              className="stock-status-donut"
+              role="img"
+              aria-label={`${money(safeCount)} aman, ${money(lowCount)} menipis, ${money(outCount)} habis`}
+              data-empty={summaryTotal === 0 ? 'true' : 'false'}
+              style={{ '--safe-share': safeShare, '--low-share': lowShare }}
+            >
+              <span>{money(summary.total_products)}</span>
+              <small>produk</small>
             </div>
-            <div className={`stock-summary-item${Number(summary.out_of_stock) > 0 ? ' is-alert' : ''}`}>
-              <span className="stock-summary-label">Habis</span>
-              <strong className="stock-summary-value">{money(summary.out_of_stock)}</strong>
+            <div className="stock-status-legend" aria-label="Ringkasan kondisi stok">
+              <div data-stock-status="safe"><i /> <span>Aman</span><strong>{money(safeCount)}</strong></div>
+              <div data-stock-status="low"><i /> <span>Menipis</span><strong>{money(lowCount)}</strong></div>
+              <div data-stock-status="out"><i /> <span>Habis</span><strong>{money(outCount)}</strong></div>
             </div>
           </div>
-        )}
+        </section>
 
-        <div className="stock-filter-row no-print" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-          <input aria-label="Cari stok berdasarkan nama atau SKU" placeholder="Cari nama/SKU…" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ flex: 1, minWidth: 180, minHeight: 40 }} />
-          <select aria-label="Filter kategori" value={cat} onChange={(e) => setCat(e.target.value)} style={{ minWidth: 150, minHeight: 40 }}>
-            <option value="">Semua kategori</option>
-            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          {isGudang && (
-            <select aria-label={isGudang ? 'Filter gudang' : 'Filter toko'} value={branchId} onChange={(e) => setBranchId(e.target.value)} style={{ minWidth: 160, minHeight: 40 }}>
-              <option value="">{isGudang ? 'Semua Gudang' : 'Semua Toko'}</option>
-              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+        <div className="stock-toolbar no-print">
+          <div className="stock-status-filter" role="group" aria-label="Filter status produk">
+            <button type="button" className={statusFilter === 'all' ? 'is-active' : ''} aria-pressed={statusFilter === 'all'} onClick={() => setStatusFilter('all')}>Semua</button>
+            <button type="button" className={statusFilter === 'low' ? 'is-active' : ''} data-stock-status="low" aria-pressed={statusFilter === 'low'} onClick={() => setStatusFilter('low')}>Menipis</button>
+            <button type="button" className={statusFilter === 'out' ? 'is-active' : ''} data-stock-status="out" aria-pressed={statusFilter === 'out'} onClick={() => setStatusFilter('out')}>Habis</button>
+          </div>
+          <input className="stock-search" aria-label="Cari stok berdasarkan nama atau SKU" placeholder="Cari nama/SKU…" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
+          <div className="stock-desktop-controls">
+            <select aria-label="Filter kategori" className="stock-select" value={cat} onChange={(e) => setCat(e.target.value)}>
+              <option value="">Semua kategori</option>
+              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-          )}
+            <select aria-label="Urutkan stok" className="stock-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+              <option value="name">Nama A–Z</option>
+              <option value="name_desc">Nama Z–A</option>
+              <option value="stock_asc">Stok terendah</option>
+              <option value="stock_desc">Stok tertinggi</option>
+            </select>
+            {isGudang && (
+              <select aria-label="Filter gudang" className="stock-select" value={branchId} onChange={(e) => setBranchId(e.target.value)}>
+                <option value="">Semua gudang</option>
+                {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            )}
+            <button type="button" className="stock-export-button" onClick={exportCsv} disabled={exportBusy || loading || !visibleGroups.length}>{exportBusy ? 'Menyiapkan…' : 'Unduh Excel'}</button>
+            <button type="button" className="stock-export-button secondary" onClick={printPdf} disabled={exportBusy || loading || !visibleGroups.length}>{exportBusy ? 'Menyiapkan…' : 'Unduh PDF'}</button>
+          </div>
+          <details className="stock-mobile-controls">
+            <summary aria-label="Buka filter dan tindakan stok">⋯</summary>
+            <div className="stock-mobile-controls-panel">
+              <label>Urutkan
+                <select aria-label="Urutkan stok" className="stock-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                  <option value="name">Nama A–Z</option>
+                  <option value="name_desc">Nama Z–A</option>
+                  <option value="stock_asc">Stok terendah</option>
+                  <option value="stock_desc">Stok tertinggi</option>
+                </select>
+              </label>
+              <label>Kategori
+                <select aria-label="Filter kategori" className="stock-select" value={cat} onChange={(e) => setCat(e.target.value)}>
+                  <option value="">Semua kategori</option>
+                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </label>
+              {isGudang && (
+                <label>Gudang
+                  <select aria-label="Filter gudang" className="stock-select" value={branchId} onChange={(e) => setBranchId(e.target.value)}>
+                    <option value="">Semua gudang</option>
+                    {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
+                </label>
+              )}
+              <div className="stock-mobile-exports">
+                <button type="button" className="stock-export-button" onClick={exportCsv} disabled={exportBusy || loading || !visibleGroups.length}>{exportBusy ? 'Menyiapkan…' : 'Unduh Excel'}</button>
+                <button type="button" className="stock-export-button secondary" onClick={printPdf} disabled={exportBusy || loading || !visibleGroups.length}>{exportBusy ? 'Menyiapkan…' : 'Unduh PDF'}</button>
+              </div>
+            </div>
+          </details>
         </div>
 
         {message && <p className="message" role="status">{message}</p>}
 
-        {/* Desktop & cetak: tabel matriks. Mobile: kartu (tanpa scroll samping). */}
-        <div className="stock-table-wrap" style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-md)' }}>
+        {/* Desktop & cetak: tabel matriks. PWA: baris stok yang mudah dipindai. */}
+        <div className="stock-table-wrap">
+          <table className="stock-matrix">
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
-                <th style={{ padding: '8px 10px' }}>Produk</th>
-                {whColumns.map((w) => <th key={w.id} style={{ padding: '8px 10px', textAlign: 'right', whiteSpace: 'nowrap' }}>{w.name}</th>)}
-                <th style={{ padding: '8px 10px', textAlign: 'right' }}>Total</th>
+                <th>Produk</th>
+                <th>Status</th>
+                {whColumns.map((w) => <th key={w.id} className="is-number">{w.name}</th>)}
+                <th className="is-number">Total</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={colSpan} style={{ padding: 10, color: 'var(--muted-foreground)' }}>Memuat…</td></tr>}
+              {loading && <tr><td colSpan={colSpan}>Memuat…</td></tr>}
               {!loading && visibleGroups.map((g) => (
-                <tr key={g.key} style={{ borderBottom: '1px solid var(--border)' }}>
-                  <td style={{ padding: '8px 10px', fontWeight: 600 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 150 }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 6, overflow: 'hidden', flex: '0 0 auto' }}>
+                <tr key={g.key}>
+                  <td>
+                    <div className="stock-matrix-product">
+                      <div className="stock-matrix-photo">
                         <SafeImage src={g.photo_path ? mediaUrl(g.photo_path) : ''} alt={g.name} />
                       </div>
-                      <span>{g.name}</span>
+                      <div><strong>{g.name}</strong>{g.sku && <small>{g.sku}</small>}</div>
                     </div>
                   </td>
-                  {whColumns.map((w) => <td key={w.id} style={{ padding: '8px 10px', textAlign: 'right' }}><strong>{money(g.qtyByWarehouse[String(w.id)] || 0)}</strong>{rackControl(g, w)}</td>)}
-                  <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>{money(g.total)}</td>
+                  <td><span className="stock-status-badge" data-stock-status={stockStatus(g)}>{stockStatusLabel(g)}</span></td>
+                  {whColumns.map((w) => <td key={w.id} className="is-number"><strong>{money(g.qtyByWarehouse[String(w.id)] || 0)}</strong>{rackControl(g, w)}</td>)}
+                  <td className="is-number"><strong>{money(g.total)}</strong></td>
                 </tr>
               ))}
-              {!loading && !grouped.length && (
-                <tr><td colSpan={colSpan} style={{ padding: 20, textAlign: 'center', color: 'var(--muted-foreground)' }}>Belum ada stok tercatat.</td></tr>
+              {!loading && !visibleGroups.length && (
+                <tr><td colSpan={colSpan} className="stock-empty-cell">{statusFilter !== 'all' ? 'Tidak ada produk pada status ini.' : (q || cat) ? 'Produk tidak ditemukan dalam cakupan ini.' : 'Belum ada stok tercatat.'}</td></tr>
               )}
             </tbody>
           </table>
         </div>
 
-        <div className="stock-cards-mobile">
+        <div className="stock-product-list">
           {loading && <p className="muted">Memuat…</p>}
           {!loading && visibleGroups.map((g) => (
-            <article key={g.key} className="stock-card" style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 12, background: '#fff' }}>
-              <div className="stock-card-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ width: 42, height: 42, borderRadius: 8, overflow: 'hidden', flex: '0 0 auto' }}>
+            <article key={g.key} className="stock-product-row" data-stock-status={stockStatus(g)}>
+              <div className="stock-product-main">
+                <div className="stock-product-identity">
+                  <div className="stock-product-photo">
                     <SafeImage src={g.photo_path ? mediaUrl(g.photo_path) : ''} alt={g.name} />
                   </div>
-                  <div style={{ minWidth: 0 }}>
-                    <strong style={{ fontSize: 14, display: 'block' }}>{g.name}</strong>
-                    <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted-foreground)' }}>{g.sku || ''}</span>
+                  <div className="stock-product-copy">
+                    <strong>{g.name}</strong>
+                    {g.sku && <small>{g.sku}</small>}
+                    <span className="stock-status-badge" data-stock-status={stockStatus(g)}>{stockStatusLabel(g)}</span>
                   </div>
                 </div>
-                <strong style={{ fontSize: 16, color: '#1e3a5f', whiteSpace: 'nowrap' }}>{money(g.total)}</strong>
+                <div className="stock-product-total"><strong>{money(g.total)}</strong><span>pcs</span></div>
               </div>
-              <div className="stock-card-chips" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-                    {whColumns.map((w) => {
-                      const qty = g.qtyByWarehouse[String(w.id)] || 0;
-                      return (
-                        <div key={w.id} style={{ padding: '5px 8px', borderRadius: 8, background: qty > 0 ? '#eef2ff' : '#f1f5f9', color: qty > 0 ? '#1e3a5f' : '#94a3b8', fontSize: 'var(--fs-xs)', fontWeight: 600 }}>
-                          {w.name}: {money(qty)}{rackControl(g, w, true)}
-                        </div>
-                      );
-                    })}
+              <div className="stock-warehouse-details">
+                {whColumns.map((w) => (
+                  <div key={w.id} className="stock-warehouse-row">
+                    <span>{w.name}</span>
+                    <strong>{money(g.qtyByWarehouse[String(w.id)] || 0)} pcs</strong>
+                    {rackControl(g, w, true)}
+                  </div>
+                ))}
               </div>
             </article>
           ))}
-          {!loading && !grouped.length && <p className="muted">Belum ada stok tercatat.</p>}
+          {!loading && !visibleGroups.length && <p className="stock-empty-message">{statusFilter !== 'all' ? 'Tidak ada produk pada status ini.' : (q || cat) ? 'Produk tidak ditemukan dalam cakupan ini.' : 'Belum ada stok tercatat.'}</p>}
         </div>
         {!loading && pagination.has_more && (
           <div style={{ display: 'flex', justifyContent: 'center', margin: '12px 0 4px' }}>
@@ -466,17 +571,12 @@ export default function StockReportSection() {
       </div>
       <style>{`
         .report-print-header { display: none; }
-        .stock-cards-mobile { display: none; }
         .rack-display { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 3px; color: var(--muted-foreground); font-size: 10px; font-weight: 400; white-space: nowrap; }
         .rack-display-compact { justify-content: flex-start; margin-top: 3px; font-size: 10px; }
         .rack-edit-button { border: 0; background: transparent; color: var(--primary); cursor: pointer; padding: 0 2px; line-height: 1; font-size: 15px; }
         .rack-editor { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 4px; }
         .rack-editor input { width: 100px; min-width: 0; min-height: 28px; padding: 3px 6px; border: 1px solid var(--border); border-radius: 5px; font-size: 11px; }
         .rack-editor .small { min-height: 28px; padding: 3px 6px; font-size: 10px; }
-        @media (max-width: 900px) {
-          .stock-table-wrap { display: none; }
-          .stock-cards-mobile { display: grid; gap: 10px; }
-        }
         @media print {
           @page { size: A4 portrait; margin: 12mm; }
           html, body { width: auto !important; }
@@ -486,7 +586,7 @@ export default function StockReportSection() {
           .print-meta { display: flex; flex-wrap: wrap; gap: 3px 16px; margin-top: 6px; font-size: 10px; color: #374151; }
           .no-print { display: none !important; }
           .stock-table-wrap { display: block !important; }
-          .stock-cards-mobile { display: none !important; }
+          .stock-product-list { display: none !important; }
           body * { visibility: visible !important; }
           .app-shell, .app-main { display: block !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
           .app-shell, .app-main, .app-content, .app-shell > div { display: block !important; width: 100% !important; }

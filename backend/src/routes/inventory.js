@@ -388,16 +388,16 @@ router.get('/stock-by-warehouse', async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Parameter halaman stok tidak valid.' });
     }
 
-    let where = 'WHERE w.is_active = TRUE AND p.is_active = TRUE';
+    let where = 'WHERE p.is_active = TRUE';
     const params = [];
-    if (!showAll) { where += ' AND w.branch_id = ?'; params.push(branchId); }
+    if (!showAll) { where += ' AND p.branch_id = ?'; params.push(branchId); }
     if (search) { where += ' AND (p.name LIKE ? OR p.sku LIKE ?)'; const s = `%${search}%`; params.push(s, s); }
     if (categoryId) { where += ' AND p.category_id = ?'; params.push(categoryId); }
 
-    const stockJoins = `FROM warehouse_stocks ws
-       JOIN warehouses w ON w.id = ws.warehouse_id
-       JOIN branches b ON b.id = w.branch_id
-       JOIN products p ON p.id = ws.product_id`;
+    const stockJoins = `FROM products p
+       JOIN branches b ON b.id = p.branch_id
+       LEFT JOIN warehouses w ON w.branch_id = p.branch_id AND w.is_active = TRUE
+       LEFT JOIN warehouse_stocks ws ON ws.product_id = p.id AND ws.warehouse_id = w.id AND ws.variant_id IS NULL`;
     let rows;
     let summary;
     let pagination;
@@ -416,7 +416,7 @@ router.get('/stock-by-warehouse', async (req, res, next) => {
            SELECT COUNT(*) AS total_products,
                   COALESCE(SUM(total_stock), 0) AS total_stock,
                   COALESCE(SUM(total_stock > 0 AND total_stock <= min_stock), 0) AS low_stock,
-                  COALESCE(SUM(total_stock = 0), 0) AS out_of_stock,
+                  COALESCE(SUM(total_stock <= 0), 0) AS out_of_stock,
                   COALESCE((SELECT COUNT(DISTINCT branch_name) FROM filtered_stock), 0) AS total_branches
            FROM product_totals`,
           params
@@ -436,7 +436,7 @@ router.get('/stock-by-warehouse', async (req, res, next) => {
            SELECT COUNT(*) > ? AS has_more FROM page_products
          )
          SELECT b.name AS branch_name, w.id AS warehouse_id, w.name AS warehouse_name,
-                ws.product_id, p.name AS product_name, p.sku,
+                p.id AS product_id, p.name AS product_name, p.sku,
                 (SELECT pp.path FROM product_photos pp
                  WHERE pp.product_id = p.id AND pp.media_type = 'image'
                  ORDER BY (pp.variant_id IS NULL) DESC, pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,
@@ -463,7 +463,7 @@ router.get('/stock-by-warehouse', async (req, res, next) => {
     } else {
       [rows] = await db.execute(
         `SELECT b.name AS branch_name, w.id AS warehouse_id, w.name AS warehouse_name,
-                ws.product_id, p.name AS product_name, p.sku,
+                p.id AS product_id, p.name AS product_name, p.sku,
                 (SELECT pp.path FROM product_photos pp
                  WHERE pp.product_id = p.id AND pp.media_type = 'image'
                  ORDER BY (pp.variant_id IS NULL) DESC, pp.is_primary DESC, pp.sort_order ASC, pp.id DESC LIMIT 1) AS photo_path,

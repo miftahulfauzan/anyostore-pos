@@ -11,19 +11,68 @@ const customers = read('app/customers/page.js');
 const reports = read('app/reports/page.js');
 const styles = read('app/globals.css');
 const backendCustomers = fs.readFileSync(path.join(root, '..', 'backend', 'src', 'routes', 'customers.js'), 'utf8');
+const backendInventory = fs.readFileSync(path.join(root, '..', 'backend', 'src', 'routes', 'inventory.js'), 'utf8');
 
-test('kartu ringkasan stok memakai kelas bersama, bukan style inline', () => {
-  // Dulu tiap kartu punya style inline sendiri sehingga label pecah dua baris
-  // ("Total / Produk") dan angka tidak sejajar.
-  assert.match(stockView, /className="stock-summary-grid"/);
-  assert.equal((stockView.match(/stock-summary-item/g) || []).length >= 4, true);
-  assert.match(stockView, /stock-summary-label/);
-  assert.match(stockView, /stock-summary-value/);
-  assert.doesNotMatch(stockView, /padding: 16, borderRadius: 8, background/);
-  assert.match(styles, /\.stock-summary-grid \{\s*display: grid;\s*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/s);
-  // Label satu baris: tanpa huruf kapital paksa yang membuat teks terpotong.
-  assert.match(styles, /\.stock-summary-label \{[^}]*white-space: nowrap;/s);
-  assert.doesNotMatch(styles, /\.stock-summary-grid p:last-child \{ display: none; \}/);
+test('halaman stok merangkum status dalam hero dan menyediakan filter APK', () => {
+  assert.match(stockView, /className="stock-overview-hero(?: no-print)?"/);
+  assert.match(stockView, /className="stock-status-donut"/);
+  assert.match(stockView, /data-stock-status="low"/);
+  assert.match(stockView, /data-stock-status="out"/);
+  assert.match(stockView, /Semua[\s\S]*Menipis[\s\S]*Habis/);
+  assert.match(stockView, /aria-pressed=\{statusFilter ===/);
+  assert.match(styles, /\.stock-overview-hero \{/);
+  assert.match(styles, /\.stock-status-donut \{/);
+  assert.match(styles, /\.stock-product-row \{/);
+  assert.match(styles, /\.dark \.stock-overview-hero/);
+});
+
+test('status produk mengikuti batas APK untuk stok negatif, habis, dan minimum', async () => {
+  const { stockStatus } = await import('../app/inventory/stock-status.mjs');
+  const fixtures = [
+    [{ total: -1, min_stock: 3 }, 'out'],
+    [{ total: 0, min_stock: 3 }, 'out'],
+    [{ total: 1, min_stock: 3 }, 'low'],
+    [{ total: 3, min_stock: 3 }, 'low'],
+    [{ total: 4, min_stock: 3 }, 'safe'],
+  ];
+  assert.deepEqual(fixtures.map(([group]) => stockStatus(group)), fixtures.map(([, expected]) => expected));
+});
+
+test('header cetak menampilkan ringkasan baris yang dicetak', () => {
+  const printHeader = stockView.match(/<div className="report-print-header">[\s\S]*?<\/div>\s*<\/div>/)?.[0] || '';
+  assert.match(printHeader, /Total Produk: \{printSummary\.total_products\}/);
+  assert.match(printHeader, /Total Stok: \{money\(printSummary\.total_stock\)\}/);
+});
+
+test('tanggal cetak diperbarui saat dialog cetak dibuka', () => {
+  assert.match(stockView, /import \{ flushSync \} from 'react-dom'/);
+  assert.match(stockView, /addEventListener\('beforeprint', updatePrintDate\)/);
+  assert.match(stockView, /removeEventListener\('beforeprint', updatePrintDate\)/);
+  assert.match(stockView, /const updatePrintDate = \(\) => flushSync\(\(\) => setPrintDate\(new Date\(\)\.toLocaleString\('id-ID'\)\)\)/);
+});
+
+test('edit rak hanya tersedia untuk gudang pada cabang produk', () => {
+  assert.match(stockView, /if \(!Object\.hasOwn\(product\.qtyByWarehouse, String\(warehouse\.id\)\)\) return null;/);
+});
+
+test('nama dan status produk tetap gelap saat dicetak dari tema gelap', () => {
+  const stockPrintStyles = styles.slice(styles.lastIndexOf('@media print'));
+  assert.match(stockPrintStyles, /\.stock-matrix \.stock-matrix-product strong \{[^}]*color: #111827 !important;/s);
+  assert.match(stockPrintStyles, /\.stock-matrix \.stock-status-badge \{[^}]*color: #176443 !important;/s);
+  assert.match(stockPrintStyles, /\.stock-matrix \.stock-status-badge\[data-stock-status="low"\] \{[^}]*color: #88530d !important;/s);
+  assert.match(stockPrintStyles, /\.stock-matrix \.stock-status-badge\[data-stock-status="out"\] \{[^}]*color: #9f3028 !important;/s);
+});
+
+test('summary stok menganggap saldo negatif sebagai stok habis', () => {
+  assert.match(backendInventory, /COALESCE\(SUM\(total_stock <= 0\), 0\) AS out_of_stock/);
+});
+
+test('daftar stok memuat produk aktif meski belum punya baris saldo gudang', () => {
+  const warehouseStockRoute = backendInventory.slice(backendInventory.indexOf("router.get('/stock-by-warehouse'"));
+  assert.match(warehouseStockRoute, /FROM products p/);
+  assert.match(warehouseStockRoute, /LEFT JOIN warehouses w ON w\.branch_id = p\.branch_id AND w\.is_active = TRUE/);
+  assert.match(warehouseStockRoute, /LEFT JOIN warehouse_stocks ws ON ws\.product_id = p\.id AND ws\.warehouse_id = w\.id AND ws\.variant_id IS NULL/);
+  assert.match(warehouseStockRoute, /p\.id AS product_id/);
 });
 
 test('form pelanggan punya kolom alamat dan API mengembalikannya', () => {
