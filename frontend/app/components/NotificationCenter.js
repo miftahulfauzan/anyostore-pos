@@ -126,7 +126,10 @@ export default function NotificationCenter() {
           }
         }
         completedSuccessfully = response.ok;
-        if (!response.ok) {
+        const expectedLoginSessionCheck = response.status === 401
+          && window.location.pathname === '/login'
+          && /auth\/me(?:[?#]|$)/.test(url);
+        if (!response.ok && !expectedLoginSessionCheck) {
           let body = null;
           try { body = await response.clone().json(); } catch { /* Respons tidak selalu berupa JSON. */ }
           const detail = requestDetail(url, method, response.status);

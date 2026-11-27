@@ -27,6 +27,16 @@ test('global fetch wrapper filters expected cancellations before showing an erro
   assert.match(source, /if \(expectedAbort\)[\s\S]*?else \{\s*show\('error'/);
 });
 
+test('login session checks do not show an error when the visitor is logged out', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../app/components/NotificationCenter.js'), 'utf8');
+  const expectedCheck = source.match(/const expectedLoginSessionCheck = ([\s\S]*?);/);
+  assert.ok(expectedCheck);
+  assert.match(expectedCheck[1], /response\.status === 401/);
+  assert.match(expectedCheck[1], /window\.location\.pathname === '\/login'/);
+  assert.ok(expectedCheck[1].includes(String.raw`/auth\/me(?:[?#]|$)/`));
+  assert.ok(source.includes('if (!response.ok && !expectedLoginSessionCheck) {'));
+});
+
 test('aborting the final mutation also dismisses its loading notice', () => {
   const source = fs.readFileSync(path.join(__dirname, '../app/components/NotificationCenter.js'), 'utf8');
   assert.match(source, /if \(isMutation && pendingRequests\.current\.size === 1\)\s*\{\s*setNotice\(\(current\) => current\?\.type === 'loading' \? null : current\)/);
