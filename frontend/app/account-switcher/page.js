@@ -149,19 +149,23 @@ export default function AccountSwitcherPage() {
     // halaman awal role bila cookie sesi masih sah, sehingga tanpa logout
     // "Tambah akun" akan memantul dan tidak pernah menampilkan form.
     setBusy('leave');
+    setMessage('');
     try {
-      await fetch(`${apiUrl}/auth/logout`, {
+      const response = await fetch(`${apiUrl}/auth/logout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'SI_SECRET_SECRET_JS4GJQYJ',
+        credentials: 'include',
         // preserve_saved: akun yang diingat tetap tersedia untuk dipilih lagi.
         body: JSON.stringify({ preserve_saved: true }),
       });
-    } catch {
-      // Jaringan gagal: sesi lokal tetap dibersihkan agar pengguna bisa masuk.
-    } finally {
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message || 'Sesi tidak dapat diakhiri. Coba lagi.');
       clearSession();
       router.replace('/login');
+    } catch (error) {
+      setMessage(error.message || 'Sesi tidak dapat diakhiri. Coba lagi.');
+    } finally {
+      setBusy('');
     }
   }
 
@@ -185,7 +189,7 @@ export default function AccountSwitcherPage() {
           {data?.active_saved
             ? <span className="status-pill status-pill-success">Tersimpan</span>
             : (
-              <button type="button" className="button-secondary" onClick={rememberActive} disabled={busy === 'remember'}>
+              <button type="button" className="button-secondary" onClick={rememberActive} disabled={Boolean(busy)}>
                 {busy === 'remember' ? 'Menyimpan…' : 'Simpan akun'}
               </button>
             )}
@@ -208,7 +212,7 @@ export default function AccountSwitcherPage() {
                     {[ROLE_LABEL[account.role] || account.role, account.username || account.email].filter(Boolean).join(' · ')}
                   </div>
                 </div>
-                <button type="button" className="button-secondary" onClick={() => switchTo(account)} disabled={busy === `switch-${account.id}`}>
+                <button type="button" className="button-secondary" onClick={() => switchTo(account)} disabled={Boolean(busy)}>
                   <LogIn aria-hidden="true" size={15} /> {busy === `switch-${account.id}` ? 'Berpindah…' : 'Pindah'}
                 </button>
                 <button
@@ -216,7 +220,7 @@ export default function AccountSwitcherPage() {
                   className="icon-action"
                   aria-label={`Hapus akun ${account.name || account.email}`}
                   onClick={() => removeAccount(account)}
-                  disabled={busy === `remove-${account.id}`}
+                  disabled={Boolean(busy)}
                 >
                   <Trash2 aria-hidden="true" size={15} />
                 </button>
@@ -226,11 +230,11 @@ export default function AccountSwitcherPage() {
         )}
 
         <div style={{ display: 'flex', gap: 8, marginTop: 18, flexWrap: 'wrap' }}>
-          <button type="button" onClick={addAccount}>
+          <button type="button" onClick={addAccount} disabled={Boolean(busy)}>
             <Plus aria-hidden="true" size={15} /> Tambah akun
           </button>
           {data?.active_saved && (
-            <button type="button" className="button-secondary" onClick={() => removeAccount(active)} disabled={busy === `remove-${active?.id}`}>
+            <button type="button" className="button-secondary" onClick={() => removeAccount(active)} disabled={Boolean(busy)}>
               <Trash2 aria-hidden="true" size={15} /> Hapus akun ini
             </button>
           )}

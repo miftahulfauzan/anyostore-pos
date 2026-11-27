@@ -84,9 +84,9 @@ export default function LoginPage() {
         ) : (
           <label>Password<input name="password" autoComplete="current-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
         )}
-        <label style={{ display: 'flex', gap: '.45rem', alignItems: 'center', cursor: 'pointer' }}>
+        <label className="login-remember">
           <input type="checkbox" name="remember_account" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
-          Ingat akun ini
+          <span>Ingat akun ini</span>
         </label>
         <button type="submit" disabled={loading || checking}>{loading ? 'Memproses…' : 'Masuk ke POS'}</button>
         {message && <p className="message" role="status">{message}</p>}

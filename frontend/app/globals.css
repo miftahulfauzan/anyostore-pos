@@ -1250,6 +1250,8 @@ a, .photo-upload { color:var(--expressive-secondary); }
 .login h2 { margin: 5px 0 7px; font-size: 22px; letter-spacing: -.04em; }
 .login label { color: #334155; font-size: 11px; }
 .login input { border-radius: 4px; }
+.login .login-remember { display: flex; align-items: center; gap: 10px; min-height: 44px; margin: 0; cursor: pointer; }
+.login .login-remember input[type="checkbox"] { flex: 0 0 20px; width: 20px; height: 20px; min-height: 20px; margin: 0; padding: 0; border: 0; background: transparent; accent-color: var(--primary); }
 .login button { width: 100%; min-height: 42px; border-radius: 4px; }
 .finance-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
