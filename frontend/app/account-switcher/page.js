@@ -47,7 +47,7 @@ export default function AccountSwitcherPage() {
   }, [resolved, user, router]);
 
   function guardUnsaved() {
-    return hasUnsavedWork() && !window.confirm('Ada input atau keranjang yang belum disimpan. Pindah akun akan menghapus pekerjaan tersebut. Lanjutkan?');
+    return !hasUnsavedWork() || window.confirm('Ada input atau keranjang yang belum disimpan. Pindah akun akan menghapus pekerjaan tersebut. Lanjutkan?');
   }
 
   async function switchTo(account) {
